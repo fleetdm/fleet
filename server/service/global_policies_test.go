@@ -44,7 +44,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{}, nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 		return nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
@@ -132,7 +132,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.ListGlobalPolicies(ctx, fleet.ListOptions{})
+			_, err = svc.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetPolicyByID(ctx, 1)

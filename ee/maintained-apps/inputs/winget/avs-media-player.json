@@ -1,0 +1,14 @@
+{
+  "name": "AVS Media Player",
+  "slug": "avs-media-player/windows",
+  "package_identifier": "Ascensio.AVSMediaPlayer",
+  "unique_identifier": "AVS Media Player",
+  "fuzzy_match_name": true,
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/avs-media-player_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/avs-media-player_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

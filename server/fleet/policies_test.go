@@ -85,3 +85,41 @@ func TestFirstFuplicatePolicySpecName(t *testing.T) {
 		require.Equal(t, tc.result, name)
 	}
 }
+
+func TestPolicySpecVerifyFleetMaintainedAppSlug(t *testing.T) {
+	testCases := []struct {
+		name    string
+		spec    PolicySpec
+		wantErr error
+	}{
+		{
+			name: "patch policy with slug is allowed",
+			spec: PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin"},
+		},
+		{
+			name:    "dynamic policy with slug is rejected",
+			spec:    PolicySpec{Name: "Chrome installed", Team: "Workstations", Query: "SELECT 1;", Type: PolicyTypeDynamic, FleetMaintainedAppSlug: "google-chrome/darwin"},
+			wantErr: errPolicyFMASlugRequiresPatch,
+		},
+		{
+			name:    "policy without type but with slug is rejected",
+			spec:    PolicySpec{Name: "Chrome installed", Team: "Workstations", Query: "SELECT 1;", FleetMaintainedAppSlug: "google-chrome/darwin"},
+			wantErr: errPolicyFMASlugRequiresPatch,
+		},
+		{
+			name: "dynamic policy without slug is allowed",
+			spec: PolicySpec{Name: "Chrome installed", Team: "Workstations", Query: "SELECT 1;", Type: PolicyTypeDynamic},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.spec.Verify()
+			if tc.wantErr == nil {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
+}

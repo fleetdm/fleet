@@ -2,7 +2,7 @@
   "name": "ONLYOFFICE",
   "unique_identifier": "asc.onlyoffice.editors-helper-renderer",
   "token": "onlyoffice",
-  "installer_format": "zip",
+  "installer_format": "dmg",
   "slug": "onlyoffice/darwin",
   "default_categories": [
     "Productivity"

@@ -217,7 +217,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 |------|---------|-------|
 | **API & Integration** | | |
 | `api/` | Fleet API testing scripts using curl + jq | `export FLEET_ENV_PATH=./env && ./tools/api/fleet/me` |
-| `fleet-mcp/` | MCP server for querying Fleet data from AI agents (Claude, Cursor, etc.) | `go run ./tools/fleet-mcp` - See [fleet-mcp/README.md](fleet-mcp/README.md) |
 | `jira-integration/` | Test Jira ticket creation | `JIRA_PASSWORD=<pwd> go run ./tools/jira-integration -jira-url <url> -jira-username <user> -jira-project-key <key> -cve CVE-2024-1234` |
 | `webhook/` | Test webhook integrations | `go run ./tools/webhook 8082` |
 | `zendesk-integration/` | Test Zendesk ticket creation | `ZENDESK_TOKEN=<token> go run ./tools/zendesk-integration -zendesk-url <url> -zendesk-email <email> -zendesk-group-id <id> -cve CVE-2024-1234` |
@@ -231,7 +230,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `redis-tests/` | Redis testing configs | ElastiCache and general Redis test configs |
 | `snapshot/` | Database snapshot/restore tool | `go run ./tools/snapshot s` or `go run ./tools/snapshot r` |
 | **Development Tools** | | |
-| `app/` | Prometheus config for local dev | See `prometheus.yml` |
 | `ci/` | CI helper tools (golangci-lint rules) | `rules.go` - ruleguard custom linting rules |
 | `desktop/` | Fleet Desktop development tool | `go run ./tools/desktop` - builds Desktop app |
 | `dialog/` | Test zenity/kdialog dialogs on Linux | `go run ./tools/dialog -dialog zenity` |

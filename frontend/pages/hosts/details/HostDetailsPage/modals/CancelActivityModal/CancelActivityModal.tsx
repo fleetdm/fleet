@@ -75,9 +75,6 @@ const CancelActivityModal = ({
         >
           Cancel activity
         </Button>
-        <Button variant="inverse-alert" onClick={onExit}>
-          Back
-        </Button>
       </div>
     </Modal>
   );

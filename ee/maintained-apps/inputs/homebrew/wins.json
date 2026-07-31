@@ -6,5 +6,6 @@
   "slug": "wins/darwin",
   "default_categories": [
     "Utilities"
-  ]
+  ],
+  "frozen": true
 }

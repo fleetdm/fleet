@@ -21,15 +21,13 @@ describe("WindowsMdmPage", () => {
 
     // switch and description only shown
     expect(screen.getByRole("switch")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Turns on MDM for Windows hosts that enroll to Fleet (excluding servers)."
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText(/On \(manual\)/)).toBeInTheDocument();
 
     // no end user experience form
-    expect(screen.queryByLabelText("Automatic")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Manual")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Fleet agent-driven")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("End user-driven")).not.toBeInTheDocument();
   });
 
   it("renders the end user experience form as disabled when MDM is off", () => {
@@ -46,8 +44,8 @@ describe("WindowsMdmPage", () => {
 
     render(<WindowsMdmPage router={createMockRouter()} />);
 
-    expect(screen.getByLabelText("Automatic")).toBeDisabled();
-    expect(screen.getByLabelText("Manual")).toBeDisabled();
+    expect(screen.getByLabelText("Fleet agent-driven")).toBeDisabled();
+    expect(screen.getByLabelText("End user-driven")).toBeDisabled();
   });
 
   it("renders the automatically migrate checkbox if automatic mdm enrollment is selected", () => {
@@ -67,8 +65,8 @@ describe("WindowsMdmPage", () => {
 
     render(<WindowsMdmPage router={createMockRouter()} />);
 
-    // automatic is selected and the checkbox is visible
-    expect(screen.getByLabelText("Automatic")).toBeChecked();
+    // Fleet agent-driven is selected and the checkbox is visible
+    expect(screen.getByLabelText("Fleet agent-driven")).toBeChecked();
     expect(screen.getByRole("checkbox")).toBeVisible();
   });
 });

@@ -8,7 +8,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 ### [CVE-2026-42306](https://nvd.nist.gov/vuln/detail/CVE-2026-42306)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Status notes:** github.com/docker/docker is only imported in tools/upgrade/fleet_test.go and is never compiled into the fleet binary.
 - **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-26 15:38:17
@@ -16,7 +16,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 ### [CVE-2026-41568](https://nvd.nist.gov/vuln/detail/CVE-2026-41568)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Status notes:** github.com/docker/docker is only imported in tools/upgrade/fleet_test.go and is never compiled into the fleet binary.
 - **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-26 15:38:17
@@ -24,7 +24,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 ### [CVE-2026-41567](https://nvd.nist.gov/vuln/detail/CVE-2026-41567)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Status notes:** github.com/docker/docker is only imported in tools/upgrade/fleet_test.go and is never compiled into the fleet binary.
 - **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-26 15:38:17
@@ -48,7 +48,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 ### [CVE-2026-33997](https://nvd.nist.gov/vuln/detail/CVE-2026-33997)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Status notes:** github.com/docker/docker is only imported in tools/upgrade/fleet_test.go and is never compiled into the fleet binary.
 - **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-26 15:38:16
@@ -284,6 +284,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleetctl` docker image
 
+### [GHSA-r7wm-3cxj-wff9](https://nvd.nist.gov/vuln/detail/GHSA-r7wm-3cxj-wff9)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Incomplete fix for GHSA-72hv-8253-57qq; like the parent advisory, it only affects Java/JVM services that feed attacker-controlled chunked input to Jackson's asynchronous (non-blocking) JSON parser. jackson-core is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted streamed JSON.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-core`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 14:10:31
+
+### [GHSA-hrxh-6v49-42gf](https://nvd.nist.gov/vuln/detail/GHSA-hrxh-6v49-42gf)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerabilities affect the xDS RBAC authorization engine and the HTTP/2 server transport of gRPC-Go; fleetctl does not run a gRPC server nor use xDS (grpc is a transitive dependency used by the Fleet server).
+- **Products:** `fleetctl`,`pkg:golang/google.golang.org/grpc`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 14:10:31
+
 ### [GHSA-72hv-8253-57qq](https://nvd.nist.gov/vuln/detail/GHSA-72hv-8253-57qq)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -315,6 +331,70 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:deb/debian/libssh2-1t64`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:35:00
+
+### [CVE-2026-6653](https://nvd.nist.gov/vuln/detail/CVE-2026-6653)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The affected dependency (libxml2) is not utilized by fleetctl itself, but by Apple's iTMSTransporter tool, which is included in the Docker image for code signing purposes. fleetctl does not process untrusted XML input. Additionally, this CVE describes a denial-of-service (DoS) vulnerability, and fleetctl is a CLI tool, not a long-running service, and therefore is not susceptible to DoS-style exploitation.
+- **Products:** `fleetctl`,`pkg:deb/debian/libxml2`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-17 18:43:57
+
+### [CVE-2026-58016](https://nvd.nist.gov/vuln/detail/CVE-2026-58016)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use glib/GDBus introspection; libglib2.0-0t64 is a transitive OS dependency of libgtk-3-0/wine, installed only for installer-packaging tooling, and g_dbus_node_info_new_for_xml is never reached with untrusted input.
+- **Products:** `fleetctl`,`pkg:deb/debian/libglib2.0-0t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-06 08:51:11
+
+### [CVE-2026-57433](https://nvd.nist.gov/vuln/detail/CVE-2026-57433)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** perl is not used during fleetd package generation.
+- **Products:** `fleetctl`,`pkg:deb/debian/perl-base`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 17:15:39
+
+### [CVE-2026-56852](https://nvd.nist.gov/vuln/detail/CVE-2026-56852)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerability is an infinite loop (DoS) in golang.org/x/text/unicode/norm on malformed input. fleetctl reaches the affected code via norm.NFC.String when normalizing fleet/team names from GitOps YAML and from Fleet server API responses (e.g., ListTeams), and via hostname IDNA normalization in the Go standard library HTTP client for operator-supplied server URLs. An attacker would need the ability to influence those sources (e.g., create/modify fleet/team names on the target Fleet instance) to cause fleetctl to hang.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/text`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-29 12:25:39
+
+### [CVE-2026-54513](https://nvd.nist.gov/vuln/detail/CVE-2026-54513)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Java.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-databind`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:33:33
+
+### [CVE-2026-54512](https://nvd.nist.gov/vuln/detail/CVE-2026-54512)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Java.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-databind`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:33:33
+
+### [CVE-2026-46604](https://nvd.nist.gov/vuln/detail/CVE-2026-46604)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl links golang.org/x/image only for its WebP decoder (used to validate org logo images); the vulnerable TIFF decoder (golang.org/x/image/tiff) is only imported by a macOS-only orbit extension and is not compiled into fleetctl.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/image`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 14:10:31
+
+### [CVE-2026-46602](https://nvd.nist.gov/vuln/detail/CVE-2026-46602)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl links golang.org/x/image only for its WebP decoder (used to validate org logo images); the vulnerable TIFF decoder (golang.org/x/image/tiff) is only imported by a macOS-only orbit extension and is not compiled into fleetctl.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/image`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 14:10:31
 
 ### [CVE-2026-42504](https://nvd.nist.gov/vuln/detail/CVE-2026-42504)
 - **Author:** @lucasmrod
@@ -473,6 +553,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
 - **Justification:** `component_not_present`
 - **Timestamp:** 2026-01-30 09:25:41
+
+### [CVE-2026-13221](https://nvd.nist.gov/vuln/detail/CVE-2026-13221)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** perl is not used during fleetd package generation.
+- **Products:** `fleetctl`,`pkg:deb/debian/perl-base`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-17 18:43:57
 
 ### [CVE-2026-0968](https://nvd.nist.gov/vuln/detail/CVE-2026-0968)
 - **Author:** @lucasmrod
@@ -667,6 +755,70 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/wix` docker image
 
+### [CVE-2026-8461](https://nvd.nist.gov/vuln/detail/CVE-2026-8461)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process media files when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libavcodec61`,`pkg:deb/debian/libavformat61`,`pkg:deb/debian/libavutil59`,`pkg:deb/debian/libswresample5`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:31:34
+
+### [CVE-2026-7598](https://nvd.nist.gov/vuln/detail/CVE-2026-7598)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh2-1t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:31:34
+
+### [CVE-2026-6276](https://nvd.nist.gov/vuln/detail/CVE-2026-6276)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use libcurl when using fleetdm/wix to generate msi installers.
+- **Products:** `wix`,`pkg:deb/debian/libcurl4t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-13 12:01:46
+
+### [CVE-2026-5773](https://nvd.nist.gov/vuln/detail/CVE-2026-5773)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use libcurl when using fleetdm/wix to generate msi installers.
+- **Products:** `wix`,`pkg:deb/debian/libcurl4t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-13 12:01:46
+
+### [CVE-2026-56408](https://nvd.nist.gov/vuln/detail/CVE-2026-56408)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libexpat1 is only present as a transitive dependency of libfontconfig1 (required by Wine). No attacker-controlled XML is parsed with libexpat when fleetctl uses fleetdm/wix to generate MSI packages: fontconfig only parses trusted font configuration files shipped in the image, and the WiX toolset parses the fleetctl-generated .wxs files using .NET's System.Xml under Wine.
+- **Products:** `wix`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-31 09:46:22
+
+### [CVE-2026-56131](https://nvd.nist.gov/vuln/detail/CVE-2026-56131)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libexpat1 is only present as a transitive dependency of libfontconfig1 (required by Wine). No attacker-controlled XML is parsed with libexpat when fleetctl uses fleetdm/wix to generate MSI packages: fontconfig only parses trusted font configuration files shipped in the image, and the WiX toolset parses the fleetctl-generated .wxs files using .NET's System.Xml under Wine.
+- **Products:** `wix`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-31 09:46:22
+
+### [CVE-2026-55200](https://nvd.nist.gov/vuln/detail/CVE-2026-55200)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh2-1t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:31:34
+
+### [CVE-2026-55199](https://nvd.nist.gov/vuln/detail/CVE-2026-55199)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh2-1t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:31:34
+
 ### [CVE-2026-5201](https://nvd.nist.gov/vuln/detail/CVE-2026-5201)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -698,6 +850,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-06-15 08:42:45
+
+### [CVE-2026-45186](https://nvd.nist.gov/vuln/detail/CVE-2026-45186)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libexpat1 is only present as a transitive dependency of libfontconfig1 (required by Wine). No attacker-controlled XML is parsed with libexpat when fleetctl uses fleetdm/wix to generate MSI packages: fontconfig only parses trusted font configuration files shipped in the image, and the WiX toolset parses the fleetctl-generated .wxs files using .NET's System.Xml under Wine.
+- **Products:** `wix`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-31 09:46:22
 
 ### [CVE-2026-42011](https://nvd.nist.gov/vuln/detail/CVE-2026-42011)
 - **Author:** @lucasmrod
@@ -762,6 +922,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-26 10:42:11
+
+### [CVE-2026-40355](https://nvd.nist.gov/vuln/detail/CVE-2026-40355)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers.
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-10 11:44:26
 
 ### [CVE-2026-3833](https://nvd.nist.gov/vuln/detail/CVE-2026-3833)
 - **Author:** @lucasmrod
@@ -875,6 +1043,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:16:53
 
+### [CVE-2026-25210](https://nvd.nist.gov/vuln/detail/CVE-2026-25210)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libexpat1 is only present as a transitive dependency of libfontconfig1 (required by Wine). No attacker-controlled XML is parsed with libexpat when fleetctl uses fleetdm/wix to generate MSI packages: fontconfig only parses trusted font configuration files shipped in the image, and the WiX toolset parses the fleetctl-generated .wxs files using .NET's System.Xml under Wine.
+- **Products:** `wix`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-31 09:46:22
+
 ### [CVE-2026-1837](https://nvd.nist.gov/vuln/detail/CVE-2026-1837)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -883,6 +1059,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:16:53
 
+### [CVE-2026-12912](https://nvd.nist.gov/vuln/detail/CVE-2026-12912)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do TIFF processing when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libtiff6`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 17:21:36
+
 ### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -890,6 +1074,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libc6`,`pkg:deb/debian/libc-bin`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-03-24 12:18:16
+
+### [CVE-2025-70103](https://nvd.nist.gov/vuln/detail/CVE-2025-70103)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process image files when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libjxl0.11`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-10 11:44:26
 
 ### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
 - **Author:** @lucasmrod
@@ -914,6 +1106,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libpng16-16`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2025-12-19 18:02:56
+
+### [CVE-2025-59375](https://nvd.nist.gov/vuln/detail/CVE-2025-59375)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libexpat1 is only present as a transitive dependency of libfontconfig1 (required by Wine). No attacker-controlled XML is parsed with libexpat when fleetctl uses fleetdm/wix to generate MSI packages: fontconfig only parses trusted font configuration files shipped in the image, and the WiX toolset parses the fleetctl-generated .wxs files using .NET's System.Xml under Wine.
+- **Products:** `wix`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-31 09:46:22
 
 ### [CVE-2023-31484](https://nvd.nist.gov/vuln/detail/CVE-2023-31484)
 - **Author:** @lucasmrod

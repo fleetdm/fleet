@@ -1,0 +1,1 @@
+- Bounded the Android device reconciliation cron's Google API pagination so a malformed or cycling response can no longer cause an unbounded loop, and added periodic progress logging during pagination.

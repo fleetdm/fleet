@@ -253,7 +253,7 @@ spec:
       /usr/bin/sudo /bin/launchctl bootout system/com.apple.screensharing
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM launchd WHERE label = 'com.apple.screensharing'
+      SELECT 1 FROM listening_ports WHERE port = 5900 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -281,7 +281,7 @@ spec:
       /usr/bin/sudo /bin/launchctl bootout system/com.apple.smbd
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM launchd WHERE label = 'com.apple.smbd'
+      SELECT 1 FROM listening_ports WHERE port = 445 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -334,7 +334,7 @@ spec:
       (confirm with "yes" when prompted)
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM launchd WHERE label = 'com.openssh.sshd'
+      SELECT 1 FROM listening_ports WHERE port = 22 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -388,7 +388,7 @@ spec:
       /usr/bin/sudo /usr/sbin/systemsetup -setremoteappleevents off
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM launchd WHERE label = 'com.apple.AEServer'
+      SELECT 1 FROM listening_ports WHERE port = 3031 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -420,10 +420,7 @@ spec:
       - Key: forceInternetSharingOff, Value: <true/>
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM plist
-      WHERE path = '/Library/Preferences/SystemConfiguration/com.apple.nat'
-        AND key = 'Enabled'
-        AND value = '1'
+      SELECT 1 FROM sharing_preferences WHERE internet_sharing = 1
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -534,10 +531,7 @@ spec:
       /usr/bin/sudo -u <username> /usr/bin/defaults -currentHost write com.apple.Bluetooth PrefKeyServicesEnabled -bool false
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM preferences
-      WHERE domain = 'com.apple.Bluetooth'
-        AND key = 'PrefKeyServicesEnabled'
-        AND value = '1'
+      SELECT 1 FROM sharing_preferences WHERE bluetooth_sharing = 1
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -722,11 +716,19 @@ spec:
       8. Set Encrypt Backup to enabled
       9. Enter a password in the New Password and the same password in the Re-enter Password fields
   query: |
-    SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM plist
-      WHERE path = '/Library/Preferences/com.apple.TimeMachine.plist'
-        AND value = 'NotEncrypted'
-    );
+    SELECT 1 WHERE
+      NOT EXISTS (
+        SELECT 1 FROM preferences
+        WHERE domain = 'com.apple.TimeMachine'
+          AND key = 'AutoBackup'
+          AND value = 'true'
+      )
+      OR EXISTS (
+        SELECT 1 FROM disk_encryption de
+        JOIN mounts m ON m.device = de.name
+        WHERE de.encrypted = 1
+          AND m.path LIKE '/Volumes/%'
+      );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
@@ -2290,18 +2292,11 @@ spec:
       - Key: minLength
       - Value: <integer>15</integer> (or any value ≥ 15)
   query: |
-    SELECT 1
-    FROM (
-      SELECT CAST(lengthtxt AS INTEGER) AS minlength
-      FROM (
-        SELECT SUBSTRING(length, 1, 2) AS lengthtxt
-        FROM (
-          SELECT split(policy_content, '{', 1) AS length
-          FROM password_policy
-          WHERE policy_identifier LIKE '%minLength'
-        )
-      )
-      WHERE minlength >= 15
+    SELECT 1 FROM (
+      SELECT CAST(JSON_EXTRACT(policy_parameters, '$.minimumLength') AS INTEGER) AS minlength
+      FROM password_policy
+      WHERE policy_identifier LIKE '%minChars'
+      AND minlength >= 15
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -2431,6 +2426,7 @@ spec:
       FROM authdb
       WHERE right_name = 'system.login.screensaver'
         AND rule LIKE '%authenticate-session-owner%'
+        AND rule NOT LIKE '%authenticate-session-owner-or-admin%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -2492,11 +2488,8 @@ spec:
       /usr/bin/sudo /usr/bin/xprotect update
   query: |
     SELECT 1 WHERE (
-      SELECT COUNT(*) FROM launchd
-      WHERE path IN (
-        '/Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist',
-        '/Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist'
-      )
+      SELECT COUNT(DISTINCT name) FROM processes
+      WHERE name IN ('xprotectd', 'XProtectPluginService') AND uid = 0
     ) = 2;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -2516,9 +2509,8 @@ spec:
         Defaults log_allowed
   query: |
     SELECT 1 WHERE EXISTS (
-      SELECT COALESCE(JSON_EXTRACT(json_result, '$.Log when a command is allowed by sudoers'), '') AS log_allowed
-      FROM sudo_info
-      WHERE log_allowed LIKE '%true%' OR log_allowed = '1'
+      SELECT 1 FROM sudo_info
+      WHERE json_type(json_result, '$.Log when a command is allowed by sudoers') IS NOT NULL
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1

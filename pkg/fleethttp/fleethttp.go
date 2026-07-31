@@ -33,8 +33,13 @@ const (
 	// (e.g. EJBCA, Jira, SCEP servers). Set via
 	// --server_allow_private_network_integrations.
 	BlockingPrivateAllowed
-	// BlockingBypassAll performs no filtering at all. Used in dev mode
-	// where integrations are tested against localhost.
+	// BlockingBypassAll performs no filtering at all. Used in dev mode, and
+	// can also be set in production via --server_bypass_network_blocking as
+	// an infra-level escape hatch for environments where egress is already
+	// constrained by external infrastructure (e.g. a proxy or firewall) that
+	// Fleet's own checks would otherwise conflict with. Disables SSRF
+	// protection for every outbound integration request, not just the one
+	// causing the conflict.
 	BlockingBypassAll
 )
 

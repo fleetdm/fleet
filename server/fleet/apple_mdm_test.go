@@ -2,9 +2,11 @@ package fleet
 
 import (
 	"bytes"
+	"crypto/md5" //nolint:gosec // matches EffectiveDDMToken's DDM token hashing
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -28,6 +30,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		testName     string
 		mobileconfig mobileconfig.Mobileconfig
 		shouldFail   bool
+		errString    *string
 	}{
 		{
 			testName:     "TestParseConfigProfileOK",
@@ -89,6 +92,24 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 			}(),
 			shouldFail: true,
 		},
+		{
+			testName:     "TestParseConfigProfileUnescapedCharsInPayload",
+			mobileconfig: MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), `<string>Unescaped & < > ' "</string>`),
+			shouldFail:   true,
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
+		},
+		{
+			testName:     "TestParseConfigProfileUnescapedCharsInIdentifier",
+			mobileconfig: MobileconfigForTest("ValidName", "Valid<Identifier", uuid.NewString(), `<string>Valid</string>`),
+			shouldFail:   true,
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
+		},
+		{
+			testName:     "TestParseConfigProfileUnescapedCharsInName",
+			mobileconfig: MobileconfigForTest("Valid<Name", "ValidIdentifier", uuid.NewString(), `<string>Valid</string>`),
+			shouldFail:   true,
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
+		},
 	}
 
 	for _, c := range cases {
@@ -96,6 +117,9 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 			parsed, err := NewMDMAppleConfigProfile(c.mobileconfig, nil)
 			if c.shouldFail {
 				require.Error(t, err)
+				if c.errString != nil {
+					require.ErrorContains(t, err, *c.errString)
+				}
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, "ValidName", parsed.Name)
@@ -228,15 +252,27 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 		},
 		{
 			name:        "forbidden declaration type",
-			declType:    "com.apple.configuration.account.mail",
+			declType:    "com.apple.configuration.watch.enrollment",
 			wantErr:     true,
-			errContains: "Only configuration declarations that don’t require an asset reference are supported.",
+			errContains: "com.apple.configuration.watch.enrollment is a forbidden declaration type.",
 		},
 		{
 			name:        "status subscriptions not allowed",
 			declType:    "com.apple.configuration.management.status-subscriptions",
 			wantErr:     true,
-			errContains: "Declaration profile can’t include status subscription type.",
+			errContains: "Declaration profile can't include status subscription type.",
+		},
+		{
+			name:        "managed app configuration not allowed",
+			declType:    "com.apple.configuration.app.managed",
+			wantErr:     true,
+			errContains: "Declaration profile can't include software management types. To manage software, please use the Software tab.",
+		},
+		{
+			name:        "managed app configuration not allowed",
+			declType:    "com.apple.configuration.package",
+			wantErr:     true,
+			errContains: "Declaration profile can't include software management types. To manage software, please use the Software tab.",
 		},
 		{
 			name:        "non-configuration declaration not allowed",
@@ -262,6 +298,37 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMDMAppleDeclarationPayloadScope(t *testing.T) {
+	t.Parallel()
+
+	t.Run("parse and default", func(t *testing.T) {
+		cases := []struct {
+			name  string
+			raw   string
+			want  PayloadScope
+			valid bool
+		}{
+			{name: "absent defaults to System", raw: `{"Type":"com.apple.configuration.passcode.settings","Identifier":"x"}`, want: PayloadScopeSystem, valid: true},
+			{name: "explicit System", raw: `{"Type":"x","Identifier":"y","PayloadScope":"System"}`, want: PayloadScopeSystem, valid: true},
+			{name: "explicit User", raw: `{"Type":"x","Identifier":"y","PayloadScope":"User"}`, want: PayloadScopeUser, valid: true},
+			{name: "invalid value", raw: `{"Type":"x","Identifier":"y","PayloadScope":"Nope"}`, valid: false},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				decl, err := GetRawDeclarationValues([]byte(c.raw))
+				require.NoError(t, err)
+				if c.valid {
+					require.NoError(t, decl.ValidateScope())
+					require.Equal(t, c.want, decl.ScopeOrDefault())
+				} else {
+					require.Error(t, decl.ValidateScope())
+					require.ErrorContains(t, decl.ValidateScope(), "Invalid PayloadScope")
+				}
+			})
+		}
+	})
 }
 
 func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
@@ -469,6 +536,26 @@ func TestHostDEPAssignment(t *testing.T) {
 	}
 }
 
+func TestDEPDeviceErrorTypeMessage(t *testing.T) {
+	cases := []struct {
+		errType DEPDeviceErrorType
+		expect  string
+	}{
+		{DEPDeviceErrorTokenInvalid, "Fleet can't connect to Apple Business. An admin needs to renew the AB token."},
+		{DEPDeviceErrorTermsExpired, "Apple Business terms/conditions have changed. An admin must accept them."},
+		{DEPDeviceErrorNotFound, "Fleet can't find this host in Apple Business. It may have been removed or assigned to a different MDM server."},
+		{DEPDeviceErrorServerError, "Apple's servers are temporarily unavailable. Please try again later."},
+		{DEPDeviceErrorUnavailable, "Fleet can't retrieve data from Apple right now. Please try again later."},
+		{DEPDeviceErrorType("unknown"), "Fleet can't retrieve data from Apple right now. Please try again later."},
+	}
+
+	for _, c := range cases {
+		t.Run(string(c.errType), func(t *testing.T) {
+			require.Equal(t, c.expect, c.errType.Message())
+		})
+	}
+}
+
 func TestMDMProfileIsWithinGracePeriod(t *testing.T) {
 	// create a test profile
 	var b bytes.Buffer
@@ -575,6 +662,10 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].VariablesUpdatedAt = items[0].VariablesUpdatedAt
 	fieldsInEqualMethod++
+	items[1].AssetsUpdatedAt = items[0].AssetsUpdatedAt
+	fieldsInEqualMethod++
+	items[1].Scope = items[0].Scope
+	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
 	assert.True(t, items[0].Equal(items[1]))
 
@@ -582,6 +673,50 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	items[0].Status = nil
 	items[1].Status = nil
 	assert.True(t, items[0].Equal(items[1]))
+}
+
+func TestEffectiveDDMToken(t *testing.T) {
+	t.Parallel()
+
+	const staticToken = "abc123"
+	vars := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+	assets := time.Date(2026, 7, 10, 8, 30, 0, 0, time.UTC)
+
+	// md5Hex mirrors the hashing done by EffectiveDDMToken so we can assert the
+	// exact concatenation order, which MUST match the SQL token computation in
+	// MDMAppleDDMDeclarationsToken: HEX(token) + variables_updated_at + assets_updated_at.
+	md5Hex := func(parts ...string) string {
+		h := md5.New() //nolint:gosec // matches EffectiveDDMToken
+		for _, p := range parts {
+			_, _ = h.Write([]byte(p))
+		}
+		return hex.EncodeToString(h.Sum(nil))
+	}
+	const layout = "2006-01-02 15:04:05.000000"
+
+	t.Run("no vars, no assets returns static token unchanged", func(t *testing.T) {
+		require.Equal(t, staticToken, EffectiveDDMToken(staticToken, nil, nil))
+	})
+
+	t.Run("only variables", func(t *testing.T) {
+		require.Equal(t, md5Hex(staticToken, vars.Format(layout)), EffectiveDDMToken(staticToken, &vars, nil))
+	})
+
+	t.Run("only assets", func(t *testing.T) {
+		got := EffectiveDDMToken(staticToken, nil, &assets)
+		require.Equal(t, md5Hex(staticToken, assets.Format(layout)), got)
+		// An asset update must change the effective token away from the static one.
+		require.NotEqual(t, staticToken, got)
+	})
+
+	t.Run("both variables and assets, order is static+vars+assets", func(t *testing.T) {
+		require.Equal(t, md5Hex(staticToken, vars.Format(layout), assets.Format(layout)), EffectiveDDMToken(staticToken, &vars, &assets))
+	})
+
+	t.Run("different asset timestamps yield different tokens", func(t *testing.T) {
+		later := assets.Add(time.Second)
+		require.NotEqual(t, EffectiveDDMToken(staticToken, nil, &assets), EffectiveDDMToken(staticToken, nil, &later))
+	})
 }
 
 func TestMDMManagedCertificateEqual(t *testing.T) {

@@ -57,6 +57,12 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 
+	// creating a team script generates a created_setup_experience_script activity
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityCreatedSetupExperienceScript{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "script_name": "script42.sh"}`, tm.ID, tm.Name),
+		0)
+
 	// test script secret validation
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script.sh", []byte(`echo "$FLEET_SECRET_INVALID"`), s.token, map[string][]string{})
@@ -80,12 +86,18 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	require.Equal(t, int64(len(`echo "hello"`)), res.ContentLength)
 	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script42.sh"), res.Header.Get("Content-Disposition"))
 
+	// record the latest activity id before a no-op re-upload so we can assert nothing new is logged
+	lastActID := s.lastActivityMatches("", "", 0)
+
 	// try to update script with same name, should not fail because this is allowed
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script42.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
+
+	// re-uploading identical content is a no-op and must NOT generate a new activity (GitOps re-applies every run)
+	require.Equal(t, lastActID, s.lastActivityMatches("", "", 0))
 
 	// update with a different name and contents via PUT endpoint, should suceed
 	body, headers = generateNewScriptMultipartRequest(t,
@@ -94,12 +106,24 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 
+	// replacing the script content generates a new created_setup_experience_script activity
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityCreatedSetupExperienceScript{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "script_name": "different.sh"}`, tm.ID, tm.Name),
+		0)
+
 	// create no-team script
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script42.sh", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
+
+	// creating the no-team script generates a created_setup_experience_script activity with null fleet
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityCreatedSetupExperienceScript{}.ActivityName(),
+		`{"fleet_id": null, "fleet_name": null, "script_name": "script42.sh"}`,
+		0)
 	// // TODO: confirm if we will allow team_id=0 requests
 	// noTeamID := uint(0) // TODO: confirm if we will allow team_id=0 requests
 	// body, headers = generateNewScriptMultipartRequest(t,
@@ -128,11 +152,19 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	// delete the no-team script
 	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
 
+	// deleting the no-team script generates a deleted_setup_experience_script activity with null fleet
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityDeletedSetupExperienceScript{}.ActivityName(),
+		`{"fleet_id": null, "fleet_name": null, "script_name": "script42.sh"}`,
+		0)
+
 	// try get the no-team script
 	s.Do("GET", "/api/latest/fleet/setup_experience/script", nil, http.StatusNotFound)
 
-	// try deleting the no-team script again
+	// try deleting the no-team script again, which is a no-op and must not generate a new activity
+	lastActID = s.lastActivityMatches("", "", 0)
 	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK) // TODO: confirm if we want to return not found
+	require.Equal(t, lastActID, s.lastActivityMatches("", "", 0))
 
 	// // TODO: confirm if we will allow team_id=0 requests
 	// s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script/?team_id=%d", noTeamID), nil, http.StatusOK)
@@ -140,11 +172,19 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	// delete the team script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusOK)
 
+	// deleting the team script generates a deleted_setup_experience_script activity naming the current script
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityDeletedSetupExperienceScript{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "script_name": "different.sh"}`, tm.ID, tm.Name),
+		0)
+
 	// try get the team script
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusNotFound)
 
-	// try deleting the team script again
+	// try deleting the team script again, which is a no-op and must not generate a new activity
+	lastActID = s.lastActivityMatches("", "", 0)
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusOK) // TODO: confirm if we want to return not found
+	require.Equal(t, lastActID, s.lastActivityMatches("", "", 0))
 }
 
 func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript() (device godep.Device, host *fleet.Host, tm *fleet.Team) {
@@ -498,6 +538,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
   "host_display_name": "%s",
   "software_title": "%s",
   "software_package": "%s",
+  "hash_sha256": "%s",
   "self_service": false,
   "install_uuid": "%s",
   "status": "installed",
@@ -506,7 +547,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
   "policy_name": null,
   "from_setup_experience": true
 }
-	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, installUUID)
+	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.StorageID, installUUID)
 
 	s.lastActivityMatchesExtended(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0, ptr.Bool(true))
 
@@ -931,6 +972,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
   "host_display_name": "%s",
   "software_title": "1Password",
   "software_package": "%s",
+  "hash_sha256": "%s",
   "self_service": false,
   "install_uuid": "%s",
   "status": "installed",
@@ -939,7 +981,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
   "policy_name": null,
   "from_setup_experience": true
 }
-	`, enrolledHost.ID, getHostResp.Host.DisplayName, titleDetail.SoftwareTitle.SoftwarePackage.Name, installUUID)
+	`, enrolledHost.ID, getHostResp.Host.DisplayName, titleDetail.SoftwareTitle.SoftwarePackage.Name, titleDetail.SoftwareTitle.SoftwarePackage.StorageID, installUUID)
 	s.lastActivityMatchesExtended(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0, ptr.Bool(true))
 }
 

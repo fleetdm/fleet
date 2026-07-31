@@ -1,4 +1,11 @@
-import { getIconName, getVerbForCommandStatus } from "./CommandDetailsModal";
+import React from "react";
+import { render, screen } from "@testing-library/react";
+
+import {
+  getIconName,
+  getVerbForCommandStatus,
+  ModalContent,
+} from "./CommandDetailsModal";
 
 describe("getIconName", () => {
   it("returns error for Apple Error status", () => {
@@ -65,5 +72,20 @@ describe("getVerbForCommandStatus", () => {
 
   it("returns 'sent' for an unknown status", () => {
     expect(getVerbForCommandStatus("unknown")).toEqual("sent");
+  });
+});
+
+describe("ModalContent", () => {
+  it("renders normally, not as an error, when the API returns a 200 with no results (e.g. host re-enrolled since the command was sent)", () => {
+    render(
+      <ModalContent data={{ results: [] }} isLoading={false} error={null} />
+    );
+
+    expect(
+      screen.getByText("This command has been deleted.")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/something's gone wrong/i)
+    ).not.toBeInTheDocument();
   });
 });

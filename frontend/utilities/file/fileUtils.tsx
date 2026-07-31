@@ -24,6 +24,7 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   "tar.gz": "Linux",
   sh: "macOS & Linux",
   ps1: "Windows",
+  py: "macOS & Linux",
   ipa: "iOS/iPadOS",
 };
 
@@ -70,7 +71,8 @@ export const getExtensionFromFileName = (fileName: string) => {
 };
 
 /** This gets the platform display name from the file.
- * Includes nuance for .sh software installers only supported on Linux
+ * Script packages (.sh, .py) map to "macOS & Linux" since they run on both;
+ * .ipa maps to iOS/iPadOS with a tooltip noting it covers both.
  */
 export const getPlatformDisplayName = (file: File) => {
   const fileExt = getExtensionFromFileName(file.name);

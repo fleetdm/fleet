@@ -38,4 +38,19 @@ describe("InfoBanner - component", () => {
     const { container } = render(<InfoBanner icon="info" />);
     expect(container.firstChild).toHaveClass("info-banner__icon");
   });
+
+  it("uses the icon's default color when iconColor is omitted", () => {
+    // `info-outline` defaults to ui-fleet-black-75 per InfoOutline.tsx.
+    const { container } = render(<InfoBanner icon="info-outline" />);
+    const path = container.querySelector(".info-banner__leading-icon path");
+    expect(path?.getAttribute("fill")).toMatch(/ui-fleet-black-75/);
+  });
+
+  it("forwards iconColor to the leading Icon's fill", () => {
+    const { container } = render(
+      <InfoBanner icon="info-outline" iconColor="ui-fleet-black-50" />
+    );
+    const path = container.querySelector(".info-banner__leading-icon path");
+    expect(path?.getAttribute("fill")).toMatch(/ui-fleet-black-50/);
+  });
 });

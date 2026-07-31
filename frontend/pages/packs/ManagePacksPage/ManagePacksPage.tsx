@@ -169,7 +169,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
                 className={`${baseClass}__create-button`}
                 onClick={onCreatePackClick}
               >
-                Create new pack
+                Add new pack
               </Button>
             </div>
           )}

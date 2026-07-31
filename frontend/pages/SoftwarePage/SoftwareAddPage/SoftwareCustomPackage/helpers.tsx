@@ -14,10 +14,11 @@ import {
   REQUEST_TIMEOUT_ERROR_MESSAGE,
   ensurePeriod,
   formatAlreadyAvailableInstallMessage,
+  formatDifferentFileTypeMessage,
 } from "../helpers";
 
 // eslint-disable-next-line import/prefer-default-export
-export const getErrorMessage = (err: unknown) => {
+export const getErrorMessage = (err: unknown, softwareTitle?: string) => {
   const isTimeout =
     isAxiosError(err) &&
     (err.response?.status === 504 || err.response?.status === 408);
@@ -34,6 +35,14 @@ export const getErrorMessage = (err: unknown) => {
     if (alreadyAvailableMessage) {
       return alreadyAvailableMessage;
     }
+  }
+
+  const differentFileTypeMessage = formatDifferentFileTypeMessage(
+    reason,
+    softwareTitle
+  );
+  if (differentFileTypeMessage) {
+    return differentFileTypeMessage;
   }
 
   if (reason.includes("Secret variable")) {
@@ -56,7 +65,7 @@ export const getErrorMessage = (err: unknown) => {
   if (reason.includes("not a valid .tar.gz archive")) {
     return (
       <>
-        This is not a valid .tar.gz archive.{" "}
+        {ADD_SOFTWARE_ERROR_PREFIX} This is not a valid .tar.gz archive.{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/tarball-archives`}
           text="Learn more"

@@ -88,8 +88,16 @@ export const LOGGING_TYPE_OPTIONS = [
 
 export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
+// Max character length for most user-supplied free-text fields (name, title,
+// description) — matches the varchar(255) column shared across policies,
+// reports, teams (fleets), labels, software categories, custom variables,
+// certificate authorities, etc. Use on any `InputField` bound to such a
+// column: `inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}`.
+export const MAX_ENTITY_CHAR_LENGTH = 255;
+
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.23.1 +", value: "5.23.1" },
   { label: "5.23.0 +", value: "5.23.0" },
   { label: "5.22.1 +", value: "5.22.1" },
   { label: "5.21.0 +", value: "5.21.0" },
@@ -338,13 +346,13 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
 ] as const;
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
-  "Search name, user email, hostname, UUID, serial number, or private IP address";
+  "Search name, user email, hostname, UUID, serial number, or IP address";
 
 export const HOSTS_SEARCH_BOX_TOOLTIP = (
   <>
     Search hosts by name, user email, hostname,
     <br />
-    UUID, serial number, or private IP address.
+    UUID, serial number, or IP address.
   </>
 );
 
@@ -441,6 +449,7 @@ export const HOST_VITALS_DATA = [
   "uptime",
   "last_enrolled_at",
   "hardware_model",
+  "hardware_marketing_name",
   "hardware_serial",
   "primary_ip",
   "public_ip",

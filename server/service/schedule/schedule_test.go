@@ -991,3 +991,162 @@ func TestRemoteTriggerSchedule(t *testing.T) {
 		rts.Start() // should not panic
 	})
 }
+
+// ctxAwareStatsStore mimics the real datastore: its writes run on the provided
+// context and fail when that context is cancelled (as ds.writer(ctx).ExecContext
+// does). It records the last persisted status and errors so tests can assert on
+// the terminal state of a run.
+type ctxAwareStatsStore struct {
+	mu     sync.Mutex
+	status fleet.CronStatsStatus
+	errors fleet.CronScheduleErrors
+}
+
+func (s *ctxAwareStatsStore) GetLatestCronStats(_ context.Context, _ string) ([]fleet.CronStats, error) {
+	return []fleet.CronStats{}, nil
+}
+
+func (s *ctxAwareStatsStore) InsertCronStats(ctx context.Context, _ fleet.CronStatsType, _ string, _ string, status fleet.CronStatsStatus) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.status = status
+	return 1, nil
+}
+
+func (s *ctxAwareStatsStore) UpdateCronStats(ctx context.Context, _ int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.status = status
+	if cronErrors != nil {
+		s.errors = *cronErrors
+	}
+	return nil
+}
+
+func (s *ctxAwareStatsStore) ClaimCronStats(_ context.Context, _ int, _ string, _ fleet.CronStatsStatus) error {
+	return nil
+}
+
+func (s *ctxAwareStatsStore) getStatus() fleet.CronStatsStatus {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.status
+}
+
+func (s *ctxAwareStatsStore) getErrors() fleet.CronScheduleErrors {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.errors
+}
+
+// TestRunWithStats verifies the terminal status runWithStats records for a run.
+// A run is "canceled" only when the context was cancelled (e.g. the instance
+// received SIGTERM mid-run) AND a job reported an error; otherwise it is
+// "completed". In every case the captured job errors must be persisted rather
+// than left "pending" to be reaped to "expired".
+func TestRunWithStats(t *testing.T) {
+	testCases := []struct {
+		name string
+		// jobs builds the schedule's jobs. cancel cancels the run's context, so a
+		// job can simulate a shutdown signal arriving mid-run.
+		jobs            func(cancel context.CancelFunc) []Option
+		statsType       fleet.CronStatsType
+		existingStatsID int // > 0 mirrors a claimed triggered run (skips the insert)
+		wantStatus      fleet.CronStatsStatus
+		wantErrorKeys   []string // exact set of job IDs expected in the persisted errors
+	}{
+		{
+			name: "interrupted scheduled run records canceled with errors",
+			jobs: func(cancel context.CancelFunc) []Option {
+				return []Option{
+					WithJob("interrupted_job", func(jobCtx context.Context) error {
+						cancel() // shutdown signal arrives while this job is running
+						return jobCtx.Err()
+					}),
+					WithJob("never_reached_cleanly", func(jobCtx context.Context) error {
+						return jobCtx.Err()
+					}),
+				}
+			},
+			statsType:  fleet.CronStatsTypeScheduled,
+			wantStatus: fleet.CronStatsStatusCanceled,
+			// The second job also returns its context error on the already-cancelled
+			// context, so both jobs are persisted.
+			wantErrorKeys: []string{"interrupted_job", "never_reached_cleanly"},
+		},
+		{
+			name: "clean run records completed",
+			jobs: func(context.CancelFunc) []Option {
+				return []Option{WithJob("ok_job", func(context.Context) error { return nil })}
+			},
+			statsType:  fleet.CronStatsTypeScheduled,
+			wantStatus: fleet.CronStatsStatusCompleted,
+		},
+		{
+			name: "cancellation racing a clean run records completed",
+			jobs: func(cancel context.CancelFunc) []Option {
+				return []Option{
+					WithJob("clean_job", func(context.Context) error {
+						// The job finishes its work, then cancellation lands in the
+						// window before it returns cleanly. No job error results.
+						cancel()
+						return nil
+					}),
+				}
+			},
+			statsType:  fleet.CronStatsTypeScheduled,
+			wantStatus: fleet.CronStatsStatusCompleted,
+		},
+		{
+			name: "interrupted triggered run records canceled with errors",
+			jobs: func(cancel context.CancelFunc) []Option {
+				return []Option{
+					WithJob("interrupted_job", func(jobCtx context.Context) error {
+						cancel()
+						return jobCtx.Err()
+					}),
+				}
+			},
+			statsType:       fleet.CronStatsTypeTriggered,
+			existingStatsID: 42,
+			wantStatus:      fleet.CronStatsStatusCanceled,
+			wantErrorKeys:   []string{"interrupted_job"},
+		},
+		{
+			name: "job error without cancellation records completed",
+			jobs: func(context.CancelFunc) []Option {
+				return []Option{WithJob("failing_job", func(context.Context) error { return errors.New("boom") })}
+			},
+			statsType:     fleet.CronStatsTypeScheduled,
+			wantStatus:    fleet.CronStatsStatusCompleted,
+			wantErrorKeys: []string{"failing_job"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			store := &ctxAwareStatsStore{}
+
+			s := New(ctx, "test_schedule", "test_instance", time.Hour, scheduletest.NopLocker{}, store,
+				tc.jobs(cancel)...)
+
+			s.runWithStats(ctx, tc.statsType, tc.existingStatsID)
+
+			require.Equal(t, tc.wantStatus, store.getStatus())
+			gotErrors := store.getErrors()
+			gotKeys := make([]string, 0, len(gotErrors))
+			for key := range gotErrors {
+				gotKeys = append(gotKeys, key)
+			}
+			require.ElementsMatch(t, tc.wantErrorKeys, gotKeys)
+		})
+	}
+}

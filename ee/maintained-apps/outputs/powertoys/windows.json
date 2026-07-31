@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.100.1",
+      "version": "0.100.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'PowerToys %' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PowerToys %' AND publisher = 'Microsoft Corporation' AND version_compare(version, '0.100.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PowerToys %' AND publisher = 'Microsoft Corporation' AND version_compare(version, '0.100.2') < 0);"
       },
-      "installer_url": "https://github.com/microsoft/PowerToys/releases/download/v0.100.1/PowerToysSetup-0.100.1-x64.exe",
+      "installer_url": "https://github.com/microsoft/PowerToys/releases/download/v0.100.2/PowerToysSetup-0.100.2-x64.exe",
       "install_script_ref": "1a5ce2ca",
       "uninstall_script_ref": "a97a3cf8",
-      "sha256": "4adec909794ae1489ca5d48bc318e9be6da6f9817195ae1b8adbb52b99c4d179",
+      "sha256": "73c04aac8052420111fe5cdc0098ec8415d87cbdbd42de253e9af959781cbf9e",
       "default_categories": [
         "Productivity"
       ]

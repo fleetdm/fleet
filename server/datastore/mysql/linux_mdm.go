@@ -37,7 +37,8 @@ func (ds *Datastore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *
 				LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 			WHERE
 				(h.os_version LIKE '%%fedora%%'
-				OR h.platform LIKE 'ubuntu')
+				OR h.platform LIKE 'ubuntu'
+				OR h.platform LIKE 'zorin')
 				%s
 			GROUP BY
 				status`, teamFilter)

@@ -362,7 +362,7 @@ Day-to-day workflows for managing Fleet resources - software, profiles, policies
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
-| [Manage bootstrap packages with GitOps](https://fleetdm.com/guides/manage-boostrap-package-with-gitops) | Learn how to manage bootstrap packages across teams using Fleet's GitOps workflow and API endpoints. | Kitzy | 2026-01-12 |
+| [Manage bootstrap packages with GitOps](https://fleetdm.com/guides/manage-bootstrap-package-with-gitops) | Learn how to manage bootstrap packages across teams using Fleet's GitOps workflow and API endpoints. | Kitzy | 2026-01-12 |
 | [Manage software in GitOps mode](https://fleetdm.com/guides/gitops-mode-software) | Learn how to use Fleet's YAML to manage software in GitOps mode. | Noah Talerman | 2025-04-30 |
 | [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) | Learn how to enforce custom settings on macOS and Windows hosts using Fleet's configuration profiles. | Noah Talerman | 2024-07-27 |
 | [Sysadmin diaries: exporting policies](https://fleetdm.com/guides/sysadmin-diaries-exporting-policies) | Extracting existing policies to enable GitOps. | JD Strong | 2024-06-28 |

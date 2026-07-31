@@ -1,0 +1,11 @@
+{
+  "name": "Elevate UC",
+  "slug": "elevate-uc/windows",
+  "package_identifier": "Serverdata.ElevateUC",
+  "unique_identifier": "Elevate UC",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "default_categories": ["Communication"]
+}

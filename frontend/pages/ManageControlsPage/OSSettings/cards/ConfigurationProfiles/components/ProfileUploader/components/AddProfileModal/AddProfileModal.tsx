@@ -30,11 +30,11 @@ import ProfileGraphic from "../ProfileGraphic";
 
 import {
   DEFAULT_ERROR_MESSAGE,
+  generateCustomTargetLabelKey,
   getErrorMessage,
   IParseFileResult,
   parseFile,
 } from "../../helpers";
-import generateCustomTargetLabelKey from "./helpers";
 
 const baseClass = "add-profile-modal";
 
@@ -61,12 +61,12 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
     />
     <Button
       className={`${baseClass}__upload-button`}
-      variant="brand-inverse-icon"
+      variant="secondary"
       isLoading={isLoading}
     >
       <label htmlFor="upload-profile">
         <span className={`${baseClass}__file-chooser--button-wrap`}>
-          Choose file <Icon name="upload" color="core-fleet-green" />
+          Choose file <Icon name="upload" />
         </span>
       </label>
     </Button>
@@ -137,7 +137,7 @@ const AddProfileModal = ({
     isFetching: isFetchingLabels,
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels"],
+    ["custom_labels", currentTeamId],
     () =>
       labelsAPI
         .summary(currentTeamId)
@@ -279,7 +279,7 @@ const AddProfileModal = ({
             </div>
           )}
           <div className={`${baseClass}__button-wrap`}>
-            <Button variant="inverse" onClick={onDone}>
+            <Button variant="secondary" onClick={onDone}>
               Cancel
             </Button>
             <Button

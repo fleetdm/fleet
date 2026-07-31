@@ -9,7 +9,7 @@
       "installer_url": "https://downloads.dbeaver.net/lite/26.1.0/dbeaver-le-26.1.0-windows-x86_64.exe",
       "install_script_ref": "f305c446",
       "uninstall_script_ref": "6763cb51",
-      "sha256": "a95241f4f482f8fd552c018f29166ff5f2329102c848eb2787264e88991def41",
+      "sha256": "113e374c69a7f08b26a99879207c8e40b2dfb612f10c90e7df9d17fec7781465",
       "default_categories": [
         "Developer tools"
       ]

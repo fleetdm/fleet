@@ -55,8 +55,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
 
           <!-- Group one (7 logos)-->
+          <img alt="Uber logo" src="/images/logos/logo-uber-65x32@2x.png">
           <img alt="Proton logo" src="/images/logos/logo-proton-95x32@2x.png">
-          <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Nutanix logo" src="/images/logos/logo-nutanix-125x32@2x.png">
           <img alt="Mr Beast logo" src="/images/logos/logo-mr-beast-90x32@2x.png">
           <img alt="Flywire logo" src="/images/logos/logo-flywire-69x32@2x.png">
@@ -97,8 +97,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
 
           <!-- Group one (7 logos)-->
+          <img alt="Uber logo" src="/images/logos/logo-uber-65x32@2x.png">
           <img alt="Proton logo" src="/images/logos/logo-proton-95x32@2x.png">
-          <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Nutanix logo" src="/images/logos/logo-nutanix-125x32@2x.png">
           <img alt="Mr Beast logo" src="/images/logos/logo-mr-beast-90x32@2x.png">
           <img alt="Flywire logo" src="/images/logos/logo-flywire-69x32@2x.png">
@@ -149,8 +149,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Smarter Technologies logo" src="/images/logos/logo-smarter-technology-130x32@2x.png">
           <img alt="Treeline logo" src="/images/logos/logo-treeline-128x32@2x.png">
           <!-- Group one (7 logos)-->
+          <img alt="Uber logo" src="/images/logos/logo-uber-65x32@2x.png">
           <img alt="Proton logo" src="/images/logos/logo-proton-95x32@2x.png">
-          <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Nutanix logo" src="/images/logos/logo-nutanix-125x32@2x.png">
           <img alt="Mr Beast logo" src="/images/logos/logo-mr-beast-90x32@2x.png">
           <img alt="Flywire logo" src="/images/logos/logo-flywire-69x32@2x.png">
@@ -187,8 +187,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Smarter Technologies logo" src="/images/logos/logo-smarter-technology-130x32@2x.png">
           <img alt="Treeline logo" src="/images/logos/logo-treeline-128x32@2x.png">
           <!-- Group one (7 logos)-->
+          <img alt="Uber logo" src="/images/logos/logo-uber-65x32@2x.png">
           <img alt="Proton logo" src="/images/logos/logo-proton-95x32@2x.png">
-          <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Nutanix logo" src="/images/logos/logo-nutanix-125x32@2x.png">
           <img alt="Mr Beast logo" src="/images/logos/logo-mr-beast-90x32@2x.png">
           <img alt="Flywire logo" src="/images/logos/logo-flywire-69x32@2x.png">

@@ -62,7 +62,7 @@ const DeleteEntraTenantModal = ({
         <Button onClick={onDeleteToken} variant="alert" isLoading={isDeleting}>
           Delete
         </Button>
-        <Button onClick={onExit} variant="inverse">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>

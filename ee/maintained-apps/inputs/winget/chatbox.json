@@ -1,0 +1,13 @@
+{
+  "name": "Chatbox",
+  "slug": "chatbox/windows",
+  "package_identifier": "Bin-Huang.Chatbox",
+  "unique_identifier": "Chatbox",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox Community%' AND publisher = 'Benn Huang';",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/chatbox_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/chatbox_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

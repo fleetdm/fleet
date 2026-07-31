@@ -1,0 +1,2 @@
+- Removed pagination from the "Select API endpoints" search results table (Settings > Users > Add API-only user > Specific API endpoints), relying on the results dropdown's existing scrollbar instead.
+- Ranked "Select API endpoints" search results by relevance (exact match, then prefix, then whole-word, then substring, matched against both name and path) instead of leaving them in an unranked catalog order, and fixed a bug where the table's default sort silently discarded that ranking.

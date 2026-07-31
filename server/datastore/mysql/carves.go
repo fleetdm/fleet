@@ -88,6 +88,25 @@ func (ds *Datastore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetad
 	return updateCarveDB(ctx, ds.writer(ctx), metadata)
 }
 
+// ExpireCarves marks the given carves as expired in batches.
+func (ds *Datastore) ExpireCarves(ctx context.Context, ids []int64) error {
+	const batchSize = 500
+	for start := 0; start < len(ids); start += batchSize {
+		end := min(start+batchSize, len(ids))
+		stmt, args, err := sqlx.In(`UPDATE carve_metadata SET expired = 1 WHERE id IN (?)`, ids[start:end])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build sqlx.In for expire carves")
+		}
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, args...)
+			return err
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "expire carves")
+		}
+	}
+	return nil
+}
+
 func updateCarveDB(ctx context.Context, exec sqlx.ExecerContext, metadata *fleet.CarveMetadata) error {
 	stmt := `
 		UPDATE carve_metadata SET

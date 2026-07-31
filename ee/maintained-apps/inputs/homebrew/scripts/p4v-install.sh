@@ -3,7 +3,8 @@
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
-  if ! osascript -e "application id \"$bundle_id\" is running" >/dev/null 2>&1; then return; fi
+  local app_running; app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then return; fi
   local console_user; console_user=$(stat -f "%Su" /dev/console)
   if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then echo "Skipping quit for '$bundle_id'."; return; fi
   echo "Quitting '$bundle_id'..."
@@ -30,13 +31,24 @@ MOUNT_POINT="$(hdiutil attach -nobrowse -readonly "$INSTALLER_PATH" | awk '/\/Vo
 for app in p4v.app p4merge.app p4admin.app; do
   if [[ -d "$MOUNT_POINT/$app" ]]; then
     rm -rf "$APPDIR/$app" >/dev/null 2>&1 || true
-    ditto "$MOUNT_POINT/$app" "$APPDIR/$app" >/dev/null 2>&1
+    if ! ditto "$MOUNT_POINT/$app" "$APPDIR/$app"; then
+      # remove the partial copy so a failed install isn't inventoried as installed
+      rm -rf "$APPDIR/$app" >/dev/null 2>&1 || true
+      hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+      echo "failed to install $app"
+      exit 1
+    fi
   fi
 done
 
 # Install p4vc command line binary to /usr/local/bin
 if [[ -f "$MOUNT_POINT/p4vc" ]]; then
-  cp "$MOUNT_POINT/p4vc" /usr/local/bin/p4vc
+  mkdir -p /usr/local/bin
+  if ! cp "$MOUNT_POINT/p4vc" /usr/local/bin/p4vc; then
+    hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+    echo "failed to install p4vc"
+    exit 1
+  fi
   chmod +x /usr/local/bin/p4vc
   chown root:wheel /usr/local/bin/p4vc
 fi

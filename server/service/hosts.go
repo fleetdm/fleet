@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"iter"
 	"net/http"
 	"reflect"
@@ -34,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/gocarina/gocsv"
@@ -73,11 +73,12 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 	}
 
 	return &fleet.HostDetailResponse{
-		HostDetail:  *host,
-		Status:      host.Status(time.Now()),
-		DisplayText: host.Hostname,
-		DisplayName: host.DisplayName(),
-		Geolocation: geoLoc,
+		HostDetail:            *host,
+		Status:                host.Status(time.Now()),
+		DisplayText:           host.Hostname,
+		DisplayName:           host.DisplayName(),
+		Geolocation:           geoLoc,
+		HardwareMarketingName: host.HardwareMarketingName(),
 	}, nil
 }
 
@@ -300,21 +301,23 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		titleID := *req.Opts.SoftwareTitleIDFilter
 
 		// 1. Try full title for this team.
-		// Needed in order to grab display_name if it exists
+		// Needed in order to grab display_name if it exists.
 		st, err := svc.SoftwareTitleByID(ctx, titleID, req.Opts.TeamFilter)
 		switch {
 		case err == nil:
-			fmt.Println("regular")
 			softwareTitle = st
 
 		case fleet.IsNotFound(err):
-			// Not found: only ID + Name as string from helper.
-			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID)
+			// SoftwareTitleByID depends on the software_titles_host_counts
+			// aggregate, populated only by the periodic
+			// SyncHostsSoftwareTitles job, so a title just installed on an
+			// in-scope host can be NotFound here until the next sync. Fall
+			// back to a live join instead of leaving softwareTitle unset.
+			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID, req.Opts.TeamFilter)
 			if errName != nil && !fleet.IsNotFound(errName) {
 				return listHostsResponse{Err: errName}, nil
 			}
 			if errName == nil {
-				fmt.Println("here")
 				softwareTitle = &fleet.SoftwareTitle{
 					ID: titleID,
 				}
@@ -915,8 +918,8 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 			return ctxerr.Wrap(ctx, err, "get host for delete")
 		}
 
-		// Authorize again with team loaded now that we have team_id
-		if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
+		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, host, notFoundErr); err != nil {
 			return err
 		}
 	}
@@ -1113,8 +1116,13 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "get host for delete")
 	}
 
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+	// Authorize again now that the host (and its team_id) is loaded. If the
+	// caller can't even read this host, it's entirely outside their
+	// visibility: report the same not-found error as a missing host above,
+	// rather than a forbidden that would confirm the host exists on some
+	// other team.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, host, notFoundErr); err != nil {
 		return err
 	}
 
@@ -1355,15 +1363,24 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 			hostsByID[h.ID] = h
 		}
 
+		// Derive the activity's host IDs and names exclusively from the hosts
+		// that actually exist, preserving the requested order. IDs that don't
+		// resolve to a host (e.g. non-existent IDs in the request, or a host
+		// deleted right after the transfer) are excluded so they can't be
+		// injected into the audit trail.
+		existingIDs := make([]uint, 0, len(hostIDs))
 		hostNames = make([]string, 0, len(hostIDs))
 		for _, hid := range hostIDs {
 			if h, ok := hostsByID[hid]; ok {
+				existingIDs = append(existingIDs, hid)
 				hostNames = append(hostNames, h.DisplayName())
-			} else {
-				// should not happen unless a host gets deleted just after transfer,
-				// but this ensures hostNames always matches hostIDs at the same index
-				hostNames = append(hostNames, "")
 			}
+		}
+		hostIDs = existingIDs
+
+		// If none of the requested hosts exist, there's nothing to record.
+		if len(hostIDs) == 0 {
+			return nil
 		}
 	}
 
@@ -1828,6 +1845,24 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				// raw decryptable key status.
 				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
 
+				// populate host-name template enforcement status (macOS, iOS, iPadOS).
+				// Omitted entirely when the host has no enforcement row.
+				dnEnforcement, err := svc.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+				if err != nil && !fleet.IsNotFound(err) {
+					return nil, ctxerr.Wrap(ctx, err, "get host device name enforcement")
+				}
+				if dnEnforcement != nil {
+					// A NULL DB status is a queued row waiting; it renders as pending
+					status := fleet.HostNameSettingPending
+					if dnEnforcement.Status != nil {
+						status = fleet.HostNameSettingStatus(*dnEnforcement.Status)
+					}
+					host.MDM.OSSettings.HostName = &fleet.HostMDMHostNameSetting{
+						Status: status,
+						Detail: dnEnforcement.Detail,
+					}
+				}
+
 				// populate recovery lock password status for macOS hosts
 				if host.Platform == "darwin" {
 					rlpStatus, err := svc.ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
@@ -1962,6 +1997,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
 
+	customHostVitals, err := svc.ds.GetHostCustomHostVitals(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get custom host vitals for host")
+	}
+
 	return &fleet.HostDetail{
 		Host:                          *host,
 		Labels:                        labels,
@@ -1969,6 +2009,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		Batteries:                     &bats,
 		MaintenanceWindow:             nextMw,
 		EndUsers:                      endUsers,
+		CustomHostVitals:              customHostVitals,
 		LastMDMEnrolledAt:             mdmLastEnrollment,
 		LastMDMCheckedInAt:            mdmLastCheckedIn,
 		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
@@ -2384,15 +2425,29 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 		if err == nil && scimUser != nil {
 			// User exists in SCIM, create/update the mapping for additional attributes
 			// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-			if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+			resentCerts, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
+			if err != nil {
 				// Log the error but don't fail the request since the main IDP mapping succeeded
 				svc.logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
+			} else {
+				for _, cert := range resentCerts {
+					if err := svc.NewActivity(ctx, nil, cert); err != nil {
+						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+					}
+				}
 			}
 		} else {
 			// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-			if err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
+			resentCerts, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
+			if err != nil && !fleet.IsNotFound(err) {
 				// Log the error but don't fail the request
 				svc.logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
+			} else {
+				for _, cert := range resentCerts {
+					if err := svc.NewActivity(ctx, nil, cert); err != nil {
+						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+					}
+				}
 			}
 		}
 
@@ -2480,7 +2535,8 @@ type getHostDEPAssignmentRequest struct {
 type getHostDEPAssignmentResponse struct {
 	ID                uint                     `json:"id"`
 	HostDEPAssignment *fleet.HostDEPAssignment `json:"host_dep_assignment"`
-	DEPDevice         *godep.Device            `json:"dep_device"`
+	DEPDevice         *godep.DeviceDetails     `json:"dep_device"`
+	DEPDeviceError    *string                  `json:"dep_device_error"`
 	Err               error                    `json:"error,omitempty"`
 }
 
@@ -2488,32 +2544,39 @@ func (r getHostDEPAssignmentResponse) Error() error { return r.Err }
 
 func getHostDEPAssignmentEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostDEPAssignmentRequest)
-	depAssignment, depDevice, err := svc.GetHostDEPAssignmentDetails(ctx, req.ID)
+	depAssignment, depDevice, depError, err := svc.GetHostDEPAssignmentDetails(ctx, req.ID)
 	if err != nil {
 		return getHostDEPAssignmentResponse{Err: err}, nil
+	}
+
+	var depErrorMessage *string
+	if depError != "" {
+		msg := depError.Message()
+		depErrorMessage = &msg
 	}
 
 	return getHostDEPAssignmentResponse{
 		ID:                req.ID,
 		HostDEPAssignment: depAssignment,
 		DEPDevice:         depDevice,
+		DEPDeviceError:    depErrorMessage,
 	}, nil
 }
 
-func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error) {
+func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.DeviceDetails, fleet.DEPDeviceErrorType, error) {
 	// Load the host first so we can do a team-aware authorization check,
 	// mirroring what GET /hosts/:id does.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get host for dep assignment")
+		return nil, nil, "", ctxerr.Wrap(ctx, err, "get host for dep assignment")
 	}
 
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	// Fetch Fleet's DEP assignment record. A not-found error means the host is
@@ -2521,30 +2584,31 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 	depAssignment, err := svc.ds.GetHostDEPAssignment(ctx, hostID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			return nil, nil, nil
+			return nil, nil, "", nil
 		}
-		return nil, nil, ctxerr.Wrap(ctx, err, "get host dep assignment")
+		return nil, nil, "", ctxerr.Wrap(ctx, err, "get host dep assignment")
 	}
 
 	// Without an ABM token ID we can't resolve which org name to use for the
 	// Apple API call, so return what we have from Fleet's DB.
 	if depAssignment.ABMTokenID == nil {
-		return depAssignment, nil, nil
+		return depAssignment, nil, "", nil
 	}
 
 	abmToken, err := svc.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get ABM token for dep assignment")
+		return nil, nil, "", ctxerr.Wrap(ctx, err, "get ABM token for dep assignment")
 	}
 
 	// If Apple MDM is not configured (e.g. free tier), depStorage will be nil
 	// and NewDEPClient would panic. Return what we have from Fleet's DB.
 	if svc.depStorage == nil {
-		return depAssignment, nil, nil
+		return depAssignment, nil, "", nil
 	}
 
 	// Call Apple's "Get Device Details" API. Per the issue spec: on error, log
-	// and return dep_device as nil rather than surfacing the error to the caller.
+	// and classify the error via dep_error rather than surfacing it to the
+	// caller.
 	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 	depDevice, err := depClient.GetDeviceDetails(ctx, abmToken.OrganizationName, host.HardwareSerial)
 	if err != nil {
@@ -2553,10 +2617,19 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 			"org_name", abmToken.OrganizationName,
 			"err", err,
 		)
-		return depAssignment, nil, nil
+		return depAssignment, nil, apple_mdm.ClassifyDEPDeviceError(err), nil
 	}
 
-	return depAssignment, depDevice, nil
+	if depDevice == nil {
+		return depAssignment, nil, fleet.DEPDeviceErrorNotFound, nil
+	}
+	status := godep.DeviceStatus(depDevice.ResponseStatus)
+	if depDevice.SerialNumber == "" ||
+		status == godep.DeviceStatusNotAccessible || status == godep.DeviceStatusFailed {
+		return depAssignment, nil, fleet.DEPDeviceErrorNotFound, nil
+	}
+
+	return depAssignment, depDevice, "", nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3025,40 +3098,41 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 		return
 	}
 
+	// read back the CSV to reorder and (optionally) filter columns
+	recs, err := csv.NewReader(&buf).ReadAll()
+	if err != nil {
+		logging.WithErr(ctx, err)
+		encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+		return
+	}
+
 	returnAll := len(r.Columns) == 0
 
 	var outRows [][]string
-	if !returnAll {
-		// read back the CSV to filter out any unwanted columns
-		recs, err := csv.NewReader(&buf).ReadAll()
-		if err != nil {
-			logging.WithErr(ctx, err)
-			encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
-			return
+	if returnAll {
+		applyCSVColumnPlacements(recs)
+		outRows = recs
+	} else if len(recs) > 0 {
+		// map the header names to their field index
+		hdrs := make(map[string]int, len(recs[0]))
+		for i, hdr := range recs[0] {
+			hdrs[hdr] = i
 		}
 
-		if len(recs) > 0 {
-			// map the header names to their field index
-			hdrs := make(map[string]int, len(recs))
-			for i, hdr := range recs[0] {
-				hdrs[hdr] = i
-			}
-
-			outRows = make([][]string, len(recs))
-			for i, rec := range recs {
-				for _, col := range r.Columns {
-					colIx, ok := hdrs[col]
-					if !ok {
-						// invalid column name - it would be nice to catch this in the
-						// endpoint before processing the results, but it would require
-						// duplicating the list of columns from the Host's struct tags to a
-						// map and keep this in sync, for what is essentially a programmer
-						// mistake that should be caught and corrected early.
-						encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
-						return
-					}
-					outRows[i] = append(outRows[i], rec[colIx])
+		outRows = make([][]string, len(recs))
+		for i, rec := range recs {
+			for _, col := range r.Columns {
+				colIx, ok := hdrs[col]
+				if !ok {
+					// invalid column name - it would be nice to catch this in the
+					// endpoint before processing the results, but it would require
+					// duplicating the list of columns from the Host's struct tags to a
+					// map and keep this in sync, for what is essentially a programmer
+					// mistake that should be caught and corrected early.
+					encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
+					return
 				}
+				outRows[i] = append(outRows[i], rec[colIx])
 			}
 		}
 	}
@@ -3068,14 +3142,66 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 
-	var err error
-	if returnAll {
-		_, err = io.Copy(w, &buf)
-	} else {
-		err = csv.NewWriter(w).WriteAll(outRows)
-	}
-	if err != nil {
+	if err := csv.NewWriter(w).WriteAll(outRows); err != nil {
 		logging.WithErr(ctx, err)
+	}
+}
+
+// csvColumnPlacements forces the ordering of columns in the full (unfiltered)
+// hosts report CSV. gocsv appends HostResponse fields after all Host columns,
+// so columns whose documented position is elsewhere must be moved explicitly.
+// The filtered path already emits columns in the requested order.
+var csvColumnPlacements = []struct{ col, after string }{
+	{"hardware_marketing_name", "hardware_model"},
+}
+
+func applyCSVColumnPlacements(recs [][]string) {
+	for _, p := range csvColumnPlacements {
+		reorderCSVColumnAfter(recs, p.col, p.after)
+	}
+}
+
+// reorderCSVColumnAfter moves the column named col so that it immediately
+// follows the column named afterCol in every record (header + rows). It is a
+// no-op if either column is missing.
+func reorderCSVColumnAfter(recs [][]string, col, afterCol string) {
+	if len(recs) == 0 {
+		return
+	}
+
+	from, after := -1, -1
+	for i, hdr := range recs[0] {
+		switch hdr {
+		case col:
+			from = i
+		case afterCol:
+			after = i
+		}
+	}
+	if from < 0 || after < 0 || from == after {
+		return
+	}
+
+	// Build the new column index order with `from` placed right after `after`.
+	order := make([]int, 0, len(recs[0]))
+	for i := range recs[0] {
+		if i == from {
+			continue
+		}
+		order = append(order, i)
+		if i == after {
+			order = append(order, from)
+		}
+	}
+
+	for r, rec := range recs {
+		newRec := make([]string, len(order))
+		for j, idx := range order {
+			if idx < len(rec) {
+				newRec[j] = rec[idx]
+			}
+		}
+		recs[r] = newRec
 	}
 }
 

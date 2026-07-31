@@ -1,1 +1,0 @@
-- Fixed a bug where running many concurrent live queries that each target a small number of hosts could overload Redis and slow down host check-ins.

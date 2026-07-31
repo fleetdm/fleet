@@ -78,7 +78,7 @@ export const getInstallType = (
 
 // Used in EditSoftwareModal and PackageForm
 export const getTargetType = (
-  softwareInstaller: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp
 ) => {
   if (!softwareInstaller) return "All hosts";
 
@@ -91,7 +91,7 @@ export const getTargetType = (
 
 // Used in EditSoftwareModal and PackageForm
 export const getCustomTarget = (
-  softwareInstaller: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp
 ) => {
   if (!softwareInstaller) return "labelsIncludeAny";
 
@@ -102,7 +102,7 @@ export const getCustomTarget = (
 
 // Used in EditSoftwareModal and PackageForm
 export const generateSelectedLabels = (
-  softwareInstaller: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp
 ) => {
   if (
     !softwareInstaller ||

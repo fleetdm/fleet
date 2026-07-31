@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "11.2.0.20301",
+      "version": "11.2.2.20009",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Nessus Agent (x64)' AND publisher = 'Tenable';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Nessus Agent (x64)' AND publisher = 'Tenable' AND version_compare(version, '11.2.0.20301') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Nessus Agent (x64)' AND publisher = 'Tenable' AND version_compare(version, '11.2.2.20009') < 0);"
       },
-      "installer_url": "https://www.tenable.com/downloads/api/v2/pages/nessus-agents/files/NessusAgent-11.2.0-x64.msi",
+      "installer_url": "https://www.tenable.com/downloads/api/v2/pages/nessus-agents/files/NessusAgent-11.2.2-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "8ceaf69e",
-      "sha256": "a2a7e6356e34d75c9ce3a5c05cb19da0d3b8f1678950097c83db554ff0453a52",
+      "sha256": "e703d33f121e5b8258f775e96760f4ae37a675e10fafb9fa86fc25d6828479ac",
       "default_categories": [
         "Security"
       ],

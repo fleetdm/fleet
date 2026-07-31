@@ -4,8 +4,10 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -32,6 +34,7 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 	}
 
 	var manifestApps []*maintained_apps.FMAManifestApp
+	var skippedApps int
 
 	githubHTTPClient := fleethttp.NewGithubClient()
 	githubClient := github.NewClient(githubHTTPClient)
@@ -89,13 +92,38 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
+			// skip throttled apps; they'll be retried on the next scheduled run
+			if isTransientGitHubError(err) {
+				skippedApps++
+				logger.WarnContext(ctx, "skipping app: GitHub rate-limited its ingestion; it will be retried on the next scheduled run",
+					"name", input.Name, "err", err)
+				continue
+			}
 			return nil, ctxerr.Wrap(ctx, err, "ingesting winget app")
 		}
 
 		manifestApps = append(manifestApps, outApp)
 	}
 
+	if skippedApps > 0 {
+		logger.WarnContext(ctx, "some winget apps were skipped due to GitHub rate limiting", "count", skippedApps)
+	}
+
 	return manifestApps, nil
+}
+
+// isTransientGitHubError reports whether err is GitHub load-shedding (rate limits, 429s, 5xx).
+func isTransientGitHubError(err error) bool {
+	if _, ok := errors.AsType[*github.RateLimitError](err); ok {
+		return true
+	}
+	if _, ok := errors.AsType[*github.AbuseRateLimitError](err); ok {
+		return true
+	}
+	if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok && ghErr.Response != nil {
+		return ghErr.Response.StatusCode == http.StatusTooManyRequests || ghErr.Response.StatusCode >= 500
+	}
+	return false
 }
 
 type wingetIngester struct {
@@ -186,8 +214,13 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			i.ghClientOpts,
 		)
 		if err != nil {
-			i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)
-			continue
+			// only a genuine 404 may fall through to an older version dir
+			if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok &&
+				ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusNotFound {
+				i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)
+				continue
+			}
+			return nil, ctxerr.Wrap(ctx, err, "getting winget installer manifest file contents")
 		}
 
 		contents, err := fileContents.GetContent()

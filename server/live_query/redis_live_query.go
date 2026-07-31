@@ -145,6 +145,16 @@ func (r *redisLiveQuery) isReverse(campaignID string) bool {
 	return found
 }
 
+// hasReverseActiveQueries is a thread-safe method that reports whether any
+// active query uses the reverse per-host index. It gates the per-host reverse
+// read on the checkin path so that, when no reverse query is active, a checkin
+// does not issue a SMEMBERS for a key that does not exist.
+func (r *redisLiveQuery) hasReverseActiveQueries() bool {
+	r.cache.mu.RLock()
+	defer r.cache.mu.RUnlock()
+	return len(r.cache.reverseActiveCache) > 0
+}
+
 // NewRedisLiveQuery creates a new Redis implementation of the live query store
 // using the provided Redis connection pool.
 //
@@ -295,8 +305,11 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 	}
 
 	// Reverse (small-target) queries: a single read of this host's own set.
-	if err := r.collectReverseQueriesForHost(hostID, queries); err != nil {
-		return nil, err
+	// Skip it entirely when no active query uses the reverse model.
+	if r.hasReverseActiveQueries() {
+		if err := r.collectReverseQueriesForHost(hostID, queries); err != nil {
+			return nil, err
+		}
 	}
 
 	return queries, nil
@@ -777,36 +790,57 @@ func (r *redisLiveQuery) GetQueryResultsCounts(queryIDs []uint) (map[uint]int, e
 		return make(map[uint]int), nil
 	}
 
+	// The query_results_count keys have no hash tag, so they may live on
+	// different slots in a Redis Cluster. Group them by slot so that each
+	// pipelined request only touches keys that hash to the same slot, avoiding
+	// MOVED redirects.
+	keys := make([]string, 0, len(queryIDs))
+	keyToID := make(map[string]uint, len(queryIDs))
+	for _, queryID := range queryIDs {
+		key := queryResultsCountKey(queryID)
+		keys = append(keys, key)
+		keyToID[key] = queryID
+	}
+
+	results := make(map[uint]int, len(queryIDs))
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.collectBatchResultsCounts(slotKeys, keyToID, results); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+func (r *redisLiveQuery) collectBatchResultsCounts(keys []string, keyToID map[string]uint, results map[uint]int) error {
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	// Pipeline GET requests for all query IDs
-	for _, queryID := range queryIDs {
-		key := queryResultsCountKey(queryID)
+	// Pipeline GET requests for all keys in this slot.
+	for _, key := range keys {
 		if err := conn.Send("GET", key); err != nil {
-			return nil, fmt.Errorf("send get query results count: %w", err)
+			return fmt.Errorf("send get query results count: %w", err)
 		}
 	}
 
 	if err := conn.Flush(); err != nil {
-		return nil, fmt.Errorf("flush pipeline: %w", err)
+		return fmt.Errorf("flush pipeline: %w", err)
 	}
 
-	// Receive results and build the map
-	results := make(map[uint]int, len(queryIDs))
-	for _, queryID := range queryIDs {
+	// Receive results in order and build the map.
+	for _, key := range keys {
 		count, err := redigo.Int(conn.Receive())
 		if err != nil {
 			if err == redigo.ErrNil {
-				results[queryID] = 0
+				results[keyToID[key]] = 0
 				continue
 			}
-			return nil, fmt.Errorf("receive query results count: %w", err)
+			return fmt.Errorf("receive query results count: %w", err)
 		}
-		results[queryID] = count
+		results[keyToID[key]] = count
 	}
 
-	return results, nil
+	return nil
 }
 
 // IncrQueryResultsCounts increments the query results counts by the given amounts.
@@ -816,13 +850,38 @@ func (r *redisLiveQuery) IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) 
 		return nil
 	}
 
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
-
-	// Pipeline INCRBY requests for all query IDs
+	// The query_results_count keys have no hash tag, so they may live on
+	// different slots in a Redis Cluster. Group them by slot so that each
+	// pipelined request only touches keys that hash to the same slot, avoiding
+	// MOVED redirects.
+	keys := make([]string, 0, len(queryIDsToAmounts))
+	amountByKey := make(map[string]int, len(queryIDsToAmounts))
 	for queryID, amount := range queryIDsToAmounts {
 		key := queryResultsCountKey(queryID)
-		if err := conn.Send("INCRBY", key, amount); err != nil {
+		keys = append(keys, key)
+		amountByKey[key] = amount
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.incrBatchResultsCounts(slotKeys, amountByKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *redisLiveQuery) incrBatchResultsCounts(keys []string, amountByKey map[string]int) error {
+	// Use a plain connection rather than redis.ConfigureDoer: the latter wraps
+	// the connection in a redisc.RetryConn, whose Send method is unsupported, so
+	// the pipeline below would fail. All keys in this batch hash to the same
+	// slot, so no redirection handling is needed.
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	// Pipeline INCRBY requests for all keys in this slot.
+	for _, key := range keys {
+		if err := conn.Send("INCRBY", key, amountByKey[key]); err != nil {
 			return fmt.Errorf("send incrby query results count: %w", err)
 		}
 	}
@@ -831,8 +890,8 @@ func (r *redisLiveQuery) IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) 
 		return fmt.Errorf("flush pipeline: %w", err)
 	}
 
-	// Receive all results to complete the pipeline (we don't need the values)
-	for range queryIDsToAmounts {
+	// Receive all results to complete the pipeline (we don't need the values).
+	for range keys {
 		if _, err := conn.Receive(); err != nil {
 			return fmt.Errorf("receive incrby result: %w", err)
 		}

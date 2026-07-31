@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "1.26.5",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Go Programming Language%' AND publisher = 'https://go.dev';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Go Programming Language%' AND publisher = 'https://go.dev' AND version_compare(version, '1.26.5') < 0);"
+      },
+      "installer_url": "https://go.dev/dl/go1.26.5.windows-amd64.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "0047620c",
+      "sha256": "d554dc209403b101225fc2b54647ef47df09bea23291b1246fe1b35198f55f50",
+      "default_categories": [
+        "Developer tools"
+      ],
+      "upgrade_code": "{22EA7650-4AC6-4001-BF29-F4B8775DB1C0}"
+    }
+  ],
+  "refs": {
+    "0047620c": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts('{22EA7650-4AC6-4001-BF29-F4B8775DB1C0}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # If the uninstall failed, bail\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

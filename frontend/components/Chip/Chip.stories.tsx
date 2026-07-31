@@ -63,6 +63,6 @@ export const ClickableWithTooltip: Story = {
     icon: "refresh",
     text: "Auto install",
     onClick: () => undefined,
-    tooltip: "Policy triggers install. Select to open policy.",
+    tooltip: "Policy triggers install.",
   },
 };
