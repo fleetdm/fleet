@@ -311,6 +311,10 @@ Monitor hourly, sorted by Created Date (newest first). No lead untouched > 60 mi
 - Salesforce updated before moving to next lead
 
 
+## "Let's get you set up" calls
+
+"Let's get you set up" calls happen every Friday at 10 AM and 2 PM US Central time. [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ on the Solutions Consulting team is point person for these calls. He will be on these calls as his schedule allows and coordinates coverage when he is unable to attend. Every call includes a Solutions Consultant and a Solutions Specialist.
+
 
 ## Proof of value (POV)
 
