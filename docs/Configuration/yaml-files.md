@@ -38,8 +38,8 @@ The `hostname` host identifier is deprecated. Please use a host's `id`, `hardwar
 ```yaml
 labels:
   - name: Arm64
-    platform: darwin,windows
-    description: Hosts on the Arm64 architecture
+    platform: darwin
+    description: macOS hosts on the Arm64 architecture
     query: "SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%' OR cpu_type LIKE 'aarch64%'"
     label_membership_type: dynamic
   - name: C-Suite
