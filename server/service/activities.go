@@ -27,9 +27,9 @@ func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.Act
 // activity bounded context, not an endpoint.
 //
 // Perf note: this runs for every host-linked activity on Premium, enabled or
-// not. The team-config reads are served from the datastore cache
-// (DefaultTeamConfig and TeamLite); the hosts-lite read stays uncached by
-// design, since the host→fleet mapping must be fresh for routing.
+// not. DefaultTeamConfig is served from the datastore cache but TeamLite is
+// not, so named-fleet hosts cost one lite host read plus one team read per
+// activity.
 func (svc *Service) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookSettings, error) {
 	if !license.IsPremium(ctx) {
 		return nil, nil

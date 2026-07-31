@@ -618,56 +618,6 @@ func (t *TeamConfig) Clone() (Cloner, error) {
 	return t.Copy(), nil
 }
 
-// Copy creates a deep copy of the TeamConfigLite.
-func (t *TeamConfigLite) Copy() *TeamConfigLite {
-	clone := *t
-
-	if t.AgentOptions != nil {
-		agentOptionsCopy := make(json.RawMessage, len(*t.AgentOptions))
-		copy(agentOptionsCopy, *t.AgentOptions)
-		clone.AgentOptions = &agentOptionsCopy
-	}
-
-	if t.WebhookSettings.HostStatusWebhook != nil {
-		hostStatusCopy := *t.WebhookSettings.HostStatusWebhook
-		clone.WebhookSettings.HostStatusWebhook = &hostStatusCopy
-	}
-	if t.WebhookSettings.HostActivitiesWebhook != nil {
-		hostActivitiesCopy := *t.WebhookSettings.HostActivitiesWebhook
-		clone.WebhookSettings.HostActivitiesWebhook = &hostActivitiesCopy
-	}
-	if len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) > 0 {
-		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
-		copy(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-	}
-
-	clone.Integrations = t.Integrations.Copy()
-	clone.MDM = *t.MDM.Copy()
-
-	return &clone
-}
-
-// Copy creates a deep copy of the TeamLite.
-func (t *TeamLite) Copy() *TeamLite {
-	if t == nil {
-		return nil
-	}
-
-	clone := *t
-	if t.Filename != nil {
-		filenameCopy := *t.Filename
-		clone.Filename = &filenameCopy
-	}
-	clone.Config = *t.Config.Copy()
-
-	return &clone
-}
-
-// Clone implements the Cloner interface for cache support
-func (t *TeamLite) Clone() (Cloner, error) {
-	return t.Copy(), nil
-}
-
 type TeamSummary struct {
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
