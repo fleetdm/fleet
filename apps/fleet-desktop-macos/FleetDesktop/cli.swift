@@ -4,7 +4,7 @@ import Foundation
 ///
 /// This is a published contract: the Fleet server maps these to activities, so the
 /// values must stay stable. Codes are banded so the band alone is actionable —
-/// 30-39 server/network, 40-49 nobody will see it.
+/// 30-39 server/network, 40-49 nobody was there to see it (retry later, or never).
 ///
 /// Two ranges are deliberately avoided. `1` is unassigned, so a `1` in the field
 /// means something outside this model happened (a Swift trap surfaces as a signal,
@@ -32,6 +32,11 @@ enum ExitCode: Int32 {
     /// Someone is logged in but the screen is locked, so the toast would expire
     /// unseen. Nothing was shown.
     case screenLocked = 41
+
+    /// No display is attached. Reachable on a headless Mac — one with no monitor and
+    /// no active screen-sharing session — where a console user is still reported.
+    /// Not a fault: this host simply cannot show notifications.
+    case noDisplay = 42
 
     /// Unreachable state: the watchdog fired, or the child never completed the
     /// handshake (crashed or was killed before reporting).

@@ -19,8 +19,7 @@ enum ToastOutcome {
     /// The page returned an HTTP error status on the main frame. Nothing was shown.
     case httpError(Int)
 
-    /// There is no screen to draw on. Unexpected — the caller has already
-    /// established that someone is logged in.
+    /// No display is attached, so there is nothing to draw on. Nothing was shown.
     case noDisplay
 }
 

@@ -237,7 +237,7 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !NSScreen.screens.isEmpty else {
-            finish(.internalError, "No display is available.")
+            finish(.noDisplay, "No display is attached.")
         }
 
         let toast = ToastWindow(url: url, logger: logger)
@@ -289,7 +289,7 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
         case .httpError(let status):
             finish(.httpError, "Page returned HTTP \(status).")
         case .noDisplay:
-            finish(.internalError, "No display is available.")
+            finish(.noDisplay, "No display is attached.")
         }
     }
 
