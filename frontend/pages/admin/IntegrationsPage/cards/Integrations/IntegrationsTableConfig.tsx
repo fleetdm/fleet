@@ -32,7 +32,7 @@ interface ICellProps extends IRowProps {
   };
 }
 
-interface IActionsDropdownProps extends IRowProps {
+interface IActionsCellProps extends IRowProps {
   cell: {
     value: IDropdownOption[];
   };
@@ -44,7 +44,7 @@ interface IDataColumn {
   accessor: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IActionsDropdownProps) => JSX.Element);
+    | ((props: IActionsCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
@@ -99,7 +99,7 @@ const generateTableHeaders = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IActionsDropdownProps) => (
+      Cell: (cellProps: IActionsCellProps) => (
         <Button
           className="row-hover-button"
           variant="subdued"
