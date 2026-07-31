@@ -316,6 +316,8 @@ type ModifyAppConfigFunc func(ctx context.Context, p []byte, applyOpts fleet.App
 
 type SandboxEnabledFunc func() bool
 
+type MaxInstallerSizeBytesFunc func() int64
+
 type AppConfigUrlsFunc func(ctx context.Context) (urls *fleet.AppConfigUrls, err error)
 
 type ApplyEnrollSecretSpecFunc func(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error
@@ -1430,6 +1432,9 @@ type Service struct {
 
 	SandboxEnabledFunc        SandboxEnabledFunc
 	SandboxEnabledFuncInvoked bool
+
+	MaxInstallerSizeBytesFunc        MaxInstallerSizeBytesFunc
+	MaxInstallerSizeBytesFuncInvoked bool
 
 	AppConfigUrlsFunc        AppConfigUrlsFunc
 	AppConfigUrlsFuncInvoked bool
@@ -3473,6 +3478,13 @@ func (s *Service) SandboxEnabled() bool {
 	s.SandboxEnabledFuncInvoked = true
 	s.mu.Unlock()
 	return s.SandboxEnabledFunc()
+}
+
+func (s *Service) MaxInstallerSizeBytes() int64 {
+	s.mu.Lock()
+	s.MaxInstallerSizeBytesFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaxInstallerSizeBytesFunc()
 }
 
 func (s *Service) AppConfigUrls(ctx context.Context) (urls *fleet.AppConfigUrls, err error) {

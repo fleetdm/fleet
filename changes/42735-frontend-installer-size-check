@@ -1,0 +1,2 @@
+- Added `max_software_package_size` and `max_software_package_size_human` to the `GET /api/v1/fleet/config` response.
+- Fleet now rejects an oversized software package in the browser when it's selected, instead of after the upload finishes, so the maximum file size is reported the same way in Safari, Chrome, and Firefox.

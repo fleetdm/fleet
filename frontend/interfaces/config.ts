@@ -243,6 +243,13 @@ export interface IConfig {
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;
+  /** Largest software installer the server will accept, in bytes. Set by the
+   * server's config file or environment, so it can't be changed from the UI. */
+  max_software_package_size: number;
+  /** The same limit as the server renders it, e.g. "1GiB". Use this in copy
+   * rather than formatting the byte count, so the wording matches the error
+   * the server returns to clients that upload anyway. */
+  max_software_package_size_human: string;
 }
 
 interface IFleetPartnerships {
