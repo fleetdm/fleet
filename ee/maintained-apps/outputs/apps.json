@@ -688,6 +688,13 @@
       "description": "Anytype is a local-first and end-to-end encrypted notes app."
     },
     {
+      "name": "AOMEI Backupper Standard",
+      "slug": "aomei-backupper-standard/windows",
+      "platform": "windows",
+      "unique_identifier": "AOMEI Backupper",
+      "description": "AOMEI Backupper Standard is a backup, sync, and disaster recovery tool for Windows."
+    },
+    {
       "name": "Apidog",
       "slug": "apidog/darwin",
       "platform": "darwin",

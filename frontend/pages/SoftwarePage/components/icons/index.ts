@@ -71,6 +71,7 @@ import Anyburn from "./Anyburn";
 import AnyDesk from "./AnyDesk";
 import Anydo from "./Anydo";
 import Anytype from "./Anytype";
+import AomeiBackupperStandard from "./AomeiBackupperStandard";
 import Apidog from "./Apidog";
 import Apparency from "./Apparency";
 import AppCleaner from "./AppCleaner";
@@ -1219,6 +1220,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   anyburn: Anyburn,
   anydesk: AnyDesk,
   anytype: Anytype,
+  "aomei backupper standard": AomeiBackupperStandard,
   apidog: Apidog,
   "app fair": AppFair,
   apparency: Apparency,
