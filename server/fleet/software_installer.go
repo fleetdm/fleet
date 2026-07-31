@@ -226,6 +226,7 @@ const (
 	SoftwarePackageDownloadStarted  SoftwarePackageDownloadStatus = "downloading"
 	SoftwarePackageDownloadFinished SoftwarePackageDownloadStatus = "downloaded"
 	SoftwarePackageDownloadFailed   SoftwarePackageDownloadStatus = "failed"
+	SoftwarePackageDownloadSkipped  SoftwarePackageDownloadStatus = "skipped"
 )
 
 // BatchSetSoftwareInstallersResult is the status of a software batch started by

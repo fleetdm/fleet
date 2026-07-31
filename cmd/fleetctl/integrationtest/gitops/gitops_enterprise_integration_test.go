@@ -230,7 +230,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation
 	}
 	// A dry run downloads software packages in full, so it reports each download as it
 	// happens. Those lines say what it did, not what it would do.
-	pattern := fmt.Sprintf("\\[([+\\-!])] (would've (%s)|downloading|downloaded)", strings.Join(allowedVerbs, "|"))
+	pattern := fmt.Sprintf("\\[([+\\-!])] (would've (%s)|downloading|downloaded|skipped)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
 		if expectDeprecation && line != "" && strings.Contains(line, "is deprecated") {
@@ -263,6 +263,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecatio
 		"deleting",    // ditto
 		"downloading", // software packages report each download as it starts
 		"downloaded",  // ditto, as it finishes
+		"skipped",     // ditto, for a package already in storage
 	}
 	pattern := fmt.Sprintf("\\[([+\\-!])] (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)

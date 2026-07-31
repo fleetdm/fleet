@@ -1365,6 +1365,14 @@ func TestApplySoftwareInstallersProgress(t *testing.T) {
 			},
 		},
 		{
+			// Fleet already has the bytes, so there is no download to report.
+			name:  "a package already in storage reports the skip and no download",
+			polls: []batchSetSoftwareInstallersResultResponse{poll(completed, pkg("zoom.pkg", fleet.SoftwarePackageDownloadSkipped))},
+			wantLines: []string{
+				"[+] skipped downloading the software package (already in storage) - zoom.pkg",
+			},
+		},
+		{
 			name:  "packages the batch never downloads stay silent",
 			polls: []batchSetSoftwareInstallersResultResponse{poll(completed, fleet.SoftwarePackageDownloadProgress{}, pkg("zoom.pkg", downloaded), fleet.SoftwarePackageDownloadProgress{})},
 			wantLines: []string{

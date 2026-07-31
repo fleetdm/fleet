@@ -3070,7 +3070,7 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}(time.Now())
 
-	// Every write sends the whole slice, so it needs a lock, not just one index per goroutine.
+	// The keepalive below reads this while a download is writing it, so it needs a lock.
 	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
 	var downloadProgressMutex sync.Mutex
 	var lastDownloadProgressJSON string
@@ -3480,8 +3480,14 @@ func (svc *Service) softwareBatchUpload(
 						}
 					}
 
-					setDownloadProgress(i, fleet.SoftwarePackageDownloadFinished)
+					if cacheHit {
+						setDownloadProgress(i, fleet.SoftwarePackageDownloadSkipped)
+					} else {
+						setDownloadProgress(i, fleet.SoftwarePackageDownloadFinished)
+					}
 				}
+			} else {
+				setDownloadProgress(i, fleet.SoftwarePackageDownloadSkipped)
 			}
 
 			if p.Slug != nil && *p.Slug != "" {

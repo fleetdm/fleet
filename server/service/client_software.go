@@ -126,6 +126,17 @@ func (c *Client) applySoftwareInstallers(
 				continue
 			}
 
+			// A package Fleet doesn't have to download reports no progress, just the skip.
+			if packageProgress.Status == fleet.SoftwarePackageDownloadSkipped {
+				_, printedSkip := printedResult[packageProgress.Name]
+				if !printedSkip {
+					printedResult[packageProgress.Name] = struct{}{}
+					logFn("[+] skipped downloading the software package (already in storage) - %s\n", packageProgress.Name)
+				}
+				continue
+			}
+
+			// A package can still turn out to be skipped after this prints, when the download returns a 304.
 			_, printedStart := printedDownloading[packageProgress.Name]
 			if !printedStart {
 				printedDownloading[packageProgress.Name] = struct{}{}
