@@ -1,20 +1,9 @@
 #!/bin/bash
 
-# Gyazo's pkg ships a postinstall written in AppleScript whose last two lines
-#
-#   do shell script "open gyazo://grantaccess"
-#   do shell script "open gyazo-video://grantaccess"
-#
-# are not wrapped in a try block (every other statement in that script is).
-# Those URL schemes only resolve inside a logged-in GUI session, so when Fleet
-# runs the install as root the script exits non-zero and `installer` reports the
-# whole install as failed even though the payload landed correctly. The two URLs
-# only kick off Gyazo's screen-recording permission prompt, which the user gets
-# on first launch anyway, so a scripts-only failure is not an install failure.
-#
-# Run the install normally; if `installer` fails, report success only when the
-# payload verifiably installed, i.e. the app bundle is present at the version the
-# package itself declares. Anything else is a real failure and propagates.
+# Gyazo's pkg postinstall ends with two un-try'd `open gyazo://grantaccess` calls
+# that need a GUI session, so `installer` reports failure as root even though the
+# payload installed. Tolerate that only when the app is present at the version the
+# package declares; anything else is a real failure.
 
 APPDIR="/Applications"
 BUNDLE_ID="com.gyazo.menu"
@@ -32,7 +21,6 @@ quit_application() {
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
   local quit_success=false
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
@@ -51,16 +39,14 @@ quit_application() {
   fi
 }
 
-# Read the version the package declares for itself, straight out of its own
-# metadata. Only the component's PackageInfo is extracted, not the payload.
 pkg_declared_version() {
   local workdir
   workdir=$(mktemp -d) || return 1
 
   local version=""
   if (cd "$workdir" && xar -xf "$INSTALLER_PATH" Gyazo.pkg/PackageInfo >/dev/null 2>&1); then
-    # Match a whitespace-prefixed version= so the format-version= and
-    # generator-version= attributes on the same element can't be picked up.
+    # Require whitespace before version= so format-version= and
+    # generator-version= on the same element aren't picked up.
     version=$(sed -n 's/.*<pkg-info[^>]*[[:space:]]version="\([^"]*\)".*/\1/p' \
       "$workdir/Gyazo.pkg/PackageInfo" | head -1)
   fi
@@ -102,18 +88,14 @@ if [[ $INSTALLER_STATUS -ne 0 ]]; then
     exit $INSTALLER_STATUS
   fi
 
-  echo "'$APP_PATH' is installed at the expected version '$EXPECTED_VERSION'."
-  echo "Only the package's postinstall script failed (it opens gyazo:// URLs that need a GUI session)."
-  echo "Gyazo requests the permissions those URLs grant on first launch, so treating this install as successful."
+  echo "'$APP_PATH' installed at '$EXPECTED_VERSION'; only the postinstall script failed. Treating as successful."
 fi
 
 if [[ "$APP_WAS_RUNNING" == "true" ]]; then
   sleep 2
   echo "Relaunching application '$BUNDLE_ID'..."
-  # Apps launched by root don't register with the user's Dock/GUI, so run 'open'
-  # as the console user. 'launchctl asuser' bootstraps into that user's Mach
-  # namespace and GUI session — 'sudo -u' alone doesn't, which can cause
-  # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  # launchctl asuser bootstraps the console user's GUI session; sudo -u alone
+  # doesn't, which can fail LSOpenURLsWithRole() even when open exits 0.
   if [[ $EUID -eq 0 && -n "$CONSOLE_USER" && "$CONSOLE_USER" != "root" ]]; then
     CONSOLE_UID=$(id -u "$CONSOLE_USER")
     /bin/launchctl asuser "$CONSOLE_UID" sudo -u "$CONSOLE_USER" open -b "$BUNDLE_ID" || true

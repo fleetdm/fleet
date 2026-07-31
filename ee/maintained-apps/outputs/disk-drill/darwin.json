@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "6.2.2219",
+      "version": "6.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cleverfiles.DiskDrill-setapp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cleverfiles.DiskDrill-setapp' AND version_compare(bundle_short_version, '6.2.2219') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cleverfiles.DiskDrill-setapp' AND version_compare(bundle_short_version, '6.3') < 0);"
       },
       "installer_url": "https://dl.cleverfiles.com/diskdrill.dmg",
       "install_script_ref": "3c6e58b0",
