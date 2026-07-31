@@ -30,7 +30,7 @@ try {
             $exitCode = $process.ExitCode; Write-Host "Uninstall exit code: $exitCode"; break
         }
     }
-    if (-not $foundUninstaller) { Write-Host "Uninstaller for '$softwareName' not found."; Exit 1 }
+    if (-not $foundUninstaller) { Write-Host "Uninstaller for '$softwareName' not found."; Exit 0 }
 } catch { Write-Host "Error: $_"; Exit 1 }
 
 Exit $exitCode

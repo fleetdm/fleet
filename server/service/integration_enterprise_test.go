@@ -218,6 +218,16 @@ func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
 	s.DoRaw("PATCH", "/api/latest/fleet/config", b, http.StatusOK)
 }
 
+// defaultExpectedWindowsSettings returns the WindowsSettings shape produced by a team config
+// save/load round trip with nothing configured: an empty custom settings slice and the managed
+// local account toggle force-defaulted to disabled.
+func defaultExpectedWindowsSettings() fleet.WindowsSettings {
+	return fleet.WindowsSettings{
+		CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+	}
+}
+
 func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	t := s.T()
 
@@ -340,9 +350,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
 		// it did get marshalled, and then when unmarshalled it was set (but
 		// empty).
-		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-		},
+		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
@@ -469,9 +477,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
-		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-		},
+		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
@@ -512,9 +518,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
-		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-		},
+		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
@@ -557,9 +561,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
-		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-		},
+		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
@@ -3460,9 +3462,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
-		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-		},
+		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
@@ -4439,22 +4439,48 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = res.Body.Close()
 	require.NoError(t, err)
 
+	// asserts that a JSON-decoded policy from a device-authenticated endpoint
+	// only contains device-safe fields, i.e. it never exposes the policy
+	// author's identity nor the raw SQL query.
+	assertDeviceSafePolicy := func(policy map[string]any) {
+		require.NotContains(t, policy, "query")
+		require.NotContains(t, policy, "author_id")
+		require.NotContains(t, policy, "author_name")
+		require.NotContains(t, policy, "author_email")
+		require.Contains(t, policy, "name")
+		require.Contains(t, policy, "response")
+	}
+
 	// GET `/api/_version_/fleet/device/{token}/policies`
 	listDevicePoliciesResp := listDevicePoliciesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusOK)
-	err = json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
+	rawBody, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	err = res.Body.Close()
 	require.NoError(t, err)
+	err = json.Unmarshal(rawBody, &listDevicePoliciesResp)
+	require.NoError(t, err)
 	require.Len(t, listDevicePoliciesResp.Policies, 2)
 	require.NoError(t, listDevicePoliciesResp.Err)
+	// the response must not leak the policy author's identity nor the raw SQL query
+	var rawPoliciesResp struct {
+		Policies []map[string]any `json:"policies"`
+	}
+	err = json.Unmarshal(rawBody, &rawPoliciesResp)
+	require.NoError(t, err)
+	require.Len(t, rawPoliciesResp.Policies, 2)
+	for _, policy := range rawPoliciesResp.Policies {
+		assertDeviceSafePolicy(policy)
+	}
 
 	// GET `/api/_version_/fleet/device/{token}`
 	getDeviceHostResp := getDeviceHostResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
-	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	rawBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	err = res.Body.Close()
+	require.NoError(t, err)
+	err = json.Unmarshal(rawBody, &getDeviceHostResp)
 	require.NoError(t, err)
 	require.NoError(t, getDeviceHostResp.Err)
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
@@ -4463,6 +4489,19 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Equal(t, "http://example.com/contact", getDeviceHostResp.OrgContactURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
 	require.False(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
+	// the host's policies must not leak the policy author's identity nor the
+	// raw SQL query
+	var rawHostResp struct {
+		Host struct {
+			Policies []map[string]any `json:"policies"`
+		} `json:"host"`
+	}
+	err = json.Unmarshal(rawBody, &rawHostResp)
+	require.NoError(t, err)
+	require.Len(t, rawHostResp.Host.Policies, 2)
+	for _, policy := range rawHostResp.Host.Policies {
+		assertDeviceSafePolicy(policy)
+	}
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
@@ -17108,7 +17147,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
 		Filename:      "no_bundle_identifier.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Unable to extract necessary metadata.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Unable to extract necessary metadata.")
 }
 
 func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
@@ -17123,13 +17162,13 @@ func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 		Filename:      "hello-world-installer.exe",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Uninstall script is required for .exe packages.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Uninstall script is required for .exe packages.")
 
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		Filename: "hello-world-installer.exe",
 		TeamID:   &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Install script is required for .exe packages.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Install script is required for .exe packages.")
 
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "some installer script",
@@ -22059,7 +22098,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT", "1s")
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 3}, http.StatusGatewayTimeout)
 	dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT")
-	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.")
+	require.Contains(t, extractServerErrorText(r.Body), fleet.AddMaintainedAppTimeoutErrMsg)
 
 	// Add a maintained app to no team
 
@@ -23303,7 +23342,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
-	require.Contains(t, errMsg, "Couldn't add. Install script is required for .exe packages.")
+	require.Contains(t, errMsg, "Install script is required for .exe packages.")
 
 	softwareToInstall[1].InstallScript = "echo install"
 	softwareToInstall[1].UninstallScript = "echo uninstall"
@@ -34954,4 +34993,65 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareBatchDownloadProgressManyPa
 		require.Equal(t, names[i], progress.Name, "package at index %d", i)
 		require.Equal(t, fleet.SoftwarePackageDownloadSkipped, progress.Status, "package at index %d", i)
 	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuildSameVersion() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team_" + t.Name()})
+	require.NoError(t, err)
+
+	// Build A: version 1.0.
+	states := map[string]*fmaTestState{
+		"/zoom/windows.json": {
+			version:        "1.0",
+			installerBytes: []byte("zoom-build-1.0-a"),
+			installerPath:  "/zoom-build-1.0-a.msi",
+			installScript:  "install zoom-build-1.0-a.msi",
+		},
+	}
+	startFMAServers(t, s.ds, states)
+
+	var resp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
+		http.StatusAccepted, &resp, "team_name", team.Name,
+	)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+	var listResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", fmt.Sprintf("%d", team.ID), "available_for_install", "true")
+	require.Len(t, listResp.SoftwareTitles, 1)
+	titleID := listResp.SoftwareTitles[0].ID
+
+	// Build A is cached coherently: version, filename, hash, and script all agree.
+	metaA, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "1.0", metaA.Version)
+	require.Equal(t, "zoom-build-1.0-a.msi", metaA.Name)
+	require.Equal(t, states["/zoom/windows.json"].sha256, metaA.StorageID)
+	require.Equal(t, "install zoom-build-1.0-a.msi", metaA.InstallScript)
+
+	// Build B: rebuilt under the SAME version 1.0 (the collision), with new bytes,
+	// filename, and install script. Recompute the manifest hash for the new bytes.
+	rebuild := states["/zoom/windows.json"]
+	rebuild.installerBytes = []byte("zoom-build-1.0-b")
+	rebuild.installerPath = "/zoom-build-1.0-b.msi"
+	rebuild.installScript = "install zoom-build-1.0-b.msi"
+	rebuild.ComputeSHA(rebuild.installerBytes)
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
+		http.StatusAccepted, &resp, "team_name", team.Name,
+	)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+	// The rebuild must advance filename, hash, and script together — no skew.
+	metaB, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "1.0", metaB.Version)
+	require.Equal(t, "zoom-build-1.0-b.msi", metaB.Name)
+	require.Equal(t, rebuild.sha256, metaB.StorageID)
+	require.Equal(t, "install zoom-build-1.0-b.msi", metaB.InstallScript)
 }

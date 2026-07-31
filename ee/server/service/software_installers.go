@@ -2092,7 +2092,7 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 		// Allow .sh and .py scripts for any unix-like platform (linux and darwin)
 		if !((ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)) {
 			return &fleet.BadRequestError{
-				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
 				InternalErr: ctxerr.NewWithData(
 					ctx, "invalid host platform for requested installer",
 					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
@@ -2352,6 +2352,18 @@ func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]
 	return out, nil
 }
 
+// batchNeedsWindowsTitleReconcile reports whether a batch added any Fleet-maintained app,
+// in which case Windows software titles may need merging onto the installers' titles.
+//
+// Keyed on the maintained-app link alone rather than also on the platform: the reconcile
+// is a no-op for non-Windows apps, so an unnecessary run costs one indexed scan, whereas a
+// missed run leaves the uninstall action hidden until the next periodic pass.
+func batchNeedsWindowsTitleReconcile(installers []*fleet.UploadSoftwareInstallerPayload) bool {
+	return slices.ContainsFunc(installers, func(i *fleet.UploadSoftwareInstallerPayload) bool {
+		return i != nil && i.FleetMaintainedAppID != nil
+	})
+}
+
 func (svc *Service) storeSoftware(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
 	// check if exists in the installer store
 	exists, err := svc.softwareInstallStore.Exists(ctx, payload.StorageID)
@@ -2403,12 +2415,12 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 			if failOnBlankScript {
 				if payload.InstallScript == "" {
 					return "", &fleet.BadRequestError{
-						Message: "Couldn't add. Install script is required for .zip packages.",
+						Message: "Install script is required for .zip packages.",
 					}
 				}
 				if payload.UninstallScript == "" {
 					return "", &fleet.BadRequestError{
-						Message: "Couldn't add. Uninstall script is required for .zip packages.",
+						Message: "Uninstall script is required for .zip packages.",
 					}
 				}
 			}
@@ -2420,14 +2432,16 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	meta, err := file.ExtractInstallerMetadata(payload.InstallerFile)
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
+			// The failure comes from magic-byte detection, so the file's content
+			// (not its extension) is what didn't match a supported format.
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1.",
+				Message:     "The file's content doesn't match a supported installer format. Supported types: .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
 		if errors.Is(err, file.ErrInvalidTarball) {
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. Uploaded file is not a valid .tar.gz archive.",
+				Message:     "Uploaded file is not a valid .tar.gz archive.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
@@ -2436,7 +2450,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 	if len(meta.PackageIDs) == 0 && meta.Extension != "tar.gz" && meta.Extension != "zip" {
 		return "", &fleet.BadRequestError{
-			Message:     "Couldn't add. Unable to extract necessary metadata.",
+			Message:     "Unable to extract necessary metadata.",
 			InternalErr: ctxerr.New(ctx, "extracting package IDs from installer metadata"),
 		}
 	}
@@ -2465,11 +2479,11 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		ext := strings.ToLower(payload.Extension)
 		if ext == "zip" {
 			return "", &fleet.BadRequestError{
-				Message: "Couldn't add. Install script is required for .zip packages.",
+				Message: "Install script is required for .zip packages.",
 			}
 		}
 		return "", &fleet.BadRequestError{
-			Message: fmt.Sprintf("Couldn't add. Install script is required for .%s packages.", ext),
+			Message: fmt.Sprintf("Install script is required for .%s packages.", ext),
 		}
 	}
 
@@ -2482,7 +2496,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	}
 	if payload.UninstallScript == "" && failOnBlankScript && payload.Extension != "ipa" {
 		return "", &fleet.BadRequestError{
-			Message: fmt.Sprintf("Couldn't add. Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
+			Message: fmt.Sprintf("Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
 		}
 	}
 
@@ -2534,7 +2548,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 
 	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
 		return &fleet.BadRequestError{
-			Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", err.Error()),
+			Message:     fmt.Sprintf("Script validation failed: %s", err.Error()),
 			InternalErr: ctxerr.Wrap(ctx, err, "validating script contents"),
 		}
 	}
@@ -2543,7 +2557,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 	kind, directExecute, err := fleet.ShebangInfo(scriptContents)
 	if err != nil {
 		return &fleet.BadRequestError{
-			Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", err.Error()),
+			Message:     fmt.Sprintf("Script validation failed: %s", err.Error()),
 			InternalErr: ctxerr.Wrap(ctx, err, "validating script shebang"),
 		}
 	}
@@ -2552,7 +2566,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		// allow no shebang (defaults to /bin/sh), or a supported shell shebang.
 		if directExecute && kind != fleet.ShebangShell {
 			return &fleet.BadRequestError{
-				Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", fleet.ErrUnsupportedInterpreter.Error()),
+				Message:     fmt.Sprintf("Script validation failed: %s", fleet.ErrUnsupportedInterpreter.Error()),
 				InternalErr: ctxerr.New(ctx, "shell script with non-shell shebang"),
 			}
 		}
@@ -2560,7 +2574,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		// python scripts must be directly executable (via a python shebang).
 		if !directExecute || kind != fleet.ShebangPython {
 			return &fleet.BadRequestError{
-				Message:     "Couldn't add. Script validation failed: Python scripts must start with a python shebang (for example, \"#!/usr/bin/env python3\").",
+				Message:     "Script validation failed: Python scripts must start with a python shebang (for example, \"#!/usr/bin/env python3\").",
 				InternalErr: ctxerr.New(ctx, "python script without python shebang"),
 			}
 		}
@@ -2568,7 +2582,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		// PowerShell scripts are executed via powershell.exe, shebangs are not supported.
 		if directExecute {
 			return &fleet.BadRequestError{
-				Message:     "Couldn't add. Script validation failed: PowerShell scripts must not start with a shebang (\"#!\").",
+				Message:     "Script validation failed: PowerShell scripts must not start with a shebang (\"#!\").",
 				InternalErr: ctxerr.New(ctx, "powershell script with shebang"),
 			}
 		}
@@ -3322,14 +3336,18 @@ func (svc *Service) softwareBatchUpload(
 			}
 
 			// For FMA installers, check if this version is already cached for this team.
+			// Match on the hash too so a rebuilt package (same version, new hash) isn't
+			// treated as cached and gets downloaded and upserted instead.
 			var fmaVersionCached bool
 			if p.Slug != nil && *p.Slug != "" && p.MaintainedApp != nil && p.MaintainedApp.Version != "" {
-				cached, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
+				versionExists, cachedHash, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "check cached FMA version")
 				}
-				fmaVersionCached = cached
-				installer.FMAVersionCached = cached
+				if versionExists && cachedHash == p.MaintainedApp.SHA256 {
+					fmaVersionCached = true
+				}
+				installer.FMAVersionCached = fmaVersionCached
 			}
 
 			var installerBytesExist bool
@@ -3769,6 +3787,30 @@ func (svc *Service) softwareBatchUpload(
 		return
 	}
 
+	// Windows programs report the version inside their name, so software already
+	// inventoried for an app in this batch sits under a versioned software title rather
+	// than the one its installer now owns, and the uninstall action stays hidden until
+	// they are merged. Matches what the single-add path does, so a team managed through
+	// GitOps is not left waiting for the periodic pass.
+	//
+	// Once for the whole batch rather than per installer: the pass covers every added app
+	// in one scan. Best effort, since the installers are committed at this point and the
+	// periodic pass will redo it.
+	//
+	// Triggered by the maintained-app link alone rather than also checking the platform.
+	// The pass is a no-op for non-Windows apps, so an unnecessary run costs one indexed
+	// scan, whereas a missed run leaves the uninstall action hidden until the next
+	// periodic pass. Not worth depending on Platform being populated this far down the
+	// batch payload chain to save that.
+	if batchNeedsWindowsTitleReconcile(softwareInstallers) {
+		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
+			svc.logger.WarnContext(ctx, "reconciling Windows software titles after a software batch",
+				"team_id", teamID,
+				"err", err,
+			)
+		}
+	}
+
 	// Reconcile cross-platform setup experience selections when the incoming
 	// batch mentions them. A batch that never touches setup_experience_platform
 	// leaves the cross-table alone so UI-set selections aren't clobbered.
@@ -4087,7 +4129,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			// Allow .sh and .py scripts for any unix-like platform (linux and darwin)
 			if !((ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)) {
 				return &fleet.BadRequestError{
-					Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+					Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "invalid host platform for requested installer",
 						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
@@ -4247,6 +4289,26 @@ func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, require
 		return ext, installer.Platform
 	}
 	return ext, packageExtensionToPlatform(ext)
+}
+
+// humanReadableRequiredPlatforms returns the platform(s) named in the
+// "can be installed only on ..." rejection message. .sh/.py script packages
+// are stored/derived as "linux" but the install gate also permits darwin
+// (see fleet.IsUnixLike), so they need the two-platform wording.
+func humanReadableRequiredPlatforms(ext, requiredPlatform string) string {
+	if ext == ".sh" || ext == ".py" {
+		return "macOS and Linux"
+	}
+	switch requiredPlatform {
+	case "darwin":
+		return "macOS"
+	case "windows":
+		return "Windows"
+	case "linux":
+		return "Linux"
+	default:
+		return requiredPlatform
+	}
 }
 
 // packageExtensionToPlatform returns the platform name based on the

@@ -538,7 +538,6 @@ const EditQueryForm = ({
           hideText="Hide SQL"
           showText="Show SQL"
           onClick={() => setShowQueryEditor(!showQueryEditor)}
-          variant="secondary"
         />
       )}
       {showQueryEditor && (
@@ -782,7 +781,6 @@ const EditQueryForm = ({
                 showText="Advanced options"
                 caretPosition="after"
                 onClick={toggleAdvancedOptions}
-                variant="secondary"
               />
               {showAdvancedOptions && (
                 <>

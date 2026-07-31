@@ -308,7 +308,8 @@ const OktaConditionalAccessModal = ({
             isLoading={isDownloadingCert}
             disabled={isDownloadingCert}
           >
-            Download certificate <Icon name="download" />
+            <span>Download certificate</span>
+            <Icon name="download" />
           </Button>
         </div>
 

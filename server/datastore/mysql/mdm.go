@@ -337,7 +337,7 @@ WHERE ` + whereTeam
 			)
 		}
 		byUUID[h.UUID] = h
-		switch fleet.MDMPlatform(h.Platform) {
+		switch fleet.ClassicMDMPlatform(h.Platform) {
 		case "darwin":
 			appleUUIDs = append(appleUUIDs, h.UUID)
 		case "windows":

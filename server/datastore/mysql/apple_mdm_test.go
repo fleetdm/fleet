@@ -5924,16 +5924,18 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 
 func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	createBuiltinLabels(t, ds)
 
-	newHost := func(uuidSuffix string) *fleet.Host {
+	newHost := func(uuidSuffix, platform string) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "reset-host-" + uuidSuffix,
 			OsqueryHostID: ptr.String("reset-osq-" + uuidSuffix),
 			NodeKey:       ptr.String("reset-key-" + uuidSuffix),
 			UUID:          "reset-uuid-" + uuidSuffix,
-			Platform:      "darwin",
+			Platform:      platform,
 		})
 		require.NoError(t, err)
+		require.NoError(t, upsertMDMAppleHostLabelMembershipDB(ctx, ds.writer(ctx), ds.logger, *h))
 		return h
 	}
 
@@ -5944,7 +5946,7 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 	seedHostData := func(t *testing.T, h *fleet.Host) {
 		// label_membership (host_id ref - covered by appleHostRefsForMDMReset)
 		_, err := ds.writer(ctx).ExecContext(ctx,
-			`INSERT INTO labels (name, query) VALUES (?, ?)`,
+			`INSERT INTO labels (name, description, query, platform) VALUES (?, '', ?, '')`,
 			"label-"+h.UUID, "select 1")
 		require.NoError(t, err)
 		var labelID uint
@@ -5992,11 +5994,20 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 			`SELECT COUNT(*) FROM mdm_apple_psso_keys WHERE host_uuid = ?`, h.UUID))
 		return c
 	}
-	seeded := counts{label: 1, upcoming: 1, pssoDevice: 1, pssoKey: 1}
+	labelNames := func(t *testing.T, h *fleet.Host) []string {
+		labels, err := ds.ListLabelsForHost(ctx, h.ID)
+		require.NoError(t, err)
+		names := make([]string, 0, len(labels))
+		for _, label := range labels {
+			names = append(names, label.Name)
+		}
+		return names
+	}
+	seeded := counts{label: 3, upcoming: 1, pssoDevice: 1, pssoKey: 1}
 
 	t.Run("clears expected tables and leaves other hosts untouched", func(t *testing.T) {
-		hostA := newHost("clear-A")
-		hostB := newHost("clear-B")
+		hostA := newHost("clear-A", "ipados")
+		hostB := newHost("clear-B", "darwin")
 		seedHostData(t, hostA)
 		seedHostData(t, hostB)
 
@@ -6006,15 +6017,17 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 
 		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
 
-		// host A: everything cleared
-		assert.Equal(t, counts{}, countRows(t, hostA))
+		// Host A keeps only its built-in memberships.
+		assert.Equal(t, counts{label: 2}, countRows(t, hostA))
+		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelIPadOS}, labelNames(t, hostA))
 
-		// host B: untouched (control - proves the reset is host-scoped)
+		// Host B is untouched, including its custom membership.
 		assert.Equal(t, seeded, countRows(t, hostB))
+		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameMacOS, "label-" + hostB.UUID}, labelNames(t, hostB))
 	})
 
 	t.Run("returns error and changes nothing when host UUID does not exist", func(t *testing.T) {
-		hostA := newHost("err-A")
+		hostA := newHost("err-A", "ipados")
 		seedHostData(t, hostA)
 
 		err := ds.MDMAppleResetOnReenrollment(ctx, "nonexistent-uuid-xyz", true)
@@ -6094,8 +6107,8 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("preserveHostActivities flag controls past activity history", func(t *testing.T) {
-		hostA := newHost("preserve-A")
-		hostB := newHost("preserve-B")
+		hostA := newHost("preserve-A", "ipados")
+		hostB := newHost("preserve-B", "ipados")
 		seedHostActivityData(t, hostA)
 		seedHostActivityData(t, hostB)
 

@@ -1,0 +1,1 @@
+- Fixed Apple hosts losing built-in label memberships during Automated Device Enrollment (ADE), which prevented label-scoped profiles, software, and OS updates from being delivered.

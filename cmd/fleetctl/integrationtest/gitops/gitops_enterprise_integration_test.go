@@ -946,6 +946,7 @@ agent_options:
 labels:
   - name: Label1
     query: select 1
+    platform: linux
 controls:
   apple_settings:
     configuration_profiles:

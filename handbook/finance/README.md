@@ -503,7 +503,7 @@ Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@late
 
 ### Measure intent signals
 
-Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily) to measure and process intent signals.
+Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market/go-to-market-strategy.md#daily) to measure and process intent signals.
 
 
 ### Manage duplicates in CRM
