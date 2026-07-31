@@ -289,7 +289,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	var redisPool fleet.RedisPool
 	var redisWrapperDS *mysqlredis.Datastore
-	redisPool, ds, redisWrapperDS = initRedis(cmd.Context(), config, license, ds, logger, initFatal)
+	var configETagStore fleet.ConfigETagStore
+	redisPool, ds, redisWrapperDS, configETagStore = initRedis(cmd.Context(), config, license, ds, logger, initFatal)
 	if redisPool == nil {
 		initFatal(errors.New("redis pool was nil after initialization"), "initialize Redis")
 		return
@@ -628,6 +629,22 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
 	logger.InfoContext(ctx, "instance info", "instanceID", instanceID)
+
+	// ██ OSQUERY CONFIG ETAG SHORT CIRCUIT ██ Injecting the store is the ONE
+	// thing that enables it — without this call the service field stays nil
+	// and every config request takes the full-build path. The invalidation
+	// hooks (etag_invalidate, wired in initRedis) run regardless of the flag
+	// so the Redis generation counter stays coherent, making it safe to flip
+	// the flag on/off between restarts. See
+	// fleet.OsqueryService.GetClientConfigWithETag for the full contract.
+	if svc != nil && config.Osquery.RedisConfigETags && configETagStore != nil {
+		svc.SetConfigETagStore(configETagStore)
+		logger.InfoContext(ctx, "osquery config ETag short circuit ENABLED: matching config check-ins are served 304 from Redis without building the config",
+			"component", "config-etag", "flag", "osquery.redis_config_etags")
+	} else {
+		logger.InfoContext(ctx, "osquery config ETag short circuit disabled (osquery.redis_config_etags is off); all config requests take the full-build path",
+			"component", "config-etag", "flag", "osquery.redis_config_etags")
+	}
 
 	// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
 	activitySvc, activityRoutes := createActivityBoundedContext(svc, ds, dbConns, logger)

@@ -179,7 +179,7 @@ func TestConfigETag_Disabled(t *testing.T) {
 	a.serverAddress = server.URL
 
 	// Two requests, neither should send If-None-Match
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		err := a.config()
 		require.NoError(t, err)
 	}
@@ -434,7 +434,7 @@ func TestStats_ConfigSavingsCalculation(t *testing.T) {
 
 	// Simulate: 1 full response (1000 bytes) + 9 not-modified (each avoiding 1000 bytes)
 	stats.RecordFullConfigResponse(1000, false)
-	for i := 0; i < 9; i++ {
+	for range 9 {
 		stats.RecordConfigNotModified(1000)
 	}
 
@@ -447,7 +447,7 @@ func TestConfigETag_StatsConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Concurrent updates should be race-free
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		wg.Add(3)
 		go func() {
 			defer wg.Done()
@@ -603,7 +603,7 @@ func TestConfigETag_JsonUnmarshal(t *testing.T) {
 
 	var parsed struct {
 		Packs map[string]struct {
-			Queries map[string]interface{} `json:"queries"`
+			Queries map[string]any `json:"queries"`
 		} `json:"packs"`
 	}
 	err := json.Unmarshal(body, &parsed)

@@ -9,9 +9,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/etag_invalidate"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/redis_config_etag"
 )
 
 // buildRedisPoolConfig translates the Fleet Redis config into the redis
@@ -64,16 +66,22 @@ func validateRedisConfig(cfg config.RedisConfig) error {
 	return nil
 }
 
-// initRedis brings up the Redis pool and the two datastore wrappers that
-// depend on it: cached_mysql (in-memory caching layer over the datastore)
-// and mysqlredis (Redis-backed host lookup and license-enforced host
-// limit). Failures go through initFatal. Returns nil values on the
-// failure path so the function is safe when initFatal does not terminate
-// (e.g., tests using a recorder).
+// initRedis brings up the Redis pool and the datastore wrappers that depend
+// on it: cached_mysql (in-memory caching layer over the datastore),
+// mysqlredis (Redis-backed host lookup and license-enforced host limit), and
+// etag_invalidate (osquery config ETag invalidation hooks). Failures go
+// through initFatal. Returns nil values on the failure path so the function
+// is safe when initFatal does not terminate (e.g., tests using a recorder).
 //
-// The returned fleet.Datastore is the fully wrapped chain (mysqlredis →
-// cached_mysql → input ds); the returned *mysqlredis.Datastore is the
-// outermost wrapper, which a few callers need by concrete type.
+// The returned fleet.Datastore is the fully wrapped chain (etag_invalidate →
+// mysqlredis → cached_mysql → input ds); the returned *mysqlredis.Datastore
+// is that wrapper, which a few callers need by concrete type. The returned
+// ConfigETagStore is the Redis-backed osquery config ETag store — the caller
+// decides whether to inject it into the service (enabling the config SHORT
+// CIRCUIT) based on the osquery.redis_config_etags feature flag; the
+// etag_invalidate write hooks are wired UNCONDITIONALLY so the generation
+// counter stays coherent even while the flag is off, making it safe to flip
+// on later without a poisoning window.
 func initRedis(
 	ctx context.Context,
 	cfg config.FleetConfig,
@@ -81,10 +89,10 @@ func initRedis(
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	initFatal func(err error, msg string),
-) (fleet.RedisPool, fleet.Datastore, *mysqlredis.Datastore) {
+) (fleet.RedisPool, fleet.Datastore, *mysqlredis.Datastore, fleet.ConfigETagStore) {
 	if license == nil {
 		initFatal(errors.New("license was nil"), "initialize Redis")
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	// Validate cheap local config before dialing Redis: surfaces a
@@ -93,13 +101,13 @@ func initRedis(
 	// swapped (e.g., a test recorder) and execution continues.
 	if err := validateRedisConfig(cfg.Redis); err != nil {
 		initFatal(err, "validate host cache configuration")
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	redisPool, err := redis.NewPool(buildRedisPoolConfig(cfg.Redis))
 	if err != nil {
 		initFatal(err, "initialize Redis")
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	logger.InfoContext(ctx, "redis initialized", "component", "redis", "mode", redisPool.Mode())
 
@@ -116,5 +124,16 @@ func initRedis(
 	}
 
 	redisWrapperDS := mysqlredis.New(wrappedDS, redisPool, dsOpts...)
-	return redisPool, redisWrapperDS, redisWrapperDS
+
+	// Config ETag invalidation hooks: every config-affecting write bumps the
+	// ETag generation and arms the write fence (see the etag_invalidate and
+	// redis_config_etag package docs). This wrapper is OUTERMOST so it sees
+	// every write regardless of the inner caching layers, and it is always
+	// on when Redis is configured — the osquery.redis_config_etags flag only
+	// gates whether the service READS from the store (the short circuit),
+	// which the caller wires via svc.SetConfigETagStore.
+	configETagStore := redis_config_etag.New(redisPool)
+	etagDS := etag_invalidate.New(redisWrapperDS, configETagStore, logger.With("component", "etag-invalidate"))
+
+	return redisPool, etagDS, redisWrapperDS, configETagStore
 }

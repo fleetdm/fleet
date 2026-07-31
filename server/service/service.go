@@ -75,6 +75,13 @@ type Service struct {
 
 	packConfigCache *gocache.Cache
 
+	// configETagStore powers the osquery config ETag SHORT CIRCUIT (see
+	// GetClientConfigWithETag in osquery.go). It is nil unless the
+	// osquery.redis_config_etags feature flag is enabled AND Redis is
+	// configured — nil is what turns the short circuit off, there is no other
+	// gate at request time.
+	configETagStore fleet.ConfigETagStore
+
 	androidSvc android.Service
 
 	// activitySvc is the activity bounded context service for write operations.
@@ -207,6 +214,15 @@ func NewService(
 
 func (svc *Service) SendEmail(ctx context.Context, mail fleet.Email) error {
 	return svc.mailService.SendEmail(ctx, mail)
+}
+
+// SetConfigETagStore injects the Redis-backed osquery config ETag store,
+// enabling the config SHORT CIRCUIT (see GetClientConfigWithETag in
+// osquery.go). Called after NewService, and ONLY when the
+// osquery.redis_config_etags feature flag is enabled — leaving the store nil
+// is what keeps the short circuit off.
+func (svc *Service) SetConfigETagStore(store fleet.ConfigETagStore) {
+	svc.configETagStore = store
 }
 
 // SetActivityService sets the activity bounded context service for write operations.

@@ -1401,6 +1401,24 @@ When `false`, the `Authorization: NodeKey` header is required and the body's `no
     allow_body_auth_fallback: false
   ```
 
+### osquery_redis_config_etags
+
+Enables the Redis-backed ETag short circuit for the osquery config endpoint (`/api/osquery/config`). Enabled by default.
+
+When enabled, Fleet stores each fleet's (team's) config ETag in Redis. When an agent presents a matching `If-None-Match` validator, Fleet responds `304 Not Modified` directly from Redis **without building the config** — skipping that request's database reads entirely. Qualifying changes (agent options, features, report schedules, 2017 packs, fleet/team changes) invalidate the stored ETags immediately; a short "write fence" window after each change keeps Fleet's in-memory caches from repopulating Redis with stale data.
+
+The short circuit is automatically bypassed — falling back to a normal full config build — when the deployment has user-created 2017 packs or label-scoped reports (either makes agent configs host-specific and subject to label membership drift), when the agent sends no validator, or on any Redis error (the feature fails open and can never block config delivery). Requires Redis; has no effect without it.
+
+When disabled, every config request takes the full-build path, identical to the behavior before this feature existed — use this to A/B test the feature or to rule it out when debugging config delivery.
+
+- Default value: `true`
+- Environment variable: `FLEET_OSQUERY_REDIS_CONFIG_ETAGS`
+- Config file format:
+  ```yaml
+  osquery:
+    redis_config_etags: false
+  ```
+
 ## External activity audit logging
 
 > Available in Fleet Premium. Activity information is available for all Fleet Free and Fleet Premium instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).

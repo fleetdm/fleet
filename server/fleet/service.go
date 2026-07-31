@@ -56,6 +56,37 @@ type OsqueryService interface {
 	// AuthenticateHost loads host identified by nodeKey. Returns an error if the nodeKey doesn't exist.
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
+	// GetClientConfigWithETag returns the osquery configuration for the host in
+	// the provided context, along with HTTP conditional-request (ETag) metadata.
+	//
+	// ██ SHORT CIRCUIT WARNING ████████████████████████████████████████████████
+	//
+	// When the Redis-backed config ETag store is enabled
+	// (FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true) and the host presents a matching
+	// If-None-Match validator, this method returns NotModified=true WITHOUT
+	// BUILDING THE CONFIG AT ALL — no AppConfig read, no ListPacksForHost, no
+	// agent options, no scheduled queries, and no host-intervals
+	// reconciliation. Any side effect that must run on every config check-in
+	// must NOT live behind this method's full-build path; it will be skipped
+	// for every 304 response.
+	//
+	// The fast path is bypassed (falling back to a full config build, i.e. the
+	// exact behavior of GetClientConfig) whenever ANY of the following holds:
+	//   - the feature flag is off or Redis is not configured (no store set),
+	//   - the deployment has user-created 2017 "legacy" packs or
+	//     label-scoped reports, either of which make configs host-specific
+	//     and subject to silent label-membership drift (see
+	//     ConfigETagStore.ShortCircuitBlocked),
+	//   - no If-None-Match header was sent,
+	//   - the stored ETag's generation is stale or the key is missing/expired,
+	//   - any Redis error occurs (the fast path FAILS OPEN — errors degrade to
+	//     a full build, never to a failed request).
+	//
+	// █████████████████████████████████████████████████████████████████████████
+	//
+	// GetClientConfig (above) remains the plain, always-full-build variant and
+	// is still used by the launcher (gRPC) service.
+	GetClientConfigWithETag(ctx context.Context, ifNoneMatch string) (*ClientConfigResult, error)
 	// GetDistributedQueries retrieves the distributed queries to run for the host in
 	// the provided context. These may be (depending on update intervals):
 	//	- detail queries (including additional queries, if any),
@@ -677,6 +708,14 @@ type Service interface {
 	// SetActivityService sets the activity bounded context service for write operations.
 	// This should be called after service creation to inject the activity service dependency.
 	SetActivityService(activitySvc ActivityWriteService)
+
+	// SetConfigETagStore injects the Redis-backed osquery config ETag store,
+	// enabling the config short circuit described on GetClientConfigWithETag.
+	// This should be called after service creation, and ONLY when the
+	// osquery.redis_config_etags feature flag is enabled — leaving the store
+	// unset (nil) is what turns the short circuit off. See
+	// GetClientConfigWithETag and ConfigETagStore for the full contract.
+	SetConfigETagStore(store ConfigETagStore)
 
 	// SetACMEService sets the ACME service module for write operations.
 	// This should be called after service creation to inject the ACME service dependency.
@@ -1633,6 +1672,85 @@ type AdvancedKeyValueStore interface {
 	// Important to use hashes for the keys to land in the same slot.
 	MGet(ctx context.Context, keys []string) (map[string]*string, error)
 	Delete(ctx context.Context, key string) error
+}
+
+// ClientConfigResult is the outcome of an ETag-aware osquery config request
+// (see OsqueryService.GetClientConfigWithETag).
+type ClientConfigResult struct {
+	// Body is the marshaled JSON config to send to the agent. It is nil when
+	// NotModified is true (a 304 response carries no body).
+	Body []byte
+	// ETag is the strong validator for the config representation (quoted
+	// SHA-256 of Body, or the Redis-stored value on a short-circuit hit). It
+	// must be echoed in the ETag response header for both 200 and 304.
+	ETag string
+	// NotModified reports that the client's If-None-Match validator matched
+	// and the response must be 304 with no body.
+	NotModified bool
+	// CacheStatus describes, for observability only, how this result was
+	// produced. See the etag_result values logged by the osquery config
+	// endpoint: "redis_not_modified" means the SHORT CIRCUIT served a 304
+	// without building the config; every other value means a full config
+	// build happened.
+	CacheStatus string
+}
+
+// ConfigETagStore is the Redis-backed store that powers the osquery config
+// ETag SHORT CIRCUIT (see OsqueryService.GetClientConfigWithETag for the
+// request-path contract and the ways to disable it).
+//
+// Correctness model — "write fence" (documented in detail in the
+// server/service/redis_config_etag package):
+//
+//   - A generation counter is INCRemented by every config-affecting datastore
+//     write (see server/datastore/etag_invalidate). Stored ETags carry the
+//     generation current when written; a mismatch invalidates them for reads.
+//   - The same write arms a fence key whose TTL outlives the composed
+//     lifetime of Fleet's per-instance in-memory caches (cached_mysql +
+//     the service-layer pack config cache). While the fence is armed,
+//     SetIfNoFence refuses to persist ETags, because a config built during
+//     that window may have been assembled from stale in-memory cache data.
+//     Persisting such an ETag would poison every host in the team with 304s
+//     against a config that no longer exists ("stale write poisoning").
+//
+// All methods must FAIL OPEN from the caller's perspective: a Redis error
+// disables the optimization for that request, it never fails config delivery.
+type ConfigETagStore interface {
+	// GetValid returns the stored ETag for (scope, platform) only if its
+	// recorded generation matches the current generation. ok is false on a
+	// missing/expired key or a stale generation.
+	GetValid(ctx context.Context, scope, platform string) (etag string, ok bool, err error)
+	// SetIfNoFence persists the ETag for (scope, platform), stamped with the
+	// current generation — unless the write fence is armed, in which case it
+	// does nothing and returns stored=false. The check-and-set is atomic in
+	// Redis; see the package docs for why this is required for correctness.
+	SetIfNoFence(ctx context.Context, scope, platform, etag string) (stored bool, err error)
+	// Invalidate atomically bumps the generation counter (invalidating every
+	// stored ETag for reads) and arms the write fence. It must be called
+	// after every successful config-affecting datastore write.
+	Invalidate(ctx context.Context) error
+	// ShortCircuitBlocked reports whether the deployment is in a state where
+	// the ETag fast path must be bypassed entirely because the rendered
+	// config is NOT guaranteed identical for every host in a (team,
+	// platform) pair, or can drift without any invalidation event firing.
+	// The known blockers (computed by the load callback, see
+	// Service.configShortCircuitBlocked):
+	//
+	//   - user-created 2017 packs: label-targeted packs gain/lose hosts via
+	//     label membership drift, which fires no datastore write;
+	//   - label-scoped reports (query_labels): ListScheduledQueriesForAgents
+	//     filters per host by label membership — same drift, same silence.
+	//
+	// The result is cached in Redis for a few minutes; on a cache miss, load
+	// is called to compute it (cheap DB queries). Errors must be treated by
+	// callers as "blocked" (fail closed for the gate = fail open for config
+	// correctness).
+	ShortCircuitBlocked(ctx context.Context, load func(ctx context.Context) (bool, error)) (bool, error)
+	// ResetShortCircuitBlockedFlag drops the cached blocked answer so the
+	// next ShortCircuitBlocked recomputes it. Called by pack and query CRUD
+	// invalidation hooks, where the answer may have just changed in either
+	// direction.
+	ResetShortCircuitBlockedFlag(ctx context.Context) error
 }
 
 const (

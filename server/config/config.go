@@ -312,6 +312,23 @@ type OsqueryConfig struct {
 	//     body's node_key field is ignored. Pre-auth rejects
 	//     absent/invalid headers BEFORE the body is read.
 	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
+
+	// RedisConfigETags enables the Redis-backed osquery config ETag SHORT
+	// CIRCUIT: when a host presents a matching If-None-Match validator, the
+	// /api/osquery/config response is served as 304 Not Modified straight
+	// from Redis, WITHOUT building the config (zero database reads for that
+	// request). Requires Redis to be configured; silently has no effect
+	// without it.
+	//
+	// Default is TRUE. Setting FLEET_OSQUERY_REDIS_CONFIG_ETAGS=false and
+	// restarting fully disables the short circuit: every config request then
+	// takes the always-full-build path, byte-identical to the behavior
+	// without this feature — use that for A/B comparison and for ruling the
+	// feature out when debugging config delivery.
+	//
+	// See fleet.OsqueryService.GetClientConfigWithETag and the
+	// server/service/redis_config_etag package for the full contract.
+	RedisConfigETags bool `yaml:"redis_config_etags"`
 }
 
 // Validate checks that osquery_host_identifier is one of the supported values.
@@ -1497,6 +1514,8 @@ func (man Manager) addConfigs() {
 		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
 		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
+	man.addConfigBool("osquery.redis_config_etags", true,
+		"Serve osquery config 304 Not Modified responses from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. On by default; requires Redis (no effect without it). Set to false to restore the always-full-build behavior for testing or debugging.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
@@ -1974,6 +1993,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
+			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),

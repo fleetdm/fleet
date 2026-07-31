@@ -40,6 +40,7 @@ func TestQueries(t *testing.T) {
 		{"IsSavedQuery", testIsSavedQuery},
 		{"SaveQueryLabels", testSaveQueryLabels},
 		{"ListScheduledQueriesForAgentsWithLabels", testListScheduledQueriesForAgentsWithLabels},
+		{"HasLabelScopedScheduledQueries", testHasLabelScopedScheduledQueries},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1532,4 +1533,67 @@ func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNoLabels.ID, false)
 	require.NoError(t, err)
 	requireQueries(t, queries, []string{queryNoLabel.Name})
+}
+
+func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Gabriel", "gabriel@fleet.co", true)
+
+	// empty: no label-scoped scheduled queries
+	got, err := ds.HasLabelScopedScheduledQueries(ctx)
+	require.NoError(t, err)
+	require.False(t, got)
+
+	// a plain scheduled query (no labels) does not count
+	_, err = ds.NewQuery(ctx, &fleet.Query{
+		Name:     "plain scheduled",
+		Query:    "SELECT 1",
+		AuthorID: &user.ID,
+		Logging:  fleet.LoggingSnapshot,
+		Interval: 10,
+		Saved:    true,
+	})
+	require.NoError(t, err)
+	got, err = ds.HasLabelScopedScheduledQueries(ctx)
+	require.NoError(t, err)
+	require.False(t, got)
+
+	// a label-scoped query that is NOT scheduled (interval 0) does not count
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "etag gate label"})
+	require.NoError(t, err)
+	_, err = ds.NewQuery(ctx, &fleet.Query{
+		Name:             "label scoped unscheduled",
+		Query:            "SELECT 1",
+		AuthorID:         &user.ID,
+		Logging:          fleet.LoggingSnapshot,
+		Interval:         0,
+		Saved:            true,
+		LabelsIncludeAny: []fleet.LabelIdent{{LabelName: label.Name}},
+	})
+	require.NoError(t, err)
+	got, err = ds.HasLabelScopedScheduledQueries(ctx)
+	require.NoError(t, err)
+	require.False(t, got)
+
+	// a label-scoped scheduled query counts
+	scoped, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:             "label scoped scheduled",
+		Query:            "SELECT 1",
+		AuthorID:         &user.ID,
+		Logging:          fleet.LoggingSnapshot,
+		Interval:         10,
+		Saved:            true,
+		LabelsIncludeAny: []fleet.LabelIdent{{LabelName: label.Name}},
+	})
+	require.NoError(t, err)
+	got, err = ds.HasLabelScopedScheduledQueries(ctx)
+	require.NoError(t, err)
+	require.True(t, got)
+
+	// deleting it clears the answer (query_labels rows cascade)
+	err = ds.DeleteQuery(ctx, scoped.TeamID, scoped.Name)
+	require.NoError(t, err)
+	got, err = ds.HasLabelScopedScheduledQueries(ctx)
+	require.NoError(t, err)
+	require.False(t, got)
 }

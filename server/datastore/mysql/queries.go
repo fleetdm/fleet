@@ -911,6 +911,30 @@ func loadLabelsForQueries(ctx context.Context, db sqlx.QueryerContext, queries [
 	return nil
 }
 
+// HasLabelScopedScheduledQueries reports whether any saved, scheduled query
+// has label scoping (query_labels rows). The join deliberately mirrors only
+// the broad shape of ListScheduledQueriesForAgents (saved + scheduled): for
+// the config ETag gate that consumes this, over-matching is the safe
+// direction (it only bypasses an optimization), so the narrower
+// automations/logging filters are intentionally omitted.
+func (ds *Datastore) HasLabelScopedScheduledQueries(ctx context.Context) (bool, error) {
+	sql := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM query_labels ql
+			JOIN queries q ON q.id = ql.query_id
+			WHERE q.saved AND q.schedule_interval > 0
+		)
+	`
+	var exists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, sql)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking for label scoped scheduled queries")
+	}
+
+	return exists, nil
+}
+
 func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {
 	sql := `
 		SELECT observer_can_run

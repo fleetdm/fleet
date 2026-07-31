@@ -5338,7 +5338,7 @@ func TestGetClientConfigResponse_HijackRender(t *testing.T) {
 
 	t.Run("error response never reaches HijackRender", func(t *testing.T) {
 		resp := getClientConfigResponse{Err: errors.New("test error")}
-		assert.NotNil(t, resp.Error())
+		assert.Error(t, resp.Error())
 	})
 }
 

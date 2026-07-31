@@ -26,6 +26,8 @@ type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (host *fleet
 
 type GetClientConfigFunc func(ctx context.Context) (config map[string]interface{}, err error)
 
+type GetClientConfigWithETagFunc func(ctx context.Context, ifNoneMatch string) (*fleet.ClientConfigResult, error)
+
 type GetDistributedQueriesFunc func(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error)
 
 type SubmitDistributedQueryResultsFunc func(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string, stats map[string]*fleet.Stats) (err error)
@@ -403,6 +405,8 @@ type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
 type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
+
+type SetConfigETagStoreFunc func(store fleet.ConfigETagStore)
 
 type SetACMEServiceFunc func(acmeSvc fleet.ACMEWriteService)
 
@@ -994,6 +998,9 @@ type Service struct {
 	GetClientConfigFunc        GetClientConfigFunc
 	GetClientConfigFuncInvoked bool
 
+	GetClientConfigWithETagFunc        GetClientConfigWithETagFunc
+	GetClientConfigWithETagFuncInvoked bool
+
 	GetDistributedQueriesFunc        GetDistributedQueriesFunc
 	GetDistributedQueriesFuncInvoked bool
 
@@ -1560,6 +1567,9 @@ type Service struct {
 
 	SetActivityServiceFunc        SetActivityServiceFunc
 	SetActivityServiceFuncInvoked bool
+
+	SetConfigETagStoreFunc        SetConfigETagStoreFunc
+	SetConfigETagStoreFuncInvoked bool
 
 	SetACMEServiceFunc        SetACMEServiceFunc
 	SetACMEServiceFuncInvoked bool
@@ -2453,6 +2463,13 @@ func (s *Service) GetClientConfig(ctx context.Context) (config map[string]interf
 	s.GetClientConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetClientConfigFunc(ctx)
+}
+
+func (s *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch string) (*fleet.ClientConfigResult, error) {
+	s.mu.Lock()
+	s.GetClientConfigWithETagFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetClientConfigWithETagFunc(ctx, ifNoneMatch)
 }
 
 func (s *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
@@ -3776,6 +3793,13 @@ func (s *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	s.SetActivityServiceFuncInvoked = true
 	s.mu.Unlock()
 	s.SetActivityServiceFunc(activitySvc)
+}
+
+func (s *Service) SetConfigETagStore(store fleet.ConfigETagStore) {
+	s.mu.Lock()
+	s.SetConfigETagStoreFuncInvoked = true
+	s.mu.Unlock()
+	s.SetConfigETagStoreFunc(store)
 }
 
 func (s *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
