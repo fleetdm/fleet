@@ -6,7 +6,7 @@
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'CrystalDiskMark%' AND name NOT LIKE '%Edition%';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CrystalDiskMark%' AND name NOT LIKE '%Edition%' AND version_compare(version, '9.0.3') < 0);"
       },
-      "installer_url": "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe",
+      "installer_url": "https://downloads.sourceforge.net/project/crystaldiskmark/9.0.3/CrystalDiskMark9_0_3.exe",
       "install_script_ref": "0842a653",
       "uninstall_script_ref": "d7453dc1",
       "sha256": "1a255154e116a533f86535bc362f101e32d6171604cde9b6b554335856917e5e",

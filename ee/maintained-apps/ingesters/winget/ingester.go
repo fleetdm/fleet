@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -418,7 +419,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	out.Name = input.Name
 	out.Slug = input.Slug
-	out.InstallerURL = selectedInstaller.InstallerURL
+	out.InstallerURL = directDownloadURL(selectedInstaller.InstallerURL)
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.DefaultCategories = input.DefaultCategories
 	out.SHA256 = "no_check"
@@ -494,6 +495,38 @@ func firstDisplayVersion(entries []appsAndFeaturesEntries) string {
 		}
 	}
 	return ""
+}
+
+// directDownloadURL rewrites a SourceForge project browse URL to the
+// downloads.sourceforge.net form. The browse URL is a web page that redirects
+// through a mirror, and that hop intermittently serves an HTML interstitial with
+// HTTP 200 instead of the installer, which then fails the SHA256 check. The
+// downloads host serves the file directly. Non-SourceForge URLs are returned
+// unchanged.
+func directDownloadURL(installerURL string) string {
+	u, err := url.Parse(installerURL)
+	if err != nil || (u.Host != "sourceforge.net" && u.Host != "www.sourceforge.net") {
+		return installerURL
+	}
+
+	// Expected shape: /projects/<project>/files/<path...>[/download]
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) < 4 || parts[0] != "projects" || parts[2] != "files" {
+		return installerURL
+	}
+	project, filePath := parts[1], parts[3:]
+	if filePath[len(filePath)-1] == "download" {
+		filePath = filePath[:len(filePath)-1]
+	}
+	if len(filePath) == 0 {
+		return installerURL
+	}
+
+	return (&url.URL{
+		Scheme: u.Scheme,
+		Host:   "downloads.sourceforge.net",
+		Path:   "/project/" + project + "/" + strings.Join(filePath, "/"),
+	}).String()
 }
 
 func setUpExistsQuery(fuzzy fuzzyMatch, name string, publisher string) maintained_apps.FMAQueries {

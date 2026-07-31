@@ -660,3 +660,41 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
 	})
 }
+
+func TestDirectDownloadURL(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "sourceforge browse URL",
+			in:   "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe",
+			want: "https://downloads.sourceforge.net/project/crystaldiskmark/9.0.3/CrystalDiskMark9_0_3.exe",
+		},
+		{
+			name: "sourceforge browse URL with /download suffix",
+			in:   "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
+			want: "https://downloads.sourceforge.net/project/winscp/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe",
+		},
+		{
+			name: "already a direct download URL",
+			in:   "https://downloads.sourceforge.net/project/winscp/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe",
+			want: "https://downloads.sourceforge.net/project/winscp/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe",
+		},
+		{
+			name: "non-sourceforge URL is untouched",
+			in:   "https://github.com/owner/repo/releases/download/v1.0/app.exe",
+			want: "https://github.com/owner/repo/releases/download/v1.0/app.exe",
+		},
+		{
+			name: "sourceforge URL with an unexpected shape is untouched",
+			in:   "https://sourceforge.net/projects/someproject/",
+			want: "https://sourceforge.net/projects/someproject/",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, directDownloadURL(tc.in))
+		})
+	}
+}
