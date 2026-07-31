@@ -150,6 +150,56 @@ go run agent.go --host_count 100 --mdm_prob 1.0 --mdm_scep_challenge <challenge>
   --mdm_psso_interval 4h --mdm_psso_login_prob 1.0 --mdm_psso_key_prob 0.1
 ```
 
+## Config ETag / 304 Support
+
+The agent can simulate the native osquery ETag lifecycle for config requests.
+When enabled, each simulated host keeps its own in-memory ETag (a quoted SHA-256
+hash of the config response body). The first config request has no validator and
+receives a full body; subsequent requests send `If-None-Match` and treat `304`
+Not Modified as success, retaining the installed scheduled-query state.
+
+- `--config_tls_etag`: default `false`, enable native osquery config ETag/304 behavior
+
+This feature is **off by default** because osquery-perf is designed for load
+testing, and enabling ETag reduces bandwidth without reducing backend load
+(Phase 1 Fleet behavior). Opt in with `--config_tls_etag=true` to measure
+bandwidth savings.
+
+The ETag is in-memory only — a restarted osquery-perf process starts with a
+full fetch for every simulated host. The locally calculated SHA-256 validator
+is authoritative; the server's `ETag` response header is compared only as a
+diagnostic (mismatches are counted but do not affect behavior).
+
+Stats logged every 10 seconds include:
+
+- `config 200s`: full config responses received
+- `config 304s`: not-modified responses received
+- `conditional config requests`: requests that sent `If-None-Match`
+- `config response body bytes`: total downloaded config body bytes
+- `estimated config body bytes avoided`: body bytes saved by `304` responses
+- `estimated config body savings pct`: percentage of logical body bytes avoided
+- `config etag header mismatches`: times the server's `ETag` header disagreed with the locally calculated hash
+
+### Example control/treatment run
+
+Run a control (no ETag) and treatment (ETag enabled) against the same Fleet
+server to measure bandwidth savings:
+
+```
+# Control: no ETag, every request downloads the full config
+go run agent.go --config_tls_etag=false --host_count 100 --config_interval 1m ...
+
+# Treatment: ETag enabled, unchanged configs return 304
+go run agent.go --config_tls_etag=true --host_count 100 --config_interval 1m ...
+```
+
+Compare the `config response body bytes` and `estimated config body savings pct`
+from the stats logs. For a config-dominant profile, use:
+
+```
+--orbit_prob 0.0 --mdm_prob 0.0 --config_interval 1m --query_interval 24h --logger_tls_period 24h
+```
+
 ## Installing software
 
 The agent can install software for "macos", "ubuntu", and "windows" OSs when running with orbit agent. The following options control the installation behavior:

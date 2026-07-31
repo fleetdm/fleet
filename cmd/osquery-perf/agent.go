@@ -584,6 +584,15 @@ type agent struct {
 	entraIDDeviceID          string
 	entraIDUserPrincipalName string
 	installedAdamIDs         []int
+
+	// configTLSETag enables the native osquery config ETag/304 behavior.
+	// When enabled, the agent sends If-None-Match and handles 304 responses.
+	configTLSETag bool
+	// configETag holds the last accepted config ETag (quoted SHA-256 of response body).
+	configETag string
+	// lastConfigBodyBytes is the size of the last successfully accepted full config body.
+	// Used to estimate the body bytes avoided by a subsequent 304 for this host.
+	lastConfigBodyBytes int64
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -680,6 +689,7 @@ func newAgent(
 	mdmProfileFailureProb float64,
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
+	configTLSETag bool,
 	psso pssoParams,
 ) *agent {
 	var deviceAuthToken *string
@@ -788,6 +798,7 @@ func newAgent(
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
+		configTLSETag:            configTLSETag,
 	}
 
 	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
@@ -2115,6 +2126,13 @@ func (a *agent) config() error {
 	}
 	request.Header.Add("Content-type", "application/json")
 
+	// Add If-None-Match header if ETag support is enabled and we have a stored ETag
+	sentETag := ""
+	if a.configTLSETag && a.configETag != "" {
+		sentETag = a.configETag
+		request.Header.Set("If-None-Match", sentETag)
+	}
+
 	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return fmt.Errorf("config request failed to run: %w", err)
@@ -2123,10 +2141,42 @@ func (a *agent) config() error {
 
 	a.stats.IncrementConfigRequests()
 
-	statusCode := response.StatusCode
-	if statusCode != http.StatusOK {
+	// Handle 304 Not Modified
+	if response.StatusCode == http.StatusNotModified {
+		body, readErr := io.ReadAll(response.Body)
+		if readErr != nil {
+			a.stats.IncrementConfigErrors()
+			return fmt.Errorf("read 304 config body: %w", readErr)
+		}
+		if sentETag == "" || len(body) != 0 {
+			a.stats.IncrementConfigErrors()
+			return fmt.Errorf("invalid config 304: sent_etag=%t body_bytes=%d", sentETag != "", len(body))
+		}
+		a.stats.RecordConfigNotModified(a.lastConfigBodyBytes)
+		return nil
+	}
+
+	if response.StatusCode != http.StatusOK {
 		a.stats.IncrementConfigErrors()
-		return fmt.Errorf("config request failed: %d", statusCode)
+		return fmt.Errorf("config request failed: %d", response.StatusCode)
+	}
+
+	// Read the full body to compute the ETag hash
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		a.stats.IncrementConfigErrors()
+		return fmt.Errorf("read config body: %w", err)
+	}
+
+	// Compute candidate ETag from the exact response bytes (like the osquery PoC)
+	candidateETag := ""
+	if a.configTLSETag {
+		candidateETag = quotedSHA256(body)
+
+		// Diagnostic: compare with server's ETag header if present
+		if serverETag := response.Header.Get("ETag"); serverETag != "" && serverETag != candidateETag {
+			a.stats.IncrementConfigETagHeaderMismatches()
+		}
 	}
 
 	parsedResp := struct {
@@ -2134,7 +2184,7 @@ func (a *agent) config() error {
 			Queries map[string]interface{} `json:"queries"`
 		} `json:"packs"`
 	}{}
-	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
+	if err := json.Unmarshal(body, &parsedResp); err != nil {
 		a.stats.IncrementConfigErrors()
 		return fmt.Errorf("json parse at config: %w", err)
 	}
@@ -2190,7 +2240,21 @@ func (a *agent) config() error {
 	a.scheduledQueryData = newScheduledQueryData
 	a.scheduledQueryMapMutex.Unlock()
 
+	// Only commit the ETag and body size after successfully parsing and installing the config
+	if a.configTLSETag {
+		a.configETag = candidateETag
+		a.lastConfigBodyBytes = int64(len(body))
+	}
+	a.stats.RecordFullConfigResponse(int64(len(body)), sentETag != "")
+
 	return nil
+}
+
+// quotedSHA256 returns a quoted lowercase hex SHA-256 digest of the given bytes,
+// matching the ETag format used by the osquery PoC and Fleet server.
+func quotedSHA256(data []byte) string {
+	sum := sha256.Sum256(data)
+	return `"` + fmt.Sprintf("%x", sum) + `"`
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -3895,6 +3959,9 @@ func main() {
 		softwareDatabasePath     = flag.String("software_db_path", "software-library/software.db",
 			"Path to software.db (SQLite database with realistic software data). Auto-generates from software.sql if missing.")
 
+		configTLSETag = flag.Bool("config_tls_etag", false,
+			"Enable native osquery config ETag/304 behavior (sends If-None-Match, handles 304 Not Modified). Default false — opt in to measure bandwidth savings.")
+
 		// Android load testing flags
 		androidPubSubToken       = flag.String("android_pubsub_token", "", "PubSub token for authenticating fake Android device messages to Fleet")
 		androidProxyAddress      = flag.String("android_proxy_address", "", "Address of the mock AMAPI proxy (e.g., http://localhost:9999)")
@@ -4153,6 +4220,7 @@ func main() {
 			*mdmProfileFailureProb,
 			*httpMessageSignatureProb,
 			*httpMessageSignatureP384Prob,
+			*configTLSETag,
 			pssoParams{
 				prob:      *mdmPSSOProb,
 				clientID:  *mdmPSSOClientID,

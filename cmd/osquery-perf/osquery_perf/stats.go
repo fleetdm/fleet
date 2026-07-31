@@ -73,6 +73,14 @@ type Stats struct {
 	pssoKeyExchanges               int
 	pssoErrors                     int
 
+	// ETag / conditional config stats
+	configFullResponses       int64
+	configNotModified         int64
+	configConditionalRequests int64
+	configResponseBodyBytes   int64
+	configEstimatedSavedBytes int64
+	configETagHeaderMismatches int64
+
 	l sync.Mutex
 }
 
@@ -465,6 +473,67 @@ func (s *Stats) IncrementPSSOErrors() {
 	s.pssoErrors++
 }
 
+func (s *Stats) RecordFullConfigResponse(bodyBytes int64, conditional bool) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configFullResponses++
+	s.configResponseBodyBytes += bodyBytes
+	if conditional {
+		s.configConditionalRequests++
+	}
+}
+
+func (s *Stats) RecordConfigNotModified(lastBodyBytes int64) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configNotModified++
+	s.configConditionalRequests++
+	s.configEstimatedSavedBytes += lastBodyBytes
+}
+
+func (s *Stats) IncrementConfigETagHeaderMismatches() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configETagHeaderMismatches++
+}
+
+// Getters for ETag stats (used by tests)
+func (s *Stats) ConfigFullResponses() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configFullResponses
+}
+
+func (s *Stats) ConfigNotModified() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configNotModified
+}
+
+func (s *Stats) ConfigConditionalRequests() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configConditionalRequests
+}
+
+func (s *Stats) ConfigResponseBodyBytes() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configResponseBodyBytes
+}
+
+func (s *Stats) ConfigEstimatedSavedBytes() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configEstimatedSavedBytes
+}
+
+func (s *Stats) ConfigETagHeaderMismatches() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configETagHeaderMismatches
+}
+
 func (s *Stats) Log() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -474,8 +543,15 @@ func (s *Stats) Log() {
 		errorRate = float64(s.errors) / float64(s.osqueryEnrollments)
 	}
 
+	// Calculate estimated config body savings percentage
+	var configSavingsPct float64
+	baseline := s.configResponseBodyBytes + s.configEstimatedSavedBytes
+	if baseline > 0 {
+		configSavingsPct = float64(s.configEstimatedSavedBytes) / float64(baseline) * 100.0
+	}
+
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, mdm user enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm user sessions initiated: %d, mdm on-demand syncs: %d, mdm commands received: %d, mdm user commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, mdm user errors: %d, mdm scep requests: %d, mdm scep success: %d, mdm scep errors: %d, ddm tokens success: %d, ddm user tokens success: %d, ddm tokens errors: %d, ddm user tokens errors: %d, ddm declaration items success: %d, ddm user declaration items success: %d, ddm declaration items errors: %d, ddm user declaration items errors: %d, ddm activation success: %d, ddm user activation success: %d, ddm activation errors: %d, ddm user activation errors: %d, ddm configuration success: %d, ddm user configuration success: %d, ddm configuration errors: %d, ddm user configuration errors: %d, ddm asset success: %d, ddm user asset success: %d, ddm asset errors: %d, ddm user asset errors: %d, ddm status success: %d, ddm user status success: %d, ddm status errors: %d, ddm user status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d), android enrolls: %d, android status reports: %d, android command acks: %d, android cert verifications: %d, android errors: %d, psso registrations: %d, psso logins: %d, psso key requests: %d, psso key exchanges: %d, psso errors: %d",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, mdm user enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm user sessions initiated: %d, mdm on-demand syncs: %d, mdm commands received: %d, mdm user commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, mdm user errors: %d, mdm scep requests: %d, mdm scep success: %d, mdm scep errors: %d, ddm tokens success: %d, ddm user tokens success: %d, ddm tokens errors: %d, ddm user tokens errors: %d, ddm declaration items success: %d, ddm user declaration items success: %d, ddm declaration items errors: %d, ddm user declaration items errors: %d, ddm activation success: %d, ddm user activation success: %d, ddm activation errors: %d, ddm user activation errors: %d, ddm configuration success: %d, ddm user configuration success: %d, ddm configuration errors: %d, ddm user configuration errors: %d, ddm asset success: %d, ddm user asset success: %d, ddm asset errors: %d, ddm user asset errors: %d, ddm status success: %d, ddm user status success: %d, ddm status errors: %d, ddm user status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d), android enrolls: %d, android status reports: %d, android command acks: %d, android cert verifications: %d, android errors: %d, psso registrations: %d, psso logins: %d, psso key requests: %d, psso key exchanges: %d, psso errors: %d, config 200s: %d, config 304s: %d, conditional config requests: %d, config response body bytes: %d, estimated config body bytes avoided: %d, estimated config body savings pct: %.1f, config etag header mismatches: %d",
 		time.Since(s.StartTime).Round(time.Second),
 		errorRate,
 		s.osqueryEnrollments,
@@ -541,6 +617,13 @@ func (s *Stats) Log() {
 		s.pssoKeyRequests,
 		s.pssoKeyExchanges,
 		s.pssoErrors,
+		s.configFullResponses,
+		s.configNotModified,
+		s.configConditionalRequests,
+		s.configResponseBodyBytes,
+		s.configEstimatedSavedBytes,
+		configSavingsPct,
+		s.configETagHeaderMismatches,
 	)
 }
 
