@@ -9965,15 +9965,16 @@ func (s *integrationTestSuite) TestOsqueryConfigETag() {
 
 	hosts := s.createHosts(t)
 	nodeKey := *hosts[0].NodeKey
+	configRequestBody, err := json.Marshal(map[string]string{"node_key": nodeKey})
+	require.NoError(t, err)
 
 	// Helper to make a raw config request and return the response
 	makeConfigReq := func(ifNoneMatch string) *http.Response {
-		body, _ := json.Marshal(map[string]string{"node_key": nodeKey})
 		headers := map[string]string{}
 		if ifNoneMatch != "" {
 			headers["If-None-Match"] = ifNoneMatch
 		}
-		return s.DoRawWithHeaders("POST", "/api/osquery/config", body, http.StatusOK, headers)
+		return s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusOK, headers)
 	}
 
 	// 1. First request without If-None-Match returns 200 with ETag
@@ -9991,7 +9992,7 @@ func (s *integrationTestSuite) TestOsqueryConfigETag() {
 	require.Equal(t, expectedETag, resp1.Header.Get("ETag"))
 
 	// 2. Second request with matching ETag returns 304
-	resp2 := s.DoRawWithHeaders("POST", "/api/osquery/config", body1, http.StatusNotModified, map[string]string{
+	resp2 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusNotModified, map[string]string{
 		"If-None-Match": expectedETag,
 	})
 	t.Cleanup(func() { resp2.Body.Close() })
@@ -10002,7 +10003,7 @@ func (s *integrationTestSuite) TestOsqueryConfigETag() {
 	require.Equal(t, expectedETag, resp2.Header.Get("ETag"))
 
 	// 3. Request with mismatched ETag returns 200
-	resp3 := s.DoRawWithHeaders("POST", "/api/osquery/config", body1, http.StatusOK, map[string]string{
+	resp3 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusOK, map[string]string{
 		"If-None-Match": `"wrong-etag"`,
 	})
 	t.Cleanup(func() { resp3.Body.Close() })
@@ -10021,28 +10022,28 @@ func (s *integrationTestSuite) TestOsqueryConfigETag() {
 	require.Empty(t, resp4.Header.Get("ETag"), "error responses must not carry ETag")
 
 	// 5. If-None-Match: * returns 304
-	resp5 := s.DoRawWithHeaders("POST", "/api/osquery/config", body1, http.StatusNotModified, map[string]string{
+	resp5 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusNotModified, map[string]string{
 		"If-None-Match": "*",
 	})
 	t.Cleanup(func() { resp5.Body.Close() })
 	require.Equal(t, http.StatusNotModified, resp5.StatusCode)
 
 	// 6. Weak tag does not match, returns 200
-	resp6 := s.DoRawWithHeaders("POST", "/api/osquery/config", body1, http.StatusOK, map[string]string{
+	resp6 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusOK, map[string]string{
 		"If-None-Match": `W/"` + expectedETag[1:len(expectedETag)-1] + `"`,
 	})
 	t.Cleanup(func() { resp6.Body.Close() })
 	require.Equal(t, http.StatusOK, resp6.StatusCode)
 
 	// 7. Comma-separated list containing the ETag returns 304
-	resp7 := s.DoRawWithHeaders("POST", "/api/osquery/config", body1, http.StatusNotModified, map[string]string{
+	resp7 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusNotModified, map[string]string{
 		"If-None-Match": `"other", ` + expectedETag,
 	})
 	t.Cleanup(func() { resp7.Body.Close() })
 	require.Equal(t, http.StatusNotModified, resp7.StatusCode)
 
 	// 8. Test /api/v1/osquery/config alias
-	resp8 := s.DoRawWithHeaders("POST", "/api/v1/osquery/config", body1, http.StatusNotModified, map[string]string{
+	resp8 := s.DoRawWithHeaders("POST", "/api/v1/osquery/config", configRequestBody, http.StatusNotModified, map[string]string{
 		"If-None-Match": expectedETag,
 	})
 	t.Cleanup(func() { resp8.Body.Close() })
@@ -10061,7 +10062,7 @@ func (s *integrationTestSuite) TestOsqueryConfigETag() {
 	require.NotEqual(t, expectedETag, resp9.Header.Get("ETag"), "ETag should have changed")
 
 	// Old ETag no longer matches
-	resp10 := s.DoRawWithHeaders("POST", "/api/osquery/config", body1, http.StatusOK, map[string]string{
+	resp10 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusOK, map[string]string{
 		"If-None-Match": expectedETag,
 	})
 	t.Cleanup(func() { resp10.Body.Close() })
@@ -10069,7 +10070,7 @@ func (s *integrationTestSuite) TestOsqueryConfigETag() {
 
 	// New ETag matches
 	newETag := resp9.Header.Get("ETag")
-	resp11 := s.DoRawWithHeaders("POST", "/api/osquery/config", body9, http.StatusNotModified, map[string]string{
+	resp11 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusNotModified, map[string]string{
 		"If-None-Match": newETag,
 	})
 	t.Cleanup(func() { resp11.Body.Close() })
