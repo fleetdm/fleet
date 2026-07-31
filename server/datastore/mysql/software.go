@@ -1372,10 +1372,36 @@ func (ds *Datastore) preInsertSoftwareInventory(
 
 				// Retrieve the IDs for the titles we just inserted (or that already existed).
 				// Use uniqueTitles (all unique titles) so we resolve IDs for cached titles too.
-				var retrievedTitleSummaries []fleet.SoftwareTitleSummary
-				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitles)), ",")
-				queryArgs := make([]any, 0, len(uniqueTitles)*4)
-				var upgradeCodes []string
+				//
+				// This was originally one predicate:
+				//
+				//	WHERE (COALESCE(bundle_identifier, name), source, extension_for,
+				//	       COALESCE(bundle_identifier, '')) IN (...)
+				//	  [OR (upgrade_code IN (...) AND source = 'programs')]
+				//
+				// Wrapping the key columns in COALESCE() left MySQL unable to match the predicate to any
+				// index (EXPLAIN: type=ALL, possible_keys=NULL), so every software ingest full-scanned
+				// software_titles inside this transaction, on the writer.
+				//
+				// The tuple decomposes exactly. Writing b for the incoming bundle identifier:
+				//   - b != "": the 4th element pins bundle_identifier = b, making the 1st redundant, so
+				//     the row is found by bundle_identifier (idx_software_titles_bundle_identifier).
+				//   - b == "": the 4th element pins bundle_identifier IS NULL, so
+				//     COALESCE(bundle_identifier, name) collapses to name (idx_sw_titles).
+				// The only case dropped is a stored row with bundle_identifier = '' AND name = '', which
+				// cannot occur: software with an empty name is rejected before it reaches here.
+				//
+				// upgrade_code has no index of its own, so Windows programs are matched through the
+				// unique_identifier generated column (idx_unique_sw_titles), the same way
+				// getIncomingSoftwareChecksumsToExistingTitles already resolves them.
+				//
+				// The branches are UNIONed, not ORed: a single OR across these columns returns the plan
+				// to a full table scan.
+				var (
+					bundleArgs  []any // (bundle_identifier, source, extension_for)
+					nameArgs    []any // (name, source, extension_for)
+					upgradeArgs []any // unique_identifier, which resolves to upgrade_code for Windows programs
+				)
 				for tk := range uniqueTitles {
 					title := uniqueTitles[tk]
 					bundleID := ""
@@ -1383,33 +1409,45 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID = *title.BundleIdentifier
 					}
 
-					firstArg := title.Name
 					if bundleID != "" {
-						firstArg = bundleID
+						bundleArgs = append(bundleArgs, bundleID, title.Source, title.ExtensionFor)
+					} else {
+						nameArgs = append(nameArgs, title.Name, title.Source, title.ExtensionFor)
 					}
-					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
 
 					// Collect non-empty upgrade_codes for Windows programs
 					if title.UpgradeCode != nil && *title.UpgradeCode != "" && title.Source == "programs" {
-						upgradeCodes = append(upgradeCodes, *title.UpgradeCode)
+						upgradeArgs = append(upgradeArgs, *title.UpgradeCode)
 					}
 				}
 
-				// Build query that matches by (name/bundle_identifier, source, extension_for) OR by upgrade_code.
-				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
-					FROM software_titles
-					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
-
-				if len(upgradeCodes) > 0 {
-					ucPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(upgradeCodes)), ",")
-					stmt += fmt.Sprintf(` OR (upgrade_code IN (%s) AND source = 'programs')`, ucPlaceholders)
-					for _, uc := range upgradeCodes {
-						queryArgs = append(queryArgs, uc)
-					}
+				const titleSelect = `SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id ` +
+					`FROM software_titles`
+				branches := make([]string, 0, 3)
+				queryArgs := make([]any, 0, len(bundleArgs)+len(nameArgs)+len(upgradeArgs))
+				if len(bundleArgs) > 0 {
+					branches = append(branches, titleSelect+fmt.Sprintf(` WHERE (bundle_identifier, source, extension_for) IN (%s)`,
+						strings.TrimSuffix(strings.Repeat("(?,?,?),", len(bundleArgs)/3), ",")))
+					queryArgs = append(queryArgs, bundleArgs...)
+				}
+				if len(nameArgs) > 0 {
+					branches = append(branches,
+						titleSelect+fmt.Sprintf(` WHERE bundle_identifier IS NULL AND (name, source, extension_for) IN (%s)`,
+							strings.TrimSuffix(strings.Repeat("(?,?,?),", len(nameArgs)/3), ",")))
+					queryArgs = append(queryArgs, nameArgs...)
+				}
+				if len(upgradeArgs) > 0 {
+					branches = append(branches, titleSelect+fmt.Sprintf(` WHERE source = 'programs' AND unique_identifier IN (%s)`,
+						strings.TrimSuffix(strings.Repeat("?,", len(upgradeArgs)), ",")))
+					queryArgs = append(queryArgs, upgradeArgs...)
 				}
 
-				if err := sqlx.SelectContext(ctx, tx, &retrievedTitleSummaries, stmt, queryArgs...); err != nil {
-					return ctxerr.Wrap(ctx, err, "select software titles")
+				var retrievedTitleSummaries []fleet.SoftwareTitleSummary
+				if len(branches) > 0 {
+					if err := sqlx.SelectContext(ctx, tx, &retrievedTitleSummaries,
+						strings.Join(branches, " UNION "), queryArgs...); err != nil {
+						return ctxerr.Wrap(ctx, err, "select software titles")
+					}
 				}
 
 				// Map the titles back to their checksums
