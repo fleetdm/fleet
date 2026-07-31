@@ -233,6 +233,7 @@ const HostsFilterBlock = ({
                           size="small"
                           disabled={disableChildren}
                           icon="pencil"
+                          ariaLabel="Edit label"
                         />
                       )
                     }
@@ -243,6 +244,7 @@ const HostsFilterBlock = ({
                       size="small"
                       disabled={disableChildren}
                       icon="trash"
+                      ariaLabel="Delete label"
                     />
                   </>
                 )}

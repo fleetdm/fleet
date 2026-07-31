@@ -156,8 +156,17 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     } = this.props;
     const hasLabel = React.Children.count(children) > 0;
     // Square, centered layout for a bare icon on secondary/subdued — see #35329.
+    // Detects both the modern `icon` prop and the legacy `<Icon>` child pattern
+    // used by call sites that need a color/className override on the icon.
+    const childArray = React.Children.toArray(children);
+    const hasLoneIconChild =
+      !icon &&
+      childArray.length === 1 &&
+      React.isValidElement(childArray[0]) &&
+      childArray[0].type === Icon;
     const isIconOnly =
-      !!icon && !hasLabel && (variant === "secondary" || variant === "subdued");
+      (variant === "secondary" || variant === "subdued") &&
+      ((!!icon && !hasLabel) || hasLoneIconChild);
     const hasIconWithLabel =
       !!icon && hasLabel && ICON_ENABLED_VARIANTS.includes(variant!);
     const fullClassName = classnames(

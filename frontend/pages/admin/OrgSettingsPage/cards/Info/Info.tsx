@@ -90,6 +90,7 @@ const LogoCard = ({
                 disabled={disableChildren}
                 title="Replace logo"
                 icon="pencil"
+                ariaLabel="Replace logo"
               />
             )}
           />
@@ -103,6 +104,7 @@ const LogoCard = ({
                 disabled={disableChildren || !hasCustomLogo}
                 title="Remove logo"
                 icon="trash"
+                ariaLabel="Remove logo"
               />
             )}
           />

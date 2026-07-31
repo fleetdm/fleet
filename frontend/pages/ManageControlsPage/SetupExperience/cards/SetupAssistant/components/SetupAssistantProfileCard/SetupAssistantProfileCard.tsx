@@ -83,6 +83,7 @@ const SetupAssistantProfileCard = (props: ISetupAssistantProfileCardProps) => {
           variant="secondary"
           onClick={onDownload}
           icon="download"
+          ariaLabel="Download setup assistant profile"
         />
         {!props.defaultProfile && (
           <Button
@@ -90,6 +91,7 @@ const SetupAssistantProfileCard = (props: ISetupAssistantProfileCardProps) => {
             variant="secondary"
             onClick={props.onDelete}
             icon="trash"
+            ariaLabel="Delete setup assistant profile"
           />
         )}
       </div>

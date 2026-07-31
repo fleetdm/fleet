@@ -200,6 +200,7 @@ const ScriptDetailsModal = ({
                 variant="subdued"
                 onClick={() => onClickDownload()}
                 icon="download"
+                ariaLabel="Download script"
               />
               <GitOpsModeTooltipWrapper
                 position="bottom"

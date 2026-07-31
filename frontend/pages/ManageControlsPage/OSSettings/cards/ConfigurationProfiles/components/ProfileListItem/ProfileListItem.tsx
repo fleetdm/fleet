@@ -211,6 +211,7 @@ const ProfileListItem = ({
             variant="secondary"
             onClick={onClickDownload}
             icon="download"
+            ariaLabel={`Download ${profile.name}`}
           />
           {!isTechnician && (
             <GitOpsModeTooltipWrapper

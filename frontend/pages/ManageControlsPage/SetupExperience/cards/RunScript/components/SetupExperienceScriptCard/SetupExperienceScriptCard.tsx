@@ -57,6 +57,7 @@ const SetupExperienceScriptCard = ({
           variant="secondary"
           onClick={onDownload}
           icon="download"
+          ariaLabel="Download script"
         />
         <Button
           className={`${baseClass}__delete-button`}

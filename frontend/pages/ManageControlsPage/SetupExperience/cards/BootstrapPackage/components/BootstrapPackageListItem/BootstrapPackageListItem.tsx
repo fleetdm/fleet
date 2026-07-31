@@ -44,6 +44,7 @@ const DownloadPackageButton = ({ url, token, className }: ITestFormProps) => {
         type="submit"
         className={`${baseClass}__list-item-button`}
         icon="download"
+        ariaLabel="Download bootstrap package"
       />
     </form>
   );
@@ -89,6 +90,7 @@ const BootstrapPackageListItem = ({
               disabled={disabled}
               onClick={() => onDelete(bootstrapPackage)}
               icon="trash"
+              ariaLabel="Delete bootstrap package"
             />
           )}
         />

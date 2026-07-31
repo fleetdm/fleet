@@ -1,5 +1,6 @@
 import React from "react";
 import { render, fireEvent, screen } from "@testing-library/react";
+import Icon from "components/Icon";
 import Button from "./Button";
 
 describe("Button component", () => {
@@ -119,5 +120,15 @@ describe("Button component", () => {
     );
     expect(container.firstChild).not.toHaveClass("button--with-icon");
     expect(container.firstChild).not.toHaveClass("button--icon-only");
+  });
+  it("adds the icon-only class for a legacy <Icon> child pattern on secondary/subdued", () => {
+    // Some call sites keep the child <Icon> pattern to pass color/className.
+    // We still want the square icon-only styling for those.
+    const { container } = render(
+      <Button variant="secondary" ariaLabel="Close">
+        <Icon name="close" color="core-fleet-black" />
+      </Button>
+    );
+    expect(container.firstChild).toHaveClass("button--icon-only");
   });
 });

@@ -69,6 +69,7 @@ const CustomLabelGroupHeading = (
             variant="secondary"
             onClick={onAddLabel}
             icon="plus"
+            ariaLabel="Add label"
           />
         )}
       </div>

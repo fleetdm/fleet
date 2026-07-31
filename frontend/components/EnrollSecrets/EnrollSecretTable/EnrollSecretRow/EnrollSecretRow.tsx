@@ -51,6 +51,7 @@ const EnrollSecretRow = ({
             className={`${baseClass}__edit-secret-icon`}
             variant="secondary"
             icon="pencil"
+            ariaLabel="Edit enroll secret"
           />
           <Button
             onClick={onDeleteSecretClick}
@@ -58,6 +59,7 @@ const EnrollSecretRow = ({
             className={`${baseClass}__delete-secret-icon`}
             variant="secondary"
             icon="trash"
+            ariaLabel="Delete enroll secret"
           />
         </div>
       )}

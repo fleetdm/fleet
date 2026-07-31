@@ -24,6 +24,7 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             className={`${baseClass}__action-button`}
             variant="subdued"
             icon="pencil"
+            ariaLabel="Edit certificate authority"
           />
         )}
       />
@@ -36,6 +37,7 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             className={`${baseClass}__action-button`}
             variant="subdued"
             icon="trash"
+            ariaLabel="Delete certificate authority"
           />
         )}
       />
