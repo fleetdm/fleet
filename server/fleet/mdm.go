@@ -659,9 +659,9 @@ type MDMConfigProfilePayload struct {
 	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
 	// Activation is the custom activation attached to a declaration (DDM)
-	// profile. It is a []byte so encoding/json emits it base64-encoded, and it
-	// is omitted entirely for profiles that don't have one.
-	Activation []byte `json:"activation,omitempty" db:"-"`
+	// profile, emitted as raw JSON rather than an encoded string, and omitted
+	// entirely for profiles that don't have one.
+	Activation json.RawMessage `json:"activation,omitempty" db:"-"`
 }
 
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when

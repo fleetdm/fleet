@@ -13991,7 +13991,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 
 	// An identifier already used by another declaration's activation is
 	// rejected rather than silently overwriting that declaration's row.
-	otherDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+	_, err = ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		Identifier: "com.fleet.act-test.other",
 		Name:       "act-test-other",
 		RawJSON:    []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.act-test.other","Payload":{"Echo":"bar"}}`),
@@ -14020,7 +14020,26 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 		`SELECT declaration_uuid FROM mdm_apple_ddm_activations WHERE identifier = 'com.fleet.act-test.custom'`))
 	require.Equal(t, decl.DeclarationUUID, stillOwned)
 
-	require.NoError(t, ds.DeleteMDMAppleDeclaration(ctx, otherDecl.DeclarationUUID))
+	// Deleting a declaration through the datastore removes its activation.
+	// The migration test proves the FK cascade with raw SQL; this proves the
+	// path the delete endpoint actually takes.
+	otherActDecl, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.act-test.other",
+		Name:       "act-test-other",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.act-test.other","Payload":{"Echo":"bar"}}`),
+		Activation: &fleet.MDMAppleCustomActivation{
+			Identifier:              "com.fleet.act-test.other.custom",
+			RawJSON:                 []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act-test.other.custom","Payload":{"StandardConfigurations":["com.fleet.act-test.other"]}}`),
+			ConfigurationIdentifier: "com.fleet.act-test.other",
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.DeleteMDMAppleDeclaration(ctx, otherActDecl.DeclarationUUID))
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, otherActDecl.DeclarationUUID))
+	require.Zero(t, count, "deleting a declaration must remove its activation")
 
 	// A write that carries the activation forward without restating its
 	// variables must not drop the associations. This is the shape a

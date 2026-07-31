@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only for tests
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -2300,18 +2299,69 @@ func (s *integrationMDMTestSuite) TestAppleDDMCustomActivations() {
 		require.JSONEq(t, string(activation), string(found.Activation))
 
 		// the single-profile endpoint returns it too, and the raw body carries
-		// it as a base64 string rather than an object -- this is the wire
-		// format the API reference promises
+		// it as an embedded JSON object rather than an encoded string
 		getRes := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK)
 		rawBody, err := io.ReadAll(getRes.Body)
 		require.NoError(t, err)
-		var asMap map[string]any
+		var asMap map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal(rawBody, &asMap))
-		encoded, ok := asMap["activation"].(string)
-		require.True(t, ok, "activation should serialize as a base64 string, got %T", asMap["activation"])
-		decoded, err := base64.StdEncoding.DecodeString(encoded)
+		require.Contains(t, asMap, "activation")
+		require.JSONEq(t, string(activation), string(asMap["activation"]))
+	})
+
+	t.Run("a declaration without an activation omits the field", func(t *testing.T) {
+		declIdent := "com.fleet.ddm.act.none"
+		res := uploadProfile(declIdent+".json", declarationForTest(declIdent), nil, http.StatusOK)
+		var uploadResp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&uploadResp))
+		t.Cleanup(func() {
+			var delResp deleteMDMConfigProfileResponse
+			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK, &delResp)
+		})
+
+		// the key must be absent entirely, not null or empty
+		getRes := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK)
+		rawBody, err := io.ReadAll(getRes.Body)
 		require.NoError(t, err)
-		require.JSONEq(t, string(activation), string(decoded))
+		var asMap map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(rawBody, &asMap))
+		require.NotContains(t, asMap, "activation")
+	})
+
+	t.Run("two management declarations can be uploaded", func(t *testing.T) {
+		managementForTest := func(declType, identifier string) []byte {
+			return []byte(fmt.Sprintf(`
+{
+    "Type": %q,
+    "Payload": { "Echo": "foo" },
+    "Identifier": %q
+}`, declType, identifier))
+		}
+
+		for _, m := range []struct{ declType, identifier string }{
+			{"com.apple.management.organization-info", "com.fleet.ddm.mgmt.org"},
+			{"com.apple.management.properties", "com.fleet.ddm.mgmt.props"},
+		} {
+			res := uploadProfile(m.identifier+".json", managementForTest(m.declType, m.identifier), nil, http.StatusOK)
+			var uploadResp newMDMConfigProfileResponse
+			require.NoError(t, json.NewDecoder(res.Body).Decode(&uploadResp))
+			require.NotEmpty(t, uploadResp.ProfileUUID)
+			t.Cleanup(func() {
+				var delResp deleteMDMConfigProfileResponse
+				s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK, &delResp)
+			})
+		}
+
+		// both coexist in the same fleet
+		var listResp listMDMConfigProfilesResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
+		var mgmtCount int
+		for _, p := range listResp.Profiles {
+			if strings.HasPrefix(p.Identifier, "com.fleet.ddm.mgmt.") {
+				mgmtCount++
+			}
+		}
+		require.Equal(t, 2, mgmtCount)
 	})
 
 	t.Run("activation alongside a non-DDM profile is rejected", func(t *testing.T) {
