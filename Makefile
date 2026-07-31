@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble tidy-tool-modules help
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble tidy-tool-modules openapi openapi-check help
 
 export GO111MODULE=on
 
@@ -289,6 +289,15 @@ lint: lint-$(ARG1)
 else
 lint: lint-go lint-js
 endif
+
+# Regenerate the pilot OpenAPI spec from docs/REST API/rest-api.md.
+# See tools/openapi/DESIGN.md and #45279.
+openapi:
+	cd tools/openapi && go run . generate
+
+# Fail if tools/openapi/openapi.yml is stale. Used by CI and goreleaser.
+openapi-check:
+	cd tools/openapi && go run . generate --check
 
 .help-short--test-schema:
 	@echo "Update schema.sql from current migrations"

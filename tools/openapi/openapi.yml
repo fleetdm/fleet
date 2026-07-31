@@ -1,0 +1,2622 @@
+openapi: 3.1.0
+info:
+  title: Fleet REST API (pilot)
+  description: Pilot OpenAPI specification generated from Fleet's canonical REST API reference (docs/REST API/rest-api.md). Covers a subset of endpoints. The Markdown reference remains the source of truth.
+  version: main
+servers:
+  - url: https://fleet.example.com
+    description: Your Fleet server URL.
+tags:
+  - name: Commands
+  - name: Fleets
+  - name: Hosts
+  - name: Policies
+  - name: Reports
+  - name: Software
+paths:
+  /api/v1/fleet/commands:
+    get:
+      summary: List MDM commands
+      description: This endpoint returns the list of custom MDM commands that have been executed.
+      operationId: listMDMCommands
+      tags:
+        - Commands
+      parameters:
+        - name: host_identifier
+          in: query
+          description: '**Required.** The host''s `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5.'
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number of the results to fetch. Maximum is `100`.
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          description: Results per page. Default is `10`. Maximum is 1,000 records.
+          schema:
+            type: integer
+        - name: order_key
+          in: query
+          description: 'What to order results by. Allowed values: `host_uuid`, `command_uuid`, `status`, `updated_at`, `request_type`, `hostname`. Default is `updated_at`.'
+          schema:
+            type: string
+        - name: order_direction
+          in: query
+          description: '**Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.'
+          schema:
+            type: string
+        - name: request_type
+          in: query
+          description: The request type to filter commands by.
+          schema:
+            type: string
+        - name: command_status
+          in: query
+          description: 'Comma-separated string of one of the following options: ''ran'', ''pending'', or ''failed''.'
+          schema:
+            type: string
+        - name: after
+          in: query
+          description: The value to get results after. This needs `order_key` defined, as that's the column that would be used.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Default response.
+          content:
+            application/json:
+              schema:
+                properties:
+                  count: {}
+                  meta:
+                    properties:
+                      has_next_results:
+                        type: boolean
+                      has_previous_results:
+                        type: boolean
+                    type: object
+                  results:
+                    items:
+                      properties:
+                        command_status:
+                          type: string
+                        command_uuid:
+                          type: string
+                        host_uuid:
+                          type: string
+                        hostname:
+                          type: string
+                        name: {}
+                        request_type:
+                          type: string
+                        status:
+                          type: string
+                        updated_at:
+                          format: date-time
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              example:
+                count: null
+                meta:
+                  has_next_results: true
+                  has_previous_results: false
+                results:
+                  - command_status: ran
+                    command_uuid: a3650ec9-6dd0-40e9-b5d8-feffe9939461
+                    host_uuid: A1B2C3D4-E5F6-7890-1234-567890ABCDEF
+                    hostname: Mac-mini.local
+                    name: null
+                    request_type: DeclarativeManagement
+                    status: Acknowledged
+                    updated_at: "2026-03-20T19:45:27Z"
+                  - command_status: failed
+                    command_uuid: 97ceaa39-eadc-4953-98a8-2ffe72ab120d
+                    host_uuid: A1B2C3D4-E5F6-7890-1234-567890ABCDEF
+                    hostname: Mac-mini.local
+                    name: null
+                    request_type: InstallProfile
+                    status: Error
+                    updated_at: "2026-03-24T21:37:32Z"
+  /api/v1/fleet/commands/run:
+    post:
+      summary: Run MDM command
+      description: This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, or Windows hosts the next time they come online.
+      operationId: runMDMCommand
+      tags:
+        - Commands
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              properties:
+                command:
+                  description: A Base64 encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). Supported formats are standard and raw (unpadded). You can paste your Base64 code to the [online decoder](https://devpal.co/base64-decode/) to check if you're using the valid format.
+                  type: string
+                host_uuids:
+                  description: An array of host UUIDs enrolled in Fleet on which the command should run.
+                  items:
+                    type: string
+                  type: array
+              type: object
+      responses:
+        "200":
+          description: Default response.
+          content:
+            application/json:
+              schema:
+                properties:
+                  command_uuid:
+                    type: string
+                  request_type:
+                    type: string
+                type: object
+              example:
+                command_uuid: a2064cef-0000-1234-afb9-283e3c1d487e
+                request_type: ProfileList
+  /api/v1/fleet/fleets:
+    get:
+      summary: List fleets
+      description: _Available in Fleet Premium_
+      operationId: listFleets
+      tags:
+        - Fleets
+      parameters:
+        - name: page
+          in: query
+          description: Page number of the results to fetch.
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          description: Results per page.
+          schema:
+            type: integer
+        - name: order_key
+          in: query
+          description: What to order results by. Can be any column in the `fleets` table.
+          schema:
+            type: string
+        - name: order_direction
+          in: query
+          description: '**Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.'
+          schema:
+            type: string
+        - name: query
+          in: query
+          description: Search query keywords. Searchable fields include `name`.
+          schema:
+            type: string
+        - name: after
+          in: query
+          description: The value to get results after. This needs `order_key` defined, as that's the column that would be used.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Default response.
+          content:
+            application/json:
+              schema:
+                properties:
+                  fleets:
+                    items:
+                      properties:
+                        agent_options:
+                          properties:
+                            command_line_flags:
+                              properties: {}
+                              type: object
+                            config:
+                              properties:
+                                decorators:
+                                  properties:
+                                    load:
+                                      items:
+                                        type: string
+                                      type: array
+                                  type: object
+                                options:
+                                  properties:
+                                    disable_distributed:
+                                      type: boolean
+                                    distributed_interval:
+                                      type: integer
+                                    distributed_plugin:
+                                      type: string
+                                    distributed_tls_max_attempts:
+                                      type: integer
+                                    logger_tls_endpoint:
+                                      type: string
+                                    logger_tls_period:
+                                      type: integer
+                                    pack_delimiter:
+                                      type: string
+                                  type: object
+                              type: object
+                            overrides:
+                              properties: {}
+                              type: object
+                          type: object
+                        created_at:
+                          format: date-time
+                          type: string
+                        description:
+                          type: string
+                        host_count:
+                          type: integer
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        secrets:
+                          items:
+                            properties:
+                              created_at:
+                                format: date-time
+                                type: string
+                              secret:
+                                type: string
+                              team_id:
+                                type: integer
+                            type: object
+                          type: array
+                        user_count:
+                          type: integer
+                      type: object
+                    type: array
+                type: object
+              example:
+                fleets:
+                  - agent_options:
+                      command_line_flags: {}
+                      config:
+                        decorators:
+                          load:
+                            - SELECT uuid AS host_uuid FROM system_info;
+                            - SELECT hostname AS hostname FROM system_info;
+                        options:
+                          disable_distributed: false
+                          distributed_interval: 10
+                          distributed_plugin: tls
+                          distributed_tls_max_attempts: 3
+                          logger_tls_endpoint: /api/v1/osquery/log
+                          logger_tls_period: 10
+                          pack_delimiter: /
+                      overrides: {}
+                    created_at: "2021-07-28T15:58:21Z"
+                    description: ""
+                    host_count: 0
+                    id: 1
+                    name: workstations
+                    secrets:
+                      - created_at: "2021-07-28T15:58:21Z"
+                        secret: ""
+                        team_id: 10
+                    user_count: 0
+                  - agent_options:
+                      host_count: 0
+                      secrets:
+                        - created_at: "2021-08-05T21:41:42Z"
+                          secret: +ncixtnZB+IE0OrbrkCLeul3U8LMVITd
+                          team_id: 15
+                      spec:
+                        command_line_flags: {}
+                        config:
+                          decorators:
+                            load:
+                              - SELECT uuid AS host_uuid FROM system_info;
+                              - SELECT hostname AS hostname FROM system_info;
+                          options:
+                            disable_distributed: false
+                            distributed_interval: 10
+                            distributed_plugin: tls
+                            distributed_tls_max_attempts: 3
+                            logger_tls_endpoint: /api/v1/osquery/log
+                            logger_tls_period: 10
+                            pack_delimiter: /
+                        overrides: {}
+                      user_count: 0
+                    created_at: "2021-08-05T21:41:42Z"
+                    description: ""
+                    id: 2
+                    name: servers
+  /api/v1/fleet/global/policies:
+    get:
+      summary: List policies
+      operationId: listPolicies
+      tags:
+        - Policies
+      parameters:
+        - name: page
+          in: query
+          description: Page number of the results to fetch.
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          description: Results per page.
+          schema:
+            type: integer
+        - name: order_key
+          in: query
+          description: What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`.
+          schema:
+            type: string
+        - name: order_direction
+          in: query
+          description: '**Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.'
+          schema:
+            type: string
+        - name: after
+          in: query
+          description: The value to get results after. This needs `order_key` defined, as that's the column that would be used.
+          schema:
+            type: string
+        - name: platform
+          in: query
+          description: Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Default response.
+          content:
+            application/json:
+              schema:
+                properties:
+                  policies:
+                    items:
+                      properties:
+                        author_email:
+                          type: string
+                        author_id:
+                          type: integer
+                        author_name:
+                          type: string
+                        created_at:
+                          format: date-time
+                          type: string
+                        critical:
+                          type: boolean
+                        description:
+                          type: string
+                        failing_host_count:
+                          type: integer
+                        host_count_updated_at:
+                          format: date-time
+                          type: string
+                        id:
+                          type: integer
+                        labels_include_any:
+                          items:
+                            type: string
+                          type: array
+                        name:
+                          type: string
+                        passing_host_count:
+                          type: integer
+                        platform:
+                          type: string
+                        query:
+                          type: string
+                        resolution:
+                          type: string
+                        team_id: {}
+                        updated_at:
+                          format: date-time
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              example:
+                policies:
+                  - author_email: john@example.com
+                    author_id: 42
+                    author_name: John
+                    created_at: "2021-12-15T15:23:57Z"
+                    critical: false
+                    description: Checks if gatekeeper is enabled on macOS devices
+                    failing_host_count: 300
+                    host_count_updated_at: "2023-12-20T15:23:57Z"
+                    id: 1
+                    labels_include_any:
+                      - Macs on Sonoma
+                    name: Gatekeeper enabled
+                    passing_host_count: 2000
+                    platform: darwin
+                    query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+                    resolution: Resolution steps
+                    team_id: null
+                    updated_at: "2021-12-15T15:23:57Z"
+                  - author_email: alice@example.com
+                    author_id: 43
+                    author_name: Alice
+                    created_at: "2021-12-31T14:52:27Z"
+                    critical: true
+                    description: Checks if the hard disk is encrypted on Windows devices
+                    failing_host_count: 0
+                    host_count_updated_at: "2023-12-20T15:23:57Z"
+                    id: 2
+                    labels_exclude_any:
+                      - Compliance exclusions
+                      - Workstations (Canary)
+                    name: Windows machines with encrypted hard disks
+                    passing_host_count: 2300
+                    platform: windows
+                    query: SELECT 1 FROM bitlocker_info WHERE protection_status = 1;
+                    resolution: Resolution steps
+                    team_id: null
+                    updated_at: "2022-02-10T20:59:35Z"
+    post:
+      summary: Create policy
+      operationId: createPolicy
+      tags:
+        - Policies
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              properties:
+                critical:
+                  description: _Available in Fleet Premium_. Mark policy as critical/high impact.
+                  type: boolean
+                description:
+                  description: The policy's description.
+                  type: string
+                labels_exclude_all:
+                  description: _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels.
+                  items:
+                    type: string
+                  type: array
+                labels_exclude_any:
+                  description: _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels.
+                  items:
+                    type: string
+                  type: array
+                labels_include_all:
+                  description: _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels.
+                  items:
+                    type: string
+                  type: array
+                labels_include_any:
+                  description: _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels.
+                  items:
+                    type: string
+                  type: array
+                name:
+                  description: The policy's name.
+                  type: string
+                platform:
+                  description: Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms.
+                  type: string
+                query:
+                  description: The policy's query in SQL.
+                  type: string
+                resolution:
+                  description: The resolution steps for the policy.
+                  type: string
+              type: object
+      responses:
+        "200":
+          description: Default response.
+          content:
+            application/json:
+              schema:
+                properties:
+                  policy:
+                    properties:
+                      author_email:
+                        type: string
+                      author_id:
+                        type: integer
+                      author_name:
+                        type: string
+                      created_at:
+                        format: date-time
+                        type: string
+                      critical:
+                        type: boolean
+                      description:
+                        type: string
+                      failing_host_count:
+                        type: integer
+                      host_count_updated_at: {}
+                      id:
+                        type: integer
+                      labels_include_any:
+                        items:
+                          type: string
+                        type: array
+                      name:
+                        type: string
+                      passing_host_count:
+                        type: integer
+                      platform:
+                        type: string
+                      query:
+                        type: string
+                      resolution:
+                        type: string
+                      team_id: {}
+                      updated_at:
+                        format: date-time
+                        type: string
+                    type: object
+                type: object
+              example:
+                policy:
+                  author_email: john@example.com
+                  author_id: 42
+                  author_name: John
+                  created_at: "2022-03-17T20:15:55Z"
+                  critical: true
+                  description: Checks if gatekeeper is enabled on macOS devices
+                  failing_host_count: 0
+                  host_count_updated_at: null
+                  id: 43
+                  labels_include_any:
+                    - Macs on Sonoma
+                  name: Gatekeeper enabled
+                  passing_host_count: 0
+                  platform: darwin
+                  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+                  resolution: Resolution steps
+                  team_id: null
+                  updated_at: "2022-03-17T20:15:55Z"
+  /api/v1/fleet/hosts:
+    get:
+      summary: List hosts
+      operationId: listHosts
+      tags:
+        - Hosts
+      parameters:
+        - name: page
+          in: query
+          description: Page number of the results to fetch.
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          description: Results per page.
+          schema:
+            type: integer
+        - name: order_key
+          in: query
+          description: What to order results by. Can be any column in the hosts table.
+          schema:
+            type: string
+        - name: after
+          in: query
+          description: The value to get results after. This needs `order_key` defined, as that's the column that would be used. **Note:** Use `page` instead of `after`
+          schema:
+            type: string
+        - name: order_direction
+          in: query
+          description: '**Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.'
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.
+          schema:
+            type: string
+        - name: query
+          in: query
+          description: Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4`, and end user email addresses.
+          schema:
+            type: string
+        - name: additional_info_filters
+          in: query
+          description: A comma-delimited list of fields to include in each host's `additional` object. This query is populated by the `additional_queries` in the `features` section of the configuration YAML.
+          schema:
+            type: string
+        - name: fleet_id
+          in: query
+          description: _Available in Fleet Premium_. Filters to only include hosts in the specified fleet. Use `0` to filter by "Unassigned" hosts.
+          schema:
+            type: integer
+        - name: policy_id
+          in: query
+          description: The ID of the policy to filter hosts by.
+          schema:
+            type: integer
+        - name: policy_response
+          in: query
+          description: '**Requires `policy_id`**. Valid options are ''passing'' or ''failing''.'
+          schema:
+            type: string
+        - name: software_version_id
+          in: query
+          description: The ID of the software version to filter hosts by.
+          schema:
+            type: integer
+        - name: software_title_id
+          in: query
+          description: The ID of the software title to filter hosts by.
+          schema:
+            type: integer
+        - name: software_status
+          in: query
+          description: 'The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. Mutually exclusive with `software_version_id`, and must be supplied if `software_title_id` is set.'
+          schema:
+            type: string
+        - name: os_version_id
+          in: query
+          description: The ID of the operating system version to filter hosts by.
+          schema:
+            type: integer
+        - name: os_name
+          in: query
+          description: The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`. See note below for filtering Windows hosts.
+          schema:
+            type: string
+        - name: os_version
+          in: query
+          description: The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`. See note below for filtering Windows hosts.
+          schema:
+            type: string
+        - name: vulnerability
+          in: query
+          description: The cve to filter hosts by (including "cve-" prefix, case-insensitive).
+          schema:
+            type: string
+        - name: device_mapping
+          in: query
+          description: Indicates whether `device_mapping` should be included for each host.
+          schema:
+            type: boolean
+        - name: mdm_id
+          in: query
+          description: The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).
+          schema:
+            type: integer
+        - name: mdm_name
+          in: query
+          description: The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).
+          schema:
+            type: string
+        - name: mdm_enrollment_status
+          in: query
+          description: The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.
+          schema:
+            type: string
+        - name: connected_to_fleet
+          in: query
+          description: Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.
+          schema:
+            type: boolean
+        - name: macos_settings
+          in: query
+          description: 'Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are ''verified'', ''verifying'', ''pending'', or ''failed''. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**'
+          schema:
+            type: string
+        - name: munki_issue_id
+          in: query
+          description: The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).
+          schema:
+            type: integer
+        - name: low_disk_space
+          in: query
+          description: _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.
+          schema:
+            type: integer
+        - name: disable_failing_policies
+          in: query
+          description: If `true`, hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.
+          schema:
+            type: boolean
+        - name: macos_settings_disk_encryption
+          in: query
+          description: Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.
+          schema:
+            type: string
+        - name: bootstrap_package
+          in: query
+          description: _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'.
+          schema:
+            type: string
+        - name: os_settings
+          in: query
+          description: 'Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are ''verified'', ''verifying'', ''pending'', or ''failed''. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**'
+          schema:
+            type: string
+        - name: os_settings_disk_encryption
+          in: query
+          description: 'Filters the hosts by disk encryption status. Valid options are ''verified'', ''verifying'', ''action_required'', ''enforcing'', ''failed'', or ''removing_enforcement''.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**'
+          schema:
+            type: string
+        - name: populate_software
+          in: query
+          description: If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes below on performance.
+          schema:
+            type: string
+        - name: populate_policies
+          in: query
+          description: If `true`, the response will include policy data for each host, including Fleet-maintained policies.
+          schema:
+            type: boolean
+        - name: populate_users
+          in: query
+          description: If `true`, the response will include user data for each host.
+          schema:
+            type: boolean
+        - name: populate_labels
+          in: query
+          description: If `true`, the response will include labels for each host.
+          schema:
+            type: boolean
+        - name: include_device_status
+          in: query
+          description: If `true`, the response will include lock and wipe status (`mdm.device_status`) and `mdm.pending_action` information for each host.
+          schema:
+            type: boolean
+        - name: profile_uuid
+          in: query
+          description: '**Requires `profile_status`**. The UUID of the profile to download.'
+          schema:
+            type: string
+        - name: profile_status
+          in: query
+          description: '**Requires `profile_uuid`**. Valid options are ''verified'', ''verifying'', ''pending'', or ''failed''.'
+          schema:
+            type: string
+        - name: dep_profile_error
+          in: query
+          description: 'If `true`, the response will only include Apple MDM hosts with DEP profile assignment errors(`mdm.dep_profile_error: true`).'
+          schema:
+            type: boolean
+        - name: dep_assign_profile_response
+          in: query
+          description: Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in ABM will be returned.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Default response.
+          content:
+            application/json:
+              schema:
+                properties:
+                  hosts:
+                    items:
+                      properties:
+                        additional:
+                          properties: {}
+                          type: object
+                        build:
+                          type: string
+                        code_name:
+                          type: string
+                        computer_name:
+                          type: string
+                        config_tls_refresh:
+                          type: integer
+                        cpu_brand:
+                          type: string
+                        cpu_logical_cores:
+                          type: integer
+                        cpu_physical_cores:
+                          type: integer
+                        cpu_subtype:
+                          type: string
+                        cpu_type:
+                          type: string
+                        created_at:
+                          format: date-time
+                          type: string
+                        detail_updated_at:
+                          format: date-time
+                          type: string
+                        display_name:
+                          type: string
+                        display_text:
+                          type: string
+                        distributed_interval:
+                          type: integer
+                        fleet_id: {}
+                        fleet_name: {}
+                        geolocation:
+                          properties:
+                            city_name:
+                              type: string
+                            country_iso:
+                              type: string
+                            geometry:
+                              properties:
+                                coordinates:
+                                  items:
+                                    type: number
+                                  type: array
+                                type:
+                                  type: string
+                              type: object
+                          type: object
+                        gigs_disk_space_available:
+                          type: number
+                        gigs_total_disk_space:
+                          type: integer
+                        hardware_model:
+                          type: string
+                        hardware_serial:
+                          type: string
+                        hardware_vendor:
+                          type: string
+                        hardware_version:
+                          type: string
+                        hostname:
+                          type: string
+                        id:
+                          type: integer
+                        issues:
+                          properties:
+                            critical_vulnerabilities_count:
+                              type: integer
+                            failing_policies_count:
+                              type: integer
+                            total_issues_count:
+                              type: integer
+                          type: object
+                        label_updated_at:
+                          format: date-time
+                          type: string
+                        labels:
+                          items:
+                            properties:
+                              created_at:
+                                format: date-time
+                                type: string
+                              description:
+                                type: string
+                              id:
+                                type: integer
+                              label_membership_type:
+                                type: string
+                              label_type:
+                                type: string
+                              name:
+                                type: string
+                              platform:
+                                type: string
+                              query:
+                                type: string
+                              updated_at:
+                                format: date-time
+                                type: string
+                            type: object
+                          type: array
+                        last_enrolled_at:
+                          format: date-time
+                          type: string
+                        last_restarted_at:
+                          format: date-time
+                          type: string
+                        logger_tls_period:
+                          type: integer
+                        mdm:
+                          properties:
+                            dep_profile_error:
+                              type: boolean
+                            device_status:
+                              type: string
+                            encryption_key_available:
+                              type: boolean
+                            enrollment_status:
+                              type: string
+                            name:
+                              type: string
+                            pending_action:
+                              type: string
+                            server_url:
+                              type: string
+                          type: object
+                        memory:
+                          type: integer
+                        os_version:
+                          type: string
+                        osquery_version:
+                          type: string
+                        pack_stats:
+                          items:
+                            properties:
+                              pack_id:
+                                type: integer
+                              pack_name:
+                                type: string
+                              query_stats:
+                                items:
+                                  properties:
+                                    automations_enabled:
+                                      type: boolean
+                                    average_memory:
+                                      type: integer
+                                    denylisted:
+                                      type: boolean
+                                    description:
+                                      type: string
+                                    discard_data:
+                                      type: boolean
+                                    executions:
+                                      type: integer
+                                    interval:
+                                      type: integer
+                                    last_executed:
+                                      format: date-time
+                                      type: string
+                                    last_fetched: {}
+                                    output_size:
+                                      type: integer
+                                    pack_name:
+                                      type: string
+                                    query_name:
+                                      type: string
+                                    scheduled_query_id:
+                                      type: integer
+                                    scheduled_query_name:
+                                      type: string
+                                    system_time:
+                                      type: integer
+                                    user_time:
+                                      type: integer
+                                    wall_time:
+                                      type: integer
+                                  type: object
+                                type: array
+                              type:
+                                type: string
+                            type: object
+                          type: array
+                        percent_disk_space_available:
+                          type: integer
+                        platform:
+                          type: string
+                        platform_like:
+                          type: string
+                        policies:
+                          items:
+                            properties:
+                              critical:
+                                type: boolean
+                              description:
+                                type: string
+                              fleet_maintained:
+                                type: boolean
+                              id:
+                                type: integer
+                              name:
+                                type: string
+                              platform:
+                                type: string
+                              query:
+                                type: string
+                              resolution:
+                                type: string
+                              response:
+                                type: string
+                            type: object
+                          type: array
+                        policy_updated_at:
+                          format: date-time
+                          type: string
+                        primary_ip:
+                          type: string
+                        primary_mac:
+                          type: string
+                        public_ip:
+                          type: string
+                        seen_time:
+                          format: date-time
+                          type: string
+                        software:
+                          items:
+                            properties:
+                              generated_cpe:
+                                type: string
+                              id:
+                                type: integer
+                              installed_paths:
+                                items:
+                                  type: string
+                                type: array
+                              last_opened_at:
+                                format: date-time
+                                type: string
+                              name:
+                                type: string
+                              source:
+                                type: string
+                              version:
+                                type: string
+                              vulnerabilities:
+                                items:
+                                  properties:
+                                    cisa_known_exploit:
+                                      type: boolean
+                                    cve:
+                                      type: string
+                                    cve_description:
+                                      type: string
+                                    cve_published:
+                                      format: date-time
+                                      type: string
+                                    cvss_score:
+                                      type: number
+                                    details_link:
+                                      type: string
+                                    epss_probability:
+                                      type: number
+                                    resolved_in_version:
+                                      type: string
+                                  type: object
+                                type: array
+                            type: object
+                          type: array
+                        software_updated_at:
+                          format: date-time
+                          type: string
+                        status:
+                          type: string
+                        team_id: {}
+                        team_name: {}
+                        timezone: {}
+                        updated_at:
+                          format: date-time
+                          type: string
+                        uptime:
+                          type: integer
+                        users:
+                          items:
+                            properties:
+                              groupname:
+                                type: string
+                              shell:
+                                type: string
+                              type:
+                                type: string
+                              uid:
+                                type: integer
+                              username:
+                                type: string
+                            type: object
+                          type: array
+                        uuid:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              example:
+                hosts:
+                  - additional: {}
+                    build: 24C101
+                    code_name: ""
+                    computer_name: Anna's MacBook Pro
+                    config_tls_refresh: 10
+                    cpu_brand: Apple M1
+                    cpu_logical_cores: 8
+                    cpu_physical_cores: 8
+                    cpu_subtype: ARM64E
+                    cpu_type: arm64e
+                    created_at: "2020-11-05T05:09:44Z"
+                    detail_updated_at: "2020-11-05T05:09:45Z"
+                    display_name: Anna's MacBook Pro
+                    display_text: Annas-MacBook-Pro.local
+                    distributed_interval: 10
+                    fleet_id: null
+                    fleet_name: null
+                    geolocation:
+                      city_name: New York
+                      country_iso: US
+                      geometry:
+                        coordinates:
+                          - 40.6799
+                          - -74.0028
+                        type: point
+                    gigs_disk_space_available: 174.98
+                    gigs_total_disk_space: 246
+                    hardware_model: MacBookPro17,1
+                    hardware_serial: C0124FXASD6G
+                    hardware_vendor: Apple Inc.
+                    hardware_version: ""
+                    hostname: Annas-MacBook-Pro.local
+                    id: 1
+                    issues:
+                      critical_vulnerabilities_count: 2
+                      failing_policies_count: 1
+                      total_issues_count: 3
+                    label_updated_at: "2020-11-05T05:14:51Z"
+                    labels:
+                      - created_at: "2021-08-19T02:02:17Z"
+                        description: All hosts which have enrolled in Fleet
+                        id: 6
+                        label_membership_type: dynamic
+                        label_type: builtin
+                        name: All Hosts
+                        platform: ""
+                        query: SELECT 1;
+                        updated_at: "2021-08-19T02:02:17Z"
+                      - created_at: "2021-08-19T02:02:17Z"
+                        description: All CentOS hosts
+                        id: 9
+                        label_membership_type: dynamic
+                        label_type: builtin
+                        name: CentOS Linux
+                        platform: ""
+                        query: SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'
+                        updated_at: "2021-08-19T02:02:17Z"
+                      - created_at: "2021-08-19T02:02:17Z"
+                        description: All Linux distributions
+                        id: 12
+                        label_membership_type: dynamic
+                        label_type: builtin
+                        name: All Linux
+                        platform: ""
+                        query: SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';
+                        updated_at: "2021-08-19T02:02:17Z"
+                    last_enrolled_at: "2023-02-26T22:33:12Z"
+                    last_restarted_at: "2020-11-01T03:01:45Z"
+                    logger_tls_period: 8
+                    mdm:
+                      dep_profile_error: true
+                      device_status: unlocked
+                      encryption_key_available: false
+                      enrollment_status: Pending
+                      name: Fleet
+                      pending_action: ""
+                      server_url: https://example.fleetdm.com/mdm/apple/mdm
+                    memory: 2.084032512e+09
+                    os_version: macOS 15.2
+                    osquery_version: 5.15.0
+                    pack_stats:
+                      - pack_id: 0
+                        pack_name: Global
+                        query_stats:
+                          - automations_enabled: false
+                            average_memory: 434176
+                            denylisted: false
+                            description: Returns a record every time a USB device is plugged in or removed
+                            discard_data: false
+                            executions: 2
+                            interval: 86400
+                            last_executed: "2023-11-28T00:02:07Z"
+                            last_fetched: null
+                            output_size: 891
+                            pack_name: Global
+                            query_name: Get recently added or removed USB drives
+                            scheduled_query_id: 5535
+                            scheduled_query_name: Get recently added or removed USB drives
+                            system_time: 10
+                            user_time: 6
+                            wall_time: 0
+                        type: global
+                    percent_disk_space_available: 71
+                    platform: darwin
+                    platform_like: darwin
+                    policies:
+                      - critical: false
+                        description: Checks if gatekeeper is enabled on macOS devices
+                        fleet_maintained: true
+                        id: 1
+                        name: Gatekeeper enabled
+                        platform: darwin
+                        query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+                        resolution: Fix with these steps...
+                        response: fail
+                    policy_updated_at: "2023-06-26T18:33:15Z"
+                    primary_ip: 192.12.345.678
+                    primary_mac: 36:34:a5:6b:7b:5c
+                    public_ip: 123.45.678.910
+                    seen_time: "2020-11-05T06:03:39Z"
+                    software:
+                      - generated_cpe: cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*
+                        id: 1
+                        installed_paths:
+                          - /usr/lib/some-path-1
+                        last_opened_at: "2021-08-18T21:14:00Z"
+                        name: glibc
+                        source: rpm_packages
+                        version: "2.12"
+                        vulnerabilities:
+                          - cisa_known_exploit: false
+                            cve: CVE-2009-5155
+                            cve_description: In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.
+                            cve_published: "2022-01-01 12:32:00"
+                            cvss_score: 7.5
+                            details_link: https://nvd.nist.gov/vuln/detail/CVE-2009-5155
+                            epss_probability: 0.01537
+                            resolved_in_version: "2.28"
+                    software_updated_at: "2020-11-05T05:09:44Z"
+                    status: offline
+                    team_id: null
+                    team_name: null
+                    timezone: null
+                    updated_at: "2020-11-05T06:03:39Z"
+                    uptime: 8.305e+12
+                    users:
+                      - groupname: root
+                        shell: /bin/bash
+                        type: ""
+                        uid: 0
+                        username: root
+                      - groupname: bin
+                        shell: /sbin/nologin
+                        type: ""
+                        uid: 1
+                        username: bin
+                    uuid: 392547dc-0000-0000-a87a-d701ff75bc65
+  /api/v1/fleet/hosts/{id}:
+    get:
+      summary: Get host
+      description: Returns the information of the specified host.
+      operationId: getHost
+      tags:
+        - Hosts
+      parameters:
+        - name: id
+          in: path
+          description: '**Required**. The host''s id.'
+          required: true
+          schema:
+            type: integer
+        - name: exclude_software
+          in: query
+          description: If `true`, the response will not include a list of installed software for the host.
+          schema:
+            type: boolean
+        - name: exclude_fleet_maintained_policies
+          in: query
+          description: If `true`, will omit Fleet-maintained policies from the policies list.
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Default response.
+          content:
+            application/json:
+              schema:
+                properties:
+                  host:
+                    properties:
+                      additional:
+                        properties: {}
+                        type: object
+                      batteries:
+                        items:
+                          properties:
+                            cycle_count:
+                              type: integer
+                            health:
+                              type: string
+                          type: object
+                        type: array
+                      build:
+                        type: string
+                      code_name:
+                        type: string
+                      computer_name:
+                        type: string
+                      config_tls_refresh:
+                        type: integer
+                      cpu_brand:
+                        type: string
+                      cpu_logical_cores:
+                        type: integer
+                      cpu_physical_cores:
+                        type: integer
+                      cpu_subtype:
+                        type: string
+                      cpu_type:
+                        type: string
+                      created_at:
+                        format: date-time
+                        type: string
+                      detail_updated_at:
+                        format: date-time
+                        type: string
+                      disk_encryption_enabled:
+                        type: boolean
+                      display_name:
+                        type: string
+                      display_text:
+                        type: string
+                      distributed_interval:
+                        type: integer
+                      end_users:
+                        items:
+                          properties:
+                            idp_department:
+                              type: string
+                            idp_full_name:
+                              type: string
+                            idp_groups:
+                              items:
+                                type: string
+                              type: array
+                            idp_id:
+                              type: string
+                            idp_info_updated_at:
+                              format: date-time
+                              type: string
+                            idp_username:
+                              type: string
+                            other_emails:
+                              items:
+                                properties:
+                                  email:
+                                    type: string
+                                  source:
+                                    type: string
+                                type: object
+                              type: array
+                          type: object
+                        type: array
+                      fleet_desktop_version:
+                        type: string
+                      fleet_id: {}
+                      fleet_name: {}
+                      geolocation:
+                        properties:
+                          city_name:
+                            type: string
+                          country_iso:
+                            type: string
+                          geometry:
+                            properties:
+                              coordinates:
+                                items:
+                                  type: number
+                                type: array
+                              type:
+                                type: string
+                            type: object
+                        type: object
+                      gigs_disk_space_available:
+                        type: number
+                      gigs_total_disk_space:
+                        type: integer
+                      hardware_model:
+                        type: string
+                      hardware_serial:
+                        type: string
+                      hardware_vendor:
+                        type: string
+                      hardware_version:
+                        type: string
+                      hostname:
+                        type: string
+                      id:
+                        type: integer
+                      issues:
+                        properties:
+                          critical_vulnerabilities_count:
+                            type: integer
+                          failing_policies_count:
+                            type: integer
+                          total_issues_count:
+                            type: integer
+                        type: object
+                      label_updated_at:
+                        format: date-time
+                        type: string
+                      labels:
+                        items:
+                          properties:
+                            created_at:
+                              format: date-time
+                              type: string
+                            description:
+                              type: string
+                            id:
+                              type: integer
+                            label_membership_type:
+                              type: string
+                            label_type:
+                              type: string
+                            name:
+                              type: string
+                            platform:
+                              type: string
+                            query:
+                              type: string
+                            updated_at:
+                              format: date-time
+                              type: string
+                          type: object
+                        type: array
+                      last_enrolled_at:
+                        format: date-time
+                        type: string
+                      last_mdm_checked_in_at:
+                        format: date-time
+                        type: string
+                      last_mdm_enrolled_at:
+                        format: date-time
+                        type: string
+                      last_restarted_at:
+                        format: date-time
+                        type: string
+                      logger_tls_period:
+                        type: integer
+                      maintenance_window:
+                        properties:
+                          starts_at:
+                            format: date-time
+                            type: string
+                          timezone:
+                            type: string
+                        type: object
+                      mdm:
+                        properties:
+                          apple_settings:
+                            properties:
+                              action_required: {}
+                              disk_encryption:
+                                type: string
+                            type: object
+                          connected_to_fleet:
+                            type: boolean
+                          device_status:
+                            type: string
+                          encryption_key_available:
+                            type: boolean
+                          enrollment_status:
+                            type: string
+                          macos_settings:
+                            properties:
+                              action_required: {}
+                              disk_encryption:
+                                type: string
+                            type: object
+                          macos_setup:
+                            properties:
+                              bootstrap_package_name:
+                                type: string
+                              bootstrap_package_status:
+                                type: string
+                              detail:
+                                type: string
+                            type: object
+                          name:
+                            type: string
+                          os_settings:
+                            properties:
+                              disk_encryption:
+                                properties:
+                                  detail:
+                                    type: string
+                                  status:
+                                    type: string
+                                type: object
+                            type: object
+                          pending_action:
+                            type: string
+                          profiles:
+                            items:
+                              properties:
+                                detail:
+                                  type: string
+                                managed_local_account:
+                                  type: string
+                                name:
+                                  type: string
+                                operation_type:
+                                  type: string
+                                profile_uuid:
+                                  type: string
+                                scope:
+                                  type: string
+                                status:
+                                  type: string
+                              type: object
+                            type: array
+                          server_url:
+                            type: string
+                          setup_experience:
+                            properties:
+                              bootstrap_package_name:
+                                type: string
+                              bootstrap_package_status:
+                                type: string
+                              detail:
+                                type: string
+                            type: object
+                        type: object
+                      mdm_enrollment_hardware_attested:
+                        type: boolean
+                      memory:
+                        type: integer
+                      orbit_version:
+                        type: string
+                      os_version:
+                        type: string
+                      osquery_version:
+                        type: string
+                      pack_stats: {}
+                      packs:
+                        items: {}
+                        type: array
+                      percent_disk_space_available:
+                        type: integer
+                      platform:
+                        type: string
+                      platform_like:
+                        type: string
+                      policies:
+                        items:
+                          properties:
+                            critical:
+                              type: boolean
+                            description:
+                              type: string
+                            id:
+                              type: integer
+                            name:
+                              type: string
+                            platform:
+                              type: string
+                            query:
+                              type: string
+                            resolution:
+                              type: string
+                            response:
+                              type: string
+                          type: object
+                        type: array
+                      policy_updated_at:
+                        format: date-time
+                        type: string
+                      primary_ip:
+                        type: string
+                      primary_mac:
+                        type: string
+                      public_ip:
+                        type: string
+                      refetch_requested:
+                        type: boolean
+                      scripts_enabled:
+                        type: boolean
+                      seen_time:
+                        format: date-time
+                        type: string
+                      software:
+                        items:
+                          properties:
+                            bundle_identifier:
+                              type: string
+                            generated_cpe:
+                              type: string
+                            id:
+                              type: integer
+                            installed_paths:
+                              items:
+                                type: string
+                              type: array
+                            last_opened_at:
+                              format: date-time
+                              type: string
+                            name:
+                              type: string
+                            source:
+                              type: string
+                            version:
+                              type: string
+                            vulnerabilities: {}
+                          type: object
+                        type: array
+                      software_updated_at:
+                        format: date-time
+                        type: string
+                      status:
+                        type: string
+                      team_id: {}
+                      team_name: {}
+                      timezone: {}
+                      updated_at:
+                        format: date-time
+                        type: string
+                      uptime:
+                        type: integer
+                      users:
+                        items:
+                          properties:
+                            groupname:
+                              type: string
+                            shell:
+                              type: string
+                            type:
+                              type: string
+                            uid:
+                              type: integer
+                            username:
+                              type: string
+                          type: object
+                        type: array
+                      uuid:
+                        type: string
+                    type: object
+                type: object
+              example:
+                host:
+                  additional: {}
+                  batteries:
+                    - cycle_count: 999
+                      health: Normal
+                  build: 24C101
+                  code_name: ""
+                  computer_name: Anna's MacBook Pro
+                  config_tls_refresh: 10
+                  cpu_brand: Apple M1
+                  cpu_logical_cores: 8
+                  cpu_physical_cores: 8
+                  cpu_subtype: ARM64E
+                  cpu_type: arm64e
+                  created_at: "2021-08-19T02:02:22Z"
+                  detail_updated_at: "2021-08-19T21:07:53Z"
+                  disk_encryption_enabled: true
+                  display_name: Anna's MacBook Pro
+                  display_text: Annas-MacBook-Pro.local
+                  distributed_interval: 10
+                  end_users:
+                    - idp_department: Product
+                      idp_full_name: Anna Chao
+                      idp_groups:
+                        - Product
+                        - Designers
+                      idp_id: f26f8649-1e25-42c5-be71-1b1e6de56d3d
+                      idp_info_updated_at: "2025-03-20T02:02:17Z"
+                      idp_username: anna@acme.com
+                      other_emails:
+                        - email: anna@example.com
+                          source: google_chrome_profiles
+                        - email: anna@example.com
+                          source: custom
+                  fleet_desktop_version: 1.22.0
+                  fleet_id: null
+                  fleet_name: null
+                  geolocation:
+                    city_name: New York
+                    country_iso: US
+                    geometry:
+                      coordinates:
+                        - 40.6799
+                        - -74.0028
+                      type: point
+                  gigs_disk_space_available: 174.98
+                  gigs_total_disk_space: 246
+                  hardware_model: MacBookPro17,1
+                  hardware_serial: C0124FXASD6G
+                  hardware_vendor: Apple Inc.
+                  hardware_version: ""
+                  hostname: Annas-MacBook-Pro.local
+                  id: 1
+                  issues:
+                    critical_vulnerabilities_count: 2
+                    failing_policies_count: 1
+                    total_issues_count: 3
+                  label_updated_at: "2021-08-19T21:07:53Z"
+                  labels:
+                    - created_at: "2021-08-19T02:02:17Z"
+                      description: All hosts which have enrolled in Fleet
+                      id: 6
+                      label_membership_type: dynamic
+                      label_type: builtin
+                      name: All Hosts
+                      platform: ""
+                      query: SELECT 1;
+                      updated_at: "2021-08-19T02:02:17Z"
+                    - created_at: "2021-08-19T02:02:17Z"
+                      description: All macOS hosts
+                      id: 9
+                      label_membership_type: dynamic
+                      label_type: builtin
+                      name: macOS
+                      platform: ""
+                      query: select 1 from os_version where platform = 'darwin';
+                      updated_at: "2021-08-19T02:02:17Z"
+                    - created_at: "2021-08-19T02:02:17Z"
+                      description: ""
+                      id: 12
+                      label_membership_type: dynamic
+                      label_type: regular
+                      name: Hosts with Chrome installed
+                      platform: ""
+                      query: SELECT * FROM apps WHERE name LIKE "%Chrome%"
+                      updated_at: "2021-08-19T02:02:17Z"
+                  last_enrolled_at: "2021-08-19T02:02:22Z"
+                  last_mdm_checked_in_at: "2023-02-26T22:33:12Z"
+                  last_mdm_enrolled_at: "2023-02-26T22:33:12Z"
+                  last_restarted_at: "2020-11-01T03:01:45Z"
+                  logger_tls_period: 10
+                  maintenance_window:
+                    starts_at: 2024-06-18T13:27:18−04:00
+                    timezone: America/New_York
+                  mdm:
+                    apple_settings:
+                      action_required: null
+                      disk_encryption: verified
+                    connected_to_fleet: true
+                    device_status: unlocked
+                    encryption_key_available: true
+                    enrollment_status: On (manual)
+                    macos_settings:
+                      action_required: null
+                      disk_encryption: verified
+                    macos_setup:
+                      bootstrap_package_name: test.pkg
+                      bootstrap_package_status: installed
+                      detail: ""
+                    name: Fleet
+                    os_settings:
+                      disk_encryption:
+                        detail: ""
+                        status: verified
+                    pending_action: ""
+                    profiles:
+                      - detail: ""
+                        managed_local_account: ""
+                        name: profile1
+                        operation_type: install
+                        profile_uuid: 954ec5ea-a334-4825-87b3-937e7e381f24
+                        scope: device
+                        status: verifying
+                    server_url: https://acme.com/mdm/apple/mdm
+                    setup_experience:
+                      bootstrap_package_name: test.pkg
+                      bootstrap_package_status: installed
+                      detail: ""
+                  mdm_enrollment_hardware_attested: false
+                  memory: 1.678839808e+10
+                  orbit_version: 1.22.0
+                  os_version: macOS 15.2
+                  osquery_version: 5.15.0
+                  pack_stats: null
+                  packs: []
+                  percent_disk_space_available: 71
+                  platform: darwin
+                  platform_like: darwin
+                  policies:
+                    - critical: false
+                      description: this is another query
+                      id: 2
+                      name: SomeQuery2
+                      platform: darwin
+                      query: SELECT * FROM bar;
+                      resolution: fix with these other steps...
+                      response: fail
+                    - critical: false
+                      description: ""
+                      id: 3
+                      name: SomeQuery3
+                      platform: ""
+                      query: SELECT * FROM baz;
+                      resolution: ""
+                      response: ""
+                    - critical: false
+                      description: this is a query
+                      id: 1
+                      name: SomeQuery
+                      platform: windows,linux
+                      query: SELECT * FROM foo;
+                      resolution: fix with these steps...
+                      response: pass
+                  policy_updated_at: "2023-06-26T18:33:15Z"
+                  primary_ip: 172.27.0.6
+                  primary_mac: 02:42:ac:1b:00:06
+                  public_ip: 123.45.678.910
+                  refetch_requested: false
+                  scripts_enabled: true
+                  seen_time: "2021-08-19T21:14:58Z"
+                  software:
+                    - bundle_identifier: com.some.app
+                      generated_cpe: ""
+                      id: 321
+                      installed_paths:
+                        - /usr/lib/some-path-2
+                      last_opened_at: "2021-08-18T21:14:00Z"
+                      name: macOSApp
+                      source: apps
+                      version: "1.0"
+                      vulnerabilities: null
+                    - generated_cpe: ""
+                      id: 322
+                      installed_paths:
+                        - /usr/lib/some-path-2
+                      last_opened_at: "2021-08-18T21:14:00Z"
+                      name: Windows
+                      source: programs
+                      upgrade_code: '{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}'
+                      version: "1.0"
+                      vulnerabilities: null
+                  software_updated_at: "2020-11-05T05:09:44Z"
+                  status: online
+                  team_id: null
+                  team_name: null
+                  timezone: null
+                  updated_at: "2021-08-19T21:14:58Z"
+                  uptime: 2.10671e+14
+                  users:
+                    - groupname: root
+                      shell: /bin/sh
+                      type: ""
+                      uid: 0
+                      username: root
+                    - groupname: staff
+                      shell: /bin/zsh
+                      type: ""
+                      uid: 1
+                      username: annachao
+                  uuid: 309a4b7d-0000-0000-8e7f-26ae0815ede8
+  /api/v1/fleet/reports:
+    get:
+      summary: List reports
+      description: Returns a list of reports. To see each report's data, use the [get report data](#get-report-data) endpoint.
+      operationId: listReports
+      tags:
+        - Reports
+      parameters:
+        - name: order_key
+          in: query
+          description: What to order results by. Can be any column in the reports table.
+          schema:
+            type: string
+        - name: order_direction
+          in: query
+          description: '**Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.'
+          schema:
+            type: string
+        - name: fleet_id
+          in: query
+          description: _Available in Fleet Premium_. The ID of the fleet for the reports to be listed. When omitted, returns global reports.
+          schema:
+            type: integer
+        - name: query
+          in: query
+          description: Search query keywords. Searchable fields include `name`.
+          schema:
+            type: string
+        - name: merge_inherited
+          in: query
+          description: _Available in Fleet Premium_. If `true`, will include global reports in addition to fleet-level reports when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.)
+          schema:
+            type: boolean
+        - name: platform
+          in: query
+          description: 'Return reports that are scheduled to run on this platform. One of: `"macos"`, `"windows"`, `"linux"` (case-insensitive). (Since reports cannot be scheduled to run on `"chrome"` hosts, it''s not a valid value here)'
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number of the results to fetch.
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          description: Results per page.
+          schema:
+            type: integer
+        - name: after
+          in: query
+          description: The value to get results after. This needs `order_key` defined, as that's the column that would be used.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Default response.
+          content:
+            application/json:
+              schema:
+                properties:
+                  count:
+                    type: integer
+                  meta:
+                    properties:
+                      has_next_results:
+                        type: boolean
+                      has_previous_results:
+                        type: boolean
+                    type: object
+                  queries:
+                    items:
+                      properties:
+                        author_email:
+                          type: string
+                        author_id:
+                          type: integer
+                        author_name:
+                          type: string
+                        automations_enabled:
+                          type: boolean
+                        created_at:
+                          format: date-time
+                          type: string
+                        description:
+                          type: string
+                        discard_data:
+                          type: boolean
+                        id:
+                          type: integer
+                        interval:
+                          type: integer
+                        labels_include_any:
+                          items: {}
+                          type: array
+                        logging:
+                          type: string
+                        min_osquery_version:
+                          type: string
+                        name:
+                          type: string
+                        observer_can_run:
+                          type: boolean
+                        packs:
+                          items:
+                            properties:
+                              created_at:
+                                format: date-time
+                                type: string
+                              description:
+                                type: string
+                              disabled:
+                                type: boolean
+                              id:
+                                type: integer
+                              name:
+                                type: string
+                              platform:
+                                type: string
+                              updated_at:
+                                format: date-time
+                                type: string
+                            type: object
+                          type: array
+                        platform:
+                          type: string
+                        query:
+                          type: string
+                        saved:
+                          type: boolean
+                        stats:
+                          properties:
+                            system_time_p50:
+                              type: number
+                            system_time_p95:
+                              type: number
+                            total_executions:
+                              type: integer
+                            user_time_p50:
+                              type: number
+                            user_time_p95:
+                              type: integer
+                          type: object
+                        team_id: {}
+                        updated_at:
+                          format: date-time
+                          type: string
+                      type: object
+                    type: array
+                  reports:
+                    items:
+                      properties:
+                        author_email:
+                          type: string
+                        author_id:
+                          type: integer
+                        author_name:
+                          type: string
+                        automations_enabled:
+                          type: boolean
+                        created_at:
+                          format: date-time
+                          type: string
+                        description:
+                          type: string
+                        discard_data:
+                          type: boolean
+                        id:
+                          type: integer
+                        interval:
+                          type: integer
+                        labels_include_any:
+                          items: {}
+                          type: array
+                        logging:
+                          type: string
+                        min_osquery_version:
+                          type: string
+                        name:
+                          type: string
+                        observer_can_run:
+                          type: boolean
+                        packs:
+                          items:
+                            properties:
+                              created_at:
+                                format: date-time
+                                type: string
+                              description:
+                                type: string
+                              disabled:
+                                type: boolean
+                              id:
+                                type: integer
+                              name:
+                                type: string
+                              platform:
+                                type: string
+                              updated_at:
+                                format: date-time
+                                type: string
+                            type: object
+                          type: array
+                        platform:
+                          type: string
+                        query:
+                          type: string
+                        saved:
+                          type: boolean
+                        stats:
+                          properties:
+                            system_time_p50:
+                              type: number
+                            system_time_p95:
+                              type: number
+                            total_executions:
+                              type: integer
+                            user_time_p50:
+                              type: number
+                            user_time_p95:
+                              type: integer
+                          type: object
+                        team_id: {}
+                        updated_at:
+                          format: date-time
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              example:
+                count: 200
+                meta:
+                  has_next_results: true
+                  has_previous_results: false
+                queries:
+                  - author_email: noah@example.com
+                    author_id: 1
+                    author_name: noah
+                    automations_enabled: true
+                    created_at: "2021-01-04T21:19:57Z"
+                    description: report
+                    discard_data: false
+                    id: 1
+                    interval: 3600
+                    labels_include_any: []
+                    logging: snapshot
+                    min_osquery_version: ""
+                    name: report1
+                    observer_can_run: true
+                    packs:
+                      - created_at: "2021-01-05T21:13:04Z"
+                        description: Pack
+                        disabled: true
+                        id: 1
+                        name: Pack
+                        platform: ""
+                        updated_at: "2021-01-07T19:12:54Z"
+                    platform: darwin,windows,linux
+                    query: SELECT * FROM osquery_info
+                    saved: true
+                    stats:
+                      system_time_p50: 1.32
+                      system_time_p95: 4.02
+                      total_executions: 3920
+                      user_time_p50: 3.55
+                      user_time_p95: 3
+                    team_id: null
+                    updated_at: "2021-01-04T21:19:57Z"
+                reports:
+                  - author_email: noah@example.com
+                    author_id: 1
+                    author_name: noah
+                    automations_enabled: true
+                    created_at: "2021-01-04T21:19:57Z"
+                    description: report
+                    discard_data: false
+                    id: 1
+                    interval: 3600
+                    labels_include_any: []
+                    logging: snapshot
+                    min_osquery_version: ""
+                    name: report1
+                    observer_can_run: true
+                    packs:
+                      - created_at: "2021-01-05T21:13:04Z"
+                        description: Pack
+                        disabled: true
+                        id: 1
+                        name: Pack
+                        platform: ""
+                        updated_at: "2021-01-07T19:12:54Z"
+                    platform: darwin,windows,linux
+                    query: SELECT * FROM osquery_info
+                    saved: true
+                    stats:
+                      system_time_p50: 1.32
+                      system_time_p95: 4.02
+                      total_executions: 3920
+                      user_time_p50: 3.55
+                      user_time_p95: 3
+                    team_id: null
+                    updated_at: "2021-01-04T21:19:57Z"
+                  - author_email: noah@example.com
+                    author_id: 1
+                    author_name: noah
+                    automations_enabled: true
+                    created_at: "2021-01-19T17:08:24Z"
+                    description: Report performance stats for each file in the query schedule.
+                    discard_data: true
+                    id: 3
+                    interval: 3600
+                    labels_include_any:
+                      - macOS 13+
+                    logging: differential
+                    name: osquery_schedule
+                    observer_can_run: true
+                    packs:
+                      - created_at: "2021-01-19T17:08:31Z"
+                        description: ""
+                        disabled: false
+                        id: 14
+                        name: test_pack
+                        platform: ""
+                        updated_at: "2021-01-19T17:08:31Z"
+                    platform: ""
+                    query: select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;
+                    saved: true
+                    stats:
+                      system_time_p50: null
+                      system_time_p95: null
+                      total_executions: null
+                      user_time_p50: null
+                      user_time_p95: null
+                    team_id: null
+                    updated_at: "2021-01-19T17:08:24Z"
+                    version: ""
+    post:
+      summary: Create report
+      description: Creates a global report or fleet report.
+      operationId: createReport
+      tags:
+        - Reports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                automations_enabled:
+                  description: Whether to send data to the configured log destination according to the report's `interval`.
+                  type: boolean
+                description:
+                  description: The query's description.
+                  type: string
+                discard_data:
+                  description: 'Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. Default: `false`.'
+                  type: boolean
+                fleet_id:
+                  description: _Available in Fleet Premium_. The fleet to which the new report should be added. If omitted, the report will be global.
+                  type: integer
+                interval:
+                  description: 'The amount of time, in seconds, the report waits before running. Can be set to `0` to never run. Default: 0.'
+                  type: integer
+                labels_include_all:
+                  description: _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **all of these** labels.
+                  items:
+                    type: string
+                  type: array
+                labels_include_any:
+                  description: _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels.
+                  items:
+                    type: string
+                  type: array
+                logging:
+                  description: 'The type of log output for this report. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.'
+                  type: string
+                min_osquery_version:
+                  description: The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.
+                  type: string
+                name:
+                  description: '**Required**. The name of the report.'
+                  type: string
+                observer_can_run:
+                  description: Whether or not users with the `observer` role can run the report as a live report. This field is only relevant for the `observer` role. The `observer_plus` role can run any report and is not limited by this flag.
+                  type: boolean
+                platform:
+                  description: The OS platforms where this report will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.
+                  type: string
+                query:
+                  description: '**Required**. The SQL query for collecting report data.'
+                  type: string
+              required:
+                - name
+                - query
+              type: object
+      responses:
+        "200":
+          description: Default response.
+          content:
+            application/json:
+              schema:
+                properties:
+                  query:
+                    properties:
+                      author_email:
+                        type: string
+                      author_id:
+                        type: integer
+                      author_name:
+                        type: string
+                      automations_enabled:
+                        type: boolean
+                      created_at:
+                        format: date-time
+                        type: string
+                      description:
+                        type: string
+                      discard_data:
+                        type: boolean
+                      id:
+                        type: integer
+                      interval:
+                        type: integer
+                      labels_include_any:
+                        items:
+                          type: string
+                        type: array
+                      logging:
+                        type: string
+                      min_osquery_version:
+                        type: string
+                      name:
+                        type: string
+                      observer_can_run:
+                        type: boolean
+                      packs:
+                        items: {}
+                        type: array
+                      platform:
+                        type: string
+                      query:
+                        type: string
+                      saved:
+                        type: boolean
+                      team_id: {}
+                      updated_at:
+                        format: date-time
+                        type: string
+                    type: object
+                  report:
+                    properties:
+                      author_email:
+                        type: string
+                      author_id:
+                        type: integer
+                      author_name:
+                        type: string
+                      automations_enabled:
+                        type: boolean
+                      created_at:
+                        format: date-time
+                        type: string
+                      description:
+                        type: string
+                      discard_data:
+                        type: boolean
+                      id:
+                        type: integer
+                      interval:
+                        type: integer
+                      labels_include_any:
+                        items:
+                          type: string
+                        type: array
+                      logging:
+                        type: string
+                      min_osquery_version:
+                        type: string
+                      name:
+                        type: string
+                      observer_can_run:
+                        type: boolean
+                      packs:
+                        items: {}
+                        type: array
+                      platform:
+                        type: string
+                      query:
+                        type: string
+                      saved:
+                        type: boolean
+                      team_id: {}
+                      updated_at:
+                        format: date-time
+                        type: string
+                    type: object
+                type: object
+              example:
+                query:
+                  author_email: ""
+                  author_id: 1
+                  author_name: ""
+                  automations_enabled: true
+                  created_at: "0001-01-01T00:00:00Z"
+                  description: This is a new query.
+                  discard_data: false
+                  id: 288
+                  interval: 3600
+                  labels_include_any:
+                    - Hosts with Docker installed
+                  logging: snapshot
+                  min_osquery_version: ""
+                  name: new_query
+                  observer_can_run: true
+                  packs: []
+                  platform: darwin,windows,linux
+                  query: SELECT * FROM osquery_info
+                  saved: true
+                  team_id: null
+                  updated_at: "0001-01-01T00:00:00Z"
+                report:
+                  author_email: ""
+                  author_id: 1
+                  author_name: ""
+                  automations_enabled: true
+                  created_at: "0001-01-01T00:00:00Z"
+                  description: This is a new query.
+                  discard_data: false
+                  id: 288
+                  interval: 3600
+                  labels_include_any:
+                    - Hosts with Docker installed
+                  logging: snapshot
+                  min_osquery_version: ""
+                  name: new_query
+                  observer_can_run: true
+                  packs: []
+                  platform: darwin,windows,linux
+                  query: SELECT * FROM osquery_info
+                  saved: true
+                  team_id: null
+                  updated_at: "0001-01-01T00:00:00Z"
+  /api/v1/fleet/software/titles:
+    get:
+      summary: List software
+      description: Get a list of all software.
+      operationId: listSoftware
+      tags:
+        - Software
+      parameters:
+        - name: page
+          in: query
+          description: Page number of the results to fetch.
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          description: Results per page.
+          schema:
+            type: integer
+        - name: order_key
+          in: query
+          description: What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending).
+          schema:
+            type: string
+        - name: order_direction
+          in: query
+          description: '**Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.'
+          schema:
+            type: string
+        - name: query
+          in: query
+          description: Search query keywords. Searchable fields include `title` and `cve`.
+          schema:
+            type: string
+        - name: fleet_id
+          in: query
+          description: _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified fleet. Use `0` to filter by "Unassigned" hosts.
+          schema:
+            type: integer
+        - name: vulnerable
+          in: query
+          description: If true or 1, only list software that has detected vulnerabilities. Default is `false`.
+          schema:
+            type: boolean
+        - name: available_for_install
+          in: query
+          description: If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.
+          schema:
+            type: boolean
+        - name: self_service
+          in: query
+          description: If `true` or `1`, only lists self-service software. Default is `false`.
+          schema:
+            type: boolean
+        - name: packages_only
+          in: query
+          description: _Available in Fleet Premium_. If `true` or `1`, only lists packages available for install (without app store apps).
+          schema:
+            type: boolean
+        - name: min_cvss_score
+          in: query
+          description: _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.
+          schema:
+            type: integer
+        - name: max_cvss_score
+          in: query
+          description: _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.
+          schema:
+            type: integer
+        - name: exploit
+          in: query
+          description: '_Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.'
+          schema:
+            type: boolean
+        - name: platform
+          in: query
+          description: 'Filters software titles available for install by platforms. `fleet_id` must be specified to filter by platform. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`).'
+          schema:
+            type: string
+        - name: hash_sha256
+          in: query
+          description: Filters to only include custom software packages (uploaded installers) with the specified SHA-256 hash. `fleet_id` must be specified to filter by hash. This allows checking if a specific package already exists before uploading.
+          schema:
+            type: string
+        - name: package_name
+          in: query
+          description: Filters to only include custom software packages (uploaded installers) with the specified package filename. `fleet_id` must be specified to filter by package name. This allows checking if a specific package already exists before uploading.
+          schema:
+            type: string
+        - name: exclude_fleet_maintained_apps
+          in: query
+          description: If `true` or `1`, Fleet maintained apps will not be included in the list of `software_titles`. Default is `false`
+          schema:
+            type: boolean
+        - name: after
+          in: query
+          description: The value to get results after. This needs `order_key` defined, as that's the column that would be used.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Default response.
+          content:
+            application/json:
+              schema:
+                properties:
+                  count:
+                    type: integer
+                  counts_updated_at:
+                    format: date-time
+                    type: string
+                  meta:
+                    properties:
+                      has_next_results:
+                        type: boolean
+                      has_previous_results:
+                        type: boolean
+                    type: object
+                  software_titles:
+                    items:
+                      properties:
+                        app_store_app: {}
+                        browser:
+                          type: string
+                        bundle_identifier:
+                          type: string
+                        display_name:
+                          type: string
+                        extension_for:
+                          type: string
+                        hash_sha256:
+                          type: string
+                        hosts_count:
+                          type: integer
+                        icon_url: {}
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        software_package:
+                          properties:
+                            automatic_install_policies: {}
+                            last_install: {}
+                            last_uninstall: {}
+                            name:
+                              type: string
+                            package_url:
+                              type: string
+                            platform:
+                              type: string
+                            self_service:
+                              type: boolean
+                            version:
+                              type: string
+                          type: object
+                        source:
+                          type: string
+                        versions:
+                          items:
+                            properties:
+                              id:
+                                type: integer
+                              version:
+                                type: string
+                              vulnerabilities: {}
+                            type: object
+                          type: array
+                        versions_count:
+                          type: integer
+                      type: object
+                    type: array
+                type: object
+              example:
+                count: 2
+                counts_updated_at: "2026-06-04T12:34:56Z"
+                meta:
+                  has_next_results: false
+                  has_previous_results: false
+                software_titles:
+                  - app_store_app: null
+                    browser: ""
+                    bundle_identifier: com.tinyspeck.slackmacgap
+                    display_name: ""
+                    extension_for: ""
+                    hash_sha256: f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e
+                    hosts_count: 5
+                    icon_url: null
+                    id: 2792
+                    name: Slack
+                    software_package:
+                      automatic_install_policies: null
+                      last_install: null
+                      last_uninstall: null
+                      name: Slack-4.50.128-macOS.pkg
+                      package_url: ""
+                      platform: darwin
+                      self_service: false
+                      version: 4.50.128
+                    source: apps
+                    versions:
+                      - id: 515953
+                        version: 4.39.88
+                        vulnerabilities: null
+                      - id: 610801
+                        version: 4.47.72
+                        vulnerabilities: null
+                    versions_count: 4
+                  - app_store_app: null
+                    browser: ""
+                    bundle_identifier: com.raycast.macos
+                    display_name: ""
+                    extension_for: ""
+                    hosts_count: 1
+                    icon_url: null
+                    id: 2618
+                    name: Raycast
+                    software_package: null
+                    source: apps
+                    versions:
+                      - id: 651354
+                        version: 1.104.19
+                        vulnerabilities: null
+                    versions_count: 1
+components:
+  securitySchemes:
+    bearerAuth:
+      scheme: bearer
+      type: http
+security:
+  - bearerAuth: []
