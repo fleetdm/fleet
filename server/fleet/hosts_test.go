@@ -442,6 +442,8 @@ func TestMDMNameFromServerURL(t *testing.T) {
 		// AirWatch/awmdm.com infrastructure, so jumpcloud.awmdm.com must resolve to
 		// JumpCloud rather than VMware Workspace ONE.
 		{"jumpcloud on awmdm infrastructure", "https://jumpcloud.awmdm.com", WellKnownMDMJumpCloud},
+		{"zentral cloud", "https://mdm.example.zentral.io/public/mdm/connect/", WellKnownMDMZentral},
+		{"zentral self-hosted", "https://zentral.company.com/public/mdm/connect/", WellKnownMDMZentral},
 	}
 
 	for _, tc := range testCases {
