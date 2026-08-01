@@ -251,6 +251,7 @@ import Cyberduck from "./Cyberduck";
 import CyberduckCli from "./CyberduckCli";
 import Daisydisk from "./Daisydisk";
 import Dangerzone from "./Dangerzone";
+import DanteController from "./DanteController";
 import Darkmodebuddy from "./Darkmodebuddy";
 import Darktable from "./Darktable";
 import Dash from "./Dash";
@@ -1401,6 +1402,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cyberduck cli": CyberduckCli,
   daisydisk: Daisydisk,
   dangerzone: Dangerzone,
+  "dante controller": DanteController,
   darkmodebuddy: Darkmodebuddy,
   darktable: Darktable,
   dash: Dash,

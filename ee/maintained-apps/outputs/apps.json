@@ -2179,6 +2179,13 @@
       "description": "Dangerzone is a tool to convert potentially dangerous PDFs or Office documents into safe PDFs."
     },
     {
+      "name": "Dante Controller",
+      "slug": "dante-controller/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.audinate.dante.DanteController",
+      "description": "Dante Controller is Audinate's app for configuring devices and routing audio channels on a Dante network."
+    },
+    {
       "name": "DarkModeBuddy",
       "slug": "darkmodebuddy/darwin",
       "platform": "darwin",
