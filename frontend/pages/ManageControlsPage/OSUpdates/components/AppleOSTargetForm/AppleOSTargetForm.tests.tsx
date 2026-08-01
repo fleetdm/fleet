@@ -41,6 +41,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="11.0"
         defaultDeadline="2024-12-31"
+        defaultDeadlineDays=""
         defaultUpdateNewHosts
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
@@ -69,6 +70,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="11.0"
         defaultDeadline="2024-12-31"
+        defaultDeadlineDays=""
         defaultUpdateNewHosts
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
@@ -100,6 +102,174 @@ describe("AppleOSTargetForm", () => {
     });
   });
 
+  // Every field is sent for every target: the config PATCH merges key by key,
+  // so an omitted one would leave the stored value behind.
+  it("sends the sentinel, no deadline and the days for 'Latest version'", async () => {
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion="latest"
+        defaultDeadline=""
+        defaultDeadlineDays="7"
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(requestBody?.mdm?.macos_updates?.minimum_version).toBe("latest");
+      expect(requestBody?.mdm?.macos_updates?.deadline).toBe("");
+      expect(requestBody?.mdm?.macos_updates?.deadline_days).toBe(7);
+    });
+  });
+
+  it("clears every field for 'No updates enforced'", async () => {
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion="latest"
+        defaultDeadline=""
+        defaultDeadlineDays="7"
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("No updates enforced"));
+    await user.click(screen.getByRole("button", { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(requestBody?.mdm?.macos_updates?.minimum_version).toBe("");
+      expect(requestBody?.mdm?.macos_updates?.deadline).toBe("");
+      expect(requestBody?.mdm?.macos_updates?.deadline_days).toBeNull();
+    });
+  });
+
+  it("nulls deadline_days when moving from 'Latest version' to 'Custom version'", async () => {
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion="latest"
+        defaultDeadline=""
+        defaultDeadlineDays="7"
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Custom version"));
+    await user.type(screen.getByLabelText(/Minimum version/i), "15.7.8");
+    await user.type(screen.getByLabelText(/^Deadline$/i), "2026-09-01");
+    await user.click(screen.getByRole("button", { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(requestBody?.mdm?.macos_updates?.minimum_version).toBe("15.7.8");
+      expect(requestBody?.mdm?.macos_updates?.deadline).toBe("2026-09-01");
+      // The stored 7 must not survive the switch out of latest mode.
+      expect(requestBody?.mdm?.macos_updates?.deadline_days).toBeNull();
+    });
+  });
+
+  it("sends update_new_hosts as true for 'Latest version'", async () => {
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion="latest"
+        defaultDeadline=""
+        defaultDeadlineDays="7"
+        // Stored as false, so a true in the request can only come from the
+        // target rather than from the prop.
+        defaultUpdateNewHosts={false}
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(requestBody?.mdm?.macos_updates?.update_new_hosts).toBe(true);
+    });
+  });
+
+  it("returns the checkbox to the persisted value when the target changes", async () => {
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion="11.0"
+        defaultDeadline="2024-12-31"
+        defaultDeadlineDays=""
+        defaultUpdateNewHosts={false}
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: /update_new_hosts/i,
+    });
+
+    // Tick it without saving, so the on-screen value differs from what's stored.
+    await user.click(checkbox);
+    await waitFor(() => expect(checkbox).toBeChecked());
+
+    // Changing the target dismisses that unsaved input.
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("No updates enforced"));
+
+    expect(
+      screen.getByRole("checkbox", { name: /update_new_hosts/i })
+    ).not.toBeChecked();
+  });
+
+  it("seeds the days field from the stored deadline_days", () => {
+    render(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion="latest"
+        defaultDeadline=""
+        defaultDeadlineDays="14"
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+
+    const daysInput = screen.getByLabelText(/Days after release/i);
+    expect((daysInput as HTMLInputElement).value).toBe("14");
+  });
+
+  it("keeps the 'latest' sentinel out of the minimum version input", async () => {
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion="latest"
+        defaultDeadline=""
+        defaultDeadlineDays="7"
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+
+    // "latest" is the mode, not a version the user typed, so switching to a
+    // custom version must start from an empty field rather than the sentinel.
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Custom version"));
+
+    const minVersionInput = screen.getByLabelText(/Minimum version/i);
+    expect((minVersionInput as HTMLInputElement).value).toBe("");
+  });
+
   it("renders the hardware help text when the stored version is 'latest'", () => {
     render(
       <AppleOSTargetForm
@@ -107,6 +277,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="latest"
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -126,6 +297,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="11.0"
         defaultDeadline="2024-12-31"
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -146,6 +318,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion=""
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -161,6 +334,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="latest"
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -184,6 +358,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="latest"
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -201,6 +376,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion=""
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -218,6 +394,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="11.0"
         defaultDeadline="2024-12-31"
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -240,6 +417,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="latest"
         defaultDeadline=""
+        defaultDeadlineDays=""
         defaultUpdateNewHosts={false}
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
@@ -262,6 +440,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="11.0"
         defaultDeadline="2024-12-31"
+        defaultDeadlineDays=""
         defaultUpdateNewHosts={false}
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
@@ -280,6 +459,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="latest"
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -300,6 +480,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="11.0"
         defaultDeadline="2024-12-31"
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -320,6 +501,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="latest"
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -342,6 +524,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="latest"
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -362,6 +545,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="latest"
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -383,6 +567,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="latest"
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -404,6 +589,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="darwin"
         defaultMinOsVersion="latest"
         defaultDeadline=""
+        defaultDeadlineDays=""
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
       />
@@ -426,6 +612,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="ios"
         defaultMinOsVersion="11.0"
         defaultDeadline="2024-12-31"
+        defaultDeadlineDays=""
         defaultUpdateNewHosts
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
@@ -453,6 +640,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="ios"
         defaultMinOsVersion="12.0"
         defaultDeadline="2025-12-31"
+        defaultDeadlineDays=""
         defaultUpdateNewHosts
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
@@ -476,6 +664,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="ipados"
         defaultMinOsVersion="11.0"
         defaultDeadline="2024-12-31"
+        defaultDeadlineDays=""
         defaultUpdateNewHosts
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}
@@ -503,6 +692,7 @@ describe("AppleOSTargetForm", () => {
         applePlatform="ipados"
         defaultMinOsVersion="13.0"
         defaultDeadline="2026-12-31"
+        defaultDeadlineDays=""
         defaultUpdateNewHosts
         refetchAppConfig={jest.fn()}
         refetchTeamConfig={jest.fn()}

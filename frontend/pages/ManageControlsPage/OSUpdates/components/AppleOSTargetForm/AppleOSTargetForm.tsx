@@ -120,34 +120,55 @@ const APPLE_PLATFORMS_TO_CONFIG_FIELDS = {
   ipados: "ipados_updates",
 };
 
+interface IAppleOSUpdatesFields {
+  minimum_version: string;
+  deadline: string;
+  deadline_days: number | null;
+  update_new_hosts?: boolean;
+}
+
 interface IAppleUpdatesMdmConfigData {
   mdm: {
-    macos_updates?: {
-      minimum_version: string;
-      deadline: string;
-    };
-    ipados_updates?: {
-      minimum_version: string;
-      deadline: string;
-    };
-    ios_updates?: {
-      minimum_version: string;
-      deadline: string;
-    };
+    macos_updates?: IAppleOSUpdatesFields;
+    ipados_updates?: IAppleOSUpdatesFields;
+    ios_updates?: IAppleOSUpdatesFields;
   };
 }
 
+/** Every field is sent for every target, including nulls: the config PATCH
+ * merges field by field, so an omitted key leaves the stored value in place. */
 const createAppleOSUpdatesData = (
   applePlatform: ApplePlatform,
-  minOsVersion: string,
-  deadline: string,
-  updateNewHosts?: boolean
+  formData: IAppleOSTargetFormData,
+  updateNewHosts: boolean
 ): IAppleUpdatesMdmConfigData => {
+  const { target, minOsVersion, deadline, deadlineDays } = formData;
+
+  let fields: IAppleOSUpdatesFields;
+  switch (target) {
+    case "latest":
+      fields = {
+        minimum_version: LATEST_VERSION,
+        // A deadline can't coexist with "latest"; deadline_days replaces it.
+        deadline: "",
+        deadline_days: parseInt(deadlineDays, 10),
+      };
+      break;
+    case "custom":
+      fields = {
+        minimum_version: minOsVersion,
+        deadline,
+        deadline_days: null,
+      };
+      break;
+    default:
+      fields = { minimum_version: "", deadline: "", deadline_days: null };
+  }
+
   return {
     mdm: {
       [APPLE_PLATFORMS_TO_CONFIG_FIELDS[applePlatform]]: {
-        minimum_version: minOsVersion,
-        deadline,
+        ...fields,
         // Add update_new_hosts only for macOS right now.
         ...(applePlatform === "darwin"
           ? { update_new_hosts: updateNewHosts }
@@ -162,6 +183,7 @@ interface IAppleOSTargetFormProps {
   applePlatform: ApplePlatform;
   defaultMinOsVersion: string;
   defaultDeadline: string;
+  defaultDeadlineDays: string;
   defaultUpdateNewHosts?: boolean;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
@@ -172,6 +194,7 @@ const AppleOSTargetForm = ({
   applePlatform,
   defaultMinOsVersion,
   defaultDeadline,
+  defaultDeadlineDays,
   defaultUpdateNewHosts,
   refetchAppConfig,
   refetchTeamConfig,
@@ -183,9 +206,12 @@ const AppleOSTargetForm = ({
   const [target, setTarget] = useState<AppleOSTarget>(
     getTargetFromMinOsVersion(defaultMinOsVersion)
   );
-  const [minOsVersion, setMinOsVersion] = useState(defaultMinOsVersion);
+  const [minOsVersion, setMinOsVersion] = useState(
+    // The sentinel is a mode, not a version to show in the input.
+    defaultMinOsVersion === LATEST_VERSION ? "" : defaultMinOsVersion
+  );
   const [deadline, setDeadline] = useState(defaultDeadline);
-  const [deadlineDays, setDeadlineDays] = useState("");
+  const [deadlineDays, setDeadlineDays] = useState(defaultDeadlineDays);
   const [minOsVersionError, setMinOsVersionError] = useState<
     string | undefined
   >();
@@ -197,16 +223,17 @@ const AppleOSTargetForm = ({
     string | undefined
   >();
 
+  // "Latest version" always updates new hosts; the other targets leave it to
+  // the user. Derived rather than forced into state, and shared with the payload
+  // so what's saved matches what the checkbox shows.
+  const effectiveUpdateNewHosts = target === "latest" ? true : updateNewHosts;
+
   // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while the form is
   // submitting because this component is unmounted.
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const errors = validateForm({
-      target,
-      minOsVersion,
-      deadline,
-      deadlineDays,
-    });
+    const formData = { target, minOsVersion, deadline, deadlineDays };
+    const errors = validateForm(formData);
 
     setMinOsVersionError(errors.minOsVersion);
     setDeadlineError(errors.deadline);
@@ -216,9 +243,8 @@ const AppleOSTargetForm = ({
       setIsSaving(true);
       const updateData = createAppleOSUpdatesData(
         applePlatform,
-        minOsVersion,
-        deadline,
-        updateNewHosts
+        formData,
+        effectiveUpdateNewHosts
       );
       try {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
@@ -236,6 +262,15 @@ const AppleOSTargetForm = ({
         setIsSaving(false);
       }
     }
+  };
+
+  const handleTargetChange = (option: CustomOptionType | null) => {
+    if (!option) return;
+    setTarget(option.value as AppleOSTarget);
+    // Changing the target dismisses unsaved input, so the checkbox goes back to
+    // the persisted value rather than carrying over the previous selection's —
+    // "Latest version" forces it on, which isn't a choice the user made.
+    setUpdateNewHosts(defaultUpdateNewHosts || false);
   };
 
   const handleMinVersionChange = (val: string) => {
@@ -258,9 +293,7 @@ const AppleOSTargetForm = ({
         options={TARGET_OPTIONS}
         value={target}
         isDisabled={gitOpsModeEnabled}
-        onChange={(option) =>
-          option && setTarget(option.value as AppleOSTarget)
-        }
+        onChange={handleTargetChange}
         helpText={
           target === "latest" ? (
             <>
@@ -329,7 +362,7 @@ const AppleOSTargetForm = ({
           // for the user rather than hidden from them.
           disabled={gitOpsModeEnabled || target === "latest"}
           onChange={setUpdateNewHosts}
-          value={target === "latest" ? true : updateNewHosts}
+          value={effectiveUpdateNewHosts}
           className={`${baseClass}__checkbox`}
           labelTooltipContent={
             target === "latest"
