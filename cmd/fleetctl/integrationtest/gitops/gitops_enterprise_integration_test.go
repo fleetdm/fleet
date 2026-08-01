@@ -228,7 +228,9 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation
 		"created",
 		"set",
 	}
-	pattern := fmt.Sprintf("\\[([+\\-!])] would've (%s)", strings.Join(allowedVerbs, "|"))
+	// A dry run downloads software packages in full, so it reports each download as it
+	// happens. Those lines say what it did, not what it would do.
+	pattern := fmt.Sprintf("\\[([+\\-!])] (would've (%s)|downloading|downloaded|skipped)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
 		if expectDeprecation && line != "" && strings.Contains(line, "is deprecated") {
@@ -257,8 +259,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecatio
 		"added",
 		"created",
 		"set",
-		"applying", // this is used when doing groups operations before the operation starts, e.g. "Applying 10 policies"
-		"deleting", // ditto
+		"applying",    // this is used when doing groups operations before the operation starts, e.g. "Applying 10 policies"
+		"deleting",    // ditto
+		"downloading", // software packages report each download as it starts
+		"downloaded",  // ditto, as it finishes
+		"skipped",     // ditto, for a package already in storage
 	}
 	pattern := fmt.Sprintf("\\[([+\\-!])] (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
@@ -4520,7 +4525,7 @@ team_settings:
 			teamName:     teamName,
 			teamTemplate: testPackages,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
-			errContains:  ptr.String("Couldn't edit software."),
+			errContains:  new(`"setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`),
 		},
 		{
 			testName:     "No team VPP",
@@ -4534,7 +4539,7 @@ team_settings:
 			VPPTeam:      "No team",
 			teamName:     "Unassigned",
 			teamTemplate: testPackages,
-			errContains:  ptr.String("Couldn't edit software."),
+			errContains:  new(`"setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`),
 		},
 		// left out more possible combinations of setup experience being set for different platforms
 	}
