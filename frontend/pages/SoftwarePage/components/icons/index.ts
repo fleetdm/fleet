@@ -571,6 +571,7 @@ import LastWindowQuits from "./LastWindowQuits";
 import Latest from "./Latest";
 import Launchbar from "./Launchbar";
 import LenovoDockManager from "./LenovoDockManager";
+import LenovoSystemUpdate from "./LenovoSystemUpdate";
 import Lens from "./Lens";
 import LibreOffice from "./LibreOffice";
 import Lightburn from "./Lightburn";
@@ -1723,6 +1724,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   latest: Latest,
   launchbar: Launchbar,
   "lenovo dock manager": LenovoDockManager,
+  "lenovo system update": LenovoSystemUpdate,
   lens: Lens,
   libreoffice: LibreOffice,
   lightburn: Lightburn,

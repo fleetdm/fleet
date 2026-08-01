@@ -4860,6 +4860,13 @@
       "description": "Lenovo Dock Manager is an application for deploying and managing firmware updates for Lenovo docks."
     },
     {
+      "name": "Lenovo System Update",
+      "slug": "lenovo-system-update/windows",
+      "platform": "windows",
+      "unique_identifier": "Lenovo System Update",
+      "description": "Lenovo System Update installs and updates Lenovo drivers, BIOS, and applications on Lenovo computers."
+    },
+    {
       "name": "Lens",
       "slug": "lens/darwin",
       "platform": "darwin",
