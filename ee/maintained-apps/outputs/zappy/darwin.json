@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.9.9",
+      "version": "5.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.blackbeltlabs.Zappy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.blackbeltlabs.Zappy' AND version_compare(bundle_short_version, '4.9.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.blackbeltlabs.Zappy' AND version_compare(bundle_short_version, '5.0.0') < 0);"
       },
-      "installer_url": "https://zappy.zapier.com/releases/zappy-4.9.9.dmg",
+      "installer_url": "https://zappy.zapier.com/releases/zappy-5.0.0.dmg",
       "install_script_ref": "27e0e100",
       "uninstall_script_ref": "b8dddbb7",
-      "sha256": "e7b323657c331f58fe740370ad8274d52c50296dfe78017572adc594f515403a",
+      "sha256": "41304febfae4430d1015ec567ea204b9229dd37038e676cbbc38a64a92970572",
       "default_categories": [
         "Productivity"
       ]
