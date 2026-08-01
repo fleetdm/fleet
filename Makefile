@@ -254,7 +254,7 @@ lint-js:
 
 .help-short--lint-go:
 	@echo "Run the Go linters"
-lint-go: check-no-testing-in-prod
+lint-go: check-no-testing-in-prod check-nilaway-func-size
 	golangci-lint run --allow-serial-runners --timeout 15m
 ifndef SKIP_INCREMENTAL
 	$(MAKE) lint-go-incremental
@@ -264,6 +264,13 @@ endif
 	@echo "Fail if any Fleet-owned package reachable from cmd/fleet, cmd/fleetctl, or orbit/cmd/orbit imports \"testing\". See https://github.com/fleetdm/fleet/issues/45220."
 check-no-testing-in-prod:
 	go run ./tools/check-no-testing-in-prod
+
+.help-short--check-nilaway-func-size:
+	@echo "Fail if any function has too many CFG blocks for nilaway to analyze. See https://github.com/fleetdm/fleet/issues/50404."
+# Deliberately not part of the incremental lint: nilaway reports this failure at a synthetic $GOROOT
+# position that --new-from-rev always filters out, so the gate has to run over the whole repo.
+check-nilaway-func-size:
+	go run ./tools/check-nilaway-func-size ./...
 
 .help-short--lint-go-incremental:
 	@echo "Run the incremental Go linters"
