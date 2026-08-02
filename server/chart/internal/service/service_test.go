@@ -60,7 +60,7 @@ type mockDatastore struct {
 	getSCDDataFunc          func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error)
 	getHostIDsForFilterFunc func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
 	findOnlineHostIDsFn     func(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
-	affectedHostIDsByCVEFn  func(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
+	affectedHostIDsByCVEFn  func(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string]*roaring.Bitmap, error)
 	collectibleCVEsFn       func(ctx context.Context) ([]string, error)
 	resolveCVEEntitiesFn    func(ctx context.Context, filter types.CVEChartFilter) ([]string, error)
 	recordBucketDataFn      func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error
@@ -77,7 +77,7 @@ func (m *mockDatastore) FindOnlineHostIDs(ctx context.Context, now time.Time, di
 	return nil, nil
 }
 
-func (m *mockDatastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error) {
+func (m *mockDatastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string]*roaring.Bitmap, error) {
 	if m.affectedHostIDsByCVEFn != nil {
 		return m.affectedHostIDsByCVEFn(ctx, disabledFleetIDs, cves)
 	}
@@ -647,11 +647,11 @@ func TestCollectDatasetsCVE(t *testing.T) {
 		return wantTracked, nil
 	}
 	var gotCVEs []string
-	ds.affectedHostIDsByCVEFn = func(_ context.Context, _ []uint, cves []string) (map[string][]uint, error) {
+	ds.affectedHostIDsByCVEFn = func(_ context.Context, _ []uint, cves []string) (map[string]*roaring.Bitmap, error) {
 		gotCVEs = cves
-		return map[string][]uint{
-			"CVE-2024-0001": {1, 2, 3},
-			"CVE-2024-0002": {2, 4},
+		return map[string]*roaring.Bitmap{
+			"CVE-2024-0001": roaring.BitmapOf(1, 2, 3),
+			"CVE-2024-0002": roaring.BitmapOf(2, 4),
 		}, nil
 	}
 	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
@@ -684,9 +684,9 @@ func TestCollectDatasetsCVEEmptyTracked(t *testing.T) {
 	ds.collectibleCVEsFn = func(_ context.Context) ([]string, error) {
 		return []string{}, nil
 	}
-	ds.affectedHostIDsByCVEFn = func(_ context.Context, _ []uint, cves []string) (map[string][]uint, error) {
+	ds.affectedHostIDsByCVEFn = func(_ context.Context, _ []uint, cves []string) (map[string]*roaring.Bitmap, error) {
 		assert.Empty(t, cves, "empty tracked set must propagate as empty cves filter")
-		return map[string][]uint{}, nil
+		return map[string]*roaring.Bitmap{}, nil
 	}
 	var gotBitmaps map[string]*roaring.Bitmap
 	ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
@@ -752,9 +752,9 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 			return []string{"CVE-1"}, nil
 		}
 		var gotDisabled []uint
-		ds.affectedHostIDsByCVEFn = func(_ context.Context, disabled []uint, _ []string) (map[string][]uint, error) {
+		ds.affectedHostIDsByCVEFn = func(_ context.Context, disabled []uint, _ []string) (map[string]*roaring.Bitmap, error) {
 			gotDisabled = disabled
-			return map[string][]uint{"CVE-1": {1}}, nil
+			return map[string]*roaring.Bitmap{"CVE-1": roaring.BitmapOf(1)}, nil
 		}
 		ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string]*roaring.Bitmap) error {
 			return nil
