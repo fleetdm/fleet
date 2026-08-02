@@ -725,4 +725,79 @@ describe("Custom host vitals", () => {
 
     expect(onEditCustomHostVital).toHaveBeenCalledWith(customHostVitals[0]);
   });
+
+  describe("Operating system OS update requirement", () => {
+    const renderWithRequirement = createCustomRenderer({});
+
+    it("states the target and deadline for a 'latest' requirement", async () => {
+      const mockHost = createMockHost({ platform: "darwin" });
+
+      const { user } = renderWithRequirement(
+        <Vitals
+          vitalsData={mockHost}
+          osVersionRequirement={{
+            minimum_version: "latest",
+            deadline: "",
+            deadline_days: 7,
+          }}
+        />
+      );
+
+      await user.hover(screen.getByText(mockHost.os_version));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Latest version required\./i)).toBeVisible();
+        expect(
+          screen.getByText(/Deadline to update: 7 days after release\./i)
+        ).toBeVisible();
+      });
+    });
+
+    it("singularises the deadline for a one day requirement", async () => {
+      const mockHost = createMockHost({ platform: "darwin" });
+
+      const { user } = renderWithRequirement(
+        <Vitals
+          vitalsData={mockHost}
+          osVersionRequirement={{
+            minimum_version: "latest",
+            deadline: "",
+            deadline_days: 1,
+          }}
+        />
+      );
+
+      await user.hover(screen.getByText(mockHost.os_version));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Deadline to update: 1 day after release\./i)
+        ).toBeVisible();
+      });
+    });
+
+    it("makes no claim about meeting a 'latest' requirement", async () => {
+      // The resolved target is per host and isn't in the host response, so
+      // there's nothing to compare the version against.
+      const mockHost = createMockHost({ platform: "darwin" });
+
+      const { user } = renderWithRequirement(
+        <Vitals
+          vitalsData={mockHost}
+          osVersionRequirement={{
+            minimum_version: "latest",
+            deadline: "",
+            deadline_days: 7,
+          }}
+        />
+      );
+
+      await user.hover(screen.getByText(mockHost.os_version));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Latest version required\./i)).toBeVisible();
+      });
+      expect(screen.queryByText(/minimum version requirement/i)).toBeNull();
+    });
+  });
 });

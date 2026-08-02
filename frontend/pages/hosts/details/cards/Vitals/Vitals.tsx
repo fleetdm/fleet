@@ -23,6 +23,7 @@ import {
   removeOSPrefix,
   compareVersions,
 } from "utilities/helpers";
+import { pluralize } from "utilities/strings/stringUtils";
 import { getHardwareModelDisplay } from "pages/hosts/helpers";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
@@ -526,6 +527,49 @@ const Vitals = ({
             key="operating-system"
             title="Operating system"
             value={versionForRender}
+            className={`${baseClass}__os-data-set`}
+          />
+        ),
+      });
+    } else if (osVersionRequirement.minimum_version === "latest") {
+      // "latest" resolves to a different version per host, and the host
+      // response doesn't carry the resolved target, so there's nothing to
+      // compare against — state the target rather than claim a verdict.
+      vitals.push({
+        sortKey: "Operating system",
+        element: (
+          <DataSet
+            key="operating-system"
+            title="Operating system"
+            value={
+              <span className={`${baseClass}__os-version`}>
+                <TooltipWrapper
+                  className={`${baseClass}__os-version-tooltip`}
+                  tipContent={
+                    <>
+                      Latest version required.
+                      {!!osVersionRequirement.deadline_days && (
+                        <>
+                          <br />
+                          Deadline to update:{" "}
+                          {osVersionRequirement.deadline_days}{" "}
+                          {pluralize(
+                            osVersionRequirement.deadline_days,
+                            "day",
+                            "s"
+                          )}{" "}
+                          after release.
+                        </>
+                      )}
+                    </>
+                  }
+                >
+                  <span className={`${baseClass}__os-version-text`}>
+                    {vitalsData.os_version}
+                  </span>
+                </TooltipWrapper>
+              </span>
+            }
             className={`${baseClass}__os-data-set`}
           />
         ),
