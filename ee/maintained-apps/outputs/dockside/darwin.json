@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.9.25",
+      "version": "2.9.26",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hachipoo.Dockside';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hachipoo.Dockside' AND version_compare(bundle_short_version, '2.9.25') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hachipoo.Dockside' AND version_compare(bundle_short_version, '2.9.26') < 0);"
       },
-      "installer_url": "https://github.com/PrajwalSD/Dockside/releases/download/v2.9.25/Dockside.dmg",
+      "installer_url": "https://github.com/PrajwalSD/Dockside/releases/download/v2.9.26/Dockside.dmg",
       "install_script_ref": "bb2b7871",
       "uninstall_script_ref": "262fd2cc",
-      "sha256": "f59355a70301dfffa913e4bd847c3edb782d88c640109c84ecdf9fa61172f0df",
+      "sha256": "f74c281b18ac859b93837df8e60508b529374d508dc7ac2f8f5af35f9f51bafc",
       "default_categories": [
         "Developer tools"
       ]
