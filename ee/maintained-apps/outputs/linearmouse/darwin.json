@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.11.3",
+      "version": "0.11.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lujjjh.LinearMouse';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lujjjh.LinearMouse' AND version_compare(bundle_short_version, '0.11.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lujjjh.LinearMouse' AND version_compare(bundle_short_version, '0.11.4') < 0);"
       },
-      "installer_url": "https://dl.linearmouse.org/v0.11.3/LinearMouse.dmg",
+      "installer_url": "https://dl.linearmouse.org/v0.11.4/LinearMouse.dmg",
       "install_script_ref": "d00f4222",
       "uninstall_script_ref": "dcd89a8c",
-      "sha256": "8db843f475ceb2d0ac786c21bae308b19ae8baab35e5ce7feafe98493df2c0da",
+      "sha256": "755127ba3cb053c50615dc1240ed7ad7fd7a337ab3f3bbb890a06644cd62d85f",
       "default_categories": [
         "Productivity"
       ]
