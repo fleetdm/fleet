@@ -315,13 +315,19 @@ describe("Location vital", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("omits the Location row from the iOS/iPadOS card, since it isn't one of the 8 card vitals (it remains available behind 'View all')", () => {
-    renderLocationVital({ ade: true, withToggle: true });
+  it("backfills the Location row onto an iOS/iPadOS card that is short a priority vital", () => {
+    // Dropping Timezone leaves only 7 priority vitals, so the card has one
+    // slot left for the backfill to fill.
+    renderLocationVital({
+      ade: true,
+      withToggle: true,
+      hostOverrides: { timezone: null },
+    });
 
-    expect(screen.queryByText("Location")).not.toBeInTheDocument();
+    expect(screen.getByText("Location")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Show location" })
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Show location" })
+    ).toBeInTheDocument();
   });
 
   it("hides the Location row for ADE-enrolled iDevices when toggleLocationModal is not provided", () => {
@@ -466,16 +472,27 @@ describe("View all vitals button", () => {
 });
 
 describe("Card vitals subset", () => {
-  const IOS_CARD_VITALS = [
-    "Added to Fleet",
-    "Disk space available",
-    "Hardware model",
-    "MDM server URL",
-    "MDM status",
-    "Operating system",
-    "Serial number",
-    "Timezone",
-  ];
+  const IOS_CARD_VITAL_COUNT = 8;
+
+  const getRenderedVitals = (container: HTMLElement) =>
+    Array.from(
+      container.querySelectorAll(".vitals-card__info-grid > .data-set > dt")
+    ).map((el) => el.textContent);
+
+  const isAlphabetical = (labels: (string | null)[]) =>
+    labels.every(
+      (label, i) =>
+        i === 0 || (labels[i - 1] ?? "").localeCompare(label ?? "") <= 0
+    );
+
+  /** Asserts the card rendered exactly `expected`, in that order. Each caller
+   * spells its list out alphabetically, and the sortedness check here keeps a
+   * future edit from smuggling in a list the card wouldn't actually sort to. */
+  const expectCardVitals = (container: HTMLElement, expected: string[]) => {
+    expect(isAlphabetical(expected)).toBe(true);
+    expect(getRenderedVitals(container)).toHaveLength(expected.length);
+    expect(getRenderedVitals(container)).toEqual(expected);
+  };
 
   const renderCard = (platform: HostPlatform) => {
     const mockHost = createMockHost({
@@ -487,7 +504,7 @@ describe("Card vitals subset", () => {
       primary_ip: "192.168.1.1",
       public_ip: "203.0.113.1",
       mdm: createMockHostMdmData({ enrollment_status: "On (manual)" }),
-    } as Parameters<typeof createMockHost>[0]);
+    });
 
     return render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
   };
@@ -495,39 +512,74 @@ describe("Card vitals subset", () => {
   it("limits an iOS host's card to the 8 vitals specified in #39281", () => {
     const { container } = renderCard("ios");
 
-    const rendered = Array.from(
-      container.querySelectorAll(".vitals-card__info-grid > .data-set > dt")
-    ).map((el) => el.textContent);
-
-    expect(rendered).toEqual(
-      [...IOS_CARD_VITALS].sort((a, b) => a.localeCompare(b))
-    );
+    expectCardVitals(container, [
+      "Added to Fleet",
+      "Disk space available",
+      "Hardware model",
+      "MDM server URL",
+      "MDM status",
+      "Operating system",
+      "Serial number",
+      "Timezone",
+    ]);
   });
 
   it("limits an iPadOS host's card to the same 8 vitals", () => {
     const { container } = renderCard("ipados");
 
-    const rendered = Array.from(
-      container.querySelectorAll(".vitals-card__info-grid > .data-set > dt")
-    ).map((el) => el.textContent);
-
-    expect(rendered).toEqual(
-      [...IOS_CARD_VITALS].sort((a, b) => a.localeCompare(b))
-    );
+    expectCardVitals(container, [
+      "Added to Fleet",
+      "Disk space available",
+      "Hardware model",
+      "MDM server URL",
+      "MDM status",
+      "Operating system",
+      "Serial number",
+      "Timezone",
+    ]);
   });
 
   it("leaves other platforms unfiltered, still rendering vitals outside the iOS subset", () => {
     const { container } = renderCard("darwin");
 
-    const rendered = Array.from(
-      container.querySelectorAll(".vitals-card__info-grid > .data-set > dt")
-    ).map((el) => el.textContent);
+    const rendered = getRenderedVitals(container);
 
     // Vitals a macOS card shows that are absent from the iOS subset.
     expect(rendered).toContain("Memory");
     expect(rendered).toContain("Processor type");
     expect(rendered).toContain("Private IP address");
-    expect(rendered.length).toBeGreaterThan(IOS_CARD_VITALS.length);
+    expect(rendered.length).toBeGreaterThan(IOS_CARD_VITAL_COUNT);
+    expect(isAlphabetical(rendered)).toBe(true);
+  });
+
+  it("applies no 8-vital cap to non-iOS/iPadOS hosts, which have no 'View all' escape hatch", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      hardware_serial: "test-serial",
+      timezone: "America/Argentina/Buenos_Aires",
+      memory: 8589934592,
+      cpu_type: "arm64",
+      primary_ip: "192.168.1.1",
+      public_ip: "203.0.113.1",
+      mdm: createMockHostMdmData({ enrollment_status: "On (manual)" }),
+    });
+
+    const { container } = render(
+      <Vitals
+        vitalsData={mockHost}
+        mdm={mockHost.mdm}
+        toggleVitalsModal={jest.fn()}
+      />
+    );
+
+    // Capping a platform that can't open the modal would strand those vitals
+    // with no way to reach them.
+    expect(getRenderedVitals(container).length).toBeGreaterThan(
+      IOS_CARD_VITAL_COUNT
+    );
+    expect(
+      screen.queryByRole("button", { name: "View all" })
+    ).not.toBeInTheDocument();
   });
 
   it("shows Enrollment ID instead of Serial number for a personally-enrolled iOS host, so its identity row survives the subset", () => {
@@ -550,6 +602,94 @@ describe("Card vitals subset", () => {
 
     expect(rendered).toContain("Enrollment ID");
     expect(rendered).not.toContain("Serial number");
+  });
+
+  it("backfills a non-priority vital when the host is short a priority one", () => {
+    // Dropping Timezone leaves 7 priority vitals; MDM attestation is the one
+    // other vital this host reports, so it takes the free slot.
+    const mockHost = createMockHost({
+      platform: "ios",
+      hardware_serial: "test-serial",
+      timezone: null,
+      mdm_enrollment_hardware_attested: true,
+      mdm: createMockHostMdmData({ enrollment_status: "On (manual)" }),
+    });
+
+    const { container } = render(
+      <Vitals vitalsData={mockHost} mdm={mockHost.mdm} />
+    );
+
+    expectCardVitals(container, [
+      "Added to Fleet",
+      "Disk space available",
+      "Hardware model",
+      "MDM attestation",
+      "MDM server URL",
+      "MDM status",
+      "Operating system",
+      "Serial number",
+    ]);
+  });
+
+  it("gives the one free slot to Location when both it and MDM attestation could backfill", () => {
+    // Pins the outcome, not the mechanism: buildHostVitals happens to append
+    // these two in alphabetical order already, so this can't tell the
+    // backfill's sort apart from that append order.
+    const mockHost = createMockHost({
+      platform: "ios",
+      hardware_serial: "test-serial",
+      timezone: null,
+      mdm_enrollment_hardware_attested: true,
+      geolocation: createMockHostGeolocation(),
+      mdm: createMockHostMdmData({ enrollment_status: "On (manual)" }),
+    });
+
+    const { container } = render(
+      <Vitals
+        vitalsData={mockHost}
+        mdm={mockHost.mdm}
+        toggleLocationModal={jest.fn()}
+      />
+    );
+
+    expectCardVitals(container, [
+      "Added to Fleet",
+      "Disk space available",
+      "Hardware model",
+      "Location",
+      "MDM server URL",
+      "MDM status",
+      "Operating system",
+      "Serial number",
+    ]);
+  });
+
+  it("never backfills past 8, dropping the lowest-priority extras", () => {
+    // All 8 priority vitals available, plus two other reportable vitals.
+    const mockHost = createMockHost({
+      platform: "ios",
+      hardware_serial: "test-serial",
+      timezone: "America/Argentina/Buenos_Aires",
+      mdm_enrollment_hardware_attested: true,
+      geolocation: createMockHostGeolocation(),
+      mdm: createMockHostMdmData({ enrollment_status: "On (manual)" }),
+    });
+
+    const { container } = render(
+      <Vitals vitalsData={mockHost} mdm={mockHost.mdm} />
+    );
+
+    // Priority vitals win every slot, so neither extra is shown.
+    expectCardVitals(container, [
+      "Added to Fleet",
+      "Disk space available",
+      "Hardware model",
+      "MDM server URL",
+      "MDM status",
+      "Operating system",
+      "Serial number",
+      "Timezone",
+    ]);
   });
 });
 

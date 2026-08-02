@@ -119,6 +119,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   end_users: [],
   conditional_access_bypassed: false,
   dep_assigned_to_fleet: false,
+  timezone: null,
 };
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {

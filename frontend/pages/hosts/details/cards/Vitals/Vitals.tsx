@@ -74,14 +74,13 @@ interface IVitalsProps extends IHostVitalsSources {
 
 export type VitalForSort = { sortKey: string; element: React.ReactNode };
 
-/** The only vitals the card itself shows for iOS/iPadOS hosts, as specified in
- * #39281. Everything else moves behind "View all". Other platforms are
- * unaffected and still render every vital in the card.
- *
- * "Enrollment ID" is included alongside "Serial number" because the two are
- * mutually exclusive — personal (BYOD) hosts report an enrollment ID instead
- * of a serial. Without it a BYOD iPhone would lose its only identity row. */
-const IOS_CARD_VITAL_SORT_KEYS = new Set([
+/** How many vitals an iOS/iPadOS card shows before the rest move behind
+ * "View all". Other platforms are unaffected and still render every vital. */
+const IOS_CARD_VITAL_COUNT = 8;
+
+/** Vitals an iOS/iPadOS card shows first, per #39281. "Enrollment ID" sits
+ * alongside "Serial number" because BYOD hosts report one instead of the other. */
+const IOS_CARD_PRIORITY_SORT_KEYS = new Set([
   "Added to Fleet",
   "Disk space available",
   "Enrollment ID",
@@ -745,10 +744,22 @@ const Vitals = ({
     onEditCustomHostVital,
   });
 
-  // iOS/iPadOS cards show a fixed subset and move the rest behind "View all".
+  // iOS/iPadOS cards show the priority vitals first, backfilled to
+  // IOS_CARD_VITAL_COUNT with whatever else the host reports, and move the
+  // remainder behind "View all". The backfill is sorted so the choice is
+  // stable rather than dependent on the order buildHostVitals appends in.
   // Every other platform keeps rendering all of its vitals in the card.
   const cardVitals = isIosOrIpadosHost
-    ? allVitals.filter((vital) => IOS_CARD_VITAL_SORT_KEYS.has(vital.sortKey))
+    ? [
+        ...allVitals.filter((vital) =>
+          IOS_CARD_PRIORITY_SORT_KEYS.has(vital.sortKey)
+        ),
+        ...sortHostVitals(
+          allVitals.filter(
+            (vital) => !IOS_CARD_PRIORITY_SORT_KEYS.has(vital.sortKey)
+          )
+        ),
+      ].slice(0, IOS_CARD_VITAL_COUNT)
     : allVitals;
 
   const classNames = classnames(baseClass, className);

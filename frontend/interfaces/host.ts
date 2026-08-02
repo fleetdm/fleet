@@ -414,6 +414,7 @@ export interface IHost {
   hardware_version: string;
   hardware_serial: string;
   computer_name: string;
+  timezone: string | null;
   public_ip: string;
   primary_ip: string;
   primary_mac: string;
