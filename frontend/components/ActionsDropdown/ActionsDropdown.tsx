@@ -385,6 +385,8 @@ const ActionsDropdown = ({
       fontSize: "13px",
       backgroundColor: getOptionBackgroundColor(state),
       whiteSpace: "nowrap",
+      // Match DropdownWrapper's option cursor treatment.
+      cursor: state.isDisabled ? "not-allowed" : "pointer",
       "&:hover": {
         backgroundColor: state.isDisabled
           ? "transparent"
