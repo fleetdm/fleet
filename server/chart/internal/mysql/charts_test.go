@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"crypto/sha256"
 	"testing"
 	"time"
 
@@ -359,6 +360,118 @@ func testFindOnlineMobileDisabledEnrollment(t *testing.T, tdb *testutils.TestDB,
 	got, err := ds.FindOnlineHostIDs(ctx, now, nil)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []uint{ids[0]}, got)
+}
+
+// seedHostVulnSoftware inserts one software row, links it to the given CVEs,
+// and installs it on the host. Unlike seedSoftware (cve_filter_test.go), which
+// only attributes a CVE to software, this attributes CVEs to a specific host
+// via host_software.
+func seedHostVulnSoftware(t *testing.T, tdb *testutils.TestDB, hostID uint, name, source string, cves ...string) {
+	t.Helper()
+	ctx := t.Context()
+
+	// checksum is binary(16) UNIQUE NOT NULL; derive it from the row's own
+	// identifying inputs so each seeded row is unique.
+	sum := sha256.Sum256([]byte(name + "\x00" + source + "\x00" + itoa(hostID)))
+	res, err := tdb.DB.ExecContext(ctx,
+		`INSERT INTO software (name, version, source, checksum) VALUES (?, '1.0', ?, ?)`,
+		name, source, sum[:16])
+	require.NoError(t, err)
+	swID, err := res.LastInsertId()
+	require.NoError(t, err)
+
+	for _, cve := range cves {
+		_, err = tdb.DB.ExecContext(ctx,
+			`INSERT INTO software_cve (software_id, cve) VALUES (?, ?)`, swID, cve)
+		require.NoError(t, err)
+	}
+	_, err = tdb.DB.ExecContext(ctx,
+		`INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, hostID, swID)
+	require.NoError(t, err)
+}
+
+// seedHostOS creates an operating_systems row with the given id (satisfying
+// host_operating_system's FK) and links the host to it. Attribute CVEs to the
+// OS afterwards via seedOSVuln.
+func seedHostOS(t *testing.T, tdb *testutils.TestDB, hostID, osID uint) {
+	t.Helper()
+	ctx := t.Context()
+	_, err := tdb.DB.ExecContext(ctx,
+		`INSERT INTO operating_systems (id, name, version, arch, kernel_version, platform)
+		 VALUES (?, ?, '1.0', 'x86_64', '1.0', 'linux')`,
+		osID, "os-"+itoa(osID))
+	require.NoError(t, err)
+	_, err = tdb.DB.ExecContext(ctx,
+		`INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?)`, hostID, osID)
+	require.NoError(t, err)
+}
+
+// u32 narrows a seeded host id for bitmap-content comparison.
+func u32(id uint) uint32 {
+	return uint32(id) //nolint:gosec // G115: AUTO_INCREMENT primary key fits in uint32
+}
+
+// TestAffectedHostIDsByCVE covers the CVE collector's host-set query: rows are
+// grouped per CVE as bitmaps, duplicate (cve, host) rows (several vulnerable
+// software rows on one host) collapse to a single bit, software- and OS-level
+// sources merge, the cves argument scopes the result, and hosts in disabled
+// fleets are excluded.
+func TestAffectedHostIDsByCVE(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	ids := seedHosts(t, tdb, []hostSeed{
+		{teamID: 0, seenTime: now}, // 0: no team
+		{teamID: 1, seenTime: now}, // 1
+		{teamID: 2, seenTime: now}, // 2
+	})
+
+	// Host 0 carries two distinct software rows both vulnerable to CVE-A (the
+	// multiple-installed-kernels shape) — the duplicate (CVE-A, host 0) rows
+	// must collapse to a single bit.
+	seedHostVulnSoftware(t, tdb, ids[0], "linux-image-6.1", "deb_packages", "CVE-A")
+	seedHostVulnSoftware(t, tdb, ids[0], "linux-image-6.5", "deb_packages", "CVE-A")
+	seedHostVulnSoftware(t, tdb, ids[1], "Google Chrome", "apps", "CVE-A", "CVE-B")
+	// Host 2 gets CVE-B via its OS (merging with host 1's software-side CVE-B)
+	// and CVE-C via software; CVE-C is never requested so it must not appear.
+	seedHostOS(t, tdb, ids[2], 1)
+	seedOSVuln(t, tdb, 1, "CVE-B")
+	seedHostVulnSoftware(t, tdb, ids[2], "Firefox", "apps", "CVE-C")
+
+	t.Run("GroupsDedupesAndMergesSources", func(t *testing.T) {
+		got, err := ds.AffectedHostIDsByCVE(ctx, nil, []string{"CVE-A", "CVE-B"})
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.Equal(t, []uint32{u32(ids[0]), u32(ids[1])}, got["CVE-A"].ToArray(),
+			"host 0's two vulnerable software rows must produce one bit")
+		assert.Equal(t, []uint32{u32(ids[1]), u32(ids[2])}, got["CVE-B"].ToArray(),
+			"software-side and OS-side hosts must merge under one CVE")
+	})
+
+	t.Run("DisabledFleetsExcluded", func(t *testing.T) {
+		got, err := ds.AffectedHostIDsByCVE(ctx, []uint{1}, []string{"CVE-A", "CVE-B"})
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.Equal(t, []uint32{u32(ids[0])}, got["CVE-A"].ToArray(),
+			"disabled-fleet host dropped; NULL-team host retained")
+		assert.Equal(t, []uint32{u32(ids[2])}, got["CVE-B"].ToArray())
+	})
+
+	t.Run("FullyExcludedCVELeavesNoKey", func(t *testing.T) {
+		got, err := ds.AffectedHostIDsByCVE(ctx, []uint{1, 2}, []string{"CVE-B"})
+		require.NoError(t, err)
+		assert.Empty(t, got, "a CVE whose only affected hosts are excluded must not appear")
+	})
+
+	t.Run("EmptyCVEsShortCircuits", func(t *testing.T) {
+		got, err := ds.AffectedHostIDsByCVE(ctx, nil, nil)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Empty(t, got)
+	})
 }
 
 func testFindOnlineMobileDisabledFleet(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
