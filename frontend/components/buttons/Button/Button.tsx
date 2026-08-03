@@ -24,6 +24,12 @@ export interface IButtonProps {
   disabled?: boolean;
   tabIndex?: number;
   type?: "button" | "submit" | "reset";
+  /**
+   * `id` of the `<form>` this button submits, for a `type="submit"` button that
+   * renders outside that form (e.g. inside a `ModalFooter` sibling). Lets the
+   * form keep its `onSubmit` handler instead of moving submission to `onClick`.
+   */
+  formId?: string;
   /** Text shown on tooltip when hovering over a button */
   title?: string;
   /** Default: "default" */
@@ -117,6 +123,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       disabled,
       tabIndex,
       type,
+      formId,
       title,
       variant,
       isLoading,
@@ -163,6 +170,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         onKeyDown={customOnKeyDown || handleKeyDown}
         tabIndex={tabIndex}
         type={type}
+        form={formId}
         title={title}
         ref={setRef}
         aria-haspopup={ariaHasPopup}

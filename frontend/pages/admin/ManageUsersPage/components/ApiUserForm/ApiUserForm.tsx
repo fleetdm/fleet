@@ -1,9 +1,10 @@
-import React, { FormEvent, useState } from "react";
+import React from "react";
 
 import { IApiEndpointRef } from "interfaces/api_endpoint";
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors, UserRole } from "interfaces/user";
+import { UserRole } from "interfaces/user";
 import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
@@ -38,160 +39,119 @@ enum UserTeamType {
   AssignTeams = "ASSIGN_TEAMS",
 }
 
+/**
+ * The permissions and API-access selectors are part of the validated form data
+ * rather than separate UI state so that `validate` stays a pure function of one
+ * object.
+ */
+type ApiUserFormState = {
+  name: string;
+  global_role: UserRole;
+  isGlobalUser: boolean;
+  fleets: ITeam[];
+  isSpecificEndpoints: boolean;
+  api_endpoints: IApiEndpointRef[];
+};
+
 const ApiUserForm = ({
   isPremiumTier,
   onCancel,
   onSubmit,
   availableTeams,
   defaultData,
-  isSubmitting = false,
+  isSubmitting: isSubmittingProp = false,
 }: IApiUserFormProps) => {
   const isNewUser = defaultData === undefined;
 
-  const [name, setName] = useState(defaultData?.name ?? "");
-  const [globalRole, setGlobalRole] = useState<UserRole>(
-    () =>
-      (defaultData?.global_role ??
-        (isPremiumTier ? "gitops" : "observer")) as UserRole
-  );
-  const [fleets, setFleets] = useState<ITeam[]>(defaultData?.fleets ?? []);
-  const [isGlobalUser, setIsGlobalUser] = useState(
-    !defaultData?.fleets?.length
-  );
+  const validate = (data: ApiUserFormState): IFormErrors => {
+    const errors: IFormErrors = {};
 
-  const [selectedEndpoints, setSelectedEndpoints] = useState<IApiEndpointRef[]>(
-    () => defaultData?.api_endpoints ?? []
-  );
+    if (!validatePresence(data.name)) {
+      errors.name = "Enter a name";
+    }
+    // The permissions and API-access selectors only render on premium, so their
+    // rules can't apply on free — the user would have no way to satisfy them.
+    if (isPremiumTier) {
+      if (!data.isGlobalUser && data.fleets.length === 0) {
+        errors.fleets = "Select at least one fleet";
+      }
+      if (data.isSpecificEndpoints && data.api_endpoints.length === 0) {
+        errors.api_endpoints = "Select at least one API endpoint";
+      }
+    }
 
-  // null (all endpoints) and undefined (field not set / free tier) are both treated as "all endpoints"
-  const [isSpecificEndpoints, setIsSpecificEndpoints] = useState(
-    () => !!defaultData?.api_endpoints && defaultData.api_endpoints.length > 0
-  );
-  const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
-
-  const clearEndpointError = () => {
-    if (formErrors.api_endpoints) {
-      setFormErrors((prev) => {
-        const { api_endpoints: _, ...rest } = prev;
-        return rest;
-      });
-    }
-  };
-
-  const handleEndpointSelectionChange = (endpoints: IApiEndpointRef[]) => {
-    setSelectedEndpoints(endpoints);
-    if (endpoints.length > 0) {
-      clearEndpointError();
-    }
-  };
-
-  const handleAccessTypeChange = (specific: boolean) => {
-    setIsSpecificEndpoints(specific);
-    if (!specific) {
-      setSelectedEndpoints([]);
-      clearEndpointError();
-    }
-  };
-
-  const getErrors = (): IUserFormErrors => {
-    const errors: IUserFormErrors = {};
-    if (!validatePresence(name)) {
-      errors.name = "Name is required";
-    }
-    if (!isGlobalUser && fleets.length === 0) {
-      errors.teams = "Please select at least one fleet";
-    }
-    if (isSpecificEndpoints && selectedEndpoints.length === 0) {
-      errors.api_endpoints = "Please select at least one API endpoint";
-    }
     return errors;
   };
 
-  const onInputChange = (value: string) => {
-    setName(value);
-    if (formErrors.name && validatePresence(value)) {
-      setFormErrors((prev) => {
-        const { name: _n, ...rest } = prev;
-        return rest;
-      });
-    }
-  };
+  const {
+    formData,
+    setField,
+    commitFields,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<ApiUserFormState>({
+    initialFormData: {
+      name: defaultData?.name ?? "",
+      global_role: (defaultData?.global_role ??
+        (isPremiumTier ? "gitops" : "observer")) as UserRole,
+      isGlobalUser: !defaultData?.fleets?.length,
+      fleets: defaultData?.fleets ?? [],
+      // null (all endpoints) and undefined (field not set / free tier) both mean
+      // "all endpoints"
+      isSpecificEndpoints: !!defaultData?.api_endpoints?.length,
+      api_endpoints: defaultData?.api_endpoints ?? [],
+    },
+    validate,
+    isSubmitting: isSubmittingProp,
+  });
 
-  const onInputBlur = () => {
-    if (!validatePresence(name)) {
-      setFormErrors((prev) => ({ ...prev, name: "Name is required" }));
-    }
-  };
-
-  const handleSubmit = (evt: FormEvent) => {
-    evt.preventDefault();
-    const errs = getErrors();
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
-
-    // Omit api_endpoints on free tier to avoid clearing a value set by a premium instance.
-    // When "All" is selected, send null to signal full access.
+  const onValidSubmit = (data: ApiUserFormState) => {
+    // Omit api_endpoints on free tier to avoid clearing a value set by a premium
+    // instance. When "All" is selected, send null to signal full access.
     let apiEndpoints: IApiEndpointRef[] | null | undefined;
     if (isPremiumTier) {
-      apiEndpoints = isSpecificEndpoints ? selectedEndpoints : null;
+      apiEndpoints = data.isSpecificEndpoints ? data.api_endpoints : null;
     }
 
     onSubmit({
-      name,
-      global_role: isGlobalUser ? globalRole : null,
-      fleets: isGlobalUser
+      name: data.name,
+      global_role: data.isGlobalUser ? data.global_role : null,
+      fleets: data.isGlobalUser
         ? []
-        : fleets.map((f) => ({ ...f, role: f.role || "observer" })),
+        : data.fleets.map((f) => ({ ...f, role: f.role || "observer" })),
       api_endpoints: apiEndpoints,
     });
   };
 
-  const handleRoleChange = (newValue: SingleValue<CustomOptionType>) => {
+  const onRoleChange = (newValue: SingleValue<CustomOptionType>) => {
     if (newValue) {
-      setGlobalRole(newValue.value as UserRole);
+      commitFields({ global_role: newValue.value as UserRole });
     }
   };
 
-  const handleFleetChange = (newFleets: ITeam[]) => {
-    setFleets(newFleets);
-    if (newFleets.length > 0 && formErrors.teams) {
-      setFormErrors((prev) => {
-        const { teams: _, ...rest } = prev;
-        return rest;
-      });
-    }
+  const onIsGlobalUserChange = (value: string) => {
+    commitFields({ isGlobalUser: value === UserTeamType.GlobalUser });
   };
 
-  const handleIsGlobalUserChange = (value: string) => {
-    const isGlobal = value === UserTeamType.GlobalUser;
-    setIsGlobalUser(isGlobal);
-    if (isGlobal && formErrors.teams) {
-      setFormErrors((prev) => {
-        const { teams: _, ...rest } = prev;
-        return rest;
-      });
-    }
+  const onAccessTypeChange = (isSpecific: boolean) => {
+    commitFields({
+      isSpecificEndpoints: isSpecific,
+      api_endpoints: isSpecific ? formData.api_endpoints : [],
+    });
   };
 
   const renderGlobalRoleForm = () => (
     <DropdownWrapper
       name="Role"
       label="Role"
-      value={globalRole}
+      value={formData.global_role}
       options={roleOptions({ isPremiumTier, isApiOnly: true })}
-      onChange={handleRoleChange}
+      onChange={onRoleChange}
       isSearchable={false}
-    />
-  );
-
-  const renderTeamsForm = () => (
-    <SelectedTeamsForm
-      availableTeams={availableTeams}
-      usersCurrentTeams={fleets}
-      onFormChange={handleFleetChange}
-      isApiOnly
+      isDisabled={isSubmitting}
     />
   );
 
@@ -202,29 +162,35 @@ const ApiUserForm = ({
         <Radio
           label="Global user"
           id="global-user"
-          checked={isGlobalUser}
+          checked={formData.isGlobalUser}
           value={UserTeamType.GlobalUser}
           name="user-team-type"
-          onChange={handleIsGlobalUserChange}
+          onChange={onIsGlobalUserChange}
+          disabled={isSubmitting}
         />
         <Radio
           label="Assign to fleet(s)"
           id="assign-teams"
-          checked={!isGlobalUser}
+          checked={!formData.isGlobalUser}
           value={UserTeamType.AssignTeams}
           name="user-team-type"
-          onChange={handleIsGlobalUserChange}
-          disabled={!availableTeams.length}
+          onChange={onIsGlobalUserChange}
+          disabled={isSubmitting || !availableTeams.length}
         />
       </div>
-      {isGlobalUser ? (
+      {formData.isGlobalUser ? (
         renderGlobalRoleForm()
       ) : (
         <>
-          {renderTeamsForm()}
-          {formErrors.teams && (
+          <SelectedTeamsForm
+            availableTeams={availableTeams}
+            usersCurrentTeams={formData.fleets}
+            onFormChange={(fleets: ITeam[]) => commitFields({ fleets })}
+            isApiOnly
+          />
+          {getError("fleets") && (
             <div className="form-field__label form-field__label--error">
-              {formErrors.teams}
+              {getError("fleets")}
             </div>
           )}
         </>
@@ -233,44 +199,46 @@ const ApiUserForm = ({
   );
 
   return (
-    <>
-      <div>
-        <form autoComplete="off" onSubmit={handleSubmit}>
-          <InputField
-            name="name"
-            label="Name"
-            value={name}
-            onChange={onInputChange}
-            onBlur={onInputBlur}
-            error={formErrors.name}
-            autofocus
-            inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+    <div>
+      <form autoComplete="off" onSubmit={handleSubmit(onValidSubmit)}>
+        <InputField
+          name="name"
+          label="Name"
+          value={formData.name}
+          onChange={(value: string) => setField("name", value)}
+          onFocus={() => clearFieldError("name")}
+          onBlur={() => validateField("name")}
+          error={getError("name")}
+          disabled={isSubmitting}
+          autofocus
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+        />
+        {isPremiumTier ? renderPermissions() : renderGlobalRoleForm()}
+        {isPremiumTier && (
+          <ApiAccessSection
+            isSpecificEndpoints={formData.isSpecificEndpoints}
+            onAccessTypeChange={onAccessTypeChange}
+            selectedEndpoints={formData.api_endpoints}
+            onEndpointSelectionChange={(api_endpoints: IApiEndpointRef[]) =>
+              commitFields({ api_endpoints })
+            }
+            error={getError("api_endpoints")}
           />
-          {isPremiumTier ? renderPermissions() : renderGlobalRoleForm()}
-          {isPremiumTier && (
-            <ApiAccessSection
-              isSpecificEndpoints={isSpecificEndpoints}
-              onAccessTypeChange={handleAccessTypeChange}
-              selectedEndpoints={selectedEndpoints}
-              onEndpointSelectionChange={handleEndpointSelectionChange}
-              error={formErrors.api_endpoints}
-            />
-          )}
-          <div className="user-management-form__footer">
-            <Button onClick={onCancel} variant="secondary">
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              isLoading={isSubmitting}
-              disabled={isSubmitting}
-            >
-              {isNewUser ? "Add" : "Save"}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </>
+        )}
+        <div className="user-management-form__footer">
+          <Button onClick={onCancel} variant="secondary">
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            isLoading={isSubmitting}
+            disabled={isSubmitting}
+          >
+            {isNewUser ? "Add" : "Save"}
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 };
 

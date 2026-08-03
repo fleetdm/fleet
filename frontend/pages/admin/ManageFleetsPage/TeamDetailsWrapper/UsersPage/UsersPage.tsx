@@ -5,7 +5,8 @@ import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IApiError } from "interfaces/errors";
 import { INewTeamUsersFormData, ITeam } from "interfaces/team";
-import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
+import { IUpdateUserFormData, IUser } from "interfaces/user";
+import { IFormErrors } from "hooks/useFormValidation";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
@@ -69,8 +70,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState("");
-  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>({});
-  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>({});
+  const [addUserErrors, setAddUserErrors] = useState<IFormErrors>({});
+  const [editUserErrors, setEditUserErrors] = useState<IFormErrors>({});
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddUserModal(!showAddUserModal);

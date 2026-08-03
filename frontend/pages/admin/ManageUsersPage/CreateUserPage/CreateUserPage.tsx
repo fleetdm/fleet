@@ -6,7 +6,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
+import { IFormErrors } from "hooks/useFormValidation";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
@@ -23,10 +23,31 @@ interface ICreateUserPageProps {
   router: InjectedRouter;
 }
 
+/**
+ * Maps an API failure to inline field errors, or null when the failure isn't
+ * field-specific and belongs in a toast instead.
+ */
+const getFieldErrors = (userErrors: {
+  data: IApiError;
+}): IFormErrors | null => {
+  const reason = userErrors.data.errors?.[0]?.reason ?? "";
+
+  if (reason.includes("already exists") || reason.includes("Duplicate")) {
+    return { email: "Enter an email that isn't already in use" };
+  }
+  if (reason.includes("required criteria")) {
+    return { password: "Enter a password that meets the requirements below" };
+  }
+  if (reason.includes("password too long")) {
+    return { password: "Enter a password with 48 characters or fewer" };
+  }
+  return null;
+};
+
 const CreateUserPage = ({ router }: ICreateUserPageProps) => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
 
-  const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
@@ -56,22 +77,9 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
           router.push(PATHS.ADMIN_USERS);
         })
         .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors[0].reason.includes("already exists")) {
-            setFormErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors[0].reason.includes("required criteria")
-          ) {
-            setFormErrors({
-              password: "Password must meet the criteria below",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("password too long")
-          ) {
-            setFormErrors({
-              password: "Password is over the character limit.",
-            });
+          const fieldErrors = getFieldErrors(userErrors);
+          if (fieldErrors) {
+            setFormErrors(fieldErrors);
           } else {
             notify.error("Could not create user. Please try again.", {
               response: userErrors,
@@ -94,22 +102,9 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
           router.push(PATHS.ADMIN_USERS);
         })
         .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors[0].reason.includes("Duplicate")) {
-            setFormErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors[0].reason.includes("required criteria")
-          ) {
-            setFormErrors({
-              password: "Password must meet the criteria below",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("password too long")
-          ) {
-            setFormErrors({
-              password: "Password is over the character limit.",
-            });
+          const fieldErrors = getFieldErrors(userErrors);
+          if (fieldErrors) {
+            setFormErrors(fieldErrors);
           } else {
             notify.error("Could not create user. Please try again.", {
               response: userErrors,
@@ -138,7 +133,7 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
           sesConfigured={config?.email?.backend === "ses" || false}
           canUseSso={config?.sso_settings?.enable_sso || false}
           currentUserId={currentUser?.id}
-          ancestorErrors={formErrors}
+          serverErrors={formErrors}
           isUpdatingUsers={isSubmitting}
         />
       </>

@@ -110,7 +110,7 @@ Cap free-text inputs' `maxLength` to the backend column length (check `server/da
 
 ## Validation
 
-**Read [frontend/docs/patterns.md#data-validation](../../frontend/docs/patterns.md#data-validation) before adding or editing form validation — that doc is authoritative.** Fleet diverges from what mainstream React libraries (Formik, react-hook-form, MUI, Ant Design) do by default on submit-button behavior, error timing, error position, and copy tone. Pattern-matching from another React app will land you in these specific mistakes:
+**Read [frontend/docs/patterns.md#data-validation](../../frontend/docs/patterns.md#data-validation) before adding or editing form validation — that doc is authoritative.** Use the `useFormValidation` hook (`frontend/hooks/useFormValidation.ts`) rather than re-implementing the behavior; it encodes all of the rules below. Reference migrations: `UserForm`, `ApiUserForm`. Fleet diverges from what mainstream React libraries (Formik, react-hook-form, MUI, Ant Design) do by default on submit-button behavior, error timing, error position, and copy tone. Pattern-matching from another React app will land you in these specific mistakes:
 - No visible required-field indicator (no `*`, no `(required)` suffix). Users discover requirements via post-interaction errors.
 - Submit button stays enabled with invalid fields. Only disable during in-flight submission, or when the form is disabled by GitOps mode. On click, the handler runs client-side validation first — if invalid, it surfaces errors inline and returns without calling the API.
 - Field errors clear on **focus**, not on typing.

@@ -7,7 +7,8 @@ import { AppContext } from "context/app";
 import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
 import { IInvite, IEditInviteFormData } from "interfaces/invite";
-import { IUser, IUserFormErrors } from "interfaces/user";
+import { IUser } from "interfaces/user";
+import { IFormErrors } from "hooks/useFormValidation";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
@@ -38,7 +39,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
 
   const queryClient = useQueryClient();
-  const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch user (when not an invite)
@@ -97,7 +98,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
         .catch((inviteErrors: { data: IApiError }) => {
           if (inviteErrors.data.errors[0].reason.includes("already exists")) {
             setFormErrors({
-              email: "A user with this email address already exists",
+              email: "Enter an email that isn't already in use",
             });
           } else {
             notify.error(
@@ -146,13 +147,13 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
       .catch((userErrors: { data: IApiError }) => {
         if (userErrors.data.errors[0].reason.includes("already exists")) {
           setFormErrors({
-            email: "A user with this email address already exists",
+            email: "Enter an email that isn't already in use",
           });
         } else if (
           userErrors.data.errors[0].reason.includes("required criteria")
         ) {
           setFormErrors({
-            password: "Password must meet the criteria below",
+            password: "Enter a password that meets the requirements below",
           });
         } else {
           notify.error(`Could not edit ${entityData.name}. Please try again.`, {
@@ -252,7 +253,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
             defaultEmail={entityData?.email}
             defaultGlobalRole={entityData?.global_role}
             defaultTeams={entityData?.teams}
-            ancestorErrors={formErrors}
+            serverErrors={formErrors}
             isUpdatingUsers={isSubmitting}
           />
         </>

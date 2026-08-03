@@ -347,6 +347,8 @@ const validate = (formData: IFormData): Record<string, string> => {
 
 The output of `validate` is used by the calling handler to update a `formErrors` state that feeds each `InputField`'s `error` prop.
 
+The `useFormValidation` hook in `frontend/hooks/useFormValidation.ts` implements every rule below — dirty tracking, clear-on-focus, blur-validates-one-field, submit-as-checkpoint, server errors, trimming, in-flight state. Pass it `initialFormData` and a `validate` function and wire the handlers it returns; don't hand-roll the state management. `UserForm` and `ApiUserForm` (`frontend/pages/admin/ManageUsersPage/components/`) are the reference migrations. The hook deliberately exposes no `isValid` — see [Submit button state](#submit-button-state).
+
 #### When errors appear
 
 A field is **dirty** once the user has typed into it or the browser has autofilled it. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
