@@ -830,6 +830,7 @@ import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
 import Python313 from "./Python313";
 import Python314 from "./Python314";
+import Qemu from "./Qemu";
 import Qlab from "./Qlab";
 import Qlmarkdown from "./Qlmarkdown";
 import QspacePro from "./QspacePro";
@@ -2000,6 +2001,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pycharm ce": PyCharmCe,
   "python 3.13": Python313,
   "python 3.14": Python314,
+  qemu: Qemu,
   qlab: Qlab,
   "qspace pro": QspacePro,
   quip: Quip,
