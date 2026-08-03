@@ -30,7 +30,7 @@ Real growth is underneath the correction, and it's well documented: Windows 10 r
 Statcounter samples page views across roughly a million websites. Cloudflare measures HTTP requests across its own global network. Different populations using different methods with no shared plumbing. If the July number were an artifact of one vendor's parser, the other would not see it.
 
 ![Cloudflare Radar chart of desktop HTTP requests by operating system in North America over the last 12 months, showing the Linux band widening in the final weeks](../website/assets/images/articles/linux-desktop-share-cloudflare-radar-800x618@2x.png)
-*Desktop HTTP requests by operating system, North America, trailing 12 months. Source: [Cloudflare Radar](https://radar.cloudflare.com), captured August 3, 2026.*
+*Source: [Cloudflare Radar](https://radar.cloudflare.com), captured August 3, 2026.*
 
 Query Cloudflare for the same region, the same device type, and the same month, and Linux comes in at 9.72% of North American desktop requests for July 2026. Statcounter says 10.65%. Two unrelated measurement systems reporting data that is less than a percentage point apart.
 
@@ -104,5 +104,5 @@ Your fleet is in the same position. The Linux hosts are already there, already h
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-08-02">
+<meta name="publishedOn" value="2026-08-03">
 <meta name="description" value="Two independent sources now put Linux near 10% of North American desktops. Your asset inventory has the same blind spot the web analytics did.">
