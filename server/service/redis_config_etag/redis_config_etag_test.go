@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -401,4 +403,83 @@ func TestTTLDerivations(t *testing.T) {
 		"host record TTLs must be jittered")
 	require.GreaterOrEqual(t, DefaultHostETagTTLMin, 30*time.Minute)
 	require.LessOrEqual(t, DefaultHostETagTTLMax, 2*time.Hour)
+}
+
+// TestGateLoaderLeaderElection: one Redis miss must NOT become one database
+// query per concurrent config request. Exactly one concurrent caller (the
+// elected leader) runs the loader; losers return
+// fleet.ErrConfigETagGateLoading immediately — they never wait and never
+// query — and the state-write therefore happens at most once per miss
+// window per container.
+func TestGateLoaderLeaderElection(t *testing.T) {
+	pool := redistest.SetupRedis(t, t.Name(), false, false, true)
+	s := newStoreForTest(t, pool)
+	ctx := context.Background()
+
+	var loaderCalls atomic.Int64
+	slowLoader := func(context.Context) (bool, error) {
+		loaderCalls.Add(1)
+		time.Sleep(100 * time.Millisecond) // hold the miss window open
+		return false, nil
+	}
+
+	const workers = 50
+	var wg sync.WaitGroup
+	var contended, answered, failed atomic.Int64
+	for range workers {
+		wg.Go(func() {
+			present, err := s.LegacyPacksPresent(ctx, slowLoader)
+			switch {
+			case errors.Is(err, fleet.ErrConfigETagGateLoading):
+				// losers must read as "present" (bypass direction)
+				if present {
+					contended.Add(1)
+				} else {
+					failed.Add(1)
+				}
+			case err != nil:
+				failed.Add(1)
+			default:
+				answered.Add(1)
+			}
+		})
+	}
+	wg.Wait()
+
+	require.Equal(t, int64(1), loaderCalls.Load(),
+		"exactly one concurrent caller may run the database loader")
+	require.Equal(t, int64(0), failed.Load(), "no caller may observe a real error")
+	require.Positive(t, contended.Load(), "losers must be told the load is in flight")
+	require.Equal(t, int64(workers), contended.Load()+answered.Load())
+
+	// After the window closes, everyone reads the cached answer with no
+	// further loader executions.
+	present, err := s.LegacyPacksPresent(ctx, slowLoader)
+	require.NoError(t, err)
+	require.False(t, present)
+	require.Equal(t, int64(1), loaderCalls.Load())
+
+	// Same election protocol for the label-scope gate.
+	var scopeLoads atomic.Int64
+	slowScopes := func(context.Context) (fleet.ConfigETagLabelScopes, error) {
+		scopeLoads.Add(1)
+		time.Sleep(100 * time.Millisecond)
+		return fleet.ConfigETagLabelScopes{Global: true}, nil
+	}
+	var scopeContended, scopeFailed atomic.Int64
+	for range workers {
+		wg.Go(func() {
+			_, err := s.LabelScopes(ctx, slowScopes)
+			switch {
+			case errors.Is(err, fleet.ErrConfigETagGateLoading):
+				scopeContended.Add(1)
+			case err != nil:
+				scopeFailed.Add(1)
+			}
+		})
+	}
+	wg.Wait()
+	require.Equal(t, int64(1), scopeLoads.Load())
+	require.Equal(t, int64(0), scopeFailed.Load(), "no caller may observe a real error")
+	require.Positive(t, scopeContended.Load())
 }

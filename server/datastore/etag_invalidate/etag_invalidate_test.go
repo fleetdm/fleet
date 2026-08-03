@@ -193,6 +193,27 @@ func TestDeploymentHooksFireOnSuccess(t *testing.T) {
 			},
 		},
 		{
+			// The GitOps label path can change membership immediately
+			// (platform changes delete it; manual-label specs replace it)
+			// with removals unknowable from the specs — deployment-wide.
+			"ApplyLabelSpecs", resetsLabelScopes,
+			func(ds *mock.Store, d *Datastore) (*bool, func() error) {
+				ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error { return nil }
+				return &ds.ApplyLabelSpecsFuncInvoked, func() error {
+					return d.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: "l"}})
+				}
+			},
+		},
+		{
+			"ApplyLabelSpecsWithAuthor", resetsLabelScopes,
+			func(ds *mock.Store, d *Datastore) (*bool, func() error) {
+				ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error { return nil }
+				return &ds.ApplyLabelSpecsWithAuthorFuncInvoked, func() error {
+					return d.ApplyLabelSpecsWithAuthor(ctx, []*fleet.LabelSpec{{Name: "l"}}, new(uint(1)))
+				}
+			},
+		},
+		{
 			// DeleteLabel is a REQUIRED hook: deleting a referenced label
 			// cascades query_labels away and can instantly unscope a report.
 			"DeleteLabel", resetsLabelScopes,
@@ -367,6 +388,9 @@ func TestNoInvalidationOnWriteError(t *testing.T) {
 	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
 		return wantErr
 	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return wantErr
+	}
 
 	err := d.SaveAppConfig(ctx, &fleet.AppConfig{})
 	require.ErrorIs(t, err, wantErr)
@@ -375,6 +399,12 @@ func TestNoInvalidationOnWriteError(t *testing.T) {
 	err = d.RecordLabelQueryExecutions(ctx, &fleet.Host{ID: 1}, nil, time.Now(), false)
 	require.ErrorIs(t, err, wantErr)
 	require.Empty(t, store.hostInvalidations)
+
+	// failed label-spec persistence must not invalidate either
+	err = d.ApplyLabelSpecsWithAuthor(ctx, []*fleet.LabelSpec{{Name: "l"}}, new(uint(1)))
+	require.ErrorIs(t, err, wantErr)
+	require.Equal(t, 0, store.invalidateCalls)
+	require.Equal(t, 0, store.labelScopesResetCalls)
 }
 
 // TestInvalidationErrorsAreSwallowed: Redis being down must never fail a
