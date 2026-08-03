@@ -5624,7 +5624,7 @@ Rotates the Recovery Lock password for a host.
 
 ##### Default response
 
-`204`
+`Status: 200`
 
 ### Get host's certificates
 
@@ -5651,7 +5651,7 @@ For macOS hosts, certificates from MDM-delivered profiles containing an ACME pay
 
 `GET /api/v1/fleet/hosts/8/certificates`
 
-#### Default response
+##### Default response
 
 `Status: 200`
 
@@ -6199,7 +6199,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `POST /api/v1/fleet/device/abcdef012456789/bypass_conditional_access`
 
-#### Default response 
+##### Default response 
 
 `Status: 200` 
 
@@ -6222,7 +6222,7 @@ Remotely clear the passcode on a host. Requires iOS/iPadOS host to have sent its
 
 `POST /api/v1/fleet/hosts/123/clear_passcode`
 
-#### Default response 
+##### Default response 
 
 `Status: 200` 
 
@@ -6254,7 +6254,7 @@ Rotates the managed local account password for a host.
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 ### Get host's managed account password
 
@@ -7168,7 +7168,7 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 ### Resend configuration profile by Fleet Desktop token
 
@@ -7252,7 +7252,7 @@ _Available in Fleet Premium_
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 
 ### Get disk encryption status
@@ -11216,6 +11216,8 @@ By default, script runs time out after 5 minutes. You can modify this default in
 
 Gets the result of a script that was executed.
 
+`GET /api/v1/fleet/scripts/results/:execution_id`
+
 #### Parameters
 
 | Name         | Type   | In   | Description                                   |
@@ -14713,7 +14715,7 @@ _Available in Fleet Premium_
 
 `DELETE /api/v1/fleet/fleets/1`
 
-#### Default response
+##### Default response
 
 `Status: 200`
 
@@ -15888,6 +15890,31 @@ Returns information about the current state of the database; valid keys are:
 
 None.
 
+#### Example
+
+`GET /debug/db/process-list`
+
+##### Default response
+
+`Status: 200`
+
+```json
+[
+  {
+    "id": 1234,
+    "user": "fleet",
+    "host": "10.0.0.5:52014",
+    "db": "fleet",
+    "command": "Query",
+    "time": 0,
+    "state": "executing",
+    "info": "SELECT * FROM hosts"
+  }
+]
+```
+
+> The response shape depends on the requested `key`. `locks` returns a list of objects with `waiting_trx_id`, `waiting_thread`, `waiting_query`, `blocking_trx_id`, `blocking_thread`, and `blocking_query`. `innodb-status` returns a JSON string containing the raw `SHOW ENGINE INNODB STATUS` output. `process-list` returns a list of objects as shown above.
+
 ### Get profiling information
 
 Returns runtime profiling data of the server in the format expected by `go tools pprof`. The responses are equivalent to those returned by the Go `http/pprof` package.
@@ -15898,6 +15925,16 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 
 #### Parameters
 None.
+
+#### Example
+
+`GET /debug/pprof/cmdline`
+
+##### Default response
+
+`Status: 200`
+
+The response body is the same as the Go [`net/http/pprof`](https://pkg.go.dev/net/http/pprof) package returns for the given `key`: plain text for `cmdline` and `symbol`, and a binary pprof profile for `profile` and `trace`.
 
 ### Get trace sampling settings
 
