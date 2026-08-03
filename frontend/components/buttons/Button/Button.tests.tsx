@@ -197,6 +197,17 @@ describe("Button component", () => {
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
+  it("renders aria-controls when ariaControls is provided", () => {
+    render(<Button ariaControls="menu-1">Open menu</Button>);
+    expect(screen.getByRole("button")).toHaveAttribute(
+      "aria-controls",
+      "menu-1"
+    );
+  });
+  it("omits aria-controls when ariaControls is undefined", () => {
+    render(<Button>Plain</Button>);
+    expect(screen.getByRole("button")).not.toHaveAttribute("aria-controls");
+  });
   it("adds the icon-only class for a legacy <Icon> child pattern on secondary/subdued", () => {
     // Some call sites keep the child <Icon> pattern to pass color/className.
     // We still want the square icon-only styling for those.

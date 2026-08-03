@@ -125,30 +125,25 @@ const ToastCard = ({
         <div className={`${baseClass}__actions`}>
           {hasDetail && (
             <Button
+              className={classnames(`${baseClass}__chevron`, {
+                [`${baseClass}__chevron--open`]: isOpen,
+              })}
               variant="subdued"
+              icon="chevron-down"
               ariaExpanded={isOpen}
               ariaControls={panelId}
               ariaLabel={
                 isOpen ? "Collapse error details" : "Expand error details"
               }
               onClick={toggle}
-            >
-              <Icon
-                name="chevron-down"
-                color="ui-fleet-black-75"
-                className={classnames(`${baseClass}__chevron`, {
-                  [`${baseClass}__chevron--open`]: isOpen,
-                })}
-              />
-            </Button>
+            />
           )}
           <Button
             variant="subdued"
+            icon="close"
             ariaLabel="Dismiss notification"
             onClick={handleClose}
-          >
-            <Icon name="close" color="ui-fleet-black-75" />
-          </Button>
+          />
         </div>
       </div>
       {hasDetail && isOpen && (
