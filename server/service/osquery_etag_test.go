@@ -415,6 +415,79 @@ func TestConfigETagPerHostBypassesTeamPackCache(t *testing.T) {
 		"shared mode keeps using the team pack cache")
 }
 
+// TestConfigETagScopesUnknownBypassesTeamPackCache: when the deployment has
+// no legacy packs but the label-scope state cannot be read (Redis error) or
+// is being loaded by another request (leader-election contention), the
+// request stays in bypass mode — no Redis record I/O — but its full build
+// must still bypass the team-keyed pack cache: the deployment MAY have
+// label-scoped reports, in which case the cached render can be another
+// host's label-filtered config.
+func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		scopesErr error
+	}{
+		{"scope state error", assert.AnError},
+		{"leader-election contention", fleet.ErrConfigETagGateLoading},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := newETagTestDS()
+			schedules := []*fleet.Query{{
+				Name:     "report-v1",
+				Query:    "SELECT 1",
+				Interval: 30,
+				Logging:  fleet.LoggingSnapshot,
+			}}
+			ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+				return schedules, nil
+			}
+
+			svc, baseCtx := newTestService(t, ds, nil, nil)
+			store := &stubConfigETagStore{} // shared mode initially
+			svc.SetConfigETagStore(store)
+
+			ctx := hostctx.NewContext(baseCtx, &fleet.Host{ID: 1, Platform: "darwin"})
+
+			// 1. Shared-mode request warms the team pack cache with v1.
+			first, err := svc.GetClientConfigWithETag(ctx, "")
+			require.NoError(t, err)
+			assert.Equal(t, "shared", first.Mode)
+			assert.Contains(t, string(first.Body), "report-v1")
+
+			// 2. Schedules change while scope state becomes unavailable.
+			schedules = []*fleet.Query{{
+				Name:     "report-v2",
+				Query:    "SELECT 2",
+				Interval: 30,
+				Logging:  fleet.LoggingSnapshot,
+			}}
+			store.scopesErr = tc.scopesErr
+
+			// 3. Bypass mode with unknown scopes must NOT serve the cached
+			// v1 render — and must not touch Redis records (delta-checked:
+			// step 1's shared-mode publish legitimately counted one set).
+			getBefore, setBefore, hostSetBefore := store.getCalls, store.setCalls, store.hostSetCalls
+			second, err := svc.GetClientConfigWithETag(ctx, "")
+			require.NoError(t, err)
+			assert.Equal(t, "bypass", second.Mode)
+			assert.Contains(t, string(second.Body), "report-v2",
+				"unknown label-scope state must bypass the team pack cache")
+			assert.NotContains(t, string(second.Body), "report-v1")
+			assert.Equal(t, getBefore, store.getCalls, "bypass must not read Redis records")
+			assert.Equal(t, setBefore, store.setCalls, "bypass must not write Redis records")
+			assert.Equal(t, hostSetBefore, store.hostSetCalls, "bypass must not write Redis records")
+
+			// 4. Control: scope state recovers → shared mode serves the
+			// still-warm cached v1 render, proving step 3 truly bypassed.
+			store.scopesErr = nil
+			third, err := svc.GetClientConfigWithETag(ctx, "")
+			require.NoError(t, err)
+			assert.Equal(t, "shared", third.Mode)
+			assert.Contains(t, string(third.Body), "report-v1")
+		})
+	}
+}
+
 // TestConfigETagNaive304StillWorks: with a Redis miss (and with no store at
 // all), the pre-existing bandwidth-only 304 — validator vs freshly built
 // body — must keep working.

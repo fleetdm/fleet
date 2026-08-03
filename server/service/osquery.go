@@ -840,6 +840,17 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 	// Cache-mode selection from the two cached gate answers. Their loaders
 	// (below) are the only DB load the short circuit machinery performs, at
 	// most once per few minutes per cluster.
+	// scopesUnknown is set when the deployment has no legacy packs but the
+	// label-scope state could not be read or loaded. In that state the
+	// deployment MAY have label-scoped reports, which makes the team-keyed
+	// pack cache host-incorrect (see getPackConfig) — so the full build
+	// below must bypass it even though the request stays in bypass mode (no
+	// Redis record reads/writes with unknown state). Cost: one
+	// pre-#48702-cost build for the few requests that hit gate errors or
+	// leader-election contention. This branch is unreachable during a full
+	// Redis outage — the legacy gate fails first and plain bypass (with the
+	// team cache, i.e. exact baseline behavior) applies.
+	scopesUnknown := false
 	mode := configETagModeOff
 	if store != nil {
 		mode = configETagModeBypass
@@ -858,9 +869,12 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 			scopes, err := store.LabelScopes(ctx, svc.labelScopedReportScopes)
 			switch {
 			case errors.Is(err, fleet.ErrConfigETagGateLoading):
-				// normal contention: bypass silently, as above
+				// normal contention: bypass silently, as above — but the
+				// build must be per-host correct (see scopesUnknown).
+				scopesUnknown = true
 			case err != nil:
 				svc.logConfigETagError(ctx, "config etag: label scope state unavailable; bypassing short circuit", err)
+				scopesUnknown = true
 			case scopes.PerHostMode(host.TeamID):
 				mode = configETagModeHost
 			default:
@@ -916,10 +930,12 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 	// Full build. In per-host mode the team-keyed pack cache is BYPASSED:
 	// its content is one host's label-filtered render served team-wide, so a
 	// per-host record derived from it could bind this host to another host's
-	// config — poisoning that no invalidation mechanism can see. Shared and
-	// bypass modes keep the pre-existing build path, in-memory caches and
-	// all.
-	config, usedLegacyPacks, err := svc.buildClientConfig(ctx, mode == configETagModeHost)
+	// config — poisoning that no invalidation mechanism can see. The bypass
+	// also applies when the label-scope state is unknown (scopesUnknown):
+	// the deployment may have label-scoped reports, so the cached render may
+	// be host-incorrect for this host. Shared mode and plain bypass keep the
+	// pre-existing build path, in-memory caches and all.
+	config, usedLegacyPacks, err := svc.buildClientConfig(ctx, mode == configETagModeHost || scopesUnknown)
 	if err != nil {
 		return nil, err
 	}

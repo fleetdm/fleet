@@ -642,8 +642,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.InfoContext(ctx, "osquery config ETag short circuit ENABLED: matching config check-ins are served 304 from Redis without building the config",
 			"component", "config-etag", "flag", "osquery.redis_config_etags")
 	} else {
-		logger.InfoContext(ctx, "osquery config ETag short circuit disabled (osquery.redis_config_etags is off); all config requests take the full-build path",
-			"component", "config-etag", "flag", "osquery.redis_config_etags")
+		// Neutral message: this branch is reached when the flag is off, but
+		// also when the store was not configured (Redis init failure path)
+		// or svc is nil — the fields say which.
+		logger.InfoContext(ctx, "osquery config ETag short circuit disabled; all config requests take the full-build path",
+			"component", "config-etag",
+			"flag_enabled", config.Osquery.RedisConfigETags,
+			"store_configured", configETagStore != nil)
 	}
 
 	// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
