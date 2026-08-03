@@ -491,11 +491,13 @@ const PolicyForm = ({
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
         {showOpenSchemaActionText && (
-          <Button variant="subdued" onClick={onOpenSchemaSidebar}>
-            <>
-              Schema
-              <Icon name="info" />
-            </>
+          <Button
+            variant="subdued"
+            onClick={onOpenSchemaSidebar}
+            icon="info"
+            iconPosition="right"
+          >
+            Schema
           </Button>
         )}
         {!policyIdForEdit && (
@@ -800,8 +802,10 @@ const PolicyForm = ({
                     disabledLiveQuery
                   }
                   variant="secondary"
+                  icon="run"
+                  iconPosition="right"
                 >
-                  Run policy <Icon name="run" />
+                  Run policy
                 </Button>
               </span>
             </TooltipWrapper>
