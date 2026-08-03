@@ -7541,22 +7541,32 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 		append([]fleet.MDMAppleDDMStatusDeclaration{}, statusReport.StatusItems.Management.Declarations.Configurations...),
 		statusReport.StatusItems.Management.Declarations.Management...,
 	)
+	// A configuration whose activation didn't activate reports
+	// Error.ActivationFailed, which looks like a failure but isn't one when the
+	// cause is a predicate that simply evaluated false. Apple reports that as
+	// Info.Predicate on the *activation*, so the two have to be correlated.
+	predicateByActivation := make(map[string]*fleet.MDMAppleDDMStatusErrorReason)
+	for _, a := range statusReport.StatusItems.Management.Declarations.Activations {
+		if reason := declarationReasonCode(a, fleet.MDMAppleDDMReasonPredicate); reason != nil {
+			predicateByActivation[a.Identifier] = reason
+		}
+	}
+
 	updates := make([]*fleet.MDMAppleHostDeclaration, len(configurationReports))
 	for i, r := range configurationReports {
 		var status fleet.MDMDeliveryStatus
 		var detail string
-		switch {
-		case declarationReasonCode(r, fleet.MDMAppleDDMReasonActivationFailed) != nil:
-			// The activation itself failed, predicate included. Treated like any
-			// other client-side failure.
+		switch activationFailed := declarationReasonCode(r, fleet.MDMAppleDDMReasonActivationFailed); {
+		case activationFailed != nil && predicateNotApplied(activationFailed, predicateByActivation) != nil:
+			// Not applied because the predicate excluded this host. Fleet
+			// delivered it correctly, so this is verified, not failed.
+			status = fleet.MDMDeliveryVerified
+			detail = fmtDDMPredicateNotApplied(predicateNotApplied(activationFailed, predicateByActivation))
+		case activationFailed != nil:
+			// The activation genuinely failed -- bad predicate syntax, or some
+			// other client-side error.
 			status = fleet.MDMDeliveryFailed
 			detail = apple_mdm.FmtDDMError(r.Reasons)
-		case declarationReasonCode(r, fleet.MDMAppleDDMReasonPredicate) != nil:
-			// The predicate evaluated false, so the device deliberately didn't
-			// apply the configuration. Fleet delivered it correctly, so this is
-			// verified rather than failed, with the reason surfaced in detail.
-			status = fleet.MDMDeliveryVerified
-			detail = fmtDDMPredicateNotApplied(declarationReasonCode(r, fleet.MDMAppleDDMReasonPredicate))
 		case r.Active && r.Valid == fleet.MDMAppleDeclarationValid:
 			status = fleet.MDMDeliveryVerified
 		case r.Valid == fleet.MDMAppleDeclarationInvalid || isUnknownDeclarationType(r):
@@ -7608,6 +7618,17 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 }
 
 // Checks the active, valid and first reason to verify if it is an unknown declaration type error
+// predicateNotApplied returns the activation's Info.Predicate reason when the
+// configuration's Error.ActivationFailed was caused by a predicate evaluating
+// false. Apple puts the activation's identifier in the failure's details.
+func predicateNotApplied(activationFailed *fleet.MDMAppleDDMStatusErrorReason, byActivation map[string]*fleet.MDMAppleDDMStatusErrorReason) *fleet.MDMAppleDDMStatusErrorReason {
+	id, _ := activationFailed.Details["Identifier"].(string)
+	if id == "" {
+		return nil
+	}
+	return byActivation[id]
+}
+
 func declarationReasonCode(r fleet.MDMAppleDDMStatusDeclaration, code string) *fleet.MDMAppleDDMStatusErrorReason {
 	for i := range r.Reasons {
 		if r.Reasons[i].Code == code {
