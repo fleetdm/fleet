@@ -241,6 +241,7 @@ import CriblEdge from "./CriblEdge";
 import Crisisgo from "./Crisisgo";
 import Crossover from "./Crossover";
 import Cryptomator from "./Cryptomator";
+import Crystaldiskmark from "./Crystaldiskmark";
 import Crystalfetch from "./Crystalfetch";
 import CubeBrowser from "./CubeBrowser";
 import Cursor from "./Cursor";
@@ -1394,6 +1395,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   crisisgo: Crisisgo,
   crossover: Crossover,
   cryptomator: Cryptomator,
+  crystaldiskmark: Crystaldiskmark,
   crystalfetch: Crystalfetch,
   "cube browser": CubeBrowser,
   cursor: Cursor,

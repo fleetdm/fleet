@@ -2088,6 +2088,13 @@
       "description": "Cryptomator is a multi-platform client-side cloud file encryption tool."
     },
     {
+      "name": "CrystalDiskMark",
+      "slug": "crystaldiskmark/windows",
+      "platform": "windows",
+      "unique_identifier": "CrystalDiskMark",
+      "description": "CrystalDiskMark is a disk benchmark tool that measures storage read and write speeds."
+    },
+    {
       "name": "Crystalfetch",
       "slug": "crystalfetch/darwin",
       "platform": "darwin",
