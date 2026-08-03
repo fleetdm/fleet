@@ -191,7 +191,7 @@ Log ""
 Log "-- 4. Service configuration (redacted) ------------------------"
 if ($SvcCim -and $SvcCim.PathName) {
   # Redact anything that looks like a secret/token/key/password in the service args
-  $Redacted = $SvcCim.PathName -replace '(?i)(--[\w-]*(secret|password|token|key)[\w-]*[= ]")[^"]*(")', '$1<redacted>$3'
+  $Redacted = $SvcCim.PathName -replace '(?i)(--[\w-]*(?:secret|password|token|key)[\w-]*[= ])(?:"[^"]*"|\S+)', '$1<redacted>'
   Log "    $Redacted"
 } else {
   Fail "Could not read service ImagePath/arguments"
