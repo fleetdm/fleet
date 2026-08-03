@@ -234,9 +234,7 @@ func (s Software) ToUniqueStr() string {
 // operation. Do not add a parallel SQL implementation of this calculation: a
 // SQL formula that drifts from this one (e.g. a different field order) silently
 // produces a different checksum for identical software, which orphans existing
-// rows and creates duplicate software entries. If a bulk recomputation is ever
-// needed, round-trip the rows through this function rather than re-encoding the
-// field list or order in SQL.
+// rows and creates duplicate software entries.
 func (s Software) ComputeRawChecksum() ([]byte, error) {
 	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.ExtensionFor, s.ExtensionID, s.Name}

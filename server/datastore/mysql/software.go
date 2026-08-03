@@ -3363,12 +3363,6 @@ func (g softwareChecksumDupGroup) software() fleet.Software {
 // the current ingestion path computes, so a second row gets inserted for the
 // same software, producing duplicate inventory entries (same name/version/source,
 // different checksum, split host counts).
-//
-// This is an on-demand migration: it never runs automatically, only when invoked
-// via `fleetctl trigger --name software_checksum_migration`. It runs to completion,
-// merging every duplicate group onto a single canonical row (the one whose stored
-// checksum equals ComputeRawChecksum). It is idempotent — re-running finds nothing
-// to do — so it is safe to trigger repeatedly.
 func (ds *Datastore) ReconcileSoftwareChecksums(ctx context.Context) error {
 	ds.logger.InfoContext(ctx, "software checksum migration starting")
 

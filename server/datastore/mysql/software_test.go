@@ -14352,3 +14352,73 @@ func TestReconcileSoftwareChecksumsThreeMembers(t *testing.T) {
 		`SELECT software_id FROM host_software_installed_paths WHERE host_id = ?`, host2.ID))
 	require.Equal(t, []uint{canonical.ID}, pathSoftwareIDs)
 }
+
+// TestReconcileSoftwareChecksumsGroupsByChecksumIdentity guards against drift
+// between the reconciliation GROUP BY and Software.ComputeRawChecksum. Every field
+// that feeds the checksum must also be part of the GROUP BY; if one is missing, two
+// genuinely-different software rows (distinct checksums) would be grouped together
+// and wrongly merged. For each such field, insert two rows that differ ONLY in that
+// field and confirm reconciliation leaves both intact.
+func TestReconcileSoftwareChecksumsGroupsByChecksumIdentity(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	appA, upgradeA := "app-a", "upgrade-a"
+	base := fleet.Software{
+		Version: "1.0", Source: "deb_packages", BundleIdentifier: "com.example",
+		Release: "1", Arch: "amd64", Vendor: "vendorA", ExtensionFor: "chrome",
+		ExtensionID: "extA", ApplicationID: &appA, UpgradeCode: &upgradeA,
+	}
+
+	// One mutator per identity field in ComputeRawChecksum; each changes exactly one.
+	cases := []struct {
+		field  string
+		mutate func(*fleet.Software)
+	}{
+		{"name", func(s *fleet.Software) { s.Name += "-variant" }},
+		{"version", func(s *fleet.Software) { s.Version = "2.0" }},
+		{"source", func(s *fleet.Software) { s.Source = "rpm_packages" }},
+		{"bundle_identifier", func(s *fleet.Software) { s.BundleIdentifier = "com.other" }},
+		{"release", func(s *fleet.Software) { s.Release = "2" }},
+		{"arch", func(s *fleet.Software) { s.Arch = "arm64" }},
+		{"vendor", func(s *fleet.Software) { s.Vendor = "vendorB" }},
+		{"extension_for", func(s *fleet.Software) { s.ExtensionFor = "firefox" }},
+		{"extension_id", func(s *fleet.Software) { s.ExtensionID = "extB" }},
+		{"application_id", func(s *fleet.Software) { v := "app-b"; s.ApplicationID = &v }},
+		{"upgrade_code", func(s *fleet.Software) { v := "upgrade-b"; s.UpgradeCode = &v }},
+	}
+
+	insert := func(t *testing.T, sw fleet.Software, tag string) int64 {
+		cksum := md5.Sum([]byte(tag)) //nolint:gosec // arbitrary distinct checksum
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO software (name, version, source, bundle_identifier, `release`, arch, vendor, extension_for, extension_id, application_id, upgrade_code, checksum) "+
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor,
+			sw.ExtensionFor, sw.ExtensionID, sw.ApplicationID, sw.UpgradeCode, cksum[:])
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		return id
+	}
+
+	for _, c := range cases {
+		t.Run(c.field, func(t *testing.T) {
+			b := base
+			b.Name = "grpident-" + c.field // unique per case so cases don't group together
+			variant := b
+			c.mutate(&variant)
+
+			idA := insert(t, b, "a-"+c.field)
+			idB := insert(t, variant, "b-"+c.field)
+
+			require.NoError(t, ds.ReconcileSoftwareChecksums(ctx))
+
+			var count int
+			require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+				`SELECT COUNT(*) FROM software WHERE id IN (?, ?)`, idA, idB))
+			require.Equalf(t, 2, count,
+				"rows differing only in %q were merged; is %q missing from the reconciliation GROUP BY (it must match ComputeRawChecksum)?",
+				c.field, c.field)
+		})
+	}
+}

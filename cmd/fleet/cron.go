@@ -2317,10 +2317,7 @@ func cronUpgradeCodeSoftwareMigration(
 // field-ordering change in Fleet v4.76.0.
 //
 // It never runs on a schedule: it runs only when invoked with
-// `fleetctl trigger --name software_checksum_migration`. The effectively-never
-// interval ensures the scheduler never fires an automatic run, and omitting
-// WithRunOnce keeps the schedule's goroutine alive so it stays triggerable (a
-// run-once schedule stops accepting triggers once it has completed).
+// `fleetctl trigger --name software_checksum_migration`.
 func cronSoftwareChecksumMigration(
 	ctx context.Context,
 	instanceID string,
@@ -2328,8 +2325,7 @@ func cronSoftwareChecksumMigration(
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
-		name = string(fleet.CronSoftwareChecksumMigration)
-		// Effectively "never": this schedule only runs when triggered on demand.
+		name               = string(fleet.CronSoftwareChecksumMigration)
 		manualOnlyInterval = 100 * 365 * 24 * time.Hour
 	)
 	logger = logger.With("cron", name, "component", name)
