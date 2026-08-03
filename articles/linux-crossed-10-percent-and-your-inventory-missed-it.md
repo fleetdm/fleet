@@ -5,7 +5,7 @@
 ## Key takeaways
 
 - **Linux hit 10.65% of North American desktop traffic, and the jump was a counting fix.** Statcounter's regional number went double-digit for the first time in July 2026, up from 5.52% in June. An "Unknown" bucket worth 9.24% of June traffic shrank as those systems were finally identified correctly.
-- **Independent sources disagree on the level and agree on the trend.** Cloudflare Radar puts Linux at 6.3% of North American desktop requests over the trailing year, well under Statcounter's figure, but both registered a step change in the same weeks. Linux is genuinely hard to count from the outside.
+- **A second, independent source lands within a point of the first.** Cloudflare Radar puts Linux at 9.72% of North American desktop requests in July, against Statcounter's 10.65%. Cloudflare was already measuring 7.22% in June, when Statcounter still said 5.52%.
 - **Your asset inventory has the same bug.** Tools that discover devices through Windows and Apple management channels file Linux hosts under "other" or miss them entirely, so the fleet you report on is smaller than the fleet you own.
 - **Unmanaged Linux is not low-risk Linux.** These are developer and engineer workstations holding source code, cloud credentials, and production access, and they run unpatched packages and unencrypted disks like anything else.
 - **Linux needs real management, not an inventory row.** Fleet does software installs, LUKS2 encryption enforcement with escrowed recovery keys, vulnerability detection against installed packages and kernels, remote script execution, and remote lock and wipe on Linux.
@@ -25,18 +25,20 @@ That does not make the 10.65% fake. It makes it a correction. Those machines wer
 
 Real growth is underneath the correction, and it's well documented: Windows 10 reaching end of life, Valve's Proton making Linux gaming credible, hardware vendors shipping Linux preinstalled, and developers who were already living in a Linux terminal deciding to stop dual-booting. But the headline number moved because the measurement improved, and that distinction is the whole story for IT.
 
-## Two measurements, two answers, same direction
+## A second source says the same thing
 
-Statcounter samples page views across roughly a million websites. Cloudflare measures HTTP requests across its own global network. They are different populations, different methods, and they do not agree on the number.
+Statcounter samples page views across roughly a million websites. Cloudflare measures HTTP requests across its own global network. Different populations, different methods, no shared plumbing. If the July number were an artifact of one vendor's parser, the other would not see it.
 
-![Cloudflare Radar chart of desktop HTTP requests by operating system in North America over the last 12 months, showing Windows at 64%, macOS at 27%, and Linux at 6.3%](../website/assets/images/articles/linux-desktop-share-cloudflare-radar-1600x1236@2x.png)
+![Cloudflare Radar chart of desktop HTTP requests by operating system in North America over the last 12 months, showing the Linux band widening in the final weeks](../website/assets/images/articles/linux-desktop-share-cloudflare-radar-1600x1236@2x.png)
 *Desktop HTTP requests by operating system, North America, trailing 12 months. Source: [Cloudflare Radar](https://radar.cloudflare.com), captured August 3, 2026.*
 
-Cloudflare puts Linux at 6.3% of North American desktop requests across the trailing year, against Statcounter's 10.65% for July alone. That's a wide spread. What's notable is the shape rather than the level: the orange Linux band holds a narrow, steady share for ten months, then visibly widens starting in late June, right as Windows and macOS give up ground. Two independent measurement systems registered a step change at the same moment.
+Query Cloudflare for the same region, the same device type, and the same month, and Linux comes in at 9.72% of North American desktop requests for July 2026. Statcounter says 10.65%. Two unrelated measurement systems, less than a percentage point apart.
 
-Both things can be true. Linux desktop use is growing, and neither platform can tell you precisely how much, because a Linux desktop is harder to identify from the outside than a Mac or a PC. There is no enrollment record, no consistent vendor fingerprint, and a user agent string that a privacy-minded engineer may well have changed on purpose.
+The June comparison is the more interesting one. Cloudflare had Linux at 7.22% in June, while Statcounter was still reporting 5.52%. Statcounter was the low outlier, and its July correction mostly closed the gap with a number Cloudflare had already been publishing. Underneath both, there is real growth: Cloudflare's own month-over-month move, from 7.22% to 9.72%, is a genuine rise rather than a reclassification.
 
-Hold that thought, because it's the same reason your own numbers are wrong.
+One caveat worth naming, since it's the mistake that's easy to make with this chart. The 6.3% printed at the bottom is a trailing-12-month average, so it folds in ten months of pre-jump data and understates where Linux sits today. Pick the wrong window and you undercount by a third.
+
+That's the pattern to hold onto. Linux is harder to identify from the outside than a Mac or a PC. There's no enrollment record, no consistent vendor fingerprint, and a user agent string a privacy-minded engineer may well have changed on purpose. Every measurement of it is a floor, not a ceiling, and the same is true inside your own walls.
 
 ## The same blind spot lives in your asset inventory
 
@@ -44,7 +46,7 @@ Ask an IT director how many Linux desktops their organization has. You will usua
 
 That's not carelessness. It's an artifact of how most fleets get counted. Discovery flows through the channels that exist: Apple's device enrollment, Windows domain join and Intune, an EDR agent that ships a Linux build as a checkbox feature. Each of those does an excellent job of finding the platform it was built for. A Fedora workstation that a staff engineer imaged themselves has no enrollment record to inherit, no directory object anyone reconciles, and often no agent. It shows up as an unfamiliar MAC address on the network, or as nothing at all.
 
-So the organization ends up with two Linux populations. The one on the spreadsheet, and the real one. Statcounter published a correction in July. Most IT teams have not run theirs.
+So the organization ends up with two Linux populations. The one on the spreadsheet, and the real one. Statcounter published its correction in July. Most IT teams have not run theirs.
 
 The first useful move here is not procurement. It's counting. Pull DHCP leases, SSO device signals, VPN logs, and your network access control data, and reconcile them against your managed-device list. The gap is your Linux estate.
 
@@ -83,7 +85,7 @@ That's the part worth internalizing. The reason Linux gets skipped is rarely tha
 
 ## Count first
 
-Statcounter's July number will get argued about, and it should be. The honest read is that Linux desktop share in North America is real, growing, and was underreported until the measurement caught up.
+Statcounter's July number will get argued about, and it should be. The honest read is that two independent sources now put Linux desktop share in North America near 10%, that it was underreported before the measurement caught up, and that it is still rising.
 
 Your fleet is in the same position. The Linux hosts are already there, already holding your most sensitive credentials, and already invisible to the reports you show your auditors. The market took one month to correct its count. You can do yours this week, and then decide what to do about what you find.
 
@@ -96,7 +98,7 @@ Your fleet is in the same position. The Linux hosts are already there, already h
 ## Sources
 
 - Statcounter desktop OS market share for North America, July 2026, as reported by [Linuxiac](https://linuxiac.com/linux-desktop-market-share-surpasses-10-in-north-america/). Underlying data: [Statcounter GlobalStats](https://gs.statcounter.com/os-market-share/desktop/north-america).
-- Desktop HTTP requests by operating system, North America: [Cloudflare Radar](https://radar.cloudflare.com), captured August 3, 2026.
+- Desktop HTTP requests by operating system, North America, filtered to desktop device type: [Cloudflare Radar Data Explorer](https://radar.cloudflare.com/explorer), captured August 3, 2026. July 2026: Windows 61.45%, macOS 27.58%, Linux 9.72%, ChromeOS 1.25%. June 2026: Windows 63.75%, macOS 27.31%, Linux 7.22%, ChromeOS 1.72%.
 
 ---
 
