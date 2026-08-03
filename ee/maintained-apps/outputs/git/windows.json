@@ -3,8 +3,8 @@
     {
       "version": "2.55.0.3",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Git %' AND publisher = 'The Git Development Community';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Git %' AND publisher = 'The Git Development Community' AND version_compare(version, '2.55.0.3') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Git%' AND publisher = 'The Git Development Community';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Git%' AND publisher = 'The Git Development Community' AND version_compare(version, '2.55.0.3') < 0);"
       },
       "installer_url": "https://github.com/git-for-windows/git/releases/download/v2.55.0.windows.3/Git-2.55.0.3-64-bit.exe",
       "install_script_ref": "64df8252",

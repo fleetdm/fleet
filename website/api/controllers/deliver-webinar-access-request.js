@@ -40,7 +40,7 @@ module.exports = {
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
-        contactSource: 'Webinar',
+        contactSource: 'Website - Gated video',
         description: `Submitted a form to watch the ${webinarName} webinar.`,
         marketingAttributionCookie: attributionCookieOrUndefined
       }).intercept((err)=>{

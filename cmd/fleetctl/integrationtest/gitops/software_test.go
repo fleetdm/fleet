@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/fleetctltest"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -1607,4 +1608,73 @@ func TestGitOpsTeamInHouseAppleConfiguration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGitOpsSoftwareDownloadProgress(t *testing.T) {
+	testing_utils.StartSoftwareInstallerServer(t)
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
+	t.Cleanup(func() { dev_mode.ClearOverride("FLEET_DEV_BATCH_RETRY_INTERVAL") })
+
+	file := "../../fleetctl/testdata/gitops/team_software_installer_valid.yml"
+
+	// The batch needs these to get as far as downloading; the harness doesn't set them.
+	setupSoftwareMocks := func(t *testing.T) map[string]**fleet.Team {
+		ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+		ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+			return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
+		}
+		ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+			return nil, nil
+		}
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+			return map[string]uint{}, nil
+		}
+		return savedTeams
+	}
+
+	t.Run("a package Fleet downloads reports its progress", func(t *testing.T) {
+		setupSoftwareMocks(t)
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", file})
+		require.NoError(t, err)
+		require.Contains(t, out.String(), "[+] applying 2 software packages for fleet "+teamName+"\n")
+		require.Contains(t, out.String(), "[+] downloading software package - ruby.deb ...\n")
+		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
+		require.Contains(t, out.String(), "[+] applied 2 software packages for fleet "+teamName+"\n")
+	})
+
+	t.Run("a dry run for an existing fleet reports the same progress", func(t *testing.T) {
+		// A dry run for a fleet that doesn't exist yet never starts a batch, so there is
+		// nothing to download and nothing to report.
+		savedTeams := setupSoftwareMocks(t)
+		team := &fleet.Team{ID: 1, Name: teamName}
+		savedTeams[teamName] = &team
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "--dry-run", "-f", file})
+		require.NoError(t, err)
+		require.Contains(t, out.String(), "[+] downloading software package - ruby.deb ...\n")
+		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
+		require.Contains(t, out.String(), "[+] would've applied 2 software packages for fleet "+teamName+"\n")
+	})
+
+	t.Run("a script package stays out of the progress, since nothing is downloaded for it", func(t *testing.T) {
+		setupSoftwareMocks(t)
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_script_package.yml"})
+		require.NoError(t, err)
+		// The counts prove the script package was in the batch, not just missing from it.
+		require.Contains(t, out.String(), "[+] applying 2 software packages for fleet "+teamName+"\n")
+		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
+		require.NotContains(t, out.String(), "install_ruby.sh")
+		require.Contains(t, out.String(), "[+] applied 2 software packages for fleet "+teamName+"\n")
+	})
+
+	t.Run("a package Fleet can't download reports the failure", func(t *testing.T) {
+		setupSoftwareMocks(t)
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_installer_not_found.yml"})
+		require.Error(t, err)
+		require.Contains(t, out.String(), "Error: could not download software package notfound.deb\n")
+		require.NotContains(t, out.String(), "[+] downloaded software package - notfound.deb")
+	})
 }

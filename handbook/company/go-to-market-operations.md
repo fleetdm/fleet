@@ -87,6 +87,16 @@ Any GTM tool, automation, or functionality that someone wants to explore using i
 To request approval for a new GTM tool/functionality, [create a GitHub issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&template=1-custom-request.md&labels=%3Ahelp-gtm-ops) and include a user story describing the goal of the added tool/automation.
 
 
+## GTM ops SLAs
+
+| Request type | Priority | Intake | DRI | Escalation path | SLA |
+|:---|:---|:---|:---|:---|:---|
+| Revenue/pipeline blocking error (e.g. error trying to generate a quote for a customer or prospect) | BUG - P0 | #help-gtm-ops | Sam | Sam => UTTR | 1 business hour |
+| Large GTM system changes (requires changes in 2+ systems, e.g. territory change request === Salesforce + website + Calendly) | TOP | #help-gtm-ops | Sam | Sam | 10 business days |
+| Changes to functionality in 1 system (changes to functionality that would require a user story, e.g. new closed-lost reasons) | TOP | #help-gtm-ops | Sam | Sam => UTTR | 2 business days |
+| Adhoc enrichment/import/data correction | TOP | #help-gtm-ops | Sam | Sam => Eric => UTTR | 1 business day |
+
+
 ## GTM strategy
 
 At Fleet, our GTM strategy consists of:

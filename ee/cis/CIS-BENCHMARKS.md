@@ -197,6 +197,7 @@ currently in use by macOS CIS policies.
 
 | Table | Key columns | Required constraints | Notes |
 |-------|-------------|----------------------|-------|
+| `apfs_volumes` | `role`, `filevault`, `encryption`, `device_identifier`, `name`, `container_designated_physical_store` | — | Populated from `diskutil apfs list -plist`. Has **no internal/external indicator**, so queries evaluate all non-role volumes (exclude `role` in VM/Update/Recovery/Preboot/xART/Hardware). Used by 5.3.1. Adding an internal/external column is tracked separately. |
 | `authdb` | `right_name`, `json_result` | `right_name` must be equality-constrained | `json_result` is a JSON blob — use `json_extract(json_result, '$.rule')` to inspect rules. |
 | `csrutil_info` | `ssv_enabled` | — | Integer 0/1. |
 | `dscl` | `command`, `path`, `key`, `value` | `command`, `path`, `key` required; `value` is output only; currently only `command = 'read'` supported | Reads Directory Service records. |
@@ -218,6 +219,12 @@ empty results and the query silently fails (0 rows). Ensure a
 non-root console user is logged in before evaluating any policy
 that depends on these tables. Current affected policies:
 `5.2.1`, `5.2.2`, `5.2.7`, `5.2.8`, `2.12.1`, `2.6.1.1`.
+
+`2.7.1` also requires a logged-in non-root console user, by a
+different mechanism: its query is scoped to the *current* console
+user's Dock plist via `logged_in_users` (`tty = 'console'`), so with
+no console user the fail case cannot be exercised (the query
+trivially passes).
 
 ## Test artifacts
 

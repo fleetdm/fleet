@@ -59,12 +59,12 @@ type Datastore interface {
 	// like uptime.
 	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 
-	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
-	// cves set. nil or empty cves returns an empty map. Unresolved-only is
-	// implicit in the underlying joins: a host's software/OS row transitions
-	// when it upgrades past the vulnerable version, so the join naturally
-	// stops matching.
-	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
+	// AffectedHostIDsByCVE returns a bitmap of affected host IDs per CVE,
+	// scoped to the given cves set. nil or empty cves returns an empty map.
+	// Unresolved-only is implicit in the underlying joins: a host's software/OS
+	// row transitions when it upgrades past the vulnerable version, so the join
+	// naturally stops matching.
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string]*roaring.Bitmap, error)
 
 	// CollectibleCVEs returns every CVE ID, at all severities, on the curated
 	// set of tracked software (trackedCVESoftwareMatchers) unioned with all

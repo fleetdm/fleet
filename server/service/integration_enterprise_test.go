@@ -14433,7 +14433,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
 	message := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.NotEmpty(t, message)
-	require.Contains(t, message, fmt.Sprintf("validation failed: software.url Couldn't edit software. URL (\"%s/not_found.pkg\") returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", srv.URL))
+	expectedNotFoundMessage := fmt.Sprintf("validation failed: software.url URL (\"%s/not_found.pkg\") returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", srv.URL)
+	require.Contains(t, message, expectedNotFoundMessage)
 
 	// do a request with a valid URL
 	rubyURL := srv.URL + "/ruby.deb"
@@ -33071,9 +33072,9 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}}))
 
 	// Orbit client capabilities — Linux and Windows orbit builds advertise
-	// CapabilityEndUserAuth. Without this header the EnrollOrbit handler
-	// short-circuits past the EUA gating (with a logged warning) and the bug
-	// would not be exercised.
+	// CapabilityEndUserAuth. The X-Fleet-Capabilities header is an
+	// informational hint only: EUA gating must hold regardless of what
+	// the client advertises.
 	var caps fleet.CapabilityMap
 	caps.PopulateFromString(string(fleet.CapabilityEndUserAuth))
 	capsHeaders := map[string]string{fleet.CapabilitiesHeader: caps.String()}
@@ -34919,6 +34920,79 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageFleetVariables() {
 	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titleID, true)
 	require.NoError(t, err)
 	require.Equal(t, updatedContents, meta.InstallScript)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareBatchDownloadProgressManyPackages() {
+	t := s.T()
+	teamName := "software-batch-download-progress"
+	const packageCount = 100
+
+	// One installer served under many names, instead of building an archive per package.
+	installer, err := os.ReadFile(filepath.Join("testdata", "software-installers", "test.tar.gz"))
+	require.NoError(t, err)
+	payloads := make([]*fleet.SoftwareInstallerPayload, 0, packageCount)
+	names := make([]string, 0, packageCount)
+
+	// Serves an ETag and honors If-None-Match, so a second apply revalidates.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		etag := fmt.Sprintf("%q", name)
+		w.Header().Set("ETag", etag)
+		if r.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = w.Write(installer)
+	}))
+	t.Cleanup(srv.Close)
+
+	for i := 1; i <= packageCount; i++ {
+		name := fmt.Sprintf("tarball-package-%03d.tar.gz", i)
+		names = append(names, name)
+		payloads = append(payloads, &fleet.SoftwareInstallerPayload{
+			URL:             srv.URL + "/" + name,
+			InstallScript:   "echo installing",
+			UninstallScript: "echo uninstalling",
+		})
+	}
+
+	_, err = s.ds.NewTeam(t.Context(), &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: payloads},
+		http.StatusAccepted, &batchResponse, "fleet_name", teamName)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResponse.RequestUUID)
+	require.Len(t, packages, packageCount)
+
+	var batchResult batchSetSoftwareInstallersResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/batch/"+batchResponse.RequestUUID, nil, http.StatusOK,
+		&batchResult, "fleet_name", teamName)
+
+	// Every package reports on its own place in the payload, and none is left mid-download.
+	require.Len(t, batchResult.DownloadProgress, packageCount)
+	for i, progress := range batchResult.DownloadProgress {
+		require.Equal(t, names[i], progress.Name, "package at index %d", i)
+		require.Equal(t, fleet.SoftwarePackageDownloadFinished, progress.Status, "package at index %d", i)
+	}
+
+	// The same packages again: every conditional request gets a 304, so nothing transfers.
+	batchResponse = batchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: payloads},
+		http.StatusAccepted, &batchResponse, "fleet_name", teamName)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResponse.RequestUUID)
+
+	batchResult = batchSetSoftwareInstallersResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/batch/"+batchResponse.RequestUUID, nil, http.StatusOK,
+		&batchResult, "fleet_name", teamName)
+
+	require.Len(t, batchResult.DownloadProgress, packageCount)
+	for i, progress := range batchResult.DownloadProgress {
+		require.Equal(t, names[i], progress.Name, "package at index %d", i)
+		require.Equal(t, fleet.SoftwarePackageDownloadSkipped, progress.Status, "package at index %d", i)
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuildSameVersion() {

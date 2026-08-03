@@ -60,7 +60,7 @@ module.exports = {
         'Website - Sign up',
         'Website - Swag request',
         'Website - Gated document',
-        'Webinar',
+        'Website - Gated video',
       ],
     },
     getStartedResponses: {
