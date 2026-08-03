@@ -38,14 +38,18 @@ $null = $process.Handle
 
 $killed = $false
 if (-not $process.WaitForExit($installTimeoutSeconds * 1000)) {
+  # Stop the bootstrapper only. A child msiexec may still be mid-transaction, and
+  # killing that would leave a half-installed product; letting it finish gives the
+  # registration poll below a chance to confirm the install either way.
   Write-Host "Installer process did not exit within ${installTimeoutSeconds}s, stopping it."
   Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
   $null = $process.WaitForExit(30 * 1000)
   $killed = $true
 }
 
+# A killed process's code says nothing about the install, so leave it unset.
 $exitCode = $null
-if ($process.HasExited) {
+if (-not $killed -and $process.HasExited) {
   $exitCode = $process.ExitCode
   Write-Host "Install exit code: $exitCode"
 }
@@ -61,17 +65,21 @@ while (-not (Get-AccessDatabaseEngineEntry) -and ($elapsed -lt $registrationTime
 $entry = Get-AccessDatabaseEngineEntry
 if (-not $entry) {
   Write-Host "The Access Database Engine did not register in Add/Remove Programs."
+  # Surface the installer's own failure code when it reported one.
+  if ($null -ne $exitCode -and $exitCode -ne 0) { Exit $exitCode }
   Exit 1
 }
 Write-Host "Registered '$($entry.DisplayName)' by '$($entry.Publisher)', version $($entry.DisplayVersion)."
 
-# Registration above is the success signal; a killed process's code means nothing.
-if ($killed -or $null -eq $exitCode) { Exit 0 }
+# Registration is the success signal, and it is the same entry Fleet's detection
+# query reads. A non-zero code after a confirmed registration (3010 and 1641 are
+# reboot-required successes; 1638 means the engine is already present) is logged
+# rather than reported as a failed install.
+if ($null -ne $exitCode -and @(0, 3010, 1641) -notcontains $exitCode) {
+  Write-Host "Installer returned $exitCode but the product is registered; treating the install as successful."
+}
 
-# 3010 (reboot required) and 1641 (reboot initiated) are successful installs.
-if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }
-
-Exit $exitCode
+Exit 0
 
 } catch {
   Write-Host "Error: $_"
