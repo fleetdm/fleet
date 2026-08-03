@@ -256,6 +256,8 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
             finish(.loadFailed, "Page did not load: \(detail)")
         case .httpError(let status):
             finish(.httpError, "Page returned HTTP \(status).")
+        case .contentError(let detail):
+            finish(.httpError, detail)
         case .noDisplay:
             finish(.noDisplay, "No display is attached.")
         }

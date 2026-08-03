@@ -19,6 +19,10 @@ enum ToastOutcome {
     /// The page returned an HTTP error status on the main frame. Nothing was shown.
     case httpError(Int)
 
+    /// The page loaded with HTTP 200 but rendered Fleet's error copy, which is what an
+    /// expired device token looks like. Nothing was shown.
+    case contentError(String)
+
     /// No display is attached, so there is nothing to draw on. Nothing was shown.
     case noDisplay
 }
@@ -57,14 +61,59 @@ final class ToastWindow: NSObject {
     /// Last resort, in case a wedged WebKit means neither timeout above fires.
     static let watchdogLimit: TimeInterval = loadTimeout + displayTimeout + 5
 
-    /// Bounds for a page-requested resize, so a bad `height` can't produce a window
-    /// taller than the screen or too small to read.
-    private static let heightBounds: ClosedRange<CGFloat> = 200...700
+    /// Smallest card worth showing. The maximum is the screen's working height less
+    /// margins, computed per-screen in `clampHeight(_:on:)`.
+    private static let minHeight: CGFloat = 200
 
     // MARK: - Bridge
 
     /// Message handler name the page posts to.
     static let bridgeChannel = "fleetDesktop"
+
+    /// Classifies the loaded document as empty, an error page, or usable.
+    ///
+    /// The error test mirrors `BrowserWindow.checkPageForErrors`: Fleet returns HTTP 200
+    /// with error copy when a device token expires, so there is no status code to key
+    /// off. Two phrases must match, which is what keeps legitimate page content from
+    /// tripping it. Being copy-based it is inherently brittle — the durable fix is for
+    /// the page to post an `error` action over the bridge, which is also handled.
+    private static let contentProbe = """
+        (function () {
+          if (!document.body || document.body.children.length === 0) { return "empty"; }
+          var text = document.body.innerText || "";
+          var hits = 0;
+          if (text.indexOf("Something went wrong") !== -1) { hits++; }
+          if (text.indexOf("Error loading software") !== -1) { hits++; }
+          if (text.indexOf("Please contact your IT admin") !== -1) { hits++; }
+          return hits >= 2 ? "error" : "ok";
+        })();
+        """
+
+    /// Reports the document's content height whenever it changes.
+    ///
+    /// Requires the page to let content determine its height: a page that sets
+    /// `html, body { height: 100% }` always measures exactly the current viewport, so
+    /// it can never grow. `scrollHeight` on the body is what a normal document flow
+    /// reports.
+    private static let autoSizeScript = """
+        (function () {
+          var last = 0;
+          function report() {
+            if (!document.body) { return; }
+            var height = Math.ceil(document.body.scrollHeight);
+            if (!height || Math.abs(height - last) < 2) { return; }
+            last = height;
+            window.webkit.messageHandlers.\(bridgeChannel).postMessage({
+              v: 1, action: "resize", payload: { height: height }
+            });
+          }
+          if (window.ResizeObserver && document.body) {
+            new ResizeObserver(report).observe(document.body);
+          }
+          window.addEventListener("load", report);
+          report();
+        })();
+        """
 
     // MARK: - State
 
@@ -133,6 +182,15 @@ final class ToastWindow: NSObject {
         configuration.websiteDataStore = .nonPersistent()
         let contentController = WKUserContentController()
         configuration.userContentController = contentController
+        // Auto-size to content, so a page listing an arbitrary number of items isn't
+        // clipped. Injected rather than left to the page, so it works without the page
+        // implementing anything. The page can still post `resize` itself.
+        contentController.addUserScript(
+            WKUserScript(
+                source: Self.autoSizeScript,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true
+            ))
 
         webView = WKWebView(frame: NSRect(origin: .zero, size: Self.cardSize), configuration: configuration)
         // Let the card's fill show through instead of the webview's opaque backdrop,
@@ -319,11 +377,15 @@ final class ToastWindow: NSObject {
 
     // MARK: - Resizing
 
-    /// Applies a page-requested height, keeping the toast anchored.
+    /// Applies a requested content height, keeping the toast anchored bottom-right.
     private func resize(toHeight requested: CGFloat) {
-        let height = min(max(requested, Self.heightBounds.lowerBound), Self.heightBounds.upperBound)
+        let screen = panel.screen ?? NSScreen.main
+        let height = clampHeight(requested, on: screen)
+        // The observer fires again after we resize the webview, so ignoring an unchanged
+        // height is what stops that becoming a feedback loop.
         guard abs(height - cardSize.height) > 0.5 else { return }
 
+        logger.debug("resizing card to \(Int(height))pt (requested \(Int(requested)))")
         cardSize = NSSize(width: cardSize.width, height: height)
 
         let pad = Self.shadowPadding
@@ -333,8 +395,16 @@ final class ToastWindow: NSObject {
         webView.frame = NSRect(origin: .zero, size: cardSize)
         root.cardRect = cardRect
 
-        guard let screen = panel.screen ?? NSScreen.main else { return }
+        guard let screen = screen else { return }
         panel.setFrame(frame(on: screen), display: true)
+    }
+
+    /// Never taller than the screen's working area less margins, never smaller than
+    /// `minHeight`.
+    private func clampHeight(_ requested: CGFloat, on screen: NSScreen?) -> CGFloat {
+        let available = (screen?.visibleFrame.height ?? Self.minHeight) - 2 * Self.margin
+        let maxHeight = max(Self.minHeight, available)
+        return min(max(requested, Self.minHeight), maxHeight)
     }
 
 }
@@ -374,6 +444,9 @@ extension ToastWindow: WKScriptMessageHandler {
             fadeOutAndFinish(.primaryAction(id: payload?["id"] as? String))
         case "dismiss":
             fadeOutAndFinish(.dismissed(reason: payload?["reason"] as? String))
+        case "error":
+            let detail = payload?["message"] as? String ?? "The page reported an error."
+            finish(.contentError(detail))
         case "resize":
             if let height = payload?["height"] as? Double {
                 resize(toHeight: CGFloat(height))
@@ -404,16 +477,22 @@ extension ToastWindow: WKNavigationDelegate, WKUIDelegate {
         guard !hasPainted else { return }
         logger.debug("navigation finished; checking the document has content")
 
-        // didFinish is not proof there is content: WebKit reports some refusals as
-        // successful navigations to an empty document, and an empty 200 looks the same.
-        // Either would put a blank card on screen and report it as displayed.
-        webView.evaluateJavaScript("document.body ? document.body.children.length : 0") { [weak self] result, _ in
+        // didFinish is not proof there is anything worth showing. WebKit reports some
+        // refusals as successful navigations to an empty document, an empty 200 looks the
+        // same, and Fleet serves 200 with error copy when the device token has expired.
+        // All three would otherwise be reported as displayed.
+        webView.evaluateJavaScript(Self.contentProbe) { [weak self] result, _ in
             guard let self = self, !self.hasPainted, !self.didFinish else { return }
 
-            let children = (result as? Int) ?? 0
-            guard children > 0 else {
+            switch result as? String {
+            case "empty":
                 self.finish(.loadFailed("Page loaded but rendered no content."))
                 return
+            case "error":
+                self.finish(.contentError("Page reported an error; the device token may have expired."))
+                return
+            default:
+                break
             }
 
             self.logger.debug("document has content; waiting up to 1.5s for a ready message")
@@ -470,7 +549,7 @@ extension ToastWindow: WKNavigationDelegate, WKUIDelegate {
             return
         }
 
-        if isSameOrigin(url) {
+        if isSameOrigin(url) || url.absoluteString == "about:blank" {
             decisionHandler(.allow)
             return
         }
