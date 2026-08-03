@@ -657,6 +657,37 @@ func TestFleetVarRenewalIDRegexp(t *testing.T) {
 	}
 }
 
+func TestMDMPlatformSupport(t *testing.T) {
+	cases := []struct {
+		hostPlatform        string
+		wantClassicPlatform string
+		wantTurnedOn        bool
+	}{
+		{"darwin", "darwin", true},
+		{"ios", "darwin", true},
+		{"ipados", "darwin", true},
+		{"windows", "windows", true},
+		// Android hosts can have MDM turned on, but they don't take part in the
+		// classic MDM command pipeline.
+		{"android", "", true},
+		// "linux" isn't a hosts.platform value, but it is what
+		// Host.FleetPlatform collapses the distros to.
+		{"linux", "", false},
+		{"ubuntu", "", false},
+		{"rhel", "", false},
+		{"chrome", "", false},
+		{"", "", false},
+		{"unknown", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.hostPlatform, func(t *testing.T) {
+			require.Equal(t, tc.wantClassicPlatform, fleet.ClassicMDMPlatform(tc.hostPlatform))
+			require.Equal(t, tc.wantClassicPlatform != "", fleet.ClassicMDMSupported(tc.hostPlatform))
+			require.Equal(t, tc.wantTurnedOn, fleet.MDMTurnedOnSupported(tc.hostPlatform))
+		})
+	}
+}
+
 func TestFilterMacOSOnlyProfilesFromIOSIPadOS(t *testing.T) {
 	for _, tc := range []struct {
 		profiles         []*fleet.MDMAppleProfilePayload

@@ -29,7 +29,7 @@ const BackButton = ({
 
   return (
     <Button variant="subdued" onClick={onClick} className={classes}>
-      <Icon name="chevron-left" color="ui-fleet-black-50" />
+      <Icon name="chevron-left" />
       <span>{text}</span>
     </Button>
   );

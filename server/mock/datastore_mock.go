@@ -1650,7 +1650,7 @@ type SetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint, 
 
 type DeletePinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) error
 
-type HasFMAInstallerVersionFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)
+type HasFMAInstallerVersionFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
 
 type GetCachedFMAInstallerMetadataFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error)
 
@@ -1842,7 +1842,11 @@ type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp)
 
 type ReconcileMaintainedAppSoftwareNamesFunc func(ctx context.Context) error
 
+type ReconcileWindowsMaintainedAppSoftwareTitlesFunc func(ctx context.Context) error
+
 type GetFMANamesByIdentifierFunc func(ctx context.Context) (map[string]string, error)
+
+type GetWindowsFMAMatchesFunc func(ctx context.Context) ([]fleet.MaintainedApp, error)
 
 type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error
 
@@ -4976,8 +4980,14 @@ type DataStore struct {
 	ReconcileMaintainedAppSoftwareNamesFunc        ReconcileMaintainedAppSoftwareNamesFunc
 	ReconcileMaintainedAppSoftwareNamesFuncInvoked bool
 
+	ReconcileWindowsMaintainedAppSoftwareTitlesFunc        ReconcileWindowsMaintainedAppSoftwareTitlesFunc
+	ReconcileWindowsMaintainedAppSoftwareTitlesFuncInvoked bool
+
 	GetFMANamesByIdentifierFunc        GetFMANamesByIdentifierFunc
 	GetFMANamesByIdentifierFuncInvoked bool
+
+	GetWindowsFMAMatchesFunc        GetWindowsFMAMatchesFunc
+	GetWindowsFMAMatchesFuncInvoked bool
 
 	BulkUpsertMDMManagedCertificatesFunc        BulkUpsertMDMManagedCertificatesFunc
 	BulkUpsertMDMManagedCertificatesFuncInvoked bool
@@ -11279,7 +11289,7 @@ func (s *DataStore) DeletePinnedVersion(ctx context.Context, teamID *uint, title
 	return s.DeletePinnedVersionFunc(ctx, teamID, titleID)
 }
 
-func (s *DataStore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
+func (s *DataStore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error) {
 	s.mu.Lock()
 	s.HasFMAInstallerVersionFuncInvoked = true
 	s.mu.Unlock()
@@ -11951,11 +11961,25 @@ func (s *DataStore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) err
 	return s.ReconcileMaintainedAppSoftwareNamesFunc(ctx)
 }
 
+func (s *DataStore) ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileWindowsMaintainedAppSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileWindowsMaintainedAppSoftwareTitlesFunc(ctx)
+}
+
 func (s *DataStore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
 	s.mu.Lock()
 	s.GetFMANamesByIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetFMANamesByIdentifierFunc(ctx)
+}
+
+func (s *DataStore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.MaintainedApp, error) {
+	s.mu.Lock()
+	s.GetWindowsFMAMatchesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsFMAMatchesFunc(ctx)
 }
 
 func (s *DataStore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {

@@ -132,7 +132,7 @@ const ActionsDropdown = ({
   isSearchable = false,
   className,
   menuAlign = "default",
-  menuPlacement = "bottom",
+  menuPlacement,
   variant = "subdued",
   buttonLabel,
 }: IActionsDropdownProps): JSX.Element => {
@@ -237,6 +237,7 @@ const ActionsDropdown = ({
       ...provided,
       display: "flex",
       flexDirection: "row",
+      gap: "8px",
       width: "max-content",
       // Need minHeight to override default
       minHeight: variant === "secondary" ? "28px" : "32px", // Match button height
@@ -277,9 +278,17 @@ const ActionsDropdown = ({
       }),
       // Same ring Button's :focus-visible draws — only for keyboard tabbing,
       // never a mouse click (see isKeyboardFocus above).
+      //
+      // Drawn INSIDE the control (via outline + negative offset) rather than
+      // as an outset box-shadow. An outset shadow renders as a full-contrast
+      // 1px halo on the page background, and for the bordered `secondary`
+      // variant it stacks against the existing 1px grey border → reads as a
+      // ~2px band. Sitting inside the box overlays the border pixel and
+      // matches Button's own `::after` focus ring visual weight.
       ...(state.isFocused &&
         isKeyboardFocus && {
-          boxShadow: `0 0 0 1px ${COLORS["core-fleet-black"]}`,
+          outline: `1px solid ${COLORS["core-fleet-black"]}`,
+          outlineOffset: "-1px",
         }),
     }),
     placeholder: (provided, state) => ({
@@ -293,7 +302,7 @@ const ActionsDropdown = ({
         variant === "subdued" || variant === "secondary" ? "600" : undefined,
       lineHeight: "normal",
       paddingLeft: 0,
-      marginTop: "1px",
+      margin: 0,
       ...(state.isDisabled && {
         filter: "grayscale(0.5)",
         opacity: 0.5,
@@ -319,6 +328,7 @@ const ActionsDropdown = ({
       zIndex: 6,
       border: 0,
       marginTop: isPrimary ? "20px" : "0",
+      marginBottom: isPrimary ? "20px" : "0",
       width: "auto",
       minWidth: "100%",
       position: "absolute",
@@ -394,7 +404,7 @@ const ActionsDropdown = ({
         className={dropdownClassnames}
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
-        menuPlacement={menuPlacement}
+        menuPlacement={menuPlacement ?? (insideTable ? "auto" : "bottom")}
         menuPortalTarget={insideTable ? document.body : undefined}
         {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "subdued"
       />

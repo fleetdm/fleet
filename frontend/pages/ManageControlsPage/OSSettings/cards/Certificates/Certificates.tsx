@@ -11,10 +11,11 @@ import { getGitOpsModeTipContent } from "utilities/helpers";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import UploadList from "components/UploadList";
-import UploadListHeading from "pages/ManageControlsPage/components/UploadListHeading";
 
 import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import Pagination from "components/Pagination";
 import CustomLink from "components/CustomLink";
@@ -187,13 +188,6 @@ const Certificates = ({
         <UploadList
           keyAttribute="id"
           listItems={certs}
-          HeadingComponent={() => (
-            <UploadListHeading
-              entityName="Certificate"
-              createEntityText="Add"
-              onClickAdd={() => setShowAddCertModal(true)}
-            />
-          )}
           ListItemComponent={({ listItem }) => {
             const {
               name,
@@ -251,24 +245,45 @@ const Certificates = ({
     );
   };
 
+  const showAddCertButton =
+    isPremiumTier && androidMdmEnabled && hasCustomScepCA;
+
   return (
     <div className={`${baseClass}`}>
       <SectionHeader title="Certificates" alignLeftHeaderVertically />
-      <PageDescription
-        variant="right-panel"
-        content={
-          <>
-            Deploy certificates. Currently only Android is supported. For macOS,
-            iOS, iPadOS and Windows use configuration profiles, and for Linux
-            use scripts.{" "}
-            <CustomLink
-              newTab
-              text="Learn more"
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/certificates`}
-            />
-          </>
-        }
-      />
+      <div className={`${baseClass}__tab-header`}>
+        <PageDescription
+          variant="right-panel"
+          content={
+            <>
+              Deploy certificates. Currently only Android is supported. For
+              macOS, iOS, iPadOS and Windows use configuration profiles, and for
+              Linux use scripts.{" "}
+              <CustomLink
+                newTab
+                text="Learn more"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/certificates`}
+              />
+            </>
+          }
+        />
+        {showAddCertButton && (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => setShowAddCertModal(true)}
+                disabled={disableChildren}
+              >
+                <Icon name="plus" size="small" />
+                <span>Add certificate</span>
+              </Button>
+            )}
+          />
+        )}
+      </div>
       {renderContent()}
       {showAddCertModal && (
         <AddCertModal

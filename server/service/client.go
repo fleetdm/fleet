@@ -1189,10 +1189,18 @@ func (c *Client) ApplyGroup(
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn(format, numberWithPluralization(len(software), "software package", "software packages"), tmName)
-				installers, deletedInstallers, categories, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
+				softwareCount := numberWithPluralization(len(software), "software package", "software packages")
+				if !opts.DryRun {
+					logfn(applyingTeamFormat, softwareCount, tmName)
+				}
+				installers, deletedInstallers, categories, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions, logfn)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for fleet %q: %w", tmName, err)
+				}
+				if opts.DryRun {
+					logfn(dryRunAppliedTeamFormat, softwareCount, tmName)
+				} else {
+					logfn(appliedTeamFormat, softwareCount, tmName)
 				}
 				logSoftwareDeletions(logfn, deletedInstallers, opts.DryRun)
 				teamsSoftwareInstallers[tmName] = installers
@@ -3117,10 +3125,18 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		format = dryRunAppliedTeamFormat
 	}
 
-	logFn(format, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'Unassigned'")
-	softwareInstallers, deletedInstallers, installerCategories, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
+	softwareCount := numberWithPluralization(len(swPkgPayload), "software package", "software packages")
+	if !dryRun {
+		logFn(applyingTeamFormat, softwareCount, "'Unassigned'")
+	}
+	softwareInstallers, deletedInstallers, installerCategories, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun}, logFn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
+	}
+	if dryRun {
+		logFn(dryRunAppliedTeamFormat, softwareCount, "'Unassigned'")
+	} else {
+		logFn(appliedTeamFormat, softwareCount, "'Unassigned'")
 	}
 	logSoftwareDeletions(logFn, deletedInstallers, dryRun)
 
@@ -3138,9 +3154,6 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		}
 	}
 
-	if !dryRun {
-		logFn("[+] applied software packages for unassigned hosts\n")
-	}
 	return softwareInstallers, vppApps, nil
 }
 

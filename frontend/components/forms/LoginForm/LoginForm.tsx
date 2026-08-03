@@ -137,7 +137,7 @@ const LoginForm = ({
             variant="subdued"
             className="back-link"
           >
-            <Icon name="chevron-left" color="ui-fleet-black-75" />
+            <Icon name="chevron-left" />
             Back to login
           </Button>
           <h1>Check your email</h1>

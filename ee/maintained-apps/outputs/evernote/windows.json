@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "11.26.4",
+      "version": "11.27.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Evernote%' AND publisher = 'Evernote Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Evernote%' AND publisher = 'Evernote Corporation' AND version_compare(version, '11.26.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Evernote%' AND publisher = 'Evernote Corporation' AND version_compare(version, '11.27.5') < 0);"
       },
-      "installer_url": "https://win.desktop.evernote.com/builds/Evernote-11.26.4-win-ddl-stage-20260717191948-2b1586022236ddbe2ab56acb08e507d128e39dad-setup.exe",
+      "installer_url": "https://win.desktop.evernote.com/builds/Evernote-11.27.5-win-ddl-stage-20260724150529-95d616891db3da8a048d6d178f0bc45153a8d267-setup.exe",
       "install_script_ref": "5820d576",
       "uninstall_script_ref": "d4142835",
-      "sha256": "9146ee01395f636a9fd025a3d3d9a2ebe78de63817e2e120a37ca608a781c9e3",
+      "sha256": "f0431e7b6aebac787c5fd35e6cf54cfc2765f6e08caa646b61d92fd23eadac96",
       "default_categories": [
         "Productivity"
       ]

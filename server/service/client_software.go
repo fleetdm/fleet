@@ -88,15 +88,24 @@ func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 	return nil, nil
 }
 
-func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
+func (c *Client) ApplyNoTeamSoftwareInstallers(
+	softwareInstallers []fleet.SoftwareInstallerPayload,
+	opts fleet.ApplySpecOptions,
+	logFn func(format string, args ...any),
+) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
+	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun, logFn)
 }
 
-func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
+func (c *Client) applySoftwareInstallers(
+	softwareInstallers []fleet.SoftwareInstallerPayload,
+	query url.Values,
+	dryRun bool,
+	logFn func(format string, args ...any),
+) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
 	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
@@ -106,12 +115,59 @@ func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInst
 		return nil, nil, nil, nil
 	}
 
+	// Keyed by place in the batch, since two packages can share a name.
+	printedDownloading := make(map[int]struct{})
+	printedResult := make(map[int]struct{})
+
+	// Assumes the server downloads packages one by one, so each "downloading" line prints
+	// right before its own "downloaded" line. Concurrent downloads would break this.
+	logDownloadProgress := func(downloadProgress []fleet.SoftwarePackageDownloadProgress) {
+		for payloadIndex, packageProgress := range downloadProgress {
+			// A package the batch hasn't started downloading has no name yet.
+			if packageProgress.Name == "" {
+				continue
+			}
+
+			// A package Fleet doesn't download gets only this line, never a downloading one.
+			if packageProgress.Status == fleet.SoftwarePackageDownloadSkipped {
+				_, printedSkip := printedResult[payloadIndex]
+				if !printedSkip {
+					printedResult[payloadIndex] = struct{}{}
+					logFn("[+] skipped downloading the software package (already in storage) - %s\n", packageProgress.Name)
+				}
+				continue
+			}
+
+			// A package can still turn out to be skipped after this prints, when the download returns a 304.
+			_, printedStart := printedDownloading[payloadIndex]
+			if !printedStart {
+				printedDownloading[payloadIndex] = struct{}{}
+				logFn("[+] downloading software package - %s ...\n", packageProgress.Name)
+			}
+
+			_, printedFinish := printedResult[payloadIndex]
+			if printedFinish {
+				continue
+			}
+			switch packageProgress.Status {
+			case fleet.SoftwarePackageDownloadFailed:
+				printedResult[payloadIndex] = struct{}{}
+				logFn("Error: could not download software package %s\n", packageProgress.Name)
+			case fleet.SoftwarePackageDownloadFinished:
+				printedResult[payloadIndex] = struct{}{}
+				logFn("[+] downloaded software package - %s\n", packageProgress.Name)
+			}
+		}
+	}
+
 	requestUUID := resp.RequestUUID
 	for {
 		var resp batchSetSoftwareInstallersResultResponse
 		if err := c.authenticatedRequestWithQuery(nil, "GET", path+"/"+requestUUID, &resp, query.Encode()); err != nil {
 			return nil, nil, nil, err
 		}
+		logDownloadProgress(resp.DownloadProgress)
+
 		switch {
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusProcessing:
 			time.Sleep(1 * time.Second)

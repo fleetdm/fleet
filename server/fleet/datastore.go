@@ -2923,8 +2923,8 @@ type Datastore interface {
 	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error
 
 	// HasFMAInstallerVersion returns true if the given FMA version is already
-	// cached as a software installer for the given team.
-	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)
+	// cached as a software installer for the given team, and its storage hash.
+	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
 	// FMA installer version, including install/uninstall scripts, URL, SHA256,
@@ -3258,15 +3258,35 @@ type Datastore interface {
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
 
-	// ReconcileMaintainedAppSoftwareNames renames macOS software_titles and software
-	// rows to the canonical FMA name. Called once per sync; set-based, idempotent,
-	// and ambiguity-aware for FMAs that share a bundle identifier.
+	// ReconcileMaintainedAppSoftwareNames renames macOS software titles and software
+	// rows to the canonical Fleet-maintained app name, since inventory and the installer
+	// already share a title via bundle_identifier and only the name is wrong. Belongs to
+	// the catalog sync, which is where those canonical names come from. Idempotent, and
+	// ambiguity-aware for apps that share a bundle identifier.
 	ReconcileMaintainedAppSoftwareNames(ctx context.Context) error
+
+	// ReconcileWindowsMaintainedAppSoftwareTitles merges Windows software titles whose
+	// reported name embeds the version (e.g. "Granola 7.373.2") into the title owned by
+	// the Fleet-maintained app's installer, re-pointing every reference and deleting the
+	// emptied title. Idempotent.
+	//
+	// Separate from the macOS pass because it reads only local installer and title state,
+	// never the catalog: it must not be gated on a successful catalog fetch, and it wants
+	// to run whenever those links change rather than when the catalog refreshes.
+	ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error
 
 	// GetFMANamesByIdentifier returns unique_identifier -> canonical name for macOS
 	// FMAs, used during software ingestion. Identifiers shared by differently-named
 	// FMAs (e.g. Firefox and Firefox ESR) are omitted.
 	GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error)
+
+	// GetWindowsFMAMatches returns the Windows Fleet-maintained apps that have been
+	// added as an installer, populated with just what name matching needs: the catalog
+	// name, unique identifier, platform, and the id and name of the software title the
+	// installer owns. Used during software ingestion to collapse versioned program names
+	// (e.g. "Granola 7.373.2") onto that title. See MaintainedApp.WinMatchPrefixes for how a
+	// reported name is matched against them.
+	GetWindowsFMAMatches(ctx context.Context) ([]MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate management
