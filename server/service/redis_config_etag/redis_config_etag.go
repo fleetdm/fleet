@@ -150,6 +150,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -264,6 +265,7 @@ var (
 
 // Store implements fleet.ConfigETagStore on Redis. See the package docs for
 // the correctness model; see fleet.ConfigETagStore for the method contracts.
+// Must be used by pointer (it carries atomic leader-election flags).
 type Store struct {
 	pool          fleet.RedisPool
 	logger        *slog.Logger
@@ -274,6 +276,12 @@ type Store struct {
 	quarantineTTL time.Duration
 	version       string // Fleet server version baked into ETag record keys
 	testPrefix    string // for tests, the key prefix to use to avoid conflicts
+
+	// Per-gate leader-election flags: true while a database load for that
+	// gate is in flight on this Fleet instance. See the ██ NON-BLOCKING
+	// LEADER ELECTION ██ note on the gate methods.
+	legacyLoadInFlight atomic.Bool
+	scopesLoadInFlight atomic.Bool
 }
 
 var _ fleet.ConfigETagStore = (*Store)(nil)
@@ -589,26 +597,84 @@ func (s *Store) InvalidateHost(ctx context.Context, hostID uint) error {
 // Gate state (cache-mode selection)
 ////////////////////////////////////////////////////////////////////////////////
 
+// gateGet reads a gate-state key with a short-lived connection. found=false
+// means the key does not exist. The connection is never held across anything
+// slower than the GET itself.
+func (s *Store) gateGet(ctx context.Context, key string) (val string, found bool, err error) {
+	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
+	defer conn.Close()
+
+	val, err = redigo.String(conn.Do("GET", key))
+	if err == redigo.ErrNil {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, ctxerr.Wrap(ctx, err, "redis config etag gate get")
+	}
+	return val, true, nil
+}
+
+// gateSet writes a gate-state key with a short-lived connection.
+func (s *Store) gateSet(ctx context.Context, key, val string) error {
+	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SET", key, val, "EX", int(gateStateTTL.Seconds())); err != nil {
+		return ctxerr.Wrap(ctx, err, "redis config etag gate set")
+	}
+	return nil
+}
+
+// ██ NON-BLOCKING LEADER ELECTION ██ (both gate loaders)
+//
+// A naive GET → miss → SELECT → SET turns one Redis miss into one database
+// query PER CONCURRENT CONFIG REQUEST during the miss window — and the
+// window widens exactly when the database is degraded, amplifying the load
+// at the worst moment. A blocking singleflight would fix the duplication but
+// introduce something worse: followers waiting on the leader would couple
+// config-request latency to a possibly-hung database query, violating the
+// fail-open guarantee.
+//
+// Instead: one CAS flag per gate per Fleet instance. The winner re-checks
+// Redis (another container may have just loaded), runs the loader, SETs the
+// state. Losers do NOT wait and do NOT query — they return
+// fleet.ErrConfigETagGateLoading, which callers treat as "unknown → bypass
+// for this request" (one ordinary full build, the baseline cost). Bound: at
+// most one loader query per container per miss window, zero added latency,
+// no new stall modes. Redis connections are scoped per operation and never
+// held across the database load.
+
 // LegacyPacksPresent reports whether the deployment has any user-created 2017
 // packs, caching the answer in Redis for gateStateTTL. On any error it
 // returns true — for this gate, "assume present" is the safe direction: it
 // bypasses the fast path (costing only performance), whereas a wrong "false"
 // could let a host 304 past a config change that never fires an invalidation
-// event.
+// event. Returns fleet.ErrConfigETagGateLoading (with present=true) when
+// another request on this instance is already loading — normal contention,
+// not a fault.
 func (s *Store) LegacyPacksPresent(ctx context.Context, load func(ctx context.Context) (bool, error)) (bool, error) {
-	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
-	defer conn.Close()
-
-	val, err := redigo.String(conn.Do("GET", s.testPrefix+legacyKey))
-	if err == nil {
+	val, found, err := s.gateGet(ctx, s.testPrefix+legacyKey)
+	if err != nil {
+		return true, err
+	}
+	if found {
 		return val != "0", nil
 	}
-	if err != redigo.ErrNil {
-		return true, ctxerr.Wrap(ctx, err, "redis config etag legacy flag get")
+
+	// Cache miss: elect a loader (see the leader-election note above).
+	if !s.legacyLoadInFlight.CompareAndSwap(false, true) {
+		return true, fleet.ErrConfigETagGateLoading
+	}
+	defer s.legacyLoadInFlight.Store(false)
+
+	// Re-check under leadership: another Fleet instance may have loaded and
+	// SET while we were losing the race locally.
+	if val, found, err := s.gateGet(ctx, s.testPrefix+legacyKey); err != nil {
+		return true, err
+	} else if found {
+		return val != "0", nil
 	}
 
-	// Cache miss: recompute. Gate loaders are the only DB load this package
-	// causes, at most once per gateStateTTL (or reset) per cluster.
 	metricGateLoads.Inc()
 	present, err := load(ctx)
 	if err != nil {
@@ -618,10 +684,11 @@ func (s *Store) LegacyPacksPresent(ctx context.Context, load func(ctx context.Co
 	if present {
 		stored = "1"
 	}
-	if _, err := conn.Do("SET", s.testPrefix+legacyKey, stored, "EX", int(gateStateTTL.Seconds())); err != nil {
-		return present, ctxerr.Wrap(ctx, err, "redis config etag legacy flag set")
+	if err := s.gateSet(ctx, s.testPrefix+legacyKey, stored); err != nil {
+		return present, err
 	}
-	// Bounded state-write log: at most once per gateStateTTL/reset.
+	// Bounded state-write log: at most once per gateStateTTL/reset per
+	// container (only the elected loader reaches this line).
 	s.logger.InfoContext(ctx, "config etag gate state written",
 		"kind", "legacy_packs", "present", present)
 	return present, nil
@@ -643,23 +710,41 @@ func (s *Store) ResetLegacyPacksFlag(ctx context.Context) error {
 // LabelScopes returns the cached set of scopes containing label-scoped
 // scheduled reports, loading and caching it (gateStateTTL) on a miss. On any
 // error the caller must treat the answer as UNKNOWN and bypass the short
-// circuit — never guess that a host is eligible for the shared key.
+// circuit — never guess that a host is eligible for the shared key. Returns
+// fleet.ErrConfigETagGateLoading when another request on this instance is
+// already loading — normal contention, not a fault (see the leader-election
+// note above).
 func (s *Store) LabelScopes(ctx context.Context, load func(ctx context.Context) (fleet.ConfigETagLabelScopes, error)) (fleet.ConfigETagLabelScopes, error) {
-	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
-	defer conn.Close()
-
-	val, err := redigo.String(conn.Do("GET", s.testPrefix+scopeModesKey))
-	if err == nil {
+	parse := func(val string) (fleet.ConfigETagLabelScopes, error) {
 		var scopes fleet.ConfigETagLabelScopes
-		if uerr := json.Unmarshal([]byte(val), &scopes); uerr != nil {
+		if err := json.Unmarshal([]byte(val), &scopes); err != nil {
 			// malformed cached state: treat as unknown (bypass), it will be
 			// rewritten on the next successful load after reset/expiry
-			return fleet.ConfigETagLabelScopes{}, ctxerr.Wrap(ctx, uerr, "parse cached label scopes")
+			return fleet.ConfigETagLabelScopes{}, ctxerr.Wrap(ctx, err, "parse cached label scopes")
 		}
 		return scopes, nil
 	}
-	if err != redigo.ErrNil {
-		return fleet.ConfigETagLabelScopes{}, ctxerr.Wrap(ctx, err, "redis config etag label scopes get")
+
+	val, found, err := s.gateGet(ctx, s.testPrefix+scopeModesKey)
+	if err != nil {
+		return fleet.ConfigETagLabelScopes{}, err
+	}
+	if found {
+		return parse(val)
+	}
+
+	// Cache miss: elect a loader (see the leader-election note above).
+	if !s.scopesLoadInFlight.CompareAndSwap(false, true) {
+		return fleet.ConfigETagLabelScopes{}, fleet.ErrConfigETagGateLoading
+	}
+	defer s.scopesLoadInFlight.Store(false)
+
+	// Re-check under leadership: another Fleet instance may have loaded and
+	// SET while we were losing the race locally.
+	if val, found, err := s.gateGet(ctx, s.testPrefix+scopeModesKey); err != nil {
+		return fleet.ConfigETagLabelScopes{}, err
+	} else if found {
+		return parse(val)
 	}
 
 	metricGateLoads.Inc()
@@ -671,11 +756,12 @@ func (s *Store) LabelScopes(ctx context.Context, load func(ctx context.Context) 
 	if err != nil {
 		return fleet.ConfigETagLabelScopes{}, ctxerr.Wrap(ctx, err, "marshal label scopes")
 	}
-	if _, err := conn.Do("SET", s.testPrefix+scopeModesKey, string(raw), "EX", int(gateStateTTL.Seconds())); err != nil {
+	if err := s.gateSet(ctx, s.testPrefix+scopeModesKey, string(raw)); err != nil {
 		// the loaded answer is still valid for this request
-		return scopes, ctxerr.Wrap(ctx, err, "redis config etag label scopes set")
+		return scopes, err
 	}
-	// Bounded state-write log: at most once per gateStateTTL/reset.
+	// Bounded state-write log: at most once per gateStateTTL/reset per
+	// container (only the elected loader reaches this line).
 	s.logger.InfoContext(ctx, "config etag gate state written",
 		"kind", "label_scopes", "global", scopes.Global, "team_count", len(scopes.TeamIDs))
 	return scopes, nil

@@ -844,13 +844,21 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 	if store != nil {
 		mode = configETagModeBypass
 		legacyPresent, err := store.LegacyPacksPresent(ctx, svc.userPacksExist)
-		if err != nil {
+		switch {
+		case errors.Is(err, fleet.ErrConfigETagGateLoading):
+			// Another request on this instance is loading the gate state:
+			// normal contention, not a fault. Bypass for this request
+			// without waiting and without error logging (see the store's
+			// leader-election docs).
+		case err != nil:
 			// FAIL OPEN: unknown gate state bypasses the short circuit —
 			// costing performance, never correctness.
 			svc.logConfigETagError(ctx, "config etag: legacy packs gate unavailable; bypassing short circuit", err)
-		} else if !legacyPresent {
+		case !legacyPresent:
 			scopes, err := store.LabelScopes(ctx, svc.labelScopedReportScopes)
 			switch {
+			case errors.Is(err, fleet.ErrConfigETagGateLoading):
+				// normal contention: bypass silently, as above
 			case err != nil:
 				svc.logConfigETagError(ctx, "config etag: label scope state unavailable; bypassing short circuit", err)
 			case scopes.PerHostMode(host.TeamID):

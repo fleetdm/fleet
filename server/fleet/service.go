@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"io"
 	"iter"
 	"net/url"
@@ -1738,6 +1739,16 @@ func (s ConfigETagLabelScopes) PerHostMode(teamID *uint) bool {
 func (s ConfigETagLabelScopes) Any() bool {
 	return s.Global || len(s.TeamIDs) > 0
 }
+
+// ErrConfigETagGateLoading is returned by ConfigETagStore gate methods
+// (LegacyPacksPresent, LabelScopes) when another request on this Fleet
+// instance is already loading the missing gate state. It signals NORMAL
+// contention, not a fault: callers must treat the state as unknown for this
+// request (bypass the short circuit, run a full build) WITHOUT waiting and
+// WITHOUT error logging. This is the non-blocking half of the gate loaders'
+// leader election — one database load per container per miss window, and a
+// hung loader can never stall config delivery for other requests.
+var ErrConfigETagGateLoading = errors.New("config etag gate state load in flight")
 
 // ConfigETagStore is the Redis-backed store that powers the osquery config
 // ETag SHORT CIRCUIT (see OsqueryService.GetClientConfigWithETag for the

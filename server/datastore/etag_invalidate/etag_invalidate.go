@@ -46,7 +46,9 @@
 //     these also reset the cached legacy-packs gate flag),
 //   - labels: deletion (cascades query_labels away, instantly UNSCOPING
 //     reports with no query CRUD and no membership persistence — a
-//     systematic gap unless hooked) and manual membership edits,
+//     systematic gap unless hooked), spec application (platform changes
+//     delete membership; manual-label specs replace it), and manual
+//     membership edits,
 //   - host label membership persistence (per-host invalidation): the
 //     synchronous path, the async collector path, AND the host-vitals label
 //     cron (UpdateLabelMembershipByHostCriteria, which returns the changed
@@ -351,6 +353,37 @@ func (d *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.T
 		return err
 	}
 	d.invalidateAndResetLabelScopes(ctx, "DeleteLabel")
+	return nil
+}
+
+// ApplyLabelSpecs / ApplyLabelSpecsWithAuthor (the GitOps label path) can
+// change membership IMMEDIATELY, not just label definitions: a label
+// platform change deletes the label's entire membership, and a manual-label
+// spec with a `hosts` field clears and replaces it. Removed hosts are not
+// derivable from the specs (same removal-blindness as SaveLabel), and a host
+// left evaluating no labels at all gets no routine per-host invalidation —
+// so this is a systematic gap unless hooked. Spec application is an
+// infrequent administrative/GitOps mutation, squarely inside the hard-rule
+// carve-out: deployment-wide invalidation, plus a label-scope state reset
+// since specs can alter which labels exist.
+//
+// NOTE: the MySQL ApplyLabelSpecs delegates to ApplyLabelSpecsWithAuthor on
+// its own concrete receiver, so these two overrides can never both fire for
+// one logical apply (and even if a future implementation changed that,
+// doubled deployment invalidation is harmless).
+func (d *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
+	if err := d.Datastore.ApplyLabelSpecs(ctx, specs); err != nil {
+		return err
+	}
+	d.invalidateAndResetLabelScopes(ctx, "ApplyLabelSpecs")
+	return nil
+}
+
+func (d *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+	if err := d.Datastore.ApplyLabelSpecsWithAuthor(ctx, specs, authorID); err != nil {
+		return err
+	}
+	d.invalidateAndResetLabelScopes(ctx, "ApplyLabelSpecsWithAuthor")
 	return nil
 }
 
