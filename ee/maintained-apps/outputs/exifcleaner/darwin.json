@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.0.1",
+      "version": "4.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.exifcleaner';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.exifcleaner' AND version_compare(bundle_short_version, '4.0.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.exifcleaner' AND version_compare(bundle_short_version, '4.1.0') < 0);"
       },
-      "installer_url": "https://github.com/szTheory/exifcleaner/releases/download/v4.0.1/ExifCleaner-4.0.1-arm64.dmg",
+      "installer_url": "https://github.com/szTheory/exifcleaner/releases/download/v4.1.0/ExifCleaner-4.1.0-arm64.dmg",
       "install_script_ref": "d01e9e3e",
       "uninstall_script_ref": "fe4388fe",
-      "sha256": "3bf251e84cc879df264ad012a2a0c7682bdc16312d49441ecb0316917d0616ad",
+      "sha256": "fac68f2a9fd1162b6a5e240ab3cf57a946a1cc0bb5264ce46d2fe53409a18f41",
       "default_categories": [
         "Utilities"
       ]
