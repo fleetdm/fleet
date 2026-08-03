@@ -125,6 +125,8 @@ Environment="HTTPS_PROXY=http(s)://PROXY_URL:PORT/"
 Environment="NO_PROXY=localhost,127.0.0.1,::1"
 ```
 
+> Note: If HTTP_PROXY/HTTPS_PROXY points at a loopback or private address, Fleet's private network blocking may block it. See [server_allow_private_network_integrations](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-private-network-integrations).
+
 ## Public IPs of devices
 
 Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by Fleet's agent (fleetd).
