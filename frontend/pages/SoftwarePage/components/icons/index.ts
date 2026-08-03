@@ -1792,6 +1792,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "menubar stats": MenubarStats,
   menubarx: Menubarx,
   "merlin project": MerlinProject,
+  "microsoft .net desktop runtime": MicrosoftDotnetRuntime,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft auto update": MicrosoftAutoUpdate,
