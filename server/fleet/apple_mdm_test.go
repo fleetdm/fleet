@@ -1199,26 +1199,3 @@ func rawActivation(declType, identifier string, standardConfigurations ...string
 	act.Payload.StandardConfigurations = standardConfigurations
 	return act
 }
-
-func TestIsManagementDeclaration(t *testing.T) {
-	cases := []struct {
-		declType string
-		want     bool
-	}{
-		{"com.apple.management.organization-info", true},
-		{"com.apple.management.server-info", true},
-		{"com.apple.management.properties", true},
-		{"com.apple.configuration.passcode.settings", false},
-		// Not a management declaration: this is a configuration whose type
-		// merely contains "management".
-		{"com.apple.configuration.management.status-subscriptions", false},
-		{"com.apple.activation.simple", false},
-		{"", false},
-	}
-
-	for _, c := range cases {
-		t.Run(c.declType, func(t *testing.T) {
-			require.Equal(t, c.want, IsManagementDeclaration(c.declType))
-		})
-	}
-}

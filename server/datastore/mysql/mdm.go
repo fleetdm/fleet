@@ -848,9 +848,6 @@ FROM (
 		}
 	}
 
-	// load the custom activations for the declarations in this page. Only
-	// declarations can have one, and most won't, so this is skipped entirely
-	// when the page has no declarations.
 	activations, err := ds.getCustomActivationsForDeclarations(ctx, macDeclUUIDs)
 	if err != nil {
 		return nil, nil, err
@@ -864,11 +861,8 @@ FROM (
 	return profs, metaData, nil
 }
 
-// getCustomActivationsForDeclarations returns the raw activation JSON for the
-// given declarations, keyed by declaration UUID. Declarations without a custom
-// activation are absent from the map rather than present with a nil value, so
-// callers leave MDMConfigProfilePayload.Activation unset and it is omitted from
-// the API response.
+// Declarations without one are absent from the map, so callers leave
+// MDMConfigProfilePayload.Activation unset and it's omitted from the response.
 func (ds *Datastore) getCustomActivationsForDeclarations(ctx context.Context, declUUIDs []string) (map[string][]byte, error) {
 	if len(declUUIDs) == 0 {
 		return nil, nil
@@ -2350,19 +2344,15 @@ func batchSetProfileVariableAssociationsDB(
 	return setVariableAssociationsForColumnDB(ctx, tx, profileVariablesByUUID, columnName)
 }
 
-// setVariableAssociationsForColumnDB rewrites the Fleet variable associations
-// for a set of owners in mdm_configuration_profile_variables. The owner column
-// varies -- profiles, declarations and custom DDM activations all key into the
-// same table -- so it is passed in rather than derived here.
+// Profiles, declarations and activations all key into the same table, so the
+// owner column is passed in rather than derived here.
 func setVariableAssociationsForColumnDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
 	columnName string,
 ) (didUpdate bool, err error) {
-	// columnName is interpolated into the statements below. Every caller passes
-	// a literal today, but the helper is shared across profiles, declarations
-	// and activations, so keep the invariant explicit rather than implied.
+	// columnName is interpolated below; keep the invariant explicit.
 	switch columnName {
 	case "apple_profile_uuid", "windows_profile_uuid", "apple_declaration_uuid",
 		"android_profile_uuid", "apple_ddm_activation_uuid":

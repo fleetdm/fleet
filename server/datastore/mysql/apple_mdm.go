@@ -627,10 +627,8 @@ WHERE
 		}
 	}
 
-	// Load the custom activation, if any, so callers that write the declaration
-	// back can carry it forward. setMDMAppleDDMActivationDB deletes the stored
-	// activation when the declaration it writes has none, so an edit that
-	// dropped this would silently clear it.
+	// Callers that write the declaration back must carry this forward; one
+	// written without an activation has its stored activation deleted.
 	activation, err := ds.getCustomActivationForDeclaration(ctx, res.DeclarationUUID)
 	if err != nil {
 		return nil, err
@@ -640,9 +638,7 @@ WHERE
 	return &res, nil
 }
 
-// getCustomActivationForDeclaration returns the custom activation attached to a
-// declaration, or nil when it has none. Having no activation is a normal state,
-// not a not-found error.
+// Returns nil when the declaration has none, which is a normal state.
 func (ds *Datastore) getCustomActivationForDeclaration(ctx context.Context, declUUID string) (*fleet.MDMAppleCustomActivation, error) {
 	const stmt = `
 SELECT
@@ -5325,14 +5321,8 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 	return declaration, nil
 }
 
-// setMDMAppleDDMActivationDB writes the custom activation attached to a
-// declaration, or removes the stored one when the declaration no longer has an
-// activation, so re-uploading a profile without one clears it.
-//
-// The row is keyed on declaration_uuid rather than inserted fresh each time, so
-// an edit keeps the same activation_uuid and its Fleet variable associations
-// survive. uploaded_at only moves when the content actually changes, matching
-// how declarations themselves are upserted.
+// Keyed on declaration_uuid rather than inserted fresh, so an edit keeps the
+// same activation_uuid and its variable associations survive.
 func setMDMAppleDDMActivationDB(ctx context.Context, tx sqlx.ExtContext, declUUID string, tmID uint,
 	declaration *fleet.MDMAppleDeclaration,
 ) error {
@@ -5346,13 +5336,9 @@ func setMDMAppleDDMActivationDB(ctx context.Context, tx sqlx.ExtContext, declUUI
 
 	act := declaration.Activation
 
-	// The upsert below fires on any of this table's unique keys, so an
-	// identifier already held by a *different* declaration's activation would
-	// silently overwrite that row while leaving its declaration_uuid pointing
-	// elsewhere. Reject it up front instead. The (team_id,
-	// configuration_identifier) key needs no such guard: a configuration
-	// identifier is unique per team, so a conflict there is always the same
-	// declaration.
+	// The upsert fires on any unique key, so an identifier held by a different
+	// declaration's activation would overwrite that row. (team_id,
+	// configuration_identifier) needs no guard: it's always the same declaration.
 	const conflictStmt = `
 SELECT 1 FROM mdm_apple_ddm_activations
 WHERE team_id = ? AND identifier = ? AND declaration_uuid != ?`
@@ -5392,7 +5378,7 @@ ON DUPLICATE KEY UPDATE
 `
 
 	if _, err := tx.ExecContext(ctx, upsertStmt,
-		fleet.MDMAppleDDMActivationUUIDPrefix+uuid.NewString(),
+		uuid.NewString(),
 		tmID,
 		act.Identifier,
 		act.RawJSON,
@@ -5403,8 +5389,7 @@ ON DUPLICATE KEY UPDATE
 		return ctxerr.Wrap(ctx, err, "inserting declaration activation")
 	}
 
-	// Read the UUID back rather than reusing the generated one: on an edit the
-	// upsert keeps the existing row, so the generated UUID was never used.
+	// On an edit the upsert keeps the existing row, so the generated UUID is unused.
 	var activationUUID string
 	const reloadStmt = `SELECT activation_uuid FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
 	if err := sqlx.GetContext(ctx, tx, &activationUUID, reloadStmt, declUUID); err != nil {

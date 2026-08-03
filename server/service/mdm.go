@@ -1681,9 +1681,7 @@ type newMDMConfigProfileRequest struct {
 	LabelsIncludeAll []string
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
-	// Activation is an optional custom activation declaration, only supported
-	// alongside an Apple declaration (DDM) profile.
-	Activation *multipart.FileHeader
+	Activation       *multipart.FileHeader
 }
 
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -1721,9 +1719,8 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 		return nil, fleet.NewInvalidArgumentError("mdm", fleet.MaxProfileSizeErrMsg)
 	}
 
-	// add activation, optional and only meaningful for declaration (DDM)
-	// profiles -- that's enforced by the endpoint, which is where the profile
-	// type is determined.
+	// Only meaningful for declarations; enforced by the endpoint, which
+	// determines the profile type.
 	if fhs, ok := r.MultipartForm.File["activation"]; ok && len(fhs) > 0 {
 		decoded.Activation = fhs[0]
 		if decoded.Activation.Size > fleet.MaxProfileSize {
@@ -1832,14 +1829,9 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}
 	}
 
-	// An activation gates a DDM configuration declaration, so it's meaningless
-	// next to any other profile type. This check lives in the endpoint because
-	// the endpoint is what determines the profile's type; the message is shared
-	// with the batch path so the same mistake reads the same way.
+	// Checked here because the endpoint is what determines the profile type,
+	// and routed through the service so the error sits behind an authz check.
 	if len(activation) > 0 && !isAppleDeclarationJSON {
-		// routed through the service so the error is returned from behind an
-		// authorization check; returning it straight from the endpoint would
-		// skip authz entirely and surface as a bare "forbidden"
 		return &newMDMConfigProfileResponse{
 			Err: svc.NewMDMActivationUnsupportedProfile(ctx, req.TeamID),
 		}, nil
@@ -1904,9 +1896,7 @@ type updateMDMConfigProfileRequest struct {
 	LabelsIncludeAll []string
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
-	// Activation is an optional custom activation, only supported for
-	// declaration (DDM) profiles.
-	Activation *multipart.FileHeader
+	Activation       *multipart.FileHeader
 }
 
 func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
@@ -1935,9 +1925,7 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 		}
 	}
 
-	// activation is optional too, and only meaningful for declarations --
-	// that's enforced by the service, which is where the update path resolves
-	// the profile's type from its UUID
+	// Enforced by the service, which resolves the profile type from its UUID.
 	if fhs, ok := r.MultipartForm.File["activation"]; ok && len(fhs) > 0 {
 		decoded.Activation = fhs[0]
 		if decoded.Activation.Size > fleet.MaxProfileSize {
@@ -2098,10 +2086,7 @@ func (svc *Service) checkLabelsOnlyProfileUpdate(ctx context.Context, labelsIncl
 // and/or label targeting in place, dispatching by profile UUID to the
 // platform-specific implementation.
 func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error {
-	// Unlike the create path, where the endpoint determines the profile type
-	// from the uploaded file, the update path dispatches here on the UUID
-	// prefix -- so this is where an activation on a non-declaration profile is
-	// rejected.
+	// The edit path resolves the profile type here rather than in the endpoint.
 	if len(activation) > 0 && !isAppleDeclarationUUID(profileUUID) {
 		if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 			return ctxerr.Wrap(ctx, err)

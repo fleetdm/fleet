@@ -913,10 +913,8 @@ type MDMAppleDeclaration struct {
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
 
-	// Type is the "Type" key of the associated declaration. It isn't persisted
-	// (it can always be read back out of RawJSON) but is carried here so
-	// callers can tell a configuration from a management declaration without
-	// re-parsing the JSON.
+	// Not persisted; carried so callers can tell a configuration from a
+	// management declaration without re-parsing RawJSON.
 	Type string `db:"-" json:"-"`
 
 	// Name corresponds to the file name of the associated JSON declaration payload.
@@ -945,10 +943,7 @@ type MDMAppleDeclaration struct {
 	// populate mdm_apple_declaration_asset_references in the batch-set path.
 	AssetReferenceUUIDs []string `db:"-" json:"-"`
 
-	// Activation is the custom activation to store alongside this declaration.
-	// A nil Activation means the declaration has none, and any activation
-	// previously stored for it is removed on write, so re-uploading a profile
-	// without one clears it.
+	// Nil removes any stored activation on write, which is how one is cleared.
 	Activation *MDMAppleCustomActivation `db:"-" json:"-"`
 
 	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
@@ -1016,25 +1011,13 @@ func (r *MDMAppleRawDeclaration) ValidateScope() error {
 var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.watch.enrollment": {},
 	"com.apple.configuration.account.google":   {},
+	"com.apple.management.server-capabilities": {},
 }
 
 const (
-	// MDMAppleConfigurationTypePrefix is the prefix of every Apple
-	// configuration declaration type.
 	MDMAppleConfigurationTypePrefix = "com.apple.configuration."
-	// MDMAppleManagementTypePrefix is the prefix of every Apple management
-	// declaration type (organization info, server info, properties). These are
-	// stored and uploaded like configurations, but they are never activated:
-	// they're served under the manifest's Management section rather than
-	// Configurations.
-	MDMAppleManagementTypePrefix = "com.apple.management."
+	MDMAppleManagementTypePrefix    = "com.apple.management."
 )
-
-// IsManagementDeclaration reports whether a declaration type is an Apple
-// management declaration rather than a configuration.
-func IsManagementDeclaration(declType string) bool {
-	return strings.HasPrefix(declType, MDMAppleManagementTypePrefix)
-}
 
 func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 	var err error
@@ -1051,7 +1034,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include software management types. To manage software, please use the Software tab.")
 	}
 
-	if !strings.HasPrefix(r.Type, MDMAppleConfigurationTypePrefix) && !IsManagementDeclaration(r.Type) {
+	if !strings.HasPrefix(r.Type, MDMAppleConfigurationTypePrefix) && !strings.HasPrefix(r.Type, MDMAppleManagementTypePrefix) {
 		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported.")
 	}
 
@@ -1067,62 +1050,38 @@ func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
 	return &rawDecl, nil
 }
 
-// MDMAppleActivationTypePrefix is the prefix every Apple activation
-// declaration type carries. Fleet accepts any type under it rather than only
-// com.apple.activation.simple, so new activation types Apple introduces work
-// without a Fleet change.
+// Any type under this prefix is accepted, not just com.apple.activation.simple,
+// so new Apple activation types don't need a Fleet change.
 const MDMAppleActivationTypePrefix = "com.apple.activation."
 
-// MDMAppleCustomActivation is a custom activation declaration supplied by an
-// admin, stored 1:1 against the configuration declaration it activates.
-// Distinct from MDMAppleDDMActivation, which is Apple's wire format for an
-// activation served to a device.
-//
-// Fleet stores the document verbatim and never interprets its Payload, most
-// importantly the Predicate, which the device evaluates.
+// A custom activation stored against the configuration declaration it
+// activates. Not to be confused with MDMAppleDDMActivation, Apple's wire format.
 type MDMAppleCustomActivation struct {
-	ActivationUUID string `db:"activation_uuid"`
-	TeamID         uint   `db:"team_id"`
-	// Identifier is the activation's own Identifier, distinct from the
-	// identifier of the configuration it activates.
-	Identifier string          `db:"identifier"`
-	RawJSON    json.RawMessage `db:"raw_json"`
-	// DeclarationUUID is the authoritative link to the configuration this
-	// activation gates; it cascades on delete.
-	DeclarationUUID string `db:"declaration_uuid"`
-	// ConfigurationIdentifier is the Identifier of that same declaration, kept
-	// alongside the UUID because the activation JSON references its
-	// configuration by Identifier rather than by UUID.
-	ConfigurationIdentifier string     `db:"configuration_identifier"`
-	SecretsUpdatedAt        *time.Time `db:"secrets_updated_at"`
-	CreatedAt               time.Time  `db:"created_at"`
-	UploadedAt              time.Time  `db:"uploaded_at"`
+	ActivationUUID          string          `db:"activation_uuid"`
+	TeamID                  uint            `db:"team_id"`
+	Identifier              string          `db:"identifier"`
+	RawJSON                 json.RawMessage `db:"raw_json"`
+	DeclarationUUID         string          `db:"declaration_uuid"`
+	ConfigurationIdentifier string          `db:"configuration_identifier"`
+	SecretsUpdatedAt        *time.Time      `db:"secrets_updated_at"`
+	CreatedAt               time.Time       `db:"created_at"`
+	UploadedAt              time.Time       `db:"uploaded_at"`
 
-	// FleetVariables are the Fleet variables referenced by RawJSON, recorded
-	// against the activation in mdm_configuration_profile_variables so the
-	// activation is re-delivered when their values change.
 	FleetVariables []FleetVarName `db:"-"`
 }
 
-// MDMAppleRawActivation holds the fields Fleet reads out of a user-provided
-// activation declaration. Everything else in the document — most importantly
-// Payload.Predicate — is stored and served verbatim; Fleet never interprets
-// it and leaves the device to evaluate or reject it.
+// The fields of an activation declaration used for validation. Everything
+// else, Payload.Predicate included, is stored and served verbatim.
 type MDMAppleRawActivation struct {
-	// Type is the "Type" field on the raw activation JSON.
-	Type string `json:"Type"`
-	// Identifier is the activation's own identifier, distinct from the
-	// identifier of the configuration it activates.
+	Type       string `json:"Type"`
 	Identifier string `json:"Identifier"`
 	Payload    struct {
-		// StandardConfigurations lists the configuration declarations this
-		// activation turns on. Apple allows several; Fleet allows exactly one,
-		// the configuration the activation is uploaded alongside.
+		// Apple allows several; Fleet allows exactly the configuration the
+		// activation is uploaded with.
 		StandardConfigurations []string `json:"StandardConfigurations"`
 	} `json:"Payload"`
 }
 
-// GetRawActivationValues parses a user-provided activation declaration.
 func GetRawActivationValues(raw []byte) (*MDMAppleRawActivation, error) {
 	var rawAct MDMAppleRawActivation
 	if err := json.Unmarshal(raw, &rawAct); err != nil {
@@ -1132,14 +1091,8 @@ func GetRawActivationValues(raw []byte) (*MDMAppleRawActivation, error) {
 	return &rawAct, nil
 }
 
-// ValidateUserProvided checks a user-provided activation against the
-// configuration declaration it is being attached to. It deliberately does not
-// reuse MDMAppleRawDeclaration.ValidateUserProvided, which only admits
-// com.apple.configuration.* types and would reject every activation.
-//
-// configurationIdentifier is the Identifier of the declaration the activation
-// is uploaded alongside; Fleet's model is one activation per configuration, so
-// StandardConfigurations must name exactly that identifier and nothing else.
+// Deliberately not reusing MDMAppleRawDeclaration.ValidateUserProvided, which
+// only admits com.apple.configuration.* and would reject every activation.
 func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier string) error {
 	invalid := &InvalidArgumentError{}
 

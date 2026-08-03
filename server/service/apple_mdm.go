@@ -65,13 +65,8 @@ const (
 	SameProfileNameUploadErrorMsg = "Couldn't add. A configuration profile with this name already exists (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
 	limit10KiB                    = 10 * 1024
 
-	// ActivationUnsupportedProfileErrorMsg is used by every path that accepts an
-	// activation (single upload here, batch/GitOps elsewhere) so the same
-	// mistake reads the same way wherever it's made.
-	ActivationUnsupportedProfileErrorMsg = "Activations are only supported for declaration (DDM) profiles."
-
-	// ActivationUnsupportedManagementErrorMsg covers the narrower case of a DDM
-	// profile that is a management declaration, which is never activated.
+	// Shared with the batch/GitOps path so the same mistake reads the same way.
+	ActivationUnsupportedProfileErrorMsg    = "Activations are only supported for declaration (DDM) profiles."
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
 )
 
@@ -969,29 +964,20 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 	return nil
 }
 
-// validateActivation parses and validates a user-provided custom activation
-// against the configuration declaration it is attached to. It returns nil when
-// no activation was supplied, leaving Fleet to generate one as before.
-//
-// Callers must pass the identifier of the declaration the activation ships
-// with: Fleet allows exactly one configuration per activation, and that
-// configuration is always the one being uploaded.
+// Returns nil when no activation was supplied, leaving Fleet to generate one.
 func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier, declarationType string) (*fleet.MDMAppleCustomActivation, error) {
 	if len(activation) == 0 {
 		return nil, nil
 	}
 
-	// Management declarations (organization info, server info, properties) are
-	// never activated -- an activation's StandardConfigurations can only name
-	// configurations -- so attaching one is always a mistake.
-	if fleet.IsManagementDeclaration(declarationType) {
+	// Management declarations are never activated.
+	if strings.HasPrefix(declarationType, fleet.MDMAppleManagementTypePrefix) {
 		return nil, ctxerr.Wrap(ctx,
 			fleet.NewInvalidArgumentError("activation", ActivationUnsupportedManagementErrorMsg),
 			"activation supplied for a management declaration")
 	}
 
-	// Unlike declarations, which are free for hosts on no fleet and without
-	// labels, custom activations are premium in every case.
+	// Declarations are free when unassigned and unlabeled; activations never are.
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
 		return nil, ctxerr.Wrap(ctx,
@@ -999,16 +985,13 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 			"checking license for DDM custom activation")
 	}
 
-	// Expand $FLEET_SECRET_* before validating so the checks below run against
-	// the document the device will actually receive, mirroring how declarations
-	// are validated.
+	// Validate against the document the device will receive.
 	expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(activation))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("activation", err.Error()), "expanding activation secrets")
 	}
 
-	// Activations support the same Fleet variables as the declarations they
-	// activate, so the declaration allowlist is reused rather than duplicated.
+	// Same allowlist as the declarations they activate.
 	actVars, err := validateDeclarationFleetVariables(expanded, lic)
 	if err != nil {
 		if badReqErr, ok := errors.AsType[*fleet.BadRequestError](err); ok {
@@ -1039,8 +1022,7 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 		varNames = append(varNames, fleet.FleetVarName(v))
 	}
 
-	// The unexpanded bytes are stored: secrets are re-expanded at delivery, so
-	// keeping them expanded here would persist the secret values.
+	// Store unexpanded; secrets are re-expanded at delivery.
 	return &fleet.MDMAppleCustomActivation{
 		Identifier:              rawAct.Identifier,
 		RawJSON:                 activation,
@@ -1284,10 +1266,8 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		for _, v := range variables.Find(expanded) {
 			varNames = append(varNames, fleet.FleetVarName(v))
 		}
-		// The stored activation is loaded without its Fleet variables, and the
-		// datastore rewrites an activation's variable associations from
-		// whatever it is handed. Re-derive them from the activation's own
-		// content, for the same reason the declaration's are re-derived above.
+		// Loaded without its variables, and the datastore rewrites associations
+		// from whatever it's handed, so re-derive them as above.
 		carriedActivation := existing.Activation
 		if carriedActivation != nil {
 			expandedAct, _, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(carriedActivation.RawJSON))
@@ -1298,7 +1278,6 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 			for _, v := range variables.Find(expandedAct) {
 				actVarNames = append(actVarNames, fleet.FleetVarName(v))
 			}
-			// copy so the loaded row isn't mutated in place
 			carried := *carriedActivation
 			carried.FleetVariables = actVarNames
 			carriedActivation = &carried
@@ -1312,9 +1291,7 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 			// the upsert writes scope unconditionally, so the unchanged
 			// content's scope must be carried over or it would be cleared
 			Scope: existing.Scope,
-			// carry the stored activation forward: the datastore clears the
-			// activation of any declaration written without one, so a
-			// labels-only edit would otherwise silently remove it
+			// a declaration written without one has its activation cleared
 			Activation: carriedActivation,
 		}
 		switch labelsMembershipMode {
@@ -1326,14 +1303,10 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		decl.LabelsExcludeAny = excludeLabels
 	}
 
-	// A supplied activation always replaces whatever is stored. When new
-	// profile content is supplied without one, the activation is intentionally
-	// dropped, which is how an admin removes it -- matching the create path,
-	// where a declaration uploaded without an activation has none.
+	// A supplied activation replaces the stored one; new content without one
+	// drops it, which is how an admin removes it.
 	if len(activation) > 0 && decl.Type == "" {
-		// an activation-only or labels-plus-activation edit leaves the content
-		// untouched, so the Type -- which isn't a column -- has to be recovered
-		// from it to reject an activation on a management declaration
+		// content is unchanged, so recover Type for the management check
 		rawDecl, err := fleet.GetRawDeclarationValues(decl.RawJSON)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "parsing existing declaration")

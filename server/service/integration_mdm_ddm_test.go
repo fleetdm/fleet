@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only for tests
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -2241,10 +2242,8 @@ func declarationForTestWithType(identifier string, dType string) []byte {
 }`, dType, identifier))
 }
 
-// TestAppleDDMCustomActivations covers the HTTP layer for custom activations:
-// the multipart plumbing, the endpoint-level guard for non-DDM profiles, and
-// the wire format of the activation on read. The validation rules themselves
-// are covered by unit tests; this exercises what only a real request can.
+// Covers what only a real request reaches: the multipart plumbing, the
+// endpoint-level guards, and the wire format. Validation rules are unit tested.
 func (s *integrationMDMTestSuite) TestAppleDDMCustomActivations() {
 	t := s.T()
 
@@ -2298,15 +2297,17 @@ func (s *integrationMDMTestSuite) TestAppleDDMCustomActivations() {
 		require.NotNil(t, found, "uploaded declaration missing from list")
 		require.JSONEq(t, string(activation), string(found.Activation))
 
-		// the single-profile endpoint returns it too, and the raw body carries
-		// it as an embedded JSON object rather than an encoded string
+		// the raw body carries it as a base64 string, per the API reference
 		getRes := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK)
 		rawBody, err := io.ReadAll(getRes.Body)
 		require.NoError(t, err)
-		var asMap map[string]json.RawMessage
+		var asMap map[string]any
 		require.NoError(t, json.Unmarshal(rawBody, &asMap))
-		require.Contains(t, asMap, "activation")
-		require.JSONEq(t, string(activation), string(asMap["activation"]))
+		encoded, ok := asMap["activation"].(string)
+		require.True(t, ok, "activation should be a base64 string, got %T", asMap["activation"])
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
+		require.NoError(t, err)
+		require.JSONEq(t, string(activation), string(decoded))
 	})
 
 	t.Run("a declaration without an activation omits the field", func(t *testing.T) {
@@ -2319,11 +2320,11 @@ func (s *integrationMDMTestSuite) TestAppleDDMCustomActivations() {
 			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK, &delResp)
 		})
 
-		// the key must be absent entirely, not null or empty
+		// absent entirely, not null or empty
 		getRes := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK)
 		rawBody, err := io.ReadAll(getRes.Body)
 		require.NoError(t, err)
-		var asMap map[string]json.RawMessage
+		var asMap map[string]any
 		require.NoError(t, json.Unmarshal(rawBody, &asMap))
 		require.NotContains(t, asMap, "activation")
 	})

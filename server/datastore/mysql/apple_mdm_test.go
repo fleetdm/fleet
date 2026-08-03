@@ -13929,7 +13929,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(actRaw), string(stored.RawJSON))
 	require.Equal(t, decl.DeclarationUUID, stored.DeclarationUUID)
 	require.Equal(t, "com.fleet.act-test", stored.ConfigurationIdentifier)
-	require.True(t, strings.HasPrefix(stored.ActivationUUID, fleet.MDMAppleDDMActivationUUIDPrefix))
+	require.NotEmpty(t, stored.ActivationUUID)
 
 	// It comes back on the list endpoint, base64 is applied at the JSON layer.
 	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
