@@ -266,7 +266,7 @@ check-no-testing-in-prod:
 	go run ./tools/check-no-testing-in-prod
 
 .help-short--check-nilaway-func-size:
-	@echo "Fail if any function has too many CFG blocks for nilaway to analyze. See https://github.com/fleetdm/fleet/issues/50404."
+	@echo "Fail if any function has too many CFG blocks for nilaway to analyze."
 # Deliberately not part of the incremental lint: nilaway reports this failure at a synthetic $GOROOT
 # position that --new-from-rev always filters out, so the gate has to run over the whole repo.
 check-nilaway-func-size:
