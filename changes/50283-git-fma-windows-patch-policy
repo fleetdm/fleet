@@ -1,0 +1,1 @@
+- Fixed a bug where the patch policy for the Windows Git Fleet-maintained app always returned "Pass", even on hosts running an outdated version, so update automations never triggered. The generated query matched `programs.name LIKE 'Git %'`, but Git for Windows registers itself in the registry as exactly `Git`.
