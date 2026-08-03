@@ -23,19 +23,23 @@
     background: none;
     cursor: pointer;
 
-    &:hover {
-      background-color: $ui-off-white;
-      border-color: $ui-fleet-black-50;
-    }
+    // Interactive states only apply while enabled — disabled clickable tags
+    // should look inert, not respond to hover/focus/press.
+    &:not(:disabled) {
+      &:hover {
+        background-color: $ui-off-white;
+        border-color: $ui-fleet-black-50;
+      }
 
-    &:focus-visible {
-      border-color: $core-fleet-black;
-      outline: none;
-    }
+      &:focus-visible {
+        border-color: $core-fleet-black;
+        outline: none;
+      }
 
-    &:active {
-      background-color: $ui-fleet-black-5;
-      border-color: $ui-fleet-black-50;
+      &:active {
+        background-color: $ui-fleet-black-5;
+        border-color: $ui-fleet-black-50;
+      }
     }
 
     &:disabled {
@@ -46,7 +50,6 @@
   }
 
   &--dismissible {
-    gap: $pad-small;
     padding: 0 $pad-xsmall 0 $pad-small;
 
     &:hover {
@@ -86,11 +89,6 @@
 
     &:focus-visible {
       outline: none;
-    }
-
-    &:disabled {
-      cursor: default;
-      opacity: 0.5;
     }
   }
 }

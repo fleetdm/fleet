@@ -54,35 +54,15 @@ describe("Tag", () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    {
-      case: "clickable",
-      renderTag: () =>
-        render(
-          <Tag type="clickable" onClick={() => undefined} disabled>
-            iPadOS
-          </Tag>
-        ),
-      buttonName: "iPadOS",
-    },
-    {
-      case: "dismissible",
-      renderTag: () =>
-        render(
-          <Tag type="dismissible" onDismiss={() => undefined} disabled>
-            Apple Silicon macOS hosts
-          </Tag>
-        ),
-      buttonName: "Dismiss",
-    },
-  ])(
-    "disables the $case tag's button when disabled is set",
-    ({ renderTag, buttonName }) => {
-      renderTag();
+  it("disables the clickable tag's button when disabled is set", () => {
+    render(
+      <Tag type="clickable" onClick={() => undefined} disabled>
+        iPadOS
+      </Tag>
+    );
 
-      expect(screen.getByRole("button", { name: buttonName })).toBeDisabled();
-    }
-  );
+    expect(screen.getByRole("button", { name: "iPadOS" })).toBeDisabled();
+  });
 
   it("renders dismissible tags with a dismiss button and calls onDismiss", async () => {
     const handler = jest.fn();
@@ -122,5 +102,74 @@ describe("Tag", () => {
     expect(
       screen.getByRole("button", { name: "Apple Silicon macOS hosts" })
     ).toBeInTheDocument();
+  });
+
+  it("sets the dismiss button's title when the tag has no wrapping tooltip", () => {
+    render(
+      <Tag type="dismissible" onDismiss={() => undefined}>
+        Apple Silicon macOS hosts
+      </Tag>
+    );
+
+    expect(screen.getByRole("button", { name: "Dismiss" })).toHaveAttribute(
+      "title",
+      "Dismiss"
+    );
+  });
+
+  it("suppresses the dismiss button's title when the tag has a wrapping tooltip, so the two tooltips don't compete", () => {
+    render(
+      <Tag
+        type="dismissible"
+        tooltip="Hosts filtered by Apple Silicon"
+        onDismiss={() => undefined}
+      >
+        Apple Silicon macOS hosts
+      </Tag>
+    );
+
+    expect(screen.getByRole("button", { name: "Dismiss" })).not.toHaveAttribute(
+      "title"
+    );
+  });
+
+  it.each([
+    {
+      case: "static",
+      renderTag: () => render(<Tag className="custom-tag">Inherited</Tag>),
+      label: "Inherited",
+    },
+    {
+      case: "clickable",
+      renderTag: () =>
+        render(
+          <Tag
+            type="clickable"
+            className="custom-tag"
+            onClick={() => undefined}
+          >
+            iPadOS
+          </Tag>
+        ),
+      label: "iPadOS",
+    },
+    {
+      case: "dismissible",
+      renderTag: () =>
+        render(
+          <Tag
+            type="dismissible"
+            className="custom-tag"
+            onDismiss={() => undefined}
+          >
+            Apple Silicon macOS hosts
+          </Tag>
+        ),
+      label: "Apple Silicon macOS hosts",
+    },
+  ])("applies className to the root of a $case tag", ({ renderTag, label }) => {
+    renderTag();
+
+    expect(screen.getByText(label).closest(".tag")).toHaveClass("custom-tag");
   });
 });
