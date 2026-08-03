@@ -74,4 +74,4 @@ Teams that already have that inventory get to spend their time on the interestin
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-08-03">
-<meta name="description" value="The EU AI Act's transparency rules are enforceable now. Here's how to inventory the AI tooling, MCP connections, and IDE extensions on your fleet before you try to scope compliance.">
+<meta name="description" value="The EU AI Act's transparency rules are enforceable now. Here's how to inventory your fleet before you try to scope compliance.">
