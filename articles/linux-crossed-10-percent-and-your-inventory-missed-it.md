@@ -104,5 +104,5 @@ Your fleet is in the same position. The Linux hosts are already there, already h
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-08-02">
+<meta name="publishedOn" value="2026-08-03">
 <meta name="description" value="Two independent sources now put Linux near 10% of North American desktops. Your asset inventory has the same blind spot the web analytics did.">
