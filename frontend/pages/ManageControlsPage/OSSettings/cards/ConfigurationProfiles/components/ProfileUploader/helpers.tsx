@@ -147,6 +147,53 @@ export const EXAMPLE_CUSTOM_ACTIVATION = JSON.stringify(
   2
 );
 
+/** Validates the custom activation JSON, returning the first problem found or
+ * null when it's usable. An empty value is valid: Fleet synthesizes a simple
+ * activation when the admin doesn't supply one.
+ *
+ * Type and Identifier are required by Apple's activation declaration, so an
+ * activation missing either is rejected on upload — worth catching before the
+ * request. See MDMAppleDDMActivation in server/fleet/apple_mdm.go. */
+export const validateCustomActivation = (value: string): string | null => {
+  if (!value.trim()) {
+    return null;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return "Enter valid JSON";
+  }
+
+  // JSON.parse accepts bare scalars and arrays, neither of which can carry the
+  // required keys.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return "Enter a JSON object";
+  }
+
+  const activation = parsed as Record<string, unknown>;
+
+  if (!activation.Type) {
+    return "Missing Type key";
+  }
+
+  // Only activation declarations belong here — a configuration or asset type
+  // would be accepted as JSON but rejected by Apple.
+  if (
+    typeof activation.Type !== "string" ||
+    !activation.Type.startsWith("com.apple.activation.")
+  ) {
+    return "Type is invalid (must be com.apple.activation.*)";
+  }
+
+  if (!activation.Identifier) {
+    return "Missing Identifier key";
+  }
+
+  return null;
+};
+
 interface IGenerateCustomTargetLabelKeyArgs {
   targetType: TargetType;
   includeMode: LabelTargetMode;

@@ -36,6 +36,7 @@ import {
   getErrorMessage,
   IParseFileResult,
   parseFile,
+  validateCustomActivation,
 } from "../../helpers";
 
 const baseClass = "add-profile-modal";
@@ -131,6 +132,18 @@ const AddProfileModal = ({
     Record<string, boolean>
   >({});
   const [customActivation, setCustomActivation] = useState("");
+  const [customActivationError, setCustomActivationError] = useState<
+    string | null
+  >(null);
+
+  // NOTE: validating per keystroke deviates from the validation pattern in
+  // frontend/docs/patterns.md#data-validation, which says to re-validate on
+  // blur. Partial JSON is invalid by definition, so this shows an error for
+  // most of the time the user is typing.
+  const onChangeCustomActivation = (value: string) => {
+    setCustomActivation(value);
+    setCustomActivationError(validateCustomActivation(value));
+  };
 
   const fileRef = useRef<File | null>(null);
 
@@ -295,7 +308,8 @@ const AddProfileModal = ({
           {showAdvancedOptions && (
             <ProfileAdvancedOptions
               customActivation={customActivation}
-              onChangeCustomActivation={setCustomActivation}
+              onChangeCustomActivation={onChangeCustomActivation}
+              error={customActivationError}
             />
           )}
           <div className={`${baseClass}__button-wrap`}>

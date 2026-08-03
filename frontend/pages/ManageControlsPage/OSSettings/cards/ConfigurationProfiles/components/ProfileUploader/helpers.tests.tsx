@@ -9,6 +9,7 @@ import {
   generateCustomTargetLabelKey,
   getErrorMessage,
   parseFile,
+  validateCustomActivation,
 } from "./helpers";
 
 const jsonFile = (contents: string, name = "profile.json") =>
@@ -168,6 +169,67 @@ describe("EXAMPLE_CUSTOM_ACTIVATION", () => {
 
   it("renders indented JSON so the editor is readable", () => {
     expect(EXAMPLE_CUSTOM_ACTIVATION).toContain('\n  "Type"');
+  });
+});
+
+describe("validateCustomActivation", () => {
+  const VALID_ACTIVATION = JSON.stringify({
+    Type: "com.apple.activation.simple",
+    Identifier: "com.fleetdm.activation.test",
+    Payload: { StandardConfigurations: ["com.fleetdm.config.test"] },
+  });
+
+  it("accepts an empty value, since Fleet synthesizes an activation", () => {
+    expect(validateCustomActivation("")).toBeNull();
+    expect(validateCustomActivation("   \n ")).toBeNull();
+  });
+
+  it("accepts a complete activation", () => {
+    expect(validateCustomActivation(VALID_ACTIVATION)).toBeNull();
+  });
+
+  it("accepts the example shown in the editor", () => {
+    expect(validateCustomActivation(EXAMPLE_CUSTOM_ACTIVATION)).toBeNull();
+  });
+
+  it("rejects unparseable JSON", () => {
+    expect(validateCustomActivation('{"Type"')).toBe("Enter valid JSON");
+  });
+
+  it("rejects JSON that isn't an object", () => {
+    // JSON.parse accepts these, but neither can carry the required keys.
+    expect(validateCustomActivation("123")).toBe("Enter a JSON object");
+    expect(validateCustomActivation("[]")).toBe("Enter a JSON object");
+    expect(validateCustomActivation("null")).toBe("Enter a JSON object");
+  });
+
+  it("reports a missing Type before checking its value", () => {
+    expect(validateCustomActivation('{"Identifier": "x"}')).toBe(
+      "Missing Type key"
+    );
+  });
+
+  it("rejects a Type outside the activation namespace", () => {
+    const configurationType = JSON.stringify({
+      Type: "com.apple.configuration.management.test",
+      Identifier: "com.fleetdm.activation.test",
+    });
+
+    expect(validateCustomActivation(configurationType)).toBe(
+      "Type is invalid (must be com.apple.activation.*)"
+    );
+  });
+
+  it("rejects a non-string Type without throwing", () => {
+    expect(validateCustomActivation('{"Type": 123, "Identifier": "x"}')).toBe(
+      "Type is invalid (must be com.apple.activation.*)"
+    );
+  });
+
+  it("reports a missing Identifier once the Type is valid", () => {
+    expect(
+      validateCustomActivation('{"Type": "com.apple.activation.simple"}')
+    ).toBe("Missing Identifier key");
   });
 });
 
