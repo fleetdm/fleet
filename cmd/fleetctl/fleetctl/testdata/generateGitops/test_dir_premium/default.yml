@@ -33,6 +33,11 @@ labels:
   description: Label C description
   label_membership_type: host_vitals
   name: Label C
+- description: Label D description
+  label_membership_type: dynamic
+  name: Label D
+  platform: linux
+  query: SELECT 1
 org_settings:
   activity_expiry_settings:
     activity_expiry_enabled: false

@@ -54,7 +54,7 @@ if [[ "$ZOOM_RUNNING" == "true" ]]; then
   quit_application 'us.zoom.xos' "$CONSOLE_USER"
 fi
 
-installer -pkg "$INSTALLER_PATH" -target /
+installer -pkg "$INSTALLER_PATH" -target / || exit $?
 
 # Restart Zoom if it was running before installation
 if [[ "$ZOOM_WAS_RUNNING" == "true" ]]; then

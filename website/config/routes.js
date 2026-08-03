@@ -644,6 +644,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /capex-savings': {
+    action: 'view-capex-savings',
+    locals: {
+      pageTitleForMeta: 'Capex savings',
+      pageDescriptionForMeta: 'Fleet collects real performance data from every device, so you can see which computers need replacing, which ones don\'t, and safely defer refresh cycles.',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
@@ -1159,6 +1167,7 @@ module.exports.routes = {
   'GET /orchestration': '/visibility-and-reporting',
   'GET /gitops-workshop': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/workshops' + originalQueryString); },
   'GET /gitops-workshops': '/workshops',
+  'GET /guides/seamless-mdm-migration': '/support',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝

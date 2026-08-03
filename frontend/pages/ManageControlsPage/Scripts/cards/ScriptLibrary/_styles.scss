@@ -1,4 +1,7 @@
 .script-library {
   @include vertical-card-layout;
 
+  &__tab-header {
+    @include tab-header;
+  }
 }

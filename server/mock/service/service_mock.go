@@ -502,7 +502,7 @@ type GetSoftwareInstallResultsFunc func(ctx context.Context, installUUID string)
 
 type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool) (string, error)
 
-type GetBatchSetSoftwareInstallersResultFunc func(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []fleet.SoftwarePackageResponse, deletedPackages []fleet.DeletedSoftwarePackage, categories []string, err error)
+type GetBatchSetSoftwareInstallersResultFunc func(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*fleet.BatchSetSoftwareInstallersResult, error)
 
 type SelfServiceInstallSoftwareTitleFunc func(ctx context.Context, host *fleet.Host, softwareTitleID uint) error
 
@@ -4121,7 +4121,7 @@ func (s *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string,
 	return s.BatchSetSoftwareInstallersFunc(ctx, tmName, payloads, dryRun)
 }
 
-func (s *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []fleet.SoftwarePackageResponse, deletedPackages []fleet.DeletedSoftwarePackage, categories []string, err error) {
+func (s *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*fleet.BatchSetSoftwareInstallersResult, error) {
 	s.mu.Lock()
 	s.GetBatchSetSoftwareInstallersResultFuncInvoked = true
 	s.mu.Unlock()

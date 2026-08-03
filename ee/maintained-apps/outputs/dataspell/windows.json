@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1.2",
+      "version": "2026.1.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DataSpell %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DataSpell %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '261.25134.18') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DataSpell %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '261.26222.84') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/python/dataspell-2026.1.2.exe",
+      "installer_url": "https://download.jetbrains.com/python/dataspell-2026.1.3.exe",
       "install_script_ref": "ba6bf684",
       "uninstall_script_ref": "af39b4c3",
-      "sha256": "8b8c51f7430b578bb5a05b05b26f10cd26c3e8a7d54cf9b2596ae3203513251c",
+      "sha256": "5e8c28474d1572362611939ada587eba29650f6b1d270670c945f0473f81d324",
       "default_categories": [
         "Developer tools"
       ]

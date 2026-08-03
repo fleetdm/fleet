@@ -94,14 +94,22 @@ relaunch_application() {
 }
 
 # Extract with ditto and --noqtn so extracted files do NOT get quarantine.
-ditto -xk --noqtn "$INSTALLER_PATH" "$TMPDIR"
+ditto -xk --noqtn "$INSTALLER_PATH" "$TMPDIR" || exit $?
 
 # copy to the applications folder (do not modify the app bundle after extraction)
 quit_and_track_application 'com.github.GitHubClient'
 if [ -d "$APPDIR/GitHub Desktop.app" ]; then
-  sudo mv "$APPDIR/GitHub Desktop.app" "$TMPDIR/GitHub Desktop.app.bkp"
+  sudo mv "$APPDIR/GitHub Desktop.app" "$TMPDIR/GitHub Desktop.app.bkp" || exit $?
 fi
-sudo cp -R "$TMPDIR/GitHub Desktop.app" "$APPDIR"
+if ! sudo cp -R "$TMPDIR/GitHub Desktop.app" "$APPDIR"; then
+  # remove the partial copy so a failed install isn't inventoried as the new
+  # version, then restore the previous version if there was one
+  sudo rm -rf "$APPDIR/GitHub Desktop.app"
+  if [ -d "$TMPDIR/GitHub Desktop.app.bkp" ]; then
+    sudo mv "$TMPDIR/GitHub Desktop.app.bkp" "$APPDIR/GitHub Desktop.app"
+  fi
+  exit 1
+fi
 
 relaunch_application 'com.github.GitHubClient'
 

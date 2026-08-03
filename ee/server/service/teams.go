@@ -919,7 +919,7 @@ func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.U
 }
 
 func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 

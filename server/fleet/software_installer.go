@@ -212,6 +212,38 @@ type DeletedSoftwarePackage struct {
 	DisplayName string `json:"display_name" db:"display_name"`
 }
 
+// SoftwarePackageDownloadProgress reports one software package's download in a batch.
+// A package that hasn't started downloading has an empty name. Entries keep their place in
+// the batch payload, which is what tells two packages with the same name apart, so nothing
+// may filter or reorder them.
+type SoftwarePackageDownloadProgress struct {
+	Name   string                        `json:"name"`
+	Status SoftwarePackageDownloadStatus `json:"status"`
+}
+
+// SoftwarePackageDownloadStatus is how far a package got through its download.
+type SoftwarePackageDownloadStatus string
+
+const (
+	SoftwarePackageDownloadStarted  SoftwarePackageDownloadStatus = "downloading"
+	SoftwarePackageDownloadFinished SoftwarePackageDownloadStatus = "downloaded"
+	SoftwarePackageDownloadFailed   SoftwarePackageDownloadStatus = "failed"
+	SoftwarePackageDownloadSkipped  SoftwarePackageDownloadStatus = "skipped"
+)
+
+// BatchSetSoftwareInstallersResult is the status of a software batch started by
+// BatchSetSoftwareInstallers.
+type BatchSetSoftwareInstallersResult struct {
+	Status  string
+	Message string
+	// Packages is always empty for a dry run.
+	Packages []SoftwarePackageResponse
+	// DeletedPackages holds what the batch deleted, or would delete on a dry run.
+	DeletedPackages  []DeletedSoftwarePackage
+	Categories       []string
+	DownloadProgress []SoftwarePackageDownloadProgress
+}
+
 // VPPAppResponse is the response type used when applying app store apps by batch.
 type VPPAppResponse struct {
 	// TeamID is the ID of the team.
@@ -500,9 +532,10 @@ const (
 Exit code: %d (Failed)
 %s
 `
-	SoftwareInstallerDownloadFailedCopy  = "Installing software...\nError: Software installer download failed."
-	SoftwareInstallerNotFoundCopy        = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
-	SoftwareInstallerFleetVarsFailedCopy = "Installing software...\nError: Fleet couldn't resolve variables in this software's scripts.\n%s"
+	SoftwareInstallerDownloadFailedCopy    = "Installing software...\nError: Software installer download failed."
+	SoftwareInstallerNotFoundCopy          = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
+	SoftwareInstallerFleetVarsFailedCopy   = "Installing software...\nError: Fleet couldn't resolve variables in this software's scripts.\n%s"
+	SoftwareInstallerScriptCouldNotRunCopy = "Installing software...\nError: Fleet couldn't run the install script. The script's interpreter (from its \"#!\" shebang) may be missing or not executable on this host, or the script was stopped before it finished.\n%s"
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -538,6 +571,9 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 		return
 	case ExitCodeFleetVarResolutionFailed:
 		*h.Output = fmt.Sprintf(SoftwareInstallerFleetVarsFailedCopy, *h.Output)
+		return
+	case ExitCodeScriptTimeout:
+		h.Output = new(fmt.Sprintf(SoftwareInstallerScriptCouldNotRunCopy, *h.Output))
 		return
 	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
@@ -805,7 +841,7 @@ func CanonicalPlatform(p string) string {
 func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 	ext = strings.TrimPrefix(strings.ToLower(ext), ".")
 	switch ext {
-	case "sh":
+	case "sh", "py":
 		return []string{"darwin", "linux"}
 	default:
 		return nil
