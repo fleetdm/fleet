@@ -3,8 +3,6 @@
 
   form {
     @include vertical-form-layout;
-    // Same cap as the Microsoft Entra page and the admin settings convention;
-    // without it the Default fleet dropdown stretches to the full content width.
     max-width: $settings-form-max-width;
   }
 

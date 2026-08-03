@@ -49,12 +49,11 @@ const useSetWindowsMdm = ({
           enable_turn_on_windows_mdm_manually:
             enableMdm && !turnOnProgrammatically,
           windows_enabled_and_configured: enableMdm,
-          // Migration only applies when MDM is on and enrollment is programmatic (the checkbox is
-          // hidden otherwise), so derive the value to avoid re-saving a stale "enabled" state.
+          // Migration only applies when MDM is on and enrollment is programmatic (the checkbox is hidden otherwise), so
+          // derive the value to avoid re-saving a stale "enabled" state.
           windows_migration_enabled:
             enableMdm && turnOnProgrammatically && enableAutoMigration,
-          // The default fleet for user-driven enrollment is Premium only; the
-          // backend rejects it otherwise.
+          // The default fleet for user-driven enrollment is Premium only; the backend rejects it otherwise.
           ...(isPremiumTier && {
             windows_enrollment: { default_fleet: defaultFleet },
           }),
@@ -106,8 +105,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
 
   const onChangeMdmOn = () => {
     setMdmOn(!mdmOn);
-    // Turning MDM on defaults to programmatic enrollment; turning it off also
-    // turns off auto migration.
+    // Turning MDM on defaults to programmatic enrollment; turning it off also turns off auto migration.
     !mdmOn ? setTurnOnProgrammatically(true) : setAutoMigration(false);
   };
 
@@ -131,8 +129,6 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
 
   const fleetOptions: CustomOptionType[] = [
     { label: "Unassigned", value: UNASSIGNED_FLEET },
-    // Exclude the synthetic "All fleets" (-1) and "Unassigned" (0) context entries;
-    // "Unassigned" above is the explicit no-fleet choice.
     ...(availableTeams ?? [])
       .filter((t) => t.id > 0)
       .map((t) => ({ label: t.name, value: t.name })),
