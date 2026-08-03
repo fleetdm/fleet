@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -418,7 +419,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	out.Name = input.Name
 	out.Slug = input.Slug
-	out.InstallerURL = selectedInstaller.InstallerURL
+	out.InstallerURL = normalizeSourceForgeURL(selectedInstaller.InstallerURL)
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.DefaultCategories = input.DefaultCategories
 	out.SHA256 = "no_check"
@@ -545,6 +546,43 @@ var fileTypes = map[string]struct{}{
 func isFileType(installerType string) bool {
 	_, ok := fileTypes[installerType]
 	return ok
+}
+
+// normalizeSourceForgeURL appends the "/download" segment that SourceForge's
+// project file URLs need in order to serve the file itself.
+//
+// A bare https://sourceforge.net/projects/<p>/files/<path> URL returns a 200
+// with an HTML landing page for non-browser clients, so Fleet would download
+// that page instead of the installer. Only the ".../download" form redirects to
+// a mirror and returns the binary. Some winget manifests already carry the
+// suffix (WinSCP) and some don't (CrystalDiskMark), so normalize here rather
+// than depending on the manifest author.
+//
+// Called after installer selection so the type-detection above still sees the
+// original file extension.
+func normalizeSourceForgeURL(installerURL string) string {
+	u, err := url.Parse(installerURL)
+	if err != nil {
+		return installerURL
+	}
+
+	host := strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.")
+	if host != "sourceforge.net" {
+		// downloads.sourceforge.net serves files directly and takes no suffix.
+		return installerURL
+	}
+
+	// Only project file paths need this; leave anything else alone.
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) < 4 || parts[0] != "projects" || parts[2] != "files" {
+		return installerURL
+	}
+	if parts[len(parts)-1] == "download" {
+		return installerURL
+	}
+
+	u.Path = path.Join(u.Path, "download")
+	return u.String()
 }
 
 // fuzzyMatch supports three JSON representations:
