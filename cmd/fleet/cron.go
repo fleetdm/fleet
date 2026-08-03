@@ -2312,10 +2312,15 @@ func cronUpgradeCodeSoftwareMigration(
 	return s, nil
 }
 
-// cronSoftwareChecksumMigration merges duplicate software inventory entries left
-// behind by the software checksum field-ordering change in Fleet v4.76.0. It runs
-// once shortly after startup and can be re-triggered with
-// `fleetctl trigger --name software_checksum_migration`.
+// cronSoftwareChecksumMigration registers the on-demand migration that merges
+// duplicate software inventory entries left behind by the software checksum
+// field-ordering change in Fleet v4.76.0.
+//
+// It never runs on a schedule: it runs only when invoked with
+// `fleetctl trigger --name software_checksum_migration`. The effectively-never
+// interval ensures the scheduler never fires an automatic run, and omitting
+// WithRunOnce keeps the schedule's goroutine alive so it stays triggerable (a
+// run-once schedule stops accepting triggers once it has completed).
 func cronSoftwareChecksumMigration(
 	ctx context.Context,
 	instanceID string,
@@ -2323,17 +2328,14 @@ func cronSoftwareChecksumMigration(
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronSoftwareChecksumMigration)
-		defaultInterval = 24 * time.Hour
-		priorJobDiff    = -(defaultInterval - 30*time.Second)
+		name = string(fleet.CronSoftwareChecksumMigration)
+		// Effectively "never": this schedule only runs when triggered on demand.
+		manualOnlyInterval = 100 * 365 * 24 * time.Hour
 	)
 	logger = logger.With("cron", name, "component", name)
 	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds, ds,
+		ctx, name, instanceID, manualOnlyInterval, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithRunOnce(true),
-		// ensures it runs a few seconds after Fleet is started
-		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob(name, func(ctx context.Context) error {
 			return ds.ReconcileSoftwareChecksums(ctx)
 		}),
