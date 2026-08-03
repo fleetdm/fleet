@@ -9,9 +9,16 @@ Publish a downloadable OpenAPI 3.1 spec (`openapi.yml`) with every Fleet release
 
 A Node.js proof of concept exists on `poc/openapi-spec-generator` (May 2026). This is a from-scratch rebuild in Go, informed by it.
 
-## Pilot endpoints
+## Coverage
 
-The issue's list, mapped to current documented paths (the docs adopted the teams-to-fleets and queries-to-reports renames after the issue was written):
+The spec covers every endpoint documented in `docs/REST API/rest-api.md`:
+every `### ` section with a request line becomes an operation. There's no
+allowlist. This started as a 10-endpoint pilot (the issue's original list,
+mapped to current documented paths after the docs adopted the
+teams-to-fleets and queries-to-reports renames); those 10 endpoints remain
+useful as a fixed reference point and are still the live contract-test set
+exercised by `verify` (see "The verify subcommand" below, which is
+unchanged):
 
 | # | Method | Path | Markdown section |
 |---|--------|------|------------------|
@@ -35,8 +42,7 @@ tools/openapi/
   go.mod                 # module github.com/fleetdm/fleet/tools/openapi
   main.go                # CLI: generate (default) and verify subcommands
   parser/                # rest-api.md -> []Endpoint (parses the ENTIRE doc)
-  spec/                  # []Endpoint + allowlist -> OpenAPI 3.1 document
-  allowlist.yml          # the 10 pilot paths (method + path); expansion is config-only
+  spec/                  # []Endpoint -> OpenAPI 3.1 document (every parsed endpoint)
   openapi.yml            # generated spec (gitignored), not committed
   DESIGN.md              # this document
 ```
@@ -49,14 +55,19 @@ Walks the entire Markdown document section by section. For each `###` heading it
 - The `#### Parameters` table: name, type, `in`, description. The docs use `in` values of `query`, `path`, `body`, and (inconsistently) `json` and `form`; the latter two are treated as `body`. Body params become the request body schema.
 - Response examples: the first fenced `json` block under `##### Default response`, with the `Status: NNN` line above it. JSON Schema is inferred from the example payload (object/array/string/integer/number/boolean, `date-time` format via regex); all inferred types are nullable unions since one example can't promise non-nullability.
 
-Strictness is split:
-
-- Parse failure on an **allowlisted** endpoint is a hard error. Exit non-zero, name the offending heading. This is the CI signal the issue's edge cases require (malformed pilot Markdown fails the build).
-- Parse failures **elsewhere** feed a coverage report printed at the end (for example `parsed 385/412 sections; 27 skipped`), listing each skipped heading and why. Non-pilot docs edits can never break CI. The report is the scouting data for the follow-up expansion story.
+A `### ` section with no request line is not an endpoint section: it
+documents something else (for example "Retrieve your API token", which
+walks through UI steps). That's a tolerated skip, still listed in the
+coverage report. Any other parse failure on a `### ` section, bad JSON in an
+example, a malformed parameters table, a missing response block, and so on,
+is a hard error: `generate` exits 1, naming every such heading and reason.
+The parser exports `parser.HardSkips(res)` to classify `Result.Skipped` this
+way, and `parser.ReasonNoRequestLine` is the sentinel reason string shared
+between the parser and its callers so they don't duplicate the literal.
 
 ### Spec assembly and validation
 
-`spec/` filters parsed endpoints to the allowlist, assembles the OpenAPI 3.1 document (info block, server URL, `Authorization: Bearer` security scheme, tags by docs section), and validates it in-process with `pb33f/libopenapi` + `libopenapi-validator` before writing. Validation failure exits with code 2. Output goes to `tools/openapi/openapi.yml` by default, or `--out`/`--stdout`.
+`spec/` assembles every parsed endpoint into an OpenAPI 3.1 document (info block, server URL, `Authorization: Bearer` security scheme, tags by docs section), and validates it in-process with `pb33f/libopenapi` + `libopenapi-validator` before writing. Validation failure exits with code 2. Output goes to `tools/openapi/openapi.yml` by default, or `--out`/`--stdout`.
 
 ### Generated artifact
 
@@ -92,18 +103,17 @@ No changes to `.github/workflows/goreleaser-fleet.yaml`.
 
 ## Docs
 
-A short subsection in the introduction of `docs/REST API/rest-api.md` (renders at fleetdm.com/docs/rest-api): the spec exists as a release artifact, its pilot scope (10 endpoints), and the stable download URL `https://github.com/fleetdm/fleet/releases/latest/download/openapi.yml`.
+A short subsection in the introduction of `docs/REST API/rest-api.md` (renders at fleetdm.com/docs/rest-api): the spec exists as a release artifact, generated from this reference at release time, covers every endpoint documented in it, and is downloadable at the stable URL `https://github.com/fleetdm/fleet/releases/latest/download/openapi.yml`.
 
 ## Testing
 
-- Go unit tests in `parser/` (table extraction, request-line parsing, schema inference edge cases: nulls, empty arrays, `:id` paths, `json`/`form` params) and `spec/` (assembly, allowlist filtering).
+- Go unit tests in `parser/` (table extraction, request-line parsing, schema inference edge cases: nulls, empty arrays, `:id` paths, `json`/`form` params, hard-skip classification) and `spec/` (assembly of every parsed endpoint, duplicate operationId detection).
 - CI regenerating and validating `openapi.yml` on every relevant PR acts as the end-to-end test.
-- The contract test runs automatically in CI (job 2) and manually against a dev instance for story sign-off.
-- Manual, once at the end: import `openapi.yml` into Postman and Stoplight, confirm both render all 10 endpoints; confirm the artifact appears on an RC release.
+- The contract test (the original 10 endpoints) runs automatically in CI (job 2) and manually against a dev instance for story sign-off.
+- Manual, once at the end: import `openapi.yml` into Postman and Stoplight, confirm both render the generated endpoints; confirm the artifact appears on an RC release.
 
 ## Out of scope
 
 - Hosted Swagger UI or any web-rendered spec.
 - SDK, Terraform, or Postman collection generation.
-- Coverage beyond the 10 pilot endpoints (the coverage report measures readiness, nothing more).
 - Changing the canonical docs format.

@@ -2,37 +2,12 @@ package spec
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/tools/openapi/parser"
 	"gopkg.in/yaml.v3"
 )
-
-type AllowedEndpoint struct {
-	Method string `yaml:"method"`
-	Path   string `yaml:"path"`
-}
-
-type Allowlist struct {
-	Endpoints []AllowedEndpoint `yaml:"endpoints"`
-}
-
-func LoadAllowlist(path string) (Allowlist, error) {
-	var a Allowlist
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return a, err
-	}
-	if err := yaml.Unmarshal(b, &a); err != nil {
-		return a, fmt.Errorf("parsing %s: %w", path, err)
-	}
-	if len(a.Endpoints) == 0 {
-		return a, fmt.Errorf("%s lists no endpoints", path)
-	}
-	return a, nil
-}
 
 type Info struct {
 	Title       string `yaml:"title"`
@@ -96,19 +71,14 @@ type Document struct {
 	Security   []map[string][]string            `yaml:"security"`
 }
 
-func Build(res *parser.Result, allow Allowlist) (*Document, error) {
-	byKey := make(map[string]parser.Endpoint, len(res.Endpoints))
-	for _, e := range res.Endpoints {
-		byKey[e.Method+" "+e.Path] = e
-	}
-
+func Build(res *parser.Result) (*Document, error) {
 	doc := &Document{
 		OpenAPI: "3.1.0",
 		Info: Info{
-			Title: "Fleet REST API (pilot)",
-			Description: "Pilot OpenAPI specification generated from Fleet's canonical " +
-				"REST API reference (docs/REST API/rest-api.md). Covers a subset of " +
-				"endpoints. The Markdown reference remains the source of truth.",
+			Title: "Fleet REST API",
+			Description: "OpenAPI specification generated from Fleet's canonical " +
+				"REST API reference (docs/REST API/rest-api.md). The Markdown " +
+				"reference remains the source of truth.",
 			Version: "main",
 		},
 		Servers: []Server{{
@@ -126,13 +96,7 @@ func Build(res *parser.Result, allow Allowlist) (*Document, error) {
 
 	tags := map[string]bool{}
 	opIDs := map[string]string{}
-	var missing []string
-	for _, ae := range allow.Endpoints {
-		e, ok := byKey[ae.Method+" "+ae.Path]
-		if !ok {
-			missing = append(missing, ae.Method+" "+ae.Path)
-			continue
-		}
+	for _, e := range res.Endpoints {
 		op := buildOperation(e)
 		if prev, dup := opIDs[op.OperationID]; dup {
 			return nil, fmt.Errorf("duplicate operationId %q from headings %q and %q", op.OperationID, prev, e.Heading)
@@ -141,15 +105,12 @@ func Build(res *parser.Result, allow Allowlist) (*Document, error) {
 		if doc.Paths[e.Path] == nil {
 			doc.Paths[e.Path] = map[string]*Operation{}
 		}
-		doc.Paths[e.Path][strings.ToLower(e.Method)] = op
-		tags[e.Section] = true
-	}
-	if len(missing) > 0 {
-		msg := fmt.Sprintf("allowlisted endpoint(s) not found in Markdown: %s", strings.Join(missing, ", "))
-		for _, s := range res.Skipped {
-			msg += fmt.Sprintf("\n  skipped section %q: %s", s.Heading, s.Reason)
+		method := strings.ToLower(e.Method)
+		if prev, dup := doc.Paths[e.Path][method]; dup {
+			return nil, fmt.Errorf("duplicate endpoint %s %s documented by headings %q and %q", e.Method, e.Path, prev.Summary, e.Heading)
 		}
-		return nil, fmt.Errorf("%s", msg)
+		doc.Paths[e.Path][method] = op
+		tags[e.Section] = true
 	}
 
 	for t := range tags {
