@@ -6,8 +6,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "tag";
 
-export type TagType = "static" | "clickable" | "dismissible";
-
 interface ITagBaseProps {
   children: React.ReactNode;
   /** Default: "large" (28px). Per design, use "small" (24px) sparingly. */
@@ -76,7 +74,7 @@ const Tag = (props: ITagProps) => {
           disabled={disabled}
           onClick={props.onDismiss}
           aria-label={dismissLabel}
-          title={dismissLabel}
+          title={!tooltip ? dismissLabel : undefined}
         >
           <Icon name="close" color="core-fleet-black" size="small" />
         </button>

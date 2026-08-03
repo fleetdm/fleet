@@ -154,10 +154,11 @@ const HostReportCard = ({
             className={`${baseClass}__view-full-report`}
             variant="subdued"
             size="small"
+            icon="chevron-right"
+            iconPosition="right"
             onClick={() => onShowDetails(report)}
           >
             View full report
-            <Icon name="chevron-right" color={ICON_COLOR} />
           </Button>
         </ReportBanner>
       );
