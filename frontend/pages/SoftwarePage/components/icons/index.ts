@@ -752,6 +752,7 @@ import OrigamiStudio from "./OrigamiStudio";
 import P4V from "./P4V";
 import Pacifist from "./Pacifist";
 import Package from "./Package";
+import PaintDotNet from "./PaintDotNet";
 import PaleMoon from "./PaleMoon";
 import Paletro from "./Paletro";
 import ParallelsDesktop from "./ParallelsDesktop";
@@ -1915,6 +1916,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   p4v: P4V,
   pacifist: Pacifist,
   package: Package,
+  "paint.net": PaintDotNet,
   "pale moon": PaleMoon,
   paletro: Paletro,
   "parallels desktop": ParallelsDesktop,
