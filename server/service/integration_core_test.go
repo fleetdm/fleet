@@ -8869,6 +8869,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
 	assert.False(t, acResp.GitOpsConfig.GitopsModeEnabled)
 	assert.Zero(t, acResp.GitOpsConfig.RepositoryURL)
+	expectedMaxPackageSize := config.TestConfig().Server.MaxInstallerSizeBytes
+	assert.Equal(t, expectedMaxPackageSize, acResp.MaxSoftwarePackageSize)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
