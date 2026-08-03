@@ -129,13 +129,15 @@ $toast-notification-width: 500px;
     gap: $pad-small;
     flex-shrink: 0;
     // Match __icon's one-line-tall box so the action buttons visually
-    // track the first line of text when the message wraps.
+    // track the first line of text when the message wraps. The subdued
+    // Button children are 36px tall and intentionally overflow this
+    // ~21px band — the mismatch is what centers each button on the
+    // first text line without dragging the whole header down.
     height: calc(#{$x-small} * #{$line-height});
   }
 
   &__chevron svg {
     transition: transform 0.25s ease;
-    transform: rotate(0deg);
   }
 
   &__chevron--open svg {
