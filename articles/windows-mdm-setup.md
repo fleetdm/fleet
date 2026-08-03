@@ -223,13 +223,17 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 _Available in Fleet Premium_
 
-By default, Windows hosts enrolled via Autopilot are added to "Unassigned". You can configure a default fleet so that new hosts enrolled into MDM are automatically assigned to a specific fleet—similar to how [Apple Business default fleets](https://fleetdm.com/guides/macos-mdm-setup#set-a-default-team-for-hosts-enrolled-via-abm) work.
+By default, Windows hosts enrolled via Autopilot are added to "Unassigned". You can configure a default fleet so that new hosts enrolled into MDM are automatically assigned to a specific fleet, similar to how [Apple Business default fleets](https://fleetdm.com/guides/macos-mdm-setup#set-a-default-team-for-hosts-enrolled-via-abm) work.
+
+> **Note:** The default fleet applies only to hosts that enroll through end user-driven enrollment (Microsoft Entra). Hosts that install Fleet's agent before enrolling in MDM keep the fleet from their enroll secret instead.
 
 #### In the UI
 
 1. Head to **Settings > Integrations > MDM > Windows MDM** and select **Edit**.
 
-2. Under **User driven enrollment**, use the **Default team** dropdown to select the fleet that new hosts enrolled into MDM should be assigned to.
+2. Under **User driven enrollment**, use the **Default fleet** dropdown to select the fleet that new hosts enrolled into MDM should be assigned to.
+
+> **Note:** The **Default fleet** dropdown is disabled until Fleet is connected to Microsoft Entra. Connect Entra first using the steps above.
 
 3. Select **Save**.
 
@@ -242,6 +246,19 @@ Add the `windows_enrollment` key under `mdm` in your global (org) settings YAML 
     windows_enrollment:
       default_fleet: "💻 Workstations"
 ```
+
+To clear the default and send new hosts to "Unassigned", set `default_fleet` to an empty string (`""`).
+
+#### How hosts are assigned
+
+A host is assigned to the default fleet only when it enrolls in MDM before Fleet's agent is installed. That's the order Autopilot uses. Fleet applies the default at the moment it links the MDM enrollment to the host record, so:
+
+- Changing the default fleet affects only hosts that enroll after the change. Hosts already in Fleet stay where they are.
+- Hosts that already exist in Fleet keep their current fleet when they re-enroll, including hosts you deliberately left in "Unassigned".
+- Hosts you moved to another fleet manually aren't moved back to the default.
+- Deleting the fleet you set as the default clears the setting, and new hosts go to "Unassigned" until you set a new one.
+
+> **Warning:** Some virtual machines report a placeholder hardware serial such as `System Serial Number` instead of a unique one. If two Windows hosts report the same serial, Fleet can link a host to the other host's MDM enrollment and assign it to the wrong fleet. This affects Windows MDM enrollment generally, not only default fleets. Configure unique serial numbers on your virtual machines.
 
 ## Automatic Windows MDM migration
 
