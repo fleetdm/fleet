@@ -380,7 +380,7 @@ module.exports = {
         }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
         // Create an array of paths that will determine if the "~ga4-annotation" label will be automatically added to this PR.
-        let CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS = [ 'website/views/pages/homepage.ejs', 'website/views/pages/pricing.ejs', 'website/views/partials/primary-tagline.partial.ejs'];
+        let CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS = [ 'website/views/pages/homepage.ejs', 'website/views/pages/pricing.ejs', 'website/views/contact.ejs'];
         let prShouldCreateGoogleAnalyticsAnnotation = false;
 
         // For each changed file, decide what reviewer to request, if any…
