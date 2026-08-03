@@ -23,4 +23,14 @@
     width: 100px;
     max-width: 100px;
   }
+
+  // Fixed width so the ViewAllHostsButton / ActionsDropdown column doesn't
+  // shrink under the base `max-width: 99px` cap and cause the widgets to
+  // overflow. `text-align: right` from the base .actions__cell rule keeps
+  // the cell as table-cell (needed for last-row border-radius to render).
+  .data-table-block .actions__header,
+  .data-table-block .actions__cell {
+    width: 170px;
+    max-width: 170px;
+  }
 }
