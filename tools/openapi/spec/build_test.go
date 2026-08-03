@@ -122,6 +122,21 @@ func TestRenderDeterministic(t *testing.T) {
 	}
 }
 
+func TestOperationID(t *testing.T) {
+	cases := []struct {
+		heading string
+		want    string
+	}{
+		{"List widgets", "listWidgets"},
+		{"- List things", "listThings"},
+	}
+	for _, c := range cases {
+		if got := operationID(c.heading); got != c.want {
+			t.Errorf("operationID(%q) = %q, want %q", c.heading, got, c.want)
+		}
+	}
+}
+
 func TestBuildFailsOnDuplicateMethodPath(t *testing.T) {
 	res := sampleResult()
 	dup := res.Endpoints[0]
