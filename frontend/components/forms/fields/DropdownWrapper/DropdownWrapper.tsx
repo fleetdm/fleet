@@ -15,6 +15,7 @@ import Select, {
   components,
   DropdownIndicatorProps,
   GroupBase,
+  MenuPlacement,
   OptionProps,
   PropsValue,
   SingleValue,
@@ -133,6 +134,10 @@ export interface IDropdownWrapper {
   ariaLabel?: string;
   /** Tooltip explaining why the dropdown is disabled. Shown above the control, on hover over the control only (not the label or help text), and only while `isDisabled` is true. */
   disabledTooltipContent?: React.ReactNode;
+  /** Defaults to "auto" so a menu near the viewport bottom flips upward
+   * instead of stretching the page and triggering a scrollbar-driven
+   * layout shift. */
+  menuPlacement?: MenuPlacement;
 }
 
 const getOptionBackgroundColor = (
@@ -380,6 +385,7 @@ const DropdownWrapper = ({
   customNoOptionsMessage,
   ariaLabel,
   disabledTooltipContent,
+  menuPlacement = "auto",
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
@@ -471,6 +477,7 @@ const DropdownWrapper = ({
       tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
       placeholder={placeholder}
       onMenuOpen={onMenuOpen}
+      menuPlacement={menuPlacement}
       // Resolve accessible name: explicit prop wins, otherwise fall back
       // to the placeholder (usually "Select X"), otherwise the required
       // `name` (often a kebab-case identifier — least readable but

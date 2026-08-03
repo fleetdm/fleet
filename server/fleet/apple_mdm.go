@@ -1509,11 +1509,6 @@ const (
 	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
 )
 
-// ManagedLocalAccountUsername is the short name Fleet provisions on macOS hosts
-// via the AccountConfiguration MDM command when the managed local account
-// feature is enabled.
-const ManagedLocalAccountUsername = "_fleetadmin"
-
 // PrimaryAccountType represents the type of the primary account for MacOS going through setup experience.
 // Documented at https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary
 // if `SetPrimarySetupAccountAsRegularUser` or `SkipPrimarySetupAccountCreation` is true, you must configure a local admin account.
