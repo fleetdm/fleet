@@ -801,6 +801,20 @@ Setting to true will disable the origin check.
     websockets_allow_unsafe_origin: true
   ```
 
+### server_allow_private_network_integrations
+
+Allows Fleet's HTTP client to make outbound requests to RFC 1918 and other private network addresses. Enable this if an integration Fleet needs to reach over HTTP. Such as an SSO/IdP, EJBCA, Jira, or SCEP server, or an `HTTP_PROXY`/`HTTPS_PROXY` hosted on a private network.
+
+This does not affect the always-blocked loopback (`127.0.0.0/8`) and cloud metadata (`169.254.0.0/16`) ranges.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_PRIVATE_NETWORK_INTEGRATIONS`
+- Config file format:
+```yaml
+server:
+  allow_private_network_integrations: true
+```
+
 ### server_force_h2c
 
 Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
