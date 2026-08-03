@@ -27,11 +27,11 @@ Apple is raising the transport security floor for system processes involved in d
 
 New requirement: TLS 1.2 minimum with ATS-compliant cipher suites and certificates. If your MDM or management infrastructure falls short, things break in ways that aren't always obvious. Enrollment failures, profiles not installing, update commands silently failing.
 
-Apple published [support article 126655 ("Prepare your network environment for stricter security requirements")](https://support.apple.com/en-us/126655) to help you audit. Run it against your MDM and any internal management endpoints now, not in September.
+Apple published [support article 126655 ("Prepare your network environment for stricter security requirements")](https://support.apple.com/en-us/126655) to help you audit. If you're using Fleet on managed cloud, no action needed. Fleet meets the new requirements. If you're self-hosting Fleet follow [Apple's instructions](https://support.apple.com/en-us/126655) and test macOS 27 before it's released this fall. Looking for help? You can find us [where we hang out](https://fleetdm.com/support).
 
 ## New and migrated declarative configurations
 
-> Enable the [`mdm.allow​_all​_declarations` feature flag](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
+> Enable the [`mdm.allow​_all​_declarations` feature flag](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations are [coming in Fleet 4.91.0](https://github.com/fleetdm/fleet/issues/48222).
 
 Apple keeps expanding what DDM can express. Here's what's new in OS 27.
 
@@ -44,8 +44,6 @@ Notable controls: `AllowGenmoji`, `AllowImagePlayground`, `AllowWritingTools`, `
 **Web content filter plugin:** A new `com.apple.configuration.webcontent-filter.plugin` declarative configuration.
 
 **Content caching (macOS 27):** The `com.apple.configuration.content-cache.settings` configuration replaces the `com.apple.AssetCache.managed` profile. New status items for cache info, parents, and peers. Custom HTTPS reporting endpoints are supported. If you run content caches, plan the migration.
-
-**Configuration profiles as declarative assets:** Legacy profiles can be delivered as declarative assets via the new `ProfileAssetReference` key in `com.apple.configuration.legacy`. Integrity verification is built in. This is a useful bridge for teams partway through the DDM transition.
 
 **Managed Migration Assistant (macOS 26.4):** The new `com.apple.configuration.migration-assistant.settings` configuration turns Mac-to-Mac migration into a policy you control, and deploying it is what keeps a hardware refresh from breaking the new Mac's MDM enrollment. See [Managed Migration Assistant: Mac-to-Mac migration with Fleet](https://fleetdm.com/guides/managed-migration-assistant-mac-to-mac-migration-with-fleet).
 
@@ -97,9 +95,9 @@ A few things worth setting user expectations on: Siri AI requires a user waitlis
 
 If you're building your OS 27 response plan:
 
-1. Verify your MDM vendor's DDM software update support. This is the fire drill. Do it today.
-2. Audit TLS/ATS compliance across your MDM and management infrastructure using Apple's support article 126655.
-3. Migrate Intelligence, Siri, and keyboard restrictions to the new declarative configurations.
+1. Verify your MDM vendor's DDM software update support. This is the fire drill. Do it today. If you use Fleet, you're already set.
+2. Audit TLS/ATS compliance across your MDM and management infrastructure using Apple's support article 126655. If you use Fleet, you're already set.
+3. Migrate Intelligence, Siri, and keyboard restrictions to the new declarative configurations. Fleet already supports all declarations that are replacing deprecated v1 profiles (.mobileconfig). Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). Custom activations are [coming in Fleet 4.91.0](https://github.com/fleetdm/fleet/issues/48222).
 4. Plan the app management migration away from `com.apple.applicationaccess.new` on macOS.
 5. Update your re-enrollment runbooks to account for the backup restoration change.
 6. Start the Intel Mac refresh conversation if you haven't already.
