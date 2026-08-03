@@ -4474,6 +4474,8 @@ If `hostname` is specified when there is more than one host with the same hostna
 }
 ```
 
+> Note: For Windows profiles, `operation_type` can be `"remove"` with `status` set to `"failed"` when a profile removal fails on the host. In this case, `detail` contains an error message (e.g., `"Failed to remove: ..."`). The profile is no longer managed by Fleet, but the setting may still be active on the device. See [Removal behavior](https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings#removal-behavior) for more information.
+
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
@@ -7088,6 +7090,14 @@ solely on the response status code returned by this endpoint.
 ##### Default response
 
 `Status: 200`
+
+```json
+  {
+    "warning": "Some Windows settings may not be cleanly removed from hosts and will remain at their last configured value. See https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings#removal-behavior"
+  }
+```
+
+> The `warning` field is only returned when deleting a Windows configuration profile. It is not returned for macOS, iOS, iPadOS, or Android profiles. The warning is informational — the profile is successfully deleted regardless. Device-specific removal results are surfaced asynchronously on the host's OS settings tab and via the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint's `profiles` array.
 
 ### Resend configuration profile
 
