@@ -717,6 +717,7 @@ import Novabench from "./Novabench";
 import Nucleo from "./Nucleo";
 import Nudge from "./Nudge";
 import Numi from "./Numi";
+import Nvda from "./Nvda";
 import NvidiaGeforceNow from "./NvidiaGeforceNow";
 import Obs from "./Obs";
 import Obsidian from "./Obsidian";
@@ -1886,6 +1887,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nucleo: Nucleo,
   nudge: Nudge,
   numi: Numi,
+  nvda: Nvda,
   "nvidia geforce now": NvidiaGeforceNow,
   obs: Obs,
   obsidian: Obsidian,
