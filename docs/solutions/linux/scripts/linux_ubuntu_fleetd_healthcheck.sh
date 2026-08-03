@@ -155,7 +155,7 @@ log ""
 log "── 4. Orbit environment (/etc/default/orbit) ───────────────"
 if [[ -f /etc/default/orbit ]]; then
   # Print contents but redact any secrets
-  grep -v -i "secret\|password\|token\|key" /etc/default/orbit \
+  awk 'BEGIN { IGNORECASE=1 } !/secret|password|token|key/' /etc/default/orbit \
     | tee -a "${SUMMARY}" \
     | sed 's/^/    /'
 else
