@@ -266,11 +266,11 @@ if (-not $DesktopLogsFound) {
 $EventLogDir = Join-Path $WorkDir 'logs\event_log'
 New-Item -ItemType Directory -Path $EventLogDir -Force | Out-Null
 try {
-  Get-WinEvent -FilterHashtable @{ LogName = 'System', 'Application'; StartTime = $Since } -ErrorAction Stop |
-    Where-Object { $_.Message -match 'orbit|osquery|fleet' } |
-    Select-Object TimeCreated, LogName, ProviderName, Id, LevelDisplayName, Message |
+  $Matches = Get-WinEvent -FilterHashtable @{ LogName = 'System', 'Application'; StartTime = $Since } -ErrorAction SilentlyContinue |
+    Where-Object { $_.Message -match 'orbit|osquery|fleet' }
+  $Matches | Select-Object TimeCreated, LogName, ProviderName, Id, LevelDisplayName, Message |
     Export-Csv -Path (Join-Path $EventLogDir 'orbit_osquery_fleet_events.csv') -NoTypeInformation
-  Ok "Collected System/Application event log entries mentioning orbit/osquery/fleet"
+  Ok "Collected $(($Matches | Measure-Object).Count) System/Application event(s) mentioning orbit/osquery/fleet"
 } catch {
   Warn "Failed to query Windows Event Log: $_"
 }
