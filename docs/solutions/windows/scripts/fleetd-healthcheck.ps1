@@ -371,8 +371,14 @@ if ($OverallExit -eq 0) {
 Log " Archive: $ArchivePath"
 Log "============================================================"
 
-Compress-Archive -Path (Join-Path $WorkDir '*') -DestinationPath $ArchivePath -Force
-Remove-Item -Path $WorkDir -Recurse -Force
-Write-Host "  [INFO]  Archive created: $ArchivePath"
+try {
+  Compress-Archive -Path (Join-Path $WorkDir '*') -DestinationPath $ArchivePath -Force -ErrorAction Stop
+  Remove-Item -Path $WorkDir -Recurse -Force
+  Write-Host "  [INFO]  Archive created: $ArchivePath"
+} catch {
+  Write-Error "Failed to create archive: $_"
+  Write-Host "  [WARN]  Archive creation failed; diagnostic data retained at: $WorkDir"
+  $OverallExit = 1
+}
 
 exit $OverallExit
