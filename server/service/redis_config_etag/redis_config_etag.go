@@ -197,8 +197,8 @@ const (
 	// once. Long, because correctness comes from invalidation rather than
 	// expiry; present at all so a lost or failed invalidation is bounded
 	// rather than permanent.
-	DefaultHostETagTTLMin = 50 * time.Minute
-	DefaultHostETagTTLMax = 70 * time.Minute
+	DefaultHostETagMinTTL = 50 * time.Minute
+	DefaultHostETagMaxTTL = 70 * time.Minute
 
 	// DefaultHostQuarantineTTL is the per-host publish quarantine armed by
 	// InvalidateHost. Derived for ITS staleness source — replica lag plus
@@ -267,15 +267,15 @@ var (
 // the correctness model; see fleet.ConfigETagStore for the method contracts.
 // Must be used by pointer (it carries atomic leader-election flags).
 type Store struct {
-	pool          fleet.RedisPool
-	logger        *slog.Logger
-	fenceTTL      time.Duration
-	etagTTL       time.Duration
-	hostETagMin   time.Duration
-	hostETagMax   time.Duration
-	quarantineTTL time.Duration
-	version       string // Fleet server version baked into ETag record keys
-	testPrefix    string // for tests, the key prefix to use to avoid conflicts
+	pool           fleet.RedisPool
+	logger         *slog.Logger
+	fenceTTL       time.Duration
+	etagTTL        time.Duration
+	hostETagMinTTL time.Duration
+	hostETagMaxTTL time.Duration
+	quarantineTTL  time.Duration
+	version        string // Fleet server version baked into ETag record keys
+	testPrefix     string // for tests, the key prefix to use to avoid conflicts
 
 	// Per-gate leader-election flags: true while a database load for that
 	// gate is in flight on this Fleet instance. See the ██ NON-BLOCKING
@@ -291,14 +291,14 @@ var _ fleet.ConfigETagStore = (*Store)(nil)
 // state-write logs and must not be nil.
 func New(pool fleet.RedisPool, logger *slog.Logger) *Store {
 	return &Store{
-		pool:          pool,
-		logger:        logger,
-		fenceTTL:      DefaultFenceTTL,
-		etagTTL:       DefaultETagTTL,
-		hostETagMin:   DefaultHostETagTTLMin,
-		hostETagMax:   DefaultHostETagTTLMax,
-		quarantineTTL: DefaultHostQuarantineTTL,
-		version:       version.Version().Version,
+		pool:           pool,
+		logger:         logger,
+		fenceTTL:       DefaultFenceTTL,
+		etagTTL:        DefaultETagTTL,
+		hostETagMinTTL: DefaultHostETagMinTTL,
+		hostETagMaxTTL: DefaultHostETagMaxTTL,
+		quarantineTTL:  DefaultHostQuarantineTTL,
+		version:        version.Version().Version,
 	}
 }
 
@@ -314,11 +314,11 @@ func (s *Store) hostQuarantineKey(hostID uint) string {
 	return fmt.Sprintf("%s%s:%d", s.testPrefix, hostQuarantineKeyPrefix, hostID)
 }
 
-// hostETagTTLSeconds returns a jittered TTL in [hostETagMin, hostETagMax] so
+// hostETagTTLSeconds returns a jittered TTL in [hostETagMinTTL, hostETagMaxTTL] so
 // the backstop never expires a whole fleet's records at once.
 func (s *Store) hostETagTTLSeconds() int {
-	minSec := int(s.hostETagMin.Seconds())
-	maxSec := int(s.hostETagMax.Seconds())
+	minSec := int(s.hostETagMinTTL.Seconds())
+	maxSec := int(s.hostETagMaxTTL.Seconds())
 	if maxSec <= minSec {
 		return minSec
 	}

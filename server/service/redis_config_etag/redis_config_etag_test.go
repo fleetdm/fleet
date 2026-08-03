@@ -48,15 +48,15 @@ func setupStore(t testing.TB, cluster, redir bool) *Store {
 
 func newStoreForTest(t testing.TB, pool fleet.RedisPool) *Store {
 	return &Store{
-		pool:          pool,
-		logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
-		fenceTTL:      DefaultFenceTTL,
-		etagTTL:       DefaultETagTTL,
-		hostETagMin:   DefaultHostETagTTLMin,
-		hostETagMax:   DefaultHostETagTTLMax,
-		quarantineTTL: DefaultHostQuarantineTTL,
-		version:       "test",
-		testPrefix:    t.Name() + ":",
+		pool:           pool,
+		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		fenceTTL:       DefaultFenceTTL,
+		etagTTL:        DefaultETagTTL,
+		hostETagMinTTL: DefaultHostETagMinTTL,
+		hostETagMaxTTL: DefaultHostETagMaxTTL,
+		quarantineTTL:  DefaultHostQuarantineTTL,
+		version:        "test",
+		testPrefix:     t.Name() + ":",
 	}
 }
 
@@ -193,9 +193,9 @@ func testHostGetSetAndValidation(t *testing.T, s *Store) {
 	defer conn.Close()
 	ttl, err := redigoInt(conn.Do("TTL", s.hostETagKey(hostID)))
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, ttl, int(DefaultHostETagTTLMin.Seconds())-1,
+	require.GreaterOrEqual(t, ttl, int(DefaultHostETagMinTTL.Seconds())-1,
 		"host record TTL must be within the jittered backstop bounds")
-	require.LessOrEqual(t, ttl, int(DefaultHostETagTTLMax.Seconds()),
+	require.LessOrEqual(t, ttl, int(DefaultHostETagMaxTTL.Seconds()),
 		"host record TTL must be within the jittered backstop bounds")
 
 	// isolation: another host never reads this record
@@ -399,10 +399,10 @@ func TestTTLDerivations(t *testing.T) {
 	require.Less(t, DefaultHostQuarantineTTL, DefaultFenceTTL)
 	// Host record TTLs are jittered around ~1h and must stay within the
 	// bounded-staleness contract.
-	require.Less(t, DefaultHostETagTTLMin, DefaultHostETagTTLMax,
+	require.Less(t, DefaultHostETagMinTTL, DefaultHostETagMaxTTL,
 		"host record TTLs must be jittered")
-	require.GreaterOrEqual(t, DefaultHostETagTTLMin, 30*time.Minute)
-	require.LessOrEqual(t, DefaultHostETagTTLMax, 2*time.Hour)
+	require.GreaterOrEqual(t, DefaultHostETagMinTTL, 30*time.Minute)
+	require.LessOrEqual(t, DefaultHostETagMaxTTL, 2*time.Hour)
 }
 
 // TestGateLoaderLeaderElection: one Redis miss must NOT become one database
