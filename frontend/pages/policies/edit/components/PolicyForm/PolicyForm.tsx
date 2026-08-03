@@ -692,6 +692,11 @@ const PolicyForm = ({
       (selectedTargetType === "Custom" && !hasCustomLabels) ||
       errors.query === EMPTY_QUERY_ERR;
 
+    // Single source of truth: patchOptions renders inside this block (patchSlot)
+    // when shown, and standalone otherwise — the two must stay exact complements.
+    const showAutomationsBlock =
+      isEditMode && !!storedPolicy && !!automationsConfig;
+
     // Patch radios for patch policies (Premium). Rendered inside the Automations
     // block via patchSlot when it's shown, or standalone before the automations
     // config loads so the option stays settable.
@@ -739,7 +744,7 @@ const PolicyForm = ({
               disableOptions={gitOpsModeEnabled}
             />
           )}
-          {isEditMode && !!storedPolicy && !!automationsConfig && (
+          {showAutomationsBlock && (
             <div className="form-field">
               <div className="form-field__label">Automations</div>
               {!(isPremiumTier && isPatchPolicy) && (
@@ -767,8 +772,7 @@ const PolicyForm = ({
               />
             </div>
           )}
-          {!(isEditMode && !!storedPolicy && !!automationsConfig) &&
-            patchOptions}
+          {!showAutomationsBlock && patchOptions}
           {isEditMode &&
             isPremiumTier &&
             !isPatchPolicy &&
