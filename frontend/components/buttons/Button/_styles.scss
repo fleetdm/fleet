@@ -151,11 +151,6 @@ $base-class: "button";
     }
   }
 
-  &--success {
-    @include button-variant($ui-success, $ui-success-over, $ui-success-down);
-    display: flex;
-  }
-
   &--alert {
     @include button-variant(
       $core-vibrant-red,
@@ -429,18 +424,6 @@ $base-class: "button";
     padding: $pad-large $pad-small;
     font-size: $medium;
     width: 100%;
-  }
-
-  // Designed to offset padding for text to justify left of parent component
-  &.button--justify-left {
-    left: -$pad-small;
-    margin-right: -$pad-small;
-  }
-
-  // Designed to offset padding for text to justify right of parent component
-  &.button--justify-right {
-    right: -$pad-small;
-    margin-left: -$pad-small;
   }
 
   // Used in registration/auth pages
