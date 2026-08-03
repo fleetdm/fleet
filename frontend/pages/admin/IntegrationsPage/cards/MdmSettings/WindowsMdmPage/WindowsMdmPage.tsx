@@ -143,10 +143,24 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
       name="default-fleet"
       label="Default fleet"
       ariaLabel="Default fleet"
+      labelClassname={`${baseClass}__default-fleet-label`}
       options={fleetOptions}
       value={defaultFleet}
       onChange={onChangeDefaultFleet}
       isDisabled={!mdmOn || !isConnectedToEntra || gitOpsModeEnabled}
+      disabledTooltipContent={
+        !isConnectedToEntra ? (
+          <>
+            Fleet must be connected to Entra to set a default fleet.{" "}
+            <CustomLink
+              text="Learn more"
+              url={PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS}
+              newTab
+              variant="tooltip-link"
+            />
+          </>
+        ) : undefined
+      }
       helpText={
         <>
           New hosts enrolled into MDM are automatically assigned to this fleet.{" "}
@@ -214,28 +228,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
               <h2 className={`${baseClass}__section-title`}>
                 User driven enrollment
               </h2>
-              {isConnectedToEntra ? (
-                defaultFleetDropdown
-              ) : (
-                <TooltipWrapper
-                  tipContent={
-                    <>
-                      Fleet must be connected to Entra to set a default fleet.{" "}
-                      <CustomLink
-                        text="Learn more"
-                        url={
-                          PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS
-                        }
-                        variant="tooltip-link"
-                      />
-                    </>
-                  }
-                  showArrow
-                  underline={false}
-                >
-                  {defaultFleetDropdown}
-                </TooltipWrapper>
-              )}
+              {defaultFleetDropdown}
             </div>
           )}
           {isPremiumTier && turnOnProgrammatically && (

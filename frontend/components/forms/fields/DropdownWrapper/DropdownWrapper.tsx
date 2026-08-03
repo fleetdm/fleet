@@ -27,6 +27,7 @@ import { PADDING } from "styles/var/padding";
 
 import FormField from "components/forms/FormField";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import { TooltipContent } from "interfaces/dropdownOption";
@@ -130,6 +131,10 @@ export interface IDropdownWrapper {
    * not infer any of these on its own; without a value here screen readers
    * announce a bare "combobox". */
   ariaLabel?: string;
+  /** Tooltip explaining why the dropdown is disabled. Shown above the control,
+   * on hover over the control only (not the label or help text), and only
+   * while `isDisabled` is true. */
+  disabledTooltipContent?: React.ReactNode;
 }
 
 const getOptionBackgroundColor = (
@@ -376,6 +381,7 @@ const DropdownWrapper = ({
   nowrapMenu,
   customNoOptionsMessage,
   ariaLabel,
+  disabledTooltipContent,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
@@ -443,6 +449,38 @@ const DropdownWrapper = ({
     );
   };
 
+  const selectElement = (
+    <Select<CustomOptionType, false>
+      classNamePrefix="react-select"
+      isSearchable={isSearchable}
+      styles={generateCustomDropdownStyles(
+        variant,
+        isDisabled,
+        nowrapMenu,
+        maxMenuHeight
+      )}
+      options={options}
+      components={{
+        Option: CustomOption,
+        DropdownIndicator: CustomDropdownIndicator,
+        IndicatorSeparator: () => null,
+        ValueContainer,
+      }}
+      value={getCurrentValue()}
+      onChange={handleChange}
+      isDisabled={isDisabled}
+      noOptionsMessage={() => customNoOptionsMessage ?? "No results found"}
+      tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
+      placeholder={placeholder}
+      onMenuOpen={onMenuOpen}
+      // Resolve accessible name: explicit prop wins, otherwise fall back
+      // to the placeholder (usually "Select X"), otherwise the required
+      // `name` (often a kebab-case identifier — least readable but
+      // guaranteed present).
+      aria-label={ariaLabel ?? placeholder ?? name}
+    />
+  );
+
   return (
     <FormField
       name={name}
@@ -451,35 +489,19 @@ const DropdownWrapper = ({
       type="dropdown"
       className={wrapperClassNames}
     >
-      <Select<CustomOptionType, false>
-        classNamePrefix="react-select"
-        isSearchable={isSearchable}
-        styles={generateCustomDropdownStyles(
-          variant,
-          isDisabled,
-          nowrapMenu,
-          maxMenuHeight
-        )}
-        options={options}
-        components={{
-          Option: CustomOption,
-          DropdownIndicator: CustomDropdownIndicator,
-          IndicatorSeparator: () => null,
-          ValueContainer,
-        }}
-        value={getCurrentValue()}
-        onChange={handleChange}
-        isDisabled={isDisabled}
-        noOptionsMessage={() => customNoOptionsMessage ?? "No results found"}
-        tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
-        placeholder={placeholder}
-        onMenuOpen={onMenuOpen}
-        // Resolve accessible name: explicit prop wins, otherwise fall back
-        // to the placeholder (usually "Select X"), otherwise the required
-        // `name` (often a kebab-case identifier — least readable but
-        // guaranteed present).
-        aria-label={ariaLabel ?? placeholder ?? name}
-      />
+      {isDisabled && disabledTooltipContent ? (
+        <TooltipWrapper
+          className={`${baseClass}__disabled-tooltip`}
+          tipContent={disabledTooltipContent}
+          position="top"
+          underline={false}
+          showArrow
+        >
+          {selectElement}
+        </TooltipWrapper>
+      ) : (
+        selectElement
+      )}
     </FormField>
   );
 };

@@ -12,6 +12,24 @@
     }
   }
 
+  // Wraps the <Select> control when disabledTooltipContent is provided; the wrapper
+  // must fill the form field's width like the bare control does. The compound selector
+  // out-specifies .component__tooltip-wrapper's own display/white-space rules, which
+  // would otherwise win the cascade tie (component styles are glob-imported
+  // alphabetically, so TooltipWrapper's compile after this file's).
+  &__disabled-tooltip {
+    &.component__tooltip-wrapper {
+      display: block;
+    }
+
+    .component__tooltip-wrapper__element {
+      // The element is otherwise a max-content flex item, which collapses the
+      // percentage-width <Select> inside it to its text width.
+      width: 100%;
+      white-space: normal;
+    }
+  }
+
   // Table dropdowns have height 40px
   &__table-filter {
     height: 36px;

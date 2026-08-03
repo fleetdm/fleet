@@ -21,4 +21,9 @@
     font-size: $small;
     font-weight: $bold;
   }
+
+  // Keep the label readable when the dropdown is disabled; only the control greys out.
+  &__default-fleet-label.dropdown-wrapper__label--disabled {
+    color: $core-fleet-black;
+  }
 }

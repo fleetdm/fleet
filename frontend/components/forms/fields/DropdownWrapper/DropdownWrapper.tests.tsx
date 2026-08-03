@@ -99,4 +99,66 @@ describe("DropdownWrapper Component", () => {
 
     expect(screen.getByText(/no results found/i)).toBeInTheDocument();
   });
+
+  test("shows the disabled tooltip on hover when disabled with content provided", async () => {
+    const { container } = render(
+      <DropdownWrapper
+        options={sampleOptions}
+        value="option1"
+        onChange={mockOnChange}
+        name="test-dropdown"
+        label="Test Dropdown"
+        isDisabled
+        disabledTooltipContent="Reason it is disabled"
+      />
+    );
+
+    const tooltipAnchor = container.querySelector(
+      ".dropdown-wrapper__disabled-tooltip .component__tooltip-wrapper__element"
+    );
+    expect(tooltipAnchor).toBeInTheDocument();
+
+    // react-tooltip only mounts the tip content once the anchor is hovered
+    await userEvent.hover(tooltipAnchor as Element);
+    expect(
+      await screen.findByText(/reason it is disabled/i)
+    ).toBeInTheDocument();
+  });
+
+  test("does not render the disabled tooltip when enabled", () => {
+    const { container } = render(
+      <DropdownWrapper
+        options={sampleOptions}
+        value="option1"
+        onChange={mockOnChange}
+        name="test-dropdown"
+        label="Test Dropdown"
+        disabledTooltipContent="Reason it is disabled"
+      />
+    );
+
+    expect(
+      container.querySelector(".dropdown-wrapper__disabled-tooltip")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/reason it is disabled/i)
+    ).not.toBeInTheDocument();
+  });
+
+  test("does not render the disabled tooltip when disabled without content", () => {
+    const { container } = render(
+      <DropdownWrapper
+        options={sampleOptions}
+        value="option1"
+        onChange={mockOnChange}
+        name="test-dropdown"
+        label="Test Dropdown"
+        isDisabled
+      />
+    );
+
+    expect(
+      container.querySelector(".dropdown-wrapper__disabled-tooltip")
+    ).not.toBeInTheDocument();
+  });
 });
