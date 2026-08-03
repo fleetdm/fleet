@@ -1,5 +1,4 @@
-# Paint.NET ships as a zip containing its installer .exe. Fleet downloads the zip
-# to INSTALLER_PATH; this script extracts it and runs the installer silently.
+# Paint.NET ships as a zip containing its installer .exe.
 
 $zipFilePath = "${env:INSTALLER_PATH}"
 
@@ -9,10 +8,11 @@ $registrationTimeoutSeconds = 120
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
 
+# Same DisplayName and Publisher the catalog's exists query uses.
 function Get-PaintDotNetEntry {
     Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
-        Where-Object { $_.DisplayName -eq "Paint.NET" } |
+        Where-Object { $_.DisplayName -eq "Paint.NET" -and $_.Publisher -eq "dotPDN LLC" } |
         Select-Object -First 1
 }
 
@@ -28,11 +28,9 @@ if (-not $installer) {
   Exit 1
 }
 
-# /auto is the vendor's silent switch, per the winget manifest InstallerSwitches.
-# -Wait also waits on descendants, so wait on the installer process alone.
+# /auto is the vendor's silent switch. -Wait would also wait on descendants.
 $process = Start-Process -FilePath $installer.FullName -ArgumentList "/auto" -PassThru
-# Keeps .ExitCode readable after the process ends.
-$null = $process.Handle
+$null = $process.Handle  # keeps .ExitCode readable after exit
 
 $killed = $false
 if (-not $process.WaitForExit($installTimeoutSeconds * 1000)) {
@@ -58,7 +56,6 @@ while (-not (Get-PaintDotNetEntry) -and ($elapsed -lt $registrationTimeoutSecond
 
 Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue
 
-# In case the installer launches the app once it finishes.
 Stop-Process -Name "paintdotnet" -Force -ErrorAction SilentlyContinue
 
 $entry = Get-PaintDotNetEntry
@@ -68,10 +65,10 @@ if (-not $entry) {
 }
 Write-Host "Registered '$($entry.DisplayName)' by '$($entry.Publisher)', version $($entry.DisplayVersion)."
 
-# Registration above is the success signal; a killed process's code means nothing.
+# Registration is the success signal; a killed process's code means nothing.
 if ($killed -or $null -eq $exitCode) { Exit 0 }
 
-# 3010 (reboot required) and 1641 (reboot initiated) are successful installs.
+# 3010/1641 = reboot required/initiated.
 if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }
 
 Exit $exitCode

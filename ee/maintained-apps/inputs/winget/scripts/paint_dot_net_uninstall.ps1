@@ -1,14 +1,19 @@
-# Paint.NET's ProductCode changes with every release, and the .exe and .msi
-# variants register different ones. The UpgradeCode is stable across both, so
-# resolve the installed products from it.
+# The ProductCode changes every release and differs between the .exe and .msi
+# variants; the UpgradeCode is stable across both.
 $upgradeCode = '{04A40F40-A207-4B48-AED7-6AA532E43275}'
 $timeoutSeconds = 300
 $successCodes = @(0, 3010, 1641)
 
 try {
     $inst = New-Object -ComObject "WindowsInstaller.Installer"
+    # An empty list means nothing to remove; a failed query means we don't know.
     $productCodes = @()
-    try { $productCodes = @($inst.RelatedProducts($upgradeCode)) } catch { }
+    try {
+        $productCodes = @($inst.RelatedProducts($upgradeCode))
+    } catch {
+        Write-Host "Could not query related products for upgrade code $upgradeCode. Error: $_"
+        Exit 1
+    }
 
     if ($productCodes.Count -eq 0) { Write-Host "No installed product found for upgrade code $upgradeCode."; Exit 0 }
 
