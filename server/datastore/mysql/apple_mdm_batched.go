@@ -714,6 +714,56 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 				d.AssetsUpdatedAt = &t
 			}
 		}
+
+		// Same idea for a custom activation: editing it bumps its uploaded_at,
+		// which re-syncs the declaration it activates.
+		// GREATEST so a secret re-stamp counts as a change even when the
+		// activation itself wasn't re-uploaded. COALESCE because GREATEST
+		// returns NULL if any argument is NULL.
+		const activationsStmt = `
+			SELECT declaration_uuid,
+				GREATEST(uploaded_at, COALESCE(secrets_updated_at, uploaded_at)) AS activation_updated_at
+			FROM mdm_apple_ddm_activations
+			WHERE declaration_uuid IN (?)`
+		cq, cargs, err := sqlx.In(activationsStmt, declUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build apple declaration activations query")
+		}
+		type activationRow struct {
+			DeclarationUUID     string       `db:"declaration_uuid"`
+			ActivationUpdatedAt sql.NullTime `db:"activation_updated_at"`
+		}
+		var activationRows []activationRow
+		if err := sqlx.SelectContext(ctx, tx, &activationRows, cq, cargs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple declarations with custom activations")
+		}
+		for _, cr := range activationRows {
+			if d, ok := byUUID[cr.DeclarationUUID]; ok && cr.ActivationUpdatedAt.Valid {
+				t := cr.ActivationUpdatedAt.Time
+				d.ActivationUpdatedAt = &t
+			}
+		}
+
+		// A declaration whose activation uses Fleet variables needs the same
+		// per-host token busting as one that uses them itself.
+		const actVarsStmt = `
+			SELECT DISTINCT a.declaration_uuid
+			FROM mdm_apple_ddm_activations a
+			JOIN mdm_configuration_profile_variables v ON v.apple_ddm_activation_uuid = a.activation_uuid
+			WHERE a.declaration_uuid IN (?)`
+		avq, avargs, err := sqlx.In(actVarsStmt, declUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build apple activation variables query")
+		}
+		var withActVars []string
+		if err := sqlx.SelectContext(ctx, tx, &withActVars, avq, avargs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple activations with fleet variables")
+		}
+		for _, u := range withActVars {
+			if d, ok := byUUID[u]; ok {
+				d.HasFleetVariables = true
+			}
+		}
 	}
 
 	return out, nil
@@ -752,6 +802,7 @@ func (ds *Datastore) bulkGetHostMDMAppleDeclarationsByUUIDsTransaction(
 			secrets_updated_at,
 			variables_updated_at,
 			assets_updated_at,
+			activation_updated_at,
 			scope
 		FROM host_mdm_apple_declarations
 		WHERE host_uuid IN (?)
@@ -915,7 +966,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 	const baseStmt = `
 		INSERT INTO host_mdm_apple_declarations
 		  (host_uuid, declaration_uuid, declaration_identifier, declaration_name,
-		   status, operation_type, token, secrets_updated_at, variables_updated_at, assets_updated_at, scope)
+		   status, operation_type, token, secrets_updated_at, variables_updated_at, assets_updated_at,
+		   activation_updated_at, scope)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  status = VALUES(status),
@@ -926,6 +978,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		  secrets_updated_at = VALUES(secrets_updated_at),
 		  variables_updated_at = VALUES(variables_updated_at),
 		  assets_updated_at = VALUES(assets_updated_at),
+		  activation_updated_at = VALUES(activation_updated_at),
 		  scope = VALUES(scope)
 	`
 
@@ -935,7 +988,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		batch := rows[i:end]
 
 		valueParts := make([]string, 0, len(batch))
-		args := make([]any, 0, len(batch)*10)
+		args := make([]any, 0, len(batch)*12)
 		batchByKey := make(map[string]*fleet.MDMAppleHostDeclaration, len(batch))
 		for _, r := range batch {
 			// Scope defaults to System
@@ -943,10 +996,11 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 			if scope == "" {
 				scope = fleet.PayloadScopeSystem
 			}
-			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 			args = append(args,
 				r.HostUUID, r.DeclarationUUID, r.Identifier, r.Name,
-				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt, r.AssetsUpdatedAt, scope,
+				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt, r.AssetsUpdatedAt,
+				r.ActivationUpdatedAt, scope,
 			)
 			batchByKey[fmt.Sprintf("%s\n%s", r.HostUUID, r.DeclarationUUID)] = r
 		}

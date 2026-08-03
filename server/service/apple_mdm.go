@@ -7199,6 +7199,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 
 	activations := []fleet.MDMAppleDDMManifest{}
 	configurations := []fleet.MDMAppleDDMManifest{}
+	management := []fleet.MDMAppleDDMManifest{}
 	configurationUUIDs := []string{}
 	var removeDeclarationUUIDsToUpdateToPending []string
 	for _, d := range di {
@@ -7236,14 +7237,28 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 			}
 		}
 
-		effectiveToken := fleet.EffectiveDDMToken(d.ServerToken, d.VariablesUpdatedAt, d.AssetsUpdatedAt)
+		effectiveToken := fleet.EffectiveDDMToken(d.ServerToken, d.VariablesUpdatedAt, d.AssetsUpdatedAt, d.ActivationUpdatedAt)
+
+		if d.DeclarationType != nil && strings.HasPrefix(*d.DeclarationType, fleet.MDMAppleManagementTypePrefix) {
+			management = append(management, fleet.MDMAppleDDMManifest{
+				Identifier:  d.Identifier,
+				ServerToken: effectiveToken,
+			})
+			continue
+		}
+
 		configurations = append(configurations, fleet.MDMAppleDDMManifest{
 			Identifier:  d.Identifier,
 			ServerToken: effectiveToken,
 		})
 		configurationUUIDs = append(configurationUUIDs, d.DeclarationUUID)
+
+		activationIdentifier := d.DeclarationUUID + fleet.MDMAppleGeneratedActivationSuffix
+		if d.ActivationIdentifier != nil {
+			activationIdentifier = *d.ActivationIdentifier
+		}
 		activations = append(activations, fleet.MDMAppleDDMManifest{
-			Identifier:  fmt.Sprintf("%s.activation", d.Identifier),
+			Identifier:  activationIdentifier,
 			ServerToken: effectiveToken,
 		})
 	}
@@ -7267,22 +7282,24 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	// Calculate token based on count and concatenated tokens for install items
 	var count int
 	type tokenSorting struct {
-		token              string
-		variablesUpdatedAt *time.Time
-		assetsUpdatedAt    *time.Time
-		uploadedAt         time.Time
-		declarationUUID    string
+		token               string
+		variablesUpdatedAt  *time.Time
+		assetsUpdatedAt     *time.Time
+		activationUpdatedAt *time.Time
+		uploadedAt          time.Time
+		declarationUUID     string
 	}
 	var tokens []tokenSorting
 	for _, d := range di {
 		if d.OperationType != nil && *d.OperationType == string(fleet.MDMOperationTypeInstall) {
 			// Extract d.ServerToken and order by d.UploadedAt descending and then by d.DeclarationUUID ascending
 			sorting := tokenSorting{
-				token:              d.ServerToken,
-				variablesUpdatedAt: d.VariablesUpdatedAt,
-				assetsUpdatedAt:    d.AssetsUpdatedAt,
-				uploadedAt:         d.UploadedAt,
-				declarationUUID:    d.DeclarationUUID,
+				token:               d.ServerToken,
+				variablesUpdatedAt:  d.VariablesUpdatedAt,
+				assetsUpdatedAt:     d.AssetsUpdatedAt,
+				activationUpdatedAt: d.ActivationUpdatedAt,
+				uploadedAt:          d.UploadedAt,
+				declarationUUID:     d.DeclarationUUID,
 			}
 			tokens = append(tokens, sorting)
 			count++
@@ -7298,14 +7315,16 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	var tokenBuilder strings.Builder
 	for _, t := range tokens {
 		// Must match MySQL's CONCAT order and DATETIME(6) string representation
-		// used in MDMAppleDDMDeclarationsToken:
-		//   HEX(mad.token) + IFNULL(variables_updated_at, '') + IFNULL(assets_updated_at, '')
+		// used in MDMAppleDDMDeclarationsToken.
 		tokenBuilder.WriteString(t.token)
 		if t.variablesUpdatedAt != nil {
 			tokenBuilder.WriteString(t.variablesUpdatedAt.Format("2006-01-02 15:04:05.000000"))
 		}
 		if t.assetsUpdatedAt != nil {
 			tokenBuilder.WriteString(t.assetsUpdatedAt.Format("2006-01-02 15:04:05.000000"))
+		}
+		if t.activationUpdatedAt != nil {
+			tokenBuilder.WriteString(t.activationUpdatedAt.Format("2006-01-02 15:04:05.000000"))
 		}
 	}
 
@@ -7322,7 +7341,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 			Activations:    activations,
 			Configurations: configurations,
 			Assets:         ddmAssets,
-			Management:     []fleet.MDMAppleDDMManifest{},
+			Management:     management,
 		},
 		DeclarationsToken: token,
 	})
@@ -7354,7 +7373,9 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 	case "activation":
 		return svc.handleActivationDeclaration(ctx, parts, hostUUID, scope)
 	case "configuration":
-		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID, scope)
+		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID, scope, false)
+	case "management":
+		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID, scope, true)
 	case "asset":
 		return svc.handleDeclarationAsset(ctx, parts, hostUUID)
 	default:
@@ -7396,15 +7417,18 @@ func (svc *MDMAppleDDMService) handleDeclarationAsset(ctx context.Context, parts
 }
 
 func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, parts []string, hostUUID string, scope fleet.PayloadScope) ([]byte, error) {
-	references := strings.TrimSuffix(parts[2], ".activation")
-
-	// ensure the declaration for the requested activation still exists
-	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, references, hostUUID, scope)
+	act, err := svc.ds.MDMAppleDDMActivationResponse(ctx, parts[2], hostUUID, scope)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
 		}
-		return nil, ctxerr.Wrap(ctx, err, "getting linked configuration for activation declaration")
+		return nil, ctxerr.Wrap(ctx, err, "getting activation declaration")
+	}
+
+	effectiveToken := fleet.EffectiveDDMToken(act.Token, act.VariablesUpdatedAt, act.AssetsUpdatedAt, act.ActivationUpdatedAt)
+
+	if len(act.RawJSON) > 0 {
+		return svc.serveCustomActivation(ctx, act, hostUUID, effectiveToken)
 	}
 
 	response := fmt.Sprintf(`
@@ -7415,18 +7439,55 @@ func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, 
   },
   "ServerToken": "%s",
   "Type": "com.apple.activation.simple"
-}`, parts[2], references, fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt, d.AssetsUpdatedAt))
+}`, parts[2], act.ConfigurationIdentifier, effectiveToken)
 
 	return []byte(response), nil
 }
 
-func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Context, parts []string, hostUUID string, scope fleet.PayloadScope) ([]byte, error) {
+func (svc *MDMAppleDDMService) serveCustomActivation(ctx context.Context, act *fleet.MDMAppleDDMActivationForDelivery, hostUUID, effectiveToken string) ([]byte, error) {
+	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(act.RawJSON))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets for activation")
+	}
+
+	expanded, err = svc.replaceDeclarationFleetVariables(ctx, expanded, hostUUID)
+	if err != nil {
+		if err := svc.markDeclarationFailed(ctx, hostUUID, act.DeclarationUUID, err.Error()); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
+		}
+		return nil, nil
+	}
+
+	var tempd map[string]any
+	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored activation")
+	}
+	tempd["ServerToken"] = effectiveToken
+
+	b, err := json.Marshal(tempd)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling activation")
+	}
+	return b, nil
+}
+
+func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Context, parts []string, hostUUID string, scope fleet.PayloadScope, wantManagement bool) ([]byte, error) {
 	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, parts[2], hostUUID, scope)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting declaration response")
+	}
+
+	// The two endpoints share a lookup but must not serve each other's rows.
+	rawDecl, err := fleet.GetRawDeclarationValues(d.RawJSON)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing stored declaration")
+	}
+	if isManagement := strings.HasPrefix(rawDecl.Type, fleet.MDMAppleManagementTypePrefix); isManagement != wantManagement {
+		return nil, nano_service.NewHTTPStatusError(http.StatusNotFound,
+			ctxerr.Errorf(ctx, "declaration %s is not served by this endpoint", parts[2]))
 	}
 
 	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(d.RawJSON))
@@ -7459,7 +7520,7 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 	// normally stripped at delivery time since it is not a part of the Apple
 	// schema and unused by the device.
 	delete(tempd, "PayloadScope")
-	tempd["ServerToken"] = fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt, d.AssetsUpdatedAt) //nolint:nilaway // tempd is non-nil after successful json.Unmarshal
+	tempd["ServerToken"] = fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt, d.AssetsUpdatedAt, d.ActivationUpdatedAt) //nolint:nilaway // tempd is non-nil after successful json.Unmarshal
 
 	b, err := json.Marshal(tempd)
 	if err != nil {
@@ -7474,18 +7535,34 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 		return ctxerr.Wrap(ctx, err, "unmarshalling response")
 	}
 
-	configurationReports := statusReport.StatusItems.Management.Declarations.Configurations
+	// Management declarations report under their own section but are tracked in
+	// the same host_mdm_apple_declarations rows as configurations.
+	configurationReports := append(
+		append([]fleet.MDMAppleDDMStatusDeclaration{}, statusReport.StatusItems.Management.Declarations.Configurations...),
+		statusReport.StatusItems.Management.Declarations.Management...,
+	)
 	updates := make([]*fleet.MDMAppleHostDeclaration, len(configurationReports))
 	for i, r := range configurationReports {
 		var status fleet.MDMDeliveryStatus
 		var detail string
 		switch {
+		case declarationReasonCode(r, fleet.MDMAppleDDMReasonActivationFailed) != nil:
+			// The activation itself failed, predicate included. Treated like any
+			// other client-side failure.
+			status = fleet.MDMDeliveryFailed
+			detail = apple_mdm.FmtDDMError(r.Reasons)
+		case declarationReasonCode(r, fleet.MDMAppleDDMReasonPredicate) != nil:
+			// The predicate evaluated false, so the device deliberately didn't
+			// apply the configuration. Fleet delivered it correctly, so this is
+			// verified rather than failed, with the reason surfaced in detail.
+			status = fleet.MDMDeliveryVerified
+			detail = fmtDDMPredicateNotApplied(declarationReasonCode(r, fleet.MDMAppleDDMReasonPredicate))
 		case r.Active && r.Valid == fleet.MDMAppleDeclarationValid:
 			status = fleet.MDMDeliveryVerified
 		case r.Valid == fleet.MDMAppleDeclarationInvalid || isUnknownDeclarationType(r):
 			status = fleet.MDMDeliveryFailed
 			detail = apple_mdm.FmtDDMError(r.Reasons)
-		case r.Valid == fleet.MDMAppleDeclarationValid: // should be rare/never
+		case r.Valid == fleet.MDMAppleDeclarationValid:
 			// The debug messages here can be used to figure out why a DDM profile is stuck in a certain state on a device.
 			svc.logger.DebugContext(ctx, "valid but inactive declaration status",
 				"status", r.Valid, "active", r.Active, "host", dm.Identifier(), "declaration", r.Identifier)
@@ -7531,6 +7608,29 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 }
 
 // Checks the active, valid and first reason to verify if it is an unknown declaration type error
+func declarationReasonCode(r fleet.MDMAppleDDMStatusDeclaration, code string) *fleet.MDMAppleDDMStatusErrorReason {
+	for i := range r.Reasons {
+		if r.Reasons[i].Code == code {
+			return &r.Reasons[i]
+		}
+	}
+	return nil
+}
+
+// fmtDDMPredicateNotApplied explains a configuration the device validated but
+// deliberately didn't apply, quoting the predicate when Apple supplies it.
+func fmtDDMPredicateNotApplied(reason *fleet.MDMAppleDDMStatusErrorReason) string {
+	if reason == nil {
+		return ""
+	}
+	for _, k := range []string{"Predicate", "predicate"} {
+		if v, ok := reason.Details[k]; ok {
+			return fmt.Sprintf("Fleet verified, but predicate (%v) evaluated to false and settings were not applied to this host.", v)
+		}
+	}
+	return "Fleet verified, but the activation predicate evaluated to false and settings were not applied to this host."
+}
+
 func isUnknownDeclarationType(declarationResponse fleet.MDMAppleDDMStatusDeclaration) bool {
 	return !declarationResponse.Active &&
 		declarationResponse.Valid == fleet.MDMAppleDeclarationUnknown &&

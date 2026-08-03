@@ -5560,7 +5560,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDDMDeclarationsToken, error) {
 	const stmt = `
 SELECT
-	COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(CONCAT(CONCAT(HEX(mad.token), IFNULL(hmad.variables_updated_at, '')), IFNULL(hmad.assets_updated_at, ''))
+	COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(CONCAT(CONCAT(CONCAT(HEX(mad.token), IFNULL(hmad.variables_updated_at, '')), IFNULL(hmad.assets_updated_at, '')), IFNULL(hmad.activation_updated_at, ''))
 		ORDER BY
 			mad.uploaded_at DESC, mad.declaration_uuid ASC separator ''))), '') AS token,
 	COALESCE(MAX(mad.created_at), NOW()) AS latest_created_timestamp
@@ -5598,10 +5598,14 @@ SELECT
 	mad.identifier, mad.declaration_uuid, status, operation_type, mad.uploaded_at,
 	hmad.variables_updated_at,
 	hmad.assets_updated_at,
+	hmad.activation_updated_at,
+	act.identifier AS activation_identifier,
+	JSON_UNQUOTE(JSON_EXTRACT(mad.raw_json, '$.Type')) AS declaration_type,
 	IF(hmad.variables_updated_at IS NOT NULL AND operation_type = ?, mad.raw_json, NULL) as raw_json
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
+	LEFT JOIN mdm_apple_ddm_activations act ON act.declaration_uuid = mad.declaration_uuid
 WHERE
 	hmad.host_uuid = ? AND hmad.scope = ?`
 
@@ -5613,6 +5617,48 @@ WHERE
 	return res, nil
 }
 
+// MDMAppleDDMActivationResponse resolves an activation request to either the
+// stored custom activation or the declaration Fleet synthesizes one for,
+// restricted to declarations the host is scoped to. RawJSON is nil for the
+// synthesized case.
+//
+// Generated activations are named after the declaration's UUID rather than its
+// identifier so an admin-chosen activation identifier can never collide with
+// one Fleet invents.
+func (ds *Datastore) MDMAppleDDMActivationResponse(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDDMActivationForDelivery, error) {
+	const stmt = `
+SELECT
+	act.raw_json,
+	mad.identifier AS configuration_identifier,
+	HEX(mad.token) AS token,
+	hmad.variables_updated_at,
+	hmad.assets_updated_at,
+	hmad.activation_updated_at,
+	mad.declaration_uuid
+FROM
+	host_mdm_apple_declarations hmad
+	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
+	LEFT JOIN mdm_apple_ddm_activations act ON act.declaration_uuid = mad.declaration_uuid
+WHERE
+	hmad.host_uuid = ? AND hmad.scope = ? AND hmad.operation_type = ?
+	AND (
+		act.identifier = ?
+		OR (act.activation_uuid IS NULL AND CONCAT(mad.declaration_uuid, ?) = ?)
+	)`
+
+	var res fleet.MDMAppleDDMActivationForDelivery
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt,
+		hostUUID, scope, fleet.MDMOperationTypeInstall,
+		identifier, fleet.MDMAppleGeneratedActivationSuffix, identifier,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("MDMAppleActivation").WithName(identifier)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get ddm activation response")
+	}
+	return &res, nil
+}
+
 func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDeclaration, error) {
 	// TODO: When hosts table is indexed by uuid, consider joining on hosts to ensure that the
 	// declaration for the host's current team is returned. In the case where the specified
@@ -5620,7 +5666,8 @@ func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identi
 	// declarations are removed, but the join would provide an extra layer of safety.
 	const stmt = `
 SELECT
-	mad.declaration_uuid, mad.raw_json, HEX(mad.token) as token, hmad.variables_updated_at, hmad.assets_updated_at
+	mad.declaration_uuid, mad.raw_json, HEX(mad.token) as token,
+	hmad.variables_updated_at, hmad.assets_updated_at, hmad.activation_updated_at
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
@@ -5805,7 +5852,7 @@ ON DUPLICATE KEY UPDATE
 	for _, c := range current {
 		// Skip updates for 'remove' operations because it is possible that IT admin removed a profile and then re-added it.
 		// Pending removes are cleaned up after we update status of installs.
-		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt, c.AssetsUpdatedAt)]; ok && c.OperationType != fleet.MDMOperationTypeRemove {
+		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt, c.AssetsUpdatedAt, c.ActivationUpdatedAt)]; ok && c.OperationType != fleet.MDMOperationTypeRemove {
 			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?),")
 			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Token,
 				c.SecretsUpdatedAt)

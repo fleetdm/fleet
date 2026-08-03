@@ -218,8 +218,39 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		require.Equal(t, token, response.Declarations.Configurations[0].ServerToken)
 
 		// Verify the activations in the response
-		require.Equal(t, declaration.Identifier+".activation", response.Declarations.Activations[0].Identifier)
+		require.Equal(t, declaration.DeclarationUUID+".activation", response.Declarations.Activations[0].Identifier)
 		require.Equal(t, token, response.Declarations.Activations[0].ServerToken)
+	})
+
+	t.Run("ActivationUpdatedAtFoldsIntoToken", func(t *testing.T) {
+		hostUUID := "test-host-uuid-act"
+		hardwareSerial := "ABC123-ACT"
+
+		createHost(t, hostUUID, hardwareSerial)
+		declaration := createDeclaration(t, "test-declaration-uuid-act", "Test Declaration Act", "com.example.test.declaration.act")
+		setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+		insertHostDeclaration(t, hostUUID, declaration.DeclarationUUID, "pending", "install", declaration.Identifier)
+
+		tokenBefore, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeSystem)
+		require.NoError(t, err)
+		respBefore := callDeclarativeManagementAndVerify(t, hostUUID, 1, 1)
+		require.Equal(t, tokenBefore.DeclarationsToken, respBefore.DeclarationsToken)
+
+		// Stamping activation_updated_at must move the token, and the SQL and Go
+		// computations must still agree. They are written independently, so a
+		// mismatch would re-sync every host on every check-in.
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_mdm_apple_declarations SET activation_updated_at = NOW(6) WHERE host_uuid = ?`, hostUUID)
+			return err
+		})
+
+		tokenAfter, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeSystem)
+		require.NoError(t, err)
+		respAfter := callDeclarativeManagementAndVerify(t, hostUUID, 1, 1)
+
+		require.Equal(t, tokenAfter.DeclarationsToken, respAfter.DeclarationsToken, "SQL and Go tokens must agree")
+		require.NotEqual(t, tokenBefore.DeclarationsToken, tokenAfter.DeclarationsToken, "activation change must move the token")
 	})
 
 	t.Run("NoDeclarations", func(t *testing.T) {
@@ -287,9 +318,9 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 			response.Declarations.Activations[0].Identifier,
 			response.Declarations.Activations[1].Identifier,
 		}
-		require.Contains(t, activationIdentifiers, declaration1.Identifier+".activation")
-		require.Contains(t, activationIdentifiers, declaration2.Identifier+".activation")
-		require.NotContains(t, activationIdentifiers, declaration3.Identifier+".activation")
+		require.Contains(t, activationIdentifiers, declaration1.DeclarationUUID+".activation")
+		require.Contains(t, activationIdentifiers, declaration2.DeclarationUUID+".activation")
+		require.NotContains(t, activationIdentifiers, declaration3.DeclarationUUID+".activation")
 	})
 
 	t.Run("RemoveDeclarationsWithNullStatus", func(t *testing.T) {
@@ -328,7 +359,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		require.Equal(t, token1, response.Declarations.Configurations[0].ServerToken)
 
 		// Verify the activations in the response
-		require.Equal(t, declaration1.Identifier+".activation", response.Declarations.Activations[0].Identifier)
+		require.Equal(t, declaration1.DeclarationUUID+".activation", response.Declarations.Activations[0].Identifier)
 		require.Equal(t, token1, response.Declarations.Activations[0].ServerToken)
 
 		// Check that the remove declarations with NULL status were updated to "pending"
@@ -426,14 +457,14 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		}
 
 		// Check that all activation identifiers are included
-		require.Contains(t, activationIdentifiers, declaration1.Identifier+".activation")
-		require.Contains(t, activationIdentifiers, declaration2.Identifier+".activation")
-		require.Contains(t, activationIdentifiers, declaration3.Identifier+".activation")
-		require.Contains(t, activationIdentifiers, declaration4.Identifier+".activation")
-		require.Contains(t, activationIdentifiers, declaration5.Identifier+".activation")
-		require.Contains(t, activationIdentifiers, declaration6.Identifier+".activation")
-		require.Contains(t, activationIdentifiers, declaration7.Identifier+".activation")
-		require.Contains(t, activationIdentifiers, declaration8.Identifier+".activation")
+		require.Contains(t, activationIdentifiers, declaration1.DeclarationUUID+".activation")
+		require.Contains(t, activationIdentifiers, declaration2.DeclarationUUID+".activation")
+		require.Contains(t, activationIdentifiers, declaration3.DeclarationUUID+".activation")
+		require.Contains(t, activationIdentifiers, declaration4.DeclarationUUID+".activation")
+		require.Contains(t, activationIdentifiers, declaration5.DeclarationUUID+".activation")
+		require.Contains(t, activationIdentifiers, declaration6.DeclarationUUID+".activation")
+		require.Contains(t, activationIdentifiers, declaration7.DeclarationUUID+".activation")
+		require.Contains(t, activationIdentifiers, declaration8.DeclarationUUID+".activation")
 
 		// Check that all activation tokens are included
 		require.Contains(t, activationTokens, token1)
@@ -562,6 +593,263 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		require.NotContains(t, served, "PayloadScope", "PayloadScope must be stripped from the declaration served to the device")
 		require.Equal(t, "com.example.strip", served["Identifier"])
 		require.Contains(t, served, "ServerToken")
+	})
+
+	t.Run("PredicateStatusMapping", func(t *testing.T) {
+		cases := []struct {
+			name       string
+			reasons    []fleet.MDMAppleDDMStatusErrorReason
+			active     bool
+			valid      fleet.MDMAppleDeclarationValidity
+			wantStatus fleet.MDMDeliveryStatus
+			wantDetail string
+		}{
+			{
+				name:       "predicate false is verified, not failed",
+				reasons:    []fleet.MDMAppleDDMStatusErrorReason{{Code: fleet.MDMAppleDDMReasonPredicate, Details: map[string]any{"Predicate": `status.device.model.family == "MacbookPro18"`}}},
+				valid:      fleet.MDMAppleDeclarationValid,
+				wantStatus: fleet.MDMDeliveryVerified,
+				wantDetail: `Fleet verified, but predicate (status.device.model.family == "MacbookPro18") evaluated to false and settings were not applied to this host.`,
+			},
+			{
+				name:       "predicate failure is failed",
+				reasons:    []fleet.MDMAppleDDMStatusErrorReason{{Code: fleet.MDMAppleDDMReasonActivationFailed, Description: "bad predicate"}},
+				valid:      fleet.MDMAppleDeclarationInvalid,
+				wantStatus: fleet.MDMDeliveryFailed,
+			},
+			{
+				name:       "no predicate reason keeps existing mapping",
+				active:     true,
+				valid:      fleet.MDMAppleDeclarationValid,
+				wantStatus: fleet.MDMDeliveryVerified,
+			},
+		}
+
+		for i, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				suffix := fmt.Sprintf("%d", i)
+				hostUUID := "test-host-uuid-pred-" + suffix
+				hardwareSerial := "PRED-" + suffix
+				createHost(t, hostUUID, hardwareSerial)
+				setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+
+				decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+					Name:       "PredDecl-" + suffix,
+					Identifier: "com.example.pred." + suffix,
+					RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.pred","Payload":{"Enabled":true}}`),
+					Scope:      fleet.PayloadScopeSystem,
+				}, nil)
+				require.NoError(t, err)
+				token := insertHostDeclaration(t, hostUUID, decl.DeclarationUUID, "pending", "install", decl.Identifier)
+
+				report := fleet.MDMAppleDDMStatusReport{}
+				report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{{
+					Active:      c.active,
+					Identifier:  decl.Identifier,
+					Valid:       c.valid,
+					ServerToken: token,
+					Reasons:     c.reasons,
+				}}
+				raw, err := json.Marshal(report)
+				require.NoError(t, err)
+
+				req := mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: hostUUID}}
+				dm := mdm.DeclarativeManagement{Data: raw}
+				dm.UDID = hostUUID
+				dm.Endpoint = "status"
+				_, err = ddmService.DeclarativeManagement(&req, &dm)
+				require.NoError(t, err)
+
+				var got struct {
+					Status *string `db:"status"`
+					Detail string  `db:"detail"`
+				}
+				mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					return sqlx.GetContext(ctx, q, &got,
+						`SELECT status, COALESCE(detail, '') AS detail FROM host_mdm_apple_declarations WHERE host_uuid = ?`, hostUUID)
+				})
+				require.NotNil(t, got.Status)
+				require.Equal(t, string(c.wantStatus), *got.Status)
+				if c.wantDetail != "" {
+					require.Equal(t, c.wantDetail, got.Detail)
+				}
+			})
+		}
+	})
+
+	t.Run("CustomActivationIsServedInsteadOfGenerated", func(t *testing.T) {
+		hostUUID := "test-host-uuid-custom-act"
+		hardwareSerial := "ABC123-CUSTOMACT"
+
+		createHost(t, hostUUID, hardwareSerial)
+		setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+
+		activationRaw := `{"Type":"com.apple.activation.simple","Identifier":"com.example.custom.act",` +
+			`"Payload":{"StandardConfigurations":["com.example.customact"],"Predicate":"@status(os.version.major) >= 15"}}`
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Name:       "CustomActDecl",
+			Identifier: "com.example.customact",
+			RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.customact","Payload":{"Enabled":true}}`),
+			Scope:      fleet.PayloadScopeSystem,
+			Activation: &fleet.MDMAppleCustomActivation{
+				Identifier:              "com.example.custom.act",
+				RawJSON:                 []byte(activationRaw),
+				ConfigurationIdentifier: "com.example.customact",
+			},
+		}, nil)
+		require.NoError(t, err)
+		insertHostDeclaration(t, hostUUID, decl.DeclarationUUID, "pending", "install", decl.Identifier)
+
+		// The manifest advertises the admin's identifier, not a generated one.
+		manifest := callDeclarativeManagementAndVerify(t, hostUUID, 1, 1)
+		require.Equal(t, "com.example.custom.act", manifest.Declarations.Activations[0].Identifier)
+
+		// Fetching it returns the stored document, predicate intact.
+		req := mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: hostUUID}}
+		dm := mdm.DeclarativeManagement{}
+		dm.UDID = hostUUID
+		dm.Endpoint = "declaration/activation/com.example.custom.act"
+		response, err := ddmService.DeclarativeManagement(&req, &dm)
+		require.NoError(t, err)
+
+		var served map[string]any
+		require.NoError(t, json.Unmarshal(response, &served))
+		require.Equal(t, "com.example.custom.act", served["Identifier"])
+		payload, ok := served["Payload"].(map[string]any)
+		require.True(t, ok)
+		require.Equal(t, "@status(os.version.major) >= 15", payload["Predicate"])
+		require.Equal(t, []any{"com.example.customact"}, payload["StandardConfigurations"])
+
+		// The generated name must not also resolve, or both would be valid.
+		dm.Endpoint = "declaration/activation/" + decl.DeclarationUUID + ".activation"
+		_, err = ddmService.DeclarativeManagement(&req, &dm)
+		require.Error(t, err)
+	})
+
+	t.Run("GeneratedActivationStillServedWhenNoCustomOne", func(t *testing.T) {
+		hostUUID := "test-host-uuid-gen-act"
+		hardwareSerial := "ABC123-GENACT"
+
+		createHost(t, hostUUID, hardwareSerial)
+		setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Name:       "GenActDecl",
+			Identifier: "com.example.genact",
+			RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.genact","Payload":{"Enabled":true}}`),
+			Scope:      fleet.PayloadScopeSystem,
+		}, nil)
+		require.NoError(t, err)
+		insertHostDeclaration(t, hostUUID, decl.DeclarationUUID, "pending", "install", decl.Identifier)
+
+		manifest := callDeclarativeManagementAndVerify(t, hostUUID, 1, 1)
+		generated := decl.DeclarationUUID + ".activation"
+		require.Equal(t, generated, manifest.Declarations.Activations[0].Identifier)
+
+		req := mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: hostUUID}}
+		dm := mdm.DeclarativeManagement{}
+		dm.UDID = hostUUID
+		dm.Endpoint = "declaration/activation/" + generated
+		response, err := ddmService.DeclarativeManagement(&req, &dm)
+		require.NoError(t, err)
+
+		var served map[string]any
+		require.NoError(t, json.Unmarshal(response, &served))
+		require.Equal(t, "com.apple.activation.simple", served["Type"])
+		require.Equal(t, generated, served["Identifier"])
+		payload, ok := served["Payload"].(map[string]any)
+		require.True(t, ok)
+		// still references the configuration by identifier, as before
+		require.Equal(t, []any{"com.example.genact"}, payload["StandardConfigurations"])
+	})
+
+	t.Run("CustomActivationIsScopedToHostsThatHaveTheDeclaration", func(t *testing.T) {
+		inScopeUUID, inScopeSerial := "test-host-uuid-scoped-in", "SCOPE-IN"
+		outOfScopeUUID, outOfScopeSerial := "test-host-uuid-scoped-out", "SCOPE-OUT"
+
+		createHost(t, inScopeUUID, inScopeSerial)
+		setupDeviceAndEnrollment(t, inScopeUUID, inScopeSerial)
+		createHost(t, outOfScopeUUID, outOfScopeSerial)
+		setupDeviceAndEnrollment(t, outOfScopeUUID, outOfScopeSerial)
+
+		teamID := uint(42)
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Name:       "ScopedDecl",
+			Identifier: "com.example.scoped",
+			TeamID:     &teamID,
+			RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.scoped","Payload":{"Enabled":true}}`),
+			Scope:      fleet.PayloadScopeSystem,
+			Activation: &fleet.MDMAppleCustomActivation{
+				Identifier:              "com.example.scoped.act",
+				RawJSON:                 []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.example.scoped.act","Payload":{"StandardConfigurations":["com.example.scoped"]}}`),
+				ConfigurationIdentifier: "com.example.scoped",
+			},
+		}, nil)
+		require.NoError(t, err)
+
+		// Only the in-scope host gets a host_mdm_apple_declarations row, which is
+		// what team and label scoping ultimately produce.
+		insertHostDeclaration(t, inScopeUUID, decl.DeclarationUUID, "pending", "install", decl.Identifier)
+
+		manifest := callDeclarativeManagementAndVerify(t, inScopeUUID, 1, 1)
+		require.Equal(t, "com.example.scoped.act", manifest.Declarations.Activations[0].Identifier)
+
+		req := mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: inScopeUUID}}
+		dm := mdm.DeclarativeManagement{}
+		dm.UDID = inScopeUUID
+		dm.Endpoint = "declaration/activation/com.example.scoped.act"
+		_, err = ddmService.DeclarativeManagement(&req, &dm)
+		require.NoError(t, err)
+
+		// The out-of-scope host sees nothing, and cannot fetch the activation by
+		// name even though it exists in the database.
+		outManifest := callDeclarativeManagementAndVerify(t, outOfScopeUUID, 0, 0)
+		require.Empty(t, outManifest.Declarations.Activations)
+
+		outReq := mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: outOfScopeUUID}}
+		outDM := mdm.DeclarativeManagement{}
+		outDM.UDID = outOfScopeUUID
+		outDM.Endpoint = "declaration/activation/com.example.scoped.act"
+		_, err = ddmService.DeclarativeManagement(&outReq, &outDM)
+		require.Error(t, err, "a host outside the declaration's scope must not resolve its activation")
+	})
+
+	t.Run("ManagementDeclarationRoutingAndEndpointGuard", func(t *testing.T) {
+		hostUUID := "test-host-uuid-mgmt"
+		hardwareSerial := "ABC123-MGMT"
+
+		createHost(t, hostUUID, hardwareSerial)
+		setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+
+		mgmt, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Name:       "MgmtDecl",
+			Identifier: "com.example.mgmt",
+			RawJSON:    []byte(`{"Type":"com.apple.management.organization-info","Identifier":"com.example.mgmt","Payload":{"Echo":"foo"}}`),
+			Scope:      fleet.PayloadScopeSystem,
+		}, nil)
+		require.NoError(t, err)
+		insertHostDeclaration(t, hostUUID, mgmt.DeclarationUUID, "pending", "install", mgmt.Identifier)
+
+		// Management declarations are never activated, so no activation is
+		// synthesized and they don't appear under Configurations.
+		manifest := callDeclarativeManagementAndVerify(t, hostUUID, 0, 0)
+		require.Len(t, manifest.Declarations.Management, 1)
+		require.Equal(t, mgmt.Identifier, manifest.Declarations.Management[0].Identifier)
+
+		req := mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: hostUUID}}
+		dm := mdm.DeclarativeManagement{}
+		dm.UDID = hostUUID
+		dm.Endpoint = "declaration/management/" + mgmt.Identifier
+		response, err := ddmService.DeclarativeManagement(&req, &dm)
+		require.NoError(t, err)
+		var served map[string]any
+		require.NoError(t, json.Unmarshal(response, &served))
+		require.Equal(t, "com.apple.management.organization-info", served["Type"])
+
+		// The two endpoints must not serve each other's rows.
+		dm.Endpoint = "declaration/configuration/" + mgmt.Identifier
+		_, err = ddmService.DeclarativeManagement(&req, &dm)
+		require.Error(t, err)
 	})
 }
 

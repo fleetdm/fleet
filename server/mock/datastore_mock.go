@@ -1286,6 +1286,8 @@ type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string, 
 
 type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDeclaration, error)
 
+type MDMAppleDDMActivationResponseFunc func(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDDMActivationForDelivery, error)
+
 type MDMAppleHostDeclarationsGetAndClearResyncFunc func(ctx context.Context) (deviceHostUUIDs []string, userHostUUIDs []string, err error)
 
 type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, scope fleet.PayloadScope, updates []*fleet.MDMAppleHostDeclaration) error
@@ -4177,6 +4179,9 @@ type DataStore struct {
 
 	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
 	MDMAppleDDMDeclarationsResponseFuncInvoked bool
+
+	MDMAppleDDMActivationResponseFunc        MDMAppleDDMActivationResponseFunc
+	MDMAppleDDMActivationResponseFuncInvoked bool
 
 	MDMAppleHostDeclarationsGetAndClearResyncFunc        MDMAppleHostDeclarationsGetAndClearResyncFunc
 	MDMAppleHostDeclarationsGetAndClearResyncFuncInvoked bool
@@ -10093,6 +10098,13 @@ func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identif
 	s.MDMAppleDDMDeclarationsResponseFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleDDMDeclarationsResponseFunc(ctx, identifier, hostUUID, scope)
+}
+
+func (s *DataStore) MDMAppleDDMActivationResponse(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDDMActivationForDelivery, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMActivationResponseFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMActivationResponseFunc(ctx, identifier, hostUUID, scope)
 }
 
 func (s *DataStore) MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (deviceHostUUIDs []string, userHostUUIDs []string, err error) {

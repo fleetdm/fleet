@@ -2127,6 +2127,7 @@ type Datastore interface {
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string, scope PayloadScope) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDeclaration, error)
+	MDMAppleDDMActivationResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDDMActivationForDelivery, error)
 
 	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync,
 	// partitioned by channel (device vs user) so the reconciler only pokes the
