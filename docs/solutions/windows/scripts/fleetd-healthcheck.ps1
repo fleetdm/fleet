@@ -346,7 +346,9 @@ try {
     $ResourceEvents | Select-Object TimeCreated, Id, Message | Export-Csv -Path (Join-Path $SystemEventsDir 'resource_exhaustion_events.csv') -NoTypeInformation
   }
 } catch {
-  # Provider may not be present on all SKUs - not a failure condition
+  if ($_.Exception.Message -notmatch 'no provider|not found') {
+    Warn "Failed to query resource-exhaustion events: $_"
+  }
 }
 
 # ==============================================================================
