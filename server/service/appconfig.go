@@ -1507,7 +1507,7 @@ func (svc *Service) processSavedAppConfigChanges(
 				GracePeriodDays: grace,
 			},
 		); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
+			return ctxerr.Wrap(ctx, err, "create activity for app config windows updates modification")
 		}
 	}
 
