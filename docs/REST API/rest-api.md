@@ -8430,15 +8430,15 @@ None.
       "terms_expired": false,
       "macos_fleet": {
         "name": "💻 Workstations",
-        "id": 1
+        "fleet_id": 1
       },
       "ios_fleet": {
         "name": "📱🏢 Company-owned iPhones",
-        "id": 2
+        "fleet_id": 2
       },
       "ipados_fleet": {
         "name": "🔳🏢 Company-owned iPads",
-        "id": 3
+        "fleet_id": 3
       }
     }
   ],
@@ -8452,35 +8452,35 @@ None.
       "terms_expired": false,
       "macos_team": {
         "name": "💻 Workstations",
-        "id": 1
+        "team_id": 1
       },
       "macos_fleet": {
         "name": "💻 Workstations",
-        "id": 1
+        "fleet_id": 1
       },
       "ios_team": {
         "name": "📱🏢 Company-owned iPhones",
-        "id": 2
+        "team_id": 2
       },
       "ios_fleet": {
         "name": "📱🏢 Company-owned iPhones",
-        "id": 2
+        "fleet_id": 2
       },
       "ipados_team": {
         "name": "🔳🏢 Company-owned iPads",
-        "id": 3
+        "team_id": 3
       },
       "ipados_fleet": {
         "name": "🔳🏢 Company-owned iPads",
-        "id": 3
+        "fleet_id": 3
       },
       "byod_team": {
         "name": "📱 BYOD iPhones",
-        "id": 4
+        "team_id": 4
       },
       "byod_fleet": {
         "name": "📱 BYOD iPhones",
-        "id": 4
+        "fleet_id": 4
       }
     }
   ]
@@ -8517,37 +8517,37 @@ None.
       "teams": [
         {
           "name": "💻 Workstations",
-          "id": 1
+          "team_id": 1
         },
         {
           "name": "💻🐣 Workstations (canary)",
-          "id": 2
+          "team_id": 2
         },
         {
           "name": "📱🏢 Company-owned iPhones",
-          "id": 3
+          "team_id": 3
         },
         {
           "name": "🔳🏢 Company-owned iPads",
-          "id": 4
+          "team_id": 4
         }
       ],
       "fleets": [
         {
           "name": "💻 Workstations",
-          "id": 1
+          "fleet_id": 1
         },
         {
           "name": "💻🐣 Workstations (canary)",
-          "id": 2
+          "fleet_id": 2
         },
         {
           "name": "📱🏢 Company-owned iPhones",
-          "id": 3
+          "fleet_id": 3
         },
         {
           "name": "🔳🏢 Company-owned iPads",
-          "id": 4
+          "fleet_id": 4
         }
       ]
     }
