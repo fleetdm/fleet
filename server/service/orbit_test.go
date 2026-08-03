@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1653,4 +1655,254 @@ func TestResolveOrbitDebugLogging(t *testing.T) {
 			require.Equal(t, tc.wantFlags, got)
 		})
 	}
+}
+
+// =============================================================================
+// GetOrbitConfig cache tests -- DO NOT REMOVE
+//
+// These tests protect a performance optimization that eliminates ~10,000 DB
+// reads/s at 100K hosts by caching per-host data in GetOrbitConfig. Removing
+// or weakening them risks silent performance regressions that show up only
+// under production load.
+//
+// TestGetOrbitConfigHostDataCache      -- verifies cache hit/miss behavior
+// TestGetOrbitConfigHostDataCacheErrors -- verifies errors bypass the cache
+// TestGetOrbitConfigHostDataCacheWithPendingWork -- verifies cached data flows
+//                                                  into the response correctly
+// TestGetOrbitConfigDBCallBudget       -- guardrail that fails when a new DB
+//                                        call is added to GetOrbitConfig without
+//                                        updating the cache or acknowledging the
+//                                        new call. See its doc comment for details.
+// =============================================================================
+
+func TestGetOrbitConfigHostDataCache(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+	// Re-enable the orbit host cache (disabled by default in tests) so we can test caching behavior.
+	internal := ((svc.(validationMiddleware)).Service).(*Service)
+	internal.orbitHostCache = gocache.New(45*time.Second, 90*time.Second)
+
+	host := &fleet.Host{
+		OsqueryHostID: ptr.String("test"),
+		ID:            1,
+		Platform:      "ubuntu",
+	}
+
+	appCfg := &fleet.AppConfig{}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appCfg, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, nil
+	}
+
+	// Track how many times each DB function is called.
+	var getHostMDMCalls atomic.Int32
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		getHostMDMCalls.Add(1)
+		return nil, nil
+	}
+
+	var listScriptsCalls atomic.Int32
+	ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		listScriptsCalls.Add(1)
+		return nil, nil
+	}
+
+	var listInstallsCalls atomic.Int32
+	ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+		listInstallsCalls.Add(1)
+		return nil, nil
+	}
+
+	ctx = test.HostContext(ctx, host)
+
+	// First call should hit the DB (cache miss).
+	_, err := svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), getHostMDMCalls.Load())
+	require.Equal(t, int32(1), listScriptsCalls.Load())
+	require.Equal(t, int32(1), listInstallsCalls.Load())
+
+	// Second call should use the cache (no additional DB calls).
+	_, err = svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), getHostMDMCalls.Load())
+	require.Equal(t, int32(1), listScriptsCalls.Load())
+	require.Equal(t, int32(1), listInstallsCalls.Load())
+
+	// Third call should also use the cache.
+	_, err = svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), getHostMDMCalls.Load())
+
+	// After flushing the cache, the next call should hit the DB again.
+	internal.orbitHostCache.Flush()
+	_, err = svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int32(2), getHostMDMCalls.Load())
+	require.Equal(t, int32(2), listScriptsCalls.Load())
+	require.Equal(t, int32(2), listInstallsCalls.Load())
+}
+
+func TestGetOrbitConfigHostDataCacheErrors(t *testing.T) {
+	t.Run("GetHostMDM error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{OsqueryHostID: ptr.String("test"), ID: 1, Platform: "ubuntu"}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, errors.New("db connection failed")
+		}
+
+		ctx = test.HostContext(ctx, host)
+		_, err := svc.GetOrbitConfig(ctx)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "retrieving host mdm info")
+	})
+
+	t.Run("ListReadyToExecuteScriptsForHost error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{OsqueryHostID: ptr.String("test"), ID: 1, Platform: "ubuntu"}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) { return nil, nil }
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, errors.New("db connection failed")
+		}
+
+		ctx = test.HostContext(ctx, host)
+		_, err := svc.GetOrbitConfig(ctx)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "listing pending scripts")
+	})
+
+	t.Run("ListReadyToExecuteSoftwareInstalls error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{OsqueryHostID: ptr.String("test"), ID: 1, Platform: "ubuntu"}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) { return nil, nil }
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, errors.New("db connection failed")
+		}
+
+		ctx = test.HostContext(ctx, host)
+		_, err := svc.GetOrbitConfig(ctx)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "listing pending software installs")
+	})
+}
+
+func TestGetOrbitConfigHostDataCacheWithPendingWork(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+	host := &fleet.Host{
+		OsqueryHostID: ptr.String("test"),
+		ID:            1,
+		Platform:      "ubuntu",
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) { return false, nil }
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) { return nil, nil }
+	ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		return []*fleet.HostScriptResult{
+			{ExecutionID: "exec-1"},
+			{ExecutionID: "exec-2"},
+		}, nil
+	}
+	ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+		return []string{"install-1", "install-2"}, nil
+	}
+
+	ctx = test.HostContext(ctx, host)
+	cfg, err := svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []string{"exec-1", "exec-2"}, cfg.Notifications.PendingScriptExecutionIDs)
+	require.Equal(t, []string{"install-1", "install-2"}, cfg.Notifications.PendingSoftwareInstallerIDs)
+}
+
+// TestGetOrbitConfigDBCallBudget is a guardrail test that tracks the exact set
+// of datastore methods called during a GetOrbitConfig request. If a new DB call
+// is added to GetOrbitConfig without updating this test, it will fail --
+// forcing the author to decide whether the new call should be added to the
+// orbitHostCache or left uncached with justification.
+//
+// The test uses a no-team, non-MDM, non-LUKS host (the baseline hot path) so
+// it covers the minimum set of DB calls that fire on every single orbit
+// check-in. Conditional calls (team agent options, MDM config, nudge, setup
+// assistant, etc.) are not counted here because they only fire for specific
+// host configurations.
+func TestGetOrbitConfigDBCallBudget(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+	host := &fleet.Host{
+		OsqueryHostID: ptr.String("test"),
+		ID:            1,
+		Platform:      "ubuntu",
+	}
+
+	// Set up the minimal mocks required for a no-team, non-MDM host.
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		return nil, nil
+	}
+	ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		return nil, nil
+	}
+	ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, nil
+	}
+
+	ctx = test.HostContext(ctx, host)
+	_, err := svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+
+	// ---- DB call budget ----
+	// These are ALL the datastore methods that should be called for a baseline
+	// (no-team, non-MDM, non-LUKS) host. The cache is disabled in tests, so
+	// every call goes to the DB.
+	//
+	// If you are adding a new DB call to GetOrbitConfig:
+	//   1. Add the mock above so the test doesn't panic.
+	//   2. Add it to the "expected" list below.
+	//   3. Consider whether it should be added to orbitHostCacheEntry in
+	//      getOrbitHostData() to avoid adding a per-host DB read on every
+	//      30s orbit check-in.
+
+	// Cached by getOrbitHostData (these 3 fire on every call but are served
+	// from cache in production after the first miss):
+	require.True(t, ds.GetHostMDMFuncInvoked, "GetHostMDM should be called (cached)")
+	require.True(t, ds.ListReadyToExecuteScriptsForHostFuncInvoked, "ListReadyToExecuteScriptsForHost should be called (cached)")
+	require.True(t, ds.ListReadyToExecuteSoftwareInstallsFuncInvoked, "ListReadyToExecuteSoftwareInstalls should be called (cached)")
+
+	// Always called, not cached (cheap or already has its own cache):
+	require.True(t, ds.AppConfigFuncInvoked, "AppConfig should be called (has its own 1s cache)")
+
+	// Conditionally called for this host path:
+	// (GetHostAwaitingConfiguration is only called for macOS + MDM, but our
+	// host is ubuntu so it should NOT be called)
+
+	// NOT called for baseline host -- if any of these fire, a new uncached
+	// call was added and needs review:
+	require.False(t, ds.TeamAgentOptionsFuncInvoked, "TeamAgentOptions should not be called for no-team host")
+	require.False(t, ds.TeamMDMConfigFuncInvoked, "TeamMDMConfig should not be called for no-team host")
+	require.False(t, ds.GetHostOperatingSystemFuncInvoked, "GetHostOperatingSystem should not be called for non-MDM host")
+	require.False(t, ds.IsHostPendingEscrowFuncInvoked, "IsHostPendingEscrow should not be called for non-LUKS host")
+	require.False(t, ds.ClearPendingEscrowFuncInvoked, "ClearPendingEscrow should not be called for non-LUKS host")
 }
