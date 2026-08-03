@@ -77,6 +77,7 @@ codesign -dvvv /Applications/Slack.app
 Read `TeamIdentifier` for `TeamID`, `Identifier` for `SigningID`, and `CDHash` for `CDHash`. Apple's documentation points at this same command.
 
 Across a fleet, query it instead. Fleet already collects code signing data through osquery:
+Test this though - signatures table can be computation heavy 
 
 ```sql
 SELECT
