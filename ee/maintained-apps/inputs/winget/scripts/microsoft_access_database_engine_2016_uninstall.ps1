@@ -5,9 +5,7 @@ $displayName = 'Microsoft Access database engine 2016 (English)'
 $timeoutSeconds = 300
 $successCodes = @(0, 3010, 1641)
 
-# The x64 build registers in the native Add/Remove Programs view; the x86 build
-# registers under Wow6432Node. Looking at the native view alone keeps an x86-only
-# host from reading as "still installed".
+# The x64 build registers here; the x86 build registers under Wow6432Node.
 $nativeUninstallKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 
 try {
@@ -17,14 +15,13 @@ try {
         $productCodes = @($inst.RelatedProducts($upgradeCode))
     } catch {
         # RelatedProducts throws when nothing is installed for the upgrade code,
-        # which is the ordinary "already gone" case. Confirm that against the
-        # registry so a genuine COM failure is not reported as a clean uninstall.
+        # so confirm against the registry before calling that a clean uninstall.
         Write-Host "Could not enumerate products for upgrade code ${upgradeCode}: $($_.Exception.Message)"
         $registered = Get-ItemProperty -Path $nativeUninstallKey -ErrorAction SilentlyContinue |
             Where-Object { $_.DisplayName -eq $displayName } |
             Select-Object -First 1
         if ($registered) {
-            Write-Host "'$displayName' is still registered, so this is a real failure rather than an already-uninstalled host."
+            Write-Host "'$displayName' is still registered, so this is a real failure."
             Exit 1
         }
     }

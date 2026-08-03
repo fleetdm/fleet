@@ -1,8 +1,8 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
-# The download is a self-extracting package whose setup.cmd forwards its first
-# argument to "msiexec /i AceRedist.msi", so /quiet reaches the MSI.
+# Self-extracting package whose setup.cmd forwards its first argument to
+# "msiexec /i AceRedist.msi", so /quiet reaches the MSI.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
@@ -21,8 +21,6 @@ function Get-AccessDatabaseEngineEntry {
 
 try {
 
-# The 64-bit redistributable refuses to install alongside 32-bit Office. Check
-# first so this fails with an actionable message rather than an installer error.
 $officeConfig = 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration'
 $officePlatform = (Get-ItemProperty -Path $officeConfig -Name Platform -ErrorAction SilentlyContinue).Platform
 if ($officePlatform -eq 'x86') {
@@ -38,16 +36,14 @@ $null = $process.Handle
 
 $killed = $false
 if (-not $process.WaitForExit($installTimeoutSeconds * 1000)) {
-  # Stop the bootstrapper only. A child msiexec may still be mid-transaction, and
-  # killing that would leave a half-installed product; letting it finish gives the
-  # registration poll below a chance to confirm the install either way.
+  # Stop the bootstrapper only; killing a child msiexec mid-transaction would
+  # leave a half-installed product.
   Write-Host "Installer process did not exit within ${installTimeoutSeconds}s, stopping it."
   Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
   $null = $process.WaitForExit(30 * 1000)
   $killed = $true
 }
 
-# A killed process's code says nothing about the install, so leave it unset.
 $exitCode = $null
 if (-not $killed -and $process.HasExited) {
   $exitCode = $process.ExitCode
@@ -65,16 +61,13 @@ while (-not (Get-AccessDatabaseEngineEntry) -and ($elapsed -lt $registrationTime
 $entry = Get-AccessDatabaseEngineEntry
 if (-not $entry) {
   Write-Host "The Access Database Engine did not register in Add/Remove Programs."
-  # Surface the installer's own failure code when it reported one.
   if ($null -ne $exitCode -and $exitCode -ne 0) { Exit $exitCode }
   Exit 1
 }
 Write-Host "Registered '$($entry.DisplayName)' by '$($entry.Publisher)', version $($entry.DisplayVersion)."
 
-# Registration is the success signal, and it is the same entry Fleet's detection
-# query reads. A non-zero code after a confirmed registration (3010 and 1641 are
-# reboot-required successes; 1638 means the engine is already present) is logged
-# rather than reported as a failed install.
+# Registration is the success signal, so a non-zero code (1638 means the engine
+# is already present) is logged rather than failed.
 if ($null -ne $exitCode -and @(0, 3010, 1641) -notcontains $exitCode) {
   Write-Host "Installer returned $exitCode but the product is registered; treating the install as successful."
 }
