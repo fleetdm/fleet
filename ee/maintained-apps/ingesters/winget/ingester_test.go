@@ -660,3 +660,56 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
 	})
 }
+
+func TestNormalizeSourceForgeURL(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			// CrystalDiskMark's manifest omits the suffix, so a bare fetch gets
+			// SourceForge's HTML landing page instead of the installer.
+			name: "project file URL gets the download suffix",
+			in:   "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe",
+			want: "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe/download",
+		},
+		{
+			name: "already suffixed URL is left alone",
+			in:   "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
+			want: "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
+		},
+		{
+			name: "www host is normalized too",
+			in:   "https://www.sourceforge.net/projects/foo/files/bar.exe",
+			want: "https://www.sourceforge.net/projects/foo/files/bar.exe/download",
+		},
+		{
+			// This host serves the bytes directly; a suffix would 404.
+			name: "downloads subdomain is untouched",
+			in:   "https://downloads.sourceforge.net/project/crystaldiskmark/9.0.3/CrystalDiskMark9_0_3.exe",
+			want: "https://downloads.sourceforge.net/project/crystaldiskmark/9.0.3/CrystalDiskMark9_0_3.exe",
+		},
+		{
+			name: "non-file sourceforge path is untouched",
+			in:   "https://sourceforge.net/projects/crystaldiskmark/",
+			want: "https://sourceforge.net/projects/crystaldiskmark/",
+		},
+		{
+			name: "other hosts are untouched",
+			in:   "https://github.com/owner/repo/releases/download/v1/app.exe",
+			want: "https://github.com/owner/repo/releases/download/v1/app.exe",
+		},
+		{
+			name: "query string is preserved",
+			in:   "https://sourceforge.net/projects/foo/files/bar.exe?use_mirror=psychz",
+			want: "https://sourceforge.net/projects/foo/files/bar.exe/download?use_mirror=psychz",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, normalizeSourceForgeURL(tt.in))
+		})
+	}
+}
