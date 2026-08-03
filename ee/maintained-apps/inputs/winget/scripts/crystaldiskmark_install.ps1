@@ -12,10 +12,12 @@ $registrationTimeoutSeconds = 60
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
 
+$publisher = "Crystal Dew World"
+
 function Get-CrystalDiskMarkEntry {
     Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
-        Where-Object { $_.DisplayName -like "CrystalDiskMark *" } |
+        Where-Object { $_.DisplayName -like "CrystalDiskMark *" -and $_.Publisher -like "$publisher*" } |
         Select-Object -First 1
 }
 
