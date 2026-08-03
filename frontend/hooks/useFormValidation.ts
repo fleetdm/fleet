@@ -164,16 +164,31 @@ const useFormValidation = <TFormData extends object>({
   const [isSubmittingInternal, setIsSubmittingInternal] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
-  // Refs keep every returned callback stable while still reading current values.
   const formDataRef = useRef(formData);
-  const validateRef = useRef(validate);
-  const skipTrimRef = useRef(skipTrim);
   const dirtyFieldsRef = useRef(new Set<string>());
+  // Fields whose shown error came from the API. Client validation can't
+  // reproduce those (a duplicate email is still a well-formed email), so they
+  // are exempt from pruning and only leave on focus, submit, reset or clear.
+  const serverErrorFieldsRef = useRef(new Set<string>());
   const isSubmittingRef = useRef(false);
 
-  validateRef.current = validate;
-  skipTrimRef.current = skipTrim;
-  isSubmittingRef.current = isSubmittingInternal || isSubmittingExternal;
+  const validateRef = useRef(validate);
+  const skipTrimRef = useRef(skipTrim);
+  const isSubmittingExternalRef = useRef(isSubmittingExternal);
+  const errorsRef = useRef(errors);
+
+  // Synced after commit rather than during render: a render React discards must
+  // not leave a ref pointing at values that never shipped.
+  //
+  // No dependency array, so this runs on every commit — which is safe only
+  // because the body does nothing but assign refs. Ref writes don't schedule a
+  // render, so there is nothing to loop. Never add a state update here.
+  useEffect(() => {
+    validateRef.current = validate;
+    skipTrimRef.current = skipTrim;
+    isSubmittingExternalRef.current = isSubmittingExternal;
+    errorsRef.current = errors;
+  });
 
   // Field-specific server errors render inline AND toast: a long form can
   // scroll the errored field off-screen by the time the response lands.
@@ -188,12 +203,26 @@ const useFormValidation = <TFormData extends object>({
         incoming[key] = message;
       }
     });
-    const fields = Object.keys(incoming);
-    if (!fields.length) {
+    // Surface only what isn't already on screen. This effect sets state, so
+    // reacting to a prop whose identity changes without its content changing
+    // would loop — which is exactly what a caller passing an inline object
+    // literal does. A genuinely repeated failure still toasts again, because
+    // handleSubmit clears the shown errors before each attempt.
+    const fresh = Object.keys(incoming).filter(
+      (field) => errorsRef.current[field] !== incoming[field]
+    );
+    if (!fresh.length) {
       return;
     }
-    setErrors((prev) => ({ ...prev, ...incoming }));
-    fields.forEach((field) => notify.error(incoming[field]));
+    fresh.forEach((field) => serverErrorFieldsRef.current.add(field));
+    setErrors((prev) => {
+      const next = { ...prev };
+      fresh.forEach((field) => {
+        next[field] = incoming[field];
+      });
+      return next;
+    });
+    fresh.forEach((field) => notify.error(incoming[field]));
   }, [serverErrors]);
 
   const setField = useCallback(
@@ -222,7 +251,7 @@ const useFormValidation = <TFormData extends object>({
       const kept: IFormErrors = {};
       let dropped = false;
       Object.keys(prev).forEach((key) => {
-        if (currentErrors[key]) {
+        if (currentErrors[key] || serverErrorFieldsRef.current.has(key)) {
           // Keep the message already on screen rather than the freshly computed
           // one — a server error must not be overwritten by a client rule.
           kept[key] = prev[key];
@@ -237,6 +266,7 @@ const useFormValidation = <TFormData extends object>({
   const reset = useCallback((data: TFormData) => {
     formDataRef.current = data;
     dirtyFieldsRef.current = new Set<string>();
+    serverErrorFieldsRef.current = new Set<string>();
     setFormData(data);
     setErrors({});
     setIsDirty(false);
@@ -245,6 +275,7 @@ const useFormValidation = <TFormData extends object>({
   const getError = useCallback((name: string) => errors[name], [errors]);
 
   const clearFieldError = useCallback((name: string) => {
+    serverErrorFieldsRef.current.delete(name);
     setErrors((prev) => {
       if (!(name in prev)) {
         return prev;
@@ -259,6 +290,9 @@ const useFormValidation = <TFormData extends object>({
     if (!dirtyFieldsRef.current.has(name)) {
       return;
     }
+    // Blur hands the field back to client validation, so a server verdict on it
+    // no longer applies.
+    serverErrorFieldsRef.current.delete(name);
     const message = validateRef.current(formDataRef.current)[name];
     setErrors((prev) => {
       if (prev[name] === message || (!message && !(name in prev))) {
@@ -274,7 +308,10 @@ const useFormValidation = <TFormData extends object>({
     });
   }, []);
 
-  const clearErrors = useCallback(() => setErrors({}), []);
+  const clearErrors = useCallback(() => {
+    serverErrorFieldsRef.current = new Set<string>();
+    setErrors({});
+  }, []);
 
   const handleSubmit = useCallback(
     (onValid: (formData: TFormData) => void | Promise<unknown>) => (
@@ -284,12 +321,19 @@ const useFormValidation = <TFormData extends object>({
 
       // The disabled button is not the only guard — Enter in a text field and a
       // second click landing before the re-render both reach this handler.
-      if (isSubmittingRef.current) {
+      if (isSubmittingRef.current || isSubmittingExternalRef.current) {
         return;
       }
 
       const submitData = trimFormData(formDataRef.current, skipTrimRef.current);
       const submitErrors = validateRef.current(submitData);
+
+      // Both branches below replace the whole error map with what `validate`
+      // just returned, so a server verdict the client rules can't re-derive is
+      // dropped here — a new request is about to supersede it anyway. Forget the
+      // exemptions too, or `commitFields` would keep protecting fields that no
+      // longer hold a server error.
+      serverErrorFieldsRef.current = new Set<string>();
 
       if (Object.keys(submitErrors).length) {
         // Submit is a checkpoint: it bypasses the dirty gate and reveals every

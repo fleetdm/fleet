@@ -16,33 +16,13 @@ import MainContent from "components/MainContent";
 import { notify } from "components/ToastNotification";
 import UserForm from "../components/UserForm";
 import { IUserFormData, NewUserType } from "../components/UserForm/UserForm";
+import { getUserFieldErrors } from "../helpers/userManagementHelpers";
 
 const baseClass = "create-user-page";
 
 interface ICreateUserPageProps {
   router: InjectedRouter;
 }
-
-/**
- * Maps an API failure to inline field errors, or null when the failure isn't
- * field-specific and belongs in a toast instead.
- */
-const getFieldErrors = (userErrors: {
-  data: IApiError;
-}): IFormErrors | null => {
-  const reason = userErrors.data.errors?.[0]?.reason ?? "";
-
-  if (reason.includes("already exists") || reason.includes("Duplicate")) {
-    return { email: "Enter an email that isn't already in use" };
-  }
-  if (reason.includes("required criteria")) {
-    return { password: "Enter a password that meets the requirements below" };
-  }
-  if (reason.includes("password too long")) {
-    return { password: "Enter a password with 48 characters or fewer" };
-  }
-  return null;
-};
 
 const CreateUserPage = ({ router }: ICreateUserPageProps) => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
@@ -70,39 +50,14 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
       delete requestData.currentUserId;
       delete requestData.newUserType;
       delete requestData.password;
-      invitesAPI
+      return invitesAPI
         .create(requestData)
         .then(() => {
           notify.success(`${formData.name} has been invited!`);
           router.push(PATHS.ADMIN_USERS);
         })
         .catch((userErrors: { data: IApiError }) => {
-          const fieldErrors = getFieldErrors(userErrors);
-          if (fieldErrors) {
-            setFormErrors(fieldErrors);
-          } else {
-            notify.error("Could not create user. Please try again.", {
-              response: userErrors,
-            });
-          }
-        })
-        .finally(() => {
-          setIsSubmitting(false);
-        });
-    } else {
-      const requestData = {
-        ...formData,
-      };
-      delete requestData.currentUserId;
-      delete requestData.newUserType;
-      usersAPI
-        .createUserWithoutInvitation(requestData)
-        .then(() => {
-          notify.success(`${requestData.name} has been created!`);
-          router.push(PATHS.ADMIN_USERS);
-        })
-        .catch((userErrors: { data: IApiError }) => {
-          const fieldErrors = getFieldErrors(userErrors);
+          const fieldErrors = getUserFieldErrors(userErrors);
           if (fieldErrors) {
             setFormErrors(fieldErrors);
           } else {
@@ -115,6 +70,31 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
           setIsSubmitting(false);
         });
     }
+
+    const requestData = {
+      ...formData,
+    };
+    delete requestData.currentUserId;
+    delete requestData.newUserType;
+    return usersAPI
+      .createUserWithoutInvitation(requestData)
+      .then(() => {
+        notify.success(`${requestData.name} has been created!`);
+        router.push(PATHS.ADMIN_USERS);
+      })
+      .catch((userErrors: { data: IApiError }) => {
+        const fieldErrors = getUserFieldErrors(userErrors);
+        if (fieldErrors) {
+          setFormErrors(fieldErrors);
+        } else {
+          notify.error("Could not create user. Please try again.", {
+            response: userErrors,
+          });
+        }
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   return (

@@ -27,7 +27,8 @@ export interface IApiUserFormData {
 
 interface IApiUserFormProps {
   onCancel: () => void;
-  onSubmit: (formData: IApiUserFormData) => void;
+  /** Return the request promise to have the hook track in-flight state. */
+  onSubmit: (formData: IApiUserFormData) => void | Promise<unknown>;
   availableTeams: ITeam[];
   defaultData?: IApiUserFormData;
   isSubmitting?: boolean;
@@ -116,7 +117,7 @@ const ApiUserForm = ({
       apiEndpoints = data.isSpecificEndpoints ? data.api_endpoints : null;
     }
 
-    onSubmit({
+    return onSubmit({
       name: data.name,
       global_role: data.isGlobalUser ? data.global_role : null,
       fleets: data.isGlobalUser
@@ -136,11 +137,14 @@ const ApiUserForm = ({
     commitFields({ isGlobalUser: value === UserTeamType.GlobalUser });
   };
 
+  // Narrowing to "all endpoints" discards the selection, matching the behavior
+  // before this form used the hook.
   const onAccessTypeChange = (isSpecific: boolean) => {
-    commitFields({
-      isSpecificEndpoints: isSpecific,
-      api_endpoints: isSpecific ? formData.api_endpoints : [],
-    });
+    commitFields(
+      isSpecific
+        ? { isSpecificEndpoints: true }
+        : { isSpecificEndpoints: false, api_endpoints: [] }
+    );
   };
 
   const renderGlobalRoleForm = () => (

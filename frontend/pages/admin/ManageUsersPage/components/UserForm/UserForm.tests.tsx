@@ -150,6 +150,10 @@ describe("UserForm - component", () => {
     await user.click(screen.getByText("Add"));
     expect(screen.getByText("Enter an email")).toBeInTheDocument();
 
+    // Querying the input by the error string is deliberate, not a typo for
+    // "Email": FormField renders the error *in place of* the label, so while an
+    // error shows, the error text IS the field's accessible label. Asserting it
+    // here doubles as coverage of that rule (patterns.md, Visual affordances).
     await user.click(screen.getByLabelText("Enter an email"));
 
     expect(screen.queryByText("Enter an email")).not.toBeInTheDocument();

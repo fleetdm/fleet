@@ -93,6 +93,46 @@ describe("useFormValidation", () => {
     expect(result.current.isSubmitting).toBe(false);
   });
 
+  // Callers may put any of these in an effect dependency list, so an unstable
+  // identity would silently re-run their effect on every render — and loop if
+  // that effect sets state. Comments can't enforce that; this can.
+  it("keeps every returned callback identity stable across renders", () => {
+    const { result, rerender } = setup();
+    const first = result.current;
+
+    act(() => result.current.setField("name", "Alice"));
+    rerender({ serverErrors: { email: "Enter a different email" } });
+    rerender({ isSubmitting: true });
+
+    expect(result.current.setField).toBe(first.setField);
+    expect(result.current.commitFields).toBe(first.commitFields);
+    expect(result.current.reset).toBe(first.reset);
+    expect(result.current.clearFieldError).toBe(first.clearFieldError);
+    expect(result.current.validateField).toBe(first.validateField);
+    expect(result.current.clearErrors).toBe(first.clearErrors);
+    expect(result.current.handleSubmit).toBe(first.handleSubmit);
+  });
+
+  it("still submits the latest form data through a stable handleSubmit", () => {
+    const onValid = jest.fn();
+    const { result } = setup();
+    const handleSubmitAtMount = result.current.handleSubmit;
+
+    act(() => result.current.setField("name", "Alice"));
+    act(() => result.current.setField("email", "alice@example.com"));
+    act(() => result.current.setField("password", "pa55word!"));
+
+    // The mount-time reference must see the values typed after it was created.
+    act(() => handleSubmitAtMount(onValid)(submitEvent()));
+
+    expect(onValid).toHaveBeenCalledWith({
+      name: "Alice",
+      email: "alice@example.com",
+      password: "pa55word!",
+      ssoEnabled: false,
+    });
+  });
+
   describe("when errors appear", () => {
     it("validateField does nothing while the field is pristine", () => {
       const { result } = setup();
@@ -368,6 +408,39 @@ describe("useFormValidation", () => {
       expect(notify.error).toHaveBeenCalledTimes(2);
     });
 
+    it("survive a commitFields that the client rule cannot reproduce", () => {
+      const { result, rerender } = setup();
+
+      // A well-formed but already-taken email: nothing for `validate` to flag,
+      // so pruning would silently drop the server's verdict.
+      act(() => result.current.setField("email", "taken@example.com"));
+      rerender({
+        serverErrors: { email: "Enter an email that isn't already in use" },
+      });
+
+      act(() => result.current.commitFields({ ssoEnabled: true }));
+
+      expect(result.current.getError("email")).toBe(
+        "Enter an email that isn't already in use"
+      );
+    });
+
+    it("are replaced wholesale by the client verdict on submit", () => {
+      const { result, rerender } = setup();
+
+      act(() => result.current.setField("email", "taken@example.com"));
+      rerender({
+        serverErrors: { email: "Enter an email that isn't already in use" },
+      });
+
+      act(() => result.current.handleSubmit(jest.fn())(submitEvent()));
+
+      // Name and password are still empty, so submit fails — but on its own
+      // verdict, not the stale server one.
+      expect(result.current.getError("email")).toBeUndefined();
+      expect(result.current.getError("name")).toBe("Enter a name");
+    });
+
     it("clearFieldError drops a server error, like a client-side one", () => {
       const { result, rerender } = setup();
 
@@ -375,6 +448,38 @@ describe("useFormValidation", () => {
       act(() => result.current.clearFieldError("email"));
 
       expect(result.current.getError("email")).toBeUndefined();
+    });
+
+    it("are applied once even if the same content arrives on every render", () => {
+      const { result, rerender } = setup();
+
+      // This effect sets state, so re-reacting to unchanged content would loop.
+      rerender({ serverErrors: { email: "Enter a different email" } });
+      rerender({ serverErrors: { email: "Enter a different email" } });
+      rerender({ serverErrors: { email: "Enter a different email" } });
+
+      expect(result.current.getError("email")).toBe("Enter a different email");
+      expect(notify.error).toHaveBeenCalledTimes(1);
+    });
+
+    it("toast again on a genuinely repeated failure", () => {
+      const { result, rerender } = setup();
+      const failure = { email: "Enter a different email" };
+
+      act(() => result.current.setField("name", "Alice"));
+      act(() => result.current.setField("email", "taken@example.com"));
+      act(() => result.current.setField("password", "pa55word!"));
+
+      act(() => result.current.handleSubmit(jest.fn())(submitEvent()));
+      rerender({ serverErrors: { ...failure } });
+      expect(notify.error).toHaveBeenCalledTimes(1);
+
+      // Re-submitting clears the shown errors, so the same failure is new again.
+      act(() => result.current.handleSubmit(jest.fn())(submitEvent()));
+      rerender({ serverErrors: { ...failure } });
+
+      expect(notify.error).toHaveBeenCalledTimes(2);
+      expect(result.current.getError("email")).toBe("Enter a different email");
     });
 
     it("does not toast an empty batch", () => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useContext } from "react";
+import React, { useContext, useEffect, useId } from "react";
 import PATHS from "router/paths";
 
 import { PRIMO_TOOLTIP } from "utilities/constants";
@@ -30,14 +30,11 @@ import { roleOptions } from "../../helpers/userManagementHelpers";
 
 const baseClass = "user-form";
 
-// The submit button lives in a ModalFooter outside the <form>, so it reaches the
-// form's onSubmit through this id rather than through its own onClick.
-const FORM_ID = "user-form";
-
 const PASSWORD_ERRORS: Record<string, string> = {
   too_short: "Enter a password with at least 12 characters",
   too_long: "Enter a password with 48 characters or fewer",
-  invalid_format: "Enter a password with at least 1 number and 1 symbol",
+  invalid_format:
+    "Enter a password with at least 1 letter, 1 number and 1 symbol",
 };
 
 export enum NewUserType {
@@ -81,7 +78,8 @@ type UserFormState = {
 interface IUserFormProps {
   availableTeams: ITeam[];
   onCancel: () => void;
-  onSubmit: (formData: IUserFormData) => void;
+  /** Return the request promise to have the hook track in-flight state. */
+  onSubmit: (formData: IUserFormData) => void | Promise<unknown>;
   defaultName?: string;
   defaultEmail?: string;
   currentUserId?: number;
@@ -130,6 +128,11 @@ const UserForm = ({
 }: IUserFormProps): JSX.Element => {
   const { config } = useContext(AppContext);
   const priMode = config?.partnerships?.enable_primo;
+
+  // The submit button lives in a ModalFooter outside the <form>, so it reaches
+  // the form's onSubmit through this id rather than through its own onClick.
+  // Per instance, so two forms on one page can't collide on the id.
+  const formId = useId();
 
   // Mirrors the render condition for renderPasswordSection — a hidden field is
   // never validated.
@@ -276,9 +279,8 @@ const UserForm = ({
       : { ...submitData, global_role: null, teams: data.teams };
   };
 
-  const onValidSubmit = (data: UserFormState) => {
+  const onValidSubmit = (data: UserFormState) =>
     onSubmit(buildSubmitData(data));
-  };
 
   const renderGlobalRoleForm = (): JSX.Element => {
     return (
@@ -671,7 +673,7 @@ const UserForm = ({
       <div className={baseClass}>
         <form
           autoComplete="off"
-          id={FORM_ID}
+          id={formId}
           onSubmit={handleSubmit(onValidSubmit)}
         >
           {isNewUser && renderAccountSection()}
@@ -696,7 +698,7 @@ const UserForm = ({
           </Button>
           <Button
             type="submit"
-            formId={FORM_ID}
+            formId={formId}
             className={`${isNewUser ? "add" : "save"}-loading
           `}
             isLoading={isSubmitting}
