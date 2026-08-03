@@ -14351,3 +14351,88 @@ func TestReconcileSoftwareChecksumsCoalescesNullAndEmpty(t *testing.T) {
 	require.Len(t, checksums, 1)
 	require.Equal(t, canonical, checksums[0])
 }
+
+func TestParseSoftwareChecksumMembers(t *testing.T) {
+	got, err := parseSoftwareChecksumMembers("10:aa,20:bb,30:cc", 3)
+	require.NoError(t, err)
+	require.Equal(t, []softwareChecksumMember{
+		{id: 10, checksum: "aa"},
+		{id: 20, checksum: "bb"},
+		{id: 30, checksum: "cc"},
+	}, got)
+
+	// Fewer parsed members than the group's count => GROUP_CONCAT truncation; must fail
+	// rather than merge against a partial view of the group.
+	_, err = parseSoftwareChecksumMembers("10:aa,20:bb", 3)
+	require.ErrorContains(t, err, "truncated")
+
+	// Token missing the id:checksum separator.
+	_, err = parseSoftwareChecksumMembers("10aa,20:bb", 2)
+	require.ErrorContains(t, err, "malformed")
+
+	// Non-numeric id.
+	_, err = parseSoftwareChecksumMembers("xx:aa", 1)
+	require.ErrorContains(t, err, "parse software id")
+}
+
+func TestReconcileSoftwareChecksumsThreeMembers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	host1 := test.NewHost(t, ds, "recon3-host1", "", "recon3-key1", "recon3-uuid1", time.Now())
+	host2 := test.NewHost(t, ds, "recon3-host2", "", "recon3-key2", "recon3-uuid2", time.Now())
+
+	sw := fleet.Software{Name: "zlib", Version: "1.3", Source: "homebrew_packages"}
+	// canonical row via the normal ingestion path (host1).
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{sw})
+	require.NoError(t, err)
+	var canonical struct {
+		ID      uint  `db:"id"`
+		TitleID *uint `db:"title_id"`
+	}
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &canonical,
+		`SELECT id, title_id FROM software WHERE name = 'zlib' AND version = '1.3' AND source = 'homebrew_packages'`))
+
+	// Two distinct stale rows for the same identity (two different legacy formulas), so
+	// the group has three members: canonical + staleA + staleB.
+	insertStale := func(cksum []byte) int64 {
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO software (name, version, source, checksum, title_id) VALUES ('zlib', '1.3', 'homebrew_packages', ?, ?)`,
+			cksum, canonical.TitleID)
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		return id
+	}
+	staleA := insertStale(legacyNameFirstChecksum(t, sw))
+	otherB := md5.Sum([]byte("zlib-other-legacy")) //nolint:gosec // arbitrary distinct non-canonical checksum
+	staleB := insertStale(otherB[:])
+
+	// host2 on staleA; host1 (already on canonical) also on staleB, so staleB's merge
+	// exercises a collision as well.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software (host_id, software_id) VALUES (?, ?), (?, ?)`, host2.ID, staleA, host1.ID, staleB)
+	require.NoError(t, err)
+
+	countZlib := func() int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM software WHERE name = 'zlib'`))
+		return n
+	}
+	require.Equal(t, 3, countZlib())
+
+	require.NoError(t, ds.ReconcileSoftwareChecksums(ctx))
+
+	// All three members collapsed onto the canonical row.
+	require.Equal(t, 1, countZlib())
+	var remainingID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &remainingID,
+		`SELECT id FROM software WHERE name = 'zlib'`))
+	require.Equal(t, canonical.ID, remainingID)
+
+	// Both hosts on the canonical row, each once (host1's staleB collision resolved).
+	var hostIDs []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
+		`SELECT host_id FROM host_software WHERE software_id = ? ORDER BY host_id`, canonical.ID))
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, hostIDs)
+}

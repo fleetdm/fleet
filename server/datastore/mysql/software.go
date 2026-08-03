@@ -3419,6 +3419,35 @@ func (ds *Datastore) ReconcileSoftwareChecksums(ctx context.Context) error {
 	return nil
 }
 
+type softwareChecksumMember struct {
+	id       uint64
+	checksum string
+}
+
+// parseSoftwareChecksumMembers parses the GROUP_CONCAT "id:checksumhex" list for a
+// duplicate group. The id is kept as uint64 (its parsed type) since it is only ever
+// passed as a SQL bind argument. It verifies the list was not truncated by
+// GROUP_CONCAT (group_concat_max_len) by requiring the parsed count to equal the
+// group's member count, so we never merge against a partial view of the group.
+func parseSoftwareChecksumMembers(members string, memberCount int) ([]softwareChecksumMember, error) {
+	var parsed []softwareChecksumMember
+	for tok := range strings.SplitSeq(members, ",") {
+		idStr, cksum, ok := strings.Cut(tok, ":")
+		if !ok {
+			return nil, fmt.Errorf("malformed reconciliation member token %q", tok)
+		}
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse software id %q: %w", idStr, err)
+		}
+		parsed = append(parsed, softwareChecksumMember{id: id, checksum: cksum})
+	}
+	if len(parsed) != memberCount {
+		return nil, fmt.Errorf("reconciliation member list truncated: parsed %d of %d members", len(parsed), memberCount)
+	}
+	return parsed, nil
+}
+
 // reconcileSoftwareGroup merges a single duplicate group onto its canonical row.
 func (ds *Datastore) reconcileSoftwareGroup(ctx context.Context, g softwareChecksumDupGroup) error {
 	sw := g.software()
@@ -3428,29 +3457,9 @@ func (ds *Datastore) reconcileSoftwareGroup(ctx context.Context, g softwareCheck
 	}
 	canonicalHex := hex.EncodeToString(canonical)
 
-	type member struct {
-		id       uint64
-		checksum string
-	}
-	var parsed []member
-	for tok := range strings.SplitSeq(g.Members, ",") {
-		idStr, cksum, ok := strings.Cut(tok, ":")
-		if !ok {
-			return ctxerr.New(ctx, fmt.Sprintf("malformed reconciliation member token %q", tok))
-		}
-		// Keep the id as uint64 (its parsed type) throughout: it is only ever passed
-		// as a SQL bind argument, so there is no need to narrow it to uint.
-		id, err := strconv.ParseUint(idStr, 10, 64)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "parse software id")
-		}
-		parsed = append(parsed, member{id: id, checksum: cksum})
-	}
-	if len(parsed) != g.MemberCount {
-		// GROUP_CONCAT truncated the member list (group_concat_max_len). Fail loudly
-		// rather than merge against a partial view of the group.
-		return ctxerr.New(ctx, fmt.Sprintf("reconciliation member list truncated: got %d of %d for %s/%s/%s",
-			len(parsed), g.MemberCount, sw.Name, sw.Version, sw.Source))
+	parsed, err := parseSoftwareChecksumMembers(g.Members, g.MemberCount)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, fmt.Sprintf("reconcile group %s/%s/%s", sw.Name, sw.Version, sw.Source))
 	}
 	if len(parsed) < 2 {
 		// A duplicate group always has at least two members; nothing to merge otherwise.
