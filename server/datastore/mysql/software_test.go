@@ -14121,101 +14121,6 @@ func legacyNameFirstChecksum(t *testing.T, s fleet.Software) []byte {
 	return h.Sum(nil)
 }
 
-func TestReconcileSoftwareChecksums(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	ctx := t.Context()
-
-	countGiflib := func() int {
-		var n int
-		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n,
-			`SELECT COUNT(*) FROM software WHERE name = 'giflib'`))
-		return n
-	}
-	host1 := test.NewHost(t, ds, "recon-host1", "", "recon-key1", "recon-uuid1", time.Now())
-	host2 := test.NewHost(t, ds, "recon-host2", "", "recon-key2", "recon-uuid2", time.Now())
-	host3 := test.NewHost(t, ds, "recon-host3", "", "recon-key3", "recon-uuid3", time.Now())
-
-	giflib := fleet.Software{Name: "giflib", Version: "5.2.2", Source: "homebrew_packages"}
-
-	// host1 reports giflib through the normal ingestion path, creating the
-	// canonical (current-formula) software row.
-	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{giflib})
-	require.NoError(t, err)
-
-	var canonical struct {
-		ID      uint  `db:"id"`
-		TitleID *uint `db:"title_id"`
-	}
-	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &canonical,
-		`SELECT id, title_id FROM software WHERE name = 'giflib' AND version = '5.2.2' AND source = 'homebrew_packages'`))
-
-	// Simulate a pre-v4.76.0 duplicate: identical identity, legacy name-first
-	// checksum, referenced by host2.
-	staleChecksum := legacyNameFirstChecksum(t, giflib)
-	res, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO software (name, version, source, checksum, title_id) VALUES ('giflib', '5.2.2', 'homebrew_packages', ?, ?)`,
-		staleChecksum, canonical.TitleID)
-	require.NoError(t, err)
-	staleID, err := res.LastInsertId()
-	require.NoError(t, err)
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, host2.ID, staleID)
-	require.NoError(t, err)
-	// host3 is linked to BOTH the survivor and the stale row (the collision case): the
-	// merge must drop the redundant stale link, not delete host3's software entirely.
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO host_software (host_id, software_id) VALUES (?, ?), (?, ?)`,
-		host3.ID, canonical.ID, host3.ID, staleID)
-	require.NoError(t, err)
-	// an installed path on the stale row must be repointed onto the survivor.
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, '/opt/homebrew/Cellar/giflib')`,
-		host2.ID, staleID)
-	require.NoError(t, err)
-
-	require.Equal(t, 2, countGiflib())
-
-	// Reconcile: the duplicate group is merged onto the canonical row.
-	require.NoError(t, ds.ReconcileSoftwareChecksums(ctx))
-
-	require.Equal(t, 1, countGiflib())
-	var remainingID uint
-	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &remainingID,
-		`SELECT id FROM software WHERE name = 'giflib'`))
-	require.Equal(t, canonical.ID, remainingID)
-
-	// All three hosts are on the canonical row, each exactly once (host3's collision
-	// resolved to a single link).
-	var hostIDs []uint
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
-		`SELECT host_id FROM host_software WHERE software_id = ? ORDER BY host_id`, canonical.ID))
-	require.ElementsMatch(t, []uint{host1.ID, host2.ID, host3.ID}, hostIDs)
-
-	var staleRefs int
-	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &staleRefs,
-		`SELECT COUNT(*) FROM host_software WHERE software_id = ?`, staleID))
-	require.Zero(t, staleRefs)
-
-	// The installed path was repointed onto the canonical row.
-	var pathSoftwareIDs []uint
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &pathSoftwareIDs,
-		`SELECT software_id FROM host_software_installed_paths WHERE host_id = ?`, host2.ID))
-	require.Equal(t, []uint{canonical.ID}, pathSoftwareIDs)
-
-	// Re-running is idempotent: with no duplicates left, nothing changes (safe to re-trigger).
-	require.NoError(t, ds.ReconcileSoftwareChecksums(ctx))
-	require.Equal(t, 1, countGiflib())
-
-	// A duplicate introduced later is merged when the job is re-triggered.
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO software (name, version, source, checksum, title_id) VALUES ('giflib', '5.2.2', 'homebrew_packages', ?, ?)`,
-		staleChecksum, canonical.TitleID)
-	require.NoError(t, err)
-	require.Equal(t, 2, countGiflib())
-	require.NoError(t, ds.ReconcileSoftwareChecksums(ctx))
-	require.Equal(t, 1, countGiflib())
-}
-
 func TestReconcileSoftwareChecksumsInPlaceFix(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := t.Context()
@@ -14413,6 +14318,11 @@ func TestReconcileSoftwareChecksumsThreeMembers(t *testing.T) {
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO host_software (host_id, software_id) VALUES (?, ?), (?, ?)`, host2.ID, staleA, host1.ID, staleB)
 	require.NoError(t, err)
+	// an installed path on a stale row must be repointed onto the survivor.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, '/opt/homebrew/Cellar/zlib')`,
+		host2.ID, staleA)
+	require.NoError(t, err)
 
 	countZlib := func() int {
 		var n int
@@ -14435,4 +14345,10 @@ func TestReconcileSoftwareChecksumsThreeMembers(t *testing.T) {
 	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
 		`SELECT host_id FROM host_software WHERE software_id = ? ORDER BY host_id`, canonical.ID))
 	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, hostIDs)
+
+	// The installed path on staleA was repointed onto the canonical row.
+	var pathSoftwareIDs []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &pathSoftwareIDs,
+		`SELECT software_id FROM host_software_installed_paths WHERE host_id = ?`, host2.ID))
+	require.Equal(t, []uint{canonical.ID}, pathSoftwareIDs)
 }
