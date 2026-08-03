@@ -3,6 +3,7 @@ import classnames from "classnames";
 import { toast } from "sonner";
 
 import Icon from "components/Icon";
+import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
 import { Colors } from "styles/var/colors";
 import { syntaxHighlight } from "utilities/helpers";
@@ -123,33 +124,31 @@ const ToastCard = ({
         </div>
         <div className={`${baseClass}__actions`}>
           {hasDetail && (
-            <button
-              type="button"
-              className={`${baseClass}__action-button`}
-              aria-expanded={isOpen}
-              aria-controls={panelId}
-              aria-label={
+            <Button
+              variant="subdued"
+              ariaExpanded={isOpen}
+              ariaControls={panelId}
+              ariaLabel={
                 isOpen ? "Collapse error details" : "Expand error details"
               }
               onClick={toggle}
             >
-              <span
+              <Icon
+                name="chevron-down"
+                color="ui-fleet-black-75"
                 className={classnames(`${baseClass}__chevron`, {
                   [`${baseClass}__chevron--open`]: isOpen,
                 })}
-              >
-                <Icon name="chevron-down" color="ui-fleet-black-75" />
-              </span>
-            </button>
+              />
+            </Button>
           )}
-          <button
-            type="button"
-            className={`${baseClass}__action-button`}
-            aria-label="Dismiss notification"
+          <Button
+            variant="subdued"
+            ariaLabel="Dismiss notification"
             onClick={handleClose}
           >
             <Icon name="close" color="ui-fleet-black-75" />
-          </button>
+          </Button>
         </div>
       </div>
       {hasDetail && isOpen && (
