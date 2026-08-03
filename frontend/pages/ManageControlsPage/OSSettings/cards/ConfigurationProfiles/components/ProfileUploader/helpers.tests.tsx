@@ -5,9 +5,171 @@ import { IApiError } from "interfaces/errors";
 import {
   DEFAULT_EDIT_ERROR_MESSAGE,
   DEFAULT_ERROR_MESSAGE,
+  EXAMPLE_CUSTOM_ACTIVATION,
   generateCustomTargetLabelKey,
   getErrorMessage,
+  parseFile,
 } from "./helpers";
+
+const jsonFile = (contents: string, name = "profile.json") =>
+  new File([contents], name, { type: "application/json" });
+
+const DDM_DECLARATION = JSON.stringify({
+  Type: "com.apple.configuration.management.test",
+  Identifier: "com.fleetdm.config.test",
+  Payload: { Echo: "test" },
+});
+
+describe("parseFile", () => {
+  it("identifies an Apple DDM declaration and extracts its identifier", async () => {
+    const result = await parseFile(jsonFile(DDM_DECLARATION));
+
+    expect(result).toMatchObject({
+      name: "profile",
+      ext: "json",
+      isAppleDeclaration: true,
+      declarationIdentifier: "com.fleetdm.config.test",
+    });
+  });
+
+  it("does not treat an Android profile as a declaration", async () => {
+    // Android profiles use lower-case keys and upload as .json, the same
+    // extension as a declaration -- only the contents tell them apart.
+    const result = await parseFile(
+      jsonFile(JSON.stringify({ screenCaptureDisabled: true }))
+    );
+
+    expect(result.isAppleDeclaration).toBe(false);
+    expect(result.declarationIdentifier).toBeUndefined();
+  });
+
+  it("reports a declaration without an Identifier, leaving the identifier unset", async () => {
+    // the backend rejects this on upload; the UI still has to render an
+    // example activation for it.
+    const result = await parseFile(
+      jsonFile(
+        JSON.stringify({ Type: "com.apple.configuration.x", Payload: {} })
+      )
+    );
+
+    expect(result.isAppleDeclaration).toBe(true);
+    expect(result.declarationIdentifier).toBeUndefined();
+  });
+
+  it("requires an Apple Type, not just any Type key", async () => {
+    const result = await parseFile(
+      jsonFile(JSON.stringify({ Type: "com.example.thing", Payload: {} }))
+    );
+
+    expect(result.isAppleDeclaration).toBe(false);
+  });
+
+  it("rejects a non-string Type", async () => {
+    const result = await parseFile(
+      jsonFile(JSON.stringify({ Type: 42, Payload: {} }))
+    );
+
+    expect(result.isAppleDeclaration).toBe(false);
+  });
+
+  it("requires Payload to be an object", async () => {
+    // the backend treats a scalar Payload as malformed.
+    const result = await parseFile(
+      jsonFile(
+        JSON.stringify({ Type: "com.apple.configuration.x", Payload: "test" })
+      )
+    );
+
+    expect(result.isAppleDeclaration).toBe(false);
+  });
+
+  it("rejects mixed casing, which the backend won't accept as either type", async () => {
+    const result = await parseFile(
+      jsonFile(
+        JSON.stringify({
+          Type: "com.apple.configuration.x",
+          Payload: {},
+          screenCaptureDisabled: true,
+        })
+      )
+    );
+
+    expect(result.isAppleDeclaration).toBe(false);
+  });
+
+  it("ignores a non-string Identifier", async () => {
+    const result = await parseFile(
+      jsonFile(
+        JSON.stringify({
+          Type: "com.apple.configuration.x",
+          Identifier: 42,
+          Payload: {},
+        })
+      )
+    );
+
+    expect(result.declarationIdentifier).toBeUndefined();
+  });
+
+  it("requires both Type and Payload to call it a declaration", async () => {
+    const noPayload = await parseFile(
+      jsonFile(JSON.stringify({ Type: "com.apple.configuration.x" }))
+    );
+    const noType = await parseFile(jsonFile(JSON.stringify({ Payload: {} })));
+
+    expect(noPayload.isAppleDeclaration).toBe(false);
+    expect(noType.isAppleDeclaration).toBe(false);
+  });
+
+  it("treats unparseable JSON as not a declaration rather than throwing", async () => {
+    // the backend reports the parse error on upload -- the UI just needs to
+    // keep the DDM-only section hidden.
+    await expect(parseFile(jsonFile("{ not json"))).resolves.toMatchObject({
+      isAppleDeclaration: false,
+    });
+  });
+
+  it("treats a JSON array as not a declaration", async () => {
+    await expect(
+      parseFile(jsonFile(JSON.stringify([{ Type: "x", Payload: {} }])))
+    ).resolves.toMatchObject({ isAppleDeclaration: false });
+  });
+
+  it("never flags non-JSON profile types as declarations", async () => {
+    const mobileconfig = await parseFile(
+      new File(["<plist></plist>"], "profile.mobileconfig")
+    );
+    const windows = await parseFile(new File(["<Replace></Replace>"], "p.xml"));
+
+    expect(mobileconfig).toMatchObject({
+      ext: "mobileconfig",
+      isAppleDeclaration: false,
+    });
+    expect(windows).toMatchObject({ ext: "xml", isAppleDeclaration: false });
+  });
+
+  it("rejects an unsupported extension", async () => {
+    await expect(parseFile(new File(["x"], "profile.txt"))).rejects.toThrow(
+      "Invalid file type: txt"
+    );
+  });
+});
+
+describe("EXAMPLE_CUSTOM_ACTIVATION", () => {
+  it("matches the activation shape shown in the design", () => {
+    expect(JSON.parse(EXAMPLE_CUSTOM_ACTIVATION)).toEqual({
+      Type: "com.apple.activation.simple",
+      Identifier: "myIdentifier",
+      Payload: {
+        StandardConfigurations: ["myConfigurationIdentifier"],
+      },
+    });
+  });
+
+  it("renders indented JSON so the editor is readable", () => {
+    expect(EXAMPLE_CUSTOM_ACTIVATION).toContain('\n  "Type"');
+  });
+});
 
 describe("generateCustomTargetLabelKey", () => {
   it("returns empty object when target is not Custom", () => {

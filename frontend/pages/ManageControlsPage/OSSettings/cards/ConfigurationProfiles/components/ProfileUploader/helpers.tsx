@@ -13,7 +13,84 @@ export interface IParseFileResult {
   name: string;
   platform: string;
   ext: string;
+  /** For .json uploads, whether the contents look like an Apple DDM
+   * declaration rather than an Android configuration profile. Always false for
+   * other extensions. */
+  isAppleDeclaration: boolean;
+  /** The declaration's `Identifier`, when the upload is an Apple DDM
+   * declaration that declares one. */
+  declarationIdentifier?: string;
 }
+
+const readFileAsText = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+
+interface IAppleDeclarationDetails {
+  isAppleDeclaration: boolean;
+  declarationIdentifier?: string;
+}
+
+const NOT_A_DECLARATION: IAppleDeclarationDetails = {
+  isAppleDeclaration: false,
+};
+
+/** Distinguishes an Apple DDM declaration from an Android configuration
+ * profile, both of which upload as .json. Follows the backend's
+ * `DetermineJSONConfigType` (server/mdm/mdm.go): a declaration is keyed in
+ * PascalCase and carries "Type" and "Payload", an Android profile uses
+ * camelCase keys.
+ *
+ * This only decides whether to offer the DDM-only activation UI -- the backend
+ * is still the authority on whether the file is valid, so contents we can't
+ * make sense of are reported as "not a declaration" rather than throwing. */
+const parseAppleDeclaration = async (
+  file: File
+): Promise<IAppleDeclarationDetails> => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFileAsText(file));
+  } catch {
+    return NOT_A_DECLARATION;
+  }
+
+  // `typeof [] === "object"`, so arrays need excluding explicitly.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return NOT_A_DECLARATION;
+  }
+
+  const contents = parsed as Record<string, unknown>;
+
+  // a declaration always names an Apple type; Android profiles have no
+  // equivalent key, so this is a positive signal rather than an inference from
+  // what the other keys look like.
+  if (
+    typeof contents.Type !== "string" ||
+    !contents.Type.startsWith("com.apple.")
+  ) {
+    return NOT_A_DECLARATION;
+  }
+
+  if (typeof contents.Payload !== "object" || contents.Payload === null) {
+    return NOT_A_DECLARATION;
+  }
+
+  // Android's camelCase keys are the backend's discriminator, so a lower-case
+  // top-level key means this won't be accepted as a declaration.
+  if (Object.keys(contents).some((key) => /^[a-z]/.test(key))) {
+    return NOT_A_DECLARATION;
+  }
+
+  return {
+    isAppleDeclaration: true,
+    declarationIdentifier:
+      typeof contents.Identifier === "string" ? contents.Identifier : undefined,
+  };
+};
 
 export const parseFile = async (file: File): Promise<IParseFileResult> => {
   // get the file name and extension
@@ -27,19 +104,48 @@ export const parseFile = async (file: File): Promise<IParseFileResult> => {
         name,
         platform: "Windows",
         ext,
+        isAppleDeclaration: false,
       };
     }
     case "mobileconfig": {
-      return { name, platform: "macOS, iOS, iPadOS", ext };
+      return {
+        name,
+        platform: "macOS, iOS, iPadOS",
+        ext,
+        isAppleDeclaration: false,
+      };
     }
     case "json": {
-      return { name, platform: "Android or macOS(DDM)", ext };
+      return {
+        name,
+        platform: "Android or macOS(DDM)",
+        ext,
+        ...(await parseAppleDeclaration(file)),
+      };
     }
     default: {
       throw new Error(`Invalid file type: ${ext}`);
     }
   }
 };
+
+/** The example activation shown in the custom activation editor, matching the
+ * design. Its identifiers are illustrative: `StandardConfigurations` has to
+ * name the uploaded declaration's identifier, so this example is a scaffold to
+ * edit rather than something that would be accepted as-is.
+ *
+ * Built via JSON.stringify so it can't drift into invalid JSON. */
+export const EXAMPLE_CUSTOM_ACTIVATION = JSON.stringify(
+  {
+    Type: "com.apple.activation.simple",
+    Identifier: "myIdentifier",
+    Payload: {
+      StandardConfigurations: ["myConfigurationIdentifier"],
+    },
+  },
+  null,
+  2
+);
 
 interface IGenerateCustomTargetLabelKeyArgs {
   targetType: TargetType;

@@ -26,10 +26,12 @@ import {
   LabelTargetMode,
   TargetType,
 } from "components/TargetLabelSelector";
+import ProfileAdvancedOptions from "../../../ProfileAdvancedOptions";
 import ProfileGraphic from "../ProfileGraphic";
 
 import {
   DEFAULT_ERROR_MESSAGE,
+  EXAMPLE_CUSTOM_ACTIVATION,
   generateCustomTargetLabelKey,
   getErrorMessage,
   IParseFileResult,
@@ -128,8 +130,14 @@ const AddProfileModal = ({
   const [selectedExcludeLabels, setSelectedExcludeLabels] = useState<
     Record<string, boolean>
   >({});
+  const [customActivation, setCustomActivation] = useState("");
 
   const fileRef = useRef<File | null>(null);
+
+  // advanced options only apply to Apple DDM declarations, and custom
+  // activations are a Premium feature.
+  const showAdvancedOptions =
+    isPremiumTier && !!fileDetails?.isAppleDeclaration;
 
   const {
     data: labels,
@@ -155,6 +163,7 @@ const AddProfileModal = ({
     setFileDetails(null);
     setSelectedIncludeLabels({});
     setSelectedExcludeLabels({});
+    setCustomActivation("");
     setShowModal(false);
   }, [fileRef, setShowModal]);
 
@@ -203,6 +212,11 @@ const AddProfileModal = ({
     try {
       const details = await parseFile(file);
       setFileDetails(details);
+      // seed the editor with the example activation, which the admin edits to
+      // name their configuration and add a predicate.
+      setCustomActivation(
+        details.isAppleDeclaration ? EXAMPLE_CUSTOM_ACTIVATION : ""
+      );
     } catch (e) {
       notify.error("Invalid file type", { response: e });
     } finally {
@@ -277,6 +291,12 @@ const AddProfileModal = ({
                 }}
               />
             </div>
+          )}
+          {showAdvancedOptions && (
+            <ProfileAdvancedOptions
+              customActivation={customActivation}
+              onChangeCustomActivation={setCustomActivation}
+            />
           )}
           <div className={`${baseClass}__button-wrap`}>
             <Button variant="secondary" onClick={onDone}>
