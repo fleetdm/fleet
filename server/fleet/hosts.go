@@ -514,12 +514,16 @@ var hostForeignVitalGroups = map[string]HostForeignVitalGroup{
 		// (scim_group_group). Entra ID provisions nested groups as group-type
 		// members rather than flattening them, so without this expansion a host
 		// whose user only belongs to a child group would not match a label built on
-		// an ancestor group's display name.
-		Query: `JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) 
+		// an ancestor group's display name. The anchor is seeded with only the SCIM
+		// users mapped to hosts: the derived table is materialized once per query
+		// (the outer join predicate isn't pushed into a recursive CTE), and rows for
+		// host-less users would be expanded only to be discarded by that join.
+		Query: `JOIN host_scim_user ON (hosts.id = host_scim_user.host_id)
 				JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id)
 				LEFT JOIN (
 					WITH RECURSIVE scim_user_group_expanded AS (
 						SELECT scim_user_id, group_id FROM scim_user_group
+						WHERE scim_user_id IN (SELECT scim_user_id FROM host_scim_user)
 						UNION SELECT e.scim_user_id, gg.parent_group_id AS group_id
 						FROM scim_user_group_expanded e
 						JOIN scim_group_group gg ON gg.child_group_id = e.group_id

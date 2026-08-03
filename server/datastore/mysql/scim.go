@@ -1143,7 +1143,8 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 }
 
 // diffUintSlices returns the elements to add (in want but not in have) and to
-// remove (in have but not in want).
+// remove (in have but not in want). toAdd is deduplicated, preserving order:
+// want may come straight from a SCIM payload, which can repeat members.
 func diffUintSlices(have, want []uint) (toAdd, toRemove []uint) {
 	haveSet := make(map[uint]struct{}, len(have))
 	for _, id := range have {
@@ -1156,6 +1157,7 @@ func diffUintSlices(have, want []uint) (toAdd, toRemove []uint) {
 	for _, id := range want {
 		if _, ok := haveSet[id]; !ok {
 			toAdd = append(toAdd, id)
+			haveSet[id] = struct{}{}
 		}
 	}
 	for _, id := range have {
