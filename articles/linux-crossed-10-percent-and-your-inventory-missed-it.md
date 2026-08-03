@@ -104,7 +104,7 @@ Your fleet is in the same position. The Linux hosts are already there, already h
 
 *Want the longer argument? Start with [why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026), or go straight to [Linux desktop inventory and visibility](https://fleetdm.com/articles/linux-desktop-inventory-and-visibility).*
 
-<meta name="articleTitle" value="Linux crossed 10% in North America, and your inventory probably missed it">
+<meta name="articleTitle" value="Linux crossed 10% in North America, and your inventory may have missed it">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
