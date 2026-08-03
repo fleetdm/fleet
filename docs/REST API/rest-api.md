@@ -568,7 +568,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
         "install_uuid": "23c18ea1-8cd7-4af4-a1d8-f2666993a66b",
         "self_service": false,
         "software_title": "zoom.us.app",
-        "software_package": "ZoomInstallerIT.pkg",
+        "software_package": "ZoomInstallerIT.pkg"
       }
     },
     {
@@ -602,7 +602,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
         "install_uuid": "077970ab-0ed6-4573-9cdc-ca9ef9015283",
         "self_service": false,
         "software_title": "zoom.us.app",
-        "software_package": "ZoomInstallerIT.pkg",
+        "software_package": "ZoomInstallerIT.pkg"
       }
     }
   ],
@@ -1033,7 +1033,7 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
       "id": 5,
       "name": "SECTIGO_WIFI",
       "type": "custom_est_proxy"
-    }
+    },
     {
       "id": 6,
       "name": "SMALLSTEP_WIFI",
@@ -1073,7 +1073,7 @@ Get details of the certificate authority.
   "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
   "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
   "certificate_user_principal_names": [
-    "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+    "$FLEET_VAR_HOST_HARDWARE_SERIAL"
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
 }
@@ -1146,7 +1146,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
       "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
       "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
-      "created_at": "2025-11-04T00:00:00Z",
+      "created_at": "2025-11-04T00:00:00Z"
     },
     {
       "id": 2,
@@ -1154,7 +1154,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
       "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID",
-      "created_at": "2025-11-04T00:00:00Z",
+      "created_at": "2025-11-04T00:00:00Z"
     }
   ],
   "meta": {
@@ -1794,7 +1794,7 @@ None.
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
     "activity_expiry_window": 0,
-    "preserve_host_activity_on_reenrollment": false,
+    "preserve_host_activity_on_reenrollment": false
   },
   "features": {
     "enable_host_users": true,
@@ -1859,7 +1859,7 @@ None.
          "path": "path/to/profile2.xml",
          "labels": ["Label 3", "Label 4"]
         }
-      ],
+      ]
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -1880,7 +1880,7 @@ None.
       "enable_release_device_manually": false,
       "manual_agent_install": false,
       "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin",
+      "end_user_local_account_type": "admin"
     },
     "setup_experience": {
       "bootstrap_package": "",
@@ -1953,7 +1953,7 @@ None.
   },
   "gitops": {
     "gitops_mode_enabled": false,
-    "repository_url": "",
+    "repository_url": ""
   },
   "webhook_settings": {
     "host_status_webhook": {
@@ -2160,7 +2160,7 @@ Modifies the Fleet's configuration with the supplied information.
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
     "activity_expiry_window": 0,
-    "preserve_host_activity_on_reenrollment": false,
+    "preserve_host_activity_on_reenrollment": false
   },
   "features": {
     "enable_host_users": true,
@@ -2216,7 +2216,7 @@ Modifies the Fleet's configuration with the supplied information.
         {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
-        },
+        }
       ]
     },
     "apple_settings": {
@@ -2232,7 +2232,7 @@ Modifies the Fleet's configuration with the supplied information.
         {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
-        },
+        }
       ]
     },
     "windows_settings": {
@@ -2306,7 +2306,7 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "gitops": {
     "gitops_mode_enabled": false,
-    "repository_url": "",
+    "repository_url": ""
   },
   "webhook_settings": {
     "host_status_webhook": {
@@ -3255,7 +3255,7 @@ None.
       "created_at": "2021-06-16T22:05:49Z",
       "secret": "aFtH2Nq09hrvi73ErlWNQfa7M53D3rPR",
       "team_id": 1,
-      "fleet_id": 1,
+      "fleet_id": 1
     }
   ]
 }
@@ -4131,7 +4131,7 @@ Returns the information of the specified host.
         "resolution": "fix with these other steps...",
         "platform": "darwin",
         "response": "fail",
-        "critical": false,
+        "critical": false
       },
       {
         "id": 3,
@@ -4141,7 +4141,7 @@ Returns the information of the specified host.
         "resolution": "",
         "platform": "",
         "response": "",
-        "critical": false,
+        "critical": false
       },
       {
         "id": 1,
@@ -4151,7 +4151,7 @@ Returns the information of the specified host.
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
         "response": "pass",
-        "critical": false,
+        "critical": false
       }
     ],
     "software": [
@@ -4176,7 +4176,7 @@ Returns the information of the specified host.
         "generated_cpe": "",
         "vulnerabilities": null,
         "installed_paths": ["/usr/lib/some-path-2"]
-      },
+      }
     ],
     "mdm": {
       "encryption_key_available": true,
@@ -4413,7 +4413,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "created_at": "2022-09-02T18:52:19Z",
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
-        "critical": false,
+        "critical": false
       }
     ],
     "software": [
@@ -5033,14 +5033,14 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
         "id": 123,
         "name": "Google Chrome is up to date",
         "critical": true, // Fleet Premium only
-        "resolution": "Follow the Update Google Chrome instructions here: https://support.google.com/chrome/answer/95414?sjid=6534253818042437614-NA",
+        "resolution": "Follow the Update Google Chrome instructions here: https://support.google.com/chrome/answer/95414?sjid=6534253818042437614-NA"
       }
     ],
     "vulnerable_software": [
       {
         "id": 321,
         "name": "Firefox.app",
-        "version": "116.0.3",
+        "version": "116.0.3"
       }
     ]
   }
@@ -5907,8 +5907,8 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": true
-      },
-    },
+      }
+    }
   ],
   "meta": {
     "has_next_results": false,
@@ -5977,7 +5977,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": true
-      },
+      }
     },
     {
       "created_at": "2021-07-27T13:25:21Z",
@@ -5994,8 +5994,8 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "script_name": "",
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": false
-      },
-    },
+      }
+    }
   ],
   "meta": {
     "has_next_results": false,
@@ -6469,7 +6469,7 @@ Returns the specified label.
     "team_id": null,
     "fleet_id": null,
     "team_name": null,
-    "fleet_name": null,
+    "fleet_name": null
   }
 }
 ```
@@ -6963,7 +6963,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "labels_include_all": [
         {
           "name": "Label name 2",
-          "broken": true,
+          "broken": true
         },
         {
           "name": "Label name 3",
@@ -7160,7 +7160,7 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
       "profile": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KCTxrZXk+UGF5bG9hZENvbnRlbnQ8L2tleT4KCTxhcnJheT4KCQk8ZGljdD4KCQkJPGtleT5BbGxvd1ByZVJlbGVhc2VJbnN0YWxsYXRpb248L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkF1dG9tYXRpY0NoZWNrRW5hYmxlZDwva2V5PgoJCQk8dHJ1ZS8+CgkJCTxrZXk+QXV0b21hdGljRG93bmxvYWQ8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkF1dG9tYXRpY2FsbHlJbnN0YWxsQXBwVXBkYXRlczwva2V5PgoJCQk8dHJ1ZS8+CgkJCTxrZXk+QXV0b21hdGljYWxseUluc3RhbGxNYWNPU1VwZGF0ZXM8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkNvbmZpZ0RhdGFJbnN0YWxsPC9rZXk+CgkJCTx0cnVlLz4KCQkJPGtleT5Dcml0aWNhbFVwZGF0ZUluc3RhbGw8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PlBheWxvYWREZXNjcmlwdGlvbjwva2V5PgoJCQk8c3RyaW5nPkNvbmZpZ3VyZXMgU29mdHdhcmUgVXBkYXRlIHNldHRpbmdzPC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+CgkJCTxzdHJpbmc+U29mdHdhcmUgVXBkYXRlPC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZElkZW50aWZpZXI8L2tleT4KCQkJPHN0cmluZz5jb20uZ2l0aHViLmVyaWtiZXJnbHVuZC5Qcm9maWxlQ3JlYXRvci5CRUJBMDc0MC00RERCLTRBQzQtODVEQy1CQTQ4Qjk2QzBEQzguY29tLmFwcGxlLlNvZnR3YXJlVXBkYXRlLkE4Qjk3MDMyLTc2NDUtNDA2OC1CNDU3LTAxREU1QzZCMzNGNzwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRPcmdhbml6YXRpb248L2tleT4KCQkJPHN0cmluZz48L3N0cmluZz4KCQkJPGtleT5QYXlsb2FkVHlwZTwva2V5PgoJCQk8c3RyaW5nPmNvbS5hcHBsZS5Tb2Z0d2FyZVVwZGF0ZTwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRVVUlEPC9rZXk+CgkJCTxzdHJpbmc+QThCOTcwMzItNzY0NS00MDY4LUI0NTctMDFERTVDNkIzM0Y3PC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZFZlcnNpb248L2tleT4KCQkJPGludGVnZXI+MTwvaW50ZWdlcj4KCQk8L2RpY3Q+Cgk8L2FycmF5PgoJPGtleT5QYXlsb2FkRGVzY3JpcHRpb248L2tleT4KCTxzdHJpbmc+RW5hYmxlcyBhdXRvbWF0aWMgdXBkYXRlczwvc3RyaW5nPgoJPGtleT5QYXlsb2FkRGlzcGxheU5hbWU8L2tleT4KCTxzdHJpbmc+VHVybiBvbiBhdXRvbWF0aWMgdXBkYXRlczwvc3RyaW5nPgoJPGtleT5QYXlsb2FkSWRlbnRpZmllcjwva2V5PgoJPHN0cmluZz5jb20uZ2l0aHViLmVyaWtiZXJnbHVuZC5Qcm9maWxlQ3JlYXRvci5CRUJBMDc0MC00RERCLTRBQzQtODVEQy1CQTQ4Qjk2QzBEQzg8L3N0cmluZz4KCTxrZXk+UGF5bG9hZE9yZ2FuaXphdGlvbjwva2V5PgoJPHN0cmluZz5GbGVldERNPC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRSZW1vdmFsRGlzYWxsb3dlZDwva2V5PgoJPHRydWUvPgoJPGtleT5QYXlsb2FkU2NvcGU8L2tleT4KCTxzdHJpbmc+U3lzdGVtPC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRUeXBlPC9rZXk+Cgk8c3RyaW5nPkNvbmZpZ3VyYXRpb248L3N0cmluZz4KCTxrZXk+UGF5bG9hZFVVSUQ8L2tleT4KCTxzdHJpbmc+QkVCQTA3NDAtNEREQi00QUM0LTg1REMtQkE0OEI5NkMwREM4PC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRWZXJzaW9uPC9rZXk+Cgk8aW50ZWdlcj4xPC9pbnRlZ2VyPgo8L2RpY3Q+CjwvcGxpc3Q+",
       "labels_include_any": [
         "Apple Silicon macOS hosts"
-      ],
+      ]
     }
   ]
 }
@@ -7351,7 +7351,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
   "verified": 123,
   "verifying": 123,
   "failed": 123,
-  "pending": 123,
+  "pending": 123
 }
 ```
 
@@ -8419,70 +8419,72 @@ None.
 `Status: 200`
 
 ```json
-"ab_tokens": [
-  {
-    "id": 1,
-    "apple_id": "apple@example.com",
-    "org_name": "Fleet Device Management Inc.",
-    "mdm_server_url": "https://example.com/mdm/apple/mdm",
-    "renew_date": "2023-11-29T00:00:00Z",
-    "terms_expired": false,
-    "macos_fleet": {
-      "name": "💻 Workstations",
-      "id": 1
-    },
-    "ios_fleet": {
-      "name": "📱🏢 Company-owned iPhones",
-      "id": 2
-    },
-    "ipados_fleet": {
-      "name": "🔳🏢 Company-owned iPads",
-      "id": 3
+{
+  "ab_tokens": [
+    {
+      "id": 1,
+      "apple_id": "apple@example.com",
+      "org_name": "Fleet Device Management Inc.",
+      "mdm_server_url": "https://example.com/mdm/apple/mdm",
+      "renew_date": "2023-11-29T00:00:00Z",
+      "terms_expired": false,
+      "macos_fleet": {
+        "name": "💻 Workstations",
+        "id": 1
+      },
+      "ios_fleet": {
+        "name": "📱🏢 Company-owned iPhones",
+        "id": 2
+      },
+      "ipados_fleet": {
+        "name": "🔳🏢 Company-owned iPads",
+        "id": 3
+      }
     }
-  }
-],
-"abm_tokens": [
-  {
-    "id": 1,
-    "apple_id": "apple@example.com",
-    "org_name": "Fleet Device Management Inc.",
-    "mdm_server_url": "https://example.com/mdm/apple/mdm",
-    "renew_date": "2023-11-29T00:00:00Z",
-    "terms_expired": false,
-    "macos_team": {
-      "name": "💻 Workstations",
-      "id": 1
-    },
-    "macos_fleet": {
-      "name": "💻 Workstations",
-      "id": 1
-    },
-    "ios_team": {
-      "name": "📱🏢 Company-owned iPhones",
-      "id": 2
-    },
-    "ios_fleet": {
-      "name": "📱🏢 Company-owned iPhones",
-      "id": 2
-    },
-    "ipados_team": {
-      "name": "🔳🏢 Company-owned iPads",
-      "id": 3
-    },
-    "ipados_fleet": {
-      "name": "🔳🏢 Company-owned iPads",
-      "id": 3
-    },
-    "byod_team": {
-      "name": "📱 BYOD iPhones",
-      "id": 4
-    },
-    "byod_fleet": {
-      "name": "📱 BYOD iPhones",
-      "id": 4
+  ],
+  "abm_tokens": [
+    {
+      "id": 1,
+      "apple_id": "apple@example.com",
+      "org_name": "Fleet Device Management Inc.",
+      "mdm_server_url": "https://example.com/mdm/apple/mdm",
+      "renew_date": "2023-11-29T00:00:00Z",
+      "terms_expired": false,
+      "macos_team": {
+        "name": "💻 Workstations",
+        "id": 1
+      },
+      "macos_fleet": {
+        "name": "💻 Workstations",
+        "id": 1
+      },
+      "ios_team": {
+        "name": "📱🏢 Company-owned iPhones",
+        "id": 2
+      },
+      "ios_fleet": {
+        "name": "📱🏢 Company-owned iPhones",
+        "id": 2
+      },
+      "ipados_team": {
+        "name": "🔳🏢 Company-owned iPads",
+        "id": 3
+      },
+      "ipados_fleet": {
+        "name": "🔳🏢 Company-owned iPads",
+        "id": 3
+      },
+      "byod_team": {
+        "name": "📱 BYOD iPhones",
+        "id": 4
+      },
+      "byod_fleet": {
+        "name": "📱 BYOD iPhones",
+        "id": 4
+      }
     }
-  }
-]
+  ]
+}
 ```
 
 ### List Volume Purchasing Program (VPP) tokens
@@ -8504,33 +8506,53 @@ None.
 `Status: 200`
 
 ```json
-"vpp_tokens": [
-  {
-    "id": 1,
-    "org_name": "Fleet Device Management Inc.",
-    "location": "https://example.com/mdm/apple/mdm",
-    "country_code": "us",
-    "renew_date": "2023-11-29T00:00:00Z",
-    "fleets": [
-      {
-        "name": "💻 Workstations",
-        "id": 1
-      },
-      {
-        "name": "💻🐣 Workstations (canary)",
-        "id": 2
-      },
-      {
-        "name": "📱🏢 Company-owned iPhones",
-        "id": 3
-      },
-      {
-        "name": "🔳🏢 Company-owned iPads",
-        "id": 4
-      }
-    ],
-  }
-]
+{
+  "vpp_tokens": [
+    {
+      "id": 1,
+      "org_name": "Fleet Device Management Inc.",
+      "location": "https://example.com/mdm/apple/mdm",
+      "country_code": "us",
+      "renew_date": "2023-11-29T00:00:00Z",
+      "teams": [
+        {
+          "name": "💻 Workstations",
+          "id": 1
+        },
+        {
+          "name": "💻🐣 Workstations (canary)",
+          "id": 2
+        },
+        {
+          "name": "📱🏢 Company-owned iPhones",
+          "id": 3
+        },
+        {
+          "name": "🔳🏢 Company-owned iPads",
+          "id": 4
+        }
+      ],
+      "fleets": [
+        {
+          "name": "💻 Workstations",
+          "id": 1
+        },
+        {
+          "name": "💻🐣 Workstations (canary)",
+          "id": 2
+        },
+        {
+          "name": "📱🏢 Company-owned iPhones",
+          "id": 3
+        },
+        {
+          "name": "🔳🏢 Company-owned iPads",
+          "id": 4
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Get Android Enterprise
@@ -9247,14 +9269,12 @@ None.
     {
       "id": "urn:ietf:params:scim:schemas:core:2.0:User",
       "name": "User",
-      "description": "SCIM User",
-      "attributes": [...]
+      "description": "SCIM User"
     },
     {
       "id": "urn:ietf:params:scim:schemas:core:2.0:Group",
       "name": "Group",
-      "description": "SCIM Group",
-      "attributes": [...]
+      "description": "SCIM Group"
     }
   ]
 }
@@ -9841,7 +9861,7 @@ _Available in Fleet Premium_
     "patch_software": {
       "display_name": "", 
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234,
+      "software_title_id": 1234
     },
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -11357,7 +11377,7 @@ Returns a list of batch script executions.
   ],
   "meta": {
     "has_next_results": false,
-    "has_previous_results": false,
+    "has_previous_results": false
   },
   "count": 1
 }
@@ -11644,40 +11664,41 @@ Deletes an existing script.
 `Status: 200`
 
 ```json
-"scripts": [
-  {
-    "script_id": 3,
-    "name": "remove-zoom-artifacts.sh",
-    "last_execution": {
-      "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "error"
+{
+  "scripts": [
+    {
+      "script_id": 3,
+      "name": "remove-zoom-artifacts.sh",
+      "last_execution": {
+        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "error"
+      }
+    },
+    {
+      "script_id": 5,
+      "name": "set-timezone.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "pending"
+      }
+    },
+    {
+      "script_id": 8,
+      "name": "uninstall-zoom.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "ran"
+      }
     }
-  },
-  {
-    "script_id": 5,
-    "name": "set-timezone.sh",
-    "last_execution": {
-      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "pending"
-    }
-  },
-  {
-    "script_id": 8,
-    "name": "uninstall-zoom.sh",
-    "last_execution": {
-      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "ran"
-    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
   }
-],
-"meta": {
-  "has_next_results": false,
-  "has_previous_results": false
 }
-
 ```
 
 ### Get or download script
@@ -12610,7 +12631,9 @@ icon="crowdstrike-icon-512x512.png"
 `Status: 200`
 
 ```json
+{
   "icon_url": "/api/latest/fleet/software/titles/33/icon?team_id=2"
+}
 ```
 
 ### Download software icon
@@ -12716,7 +12739,7 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
       "latest_version": "2.04",
       "app_store_id": "634148309",
       "platform": "ipados"
-    },
+    }
   ]
 }
 ```
@@ -12840,7 +12863,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
   "app_store_app": {
     "name": "Logic Pro",
     "display_name": "",
-    "icon_url" null,
+    "icon_url": null,
     "app_store_id": 1091189122,
     "categories": ["Browser"],
     "latest_version": "2.04",
@@ -12865,7 +12888,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
     "status": {
       "installed": 3,
       "pending": 1,
-      "failed": 2,
+      "failed": 2
     }
   }
 }
@@ -12925,8 +12948,7 @@ List available Fleet-maintained apps.
       "platform": "darwin",
       "version": "2.39.179",
       "software_title_id": 3
-    },
-    ...
+    }
   ],
   "count": 250,
   "meta": {
@@ -12971,7 +12993,7 @@ Returns information about the specified Fleet-maintained app.
     "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
-    "software_title_id": 3
+    "software_title_id": 3,
     "categories": ["Productivity"]
   }
 }
@@ -13427,7 +13449,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "epss_probability": 0.9729,// Available in Fleet Premium
       "cisa_known_exploit": false,// Available in Fleet Premium
       "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability." // Available in Fleet Premium
     }
   ],
   "count": 123,
@@ -13464,43 +13486,45 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 `Status: 200`
 
 ```json
-"vulnerability": {
-  "cve": "CVE-2022-30190",
-  "created_at": "2022-06-01T00:15:00Z",
-  "hosts_count": 1234,
-  "hosts_count_updated_at": "2023-12-20T15:23:57Z",
-  "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
-  "cvss_score": 7.8,// Available in Fleet Premium
-  "epss_probability": 0.9729,// Available in Fleet Premium
-  "cisa_known_exploit": false,// Available in Fleet Premium
-  "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-  "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
-  "os_versions" : [
-    {
-      "os_version_id": 6,
-      "hosts_count": 200,
-      "name": "macOS 14.1.2",
-      "name_only": "macOS",
-      "version": "14.1.2",
-      "resolved_in_version": "14.2",
-      "generated_cpes": [
-        "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
-        "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
-      ]
-    }
-  ],
-  "software": [
-    {
-      "id": 2363,
-      "software_title_id": 124,
-      "name": "Docker Desktop",
-      "version": "4.9.1",
-      "source": "programs",
-      "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
-      "hosts_count": 50,
-      "resolved_in_version": "5.0.0"
-    }
-  ]
+{
+  "vulnerability": {
+    "cve": "CVE-2022-30190",
+    "created_at": "2022-06-01T00:15:00Z",
+    "hosts_count": 1234,
+    "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+    "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+    "cvss_score": 7.8,// Available in Fleet Premium
+    "epss_probability": 0.9729,// Available in Fleet Premium
+    "cisa_known_exploit": false,// Available in Fleet Premium
+    "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+    "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+    "os_versions" : [
+      {
+        "os_version_id": 6,
+        "hosts_count": 200,
+        "name": "macOS 14.1.2",
+        "name_only": "macOS",
+        "version": "14.1.2",
+        "resolved_in_version": "14.2",
+        "generated_cpes": [
+          "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+          "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+        ]
+      }
+    ],
+    "software": [
+      {
+        "id": 2363,
+        "software_title_id": 124,
+        "name": "Docker Desktop",
+        "version": "4.9.1",
+        "source": "programs",
+        "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+        "hosts_count": 50,
+        "resolved_in_version": "5.0.0"
+      }
+    ]
+  }
 }
 ```
 
@@ -15985,7 +16009,7 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
   ],
   "meta": {
     "has_next_results": false,
-    "has_previous_results": false,
+    "has_previous_results": false
   },
   "count": 1
 }
