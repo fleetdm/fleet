@@ -373,8 +373,10 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
 					"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
 			}
-			// A Windows orbit enrollment is not linked when it is not MDM, if it is already linked, uses placeholder serials,
-			// or programmatic fleetd-first enrollment.
+			// A Windows orbit enrollment is not linked when it is not MDM, when it is already linked, or when it is a
+			// programmatic fleetd-first enrollment. Note this matches on serial alone. Devices reporting a non-unique
+			// placeholder SMBIOS serial (common on VMs, e.g. "System Serial Number") can therefore be linked to another
+			// device's unlinked enrollment.
 		}
 	}
 

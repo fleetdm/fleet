@@ -1215,7 +1215,7 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	}
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
-		result[jsonFieldName(t, "WindowsEnrollment")] = mdm.WindowsEnrollment.Value
+		result[jsonFieldName(t, "WindowsEnrollment")] = mdm.WindowsEnrollment
 		vppTokens, err := cmd.Client.GetVPPTokens()
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error fetching VPP tokens: %s\n", err)
