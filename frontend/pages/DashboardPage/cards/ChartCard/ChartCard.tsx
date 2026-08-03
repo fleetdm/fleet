@@ -483,7 +483,7 @@ const ChartCard = ({
           <Button
             type="button"
             variant="subdued"
-            className={`${baseClass}__settings-btn`}
+            size="small"
             ariaLabel="Configure chart filters"
             onClick={() => openFilterModal()}
           >

@@ -13,7 +13,6 @@ import TableContainer from "components/TableContainer";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import Tag from "components/Tag";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import DataError from "components/DataError";
 import CustomLink from "components/CustomLink";
@@ -125,9 +124,12 @@ const generateSelectedTableHeaders = (
     id: "delete",
     Header: "",
     Cell: (cellProps: { row: Row<IApiEndpointRow> }) => (
-      <Button onClick={() => handleRemove(cellProps.row)} variant="subdued">
-        <Icon name="close-filled" />
-      </Button>
+      <Button
+        onClick={() => handleRemove(cellProps.row)}
+        variant="subdued"
+        icon="close-filled"
+        ariaLabel="Remove"
+      />
     ),
     disableHidden: true,
   },

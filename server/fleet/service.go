@@ -461,8 +461,10 @@ type Service interface {
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 
-	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
-	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
+	// ListDevicePolicies lists all policies for the given host in their
+	// device-safe representation (which excludes the policy author's identity
+	// and the raw SQL query), including passing / failing responses.
+	ListDevicePolicies(ctx context.Context, host *Host) ([]*DevicePolicy, error)
 
 	// BypassConditionalAccess lets a host skip conditional access checks for one check
 	BypassConditionalAccess(ctx context.Context, host *Host) error
@@ -482,6 +484,11 @@ type Service interface {
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
 	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
+
+	// EscrowWindowsManagedLocalAccountPassword stores the device-generated password that Windows fleetd escrows after
+	// creating the managed local admin account. When clientError is set no password is stored; the account is marked failed
+	// and the device-reported reason is recorded on it.
+	EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
@@ -774,7 +781,7 @@ type Service interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
-	SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name, displayName string, err error)
+	SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error)
 
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
@@ -798,13 +805,7 @@ type Service interface {
 	// Returns a request UUID that can be used to track an ongoing batch request (with GetBatchSetSoftwareInstallersResult).
 	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []*SoftwareInstallerPayload, dryRun bool) (string, error)
 	// GetBatchSetSoftwareInstallersResult polls for the status of a batch-apply started by BatchSetSoftwareInstallers.
-	// Return values:
-	//	- 'status': status of the batch-apply which can be "processing", "completed" or "failed".
-	//	- 'message': which contains error information when the status is "failed".
-	//	- 'packages': Contains the list of the applied software packages (when status is "completed"). This is always empty for a dry run.
-	//	- 'deleted_packages': Contains the list of packages the batch deleted (dry run: would delete), when status is "completed".
-	//  - 'categories': Contains the list of categories the batch uses/added, when status is "completed".
-	GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []SoftwarePackageResponse, deletedPackages []DeletedSoftwarePackage, categories []string, err error)
+	GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*BatchSetSoftwareInstallersResult, error)
 
 	// SelfServiceInstallSoftwareTitle installs a software title
 	// initiated by the user
@@ -928,9 +929,10 @@ type Service interface {
 
 	// GetHostDEPAssignmentDetails retrieves Fleet's DEP assignment record and
 	// Apple's live device details from ABM for the given host ID.
-	// Returns (nil, nil, nil) for non-DEP hosts.
-	// If ABM returns an error, dep_device is nil and the error is logged.
-	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, error)
+	// Returns (nil, nil, "", nil) for non-DEP hosts.
+	// If ABM returns an error, dep_device is nil, depError classifies why, and
+	// the original error is logged rather than returned to the caller.
+	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)

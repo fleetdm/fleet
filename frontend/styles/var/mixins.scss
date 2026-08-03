@@ -270,6 +270,16 @@ $max-width: 2560px;
   @include flex-column-16px-gap;
 }
 
+// Row above a list/table body carrying a left-aligned description or heading
+// and an optional right-aligned action button (e.g. "Add profile"). Used by
+// every ManageControlsPage tab-panel that renders a list under a tab.
+@mixin tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: $pad-medium;
+}
+
 @mixin button-dropdown {
   .form-field {
     margin: 0;

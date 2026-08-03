@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
 
@@ -95,6 +96,9 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	*p.Name = strings.TrimSpace(*p.Name)
 	if *p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
+	}
+	if utf8.RuneCountInString(*p.Name) > fleet.MaxTeamNameLength {
+		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 	}
 	if fleet.IsReservedTeamName(*p.Name) {
 		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *p.Name))
@@ -184,6 +188,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if *payload.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 		}
+		if utf8.RuneCountInString(*payload.Name) > fleet.MaxTeamNameLength {
+			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
+		}
 		if fleet.IsReservedTeamName(*payload.Name) {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *payload.Name))
 		}
@@ -229,6 +236,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		conditionalAccessUpdated        bool
 		nameTemplateUpdated             bool
 	)
+	var windowsManagedLocalAccountUpdated bool
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
@@ -405,6 +413,16 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if payload.MDM.MacOSSetup.EndUserLocalAccountType.Set {
 				team.Config.MDM.MacOSSetup.EndUserLocalAccountType = payload.MDM.MacOSSetup.EndUserLocalAccountType
 			}
+		}
+
+		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+			newEnabled := payload.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
+			windowsManagedLocalAccountUpdated = team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != newEnabled.Value
+			if windowsManagedLocalAccountUpdated && newEnabled.Value && !appCfg.MDM.WindowsEnabledAndConfigured {
+				return nil, fleet.NewInvalidArgumentError("windows_settings.managed_local_account_settings.enabled",
+					"Couldn't update windows_settings.managed_local_account_settings because Windows MDM isn't turned on in Fleet.")
+			}
+			team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newEnabled
 		}
 	}
 
@@ -658,8 +676,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 	if macOSManagedLocalAccountUpdated {
-		if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &team.ID, &team.Name); err != nil {
+		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", &team.ID, &team.Name); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable managed local account")
+		}
+	}
+	if windowsManagedLocalAccountUpdated {
+		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, "windows", &team.ID, &team.Name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update windows enable managed local account")
 		}
 	}
 	// Create activity if conditional access was enabled or disabled for the team.
@@ -896,7 +919,7 @@ func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.U
 }
 
 func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -1325,6 +1348,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		spec.Name = strings.TrimSpace(spec.Name)
 		if spec.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
+		}
+		if utf8.RuneCountInString(spec.Name) > fleet.MaxTeamNameLength {
+			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
 		if fleet.IsReservedTeamName(spec.Name) {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", spec.Name))
@@ -1981,6 +2007,16 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
 		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
 	}
+	var didUpdateWindowsManagedLocalAccount bool
+	if spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		newWindowsManagedLocalAccount := spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
+		didUpdateWindowsManagedLocalAccount = team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != newWindowsManagedLocalAccount.Value
+		if didUpdateWindowsManagedLocalAccount && newWindowsManagedLocalAccount.Value && !windowsEnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.managed_local_account_settings.enabled",
+				"Couldn't enable windows_settings.managed_local_account_settings. "+fleet.ErrWindowsMDMNotConfigured.Error()))
+		}
+		team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newWindowsManagedLocalAccount
+	}
 	if spec.MDM.AndroidSettings.CustomSettings.Set {
 		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
 	}
@@ -2182,8 +2218,16 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if didUpdateEnableManagedLocalAccount {
-		if err := svc.updateMacOSSetupEnableManagedLocalAccount(
-			ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &team.ID, &team.Name,
+		if err := svc.logEnableManagedLocalAccountActivity(
+			ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", &team.ID, &team.Name,
+		); err != nil {
+			return err
+		}
+	}
+
+	if didUpdateWindowsManagedLocalAccount {
+		if err := svc.logEnableManagedLocalAccountActivity(
+			ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, "windows", &team.ID, &team.Name,
 		); err != nil {
 			return err
 		}
@@ -2433,7 +2477,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		return ctxerr.Wrap(ctx, err, "fetch app config")
 	}
 
-	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateManagedLocalAccount bool
+	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateMacOSManagedLocalAccount bool
 
 	if payload.EnableEndUserAuthentication != nil {
 		if tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
@@ -2508,7 +2552,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 	if payload.EnableManagedLocalAccount != nil {
 		if !tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid || tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value != *payload.EnableManagedLocalAccount {
 			tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(*payload.EnableManagedLocalAccount)
-			didUpdateManagedLocalAccount = true
+			didUpdateMacOSManagedLocalAccount = true
 			didUpdate = true
 		}
 	}
@@ -2528,8 +2572,8 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 				return err
 			}
 		}
-		if didUpdateManagedLocalAccount {
-			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &tm.ID, &tm.Name); err != nil {
+		if didUpdateMacOSManagedLocalAccount {
+			if err := svc.logEnableManagedLocalAccountActivity(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", &tm.ID, &tm.Name); err != nil {
 				return err
 			}
 		}

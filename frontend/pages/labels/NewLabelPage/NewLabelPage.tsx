@@ -14,7 +14,10 @@ import customHostVitalsAPI, {
   IListCustomHostVitalsApiParams,
 } from "services/entities/custom_host_vitals";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
+} from "utilities/constants";
 // TODO - move this table config near here once expanded this logic to encompass editing and
 // therefore not longer needed anywhere else
 import { generateTableHeaders } from "pages/labels/components/ManualLabelForm/LabelHostTargetTableConfig";
@@ -33,6 +36,7 @@ import {
   CUSTOM_HOST_VITAL_CRITERION,
   LabelHostVitalsCriterion,
   LabelMembershipType,
+  LabelPlatform,
 } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -47,7 +51,6 @@ import InputField from "components/forms/fields/InputField";
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import SQLEditor from "components/SQLEditor";
-import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
 import Radio from "components/forms/fields/Radio";
 import PlatformField from "../components/PlatformField";
@@ -92,7 +95,7 @@ export interface INewLabelFormData {
   type: LabelMembershipType;
   // dynamic
   labelQuery: string;
-  platform: string;
+  platform: LabelPlatform;
 
   // host vitals
   vital: LabelHostVitalsCriterion; // TODO - make use of recursive `LabelHostVitalsCriteria` type in future iterations to support logical combinations of different criteria
@@ -299,7 +302,6 @@ const NewLabelPage = ({
 
       // start from previous errors
       if (prev.name) next.name = prev.name;
-      if (prev.description) next.description = prev.description;
       if (prev.labelQuery) next.labelQuery = prev.labelQuery;
       if (prev.criteria) next.criteria = prev.criteria;
 
@@ -308,22 +310,13 @@ const NewLabelPage = ({
         if (prev.name && fullValidation.name?.isValid) {
           next.name = undefined;
         }
-      } else if (fieldName === "description") {
-        if (prev.description && fullValidation.description?.isValid) {
-          next.description = undefined;
-        }
       } else if (fieldName === "vitalValue") {
         if (prev.criteria && fullValidation.criteria?.isValid) {
           next.criteria = undefined;
         }
       }
 
-      const fields = [
-        next.name,
-        next.description,
-        next.labelQuery,
-        next.criteria,
-      ];
+      const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
 
       return next;
@@ -351,7 +344,6 @@ const NewLabelPage = ({
       const next: INewLabelFormValidation = { ...prev, isValid: true };
 
       if (prev.name) next.name = prev.name;
-      if (prev.description) next.description = prev.description;
       if (prev.labelQuery) next.labelQuery = prev.labelQuery;
       if (prev.criteria && fullValidation.criteria?.isValid) {
         next.criteria = undefined;
@@ -359,12 +351,7 @@ const NewLabelPage = ({
         next.criteria = prev.criteria;
       }
 
-      const fields = [
-        next.name,
-        next.description,
-        next.labelQuery,
-        next.criteria,
-      ];
+      const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
 
       return next;
@@ -395,19 +382,12 @@ const NewLabelPage = ({
       const next: INewLabelFormValidation = { ...prev, isValid: true };
 
       if (prev.name) next.name = fullValidation.name ?? prev.name;
-      if (prev.description)
-        next.description = fullValidation.description ?? prev.description;
       if (prev.labelQuery)
         next.labelQuery = fullValidation.labelQuery ?? prev.labelQuery;
       if (prev.criteria)
         next.criteria = fullValidation.criteria ?? prev.criteria;
 
-      const fields = [
-        next.name,
-        next.description,
-        next.labelQuery,
-        next.criteria,
-      ];
+      const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
 
       return next;
@@ -464,7 +444,6 @@ const NewLabelPage = ({
       const next: INewLabelFormValidation = { ...prev, isValid: true };
 
       if (prev.name) next.name = prev.name;
-      if (prev.description) next.description = prev.description;
       if (prev.labelQuery) next.labelQuery = prev.labelQuery;
       if (prev.criteria) next.criteria = prev.criteria;
 
@@ -472,12 +451,7 @@ const NewLabelPage = ({
         next.labelQuery = undefined;
       }
 
-      const fields = [
-        next.name,
-        next.description,
-        next.labelQuery,
-        next.criteria,
-      ];
+      const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
 
       return next;
@@ -539,9 +513,13 @@ const NewLabelPage = ({
               label="Query"
               labelActionComponent={
                 showOpenSidebarButton ? (
-                  <Button variant="subdued" onClick={onOpenSidebar}>
+                  <Button
+                    variant="subdued"
+                    onClick={onOpenSidebar}
+                    icon="info"
+                    iconPosition="right"
+                  >
                     Schema
-                    <Icon name="info" size="small" />
                   </Button>
                 ) : null
               }
@@ -646,9 +624,9 @@ const NewLabelPage = ({
         label="Name"
         placeholder="Label name"
         parseTarget
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <InputField
-        error={formErrors.description?.message}
         name="description"
         onChange={onInputChange}
         onBlur={onInputBlur}
@@ -658,6 +636,7 @@ const NewLabelPage = ({
         type="textarea"
         placeholder="Label description (optional)"
         parseTarget
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <div className="form-field type-field">
         <div className="form-field__label">Type</div>

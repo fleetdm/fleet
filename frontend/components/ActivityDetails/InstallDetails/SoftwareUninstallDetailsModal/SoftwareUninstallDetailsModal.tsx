@@ -248,7 +248,6 @@ const SoftwareUninstallDetailsModal = ({
             hideText="Details"
             caretPosition="after"
             onClick={toggleDetails}
-            variant="secondary"
           />
         )}
         {showDetails && uninstallResult?.script_contents && (

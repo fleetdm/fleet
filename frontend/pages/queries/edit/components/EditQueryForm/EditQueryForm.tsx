@@ -25,6 +25,7 @@ import {
   MIN_OSQUERY_VERSION_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -75,8 +76,6 @@ import DiscardDataOption from "../DiscardDataOption";
 import SaveAsNewQueryModal from "../SaveAsNewQueryModal";
 
 const baseClass = "edit-query-form";
-
-const NAME_MAX_LENGTH = 255;
 
 interface IEditQueryFormProps {
   router: InjectedRouter;
@@ -435,11 +434,13 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="subdued" onClick={onOpenSchemaSidebar}>
-        <>
-          Schema
-          <Icon name="info" size="small" />
-        </>
+      <Button
+        variant="subdued"
+        onClick={onOpenSchemaSidebar}
+        icon="info"
+        iconPosition="right"
+      >
+        Schema
       </Button>
     );
   };
@@ -466,7 +467,7 @@ const EditQueryForm = ({
             setLastEditedQueryName(lastEditedQueryName.trim());
           }}
           disabled={gitOpsModeEnabled}
-          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
       );
     }
@@ -539,7 +540,6 @@ const EditQueryForm = ({
           hideText="Hide SQL"
           showText="Show SQL"
           onClick={() => setShowQueryEditor(!showQueryEditor)}
-          variant="secondary"
         />
       )}
       {showQueryEditor && (
@@ -581,8 +581,10 @@ const EditQueryForm = ({
                 );
               }}
               disabled={disabledLiveQuery}
+              icon="run"
+              iconPosition="right"
             >
-              Live report <Icon name="run" />
+              Live report
             </Button>
           </TooltipWrapper>
         </div>
@@ -783,7 +785,6 @@ const EditQueryForm = ({
                 showText="Advanced options"
                 caretPosition="after"
                 onClick={toggleAdvancedOptions}
-                variant="secondary"
               />
               {showAdvancedOptions && (
                 <>
@@ -885,8 +886,10 @@ const EditQueryForm = ({
                   );
                 }}
                 disabled={disabledLiveQuery}
+                icon="run"
+                iconPosition="right"
               >
-                Live report <Icon name="run" />
+                Live report
               </Button>
             </TooltipWrapper>
           </div>

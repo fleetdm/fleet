@@ -69,20 +69,142 @@ describe("Button component", () => {
     );
     expect(container.firstChild).toHaveClass("button--secondary__small");
   });
-  it("adds the icon-only class when a secondary button has only an icon", () => {
+  it("adds the icon-only class on a secondary button with icon and no label", () => {
     const { container } = render(
-      <Button variant="secondary">
-        <Icon name="trash" />
-      </Button>
+      <Button variant="secondary" icon="trash" ariaLabel="Delete" />
     );
     expect(container.firstChild).toHaveClass("button--icon-only");
   });
-  it("does not add the icon-only class when a secondary button has a text label", () => {
+  it("sizes the icon to small on a small icon-only button", () => {
+    render(
+      <Button
+        variant="secondary"
+        size="small"
+        icon="trash"
+        ariaLabel="Delete"
+      />
+    );
+    // Small icon = 12px per ICON_SIZES.
+    expect(
+      screen.getByTestId("trash-icon").querySelector("svg")
+    ).toHaveAttribute("width", "12");
+  });
+  it("renders icon left of the label by default and applies the with-icon class", () => {
     const { container } = render(
-      <Button variant="secondary">
-        Delete <Icon name="trash" />
+      <Button variant="secondary" icon="plus">
+        Add
       </Button>
     );
+    expect(container.firstChild).toHaveClass("button--with-icon");
     expect(container.firstChild).not.toHaveClass("button--icon-only");
+    expect(screen.getByTestId("plus-icon")).toBeInTheDocument();
+  });
+  it("renders icon right of the label when iconPosition is right", () => {
+    const { container } = render(
+      <Button variant="subdued" icon="chevron-right" iconPosition="right">
+        Next
+      </Button>
+    );
+    expect(container.firstChild).toHaveClass("button--with-icon");
+    expect(container.firstChild).not.toHaveClass("button--icon-only");
+    const wrapper = container.querySelector(".children-wrapper");
+    expect(wrapper?.lastElementChild).toBe(
+      screen.getByTestId("chevron-right-icon")
+    );
+  });
+  it("does not render the icon or apply icon classes on variants outside the icon-enabled set", () => {
+    const { container } = render(
+      <Button variant="pill" icon="plus">
+        Add
+      </Button>
+    );
+    expect(container.firstChild).not.toHaveClass("button--with-icon");
+    expect(container.firstChild).not.toHaveClass("button--icon-only");
+    expect(screen.queryByTestId("plus-icon")).not.toBeInTheDocument();
+  });
+  it("auto-colors the icon white on white-text variants (default)", () => {
+    render(
+      <Button variant="default" icon="plus">
+        Add
+      </Button>
+    );
+    expect(
+      screen
+        .getByTestId("plus-icon")
+        .querySelector("path")
+        ?.getAttribute("stroke")
+    ).toContain("core-fleet-white");
+  });
+  it("auto-colors the icon white on the alert variant", () => {
+    render(
+      <Button variant="alert" icon="plus">
+        Delete
+      </Button>
+    );
+    expect(
+      screen
+        .getByTestId("plus-icon")
+        .querySelector("path")
+        ?.getAttribute("stroke")
+    ).toContain("core-fleet-white");
+  });
+  it("does not render the icon on the oversized variant (icons not enabled)", () => {
+    render(
+      <Button variant="oversized" icon="plus">
+        Continue
+      </Button>
+    );
+    expect(screen.queryByTestId("plus-icon")).not.toBeInTheDocument();
+  });
+  it("matches the icon color to the text on secondary/subdued", () => {
+    render(
+      <Button variant="secondary" icon="plus">
+        Add
+      </Button>
+    );
+    expect(
+      screen
+        .getByTestId("plus-icon")
+        .querySelector("path")
+        ?.getAttribute("stroke")
+    ).toContain("ui-fleet-black-75");
+  });
+  it("treats a false child as no label and applies icon-only styling", () => {
+    // Callers commonly do `{cond && "Label"}` — a false-y cond means no label.
+    const { container } = render(
+      <Button variant="secondary" icon="trash" ariaLabel="Delete">
+        {false && "Delete"}
+      </Button>
+    );
+    expect(container.firstChild).toHaveClass("button--icon-only");
+    expect(container.firstChild).not.toHaveClass("button--with-icon");
+  });
+  it("warns in dev when an icon-only button has neither ariaLabel nor title", () => {
+    const warn = jest
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    render(<Button variant="secondary" icon="trash" />);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("no ariaLabel or title")
+    );
+    warn.mockRestore();
+  });
+  it("does not warn when an icon-only button has a title but no ariaLabel", () => {
+    const warn = jest
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    render(<Button variant="secondary" icon="trash" title="Delete" />);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+  it("adds the icon-only class for a legacy <Icon> child pattern on secondary/subdued", () => {
+    // Some call sites keep the child <Icon> pattern to pass color/className.
+    // We still want the square icon-only styling for those.
+    const { container } = render(
+      <Button variant="secondary" ariaLabel="Close">
+        <Icon name="close" color="core-fleet-black" />
+      </Button>
+    );
+    expect(container.firstChild).toHaveClass("button--icon-only");
   });
 });

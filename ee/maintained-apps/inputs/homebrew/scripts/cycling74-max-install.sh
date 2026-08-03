@@ -101,12 +101,23 @@ relaunch_application() {
 # DMG never mounts, and nothing gets installed.
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
-sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
+if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
+	hdiutil detach "$MOUNT_POINT" || true
+	exit 1
+fi
 hdiutil detach "$MOUNT_POINT" || true
 # copy to the applications folder
 quit_and_track_application 'com.cycling74.Max'
 if [ -d "$APPDIR/Max.app" ]; then
-	sudo mv "$APPDIR/Max.app" "$TMPDIR/Max.app.bkp"
+	sudo mv "$APPDIR/Max.app" "$TMPDIR/Max.app.bkp" || exit $?
 fi
-sudo cp -R "$TMPDIR/Max.app" "$APPDIR"
+if ! sudo cp -R "$TMPDIR/Max.app" "$APPDIR"; then
+	# remove the partial copy so a failed install isn't inventoried as the new
+	# version, then restore the previous version if there was one
+	sudo rm -rf "$APPDIR/Max.app"
+	if [ -d "$TMPDIR/Max.app.bkp" ]; then
+		sudo mv "$TMPDIR/Max.app.bkp" "$APPDIR/Max.app"
+	fi
+	exit 1
+fi
 relaunch_application 'com.cycling74.Max'

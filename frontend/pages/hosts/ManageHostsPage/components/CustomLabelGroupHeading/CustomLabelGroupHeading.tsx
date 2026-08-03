@@ -68,9 +68,9 @@ const CustomLabelGroupHeading = (
             className={`${baseClass}__add-label-button`}
             variant="secondary"
             onClick={onAddLabel}
-          >
-            <Icon name="plus" />
-          </Button>
+            icon="plus"
+            ariaLabel="Add label"
+          />
         )}
       </div>
     </components.GroupHeading>

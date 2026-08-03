@@ -83,7 +83,8 @@ const FleetAppDetailsModal = ({
             }
             value={
               <>
-                {slug} <CopyButton copyText={slug} variant="subdued" />
+                {slug}
+                <CopyButton copyText={slug} variant="compact" />
               </>
             }
           />

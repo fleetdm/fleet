@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -360,6 +361,86 @@ func TestAppleMDM(t *testing.T) {
 		ms, err := ds.GetHostMDMMacOSSetup(ctx, h.ID)
 		require.NoError(t, err)
 		require.Equal(t, "custom-bootstrap", ms.BootstrapPackageName)
+	})
+
+	t.Run("bootstrap package comes before profiles", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		// create some config profiles that should be installed during enrollment
+		for i := 1; i <= 3; i++ {
+			_, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+				Mobileconfig: fmt.Appendf(nil, "profile%d", i),
+				Identifier:   fmt.Sprintf("profile%d", i),
+				Name:         fmt.Sprintf("Profile %d", i),
+			}, nil)
+			require.NoError(t, err)
+		}
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+		err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+			Name:   "custom-bootstrap",
+			TeamID: 0, // no-team
+			Bytes:  []byte("test"),
+			Sha256: []byte("test"),
+			Token:  "token",
+		}, nil)
+		require.NoError(t, err)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// fetch the enqueued commands in the order they were created. Both the
+		// fleetd install and the bootstrap package install use the
+		// "InstallEnterpriseApplication" request type, so we disambiguate them by
+		// their command body: fleetd is sent with a ManifestURL, while the
+		// bootstrap package embeds the manifest inline (Manifest key).
+		type enqueuedCommand struct {
+			RequestType string `db:"request_type"`
+			Command     string `db:"command"`
+		}
+		var commands []enqueuedCommand
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &commands, "SELECT request_type, command FROM nano_enrollment_queue neq INNER JOIN nano_commands nc ON neq.command_uuid = nc.command_uuid WHERE neq.id = ? ORDER BY neq.created_at", h.UUID)
+		})
+
+		fleetdIdx, bootstrapIdx := -1, -1
+		var profileIdxs []int
+		for i, c := range commands {
+			switch {
+			case c.RequestType == "InstallEnterpriseApplication" && strings.Contains(c.Command, "ManifestURL"):
+				fleetdIdx = i
+			case c.RequestType == "InstallEnterpriseApplication":
+				bootstrapIdx = i
+			case c.RequestType == "InstallProfile" || c.RequestType == "DeclarativeManagement":
+				profileIdxs = append(profileIdxs, i)
+			}
+		}
+
+		// all three kinds of commands should have been enqueued
+		require.NotEqual(t, -1, fleetdIdx, "fleetd install command not found")
+		require.NotEqual(t, -1, bootstrapIdx, "bootstrap package install command not found")
+		require.NotEmpty(t, profileIdxs, "no profile commands found")
+
+		// fleetd install always comes before the bootstrap package
+		require.Less(t, fleetdIdx, bootstrapIdx, "fleetd install must come before the bootstrap package")
+
+		// the bootstrap package always comes before any profile command
+		for _, idx := range profileIdxs {
+			require.Less(t, bootstrapIdx, idx, "bootstrap package must come before all profile commands")
+		}
 	})
 
 	t.Run("installs custom bootstrap manifest of a team", func(t *testing.T) {

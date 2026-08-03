@@ -26,6 +26,34 @@ Fleet UI:
 
 Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) in the Fleet API.
 
+### Target hosts with labels
+
+A configuration profile only applies to hosts on the platform it's built for. A macOS, iOS, or iPadOS profile (`.mobileconfig` or `.json`) never installs on Windows or Android hosts, and a Windows profile (`.xml`) never installs on Apple hosts. You don't need a label to keep a profile on the right platform.
+
+On Fleet Premium, you can use labels to scope a profile to a subset of those hosts. There are three targeting modes, and you can use only one per profile:
+
+- **Include all:** the profile applies to hosts that have all of the selected labels.
+- **Include any:** the profile applies to hosts that have any of the selected labels.
+- **Exclude any:** the profile applies to hosts that have none of the selected labels.
+
+If you don't select any labels, the profile applies to all hosts that support its platform.
+
+Fleet UI: on the **Add profile** modal, select **Custom**, choose a targeting mode, and select one or more labels.
+
+GitOps: set `labels_include_all`, `labels_include_any`, or `labels_exclude_any` on the profile. Each takes a list of label names. See the [YAML reference](https://fleetdm.com/docs/configuration/yaml-files) for the full syntax.
+
+```yaml
+controls:
+  windows_settings:
+    configuration_profiles:
+      - paths: ../lib/windows/profiles/*.xml
+        labels_include_any:
+          - Engineering
+          - Design
+```
+
+Fleet API: pass the same fields to the [Create configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile).
+
 ### Removal behavior
 
 When a configuration profile is removed from Fleet or a host changes teams, Fleet reverses the settings that were applied by the profile:
@@ -169,6 +197,6 @@ To manually remove unmanaged profiles, ask the end user to go to **System Settin
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
-<meta name="publishedOn" value="2024-07-27">
+<meta name="publishedOn" value="2026-07-16">
 <meta name="articleTitle" value="Configuration profiles">
 <meta name="description" value="Learn how to enforce custom settings on macOS and Window hosts using Fleet's configuration profiles.">

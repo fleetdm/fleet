@@ -209,8 +209,8 @@ func groupDisplayName(g *directory.Group) string {
 // (case-insensitive) and guaranteeing the primary email is present and flagged
 // primary — the host↔user linking matches on the primary email.
 func mapEmails(primaryEmail string, raw []directoryEmail) []fleet.ScimUserEmail {
-	seen := make(map[string]int, len(raw)+1)
-	out := make([]fleet.ScimUserEmail, 0, len(raw)+1)
+	seen := make(map[string]int, len(raw))
+	out := make([]fleet.ScimUserEmail, 0, len(raw))
 	for _, e := range raw {
 		addr := strings.TrimSpace(e.Address)
 		if addr == "" {
