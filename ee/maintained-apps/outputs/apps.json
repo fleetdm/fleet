@@ -6106,6 +6106,13 @@
       "description": "Numi is a calculator and converter application."
     },
     {
+      "name": "NVDA",
+      "slug": "nvda/windows",
+      "platform": "windows",
+      "unique_identifier": "NVDA",
+      "description": "NVDA is a free and open-source screen reader for blind and vision impaired users."
+    },
+    {
       "name": "NVIDIA GeForce NOW",
       "slug": "nvidia-geforce-now/darwin",
       "platform": "darwin",
