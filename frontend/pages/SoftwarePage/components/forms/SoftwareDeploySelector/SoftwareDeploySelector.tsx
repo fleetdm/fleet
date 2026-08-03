@@ -74,7 +74,7 @@ export const PatchOptionSelector = ({
         disabled={disabled}
       />
       {patchOption === "force" && (
-        <InfoBanner color="yellow">
+        <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
           End user is not notified. Patch is forced as soon as policy fails.
           Notifications are coming soon.
         </InfoBanner>
