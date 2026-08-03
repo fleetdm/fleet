@@ -135,6 +135,27 @@ describe("Button component", () => {
         ?.getAttribute("stroke")
     ).toContain("core-fleet-white");
   });
+  it("auto-colors the icon white on the alert variant", () => {
+    render(
+      <Button variant="alert" icon="plus">
+        Delete
+      </Button>
+    );
+    expect(
+      screen
+        .getByTestId("plus-icon")
+        .querySelector("path")
+        ?.getAttribute("stroke")
+    ).toContain("core-fleet-white");
+  });
+  it("does not render the icon on the oversized variant (icons not enabled)", () => {
+    render(
+      <Button variant="oversized" icon="plus">
+        Continue
+      </Button>
+    );
+    expect(screen.queryByTestId("plus-icon")).not.toBeInTheDocument();
+  });
   it("matches the icon color to the text on secondary/subdued", () => {
     render(
       <Button variant="secondary" icon="plus">
@@ -157,6 +178,24 @@ describe("Button component", () => {
     );
     expect(container.firstChild).toHaveClass("button--icon-only");
     expect(container.firstChild).not.toHaveClass("button--with-icon");
+  });
+  it("warns in dev when an icon-only button has neither ariaLabel nor title", () => {
+    const warn = jest
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    render(<Button variant="secondary" icon="trash" />);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("no ariaLabel or title")
+    );
+    warn.mockRestore();
+  });
+  it("does not warn when an icon-only button has a title but no ariaLabel", () => {
+    const warn = jest
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    render(<Button variant="secondary" icon="trash" title="Delete" />);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
   it("adds the icon-only class for a legacy <Icon> child pattern on secondary/subdued", () => {
     // Some call sites keep the child <Icon> pattern to pass color/className.

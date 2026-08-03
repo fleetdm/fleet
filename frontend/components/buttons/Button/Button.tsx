@@ -18,7 +18,9 @@ export type ButtonVariant =
   | "unstyled-modal-query"
   | "oversized";
 
-// Variants whose text color is white — icons default to white on these.
+// Variants whose text color is white — icons and the loading spinner default
+// to white on these. `oversized` is in the list for the spinner; it doesn't
+// render icons (not in ICON_ENABLED_VARIANTS).
 const WHITE_TEXT_VARIANTS: readonly ButtonVariant[] = [
   "default",
   "alert",
@@ -203,6 +205,23 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     const iconElement = icon && ICON_ENABLED_VARIANTS.includes(variant!) && (
       <Icon name={icon} size={iconSize} color={iconColor} />
     );
+    // Icon-only buttons need an explicit accessible name. Browsers fall back
+    // to `title` when `aria-label` is missing, so either satisfies a screen
+    // reader; warn (in dev) when neither is set.
+    if (
+      process.env.NODE_ENV !== "production" &&
+      isIconOnly &&
+      !ariaLabel &&
+      !title
+    ) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `Icon-only Button (icon="${
+          icon ?? "unknown"
+        }") has no ariaLabel or title — ` +
+          `screen readers will announce it as an unlabeled button.`
+      );
+    }
 
     return (
       <button
