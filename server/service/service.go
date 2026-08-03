@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -81,6 +82,15 @@ type Service struct {
 	// configured — nil is what turns the short circuit off, there is no other
 	// gate at request time.
 	configETagStore fleet.ConfigETagStore
+	// configETagStateOnce bounds the "optimization state first observed" log
+	// to once per Fleet container (see GetClientConfigWithETag). A pointer,
+	// because some Service methods use value receivers and sync.Once must
+	// not be copied.
+	configETagStateOnce *sync.Once
+	// configETagErrLast rate-limits config-ETag error logging (unix seconds
+	// of the last emitted error; see logConfigETagError). A pointer for the
+	// same no-copy reason.
+	configETagErrLast *atomic.Int64
 
 	androidSvc android.Service
 
@@ -206,6 +216,8 @@ func NewService(
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
 		packConfigCache:                 gocache.New(1*time.Minute, 5*time.Minute),
+		configETagStateOnce:             new(sync.Once),
+		configETagErrLast:               new(atomic.Int64),
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
 	}

@@ -1329,12 +1329,12 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 	}
 
 	numCalls := 0
-	ds.UpdateLabelMembershipByHostCriteriaFunc = func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
+	ds.UpdateLabelMembershipByHostCriteriaFunc = func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, []uint, error) {
 		label := hvl.GetLabel()
 		// Only the host vitals label should be processed.
 		require.Equal(t, label, labels[2])
 		numCalls++
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	err := cronHostVitalsLabelMembership(ctx, ds)

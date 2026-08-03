@@ -7,6 +7,7 @@ import (
 	"io"
 	"iter"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -70,17 +71,22 @@ type OsqueryService interface {
 	// must NOT live behind this method's full-build path; it will be skipped
 	// for every 304 response.
 	//
-	// The fast path is bypassed (falling back to a full config build, i.e. the
-	// exact behavior of GetClientConfig) whenever ANY of the following holds:
-	//   - the feature flag is off or Redis is not configured (no store set),
-	//   - the deployment has user-created 2017 "legacy" packs or
-	//     label-scoped reports, either of which make configs host-specific
-	//     and subject to silent label-membership drift (see
-	//     ConfigETagStore.ShortCircuitBlocked),
-	//   - no If-None-Match header was sent,
-	//   - the stored ETag's generation is stale or the key is missing/expired,
-	//   - any Redis error occurs (the fast path FAILS OPEN — errors degrade to
-	//     a full build, never to a failed request).
+	// The request runs in one of four cache modes (see ClientConfigResult.Mode):
+	//   - "off": the feature flag is off or Redis is not configured (no
+	//     store set);
+	//   - "bypass": the deployment has user-created 2017 "legacy" packs, or
+	//     the gate state could not be read/loaded (never guess);
+	//   - "shared": no label-scoped reports in the host's effective scope
+	//     (global ∪ team) — one record per (scope, platform);
+	//   - "host": label-scoped reports make the config host-specific — one
+	//     isolated per-host record, never read by another host, built with
+	//     the team pack cache bypassed.
+	//
+	// The fast path additionally falls back to a full build when no
+	// If-None-Match header was sent, when the stored ETag's generation/scope/
+	// platform is stale or the record is missing/expired, and on any Redis
+	// error (the fast path FAILS OPEN — errors degrade to a full build, never
+	// to a failed request).
 	//
 	// █████████████████████████████████████████████████████████████████████████
 	//
@@ -1689,10 +1695,48 @@ type ClientConfigResult struct {
 	NotModified bool
 	// CacheStatus describes, for observability only, how this result was
 	// produced. See the etag_result values logged by the osquery config
-	// endpoint: "redis_not_modified" means the SHORT CIRCUIT served a 304
-	// without building the config; every other value means a full config
-	// build happened.
+	// endpoint: "redis_not_modified" (shared mode) and
+	// "redis_host_not_modified" (per-host mode) mean the SHORT CIRCUIT
+	// served a 304 without building the config; every other value means a
+	// full config build happened.
 	CacheStatus string
+	// Mode is the cache mode the request was served under, for
+	// observability only: "off" (no store configured), "bypass" (legacy
+	// packs present or gate state unavailable), "shared", or "host".
+	Mode string
+}
+
+// ConfigETagLabelScopes is the cached deployment-wide answer to "which
+// report scopes contain label-scoped scheduled reports". It drives the
+// shared-vs-per-host cache-mode selection of the osquery config ETag short
+// circuit: a host is in per-host mode when the GLOBAL scope has label-scoped
+// reports (global reports are inherited by every host) or when its own team
+// (fleet) does.
+type ConfigETagLabelScopes struct {
+	// Global is true when the global scope has label-scoped scheduled
+	// reports. Global reports are inherited by team hosts, so this puts
+	// EVERY host in per-host mode.
+	Global bool `json:"global"`
+	// TeamIDs are the teams (fleets) whose scope has label-scoped scheduled
+	// reports.
+	TeamIDs []uint `json:"fleet_ids"`
+}
+
+// PerHostMode reports whether a host with the given team (nil = no team)
+// must use per-host ETag records instead of the team-shared record.
+func (s ConfigETagLabelScopes) PerHostMode(teamID *uint) bool {
+	if s.Global {
+		return true
+	}
+	if teamID == nil {
+		return false
+	}
+	return slices.Contains(s.TeamIDs, *teamID)
+}
+
+// Any reports whether any scope has label-scoped scheduled reports.
+func (s ConfigETagLabelScopes) Any() bool {
+	return s.Global || len(s.TeamIDs) > 0
 }
 
 // ConfigETagStore is the Redis-backed store that powers the osquery config
@@ -1725,32 +1769,62 @@ type ConfigETagStore interface {
 	// does nothing and returns stored=false. The check-and-set is atomic in
 	// Redis; see the package docs for why this is required for correctness.
 	SetIfNoFence(ctx context.Context, scope, platform, etag string) (stored bool, err error)
-	// Invalidate atomically bumps the generation counter (invalidating every
-	// stored ETag for reads) and arms the write fence. It must be called
-	// after every successful config-affecting datastore write.
+	// Invalidate atomically bumps the deployment generation counter
+	// (invalidating every stored ETag — SHARED and PER-HOST — for reads) and
+	// arms the write fence. It must be called after every successful
+	// config-affecting datastore write.
 	Invalidate(ctx context.Context) error
-	// ShortCircuitBlocked reports whether the deployment is in a state where
-	// the ETag fast path must be bypassed entirely because the rendered
-	// config is NOT guaranteed identical for every host in a (team,
-	// platform) pair, or can drift without any invalidation event firing.
-	// The known blockers (computed by the load callback, see
-	// Service.configShortCircuitBlocked):
-	//
-	//   - user-created 2017 packs: label-targeted packs gain/lose hosts via
-	//     label membership drift, which fires no datastore write;
-	//   - label-scoped reports (query_labels): ListScheduledQueriesForAgents
-	//     filters per host by label membership — same drift, same silence.
-	//
-	// The result is cached in Redis for a few minutes; on a cache miss, load
-	// is called to compute it (cheap DB queries). Errors must be treated by
-	// callers as "blocked" (fail closed for the gate = fail open for config
-	// correctness).
-	ShortCircuitBlocked(ctx context.Context, load func(ctx context.Context) (bool, error)) (bool, error)
-	// ResetShortCircuitBlockedFlag drops the cached blocked answer so the
-	// next ShortCircuitBlocked recomputes it. Called by pack and query CRUD
+
+	// GetValidHost returns the stored PER-HOST ETag for hostID only if its
+	// recorded generation matches the current generation AND its recorded
+	// scope and platform match the authenticated host context — so a team
+	// transfer or platform change is a natural cache miss with no key
+	// cleanup required. Per-host records exist because label-scoped reports
+	// make the rendered config host-specific; a per-host record is never
+	// read by another host, so cross-host isolation is structural.
+	GetValidHost(ctx context.Context, hostID uint, scope, platform string) (etag string, ok bool, err error)
+	// SetHostIfNoFence persists the PER-HOST ETag stamped with the current
+	// generation and a jittered backstop TTL (~50-70m) — unless the
+	// deployment write fence OR the host's publish quarantine is armed, in
+	// which case it does nothing and returns stored=false. The fence covers
+	// stale in-memory config inputs after a config/report mutation; the
+	// quarantine covers stale membership reads immediately after that host's
+	// own label invalidation. The check-and-set is atomic in Redis.
+	SetHostIfNoFence(ctx context.Context, hostID uint, scope, platform, etag string) (stored bool, err error)
+	// InvalidateHost atomically deletes the host's PER-HOST record and arms
+	// its 30-second publish quarantine (one Lua script — a pipeline is not
+	// atomic and would let a straddling build republish stale membership
+	// between the DEL and the quarantine SET). Called conservatively after
+	// every successful persistence of the host's label results — no value
+	// diff required — and from manual membership paths where the affected
+	// host IDs are known.
+	InvalidateHost(ctx context.Context, hostID uint) error
+
+	// LegacyPacksPresent reports whether the deployment has any user-created
+	// 2017 packs — the hard deployment-wide bypass. 2017 pack targeting can
+	// change via label membership drift, which fires no invalidation event,
+	// and per-host records do not help because pack content is also
+	// host-specific in unbounded ways. The result is cached in Redis for a
+	// few minutes; on a cache miss, load is called to compute it (one cheap
+	// DB query). Errors must be treated by callers as "present" (fail closed
+	// for the gate = fail open for config correctness).
+	LegacyPacksPresent(ctx context.Context, load func(ctx context.Context) (bool, error)) (bool, error)
+	// ResetLegacyPacksFlag drops the cached legacy-packs answer so the next
+	// LegacyPacksPresent recomputes it. Called by pack CRUD invalidation
+	// hooks, where the answer may have just changed.
+	ResetLegacyPacksFlag(ctx context.Context) error
+	// LabelScopes returns the cached set of scopes containing label-scoped
+	// scheduled reports (bounded ~5m TTL), loading it via load — one cheap
+	// deployment-level DB query — on a cache miss. It drives shared vs
+	// per-host mode selection. Errors must be treated by callers as
+	// "unknown": bypass the short circuit and run a normal full build —
+	// never guess that a host is eligible for the shared key.
+	LabelScopes(ctx context.Context, load func(ctx context.Context) (ConfigETagLabelScopes, error)) (ConfigETagLabelScopes, error)
+	// ResetLabelScopes drops the cached label-scope answer so the next
+	// LabelScopes recomputes it. Called by query CRUD and label-deletion
 	// invalidation hooks, where the answer may have just changed in either
 	// direction.
-	ResetShortCircuitBlockedFlag(ctx context.Context) error
+	ResetLabelScopes(ctx context.Context) error
 }
 
 const (

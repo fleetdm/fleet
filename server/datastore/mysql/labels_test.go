@@ -2867,9 +2867,11 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	for _, tt := range testCases {
-		updatedLabel, err := ds.UpdateLabelMembershipByHostCriteria(ctx, makeLabel(tt.LabelID, tt.TeamID))
+		updatedLabel, changedHostIDs, err := ds.UpdateLabelMembershipByHostCriteria(ctx, makeLabel(tt.LabelID, tt.TeamID))
 		require.NoError(t, err)
 		require.Equal(t, len(tt.BeforeHostIDs), updatedLabel.HostCount)
+		// fresh label: every member is newly added, so all report as changed
+		require.ElementsMatch(t, tt.BeforeHostIDs, changedHostIDs)
 
 		// Check that the label has the correct hosts
 		hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, tt.LabelID, fleet.HostListOptions{})
@@ -2902,9 +2904,12 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	})
 
 	for _, tt := range testCases {
-		updatedLabel, err := ds.UpdateLabelMembershipByHostCriteria(ctx, makeLabel(tt.LabelID, tt.TeamID))
+		updatedLabel, changedHostIDs, err := ds.UpdateLabelMembershipByHostCriteria(ctx, makeLabel(tt.LabelID, tt.TeamID))
 		require.NoError(t, err)
 		require.Equal(t, len(tt.AfterHostIDs), updatedLabel.HostCount)
+		// hosts whose membership value changed = symmetric difference
+		require.ElementsMatch(t, symmetricDiff(tt.BeforeHostIDs, tt.AfterHostIDs), changedHostIDs,
+			"changed host IDs must be exactly the added and removed hosts")
 
 		// Check that the label has the correct hosts
 		hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, tt.LabelID, fleet.HostListOptions{})
@@ -2993,7 +2998,7 @@ func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	// Global label: all three hosts (all SCIM users are in "Engineering").
-	updated, err := ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	updated, _, err := ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
 	require.NoError(t, err)
 	require.Equal(t, 3, updated.HostCount)
 	globalHosts, err := ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
@@ -3002,7 +3007,7 @@ func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
 
 	// Team1 label: only host1 (in team1) despite host2/host3 also being in the
 	// "Engineering" IdP group. Before the fix this returned an error / zero hosts.
-	updated, err = ds.UpdateLabelMembershipByHostCriteria(ctx, team1Label)
+	updated, _, err = ds.UpdateLabelMembershipByHostCriteria(ctx, team1Label)
 	require.NoError(t, err)
 	require.Equal(t, 1, updated.HostCount)
 	team1Hosts, err := ds.ListHostsInLabel(ctx, filter, team1Label.ID, fleet.HostListOptions{})
@@ -3082,7 +3087,7 @@ func testUpdateLabelMembershipByHostCriteriaCustomHostVital(t *testing.T, ds *Da
 	// Global label: host1 and host4 (vitalA = "Engineering"). host2 has the
 	// wrong value, host3 matches the value only on vitalB.
 	globalLabel := newCHVLabel("chv-global", nil)
-	updated, err := ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	updated, _, err := ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
 	require.NoError(t, err)
 	require.Equal(t, 2, updated.HostCount)
 	globalHosts, err := ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
@@ -3091,7 +3096,7 @@ func testUpdateLabelMembershipByHostCriteriaCustomHostVital(t *testing.T, ds *Da
 
 	// Team1 label: only host1, even though host4 also matches (it's global).
 	team1Label := newCHVLabel("chv-team1-label", &team1.ID)
-	updated, err = ds.UpdateLabelMembershipByHostCriteria(ctx, team1Label)
+	updated, _, err = ds.UpdateLabelMembershipByHostCriteria(ctx, team1Label)
 	require.NoError(t, err)
 	require.Equal(t, 1, updated.HostCount)
 	team1Hosts, err := ds.ListHostsInLabel(ctx, filter, team1Label.ID, fleet.HostListOptions{})
@@ -3101,7 +3106,7 @@ func testUpdateLabelMembershipByHostCriteriaCustomHostVital(t *testing.T, ds *Da
 	// Changing a host's value re-computes membership: host4 leaves, host2 joins.
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[3].ID, vitalA.ID, "Sales"))
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[1].ID, vitalA.ID, "Engineering"))
-	updated, err = ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	updated, _, err = ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
 	require.NoError(t, err)
 	require.Equal(t, 2, updated.HostCount)
 	globalHosts, err = ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
@@ -3960,4 +3965,28 @@ func testLabelMembershipHostIDs(t *testing.T, ds *Datastore) {
 	gotIDs, err = ds.LabelMembershipHostIDs(ctx, emptyLbl.ID)
 	require.NoError(t, err)
 	require.Empty(t, gotIDs)
+}
+
+// symmetricDiff returns the elements present in exactly one of a and b.
+func symmetricDiff(a, b []uint) []uint {
+	inA := make(map[uint]struct{}, len(a))
+	for _, v := range a {
+		inA[v] = struct{}{}
+	}
+	inB := make(map[uint]struct{}, len(b))
+	for _, v := range b {
+		inB[v] = struct{}{}
+	}
+	var out []uint
+	for _, v := range a {
+		if _, ok := inB[v]; !ok {
+			out = append(out, v)
+		}
+	}
+	for _, v := range b {
+		if _, ok := inA[v]; !ok {
+			out = append(out, v)
+		}
+	}
+	return out
 }

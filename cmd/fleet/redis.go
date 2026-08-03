@@ -132,7 +132,7 @@ func initRedis(
 	// on when Redis is configured — the osquery.redis_config_etags flag only
 	// gates whether the service READS from the store (the short circuit),
 	// which the caller wires via svc.SetConfigETagStore.
-	configETagStore := redis_config_etag.New(redisPool)
+	configETagStore := redis_config_etag.New(redisPool, logger.With("component", "config-etag"))
 	etagDS := etag_invalidate.New(redisWrapperDS, configETagStore, logger.With("component", "etag-invalidate"))
 
 	return redisPool, etagDS, redisWrapperDS, configETagStore

@@ -127,14 +127,16 @@ type Datastore interface {
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
 	// given teamID and hostID. If teamID is nil, then scheduled queries for the 'global' team are returned.
 	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*Query, error)
-	// HasLabelScopedScheduledQueries reports whether any saved, scheduled
-	// query (report) is scoped to labels (has query_labels rows). Such
-	// queries make the osquery config HOST-specific rather than team-shared
-	// (see ListScheduledQueriesForAgents' per-host label filtering), and
-	// their effective targeting drifts with label membership changes, which
-	// fire no datastore write. Used by the config ETag short circuit's
-	// deployment-wide gate (see fleet.ConfigETagStore.ShortCircuitBlocked).
-	HasLabelScopedScheduledQueries(ctx context.Context) (bool, error)
+	// LabelScopedScheduledQueryScopes returns the report scopes that contain
+	// saved, scheduled queries (reports) scoped to labels (query_labels
+	// rows): whether the GLOBAL scope has any, and the team IDs whose scope
+	// has any. Label-scoped reports make the osquery config HOST-specific
+	// rather than team-shared (see ListScheduledQueriesForAgents' per-host
+	// label filtering), and their effective targeting drifts with label
+	// membership changes, which fire no datastore write. Used by the config
+	// ETag short circuit's cache-mode selection (see
+	// fleet.ConfigETagStore.LabelScopes).
+	LabelScopedScheduledQueryScopes(ctx context.Context) (ConfigETagLabelScopes, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
@@ -246,9 +248,15 @@ type Datastore interface {
 	// UpdateLabelMembershipByHostIDs updates the label membership for the given label with host
 	// IDs, applied in batches, then returns the updated label
 	UpdateLabelMembershipByHostIDs(ctx context.Context, label Label, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
-	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label
+	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label.
+	// It returns the IDs of hosts whose membership actually changed (added or
+	// removed), computed inside the update transaction, so callers (the
+	// config ETag invalidation decorator) can invalidate exactly the affected
+	// hosts — this method runs from a 5-minute cron for every host-vitals
+	// label, so neither deployment-wide invalidation nor all-members
+	// invalidation is acceptable.
 	// based on its host vitals criteria.
-	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
+	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, []uint, error)
 
 	NewLabel(ctx context.Context, label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs

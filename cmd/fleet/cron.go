@@ -2173,8 +2173,10 @@ func cronHostVitalsLabelMembership(
 		if label.LabelMembershipType != fleet.LabelMembershipTypeHostVitals {
 			continue
 		}
-		// Update membership for the label.
-		_, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+		// Update membership for the label. The changed host IDs are consumed
+		// by the config ETag invalidation decorator wrapping ds; nothing to
+		// do with them here.
+		_, _, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "update label membership for label %d (%s)", label.ID, label.Name)
 		}

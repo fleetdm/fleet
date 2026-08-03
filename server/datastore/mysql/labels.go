@@ -477,22 +477,22 @@ VALUES ` + strings.Join(placeholders, ", ")
 }
 
 // Update label membership for a host vitals label.
-func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
+func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, []uint, error) {
 	// Get the label data.
 	label := hvl.GetLabel()
 
 	// If the label isn't a host vitals label, bail out.
 	if label.LabelMembershipType != fleet.LabelMembershipTypeHostVitals {
-		return nil, ctxerr.New(ctx, "label is not a host vitals label")
+		return nil, nil, ctxerr.New(ctx, "label is not a host vitals label")
 	}
 
 	// Get the query and value params for the host vitals label.
 	query, queryVals, err := hvl.CalculateHostVitalsQuery()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "calculating host vitals query")
+		return nil, nil, ctxerr.Wrap(ctx, err, "calculating host vitals query")
 	}
 	if query == "" {
-		return nil, ctxerr.New(ctx, "label query is empty after calculating host vitals query")
+		return nil, nil, ctxerr.New(ctx, "label query is empty after calculating host vitals query")
 	}
 
 	labelSelect := fmt.Sprintf("%d as label_id, hosts.id as host_id", label.ID)
@@ -501,9 +501,35 @@ func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hv
 		labelQuery = fmt.Sprintf(query, labelSelect, fmt.Sprintf("hosts JOIN (SELECT %d team_id) label_team ON label_team.team_id = hosts.team_id", *label.TeamID))
 	}
 
+	// changedHostIDs collects the hosts whose membership VALUE actually
+	// changes in this run (added or removed), computed from the same
+	// candidate query the INSERT/DELETE below use, inside the same
+	// transaction. The config ETag invalidation decorator uses these to
+	// invalidate exactly the affected hosts: this method runs from a
+	// 5-minute cron for every host-vitals label, so invalidating all
+	// members (or the whole deployment) every run would churn the ETag
+	// optimization into permanent cold.
+	var changedHostIDs []uint
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		changedHostIDs = changedHostIDs[:0]
+
+		// Hosts that will be ADDED: candidates not currently members.
+		var added []uint
+		sql := fmt.Sprintf(`SELECT candidate.host_id FROM (%s) as candidate WHERE NOT EXISTS (SELECT 1 FROM label_membership lm WHERE lm.label_id = %d AND lm.host_id = candidate.host_id)`, labelQuery, label.ID)
+		if err := sqlx.SelectContext(ctx, tx, &added, sql, queryVals...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts to add to membership")
+		}
+
+		// Hosts that will be REMOVED: current members no longer matching.
+		var removed []uint
+		sql = fmt.Sprintf(`SELECT host_id FROM label_membership WHERE label_id = %d AND NOT EXISTS (SELECT 1 FROM (%s) as candidate WHERE candidate.host_id = label_membership.host_id)`, label.ID, labelQuery)
+		if err := sqlx.SelectContext(ctx, tx, &removed, sql, queryVals...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts to remove from membership")
+		}
+		changedHostIDs = append(append(changedHostIDs, added...), removed...)
+
 		// Insert new label membership based on the label query.
-		sql := fmt.Sprintf(`INSERT INTO label_membership (label_id, host_id) SELECT candidate.label_id, candidate.host_id FROM (%s) as candidate ON DUPLICATE KEY UPDATE host_id = label_membership.host_id`, labelQuery)
+		sql = fmt.Sprintf(`INSERT INTO label_membership (label_id, host_id) SELECT candidate.label_id, candidate.host_id FROM (%s) as candidate ON DUPLICATE KEY UPDATE host_id = label_membership.host_id`, labelQuery)
 		_, err := tx.ExecContext(ctx, sql, queryVals...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "execute membership INSERT")
@@ -526,10 +552,10 @@ func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hv
 		return nil
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostCriteria transaction")
+		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostCriteria transaction")
 	}
 
-	return label, err
+	return label, changedHostIDs, err
 }
 
 func batchHostIds(hostIds []uint) [][]uint {
