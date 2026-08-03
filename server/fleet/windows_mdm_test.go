@@ -958,6 +958,32 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "",
 		},
 		{
+			name: "BitLocker LocURI split across CDATA boundary is rejected",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>./Device/Vendor/MSFT/Bit<![CDATA[Locker]]>/RequireDeviceEncryption</LocURI></Target>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
+		{
+			name: "BitLocker LocURI split across XML comment boundary is rejected",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>./Device/Vendor/MSFT/Bit<!--x-->Locker/RequireDeviceEncryption</LocURI></Target>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
+		{
 			name: "BitLocker LocURI allowed when custom disk encryption is enabled",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
