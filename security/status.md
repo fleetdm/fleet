@@ -779,6 +779,30 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-13 12:01:46
 
+### [CVE-2026-59850](https://nvd.nist.gov/vuln/detail/CVE-2026-59850)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
+
+### [CVE-2026-59849](https://nvd.nist.gov/vuln/detail/CVE-2026-59849)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
+
+### [CVE-2026-59847](https://nvd.nist.gov/vuln/detail/CVE-2026-59847)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
+
 ### [CVE-2026-5773](https://nvd.nist.gov/vuln/detail/CVE-2026-5773)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -939,6 +963,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-20 10:30:00
 
+### [CVE-2026-3731](https://nvd.nist.gov/vuln/detail/CVE-2026-3731)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
+
 ### [CVE-2026-33846](https://nvd.nist.gov/vuln/detail/CVE-2026-33846)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1059,6 +1091,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:16:53
 
+### [CVE-2026-15370](https://nvd.nist.gov/vuln/detail/CVE-2026-15370)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
+
 ### [CVE-2026-12912](https://nvd.nist.gov/vuln/detail/CVE-2026-12912)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1066,6 +1106,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libtiff6`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-27 17:21:36
+
+### [CVE-2026-0966](https://nvd.nist.gov/vuln/detail/CVE-2026-0966)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
 
 ### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
 - **Author:** @lucasmrod
