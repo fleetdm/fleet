@@ -235,7 +235,6 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     },
   },
   max_software_package_size: 10 * 1024 * 1024 * 1024,
-  max_software_package_size_human: "10GiB",
 };
 
 export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {

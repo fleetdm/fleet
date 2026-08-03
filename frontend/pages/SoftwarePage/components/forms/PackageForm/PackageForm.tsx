@@ -6,6 +6,7 @@ import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
+  formatFileSize,
   getExtensionFromFileName,
   getFileDetails,
 } from "utilities/file/fileUtils";
@@ -186,7 +187,6 @@ const PackageForm = ({
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
   const { config } = useContext(AppContext);
   const maxSoftwarePackageSize = config?.max_software_package_size;
-  const maxSoftwarePackageSizeHuman = config?.max_software_package_size_human;
 
   const initialFormData: IPackageFormData = {
     // `formData.software` is typed as `File | null` (its shape once a user
@@ -219,16 +219,15 @@ const PackageForm = ({
     if (files && files.length > 0) {
       const file = files[0];
 
-      // Reject an oversized package here rather than letting the upload run to
-      // completion and fail server side. Safari reports the server's early
-      // close as a generic network error, so without this the admin loses the
-      // real reason along with the upload time.
+      // Reject before uploading if file size is too big
       if (maxSoftwarePackageSize && file.size > maxSoftwarePackageSize) {
         const errorPrefix = isEditingSoftware
           ? EDIT_SOFTWARE_ERROR_PREFIX
           : ADD_SOFTWARE_ERROR_PREFIX;
         notify.error(
-          `${errorPrefix} The maximum file size is ${maxSoftwarePackageSizeHuman}.`
+          `${errorPrefix} The maximum file size is ${formatFileSize(
+            maxSoftwarePackageSize
+          )}.`
         );
         return;
       }

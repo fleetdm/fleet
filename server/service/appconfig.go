@@ -24,7 +24,6 @@ import (
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -59,12 +58,8 @@ type appConfigResponseFields struct {
 	SandboxEnabled bool                `json:"sandbox_enabled,omitempty"`
 	Err            error               `json:"error,omitempty"`
 	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
-	// MaxSoftwarePackageSize is the value of server.max_installer_size, which is
-	// set from the config file or the environment rather than the database. It
-	// is sent alongside the same string the server puts in its own too-large
-	// error so clients can reject a package without restating the limit.
-	MaxSoftwarePackageSize      int64  `json:"max_software_package_size"`
-	MaxSoftwarePackageSizeHuman string `json:"max_software_package_size_human"`
+	// Maximum software package size is loaded from the service.
+	MaxSoftwarePackageSize int64 `json:"max_software_package_size,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -213,7 +208,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 
 	features := appConfig.Features
-	maxSoftwarePackageSize := svc.MaxInstallerSizeBytes()
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
 			OrgInfo:                appConfig.OrgInfo,
@@ -237,16 +231,14 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			ConditionalAccess: appConfig.ConditionalAccess,
 		},
 		appConfigResponseFields: appConfigResponseFields{
-			UpdateInterval:  updateIntervalConfig,
-			Vulnerabilities: vulnConfig,
-			License:         lic,
-			Logging:         loggingConfig,
-			Email:           emailConfig,
-			SandboxEnabled:  svc.SandboxEnabled(),
-			Partnerships:    partnerships,
-
-			MaxSoftwarePackageSize:      maxSoftwarePackageSize,
-			MaxSoftwarePackageSizeHuman: installersize.Human(maxSoftwarePackageSize),
+			UpdateInterval:         updateIntervalConfig,
+			Vulnerabilities:        vulnConfig,
+			License:                lic,
+			Logging:                loggingConfig,
+			Email:                  emailConfig,
+			SandboxEnabled:         svc.SandboxEnabled(),
+			Partnerships:           partnerships,
+			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
 		},
 	}
 	return response, nil
