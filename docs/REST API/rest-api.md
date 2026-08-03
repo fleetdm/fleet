@@ -3635,7 +3635,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
               "cvss_score": 7.5, // Fleet Premium only
               "epss_probability": 0.01537, // Fleet Premium only
               "cisa_known_exploit": false, // Fleet Premium only
-              "cve_published": "2022-01-01 12:32:00", // Fleet Premium only
+              "cve_published": "2022-01-01T12:32:00Z", // Fleet Premium only
               "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.", // Fleet Premium only
               "resolved_in_version": "2.28" // Fleet Premium only
             }
@@ -4044,7 +4044,7 @@ Returns the information of the specified host.
       }
     },
     "maintenance_window": {
-      "starts_at": "2024-06-18T13:27:18−04:00",
+      "starts_at": "2024-06-18T13:27:18-04:00",
       "timezone": "America/New_York"
     },
     "users": [
@@ -11980,7 +11980,7 @@ Get a list of all software versions.
 
 ```json
 {
-    "counts_updated_at": "2022-01-01 12:32:00",
+    "counts_updated_at": "2022-01-01T12:32:00Z",
     "count": 2,
     "software": [
       {
@@ -12000,7 +12000,7 @@ Get a list of all software versions.
             "cvss_score": 7.5,
             "epss_probability": 0.01537,
             "cisa_known_exploit": false,
-            "cve_published": "2022-01-01 12:32:00",
+            "cve_published": "2022-01-01T12:32:00Z",
             "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.",
             "resolved_in_version": "2.28"
           }
