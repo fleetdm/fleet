@@ -887,6 +887,7 @@ import Screenflick from "./Screenflick";
 import Screenflow from "./Screenflow";
 import Screenfocus from "./Screenfocus";
 import ScreenStudio from "./ScreenStudio";
+import Scribe from "./Scribe";
 import Scribus from "./Scribus";
 import Scrivener from "./Scrivener";
 import Secretive from "./Secretive";
@@ -2053,6 +2054,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   screenflick: Screenflick,
   screenflow: Screenflow,
   screenfocus: Screenfocus,
+  scribe: Scribe,
   scribus: Scribus,
   scrivener: Scrivener,
   secretive: Secretive,
