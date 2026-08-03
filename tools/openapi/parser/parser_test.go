@@ -175,6 +175,17 @@ func TestStripLineComments(t *testing.T) {
 	}
 }
 
+func TestHardSkips(t *testing.T) {
+	res := &Result{Skipped: []Skip{
+		{Heading: "Retrieve your API token", Reason: ReasonNoRequestLine},
+		{Heading: "Bad json", Reason: "invalid JSON in default response example: unexpected end of JSON input"},
+	}}
+	hard := HardSkips(res)
+	if len(hard) != 1 || hard[0].Heading != "Bad json" {
+		t.Fatalf("want only the non-request-line skip classified as hard, got %+v", hard)
+	}
+}
+
 func TestParseDefaultResponseStripsLineComments(t *testing.T) {
 	md := "## S\n\n### Commented json\n\n`GET /api/v1/fleet/commented`\n\n##### Default response\n\n`Status: 200`\n\n" +
 		"```json\n{\n  \"count\": 1, // Fleet Premium only\n  \"url\": \"https://example.com/path\"\n}\n```\n"

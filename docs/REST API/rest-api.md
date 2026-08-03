@@ -10,7 +10,7 @@ Unless otherwise specified, endpoints that accept a request body limit its size 
 
 Fleet publishes an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) specification with each release as a downloadable artifact: [openapi.yml](https://github.com/fleetdm/fleet/releases/latest/download/openapi.yml). Use it to generate typed API clients or validate Fleet's API contract in your CI.
 
-This is a pilot that currently covers 10 commonly integrated endpoints, including hosts, software, policies, reports, fleets, and MDM commands. This reference remains the source of truth for the whole API. If the spec is useful to you or you'd like more endpoints covered, comment on the [pilot story](https://github.com/fleetdm/fleet/issues/45279).
+The spec covers every endpoint documented in this reference, generated from it at release time. This reference remains the source of truth for the whole API. If the spec is useful to you or you have feedback, comment on [issue 45279](https://github.com/fleetdm/fleet/issues/45279).
 
 ## Authentication
 

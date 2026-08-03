@@ -36,15 +36,8 @@ func sampleResult() *parser.Result {
 	}
 }
 
-func allowAll() Allowlist {
-	return Allowlist{Endpoints: []AllowedEndpoint{
-		{Method: "GET", Path: "/api/v1/fleet/widgets"},
-		{Method: "POST", Path: "/api/v1/fleet/widgets"},
-	}}
-}
-
-func TestBuildEmitsAllowlistedOperations(t *testing.T) {
-	doc, err := Build(sampleResult(), allowAll())
+func TestBuildEmitsAllParsedOperations(t *testing.T) {
+	doc, err := Build(sampleResult())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +52,10 @@ func TestBuildEmitsAllowlistedOperations(t *testing.T) {
 	if len(get.Parameters) != 1 || get.Parameters[0].Name != "page" {
 		t.Errorf("parameters wrong: %+v", get.Parameters)
 	}
-	post := item["post"]
+	post, ok := item["post"]
+	if !ok {
+		t.Fatal("post op missing")
+	}
 	if post.RequestBody == nil {
 		t.Fatal("post has no request body")
 	}
@@ -70,26 +66,46 @@ func TestBuildEmitsAllowlistedOperations(t *testing.T) {
 	}
 }
 
-func TestBuildFailsOnMissingAllowlistedEndpoint(t *testing.T) {
-	allow := Allowlist{Endpoints: []AllowedEndpoint{{Method: "GET", Path: "/api/v1/fleet/nope"}}}
-	_, err := Build(sampleResult(), allow)
-	if err == nil || !strings.Contains(err.Error(), "/api/v1/fleet/nope") {
-		t.Fatalf("want error naming missing path, got %v", err)
+func TestBuildEmitsEveryEndpointRegardlessOfCount(t *testing.T) {
+	res := sampleResult()
+	res.Endpoints = append(res.Endpoints, parser.Endpoint{
+		Section: "Gadgets", Heading: "List gadgets", Method: "GET",
+		Path: "/api/v1/fleet/gadgets",
+		Responses: []parser.Response{
+			{Status: 200, Example: map[string]any{"gadgets": []any{}}},
+		},
+	})
+	doc, err := Build(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var gotOps int
+	for _, methods := range doc.Paths {
+		gotOps += len(methods)
+	}
+	if gotOps != len(res.Endpoints) {
+		t.Fatalf("want all %d parsed endpoints emitted, got %d operations", len(res.Endpoints), gotOps)
+	}
+	if _, ok := doc.Paths["/api/v1/fleet/gadgets"]["get"]; !ok {
+		t.Errorf("newly added endpoint not emitted: %v", doc.Paths)
 	}
 }
 
-func TestBuildFailsOnSkippedAllowlistedEndpoint(t *testing.T) {
+func TestBuildFailsOnDuplicateOperationID(t *testing.T) {
 	res := sampleResult()
-	res.Endpoints = res.Endpoints[1:]
-	res.Skipped = append(res.Skipped, parser.Skip{Heading: "List widgets", Reason: "no request line found"})
-	_, err := Build(res, allowAll())
-	if err == nil {
-		t.Fatal("want error for skipped allowlisted endpoint")
+	res.Endpoints = append(res.Endpoints, parser.Endpoint{
+		Section: "Widgets", Heading: "List widgets", Method: "GET",
+		Path: "/api/v1/fleet/other-widgets",
+	})
+	_, err := Build(res)
+	if err == nil || !strings.Contains(err.Error(), "duplicate operationId") {
+		t.Fatalf("want duplicate operationId error, got %v", err)
 	}
 }
 
 func TestRenderDeterministic(t *testing.T) {
-	doc, err := Build(sampleResult(), allowAll())
+	doc, err := Build(sampleResult())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,5 +119,16 @@ func TestRenderDeterministic(t *testing.T) {
 	}
 	if !strings.HasPrefix(string(a), "openapi: 3.1") {
 		t.Errorf("unexpected head: %.40s", a)
+	}
+}
+
+func TestBuildFailsOnDuplicateMethodPath(t *testing.T) {
+	res := sampleResult()
+	dup := res.Endpoints[0]
+	dup.Heading = "List widgets again"
+	res.Endpoints = append(res.Endpoints, dup)
+	_, err := Build(res)
+	if err == nil || !strings.Contains(err.Error(), "duplicate endpoint GET /api/v1/fleet/widgets") {
+		t.Fatalf("want duplicate endpoint error, got %v", err)
 	}
 }

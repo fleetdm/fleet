@@ -6,7 +6,7 @@ import (
 )
 
 func TestValidateAcceptsBuiltDocument(t *testing.T) {
-	doc, err := Build(sampleResult(), allowAll())
+	doc, err := Build(sampleResult())
 	if err != nil {
 		t.Fatal(err)
 	}

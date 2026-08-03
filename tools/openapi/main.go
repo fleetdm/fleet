@@ -1,4 +1,4 @@
-// Command openapi generates Fleet's pilot OpenAPI 3.1 spec from the canonical
+// Command openapi generates Fleet's OpenAPI 3.1 spec from the canonical
 // REST API Markdown, and verifies it against a live server.
 // See DESIGN.md and https://github.com/fleetdm/fleet/issues/45279.
 package main
@@ -35,15 +35,9 @@ func runGenerate(args []string) int {
 	fs := flag.NewFlagSet("generate", flag.ExitOnError)
 	markdown := fs.String("markdown", "../../docs/REST API/rest-api.md", "path to rest-api.md")
 	out := fs.String("out", "openapi.yml", "output path")
-	allowPath := fs.String("allowlist", "allowlist.yml", "allowlist path")
 	fs.Parse(args)
 
 	md, err := os.ReadFile(*markdown)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return 1
-	}
-	allow, err := spec.LoadAllowlist(*allowPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
@@ -56,7 +50,15 @@ func runGenerate(args []string) int {
 		fmt.Fprintf(os.Stderr, "  skipped %q: %s\n", s.Heading, s.Reason)
 	}
 
-	doc, err := spec.Build(res, allow)
+	if hard := parser.HardSkips(res); len(hard) > 0 {
+		fmt.Fprintln(os.Stderr, "error: the following endpoint section(s) failed to parse:")
+		for _, s := range hard {
+			fmt.Fprintf(os.Stderr, "  %q: %s\n", s.Heading, s.Reason)
+		}
+		return 1
+	}
+
+	doc, err := spec.Build(res)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
@@ -75,6 +77,6 @@ func runGenerate(args []string) int {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
 	}
-	fmt.Fprintf(os.Stderr, "wrote %d endpoint(s) to %s\n", len(allow.Endpoints), *out)
+	fmt.Fprintf(os.Stderr, "wrote %d endpoint(s) to %s\n", len(res.Endpoints), *out)
 	return 0
 }

@@ -19,8 +19,7 @@ func testSpec(t *testing.T) []byte {
 			"widgets": []any{map[string]any{"id": float64(1), "name": "wrench"}},
 		}}},
 	}}}
-	allow := spec.Allowlist{Endpoints: []spec.AllowedEndpoint{{Method: "GET", Path: "/api/v1/fleet/widgets"}}}
-	doc, err := spec.Build(res, allow)
+	doc, err := spec.Build(res)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,1 +1,1 @@
-- Added a pilot OpenAPI 3.1 specification, generated from the REST API reference and attached to each release as `openapi.yml`. The pilot covers 10 commonly integrated endpoints.
+- Added an OpenAPI 3.1 specification, generated from the REST API reference and attached to each release as `openapi.yml`. It covers every endpoint documented in the REST API reference.

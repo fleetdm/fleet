@@ -4,6 +4,7 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -43,6 +44,28 @@ type Result struct {
 	Skipped   []Skip
 }
 
+// ReasonNoRequestLine is the Skip.Reason recorded for a "### " section with
+// no request line. Such a section documents something other than an
+// endpoint (for example "Retrieve your API token", which walks through UI
+// steps), so it's a tolerated skip rather than a parse failure. Any other
+// Skip.Reason means a section that looks like an endpoint failed to parse,
+// which HardSkips treats as fatal.
+const ReasonNoRequestLine = "no request line found"
+
+// HardSkips returns the subset of res.Skipped that are real parse failures,
+// excluding sections that were never endpoints in the first place (no
+// request line). Callers should treat a non-empty result as fatal.
+func HardSkips(res *Result) []Skip {
+	var hard []Skip
+	for _, s := range res.Skipped {
+		if s.Reason == ReasonNoRequestLine {
+			continue
+		}
+		hard = append(hard, s)
+	}
+	return hard
+}
+
 var requestLineRe = regexp.MustCompile("^`(GET|POST|PUT|PATCH|DELETE|HEAD) (/[^` ]*)`\\s*$")
 var statusLineRe = regexp.MustCompile("^`Status: ([0-9]{3})[^`]*`\\s*$")
 
@@ -55,7 +78,7 @@ var requiredRe = regexp.MustCompile(`\*\*[Rr]equired\.?\*\*`)
 
 // Parse walks the entire document. Sections that don't parse as endpoints are
 // recorded in Skipped with a reason; they are never fatal here. Callers decide
-// which skips matter (allowlisted endpoints missing is the caller's error).
+// which skips matter: see HardSkips.
 func Parse(md string) *Result {
 	res := &Result{}
 	lines := strings.Split(md, "\n")
@@ -103,7 +126,7 @@ func parseSection(section, heading string, body []string) (*Endpoint, error) {
 		}
 	}
 	if reqIdx == -1 {
-		return nil, fmt.Errorf("no request line found")
+		return nil, errors.New(ReasonNoRequestLine)
 	}
 	ep.Description = descriptionAbove(body[:reqIdx])
 
