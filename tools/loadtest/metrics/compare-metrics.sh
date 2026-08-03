@@ -275,7 +275,8 @@ OTHER_DEFS=(
   ".fleet_server_errors.error_count|Fleet Errors/h||0|0|true|eq|0|rate|"
   ".container_health.abnormal_stops|Container Stops||0|0|true|eq|0||"
   ".container_health.fleet_abnormal_stops|Fleet Container Stops||0|0|true|eq|0||"
-  ".container_health.start_spread_min|Container Start Spread|min|5|10|false|lt|10||2"
+  ".container_health.failed_health_checks|Failed Health Checks||0|0|true|eq|0||"
+  ".container_health.unable_to_place|Placement Failures||0|0|true|eq|0||"
 )
 
 # ---------------------------------------------------------------------------

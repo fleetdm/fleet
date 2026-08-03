@@ -1163,24 +1163,26 @@ fi
 # -------------------------------------------------------------------------
 # osquery-perf / loadtest container health
 #
-# Checks two things:
+# Checks three things:
 #   1. Stopped tasks — any tasks with non-zero exit codes during the interval
-#      indicate crashes or OOM kills. Expected: 0.
-#   2. Running task uptime — queries all running tasks for the loadtest service,
-#      captures each task's startedAt time and calculates uptime. If any
-#      container started significantly later than the others (>10 min spread),
-#      it likely restarted. All containers should start within a few minutes
-#      of each other.
+#      indicate crashes or OOM kills. Expected: 0. (ECS only retains stopped
+#      tasks ~1h, so this only sees recent crashes.)
+#   2. ECS service events — the scheduler's own event log (last 100 events per
+#      service) is a longer-lived record. Health-check failures and placement
+#      failures are genuine problems; deliberate restarts (e.g. a server
+#      migration rolling the containers) emit only start/stop events and are
+#      NOT counted, so migration runs don't false-positive.
+#   3. Running task uptime — each running task's startedAt and uptime, kept as
+#      context for spotting stragglers manually.
 #
 # Output JSON:
-#   abnormal_stops:       loadtest/osquery_perf tasks stopped with non-zero exit code
-#   fleet_abnormal_stops: fleet server tasks stopped with non-zero exit code
-#   running_tasks:        number of currently running tasks
-#   oldest_start:      ISO timestamp of the earliest startedAt
-#   newest_start:      ISO timestamp of the latest startedAt
-#   start_spread_min:  difference in minutes between oldest and newest start
-#   start_spread_alert: true if spread > 10 minutes (indicates a restart)
-#   tasks:             array of {task_id, started_at, uptime_min} per task
+#   abnormal_stops:        loadtest/osquery_perf tasks stopped with non-zero exit code
+#   fleet_abnormal_stops:  fleet server tasks stopped with non-zero exit code
+#   running_tasks:         number of currently running tasks
+#   failed_health_checks:  service events reporting failed/unhealthy health checks
+#   unable_to_place:       service events reporting task placement failures
+#   service_events:        the matching failure events [{service, at, message}]
+#   tasks:                 array of {task_id, started_at, uptime_min} per task
 # -------------------------------------------------------------------------
 CONTAINER_HEALTH="{}"
 LOADTEST_SVC="${OSQUERY_PERF_SERVICE:-${LOADTEST_SERVICES[0]:-}}"
@@ -1215,10 +1217,10 @@ if [[ -n "$LOADTEST_SVC" ]]; then
       --region "$REGION" --output json 2>/dev/null || echo '{"tasks":[]}')
 
     abnormal_stops_json=$(echo "$task_details" | jq \
-      --argjson start "$START_EPOCH" --argjson end "$END_EPOCH" \
+      --argjson start "$START_EPOCH" --argjson wend "$END_EPOCH" \
       "$JQ_TS_EPOCH"'
       [.tasks[]
-        | select(.stoppedAt) | select((.stoppedAt | ts_epoch) >= $start and (.stoppedAt | ts_epoch) <= $end)
+        | select(.stoppedAt) | select((.stoppedAt | ts_epoch) >= $start and (.stoppedAt | ts_epoch) <= $wend)
         | select([.containers[]? | select(.exitCode != null and .exitCode > 0)] | length > 0)
         | .group // ""] |
       {
@@ -1256,29 +1258,57 @@ if [[ -n "$LOADTEST_SVC" ]]; then
     ' 2>/dev/null || echo '[]')
   fi
 
-  # Spread between oldest and newest start time; >10 min indicates a restart.
-  spread_json=$(echo "$uptime_json" | jq '{
-    oldest_start: (first.started_at? // null),
-    newest_start: (last.started_at? // null),
-    start_spread_min: (if length > 1 then ((last.started_epoch - first.started_epoch) / 60 * 10 | round / 10)
-                       elif length == 1 then 0
-                       else null end)
-  } | . + {start_spread_alert: ((.start_spread_min // 0) > 10)}')
+  echo "  Loadtest: $running_count running tasks"
 
-  echo "  Loadtest: $running_count running tasks, start spread=$(echo "$spread_json" | jq -r '.start_spread_min // "N/A"')min"
+  # ECS service events — scan the scheduler's event log for genuine failures
+  # in the collection window. Health-check and placement failures alert;
+  # ordinary start/stop events (including deliberate migration restarts) don't.
+  SERVICES_TO_CHECK=()
+  [[ -n "$FLEET_SERVICE" ]] && SERVICES_TO_CHECK+=("$FLEET_SERVICE")
+  [[ -n "$OSQUERY_PERF_SERVICE" ]] && SERVICES_TO_CHECK+=("$OSQUERY_PERF_SERVICE")
+  if [[ ${#LOADTEST_SERVICES[@]} -gt 0 ]]; then
+    SERVICES_TO_CHECK+=("${LOADTEST_SERVICES[@]}")
+  fi
+
+  SERVICE_EVENTS="[]"
+  failed_health_checks=0
+  unable_to_place=0
+  if [[ ${#SERVICES_TO_CHECK[@]} -gt 0 ]]; then
+    echo "  Loadtest: Scanning ECS service events for failures..."
+    for svc in "${SERVICES_TO_CHECK[@]:0:10}"; do
+      svc_events=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$svc" --region "$REGION" \
+        --query "services[0].events" --output json 2>/dev/null || echo '[]')
+      # NB: "end" is a reserved keyword in jq, so the window-end variable is $wend.
+      svc_fail=$(echo "$svc_events" | jq --arg svc "$svc" --argjson start "$START_EPOCH" --argjson wend "$END_EPOCH" \
+        "$JQ_TS_EPOCH"'
+        [(. // [])[] | select(.createdAt)
+         | select((.createdAt | ts_epoch) >= $start and (.createdAt | ts_epoch) <= $wend)
+         | select(.message | test("health check|unhealthy|unable to|failed"; "i"))
+         | {service: $svc, at: .createdAt, message: .message}]' 2>/dev/null || echo '[]')
+      SERVICE_EVENTS=$(jq -n --argjson a "$SERVICE_EVENTS" --argjson b "$svc_fail" '$a + $b')
+    done
+    failed_health_checks=$(echo "$SERVICE_EVENTS" | jq '[.[] | select(.message | test("health check|unhealthy"; "i"))] | length')
+    unable_to_place=$(echo "$SERVICE_EVENTS" | jq '[.[] | select(.message | test("unable to"; "i"))] | length')
+    echo "  Loadtest: $failed_health_checks health-check failure event(s), $unable_to_place placement failure event(s)"
+  fi
 
   CONTAINER_HEALTH=$(jq -n \
     --argjson abnormal_stops "$restart_count" \
     --argjson fleet_abnormal_stops "$fleet_restart_count" \
     --argjson running_tasks "$running_count" \
-    --argjson spread "$spread_json" \
+    --argjson failed_health_checks "$failed_health_checks" \
+    --argjson unable_to_place "$unable_to_place" \
+    --argjson service_events "$SERVICE_EVENTS" \
     --argjson tasks "$uptime_json" \
     '{
       abnormal_stops: $abnormal_stops,
       fleet_abnormal_stops: $fleet_abnormal_stops,
       running_tasks: $running_tasks,
+      failed_health_checks: $failed_health_checks,
+      unable_to_place: $unable_to_place,
+      service_events: ($service_events | sort_by(.at) | .[0:20]),
       tasks: $tasks
-    } + $spread')
+    }')
 fi
 
 
@@ -1474,13 +1504,12 @@ if jq -e '.container_health' "$OUTPUT" >/dev/null 2>&1; then
   ch_stops=$(jq -r '.container_health.abnormal_stops // 0' "$OUTPUT")
   ch_fleet_stops=$(jq -r '.container_health.fleet_abnormal_stops // 0' "$OUTPUT")
   ch_running=$(jq -r '.container_health.running_tasks // 0' "$OUTPUT")
-  ch_spread=$(jq -r '.container_health.start_spread_min // "N/A"' "$OUTPUT")
-  ch_alert=$(jq -r '.container_health.start_spread_alert // false' "$OUTPUT")
-  printf "Containers:    Running=%s  AbnormalStops=%s  FleetStops=%s  StartSpread=%smin" "$ch_running" "$ch_stops" "$ch_fleet_stops" "$ch_spread"
-  if [[ "$ch_alert" == "true" ]]; then
-    printf "  ⚠ STAGGERED STARTS"
-  fi
-  printf "\n"
+  ch_hc=$(jq -r '.container_health.failed_health_checks // 0' "$OUTPUT")
+  ch_place=$(jq -r '.container_health.unable_to_place // 0' "$OUTPUT")
+  printf "Containers:    Running=%s  AbnormalStops=%s  FleetStops=%s  FailedHealthChecks=%s  PlacementFailures=%s\n" \
+    "$ch_running" "$ch_stops" "$ch_fleet_stops" "$ch_hc" "$ch_place"
+  # Show the failure events themselves so the synopsis is actionable.
+  jq -r '.container_health.service_events // [] | .[:3][] | "  · " + .at + "  " + .service + ": " + .message[0:160]' "$OUTPUT"
 fi
 
 echo '```'
@@ -1509,7 +1538,10 @@ echo '```'
 #   Fleet Server Errors       == 0
 #   IOPS Utilization          < 80% avg
 #   Container Abnormal Stops   == 0 (loadtest and fleet server, separately)
-#   Container Start Spread    < 10 min
+#   Failed Health Check Events == 0 (ECS service events; deliberate restarts
+#                              during migrations emit only start/stop events
+#                              and are not counted)
+#   Placement Failure Events   == 0
 #   Data coverage (key metrics) >= 0.9 — low coverage means the averages above
 #                              describe only part of the window
 # ---------------------------------------------------------------------------
@@ -1566,7 +1598,8 @@ check_threshold "Fleet Server Errors"      '.fleet_server_errors.error_count' eq
 check_threshold "IOPS Utilization"         '.rds_writer_extended.iops_utilization.utilization_pct' lt 80
 check_threshold "Container Abnormal Stops"  '.container_health.abnormal_stops' eq 0
 check_threshold "Fleet Server Abnormal Stops" '.container_health.fleet_abnormal_stops' eq 0
-check_threshold "Container Start Spread (min)" '.container_health.start_spread_min' lt 10
+check_threshold "Failed Health Check Events" '.container_health.failed_health_checks' eq 0
+check_threshold "Placement Failure Events"  '.container_health.unable_to_place' eq 0
 
 # Data coverage: if key metrics only have datapoints for part of the window,
 # the averages above are misleading (e.g. interval longer than the test ran).
