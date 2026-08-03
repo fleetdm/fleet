@@ -131,9 +131,7 @@ export interface IDropdownWrapper {
    * not infer any of these on its own; without a value here screen readers
    * announce a bare "combobox". */
   ariaLabel?: string;
-  /** Tooltip explaining why the dropdown is disabled. Shown above the control,
-   * on hover over the control only (not the label or help text), and only
-   * while `isDisabled` is true. */
+  /** Tooltip explaining why the dropdown is disabled. Shown above the control, on hover over the control only (not the label or help text), and only while `isDisabled` is true. */
   disabledTooltipContent?: React.ReactNode;
 }
 

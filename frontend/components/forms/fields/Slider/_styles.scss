@@ -32,10 +32,8 @@
         @include disabled;
       }
 
-      // The react-tooltip popup renders inside the label subtree, so dimming the whole
-      // label would dim the popup with it (opacity and grayscale inherit) and make the
-      // tooltip barely readable. Dim only the visible content: the whole label when it
-      // has no tooltip, or just the tooltip wrapper's visible element when it does.
+      // The react-tooltip popup renders inside the label subtree, so dimming the whole label would dim the popup with
+      // it (opacity and grayscale inherit) and make the tooltip barely readable. Dim only the visible content.
       .fleet-slider__label {
         pointer-events: initial; // Allow label interaction when slider is disabled to view tooltip
 

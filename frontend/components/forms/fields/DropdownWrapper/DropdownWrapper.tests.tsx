@@ -125,7 +125,15 @@ describe("DropdownWrapper Component", () => {
     ).toBeInTheDocument();
   });
 
-  test("does not render the disabled tooltip when enabled", () => {
+  // The tooltip wraps the control only when isDisabled and disabledTooltipContent are both set.
+  // Each case below drops one of those two operands, so neither can be removed from the condition.
+  test.each([
+    {
+      caseName: "enabled",
+      props: { disabledTooltipContent: "Reason it is disabled" },
+    },
+    { caseName: "disabled without content", props: { isDisabled: true } },
+  ])("does not render the disabled tooltip when $caseName", ({ props }) => {
     const { container } = render(
       <DropdownWrapper
         options={sampleOptions}
@@ -133,27 +141,7 @@ describe("DropdownWrapper Component", () => {
         onChange={mockOnChange}
         name="test-dropdown"
         label="Test Dropdown"
-        disabledTooltipContent="Reason it is disabled"
-      />
-    );
-
-    expect(
-      container.querySelector(".dropdown-wrapper__disabled-tooltip")
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/reason it is disabled/i)
-    ).not.toBeInTheDocument();
-  });
-
-  test("does not render the disabled tooltip when disabled without content", () => {
-    const { container } = render(
-      <DropdownWrapper
-        options={sampleOptions}
-        value="option1"
-        onChange={mockOnChange}
-        name="test-dropdown"
-        label="Test Dropdown"
-        isDisabled
+        {...props}
       />
     );
 
