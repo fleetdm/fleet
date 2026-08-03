@@ -5385,6 +5385,13 @@
       "description": "Microsoft 365 Copilot is an AI-powered productivity assistant that integrates with Microsoft 365 apps."
     },
     {
+      "name": "Microsoft Access Database Engine 2016 Redistributable",
+      "slug": "microsoft-access-database-engine-2016/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Access database engine 2016 (English)",
+      "description": "Microsoft Access Database Engine 2016 Redistributable provides OLE DB and ODBC drivers for reading Access databases and Office data sources without installing Office."
+    },
+    {
       "name": "Microsoft Auto Update",
       "slug": "microsoft-auto-update/darwin",
       "platform": "darwin",
