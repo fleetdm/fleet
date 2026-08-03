@@ -213,6 +213,7 @@ collect_log "osquery logs" "/var/log/osquery" "${WORK_DIR}/logs/osquery"
 collect_log "osquery filesystem logger" "/opt/orbit/osquery_log" "${WORK_DIR}/logs/osquery_log"
 
 # systemd journal for orbit.service (last 500 lines)
+mkdir -p "${WORK_DIR}/logs"
 if command -v journalctl >/dev/null 2>&1; then
   journalctl -u orbit.service --no-pager -n 500 \
     > "${WORK_DIR}/logs/orbit_journal.log" 2>&1 && \
