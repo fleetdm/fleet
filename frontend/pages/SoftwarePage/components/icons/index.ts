@@ -251,6 +251,7 @@ import Cyberduck from "./Cyberduck";
 import CyberduckCli from "./CyberduckCli";
 import Daisydisk from "./Daisydisk";
 import Dangerzone from "./Dangerzone";
+import DanteController from "./DanteController";
 import Darkmodebuddy from "./Darkmodebuddy";
 import Darktable from "./Darktable";
 import Dash from "./Dash";
@@ -571,6 +572,7 @@ import LastWindowQuits from "./LastWindowQuits";
 import Latest from "./Latest";
 import Launchbar from "./Launchbar";
 import LenovoDockManager from "./LenovoDockManager";
+import LenovoSystemUpdate from "./LenovoSystemUpdate";
 import Lens from "./Lens";
 import LibreOffice from "./LibreOffice";
 import Lightburn from "./Lightburn";
@@ -642,6 +644,7 @@ import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
 import MicrosoftAzureStorageExplorer from "./MicrosoftAzureStorageExplorer";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftEdge from "./MicrosoftEdge";
+import MicrosoftOdbcDriver17 from "./MicrosoftOdbcDriver17";
 import MicrosoftOdbcDriver18 from "./MicrosoftOdbcDriver18";
 import MicrosoftOffice from "./MicrosoftOffice";
 import MicrosoftOneNote from "./MicrosoftOneNote";
@@ -751,6 +754,7 @@ import OrigamiStudio from "./OrigamiStudio";
 import P4V from "./P4V";
 import Pacifist from "./Pacifist";
 import Package from "./Package";
+import PaintDotNet from "./PaintDotNet";
 import PaleMoon from "./PaleMoon";
 import Paletro from "./Paletro";
 import ParallelsDesktop from "./ParallelsDesktop";
@@ -885,6 +889,7 @@ import Screenflick from "./Screenflick";
 import Screenflow from "./Screenflow";
 import Screenfocus from "./Screenfocus";
 import ScreenStudio from "./ScreenStudio";
+import Scribe from "./Scribe";
 import Scribus from "./Scribus";
 import Scrivener from "./Scrivener";
 import Secretive from "./Secretive";
@@ -1401,6 +1406,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cyberduck cli": CyberduckCli,
   daisydisk: Daisydisk,
   dangerzone: Dangerzone,
+  "dante controller": DanteController,
   darkmodebuddy: Darkmodebuddy,
   darktable: Darktable,
   dash: Dash,
@@ -1724,6 +1730,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   latest: Latest,
   launchbar: Launchbar,
   "lenovo dock manager": LenovoDockManager,
+  "lenovo system update": LenovoSystemUpdate,
   lens: Lens,
   libreoffice: LibreOffice,
   lightburn: Lightburn,
@@ -1787,6 +1794,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "menubar stats": MenubarStats,
   menubarx: Menubarx,
   "merlin project": MerlinProject,
+  "microsoft .net desktop runtime": MicrosoftDotnetRuntime,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft auto update": MicrosoftAutoUpdate,
@@ -1794,6 +1802,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft azure storage explorer": MicrosoftAzureStorageExplorer,
   "microsoft edge": Edge,
   "microsoft excel": Excel,
+  "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
   "microsoft odbc driver 18 for sql server": MicrosoftOdbcDriver18,
   "microsoft office": MicrosoftOffice,
   "microsoft onenote": MicrosoftOneNote,
@@ -1913,6 +1922,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   p4v: P4V,
   pacifist: Pacifist,
   package: Package,
+  "paint.net": PaintDotNet,
   "pale moon": PaleMoon,
   paletro: Paletro,
   "parallels desktop": ParallelsDesktop,
@@ -2049,6 +2059,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   screenflick: Screenflick,
   screenflow: Screenflow,
   screenfocus: Screenfocus,
+  scribe: Scribe,
   scribus: Scribus,
   scrivener: Scrivener,
   secretive: Secretive,

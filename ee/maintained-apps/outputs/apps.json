@@ -2179,6 +2179,13 @@
       "description": "Dangerzone is a tool to convert potentially dangerous PDFs or Office documents into safe PDFs."
     },
     {
+      "name": "Dante Controller",
+      "slug": "dante-controller/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.audinate.dante.DanteController",
+      "description": "Dante Controller is Audinate's app for configuring devices and routing audio channels on a Dante network."
+    },
+    {
       "name": "DarkModeBuddy",
       "slug": "darkmodebuddy/darwin",
       "platform": "darwin",
@@ -4027,6 +4034,13 @@
       "description": "HandBrake is an open-source video transcoder."
     },
     {
+      "name": "HandBrake",
+      "slug": "handbrake/windows",
+      "platform": "windows",
+      "unique_identifier": "HandBrake",
+      "description": "HandBrake is an open-source video transcoder."
+    },
+    {
       "name": "Hazel",
       "slug": "hazel/darwin",
       "platform": "darwin",
@@ -4860,6 +4874,13 @@
       "description": "Lenovo Dock Manager is an application for deploying and managing firmware updates for Lenovo docks."
     },
     {
+      "name": "Lenovo System Update",
+      "slug": "lenovo-system-update/windows",
+      "platform": "windows",
+      "unique_identifier": "Lenovo System Update",
+      "description": "Lenovo System Update installs and updates Lenovo drivers, BIOS, and applications on Lenovo computers."
+    },
+    {
       "name": "Lens",
       "slug": "lens/darwin",
       "platform": "darwin",
@@ -5364,6 +5385,13 @@
       "description": "Microsoft 365 Copilot is an AI-powered productivity assistant that integrates with Microsoft 365 apps."
     },
     {
+      "name": "Microsoft Access Database Engine 2016 Redistributable",
+      "slug": "microsoft-access-database-engine-2016/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Access database engine 2016 (English)",
+      "description": "Microsoft Access Database Engine 2016 Redistributable provides OLE DB and ODBC drivers for reading Access databases and Office data sources without installing Office."
+    },
+    {
       "name": "Microsoft Auto Update",
       "slug": "microsoft-auto-update/darwin",
       "platform": "darwin",
@@ -5376,6 +5404,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.StorageExplorer",
       "description": "Microsoft Azure Storage Explorer is an explorer for Azure Storage."
+    },
+    {
+      "name": "Microsoft .NET Desktop Runtime 10",
+      "slug": "microsoft-dotnet-desktop-runtime-10/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Windows Desktop Runtime",
+      "description": "Microsoft .NET Desktop Runtime 10 runs desktop apps built on .NET 10, including Windows Forms and WPF apps."
     },
     {
       "name": "Microsoft .NET Runtime 10",
@@ -5411,6 +5446,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.Excel",
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
+    },
+    {
+      "name": "Microsoft ODBC Driver 17 for SQL Server",
+      "slug": "microsoft-odbc-driver-17/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft ODBC Driver 17 for SQL Server",
+      "description": "Microsoft ODBC Driver 17 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the ODBC interface."
     },
     {
       "name": "Microsoft ODBC Driver 18 for SQL Server",
@@ -6384,6 +6426,13 @@
       "platform": "darwin",
       "unique_identifier": "com.charlessoft.pacifist",
       "description": "Pacifist is an extract files and folders from package files, disk images, and archives."
+    },
+    {
+      "name": "Paint.NET",
+      "slug": "paint-dot-net/windows",
+      "platform": "windows",
+      "unique_identifier": "Paint.NET",
+      "description": "Paint.NET is an image and photo editor with support for layers, effects, and a range of image formats."
     },
     {
       "name": "Pale Moon",
@@ -7511,6 +7560,13 @@
       "platform": "darwin",
       "unique_identifier": "com.apptorium.ScreenFocus-dm",
       "description": "ScreenFocus is a tool to manage multiple screens."
+    },
+    {
+      "name": "Scribe",
+      "slug": "scribe/windows",
+      "platform": "windows",
+      "unique_identifier": "Scribe",
+      "description": "Scribe records a process as you work through it and turns it into a step-by-step guide with screenshots."
     },
     {
       "name": "Scribus",

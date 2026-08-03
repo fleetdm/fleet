@@ -901,6 +901,8 @@ type batchSetSoftwareInstallersResultResponse struct {
 	DeletedPackages []fleet.DeletedSoftwarePackage `json:"deleted_packages,omitempty"`
 	// Categories lists the self-service categories the batch's software references.
 	Categories []string `json:"categories,omitempty"`
+	// DownloadProgress reports each package's download status while the batch runs.
+	DownloadProgress []fleet.SoftwarePackageDownloadProgress `json:"download_progress,omitempty"`
 
 	Err error `json:"error,omitempty"`
 }
@@ -909,25 +911,26 @@ func (r batchSetSoftwareInstallersResultResponse) Error() error { return r.Err }
 
 func batchSetSoftwareInstallersResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetSoftwareInstallersResultRequest)
-	status, message, packages, deletedPackages, categories, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
+	result, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
 	if err != nil {
 		return batchSetSoftwareInstallersResultResponse{Err: err}, nil
 	}
 	return batchSetSoftwareInstallersResultResponse{
-		Status:          status,
-		Message:         message,
-		Packages:        packages,
-		DeletedPackages: deletedPackages,
-		Categories:      categories,
+		Status:           result.Status,
+		Message:          result.Message,
+		Packages:         result.Packages,
+		DeletedPackages:  result.DeletedPackages,
+		Categories:       result.Categories,
+		DownloadProgress: result.DownloadProgress,
 	}, nil
 }
 
-func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
+func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*fleet.BatchSetSoftwareInstallersResult, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", "", nil, nil, nil, fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
