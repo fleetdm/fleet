@@ -179,6 +179,17 @@ describe("Button component", () => {
     expect(container.firstChild).toHaveClass("button--icon-only");
     expect(container.firstChild).not.toHaveClass("button--with-icon");
   });
+  it("renders aria-controls when ariaControls is provided", () => {
+    render(<Button ariaControls="menu-1">Open menu</Button>);
+    expect(screen.getByRole("button")).toHaveAttribute(
+      "aria-controls",
+      "menu-1"
+    );
+  });
+  it("omits aria-controls when ariaControls is undefined", () => {
+    render(<Button>Plain</Button>);
+    expect(screen.getByRole("button")).not.toHaveAttribute("aria-controls");
+  });
   it("warns in dev when an icon-only button has neither ariaLabel nor title", () => {
     const warn = jest
       .spyOn(console, "warn")

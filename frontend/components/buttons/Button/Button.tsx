@@ -65,6 +65,7 @@ export interface IButtonProps {
     | "grid"
     | "dialog";
   ariaExpanded?: boolean;
+  ariaControls?: string;
   ariaLabel?: string;
   ariaPressed?: boolean;
   /** Small: 1/2 the padding, Wide: 200px */
@@ -150,6 +151,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       customOnKeyDown,
       ariaHasPopup,
       ariaExpanded,
+      ariaControls,
       ariaLabel,
       ariaPressed,
       size,
@@ -235,6 +237,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         ref={setRef}
         aria-haspopup={ariaHasPopup}
         aria-expanded={ariaExpanded}
+        aria-controls={ariaControls}
         aria-label={ariaLabel}
         aria-pressed={ariaPressed}
       >
