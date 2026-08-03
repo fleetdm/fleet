@@ -1022,9 +1022,9 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 
 	// Not retried in place: retrying while the DB is contended (e.g. the
 	// post-outage thundering herd) holds locks longer and amplifies writer
-	// load. On a retryable error the cycle is shed without bumping
-	// label_updated_at, so the host is sent the label queries again on its
-	// next check-in.
+	// load. On failure the error propagates (the caller logs it and
+	// continues) and label_updated_at is not bumped, so the host is sent the
+	// label queries again on its next check-in.
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		// Complete inserts if necessary
 		if len(vals) > 0 {
@@ -1064,10 +1064,6 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 		return nil
 	})
 	if err != nil {
-		if common_mysql.RetryableError(err) {
-			ds.logger.InfoContext(ctx, "retryable error recording label query executions, will retry on next host check-in", "err", err, "host_id", host.ID)
-			return nil
-		}
 		return err
 	}
 

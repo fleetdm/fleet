@@ -228,10 +228,10 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	}
 
 	// Not retried in place: retrying while the DB is contended (e.g. the
-	// post-outage thundering herd) amplifies writer load. On a retryable error
-	// the cycle is shed; the delta is recomputed from the DB on the host's
-	// next refresh.
-	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	// post-outage thundering herd) amplifies writer load. On failure the
+	// error propagates (the caller logs it as an ingestion error) and the
+	// delta is recomputed from the DB on the host's next refresh.
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteHostSoftwareInstalledPaths(ctx, tx, toD); err != nil {
 			return err
 		}
@@ -242,11 +242,6 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 
 		return nil
 	})
-	if err != nil && common_mysql.RetryableError(err) {
-		ds.logger.InfoContext(ctx, "retryable error during software installed paths update, will retry on next agent refresh", "err", err, "host_id", hostID)
-		return nil
-	}
-	return err
 }
 
 // getHostSoftwareInstalledPaths returns all HostSoftwareInstalledPath for the given hostID.
