@@ -907,6 +907,8 @@ type MDMWindowsHostConfigState struct {
 	// the orbit-config endpoint. GetOrbitConfig reads it to write-on-change; the OMA-DM management session (which has no capability header)
 	// reads it to gate poll relaxation.
 	FleetdSyncCapable bool
+	// ManagedLocalAccountEscrowed is true once the device has escrowed a managed local account password for this enrollment.
+	ManagedLocalAccountEscrowed bool
 }
 
 type MDMWindowsEnrolledDevice struct {

@@ -1906,6 +1906,13 @@ type Datastore interface {
 	// if any since this is called on reenrollments
 	SaveHostManagedLocalAccount(ctx context.Context, hostUUID, plaintextPassword, commandUUID string) error
 
+	// SaveHostManagedLocalAccountFromEscrow encrypts and stores a device-generated managed local account password (Windows).
+	SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword string) error
+
+	// ReportManagedLocalAccountEscrowError records a device-reported failure to create the managed local account
+	// (Windows), marking the row failed and storing the error. Any previously stored password is preserved.
+	ReportManagedLocalAccountEscrowError(ctx context.Context, hostUUID, clientError string) error
+
 	// GetHostManagedLocalAccountPassword retrieves and decrypts the managed local account
 	// password for the given host UUID. Returns notFoundError if no record exists.
 	GetHostManagedLocalAccountPassword(ctx context.Context, hostUUID string) (*HostManagedLocalAccountPassword, error)
@@ -2316,6 +2323,11 @@ type Datastore interface {
 	// SetMDMWindowsEnrollmentFleetdSyncCapable persists the last-observed CapabilityWindowsMDMSync value for the host's most recent Windows MDM
 	// enrollment. Written on-change by the orbit-config endpoint so the OMA-DM management session (no capability header) can gate poll relaxation.
 	SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error
+
+	// SetMDMWindowsManagedLocalAccountEscrowed records whether the host has escrowed a managed local account password for its current Windows
+	// MDM enrollment, which is what stops the server asking it to create the account. Reports whether the value changed, so the caller logs the
+	// created activity only when an account was really created. The flag is per-enrollment: re-enrolling deletes the row and so resets it.
+	SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
 
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)

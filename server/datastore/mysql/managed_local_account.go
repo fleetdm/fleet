@@ -34,6 +34,50 @@ func (ds *Datastore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID, 
 	return nil
 }
 
+// SaveHostManagedLocalAccountFromEscrow stores a device-generated password for hosts where fleetd creates the account (Windows).
+func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword string) error {
+	encrypted, err := encrypt([]byte(plaintextPassword), ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypting managed local account password")
+	}
+
+	const stmt = `
+		INSERT INTO host_managed_local_account_passwords
+			(host_uuid, encrypted_password, command_uuid, status)
+		VALUES (?, ?, NULL, ?)
+		ON DUPLICATE KEY UPDATE
+			encrypted_password = VALUES(encrypted_password),
+			command_uuid = NULL,
+			status = VALUES(status),
+			account_uuid = NULL,
+			pending_encrypted_password = NULL,
+			pending_command_uuid = NULL,
+			auto_rotate_at = NULL,
+			client_error = ''
+	`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, encrypted, fleet.MDMDeliveryVerified); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host managed local account from escrow")
+	}
+	return nil
+}
+
+// ReportManagedLocalAccountEscrowError records a device-reported failure to create the managed local account, mirroring
+// ReportEscrowError for disk encryption keys.
+func (ds *Datastore) ReportManagedLocalAccountEscrowError(ctx context.Context, hostUUID, clientError string) error {
+	const stmt = `
+		INSERT INTO host_managed_local_account_passwords
+			(host_uuid, encrypted_password, command_uuid, status, client_error)
+		VALUES (?, NULL, NULL, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			status = VALUES(status),
+			client_error = VALUES(client_error)
+	`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, fleet.MDMDeliveryFailed, clientError); err != nil {
+		return ctxerr.Wrap(ctx, err, "report managed local account escrow error")
+	}
+	return nil
+}
+
 func (ds *Datastore) GetHostManagedLocalAccountPassword(ctx context.Context, hostUUID string) (*fleet.HostManagedLocalAccountPassword, error) {
 	const stmt = `SELECT encrypted_password, updated_at FROM host_managed_local_account_passwords WHERE host_uuid = ?`
 
@@ -47,6 +91,12 @@ func (ds *Datastore) GetHostManagedLocalAccountPassword(ctx context.Context, hos
 				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting managed local account password")
+	}
+
+	// Treat a missing password as no record at all.
+	if len(row.EncryptedPassword) == 0 {
+		return nil, ctxerr.Wrap(ctx, notFound("HostManagedLocalAccountPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
 	}
 
 	decrypted, err := decrypt(row.EncryptedPassword, ds.serverPrivateKey)
@@ -65,6 +115,7 @@ func (ds *Datastore) GetHostManagedLocalAccountStatus(ctx context.Context, hostU
 	const stmt = `
 		SELECT
 			status,
+			client_error,
 			encrypted_password IS NOT NULL AS has_password,
 			pending_encrypted_password IS NOT NULL AS pending_rotation,
 			auto_rotate_at
@@ -74,6 +125,7 @@ func (ds *Datastore) GetHostManagedLocalAccountStatus(ctx context.Context, hostU
 
 	var row struct {
 		Status          *string    `db:"status"`
+		ClientError     string     `db:"client_error"`
 		HasPassword     bool       `db:"has_password"`
 		PendingRotation bool       `db:"pending_rotation"`
 		AutoRotateAt    *time.Time `db:"auto_rotate_at"`
@@ -98,6 +150,7 @@ func (ds *Datastore) GetHostManagedLocalAccountStatus(ctx context.Context, hostU
 	passwordAvailable := row.HasPassword && status != string(fleet.MDMDeliveryFailed)
 	return &fleet.HostMDMManagedLocalAccount{
 		Status:            &status,
+		Detail:            row.ClientError,
 		PasswordAvailable: passwordAvailable,
 		AutoRotateAt:      row.AutoRotateAt,
 		PendingRotation:   row.PendingRotation,
