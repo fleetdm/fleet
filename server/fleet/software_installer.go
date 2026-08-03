@@ -889,9 +889,10 @@ type AutomaticInstallPolicy struct {
 }
 
 type PatchPolicyData struct {
-	ID              uint   `json:"id" db:"id"`
-	Name            string `json:"name" db:"name"`
-	PatchWhenClosed bool   `json:"patch_when_closed" db:"patch_when_closed"`
+	ID                           uint   `json:"id" db:"id"`
+	Name                         string `json:"name" db:"name"`
+	PatchWhenClosed              bool   `json:"patch_when_closed" db:"patch_when_closed"`
+	ContinuousAutomationsEnabled bool   `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
 }
 
 // SoftwarePackageOrApp provides information about a software installer

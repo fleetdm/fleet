@@ -10,7 +10,11 @@ import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import SoftwareDeploySlider from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
+import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import {
+  PatchOption,
+  SoftwareDeploySelector,
+} from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 
 const baseClass = "fleet-app-details-form";
 
@@ -40,7 +44,9 @@ export const softwareAlreadyAddedTipContent = (
 };
 export interface IFleetMaintainedAppFormData {
   selfService: boolean;
-  automaticInstall: boolean;
+  forceInstall: boolean;
+  patch: boolean;
+  patchOption: PatchOption;
   installScript: string;
   preInstallQuery?: string;
   postInstallScript?: string;
@@ -80,7 +86,9 @@ const FleetAppDetailsForm = ({
 }: IFleetAppDetailsFormProps) => {
   const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
     selfService: false,
-    automaticInstall: false,
+    forceInstall: false,
+    patch: false,
+    patchOption: "closed",
     preInstallQuery: "",
     installScript: defaultInstallScript,
     postInstallScript: defaultPostInstallScript,
@@ -91,10 +99,10 @@ const FleetAppDetailsForm = ({
     categories: categories || [],
   });
 
-  const onToggleDeploySoftware = () => {
+  const onToggleSelfService = () => {
     setFormData((prevData: IFleetMaintainedAppFormData) => ({
       ...prevData,
-      automaticInstall: !prevData.automaticInstall,
+      selfService: !prevData.selfService,
     }));
   };
 
@@ -108,9 +116,31 @@ const FleetAppDetailsForm = ({
 
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
-      <SoftwareDeploySlider
-        deploySoftware={formData.automaticInstall}
-        onToggleDeploySoftware={onToggleDeploySoftware}
+      <SoftwareOptionsSelector
+        formData={formData}
+        onToggleSelfService={onToggleSelfService}
+        onClickPreviewEndUserExperience={() => undefined}
+        onSelectCategory={() => undefined}
+      />
+      <GitOpsModeTooltipWrapper
+        entityType="software"
+        renderChildren={(disableChildren) => (
+          <SoftwareDeploySelector
+            forceInstall={formData.forceInstall}
+            patch={formData.patch}
+            patchOption={formData.patchOption}
+            onToggleForceInstall={(forceInstall) =>
+              setFormData((prevData) => ({ ...prevData, forceInstall }))
+            }
+            onTogglePatch={(patch) =>
+              setFormData((prevData) => ({ ...prevData, patch }))
+            }
+            onSelectPatchOption={(patchOption) =>
+              setFormData((prevData) => ({ ...prevData, patchOption }))
+            }
+            disabled={disableChildren}
+          />
+        )}
       />
       <div className={`${baseClass}__action-buttons`}>
         <GitOpsModeTooltipWrapper

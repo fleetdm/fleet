@@ -1917,6 +1917,47 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Script-only Software")).toBeInTheDocument();
   });
 
+  it("renders skipped copy when the app was open", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Fleet",
+      fleet_initiated: true,
+      details: {
+        software_title: "Firefox",
+        software_package: "Firefox.pkg",
+        host_display_name: "Work Mac",
+        source: "apps",
+        status: "failed_install",
+        install_skipped_when_app_open: true,
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/skipped install of/)).toBeInTheDocument();
+    expect(screen.getByText("Firefox")).toBeInTheDocument();
+    expect(screen.getByText("Work Mac")).toBeInTheDocument();
+    expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
+  });
+
+  it("keeps generic failed-install copy when the app-open flag is absent", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Fleet",
+      fleet_initiated: true,
+      details: {
+        software_title: "Firefox",
+        software_package: "Firefox.pkg",
+        host_display_name: "Work Mac",
+        source: "apps",
+        status: "failed_install",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/failed to install/)).toBeInTheDocument();
+    expect(screen.queryByText(/skipped install/)).not.toBeInTheDocument();
+  });
+
   it("renders py script package ran status in InstalledSoftware activity", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,

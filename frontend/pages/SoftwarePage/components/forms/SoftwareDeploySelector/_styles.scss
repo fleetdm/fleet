@@ -1,2 +1,26 @@
 .software-deploy-slider {
 }
+
+.software-deploy-selector {
+  &__checkboxes {
+    display: flex;
+    gap: $pad-xlarge;
+
+    .form-field--checkbox {
+      margin-bottom: 0;
+      width: auto;
+    }
+  }
+
+  &__patch-options {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+    margin-top: $pad-medium;
+    margin-left: $pad-xlarge;
+  }
+
+  &__patch-when-closed-notice {
+    margin: 0;
+  }
+}

@@ -72,6 +72,7 @@ export interface IPolicy {
   run_script?: Pick<IScript, "id" | "name">;
   patch_software?: IPolicySoftwareToInstall;
   continuous_automations_enabled?: boolean;
+  patch_when_closed?: boolean;
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
@@ -146,6 +147,7 @@ export interface IPolicyFormData {
   calendar_events_enabled?: boolean;
   conditional_access_enabled?: boolean;
   continuous_automations_enabled?: boolean;
+  patch_when_closed?: boolean;
   software_title_id?: number | null;
   /** Pins the policy to a specific package on a multi-package title. `null`
    * on PATCH lets the backend fall back to the title's first-added package

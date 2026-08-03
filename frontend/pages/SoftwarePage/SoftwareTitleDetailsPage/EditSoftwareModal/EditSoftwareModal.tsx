@@ -62,6 +62,7 @@ interface IEditSoftwareModalProps {
    * software" — we're editing one specific installer on a title that has
    * several, not the title's only package. */
   canActivateMultiplePackages?: boolean;
+  patchWhenClosed?: boolean;
 }
 
 const EditSoftwareModal = ({
@@ -79,6 +80,7 @@ const EditSoftwareModal = ({
   source,
   iconUrl = undefined,
   canActivateMultiplePackages = false,
+  patchWhenClosed = false,
 }: IEditSoftwareModalProps) => {
   const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
@@ -219,6 +221,7 @@ const EditSoftwareModal = ({
           // progress bar at 97% until the server response is received
           setUploadProgress(Math.max(progress - 0.03, 0.01));
         },
+        omitPreInstallQuery: patchWhenClosed,
       });
 
       notify.success(
@@ -367,6 +370,7 @@ const EditSoftwareModal = ({
           defaultCategories={softwarePackage.categories}
           gitopsCompatible={isGitOpsCompatible}
           teamId={teamId}
+          patchWhenClosed={patchWhenClosed}
         />
       );
     }

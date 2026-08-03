@@ -305,6 +305,7 @@ export interface IActivityDetails {
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;
+  install_skipped_when_app_open?: boolean;
   installed_from_dep?: boolean;
   labels_exclude_any?: ILabelSoftwareTitle[];
   labels_include_any?: ILabelSoftwareTitle[];
