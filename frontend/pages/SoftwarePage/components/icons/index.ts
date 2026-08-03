@@ -418,8 +418,6 @@ import Freefilesync from "./Freefilesync";
 import Front from "./Front";
 import Fsmonitor from "./Fsmonitor";
 import Funter from "./Funter";
-import GadwinPrintscreen from "./GadwinPrintscreen";
-import GadwinPrintscreenPro from "./GadwinPrintscreenPro";
 import GalaxyModeler from "./GalaxyModeler";
 import GarminBasecamp from "./GarminBasecamp";
 import GarminExpress from "./GarminExpress";
@@ -1574,8 +1572,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   front: Front,
   fsmonitor: Fsmonitor,
   funter: Funter,
-  "gadwin printscreen": GadwinPrintscreen,
-  "gadwin printscreen pro": GadwinPrintscreenPro,
   "galaxy modeler": GalaxyModeler,
   "garmin basecamp": GarminBasecamp,
   "garmin express": GarminExpress,

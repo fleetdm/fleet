@@ -3537,27 +3537,6 @@
       "description": "Funter is a shows hidden files and folders and switches their visibility in Finder."
     },
     {
-      "name": "Gadwin PrintScreen Pro",
-      "slug": "gadwin-printscreen-pro/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin PrintScreenPro (64-Bit)",
-      "description": "Gadwin PrintScreen Pro is a screen capture tool for saving, printing, and sharing screenshots."
-    },
-    {
-      "name": "Gadwin PrintScreen",
-      "slug": "gadwin-printscreen/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin PrintScreen (64-Bit)",
-      "description": "Gadwin PrintScreen is a screen capture tool that saves screenshots in multiple graphics formats."
-    },
-    {
-      "name": "Gadwin ScreenRecorder",
-      "slug": "gadwin-screenrecorder/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin ScreenRecorder (64-Bit)",
-      "description": "Gadwin ScreenRecorder is a screen recording tool for creating videos of on-screen activity."
-    },
-    {
       "name": "Galaxy Modeler",
       "slug": "galaxy-modeler/windows",
       "platform": "windows",
