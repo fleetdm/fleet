@@ -122,18 +122,22 @@ sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
 hdiutil detach "$MOUNT_POINT"
 MOUNT_POINT=""
 # copy to the applications folder
+# Quitting Docker Desktop with a staged self-update triggers its install-on-quit
+# updater, which renames Docker.app to Docker.app.back and races this script.
+# Remove the staging dir (staged bundle + updater state) first so it can't fire.
+sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install
 quit_and_track_application 'com.electron.dockerdesktop'
+# Wait out any updater already in flight before touching /Applications/Docker.app.
+SECONDS=0
+while pgrep -f 'com\.docker\.install' >/dev/null 2>&1 && (( SECONDS < 30 )); do
+  sleep 1
+done
 if [ -d "$APPDIR/Docker.app" ]; then
 	sudo mv "$APPDIR/Docker.app" "$TMPDIR/Docker.app.bkp"
 fi
-# Docker Desktop's own in-app updater leaves stale copies of the old app behind:
-# a Docker.app.back bundle alongside Docker.app, and a staged copy at
-# ~/Library/Application Support/com.docker.install/in_progress/Docker.app.
-# osquery's apps table still picks these up by bundle_identifier, which causes
-# Fleet patch policies to report Docker as out of date even after a successful
-# upgrade.
+# Remove stale self-updater leftovers; osquery's apps table picks them up by
+# bundle_identifier and patch policies report Docker as out of date.
 sudo rm -rf "$APPDIR/Docker.app.back"
-sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install/in_progress/Docker.app
 sudo cp -R "$TMPDIR/Docker.app" "$APPDIR"
 relaunch_application 'com.electron.dockerdesktop'
 mkdir -p /usr/local/cli-plugins
@@ -145,8 +149,6 @@ mkdir -p /usr/local/bin
 /bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-desktop" "/usr/local/bin/docker-credential-desktop"
 /bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-ecr-login" "/usr/local/bin/docker-credential-ecr-login"
 /bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-osxkeychain" "/usr/local/bin/docker-credential-osxkeychain"
-# A staged self-update can fire during the quit/relaunch window above and
-# recreate the stale copies after the earlier removal, so delete them again
-# now that the new bundle is in place.
+# Remove stale copies recreated during the quit/relaunch window, if any.
 sudo rm -rf "$APPDIR/Docker.app.back"
 sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install/in_progress/Docker.app
