@@ -428,6 +428,12 @@ check_abs_threshold() {
   fi
 }
 
+# below_min_grade <prev> <last> <floor> — true when |last − prev| is under the
+# metric's materiality floor, i.e. the change is too small to grade.
+below_min_grade() {
+  awk -v a="$1" -v b="$2" -v m="$3" 'BEGIN { d = b - a; if (d < 0) d = -d; exit !(d < m) }'
+}
+
 # ---------------------------------------------------------------------------
 # Compare metrics across all files
 # ---------------------------------------------------------------------------
@@ -544,10 +550,11 @@ compare_metric_set() {
 
     # Status (relative change). Skip grading when the absolute change is below
     # the metric's materiality floor — percentage deltas on near-zero values
-    # are noise, not regressions. Zero-alert metrics never carry a floor.
+    # are noise, not regressions. Zero-alert metrics are exempt from the floor
+    # so a 0 → non-zero regression can never be suppressed by one.
     local icon
-    if [[ -n "$min_grade" && "$prev_val" != "null" && "$last_val" != "null" && "$direction" != "info" ]] && \
-       awk -v a="$prev_val" -v b="$last_val" -v m="$min_grade" 'BEGIN { d = b - a; if (d < 0) d = -d; exit !(d < m) }'; then
+    if [[ -n "$min_grade" && "$zero_alert" != "true" && "$prev_val" != "null" && "$last_val" != "null" && "$direction" != "info" ]] && \
+       below_min_grade "$prev_val" "$last_val" "$min_grade"; then
       icon="  ok"
     else
       icon=$(status_icon "$change" "$warn" "$alert" "$zero_alert" "$prev_val" "$last_val" "$direction")
@@ -648,7 +655,7 @@ if [[ "$has_readers" == true ]]; then
       fi
 
       if [[ -n "$mmin_grade" && "$prev_val" != "null" && "$last_val" != "null" ]] && \
-         awk -v a="$prev_val" -v b="$last_val" -v m="$mmin_grade" 'BEGIN { d = b - a; if (d < 0) d = -d; exit !(d < m) }'; then
+         below_min_grade "$prev_val" "$last_val" "$mmin_grade"; then
         icon="  ok"
       else
         icon=$(status_icon "$change" "$mwarn" "$malert" "false" "$prev_val" "$last_val")
