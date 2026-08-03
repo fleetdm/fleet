@@ -5519,14 +5519,10 @@ func filterOutOfScopeFailedHostSoftwareInstalls(
 	}
 }
 
-// filterSelfServiceOutOfScopeHostSoftware drops self-service titles that a scope filter excluded from
-// the inventory maps. Self service impacts inventory: when a software title is excluded because of a
-// filter, it should be excluded from the inventory as well, because we cannot "reinstall" it on the
-// self service page. Only titles flagged self-service are considered; the rest are left alone.
-// Callers apply this only when opts.SelfServiceOnly is set. Maps are mutated in place.
-//
-// Split out of ListHostSoftware to keep that function under nilaway's 500 CFG-block analysis limit.
-// See https://github.com/fleetdm/fleet/issues/50404.
+// filterSelfServiceOutOfScopeHostSoftware drops self-service titles that a scope filter excluded from the inventory maps. Self
+// service impacts inventory: when a software title is excluded because of a filter, it should be excluded from the inventory as
+// well, because we cannot "reinstall" it on the self service page. Only titles flagged self-service are considered; the rest are
+// left alone. Callers apply this only when opts.SelfServiceOnly is set. Maps are mutated in place.
 func filterSelfServiceOutOfScopeHostSoftware(
 	bySoftwareTitleID map[uint]*hostSoftware,
 	byVPPAdamID map[string]*hostSoftware,
@@ -5561,14 +5557,10 @@ func filterSelfServiceOutOfScopeHostSoftware(
 	}
 }
 
-// filterHostSoftwareToMacOSApplications drops every title the host isn't reporting at the top level
-// of the macOS /Applications folder. Callers apply this only for macOS hosts with
-// opts.MacOSApplicationsOnly set. Pruning the in-memory maps (rather than the SQL) keeps the count
-// and main queries consistent and applies uniformly across software, VPP, and in-house apps.
-// Maps are mutated in place.
-//
-// Split out of ListHostSoftware to keep that function under nilaway's 500 CFG-block analysis limit.
-// See https://github.com/fleetdm/fleet/issues/50404.
+// filterHostSoftwareToMacOSApplications drops every title the host isn't reporting at the top level of the macOS /Applications
+// folder. Callers apply this only for macOS hosts with opts.MacOSApplicationsOnly set. Pruning the in-memory maps (rather than
+// the SQL) keeps the count and main queries consistent and applies uniformly across software, VPP, and in-house apps. Maps are
+// mutated in place.
 func (ds *Datastore) filterHostSoftwareToMacOSApplications(
 	ctx context.Context,
 	hostID uint,

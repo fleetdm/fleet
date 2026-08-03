@@ -7,8 +7,8 @@ import (
 	"golang.org/x/tools/go/analysis/analysistest"
 )
 
-// TestAnalyzer runs the analyzer against testdata with a deliberately tiny limit, so the fixture
-// does not need a genuinely 500-block function to exercise the reporting path.
+// TestAnalyzer runs the analyzer against testdata with a deliberately tiny limit, so the fixture does not need a genuinely
+// 500-block function to exercise the reporting path.
 func TestAnalyzer(t *testing.T) {
 	const testMax = 5
 
@@ -24,8 +24,8 @@ func TestAnalyzer(t *testing.T) {
 	analysistest.Run(t, analysistest.TestData(), analyzer, "oversized")
 }
 
-// TestDefaultMatchesNilaway guards the constant against drifting above nilaway's own limit, where the
-// gate would stop meaning anything.
+// TestDefaultMatchesNilaway guards the constant against drifting above nilaway's own limit, where the gate would stop meaning
+// anything.
 func TestDefaultMatchesNilaway(t *testing.T) {
 	const nilawayMaxFuncSizeInCFGBlocks = 500
 
@@ -35,9 +35,8 @@ func TestDefaultMatchesNilaway(t *testing.T) {
 	}
 }
 
-// TestMaxFlag checks that -max rejects values nilaway would ignore. A -max above nilaway's own limit
-// would let this gate pass a function that nilaway still refuses to analyze, which defeats the point
-// of the check.
+// TestMaxFlag checks that -max rejects values nilaway would ignore. A -max above nilaway's own limit would let this gate pass a
+// function that nilaway still refuses to analyze, which defeats the point of the check.
 func TestMaxFlag(t *testing.T) {
 	t.Cleanup(func() {
 		if err := analyzer.Flags.Set("max", strconv.Itoa(defaultMaxCFGBlocks)); err != nil {

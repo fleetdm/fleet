@@ -1425,13 +1425,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	return obfuscatedAppConfig, nil
 }
 
-// processSavedAppConfigChanges runs the side effects of a completed app config change: it creates the activities for the
-// settings that were modified and reconciles the downstream state that depends on them (OS updates, disk encryption, DEP
-// profiles, host name templates, Windows MDM profile cleanup). It runs after SaveAppConfig has committed, so returning an
-// error here leaves the new configuration persisted.
-//
-// Split out of ModifyAppConfig to keep that function under nilaway's 500 CFG-block analysis limit. See
-// https://github.com/fleetdm/fleet/issues/50404.
+// processSavedAppConfigChanges runs the side effects of a completed app config change: it creates the activities for the settings
+// that were modified and reconciles the downstream state that depends on them (OS updates, disk encryption, DEP profiles, host
+// name templates, Windows MDM profile cleanup). It runs after SaveAppConfig has committed, so returning an error here leaves the
+// new configuration persisted.
 func (svc *Service) processSavedAppConfigChanges(
 	ctx context.Context,
 	oldAppConfig, appConfig *fleet.AppConfig,
