@@ -7,7 +7,7 @@ $successCodes = @(0, 3010, 1641)
 try {
 
 $installProcess = Start-Process msiexec.exe `
-  -ArgumentList "/quiet /norestart /lv ${logFile} /i `"${env:INSTALLER_PATH}`"" `
+  -ArgumentList "/quiet /norestart /lv `"${logFile}`" /i `"${env:INSTALLER_PATH}`"" `
   -PassThru -Verb RunAs -Wait
 
 Get-Content $logFile -Tail 500
