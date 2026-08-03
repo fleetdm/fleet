@@ -4,22 +4,15 @@ import Foundation
 import WebKit
 import os
 
-/// The `notify` subcommand: show a patch notification toast and report whether it
-/// reached the screen.
+/// The `notify` subcommand. Returns as soon as the toast is on screen, but a window
+/// dies with its process — so a second process owns it:
 ///
-/// The command returns as soon as the toast is on screen, but the toast has to
-/// outlive it — a window dies with its process. So there are two processes:
+///     FleetDesktop notify          parent; its exit code is what the caller records
+///       │  ...handshake pipe...
+///       └─ FleetDesktop --detached-child     owns the window
 ///
-///     FleetDesktop notify          parent, short-lived; its exit code is what the
-///       │  ...handshake pipe...    caller records
-///       └─ FleetDesktop --detached-child
-///                                 owns the window, lives until dismissed or the
-///                                 display timeout expires
-///
-/// The child does all the real work and reports its outcome over the pipe; the parent
-/// exists only to relay that as an exit code. Re-exec rather than `fork()`: forking a
-/// process with the Swift and ObjC runtimes loaded is a known hazard, since only the
-/// calling thread survives and any lock another thread held stays locked.
+/// Re-exec rather than fork(): forking with the Swift and ObjC runtimes loaded can
+/// deadlock, since only the calling thread survives and other threads' locks stay held.
 enum NotifyCommand {
     private static let logger = Logger(subsystem: "com.fleetdm.fleet-desktop", category: "notify")
 
@@ -33,7 +26,6 @@ enum NotifyCommand {
 
     // MARK: - Parent
 
-    /// Spawns the child, waits for its one-line report, relays it and exits.
     private static func runParent(_ options: NotifyOptions) -> Never {
         var fds: [Int32] = [-1, -1]
         guard pipe(&fds) == 0 else {
@@ -58,14 +50,12 @@ enum NotifyCommand {
         posix_spawn_file_actions_init(&fileActions)
         defer { posix_spawn_file_actions_destroy(&fileActions) }
 
-        // The child must not inherit our stdout or stderr. Callers capture script
-        // output by reading until EOF, and a detached child holding the write end of
-        // that pipe open would make the script look like it hung for the whole display
-        // timeout even though it returned immediately.
+        // The child must not inherit our stdout or stderr. Callers read script output
+        // until EOF, so a detached child holding that pipe open would make the script
+        // look hung for the whole display timeout.
         posix_spawn_file_actions_addopen(&fileActions, 0, "/dev/null", O_RDONLY, 0)
         posix_spawn_file_actions_addopen(&fileActions, 1, "/dev/null", O_WRONLY, 0)
         posix_spawn_file_actions_addopen(&fileActions, 2, "/dev/null", O_WRONLY, 0)
-        // Keep the pipe's write end open across the exec; everything else closes.
         posix_spawn_file_actions_addinherit_np(&fileActions, writeFD)
 
         var pid: pid_t = 0
@@ -97,13 +87,12 @@ enum NotifyCommand {
             if count <= 0 { break }
             if byte == UInt8(ascii: "\n") { break }
             data.append(byte)
-            // A well-behaved child sends a short line; this only bounds a runaway.
-            if data.count > 4096 { break }
+            if data.count > 4096 { break } // bounds a runaway child
         }
         return data.isEmpty ? nil : String(data: data, encoding: .utf8)
     }
 
-    /// Writes the outcome for the caller and exits. The only exit path in the parent.
+    /// The only exit path in the parent.
     private static func report(_ code: ExitCode, _ message: String) -> Never {
         CLI.emit(message, toStderr: code != .displayed)
         exit(code.rawValue)
@@ -112,55 +101,39 @@ enum NotifyCommand {
     // MARK: - Child
 
     private static func runChild(_ options: NotifyOptions) -> Never {
-        // Detach from the caller's process group first, so tearing down the script
-        // that started us doesn't take the toast with it.
+        // Detach, so tearing down the calling script doesn't take the toast with it.
         setsid()
-        // The parent closes the pipe once it has our line; writing after that would
-        // otherwise kill us.
+        // The parent closes the pipe once it has our line.
         signal(SIGPIPE, SIG_IGN)
 
         guard let handshakeFD = options.handshakeFD else {
-            // cli.swift rejects this combination, so reaching here is a bug.
-            exit(ExitCode.internalError.rawValue)
+            exit(ExitCode.internalError.rawValue) // cli.swift rejects this; a bug if hit
         }
         let handshake = Handshake(fd: handshakeFD)
 
-        // Never log the URL itself: the server embeds the device token in its path,
-        // and that is a bearer credential which os_log persists to disk.
+        // Never log the URL: the server embeds the device token in its path.
         logger.log("target host \(options.url.host ?? "?", privacy: .public)")
 
-        // Someone is logged in — the caller established that — but behind a locked
-        // screen the toast would expire unseen while reporting success. Report instead
-        // and let the caller retry.
+        // Behind a locked screen the toast would expire unseen while reporting success.
         if isScreenLocked() {
             handshake.send(.screenLocked, "The screen is locked.")
             exit(ExitCode.screenLocked.rawValue)
         }
 
         let app = NSApplication.shared
-        // Before anything else: without this the process is .regular (there is no
-        // LSUIElement in Info.plist, and there cannot be — the GUI app needs its Dock
-        // tile), which would put a second Fleet Desktop icon in the Dock for as long
-        // as the toast is up. Setting it here also keeps the window during which the
-        // GUI app's single-instance guard could mistake us for the primary as short as
-        // possible.
+        // Without this the process is .regular and puts a second Fleet Desktop icon in
+        // the Dock. Set first, so the GUI's single-instance guard never sees us as one.
         app.setActivationPolicy(.accessory)
 
         let delegate = ChildDelegate(url: options.url, handshake: handshake, logger: logger)
         app.delegate = delegate
         app.run()
 
-        // NSApplication.run() doesn't return; every path leaves through the delegate.
-        exit(ExitCode.internalError.rawValue)
+        exit(ExitCode.internalError.rawValue) // run() doesn't return
     }
 
-
-    /// Whether the session's screen is locked.
-    ///
-    /// `CGSessionCopyCurrentDictionary` is public, but the lock key is not formally
-    /// documented — so treat an absent key as unlocked rather than failing closed. A
-    /// missing dictionary means we aren't in a GUI session at all, which the caller
-    /// should already have ruled out.
+    /// The lock key is undocumented, so an absent key means unlocked rather than a
+    /// failure.
     private static func isScreenLocked() -> Bool {
         guard let session = CGSessionCopyCurrentDictionary() as NSDictionary? else {
             return false
@@ -168,7 +141,6 @@ enum NotifyCommand {
         return session["CGSSessionScreenIsLocked"] as? Bool ?? false
     }
 
-    /// Runs `body` with a null-terminated argv built from `arguments`.
     private static func withCStrings<T>(
         _ arguments: [String],
         _ body: (UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> T
@@ -182,11 +154,8 @@ enum NotifyCommand {
 
 // MARK: - Handshake
 
-/// The parent/child channel: one line, one time.
-///
-/// Deliberately trivial to parse — the two ends are the same binary, so there's no
-/// version skew to accommodate, and keeping it dumb means a partially written line
-/// can't be misread as a different outcome.
+/// The parent/child channel: one line, once. Kept trivial to parse so a partial line
+/// cannot be misread as a different outcome.
 struct Handshake {
     let fd: Int32
 
@@ -226,7 +195,7 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
     private var toast: ToastWindow?
     private var watchdog: DispatchWorkItem?
 
-    /// True once the handshake line has been sent, so it is never sent twice.
+    /// Set once the handshake line has been sent, so it is never sent twice.
     private var didReport = false
 
     init(url: URL, handshake: Handshake, logger: Logger) {
@@ -254,9 +223,8 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
         toast.present()
     }
 
-    /// Last resort. The toast has no title bar, no close button beyond what the page
-    /// draws, and no Esc handling, so a wedged WebKit would leave an undismissable
-    /// window floating over everything. Bounded by both timeouts plus slack.
+    /// Last resort: the toast has no title bar, no close button and no Esc handling, so
+    /// a wedged WebKit would leave an undismissable window floating over everything.
     private func armWatchdog() {
         let limit = ToastWindow.watchdogLimit
         let item = DispatchWorkItem { [weak self] in
@@ -266,7 +234,7 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + limit, execute: item)
     }
 
-    /// The toast is up. Tell the parent so it can exit, but keep running.
+    /// The toast is up. Let the parent exit, but keep running.
     private func reportDisplayed() {
         guard !didReport else { return }
         didReport = true
@@ -293,7 +261,7 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Reports (if the parent is still waiting) and exits.
+    /// Reports, if the parent is still waiting, and exits.
     private func finish(_ code: ExitCode, _ message: String) -> Never {
         if !didReport {
             didReport = true
@@ -303,8 +271,8 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
         exit(code.rawValue)
     }
 
-    /// Exits after the toast has already been reported as displayed. The parent has
-    /// long since exited with 0, so this status is only visible in the logs.
+    /// Exits after the toast was already reported as displayed, so this status is only
+    /// visible in the logs.
     private func exitChild(_ code: ExitCode) -> Never {
         watchdog?.cancel()
         exit(code.rawValue)

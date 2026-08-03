@@ -23,17 +23,9 @@ enum ToastOutcome {
     case noDisplay
 }
 
-/// A borderless, floating toast anchored to the bottom-right of the active screen,
-/// hosting a `WKWebView` on a rounded card.
-///
-/// Ported from the standalone prototype at github.com/marko-lisica/fleet-desktop-toast-prototype,
-/// which is where the window-level, material and animation choices were worked out.
-/// The comments below preserve the reasoning for the non-obvious ones, because
-/// several look arbitrary until you try the alternative.
-///
-/// Reports through two callbacks, each firing at most once: `onDisplayed` when the
-/// toast is actually on screen, and `onFinish` when it is gone — or immediately, with
-/// a failure, if it never appeared.
+/// A borderless, floating toast anchored bottom-right, hosting a `WKWebView` on a
+/// rounded card. `onDisplayed` fires when it reaches the screen, `onFinish` when it is
+/// gone — or immediately, with a failure, if it never appeared. Each fires once.
 final class ToastWindow: NSObject {
     // MARK: - Layout
 
@@ -46,28 +38,23 @@ final class ToastWindow: NSObject {
     /// Matches the `--radius` the page's CSS draws its card with.
     private static let cornerRadius: CGFloat = 20
 
-    /// Transparent padding around the card so the soft drop shadow has room to
-    /// render without clipping at the window edge (the window itself is invisible;
-    /// only the card and its shadow show). Must exceed the shadow's blur + offset.
+    /// Transparent padding so the drop shadow isn't clipped at the window edge. Must
+    /// exceed the shadow's blur + offset.
     private static let shadowPadding: CGFloat = 70
 
     private static let animationDuration: TimeInterval = 0.35
 
     // MARK: - Timeouts
 
-    /// How long to wait for the page to reach first paint. A real network failure is
-    /// reported through the navigation delegate long before this — it only covers a
-    /// page that connects and then never renders.
+    /// Only covers a page that connects then never renders; real network failures are
+    /// reported by the navigation delegate long before this.
     static let loadTimeout: TimeInterval = 30
 
-    /// How long the toast stays up untouched before fading out. A safety net, not the
-    /// expected way for it to close: the page's own dismiss action is. Without it a
-    /// page that never sends `dismiss` would leave a window the user cannot close,
-    /// since the toast has no title bar, no close button and no Esc handling.
+    /// Safety net, not the expected way to close: that's the page's dismiss action.
+    /// Without it a page that never sends `dismiss` leaves an undismissable window.
     static let displayTimeout: TimeInterval = 600
 
-    /// Hard upper bound on a toast's lifetime. The watchdog uses this as a last
-    /// resort, in case a wedged WebKit means neither timeout above ever fires.
+    /// Last resort, in case a wedged WebKit means neither timeout above fires.
     static let watchdogLimit: TimeInterval = loadTimeout + displayTimeout + 5
 
     /// Bounds for a page-requested resize, so a bad `height` can't produce a window
@@ -76,9 +63,7 @@ final class ToastWindow: NSObject {
 
     // MARK: - Bridge
 
-    /// Message handler name the page posts to. Deliberately not the prototype's
-    /// generic "toast": this will live on Fleet's My device page, where the same
-    /// channel will plausibly carry non-toast messages later.
+    /// Message handler name the page posts to.
     static let bridgeChannel = "fleetDesktop"
 
     // MARK: - State
@@ -91,8 +76,7 @@ final class ToastWindow: NSObject {
     private let url: URL
     private let logger: Logger
 
-    /// Host the page must post from, captured from the URL we load. Always https, so
-    /// the scheme is checked separately.
+    /// Host the page must post from, captured from the URL we load.
     private let expectedHost: String?
 
     private var cardSize: NSSize
@@ -128,9 +112,8 @@ final class ToastWindow: NSObject {
             height: Self.cardSize.height + 2 * pad
         )
 
-        // Borderless, floating, non-activating — shows without stealing focus, like a
-        // real notification. Joins all Spaces and survives deactivation so it follows
-        // the user rather than being stranded on one desktop.
+        // Non-activating so it doesn't steal focus. Joins all Spaces and survives
+        // deactivation, so it follows the user rather than sticking to one desktop.
         panel = KeyablePanel(
             contentRect: fullRect,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -141,8 +124,7 @@ final class ToastWindow: NSObject {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false // we draw a softer, alert-like shadow ourselves
-        // A system notification shouldn't be draggable by its body, and allowing it
-        // would let the user drag the window by its invisible halo.
+        // Would otherwise be draggable by the invisible halo.
         panel.isMovableByWindowBackground = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.hidesOnDeactivate = false
@@ -153,44 +135,33 @@ final class ToastWindow: NSObject {
         configuration.userContentController = contentController
 
         webView = WKWebView(frame: NSRect(origin: .zero, size: Self.cardSize), configuration: configuration)
-        // Let the card's own fill show through instead of the webview's default opaque
-        // backdrop, which would be the wrong colour in dark mode and would cover the
-        // card entirely. There is no public API for a transparent WKWebView, so this
-        // private key is the only option; if Apple ever removes it the resulting ObjC
-        // exception is uncatchable from Swift.
+        // Let the card's fill show through instead of the webview's opaque backdrop,
+        // which is the wrong colour in dark mode. No public API for this; if Apple
+        // removes the key the ObjC exception is uncatchable from Swift.
         webView.setValue(false, forKey: "drawsBackground")
         webView.wantsLayer = true
         webView.layer?.backgroundColor = NSColor.clear.cgColor
-        // No rounded mask on the webview: the card already clips to its corner radius,
-        // and masking here as well would shave the card's border at the corners.
+        // No mask here: the card already clips, and masking twice shaves its border.
         if #available(macOS 12.0, *) {
-            // Avoids an opaque (black in dark mode) flash before the first paint
-            // composites, e.g. when switching Spaces.
+            // Avoids a black flash before the first paint composites.
             webView.underPageBackgroundColor = .clear
         }
         webView.autoresizingMask = [.width, .height]
 
-        // Transparent root filling the window. Does NOT clip, so the card's soft
-        // shadow can render into the surrounding padding.
+        // Does NOT clip, so the shadow can render into the surrounding padding.
         root = HaloView(frame: fullRect)
         root.wantsLayer = true
         root.layer?.masksToBounds = false
         root.cardRect = cardRect
 
-        // Dedicated shadow view BEHIND the card to elevate the toast off the desktop.
-        // A separate view is needed because the card masks to its corner radius, and a
-        // layer that clips its bounds clips its own shadow too.
-        //
-        // It is filled with the card colour rather than black. The two rounded rects
-        // are coincident, so along the curve the card antialiases to partial coverage
-        // and whatever sits behind it shows through — an opaque black backing reads as
-        // a dark fringe hugging each corner.
+        // Separate view because a layer that clips its bounds clips its own shadow.
+        // Filled with the card colour: the two rounded rects are coincident, so along
+        // the curve the card is only partly opaque and any other colour shows through.
         shadowView = ShadowBackingView(frame: cardRect)
         shadowView.wantsLayer = true
         shadowView.layer?.cornerRadius = Self.cornerRadius
         shadowView.layer?.masksToBounds = false
-        // Use NSShadow, not layer.shadow* — AppKit layer-backed views don't render
-        // manual layer shadows reliably; NSView.shadow does.
+        // NSShadow, not layer.shadow* — layer shadows don't render reliably here.
         let dropShadow = NSShadow()
         dropShadow.shadowColor = NSColor.black.withAlphaComponent(0.45)
         dropShadow.shadowBlurRadius = 24
@@ -206,9 +177,8 @@ final class ToastWindow: NSObject {
 
         super.init()
 
-        // A weak proxy, because WKUserContentController retains its handlers strongly
-        // and this object owns the controller through the webview — registering self
-        // directly is an unbreakable cycle.
+        // Weak proxy: WKUserContentController retains handlers strongly, and we own it
+        // through the webview, so registering self directly is an unbreakable cycle.
         contentController.add(WeakScriptMessageProxy(self), name: Self.bridgeChannel)
         webView.navigationDelegate = self
         webView.uiDelegate = self
@@ -224,12 +194,8 @@ final class ToastWindow: NSObject {
 
     // MARK: - Presenting
 
-    /// Loads the page and shows the toast once it has painted.
-    ///
-    /// Nothing is ordered in before first paint: a remote page against a slow server
-    /// would otherwise flash an empty card. If the load deadline passes with no
-    /// paint, this reports `.loadFailed` and shows nothing at all — a toast the user
-    /// never saw must not be reported as displayed.
+    /// Loads the page and shows the toast once it has painted. Nothing is shown before
+    /// first paint, and a toast the user never saw is never reported as displayed.
     func present() {
         webView.load(URLRequest(url: url))
 
@@ -245,8 +211,7 @@ final class ToastWindow: NSObject {
     private func show() {
         guard !didDisplay, !didFinish else { return }
 
-        // Prefer the screen under the mouse cursor — with multiple displays that's
-        // where the user is actually looking.
+        // The screen under the cursor is where the user is actually looking.
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) })
             ?? NSScreen.main
@@ -263,12 +228,10 @@ final class ToastWindow: NSObject {
         panel.alphaValue = 0
         panel.orderFrontRegardless()
         panel.makeFirstResponder(webView)
-        // Deliberately no NSApp.activate here. The panel is non-activating precisely
-        // so the toast doesn't steal focus from whatever the user is doing.
+        // No NSApp.activate: the panel is non-activating so it doesn't steal focus.
 
-        // Fade rather than slide. A window-frame slide silently no-ops for borderless
-        // non-activating panels, and animating the layer looked janky next to the
-        // shadow, which has to be recomposited every frame.
+        // Fade, not slide: a frame slide silently no-ops for borderless non-activating
+        // panels, and animating the layer looks janky against the shadow.
         NSAnimationContext.runAnimationGroup { context in
             context.duration = Self.animationDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -281,12 +244,9 @@ final class ToastWindow: NSObject {
         armDisplayTimeout()
     }
 
-    /// Window frame for the current card size, anchored bottom-right.
-    ///
-    /// The window is larger than the card by `shadowPadding` on every side, so the
-    /// origin is offset to put the *visible card* at the anchor rather than the
-    /// transparent padding. `visibleFrame` already excludes the Dock and menu bar, so
-    /// the toast sits above the Dock rather than behind it.
+    /// Anchored bottom-right. The origin is offset by `shadowPadding` so the visible
+    /// card lands at the anchor, not the transparent padding. `visibleFrame` excludes
+    /// the Dock.
     private func frame(on screen: NSScreen) -> NSRect {
         let pad = Self.shadowPadding
         let visible = screen.visibleFrame
@@ -311,8 +271,7 @@ final class ToastWindow: NSObject {
 
     // MARK: - Finishing
 
-    /// Fades the toast out, then reports. Used for outcomes the user caused, so the
-    /// fade is actually visible before the process goes away.
+    /// For outcomes the user caused, so the fade is visible before the process exits.
     private func fadeOutAndFinish(_ outcome: ToastOutcome) {
         guard !didFinish else { return }
         guard didDisplay else {
@@ -331,8 +290,7 @@ final class ToastWindow: NSObject {
         })
     }
 
-    /// Single exit point. Guarded so a `dismiss` arriving mid-fade, or a navigation
-    /// failure after a successful action, can't report twice.
+    /// Single exit point, guarded so nothing reports twice.
     private func finish(_ outcome: ToastOutcome) {
         guard !didFinish else { return }
         didFinish = true
@@ -350,10 +308,7 @@ final class ToastWindow: NSObject {
         displayDeadline = nil
     }
 
-    /// Breaks the webview's references to this object. Barely matters for a
-    /// short-lived process, but this class is the reusable piece — the GUI app is
-    /// expected to host it for in-app notifications later, where a leaked toast would
-    /// keep a floating panel alive.
+    /// Breaks the webview's references to this object.
     private func teardown() {
         webView.stopLoading()
         webView.navigationDelegate = nil
@@ -387,11 +342,9 @@ final class ToastWindow: NSObject {
 // MARK: - JS bridge
 
 extension ToastWindow: WKScriptMessageHandler {
-    /// Receives `window.webkit.messageHandlers.fleetDesktop.postMessage({v, action, payload})`.
-    ///
-    /// The envelope is versioned because the page ships on a different cadence than
-    /// this app: unknown actions and a missing `payload` are tolerated, never fatal,
-    /// so a newer page keeps working against an older binary.
+    /// Receives `window.webkit.messageHandlers.fleetDesktop.postMessage(...)`.
+    /// Unknown actions and a missing `payload` are tolerated, so a newer page keeps
+    /// working against an older binary.
     func userContentController(
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
@@ -444,21 +397,16 @@ extension ToastWindow: WKScriptMessageHandler {
 // MARK: - Navigation
 
 extension ToastWindow: WKNavigationDelegate, WKUIDelegate {
-    /// First paint is done, but the real page is React and mounts after this fires —
-    /// which is why `ready` from the bridge is preferred. Give the page a short grace
-    /// period to send it, then show anyway: a page that loaded but doesn't speak our
-    /// protocol (any Fleet version predating the bridge, or an arbitrary URL) should
-    /// still be displayed.
+    /// A React page mounts after this fires, which is why `ready` is preferred. Wait a
+    /// grace period for it, then show anyway so a page that doesn't use the bridge
+    /// still appears.
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard !hasPainted else { return }
         logger.debug("navigation finished; checking the document has content")
 
-        // didFinish is not proof there is anything worth showing. WebKit completes
-        // some refusals — a blocked port, for instance — as a *successful* navigation
-        // to an empty document rather than as an error, and an empty 200 from the
-        // server looks the same. Either would otherwise put a blank card on screen and
-        // report it as displayed. Any real page has at least one element in its body
-        // by this point, including a React shell that hasn't mounted yet.
+        // didFinish is not proof there is content: WebKit reports some refusals as
+        // successful navigations to an empty document, and an empty 200 looks the same.
+        // Either would put a blank card on screen and report it as displayed.
         webView.evaluateJavaScript("document.body ? document.body.children.length : 0") { [weak self] result, _ in
             guard let self = self, !self.hasPainted, !self.didFinish else { return }
 
@@ -489,15 +437,11 @@ extension ToastWindow: WKNavigationDelegate, WKUIDelegate {
         handleNavigationFailure(error)
     }
 
-    /// Rejects HTTP error statuses so a missing notification or an auth failure is
-    /// reported rather than displayed as an error page.
+    /// Rejects HTTP errors rather than displaying an error page. The main-frame guard
+    /// matters: without it a 401 on any subresource would fail the whole toast.
     ///
-    /// Note the main-frame guard: without it a 401 on any subresource would fail the
-    /// whole toast.
-    ///
-    /// Known gap: Fleet serves HTTP 200 with error HTML when the device token has
-    /// expired, so a rotated token still reports success. Fixing that properly needs
-    /// the page to report it over the bridge.
+    /// Known gap: Fleet serves 200 with error HTML for an expired token, so a rotated
+    /// token still reports success.
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationResponse: WKNavigationResponse,
@@ -590,10 +534,9 @@ private final class KeyablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
-/// The window's root view. Larger than the visible card so the drop shadow has room,
-/// and transparent — but a layer-backed view still hit-tests its whole frame, so
-/// without the override below the toast would swallow clicks up to `shadowPadding`
-/// outside its visible edge.
+/// The window's root view, larger than the card so the shadow has room. A layer-backed
+/// view hit-tests its whole frame, so without the override it would swallow clicks well
+/// outside the visible edge.
 private final class HaloView: NSView {
     /// The visible card, in this view's coordinates.
     var cardRect: NSRect = .zero
@@ -606,11 +549,8 @@ private final class HaloView: NSView {
     }
 }
 
-/// The card's opaque fill for the current appearance.
-///
-/// Shared by the visible card and the shadow backing behind it, which have to match:
-/// the two rounded rects are coincident, so the card antialiases to partial coverage
-/// along the curve and any difference in colour shows up as a fringe at the corners.
+/// Shared by the card and the shadow backing behind it, which must match: the rects are
+/// coincident, so any colour difference shows as a fringe at the rounded corners.
 private func toastCardFill(for appearance: NSAppearance) -> NSColor {
     let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
     return isDark ? NSColor(white: 0.16, alpha: 1) : .white
@@ -620,12 +560,8 @@ private func toastCardFill(for appearance: NSAppearance) -> NSColor {
 /// mode, with a hairline rim. Repaints automatically when the system appearance
 /// changes.
 private final class SolidCardView: NSView {
-    /// Rim colours, matching the tokens the page used to draw before the native card
-    /// took this over.
-    ///
-    /// The dark value is deliberately stronger than the light one: against a dark
-    /// desktop the black drop shadow is effectively invisible, so this border is the
-    /// only thing separating a dark grey card from what's behind it.
+    /// The dark value is stronger on purpose: against a dark desktop the black shadow
+    /// is invisible, so the rim is the only thing separating the card.
     private static let lightBorder = NSColor(white: 0, alpha: 0.16)
     private static let darkBorder = NSColor(white: 1, alpha: 0.24)
 
@@ -641,9 +577,8 @@ private final class SolidCardView: NSView {
     }
 }
 
-/// Sits directly behind the card and does nothing but give the drop shadow an opaque,
-/// rounded shape to cast from. Filled to match the card so it never shows through the
-/// card's antialiased corners.
+/// Gives the drop shadow an opaque rounded shape to cast from, filled to match the card
+/// so it never shows through the card's antialiased corners.
 private final class ShadowBackingView: NSView {
     override var wantsUpdateLayer: Bool { true }
 

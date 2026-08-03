@@ -3,10 +3,8 @@ import AppKit
 @main
 struct FleetDesktopMain {
     static func main() {
-        // Subcommands are dispatched here, before AppDelegate is installed. That's
-        // what keeps them clear of the GUI's single-instance guard, the fleet://
-        // handler, the main menu and FleetService — none of which a short-lived
-        // command should touch.
+        // Dispatched before AppDelegate is installed, so a subcommand never touches the
+        // single-instance guard, the fleet:// handler, the main menu or FleetService.
         switch CLI.route(Array(CommandLine.arguments.dropFirst())) {
         case .runGUI:
             let app = NSApplication.shared
@@ -105,16 +103,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// already running. Comparing PIDs makes the choice deterministic if two
     /// instances ever launch simultaneously: the lowest PID stays, the rest exit.
     ///
-    /// Only `.regular` instances count. The `notify` subcommand runs from this same
-    /// bundle as an `.accessory` process for as long as its toast is up, and without
-    /// this filter it would look like the primary: launching the GUI would see a
-    /// lower PID, hand off to a process that observes none of our notifications, and
-    /// exit(0) — so clicking the Dock icon while a toast was showing would silently
-    /// do nothing.
-    ///
-    /// `setActivationPolicy` is not instantly visible to other processes, so there is
-    /// a brief window at notify startup where it can still read as `.regular`. Notify
-    /// sets its policy before anything else to keep that window as small as possible.
+    /// Only `.regular` instances count. A `notify` toast runs from this same bundle as
+    /// an `.accessory` process, and without this filter the GUI would mistake it for the
+    /// primary and exit(0) — so clicking the Dock icon while a toast was up did nothing.
     private func isAlreadyRunningElsewhere() -> Bool {
         guard let bundleID = Bundle.main.bundleIdentifier else { return false }
         let mine = NSRunningApplication.current.processIdentifier

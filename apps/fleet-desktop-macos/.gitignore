@@ -3,8 +3,3 @@
 
 # Build output
 build/
-
-# Local test page for `notify --url`, deployed to a static host rather than shipped.
-# The bridge contract it demonstrates is documented in the PR and in ToastWindow.swift.
-placeholder-page/
-placeholder-page.zip

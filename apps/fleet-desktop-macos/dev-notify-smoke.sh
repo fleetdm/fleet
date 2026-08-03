@@ -41,8 +41,8 @@ expect 2 "not a url"               notify --url "not a url"
 expect 2 "unknown option"          notify --url https://example.com --nope
 expect 2 "unknown subcommand"      frobnicate
 expect 2 "child without pipe"      notify --url https://example.com --detached-child
-expect 2 "help is not a command"   help
-expect 2 "--help is not a command" --help
+expect 0 "help"                    help
+expect 0 "--help"                  --help
 
 echo
 if [ "$failures" -eq 0 ]; then

@@ -8,8 +8,8 @@
 # Usage:
 #   ./dev-notify.sh [--url] <https url>
 #
-# Pass a real device page URL, or any static page that implements the fleetDesktop
-# bridge (see ToastWindow.swift for the message contract).
+# Pass a real device page URL, or any page implementing the fleetDesktop bridge (see
+# ToastWindow.swift for the message contract).
 
 # Note: no `set -e`. Observing a non-zero exit code is the point.
 set -uo pipefail
