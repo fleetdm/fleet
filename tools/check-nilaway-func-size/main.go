@@ -19,18 +19,18 @@ package main
 import (
 	"fmt"
 	"go/ast"
-	"strconv"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/ctrlflow"
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
 
-// defaultMaxCFGBlocks mirrors nilaway's own limit. Lowering it via -max buys headroom so functions are flagged before they
-// actually lose analysis. Raising it above the limit is rejected.
+// defaultMaxCFGBlocks mirrors nilaway's own limit. Nothing passes -max in practice; it exists so the limit can be lowered to buy
+// headroom (flagging functions before they actually lose analysis) and so the tests can use a small fixture. Raising it above
+// nilaway's limit accomplishes nothing, since nilaway stops analyzing past that point regardless.
 const defaultMaxCFGBlocks = 500
 
-var maxCFGBlocks = defaultMaxCFGBlocks
+var maxCFGBlocks int
 
 var analyzer = &analysis.Analyzer{
 	Name:     "nilawayfuncsize",
@@ -40,23 +40,8 @@ var analyzer = &analysis.Analyzer{
 }
 
 func init() {
-	analyzer.Flags.Func("max",
-		fmt.Sprintf("maximum CFG blocks allowed per function, between 1 and nilaway's own limit of %d (default %d)",
-			defaultMaxCFGBlocks, defaultMaxCFGBlocks),
-		func(value string) error {
-			n, err := strconv.Atoi(value)
-			if err != nil {
-				return fmt.Errorf("must be an integer, got %q", value)
-			}
-			if n < 1 {
-				return fmt.Errorf("must be at least 1, got %d", n)
-			}
-			if n > defaultMaxCFGBlocks {
-				return fmt.Errorf("must not exceed nilaway's own limit of %d, got %d", defaultMaxCFGBlocks, n)
-			}
-			maxCFGBlocks = n
-			return nil
-		})
+	analyzer.Flags.IntVar(&maxCFGBlocks, "max", defaultMaxCFGBlocks,
+		fmt.Sprintf("maximum CFG blocks allowed per function (nilaway's own limit is %d)", defaultMaxCFGBlocks))
 }
 
 func run(pass *analysis.Pass) (any, error) {
