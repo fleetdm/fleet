@@ -194,6 +194,7 @@ const ProfileListItem = ({
             variant="secondary"
             onClick={() => onClickInfo(profile)}
             icon="info"
+            ariaLabel={`View ${profile.name} details`}
           />
           {!isTechnician && (
             // stays enabled in GitOps mode -- the modal is the only place to
@@ -222,6 +223,7 @@ const ProfileListItem = ({
                   variant="secondary"
                   onClick={() => onClickDelete(profile)}
                   icon="trash"
+                  ariaLabel={`Delete ${profile.name}`}
                 />
               )}
             />
