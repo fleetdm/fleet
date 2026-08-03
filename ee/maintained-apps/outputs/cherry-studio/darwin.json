@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.9.12",
+      "version": "1.9.13",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.kangfenmao.CherryStudio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kangfenmao.CherryStudio' AND version_compare(bundle_short_version, '1.9.12') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kangfenmao.CherryStudio' AND version_compare(bundle_short_version, '1.9.13') < 0);"
       },
-      "installer_url": "https://github.com/CherryHQ/cherry-studio/releases/download/v1.9.12/Cherry-Studio-1.9.12-arm64.dmg",
+      "installer_url": "https://github.com/CherryHQ/cherry-studio/releases/download/v1.9.13/Cherry-Studio-1.9.13-arm64.dmg",
       "install_script_ref": "31529318",
       "uninstall_script_ref": "69da7eb5",
-      "sha256": "c4ff696e4b362491ea6efa8baa84fdd382c14287fc31345c766fd542dc24ec1b",
+      "sha256": "041a687338ebcd7428253b2bbc9d7d742388cc22d6368093cdff6dedc8f4d6f8",
       "default_categories": [
         "Developer tools"
       ]
