@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.4.24",
+      "version": "4.4.25",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.ente.auth.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.ente.auth.mac' AND version_compare(bundle_short_version, '4.4.24') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.ente.auth.mac' AND version_compare(bundle_short_version, '4.4.25') < 0);"
       },
-      "installer_url": "https://github.com/ente-io/ente/releases/download/auth-v4.4.24/ente-auth-v4.4.24.dmg",
+      "installer_url": "https://github.com/ente-io/ente/releases/download/auth-v4.4.25/ente-auth-v4.4.25.dmg",
       "install_script_ref": "6a5fe995",
       "uninstall_script_ref": "9563d919",
-      "sha256": "8770d318a3813b09dcb88b01a82b13c50401ea0ad3a466ccc7ebeb6e86352cb3",
+      "sha256": "a1a2f979feb28d4b1cf210190ed0e2efe22cbbb42edc2c22545fd244567049c0",
       "default_categories": [
         "Productivity"
       ]

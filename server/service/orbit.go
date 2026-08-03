@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -618,12 +619,27 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			// management session, which has no such header, can gate poll relaxation on the stored value. Best-effort: a failed write
 			// self-heals on the next poll.
 			syncCapable := false
+			mlaCapable := false
 			if mp, ok := capabilities.FromContext(ctx); ok {
 				syncCapable = mp.Has(fleet.CapabilityWindowsMDMSync)
+				mlaCapable = mp.Has(fleet.CapabilityWindowsManagedLocalAccount)
 			}
 			if syncCapable != state.FleetdSyncCapable {
 				if err := svc.ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, host.UUID, syncCapable); err != nil {
 					svc.logger.WarnContext(ctx, "persisting Windows MDM sync capability", "host_uuid", host.UUID, "err", err)
+				}
+			}
+
+			// Ask a capable premium fleetd to create and escrow the Windows managed local admin account when the host's fleet has the
+			// setting enabled. The request stops once the host escrows a password for this enrollment. Re-enrolling deletes the enrollment
+			// row and with it the flag, so a re-imaged device is asked again.
+			if mlaCapable && !state.ManagedLocalAccountEscrowed {
+				if lic, _ := license.FromContext(ctx); lic != nil && lic.IsPremium() {
+					enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig)
+					if err != nil {
+						return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking windows managed local account setting")
+					}
+					notifs.CreateWindowsManagedLocalAccount = enabled
 				}
 			}
 
@@ -853,6 +869,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		UpdateChannels:   updateChannels,
 		DebugLogging:     debugLogging,
 	}, nil
+}
+
+// windowsManagedLocalAccountEnabled reports whether the managed local account setting is enabled for the host's team.
+func (svc *Service) windowsManagedLocalAccountEnabled(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) (bool, error) {
+	if host.TeamID == nil {
+		return appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, nil
+	}
+	teamMDM, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load team MDM config")
+	}
+	if teamMDM == nil {
+		return false, nil
+	}
+	return teamMDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, nil
 }
 
 func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *fleet.Host) error {
@@ -1523,6 +1554,112 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 			"record fleet disk encryption key escrowed activity",
 			"err", err,
 		)
+		ctxerr.Handle(ctx, err)
+	}
+
+	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit Windows managed local account password
+/////////////////////////////////////////////////////////////////////////////////
+
+func postOrbitManagedLocalAccountEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.OrbitPostManagedLocalAccountRequest)
+	if err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, req.Password, req.ClientError); err != nil {
+		return fleet.OrbitPostManagedLocalAccountResponse{Err: err}, nil
+	}
+	return fleet.OrbitPostManagedLocalAccountResponse{}, nil
+}
+
+// managedLocalAccountMaxPasswordLength caps escrowed passwords as input hygiene. fleetd generates
+// 32-character passwords; the ceiling only guards against a malformed or malicious request.
+const managedLocalAccountMaxPasswordLength = 256
+
+// managedLocalAccountMaxClientErrorLength bounds the device-reported error to the width of the
+// client_error column it is stored in.
+const managedLocalAccountMaxClientErrorLength = 255
+
+func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return newOsqueryError("internal error: missing host from request context")
+	}
+
+	// Eligibility is the host's Windows MDM enrollment
+	if _, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID); err != nil {
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{Message: "managed local account escrow is only supported for Windows MDM hosts"}
+		}
+		return ctxerr.Wrap(ctx, err, "verify windows mdm enrollment for managed local account escrow")
+	}
+
+	// A device-side failure marks the account failed and records the reason, the same way BitLocker and LUKS escrow
+	// errors are persisted, so it surfaces on the host instead of only in the logs. clientError is untrusted input from
+	// fleetd: truncate by rune (not byte, which could split a multi-byte character) so it always fits the column and
+	// stays valid UTF-8.
+	if clientError != "" {
+		clientError = str.TruncateRunes(clientError, managedLocalAccountMaxClientErrorLength)
+		svc.logger.InfoContext(ctx, "fleetd reported an error creating the windows managed local account",
+			"host_id", host.ID, "host_uuid", host.UUID, "client_error", clientError)
+		if err := svc.ds.ReportManagedLocalAccountEscrowError(ctx, host.UUID, clientError); err != nil {
+			return ctxerr.Wrap(ctx, err, "report windows managed local account escrow error")
+		}
+		// The device no longer has an account we know the password to, so keep asking it to create one.
+		if _, err := svc.ds.SetMDMWindowsManagedLocalAccountEscrowed(ctx, host.UUID, false); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear windows managed local account escrowed flag")
+		}
+		return nil
+	}
+
+	if password == "" {
+		return &fleet.BadRequestError{Message: "managed local account password must not be empty"}
+	}
+	if len(password) > managedLocalAccountMaxPasswordLength {
+		return &fleet.BadRequestError{Message: "managed local account password is too long"}
+	}
+
+	// Store the password before anything else can fail.
+	if err := svc.ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, password); err != nil {
+		return ctxerr.Wrap(ctx, err, "save windows managed local account password")
+	}
+
+	// Mark the enrollment provisioned so the host stops being asked. If this fails the password is
+	// already safe and the host is simply asked again, which re-escrows the same way.
+	created, err := svc.ds.SetMDMWindowsManagedLocalAccountEscrowed(ctx, host.UUID, true)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set windows managed local account escrowed flag")
+	}
+
+	// The setting or license may have changed between the notification and this escrow. That does not change what we
+	// store, only whether it is worth flagging, so this check is best-effort.
+	if appConfig, err := svc.ds.AppConfig(ctx); err != nil {
+		svc.logger.ErrorContext(ctx, "load app config to check managed local account setting after escrow", "err", err)
+	} else if enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig); err != nil {
+		svc.logger.ErrorContext(ctx, "check windows managed local account setting after escrow", "err", err)
+	} else if !enabled {
+		svc.logger.WarnContext(ctx, "escrowed windows managed local account password although the setting is disabled",
+			"host_id", host.ID, "host_uuid", host.UUID)
+	}
+
+	// We only want to record the activity if an account was actually created. A device that re-sends an
+	// escrow it already made must not claim a second account.
+	if !created {
+		return nil
+	}
+	if err := svc.NewActivity(
+		ctx,
+		nil,
+		fleet.ActivityTypeCreatedManagedLocalAccount{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		// OK: this is not critical to the operation of the endpoint
+		svc.logger.ErrorContext(ctx, "record created managed local account activity", "err", err)
 		ctxerr.Handle(ctx, err)
 	}
 

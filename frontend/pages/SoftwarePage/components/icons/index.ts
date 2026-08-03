@@ -241,6 +241,7 @@ import CriblEdge from "./CriblEdge";
 import Crisisgo from "./Crisisgo";
 import Crossover from "./Crossover";
 import Cryptomator from "./Cryptomator";
+import Crystaldiskmark from "./Crystaldiskmark";
 import Crystalfetch from "./Crystalfetch";
 import CubeBrowser from "./CubeBrowser";
 import Cursor from "./Cursor";
@@ -645,6 +646,7 @@ import MicrosoftAzureStorageExplorer from "./MicrosoftAzureStorageExplorer";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOdbcDriver17 from "./MicrosoftOdbcDriver17";
+import MicrosoftOdbcDriver18 from "./MicrosoftOdbcDriver18";
 import MicrosoftOffice from "./MicrosoftOffice";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
@@ -1395,6 +1397,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   crisisgo: Crisisgo,
   crossover: Crossover,
   cryptomator: Cryptomator,
+  crystaldiskmark: Crystaldiskmark,
   crystalfetch: Crystalfetch,
   "cube browser": CubeBrowser,
   cursor: Cursor,
@@ -1802,6 +1805,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft edge": Edge,
   "microsoft excel": Excel,
   "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
+  "microsoft odbc driver 18 for sql server": MicrosoftOdbcDriver18,
   "microsoft office": MicrosoftOffice,
   "microsoft onenote": MicrosoftOneNote,
   "microsoft outlook": MicrosoftOutlook,

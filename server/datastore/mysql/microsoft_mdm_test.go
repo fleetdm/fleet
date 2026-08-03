@@ -234,6 +234,12 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 		return err
 	})
 
+	// A managed local account escrowed under the outgoing enrollment. The password is kept, but the
+	// per-enrollment flag must not survive, so the re-enrolled device is asked to create the account again.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, "WIN-PASS"))
+	_, err = ds.SetMDMWindowsManagedLocalAccountEscrowed(ctx, host.UUID, true)
+	require.NoError(t, err)
+
 	// Sanity-check pre-population.
 	var profCount, resultCount, activityCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -272,6 +278,22 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, resultCount,
 		"setup_experience_status_results must be cleaned on re-enrollment, even when keyed by OsqueryHostID")
 	assert.Equal(t, 0, activityCount, "upcoming_activities must be cleaned on re-enrollment via JOIN on hosts.uuid")
+
+	// The managed-local-account flag lives on the deleted enrollment row, so the new enrollment starts
+	// unprovisioned and the device is asked to create the account again. The password itself survives
+	// on the host, as the only copy.
+	var escrowedCount, passwordLen int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &escrowedCount,
+			`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE host_uuid = ? AND managed_local_account_escrowed = 1`,
+			host.UUID); err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &passwordLen,
+			`SELECT LENGTH(encrypted_password) FROM host_managed_local_account_passwords WHERE host_uuid = ?`, host.UUID)
+	})
+	assert.Equal(t, 0, escrowedCount, "the managed local account flag must not survive re-enrollment")
+	assert.Positive(t, passwordLen, "the escrowed password must survive re-enrollment")
 }
 
 func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {

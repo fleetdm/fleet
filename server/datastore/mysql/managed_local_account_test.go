@@ -32,6 +32,7 @@ func TestManagedLocalAccount(t *testing.T) {
 		{"DeferredRotation", testManagedLocalAccountDeferredRotation},
 		{"GetForAutoRotation", testManagedLocalAccountGetForAutoRotation},
 		{"GetByPendingCommandUUID", testManagedLocalAccountGetByPendingCommandUUID},
+		{"Escrow", testManagedLocalAccountEscrow},
 	}
 
 	for _, c := range cases {
@@ -532,6 +533,65 @@ func testManagedLocalAccountGetByPendingCommandUUID(t *testing.T, ds *Datastore)
 
 	// Wrong UUID → notFound.
 	_, err = ds.GetManagedLocalAccountByPendingCommandUUID(ctx, "no-such-cmd")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+// testManagedLocalAccountEscrow walks the Windows escrow lifecycle
+func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := "win-escrow-host"
+
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+
+	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "WIN-PASS-1", got.Password)
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	assert.True(t, status.PasswordAvailable)
+
+	// Escrow leaves account_uuid unset, which is what keeps Windows rows out of the rotation cron.
+	// That the cron skips such rows is covered by GetForAutoRotation's no-account_uuid case.
+	accountUUID, err := ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Nil(t, accountUUID)
+
+	// Re-escrow (a retry, or the device re-creating the account) replaces the stored password.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2"))
+	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "WIN-PASS-2", got.Password)
+
+	// A reported failure marks the row failed and records the reason, but must not destroy the stored
+	// password: it is the only copy, and the account may still exist on the device.
+	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "password reset failed"))
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
+	assert.Equal(t, "password reset failed", status.Detail)
+	assert.False(t, status.PasswordAvailable)
+
+	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "WIN-PASS-2", got.Password)
+
+	// A later successful escrow recovers: password replaced, back to verified, error cleared.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-3"))
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	assert.Empty(t, status.Detail)
+	assert.True(t, status.PasswordAvailable)
+
+	// A row that only ever recorded a failure holds no password, so reading it is a not-found.
+	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, "win-escrow-err-only-host", "create failed"))
+	_, err = ds.GetHostManagedLocalAccountPassword(ctx, "win-escrow-err-only-host")
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 }

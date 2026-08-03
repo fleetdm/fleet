@@ -288,6 +288,8 @@ type HostEncryptionKeyFunc func(ctx context.Context, id uint) (*fleet.HostDiskEn
 
 type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
 
+type EscrowWindowsManagedLocalAccountPasswordFunc func(ctx context.Context, password string, clientError string) error
+
 type AddLabelsToHostFunc func(ctx context.Context, id uint, labels []string) error
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, id uint, labels []string) error
@@ -1386,6 +1388,9 @@ type Service struct {
 
 	EscrowLUKSDataFunc        EscrowLUKSDataFunc
 	EscrowLUKSDataFuncInvoked bool
+
+	EscrowWindowsManagedLocalAccountPasswordFunc        EscrowWindowsManagedLocalAccountPasswordFunc
+	EscrowWindowsManagedLocalAccountPasswordFuncInvoked bool
 
 	AddLabelsToHostFunc        AddLabelsToHostFunc
 	AddLabelsToHostFuncInvoked bool
@@ -3370,6 +3375,13 @@ func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt st
 	s.EscrowLUKSDataFuncInvoked = true
 	s.mu.Unlock()
 	return s.EscrowLUKSDataFunc(ctx, passphrase, salt, keySlot, clientError, keyType)
+}
+
+func (s *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error {
+	s.mu.Lock()
+	s.EscrowWindowsManagedLocalAccountPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.EscrowWindowsManagedLocalAccountPasswordFunc(ctx, password, clientError)
 }
 
 func (s *Service) AddLabelsToHost(ctx context.Context, id uint, labels []string) error {

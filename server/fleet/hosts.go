@@ -1330,6 +1330,10 @@ func IsAndroidPlatform(hostPlatform string) bool {
 	return hostPlatform == "android"
 }
 
+func IsWindowsPlatform(hostPlatform string) bool {
+	return hostPlatform == "windows"
+}
+
 func IsUnixLike(hostPlatform string) bool {
 	unixLikeOSs := HostLinuxOSs
 	unixLikeOSs = append(unixLikeOSs, "darwin")
@@ -1990,6 +1994,9 @@ type DeletedHostDetails struct {
 // HostMDMManagedLocalAccount represents the managed local account status for a host.
 type HostMDMManagedLocalAccount struct {
 	Status *string `json:"status" db:"-" csv:"-"` // nil (no record), "pending", "verified", "failed"
+	// Detail carries the device-reported reason the account could not be created, for accounts created by fleetd
+	// (Windows). Empty for macOS accounts, which are configured by an MDM command instead.
+	Detail string `json:"detail" db:"-" csv:"-"`
 	// PasswordAvailable is true whenever the row holds a usable password — i.e.
 	// encrypted_password IS NOT NULL AND status != 'failed'. This decouples
 	// availability from the rotation lifecycle ("pending" is also viewable).

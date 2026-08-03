@@ -133,6 +133,21 @@ func (ds *Datastore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Contex
 	return nil
 }
 
+// SetMDMWindowsManagedLocalAccountEscrowed records whether the host has escrowed a managed local account password for
+// its current enrollment. It reports whether the value actually changed.
+func (ds *Datastore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET managed_local_account_escrowed = ?
+		 WHERE host_uuid = ? AND managed_local_account_escrowed != ?
+		 ORDER BY created_at DESC, id DESC LIMIT 1`,
+		escrowed, hostUUID, escrowed)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "set mdm windows enrollment managed local account escrowed")
+	}
+	changed, _ := res.RowsAffected()
+	return changed > 0, nil
+}
+
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
 // returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -357,15 +372,17 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		SELECT
 			awaiting_configuration,
 			has_pending_commands,
-			fleetd_sync_capable
+			fleetd_sync_capable,
+			managed_local_account_escrowed
 		FROM mdm_windows_enrollments
 		WHERE host_uuid = ?
 		ORDER BY created_at DESC, id DESC
 		LIMIT 1`
 	var row struct {
-		AwaitingConfiguration fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
-		HasPendingCommands    bool                                  `db:"has_pending_commands"`
-		FleetdSyncCapable     bool                                  `db:"fleetd_sync_capable"`
+		AwaitingConfiguration       fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
+		HasPendingCommands          bool                                  `db:"has_pending_commands"`
+		FleetdSyncCapable           bool                                  `db:"fleetd_sync_capable"`
+		ManagedLocalAccountEscrowed bool                                  `db:"managed_local_account_escrowed"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -374,9 +391,10 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsHostConfigState")
 	}
 	return &fleet.MDMWindowsHostConfigState{
-		AwaitingConfiguration: row.AwaitingConfiguration,
-		HasPendingCommands:    row.HasPendingCommands,
-		FleetdSyncCapable:     row.FleetdSyncCapable,
+		AwaitingConfiguration:       row.AwaitingConfiguration,
+		HasPendingCommands:          row.HasPendingCommands,
+		FleetdSyncCapable:           row.FleetdSyncCapable,
+		ManagedLocalAccountEscrowed: row.ManagedLocalAccountEscrowed,
 	}, nil
 }
 
