@@ -111,3 +111,19 @@ jobs:
         "helm-temp/enable-mysql-tls.yaml" \
         'FLEET_MYSQL_TLS_CA FLEET_MYSQL_TLS_CERT FLEET_MYSQL_TLS_KEY FLEET_MYSQL_TLS_CONFIG FLEET_MYSQL_TLS_SERVER_NAME' \
         'fleet-tls osquery-logs mysql-tls'
+    - name: check scalar environment values and secret override
+      run: |
+        for KIND in Deployment CronJob; do
+          FILE=helm-temp/environments-scalar-values.yaml
+          if [ "${KIND}" = "Deployment" ]; then
+            ENV_PATH='.spec.template.spec.containers[].env[]'
+          else
+            ENV_PATH='.spec.jobTemplate.spec.template.spec.containers[].env[]'
+          fi
+          PRIVATE_KEY_COUNT=$(yq eval-all "[select(.kind == \"${KIND}\") | ${ENV_PATH} | select(.name == \"FLEET_SERVER_PRIVATE_KEY\")] | length" "${FILE}")
+          TEST_ZERO=$(yq eval-all "select(.kind == \"${KIND}\") | ${ENV_PATH} | select(.name == \"FLEET_TEST_ZERO\") | .value" "${FILE}")
+          TEST_FALSE=$(yq eval-all "select(.kind == \"${KIND}\") | ${ENV_PATH} | select(.name == \"FLEET_TEST_FALSE\") | .value" "${FILE}")
+          test "${PRIVATE_KEY_COUNT}" = "1"
+          test "${TEST_ZERO}" = "0"
+          test "${TEST_FALSE}" = "false"
+        done
