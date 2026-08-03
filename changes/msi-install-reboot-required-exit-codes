@@ -1,0 +1,1 @@
+- Fixed a bug where installing a Windows (MSI) software package that succeeded but requested a reboot was reported as a failed install. The default MSI install script now treats exit codes 3010 (reboot required) and 1641 (reboot initiated) as success, matching the existing behavior of the default MSI uninstall scripts.
