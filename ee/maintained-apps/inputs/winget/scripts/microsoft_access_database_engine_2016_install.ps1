@@ -9,13 +9,18 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 $installTimeoutSeconds = 420
 $registrationTimeoutSeconds = 120
 
+# The x64 build registers here; the x86 build, which shares this DisplayName,
+# registers under Wow6432Node. Matching the native view alone keeps a pre-existing
+# x86 install from passing as a successful x64 install.
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
-$machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
 
 function Get-AccessDatabaseEngineEntry {
-    Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
+    Get-ChildItem -Path $machineKey -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
-        Where-Object { $_.DisplayName -eq "Microsoft Access database engine 2016 (English)" } |
+        Where-Object {
+            $_.DisplayName -eq "Microsoft Access database engine 2016 (English)" -and
+            $_.Publisher -eq "Microsoft Corporation"
+        } |
         Select-Object -First 1
 }
 
