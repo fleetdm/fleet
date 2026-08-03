@@ -45,7 +45,10 @@ try {
 
     $process = Start-Process -FilePath $uninstallCommand -ArgumentList $uninstallArgs -NoNewWindow -PassThru
     $null = $process.Handle
-    $null = $process.WaitForExit($removalTimeoutSeconds * 1000)
+    if (-not $process.WaitForExit($removalTimeoutSeconds * 1000)) {
+        Write-Host "Uninstaller process did not exit within ${removalTimeoutSeconds}s, stopping it."
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    }
     if ($process.HasExited) {
         $exitCode = $process.ExitCode
         Write-Host "Uninstall exit code: $exitCode"
