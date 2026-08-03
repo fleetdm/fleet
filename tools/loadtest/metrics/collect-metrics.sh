@@ -1412,7 +1412,20 @@ fi
 
 if jq -e '.fleet_server_errors.error_count' "$OUTPUT" >/dev/null 2>&1; then
   err_count=$(jq -r '.fleet_server_errors.error_count // "N/A"' "$OUTPUT")
+  err_samples=$(jq -r '.fleet_server_errors.sample_messages // [] | length' "$OUTPUT")
   printf "Fleet Errors:  Count=%s\n" "$err_count"
+  # Show a few sample messages inline so the synopsis is actionable without
+  # opening the JSON (which holds up to 10 full samples). Structured (JSON)
+  # log lines are summarized to timestamp + endpoint + error detail; anything
+  # else is shown truncated.
+  if [[ "$err_samples" -gt 0 ]]; then
+    jq -r '.fleet_server_errors.sample_messages[:3][] |
+      ((fromjson? | [(.ts // ""), (.uri // ""), (."ingestion-err" // .err // .msg // "")] | map(select(. != "")) | join("  ")) // .) as $line |
+      "  · " + $line[0:220] + (if ($line | length) > 220 then "…" else "" end)' "$OUTPUT"
+    if [[ "$err_samples" -gt 3 ]]; then
+      printf "  (%s samples total in the .json)\n" "$err_samples"
+    fi
+  fi
 fi
 
 if jq -e '.rds_writer_extended.freeable_memory' "$OUTPUT" >/dev/null 2>&1; then
