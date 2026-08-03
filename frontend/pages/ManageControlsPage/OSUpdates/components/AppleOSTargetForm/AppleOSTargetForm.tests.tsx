@@ -605,6 +605,63 @@ describe("AppleOSTargetForm", () => {
     await waitFor(() => expect(requestBody).toBeDefined());
   });
 
+  it("clears a validation error when the target changes", async () => {
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion="latest"
+        defaultDeadline=""
+        defaultDeadlineDays=""
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Save/i }));
+    expect(
+      await screen.findByText(/The days after release is required\./i)
+    ).toBeInTheDocument();
+
+    // Away and back: the field unmounts either way, so only returning to it
+    // proves the error state was cleared rather than merely hidden.
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Custom version"));
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Latest version"));
+
+    expect(screen.getByLabelText(/Days after release/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/The days after release is required\./i)
+    ).toBeNull();
+  });
+
+  it("requires both fields for 'Custom version' rather than clearing", async () => {
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion=""
+        defaultDeadline=""
+        defaultDeadlineDays=""
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Custom version"));
+    await user.click(screen.getByRole("button", { name: /Save/i }));
+
+    // Saving an empty custom form used to clear the settings, which is now what
+    // "No updates enforced" is for.
+    expect(
+      await screen.findByText(/The minimum version is required\./i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/The deadline is required\./i)).toBeInTheDocument();
+    expect(requestBody).toBeUndefined();
+  });
+
   it("renders the correct form for iOS", () => {
     render(
       <AppleOSTargetForm

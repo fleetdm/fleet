@@ -91,14 +91,9 @@ const validateForm = (formData: IAppleOSTargetFormData) => {
     return errors;
   }
 
-  // Both fields may be cleared out and saved
-  if (
-    !validatePresence(formData.minOsVersion) &&
-    !validatePresence(formData.deadline)
-  ) {
-    return errors;
-  }
-
+  // Both fields are required for a custom version: "No updates enforced" is
+  // how enforcement is turned off, so an empty form here isn't a way to clear
+  // the settings.
   if (!validatePresence(formData.minOsVersion)) {
     errors.minOsVersion = "The minimum version is required.";
   } else if (!validateMinVersion(formData.minOsVersion)) {
@@ -271,6 +266,11 @@ const AppleOSTargetForm = ({
     // the persisted value rather than carrying over the previous selection's —
     // "Latest version" forces it on, which isn't a choice the user made.
     setUpdateNewHosts(defaultUpdateNewHosts || false);
+    // The fields these belong to are about to unmount, and a stale message
+    // would reappear if the user came back to this target.
+    setMinOsVersionError(undefined);
+    setDeadlineError(undefined);
+    setDeadlineDaysError(undefined);
   };
 
   const handleMinVersionChange = (val: string) => {
