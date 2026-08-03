@@ -1054,11 +1054,12 @@ type EnrichedAppConfig struct {
 
 // enrichedAppConfigFields are grouped separately to aid with JSON unmarshaling
 type enrichedAppConfigFields struct {
-	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
-	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
-	License         *LicenseInfo           `json:"license,omitempty"`
-	Logging         *Logging               `json:"logging,omitempty"`
-	Email           *EmailConfig           `json:"email,omitempty"`
+	UpdateInterval         *UpdateIntervalConfig  `json:"update_interval,omitempty"`
+	Vulnerabilities        *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
+	License                *LicenseInfo           `json:"license,omitempty"`
+	Logging                *Logging               `json:"logging,omitempty"`
+	Email                  *EmailConfig           `json:"email,omitempty"`
+	MaxSoftwarePackageSize int64                  `json:"max_software_package_size,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize

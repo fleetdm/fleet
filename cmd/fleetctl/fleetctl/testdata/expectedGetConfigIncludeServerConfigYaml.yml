@@ -158,6 +158,7 @@ spec:
         max_backups: 0
         max_size: 500
       plugin: filesystem
+  max_software_package_size: 537919488
   org_info:
     org_logo_url: ""
     org_logo_url_light_background: ""

@@ -243,8 +243,6 @@ export interface IConfig {
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;
-  /** Largest software installer the server will accept, in bytes. Set by the
-   * server's config file or environment, so it can't be changed from the UI. */
   max_software_package_size: number;
 }
 
