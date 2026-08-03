@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -71,6 +72,7 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 		g          errgroup.Group
 		maxElapsed atomic.Int64
 		totalMs    atomic.Int64
+		dropped    atomic.Int64
 		ready      = make(chan struct{}) // barrier to synchronize start
 	)
 
@@ -92,6 +94,14 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 				}
 			}
 			if err != nil {
+				// Contention errors are expected under concurrent ingestion of
+				// identical software and are not retried in place — the update
+				// is picked up on the host's next refresh. Anything else is a
+				// real failure.
+				if common_mysql.RetryableError(err) {
+					dropped.Add(1)
+					return nil
+				}
 				return fmt.Errorf("host %d: %w", hostID, err)
 			}
 			return nil
@@ -109,6 +119,7 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 	t.Logf("    Wall time: %s", wallTime)
 	t.Logf("    Max single-host ingestion: %dms", maxElapsed.Load())
 	t.Logf("    Avg per-host ingestion: %dms", totalMs.Load()/int64(hostCount))
+	t.Logf("    Cycles dropped to contention: %d", dropped.Load())
 
 	// Verify all titles were created
 	var titleCount int
@@ -141,7 +152,7 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 					break
 				}
 			}
-			if err != nil {
+			if err != nil && !common_mysql.RetryableError(err) {
 				return fmt.Errorf("host %d: %w", hostID, err)
 			}
 			return nil
@@ -282,7 +293,9 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 			_, err := ds.UpdateHostSoftware(ctx, h.ID, newSwCopy)
 			elapsedReplace := time.Since(startReplace)
 			t.Logf("  Host %d replacement took: %s", idx, elapsedReplace)
-			if err != nil {
+			// Contention errors are expected under concurrent ingestion and are
+			// not retried in place; anything else is a real failure.
+			if err != nil && !common_mysql.RetryableError(err) {
 				t.Errorf("  Host %d replacement error: %v", idx, err)
 			}
 		}(i)

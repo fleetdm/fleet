@@ -598,18 +598,19 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	// These operations are idempotent due to INSERT IGNORE.
 	// Like PHASE 2, these transactions are not retried in place: retrying while
 	// the DB is contended (e.g. the post-outage thundering herd) amplifies
-	// writer load, and the update is naturally retried on the host's next
-	// refresh. Retryable errors shed the cycle instead of failing the request.
+	// writer load. On failure the error propagates (the caller logs it as an
+	// ingestion error) and the update is naturally retried on the host's next
+	// refresh.
 	if len(incomingSoftwareByChecksum) > 0 {
 
 		err = ds.reconcileExistingTitleEmptyWindowsUpgradeCodes(ctx, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
 		if err != nil {
-			return ds.shedSoftwareUpdateOnRetryableErr(ctx, hostID, r, ctxerr.Wrap(ctx, err, "update software titles upgrade code"))
+			return nil, ctxerr.Wrap(ctx, err, "update software titles upgrade code")
 		}
 		// Pre-insert software and titles in small batches
 		err = ds.preInsertSoftwareInventory(ctx, existingSoftwareSummaries, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
 		if err != nil {
-			return ds.shedSoftwareUpdateOnRetryableErr(ctx, hostID, r, ctxerr.Wrap(ctx, err, "pre-insert software inventory"))
+			return nil, ctxerr.Wrap(ctx, err, "pre-insert software inventory")
 		}
 
 	}
@@ -648,28 +649,9 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		},
 	)
 	if err != nil {
-		return ds.shedSoftwareUpdateOnRetryableErr(ctx, hostID, r, err)
+		return nil, err
 	}
 	return r, nil
-}
-
-// shedSoftwareUpdateOnRetryableErr checks if the given error is a retryable
-// MySQL error (e.g., deadlock, lock wait timeout) and, if so, drops the
-// current software update cycle instead of retrying in place: it logs the
-// error and returns the current state without changes (any transaction rolled
-// back, so Deleted and Inserted are empty). The update is retried naturally on
-// the host's next refresh. Non-retryable errors are returned as-is.
-func (ds *Datastore) shedSoftwareUpdateOnRetryableErr(
-	ctx context.Context,
-	hostID uint,
-	r *fleet.UpdateHostSoftwareDBResult,
-	err error,
-) (*fleet.UpdateHostSoftwareDBResult, error) {
-	if common_mysql.RetryableError(err) {
-		ds.logger.InfoContext(ctx, "retryable error during software update, will retry on next agent refresh", "err", err, "host_id", hostID)
-		return r, nil
-	}
-	return nil, err
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,

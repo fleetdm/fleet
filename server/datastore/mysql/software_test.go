@@ -20,6 +20,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
@@ -4026,7 +4027,12 @@ func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
 				removeIdx := rand.Intn(len(software))
 				software = append(software[:removeIdx], software[removeIdx+1:]...)
 				if _, err := ds.UpdateHostSoftware(ctx, hostID, software); err != nil {
-					return err
+					// Contention errors are expected under concurrent ingestion
+					// and are not retried in place — the update is picked up on
+					// the host's next refresh. Anything else is a real failure.
+					if !common_mysql.RetryableError(err) {
+						return err
+					}
 				}
 				time.Sleep(10 * time.Millisecond)
 			}
