@@ -1,4 +1,4 @@
-# Linux crossed 10% in North America, and your inventory probably missed it
+# Linux crossed 10% in North America, and your inventory may have missed it
 
 *Linux desktop share doubled in a month. Most of that jump was measurement catching up to reality, which is exactly the problem IT teams have with Linux inside their own walls.*
 
