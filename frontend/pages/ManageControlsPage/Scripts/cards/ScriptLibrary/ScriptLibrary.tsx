@@ -28,7 +28,6 @@ import PageDescription from "components/PageDescription";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 
 import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
@@ -215,9 +214,9 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
                 size="small"
                 onClick={() => setShowAddScriptModal(true)}
                 disabled={disableChildren}
+                icon="plus"
               >
-                <Icon name="plus" size="small" />
-                <span>Add script</span>
+                Add script
               </Button>
             )}
           />

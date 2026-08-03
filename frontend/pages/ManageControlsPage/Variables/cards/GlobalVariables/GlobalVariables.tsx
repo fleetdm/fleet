@@ -190,7 +190,7 @@ const GlobalVariables = ({ router, location }: IGlobalVariablesProps) => {
                 disabled={disableChildren}
                 icon="plus"
               >
-                <span>Add variable</span>
+                Add variable
               </Button>
             )}
           />

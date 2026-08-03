@@ -11,7 +11,6 @@ import customHostVitalsAPI, {
 } from "services/entities/custom_host_vitals";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
 import PageDescription from "components/PageDescription";
@@ -165,9 +164,9 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
             size={variant === "secondary" ? "small" : undefined}
             onClick={onClickAdd}
             disabled={disableChildren}
+            icon={variant === "secondary" ? "plus" : undefined}
           >
-            {variant === "secondary" && <Icon name="plus" size="small" />}
-            <span>Add vital</span>
+            Add vital
           </Button>
         )}
       />

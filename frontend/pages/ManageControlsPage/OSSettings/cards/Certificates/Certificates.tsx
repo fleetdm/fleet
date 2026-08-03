@@ -15,7 +15,6 @@ import UploadList from "components/UploadList";
 import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import Pagination from "components/Pagination";
 import CustomLink from "components/CustomLink";
@@ -276,9 +275,9 @@ const Certificates = ({
                 size="small"
                 onClick={() => setShowAddCertModal(true)}
                 disabled={disableChildren}
+                icon="plus"
               >
-                <Icon name="plus" size="small" />
-                <span>Add certificate</span>
+                Add certificate
               </Button>
             )}
           />

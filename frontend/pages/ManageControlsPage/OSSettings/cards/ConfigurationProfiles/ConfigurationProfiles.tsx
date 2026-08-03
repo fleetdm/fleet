@@ -21,7 +21,6 @@ import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 
@@ -300,9 +299,9 @@ const ConfigurationProfiles = ({
                         size="small"
                         onClick={() => setShowAddProfileModal(true)}
                         disabled={disableChildren}
+                        icon="plus"
                       >
-                        <Icon name="plus" size="small" />
-                        <span>Add profile</span>
+                        Add profile
                       </Button>
                     )}
                   />
