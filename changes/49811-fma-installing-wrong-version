@@ -1,0 +1,1 @@
+- Fixed a bug where updating a Fleet-maintained app to a new build that uses the same shortened version did not update the file to the new installer, but did update some fields like install script.

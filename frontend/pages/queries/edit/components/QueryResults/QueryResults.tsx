@@ -193,7 +193,7 @@ const QueryResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="inverse"
+          variant="secondary"
         >
           <>
             Show query <Icon name="eye" />
@@ -206,7 +206,7 @@ const QueryResults = ({
               ? onExportErrorsResults
               : onExportQueryResults
           }
-          variant="inverse"
+          variant="secondary"
         >
           <>
             Export {tableType}

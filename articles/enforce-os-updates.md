@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
-For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://gdmf.apple.com/v2/pmv). The update will only be enforced if you use a version in that list.
+For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://sofa.macadmins.io/). The update will only be enforced if you use a version in that list.
 
 For Android hosts, you can enforce OS updates using a configuration profile with the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. This setting is only supported on fully-managed Android hosts (not BYO). Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
 

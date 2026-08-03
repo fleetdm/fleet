@@ -3,12 +3,15 @@ import { screen, waitFor } from "@testing-library/react";
 
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockConfig from "__mocks__/configMock";
+import createMockLicense from "__mocks__/licenseMock";
 import { IAppConfigFormProps } from "pages/admin/OrgSettingsPage/cards/constants";
 
 import AccountProvisioning from "./AccountProvisioning";
 
 const defaultProps: IAppConfigFormProps = {
-  appConfig: createMockConfig(),
+  appConfig: createMockConfig({
+    license: createMockLicense({ tier: "premium" }),
+  }),
   handleSubmit: jest.fn() as IAppConfigFormProps["handleSubmit"],
   router: createMockRouter(),
 };
@@ -21,6 +24,20 @@ describe("AccountProvisioning", () => {
   it("renders the section heading", () => {
     render(<AccountProvisioning {...defaultProps} />);
     expect(screen.getByText("Account provisioning")).toBeInTheDocument();
+  });
+
+  it("renders premium message on free tier", () => {
+    render(
+      <AccountProvisioning
+        {...defaultProps}
+        appConfig={createMockConfig({
+          license: createMockLicense({ tier: "free" }),
+        })}
+      />
+    );
+    expect(
+      screen.getByText(/This feature is included in Fleet Premium/i)
+    ).toBeInTheDocument();
   });
 
   it("renders all three fields and the save button", () => {
@@ -36,6 +53,7 @@ describe("AccountProvisioning", () => {
       <AccountProvisioning
         {...defaultProps}
         appConfig={createMockConfig({
+          license: createMockLicense({ tier: "premium" }),
           mdm: {
             ...createMockConfig().mdm,
             apple_account_provisioning: {

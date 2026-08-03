@@ -111,7 +111,7 @@ func mdmRunCommand() *cli.Command {
 					return err
 				}
 
-				mdmHostPlatform := fleet.MDMPlatform(host.Platform)
+				mdmHostPlatform := fleet.ClassicMDMPlatform(host.Platform)
 				if mdmHostPlatform != mdmPlatform && mdmPlatform != "" {
 					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all macOS or all Windows hosts.`)
 				}
@@ -238,7 +238,7 @@ func mdmUnlockCommand() *cli.Command {
 				return fmt.Errorf("Failed to unlock host: %w", err)
 			}
 
-			if fleet.MDMPlatform(host.Platform) == "darwin" {
+			if fleet.ClassicMDMPlatform(host.Platform) == "darwin" {
 				fmt.Fprintf(c.App.Writer, `
 Use this 6 digit PIN to unlock the host:
 
@@ -366,9 +366,8 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 		return nil, nil, err
 	}
 
-	// check mdm is on for the host. Android isn't in fleet.MDMPlatform.
-	// See eng-init story: https://github.com/fleetdm/fleet/issues/46118
-	if fleet.MDMSupported(host.Platform) || fleet.IsAndroidPlatform(host.Platform) {
+	// check mdm is on for the host
+	if fleet.MDMTurnedOnSupported(host.Platform) {
 		if host.MDM.ConnectedToFleet == nil || !*host.MDM.ConnectedToFleet {
 			return nil, nil, fmt.Errorf("Can't %s the host because it doesn't have MDM turned on.", actionType)
 		}

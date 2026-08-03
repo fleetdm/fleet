@@ -251,6 +251,11 @@ func main() {
 			Usage:   "Disables checking for setup experience on Linux or Windows hosts",
 			EnvVars: []string{"ORBIT_DISABLE_SETUP_EXPERIENCE"},
 		},
+		&cli.BoolFlag{
+			Name:    "bypass-end-user-auth",
+			Usage:   "Bypasses end-user authentication during fleetd enrollment on Linux and Windows",
+			EnvVars: []string{"ORBIT_BYPASS_END_USER_AUTH"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -1169,6 +1174,14 @@ func orbitAction(c *cli.Context) error {
 		)
 	}
 
+	// Bypass end-user authentication only when there is no EUA token to process. When the Windows MDM installer supplies
+	// an EUA token, the user already authenticated during MDM enrollment and the server links the host's IdP account
+	// from that token. Processing the token requires that orbit keep advertising the end-user auth capability, so a
+	// present token takes precedence over the bypass flag.
+	euaToken := c.String("eua-token")
+	hasEUAToken := euaToken != "" && euaToken != constant.UnusedFlagKeyword
+	bypassEndUserAuth := c.Bool("bypass-end-user-auth") && !hasEUAToken
+
 	orbitClient, err = fleetclient.NewOrbitClient(
 		c.String("root-dir"),
 		fleetURL,
@@ -1187,6 +1200,7 @@ func orbitAction(c *cli.Context) error {
 		},
 		signerWrapper,
 		hostIdentityCertificatePath,
+		bypassEndUserAuth,
 	)
 	if err != nil {
 		return fmt.Errorf("error new orbit client: %w", err)
@@ -1204,7 +1218,7 @@ func orbitAction(c *cli.Context) error {
 
 	// Set the EUA token from the MSI installer (Windows MDM enrollment).
 	// Must be set before any authenticated request triggers enrollment.
-	if euaToken := c.String("eua-token"); euaToken != "" && euaToken != constant.UnusedFlagKeyword {
+	if hasEUAToken {
 		orbitClient.SetEUAToken(euaToken)
 	}
 
@@ -1448,6 +1462,7 @@ func orbitAction(c *cli.Context) error {
 		},
 		nil,
 		"",
+		bypassEndUserAuth,
 	)
 	if err != nil {
 		return fmt.Errorf("new client for capabilities checker: %w", err)

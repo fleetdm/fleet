@@ -25,7 +25,7 @@ const VppCard = ({ isAppleMdmOn, isVppOn, viewDetails }: IVppCardProps) => {
     <SectionCard
       iconName="success"
       cta={
-        <Button onClick={viewDetails} variant="inverse">
+        <Button onClick={viewDetails} variant="subdued">
           <Icon name="pencil" />
           Edit
         </Button>

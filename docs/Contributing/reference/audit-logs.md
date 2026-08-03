@@ -447,6 +447,23 @@ This activity contains the following fields:
 }
 ```
 
+## user_mfa_requested
+
+Generated when a user with multi-factor authentication (MFA) enabled submits valid credentials and Fleet sends a verification email.
+
+This activity contains the following fields:
+- "email": The email used in the login request.
+- "public_ip": Public IP of the login request.
+
+#### Example
+
+```json
+{
+	"email": "foo@example.com",
+	"public_ip": "168.226.215.82"
+}
+```
+
 ## created_user
 
 Generated when a user is created.
@@ -1623,7 +1640,7 @@ This activity contains the following fields:
 - "command_uuid": ID of the in-house app installation.
 - "from_setup_experience": Whether the installation was triggered as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
-
+- "skipped_install": Whether the install was skipped because the app was open. This is `true` when the Fleet-maintained app is installed by the patch policy's automation, when `patch_only_when_closed` is set. Only present when "status" is "failed_install" and the install was skipped for this reason, omitted otherwise.
 
 #### Example
 
@@ -2713,6 +2730,44 @@ This activity contains the following fields:
 	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
+}
+```
+
+## created_setup_experience_script
+
+Generated when a script is added to (or replaced in) setup experience.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet that the script applies to (`null` for hosts that aren't assigned to a fleet).
+- "fleet_name": the name of the fleet that the script applies to (`null` for hosts that aren't assigned to a fleet).
+- "script_name": the name of the script that was added.
+
+#### Example
+
+```json
+{
+	"fleet_id": 123,
+	"fleet_name": "Workstations",
+	"script_name": "set-timezones.sh"
+}
+```
+
+## deleted_setup_experience_script
+
+Generated when a script is removed from setup experience.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet that the script applied to (`null` for hosts that aren't assigned to a fleet).
+- "fleet_name": the name of the fleet that the script applied to (`null` for hosts that aren't assigned to a fleet).
+- "script_name": the name of the script that was removed.
+
+#### Example
+
+```json
+{
+	"fleet_id": 123,
+	"fleet_name": "Workstations",
+	"script_name": "set-timezones.sh"
 }
 ```
 

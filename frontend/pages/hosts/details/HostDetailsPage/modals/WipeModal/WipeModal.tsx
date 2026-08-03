@@ -90,6 +90,7 @@ const WipeModal = ({
             wrapperClassName={`${baseClass}__wipe-checkbox`}
             value={lockChecked}
             onChange={(value: boolean) => setLockChecked(value)}
+            variant="danger"
           >
             I wish to wipe <b>{hostName}</b>
           </Checkbox>
@@ -107,7 +108,7 @@ const WipeModal = ({
         >
           Wipe
         </Button>
-        <Button onClick={onClose} variant="inverse-alert">
+        <Button onClick={onClose} variant="secondary">
           Cancel
         </Button>
       </div>

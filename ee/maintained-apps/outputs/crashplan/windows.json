@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "11.9.1.19",
+      "version": "12.0.0.735",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'CrashPlan' AND publisher = 'CrashPlan Group LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CrashPlan' AND publisher = 'CrashPlan Group LLC' AND version_compare(version, '11.9.1.19') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CrashPlan' AND publisher = 'CrashPlan Group LLC' AND version_compare(version, '12.0.0.735') < 0);"
       },
-      "installer_url": "https://download.crashplan.com/installs/agent/cloud/11.9.1/19/install/CrashPlan_11.9.1_19_Win64.msi",
+      "installer_url": "https://download.crashplan.com/installs/agent/cloud/12.0.0/735/install/CrashPlan_12.0.0_735_Win64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "5eb7a6db",
-      "sha256": "3f2f4301322943b565768386b89947de31c4df178e79a25b831a382cd6df5611",
+      "sha256": "71c3159ced46f7722c0af8e230af4e405fb23332ca10f953ecfc2c9224f02b1b",
       "default_categories": [
         "Productivity"
       ],
