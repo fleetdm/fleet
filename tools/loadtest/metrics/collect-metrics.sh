@@ -984,9 +984,18 @@ if [[ -n "$FLEET_LOG_GROUP" ]]; then
     done
 
     if [[ "$logs_status" == "Complete" ]]; then
-      # Count total matched records and extract sample messages
+      # Count total matched records and extract sample messages.
+      # Sample messages are raw server log lines and the run artifacts get
+      # committed to the public repo, so redact anything that looks like a
+      # secret (long base64/hex/token runs) before writing. Short identifiers,
+      # paths, and error text survive — enough for triage.
       logs_total=$(echo "$logs_result" | jq '.statistics.recordsMatched // 0')
-      logs_samples=$(echo "$logs_result" | jq '[.results[:10][] | [.[] | select(.field == "@message") | .value] | first // empty]')
+      logs_samples=$(echo "$logs_result" | jq '
+        def redact_secrets:
+          gsub("[A-Za-z0-9+/=]{40,}"; "<redacted>")
+          | gsub("\\b[A-Fa-f0-9]{32,}\\b"; "<redacted>")
+          | gsub("[A-Za-z0-9_-]{32,}"; "<redacted>");
+        [.results[:10][] | [.[] | select(.field == "@message") | .value] | first // empty | redact_secrets]')
 
       LOGS_ERRORS=$(jq -n \
         --argjson total "$logs_total" \

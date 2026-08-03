@@ -102,6 +102,10 @@ After a load test, commit the run so the history stays useful for future compari
 
 1. Collect with the right category so the files land in the correct folder, e.g.
    `./collect-metrics.sh --workspace 486loadtest --category baseline`.
-2. Commit both the `.json` (data) and `.md` (synopsis) for the run under `runs/<category>/<workspace>/`.
+2. **Review `fleet_server_errors.sample_messages` in the `.json` before committing.**
+   These are raw server log lines headed for a public repo. The collector redacts
+   token-like strings automatically, but eyeball them anyway — don't commit
+   anything that looks like a secret, customer data, or an internal URL.
+3. Commit both the `.json` (data) and `.md` (synopsis) for the run under `runs/<category>/<workspace>/`.
    For multi-step tests (e.g. MDM), a short `REPORT.md` summarizing the runs is welcome too.
-3. Open a PR against `main` with the new files. Keep it to the run artifacts — no script changes.
+4. Open a PR against `main` with the new files. Keep it to the run artifacts — no script changes.
