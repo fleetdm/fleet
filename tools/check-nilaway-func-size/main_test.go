@@ -21,7 +21,7 @@ func TestAnalyzer(t *testing.T) {
 		}
 	})
 
-	analysistest.Run(t, analysistest.TestData(), analyzer, "oversized")
+	analysistest.Run(t, analysistest.TestData(), analyzer, "example")
 }
 
 // TestDefaultMatchesNilaway guards the constant against drifting above nilaway's own limit, where the gate would stop meaning

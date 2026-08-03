@@ -1,4 +1,4 @@
-package oversized
+package example
 
 // tooBig branches enough times to exceed the threshold the test sets.
 func tooBig(a, b, c, d int) int { // want "tooBig has \\d+ CFG blocks, over the limit of 5"
