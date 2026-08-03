@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.0.9",
+      "version": "3.0.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats' AND version_compare(bundle_short_version, '3.0.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats' AND version_compare(bundle_short_version, '3.0.10') < 0);"
       },
-      "installer_url": "https://github.com/exelban/stats/releases/download/v3.0.9/Stats.dmg",
+      "installer_url": "https://github.com/exelban/stats/releases/download/v3.0.10/Stats.dmg",
       "install_script_ref": "f0bd0f4d",
       "uninstall_script_ref": "48380d78",
-      "sha256": "cdbb45ab9dae5911a4ee2a7687ebcbc1431d771612ca0f54db933974ab75a66b",
+      "sha256": "efe1061573655f17fddc23b96699cc9383299de2cba91589d71403ac1467f442",
       "default_categories": [
         "Productivity"
       ]

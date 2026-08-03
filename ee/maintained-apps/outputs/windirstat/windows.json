@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.7.0",
+      "version": "2.8.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'WinDirStat %' AND publisher = 'WinDirStat Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinDirStat %' AND publisher = 'WinDirStat Team' AND version_compare(version, '2.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinDirStat %' AND publisher = 'WinDirStat Team' AND version_compare(version, '2.8.0') < 0);"
       },
-      "installer_url": "https://github.com/windirstat/windirstat/releases/download/release/v2.7.0/WinDirStat-x64.msi",
+      "installer_url": "https://github.com/windirstat/windirstat/releases/download/release/v2.8.0/WinDirStat-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "dbd2c315",
-      "sha256": "66643671d6b4e09eaffbe28e0d89cc9bca06d94495225a20020822b40536ccc4",
+      "sha256": "c40a6ec73497b18eb4ce2cbe071983b4f637cd04644bfca73c176d624794f79a",
       "default_categories": [
         "Utilities"
       ],
