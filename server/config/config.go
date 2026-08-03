@@ -277,8 +277,15 @@ type OsqueryConfig struct {
 	// TODO(lucas): We should at least add a warning if this field is populated.
 	ResultLogFile string `yaml:"result_log_file"`
 
-	EnableLogRotation                bool          `yaml:"enable_log_rotation"`
-	MaxJitterPercent                 int           `yaml:"max_jitter_percent"`
+	EnableLogRotation bool `yaml:"enable_log_rotation"`
+	MaxJitterPercent  int  `yaml:"max_jitter_percent"`
+	// OverdueQuerySplayWindow spreads the label/policy/detail queries of hosts
+	// that became overdue while the Fleet server was down (e.g. during a
+	// migration) uniformly over this window after the server starts, instead of
+	// sending them to every host at once (thundering herd). 0 disables the
+	// splay. The effective window is capped at the corresponding update
+	// interval.
+	OverdueQuerySplayWindow          time.Duration `yaml:"overdue_query_splay_window"`
 	EnableAsyncHostProcessing        string        `yaml:"enable_async_host_processing"` // true/false or per-task
 	AsyncHostCollectInterval         string        `yaml:"async_host_collect_interval"`  // duration or per-task
 	AsyncHostCollectMaxJitterPercent int           `yaml:"async_host_collect_max_jitter_percent"`
@@ -1471,6 +1478,8 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
+	man.addConfigDuration("osquery.overdue_query_splay_window", 30*time.Minute,
+		"Window over which hosts whose label/policy/detail queries became overdue while the server was down are spread after the server starts (e.g. 30m). 0 disables the splay")
 	man.addConfigString("osquery.enable_async_host_processing", "false",
 		"Enable asynchronous processing of host-reported query results (either 'true'/'false' or set per task, e.g., 'label_membership=true&policy_membership=true')")
 	man.addConfigString("osquery.async_host_collect_interval", (30 * time.Second).String(),
@@ -1960,6 +1969,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DetailUpdateInterval:             man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:                man.getConfigBool("osquery.enable_log_rotation"),
 			MaxJitterPercent:                 man.getConfigInt("osquery.max_jitter_percent"),
+			OverdueQuerySplayWindow:          man.getConfigDuration("osquery.overdue_query_splay_window"),
 			EnableAsyncHostProcessing:        man.getConfigString("osquery.enable_async_host_processing"),
 			AsyncHostCollectInterval:         man.getConfigString("osquery.async_host_collect_interval"),
 			AsyncHostCollectMaxJitterPercent: man.getConfigInt("osquery.async_host_collect_max_jitter_percent"),
@@ -2536,16 +2546,19 @@ func TestConfig() FleetConfig {
 			Duration: 24 * 5 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:           24,
-			HostIdentifier:        "instance",
-			EnrollCooldown:        42 * time.Minute,
-			StatusLogPlugin:       "filesystem",
-			ResultLogPlugin:       "filesystem",
-			LabelUpdateInterval:   1 * time.Hour,
-			PolicyUpdateInterval:  1 * time.Hour,
-			DetailUpdateInterval:  1 * time.Hour,
-			MaxJitterPercent:      0,
-			AllowBodyAuthFallback: true,
+			NodeKeySize:          24,
+			HostIdentifier:       "instance",
+			EnrollCooldown:       42 * time.Minute,
+			StatusLogPlugin:      "filesystem",
+			ResultLogPlugin:      "filesystem",
+			LabelUpdateInterval:  1 * time.Hour,
+			PolicyUpdateInterval: 1 * time.Hour,
+			DetailUpdateInterval: 1 * time.Hour,
+			MaxJitterPercent:     0,
+			// Disabled in tests: most service tests build hosts with stale
+			// timestamps and expect queries to be sent immediately.
+			OverdueQuerySplayWindow: 0,
+			AllowBodyAuthFallback:   true,
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,

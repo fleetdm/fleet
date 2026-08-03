@@ -53,6 +53,7 @@ func TestPolicies(t *testing.T) {
 		{"DelUser", testPoliciesDelUser},
 		{"FlippingPoliciesForHost", testFlippingPoliciesForHost},
 		{"NarrowedMembershipUpsert", testPoliciesNarrowedMembershipUpsert},
+		{"HostIssuesRecomputeGated", testPoliciesHostIssuesRecomputeGated},
 		{"PlatformUpdate", testPolicyPlatformUpdate},
 		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
 		{"DeleteAllPolicyMemberships", testDeleteAllPolicyMemberships},
@@ -3159,6 +3160,101 @@ func testPoliciesNarrowedMembershipUpsert(t *testing.T, ds *Datastore) {
 		map[uint]*bool{policyB.ID: nil}, time.Now(), false, nil)))
 	_, exists = getRow(t, policyB.ID)
 	require.False(t, exists, "first-run nil should not create a row")
+}
+
+// testPoliciesHostIssuesRecomputeGated pins the gating of the host_issues
+// failing-policies recompute in RecordPolicyQueryExecutions: it is skipped
+// when the stored count already matches the count the call leaves behind, and
+// it runs (healing external drift) when the counts differ or the row is
+// missing.
+func testPoliciesHostIssuesRecomputeGated(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("issues-gated-host"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         new("issues-gated-host"),
+		UUID:            "issues-gated-host",
+		Hostname:        "issues-gated-host.local",
+	})
+	require.NoError(t, err)
+
+	policyA, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "issues-gated-policyA",
+		Query: "select 1;",
+	})
+	require.NoError(t, err)
+	policyB, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "issues-gated-policyB",
+		Query: "select 2;",
+	})
+	require.NoError(t, err)
+
+	type issuesRow struct {
+		Failing int `db:"failing_policies_count"`
+		Total   int `db:"total_issues_count"`
+	}
+	getIssues := func(t *testing.T) (issuesRow, bool) {
+		var row issuesRow
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &row,
+			`SELECT failing_policies_count, total_issues_count FROM host_issues WHERE host_id = ?`, host.ID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return issuesRow{}, false
+		}
+		require.NoError(t, err)
+		return row, true
+	}
+
+	steadyState := map[uint]*bool{policyA.ID: new(false), policyB.ID: new(true)}
+
+	// 1. First check-in (A fails, B passes) → host_issues row created with count 1.
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(ctx, host, steadyState, time.Now(), false, nil)))
+	row, ok := getIssues(t)
+	require.True(t, ok, "first check-in should create the host_issues row")
+	require.Equal(t, 1, row.Failing)
+	require.Equal(t, 1, row.Total)
+
+	// 2. Corrupt only total_issues_count, leaving the failing count accurate. A
+	// steady-state re-report finds stored == expected failing count, so the
+	// recompute is skipped and the corruption stays — proof the writer
+	// statement did not run.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_issues SET total_issues_count = 99 WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(ctx, host, steadyState, time.Now(), false, nil)))
+	row, _ = getIssues(t)
+	require.Equal(t, 1, row.Failing)
+	require.Equal(t, 99, row.Total, "steady-state re-report should skip the host_issues recompute")
+
+	// 3. Drift the failing count itself (simulates an external membership
+	// change that bypasses this path, e.g. a policy deletion cascade or a team
+	// transfer) → mismatch detected → recompute heals both columns.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_issues SET failing_policies_count = 5 WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(ctx, host, steadyState, time.Now(), false, nil)))
+	row, _ = getIssues(t)
+	require.Equal(t, 1, row.Failing, "drifted count should be healed on the next check-in")
+	require.Equal(t, 1, row.Total)
+
+	// 4. Missing row → recompute runs and recreates it.
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_issues WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(ctx, host, steadyState, time.Now(), false, nil)))
+	row, ok = getIssues(t)
+	require.True(t, ok, "missing host_issues row should be recreated")
+	require.Equal(t, 1, row.Failing)
+
+	// 5. A real flip (A now passes) changes the expected count → recompute runs.
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyA.ID: new(true), policyB.ID: new(true)}, time.Now(), false, nil)))
+	row, _ = getIssues(t)
+	require.Equal(t, 0, row.Failing)
+	require.Equal(t, 0, row.Total)
 }
 
 func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {

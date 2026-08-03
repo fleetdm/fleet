@@ -227,7 +227,11 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// Not retried in place: retrying while the DB is contended (e.g. the
+	// post-outage thundering herd) amplifies writer load. On a retryable error
+	// the cycle is shed; the delta is recomputed from the DB on the host's
+	// next refresh.
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteHostSoftwareInstalledPaths(ctx, tx, toD); err != nil {
 			return err
 		}
@@ -238,6 +242,11 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 
 		return nil
 	})
+	if err != nil && common_mysql.RetryableError(err) {
+		ds.logger.InfoContext(ctx, "retryable error during software installed paths update, will retry on next agent refresh", "err", err, "host_id", hostID)
+		return nil
+	}
+	return err
 }
 
 // getHostSoftwareInstalledPaths returns all HostSoftwareInstalledPath for the given hostID.
@@ -592,16 +601,20 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	// This reduces lock contention by breaking up large INSERT IGNORE operations
 	// into smaller, faster transactions that release locks quickly.
 	// These operations are idempotent due to INSERT IGNORE.
+	// Like PHASE 2, these transactions are not retried in place: retrying while
+	// the DB is contended (e.g. the post-outage thundering herd) amplifies
+	// writer load, and the update is naturally retried on the host's next
+	// refresh. Retryable errors shed the cycle instead of failing the request.
 	if len(incomingSoftwareByChecksum) > 0 {
 
 		err = ds.reconcileExistingTitleEmptyWindowsUpgradeCodes(ctx, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "update software titles upgrade code")
+			return ds.shedSoftwareUpdateOnRetryableErr(ctx, hostID, r, ctxerr.Wrap(ctx, err, "update software titles upgrade code"))
 		}
 		// Pre-insert software and titles in small batches
 		err = ds.preInsertSoftwareInventory(ctx, existingSoftwareSummaries, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "pre-insert software inventory")
+			return ds.shedSoftwareUpdateOnRetryableErr(ctx, hostID, r, ctxerr.Wrap(ctx, err, "pre-insert software inventory"))
 		}
 
 	}
@@ -640,16 +653,28 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		},
 	)
 	if err != nil {
-		// Check if this is a retryable error (e.g., deadlock, lock timeout)
-		if common_mysql.RetryableError(err) {
-			// Log the retryable error and return the current state without changes.
-			// The transaction rolled back, so Deleted and Inserted will be empty.
-			ds.logger.InfoContext(ctx, "retryable error during software update, will retry on next agent refresh", "err", err, "host_id", hostID)
-			return r, nil
-		}
-		return nil, err
+		return ds.shedSoftwareUpdateOnRetryableErr(ctx, hostID, r, err)
 	}
 	return r, nil
+}
+
+// shedSoftwareUpdateOnRetryableErr checks if the given error is a retryable
+// MySQL error (e.g., deadlock, lock wait timeout) and, if so, drops the
+// current software update cycle instead of retrying in place: it logs the
+// error and returns the current state without changes (any transaction rolled
+// back, so Deleted and Inserted are empty). The update is retried naturally on
+// the host's next refresh. Non-retryable errors are returned as-is.
+func (ds *Datastore) shedSoftwareUpdateOnRetryableErr(
+	ctx context.Context,
+	hostID uint,
+	r *fleet.UpdateHostSoftwareDBResult,
+	err error,
+) (*fleet.UpdateHostSoftwareDBResult, error) {
+	if common_mysql.RetryableError(err) {
+		ds.logger.InfoContext(ctx, "retryable error during software update, will retry on next agent refresh", "err", err, "host_id", hostID)
+		return r, nil
+	}
+	return nil, err
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
@@ -1342,7 +1367,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		}
 
 		// Each batch in its own transaction (for SELECT title IDs + INSERT software).
-		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Not retried in place: on a retryable error the caller sheds the cycle
+		// and the host's next refresh retries the (idempotent) inserts.
+		return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 			// Map to store title IDs for all titles (both existing and new)
 			titleIDsByChecksum := make(map[string]uint, len(incomingChecksumsToExistingTitleSummaries))
 
@@ -1613,8 +1640,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						ds.deleteKnownSoftwareTitleKey(cacheKey)
 					}
 				}
-				// Log rather than return a hard error: the title INSERT is outside the
-				// transaction, so withRetryTxx cannot re-insert the title on retry.
+				// Log rather than return a hard error: the title INSERT happened
+				// outside the transaction and is not re-attempted here.
 				// The software row proceeds with NULL title_id and the evicted cache
 				// entry ensures the title is re-created on the next ingestion cycle.
 				if ds.logger != nil {
@@ -1816,23 +1843,19 @@ func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 			stmt += " = ?"
 			args = append(args, oldUcPtr)
 		}
-		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			result, err := tx.ExecContext(ctx, stmt, args...)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "updating upgrade_code for software_title id: %d", titleID)
-			}
-
-			if rowsAffected, _ := result.RowsAffected(); rowsAffected > 0 {
-				ds.logger.InfoContext(ctx, "updated software title upgrade_code",
-					"title_id", titleID,
-					"new_upgrade_code", newUcPtr,
-					"old_upgrade_code", oldUcPtr,
-				)
-			}
-			return nil
-		})
+		// Single auto-committed statement, not retried in place: on a retryable
+		// error the caller sheds the cycle and the host's next refresh retries.
+		result, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 		if err != nil {
-			return err
+			return ctxerr.Wrapf(ctx, err, "updating upgrade_code for software_title id: %d", titleID)
+		}
+
+		if rowsAffected, _ := result.RowsAffected(); rowsAffected > 0 {
+			ds.logger.InfoContext(ctx, "updated software title upgrade_code",
+				"title_id", titleID,
+				"new_upgrade_code", newUcPtr,
+				"old_upgrade_code", oldUcPtr,
+			)
 		}
 	}
 	return nil

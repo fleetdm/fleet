@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -718,7 +719,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	// change" rather than "last reported"; hosts.policy_updated_at remains the
 	// per-host "last reported" signal and is updated below regardless. The same
 	// read yields the stale policy IDs returned to the caller.
-	needsWrite, stalePolicyIDs, err := ds.policiesNeedingMembershipWrite(ctx, host.ID, results)
+	needsWrite, stalePolicyIDs, expectedFailingCount, err := ds.policiesNeedingMembershipWrite(ctx, host.ID, results)
 	if err != nil {
 		return nil, err
 	}
@@ -799,11 +800,31 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		return nil, err
 	}
 
-	// ds.UpdateHostIssuesFailingPoliciesForSingleHost should be executed even if len(results) == 0
-	// because this means the host is configured to run no policies and we would like
-	// to cleanup the counts (if any).
-	if err := ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID); err != nil {
+	// The host_issues failing-policies count is derived entirely from
+	// policy_membership, so recompute it only when the stored count differs
+	// from the count this call leaves behind. The stored-count read is a
+	// cheap indexed reader lookup; the recompute it avoids is a writer
+	// INSERT ... ON DUPLICATE KEY UPDATE on every check-in, which piles up
+	// during post-outage thundering herds when most hosts report unchanged
+	// results. Membership changes that bypass this path (policy deletion
+	// cascades, team transfers) leave a mismatched stored count, so they are
+	// still healed on the host's next check-in — including the case where the
+	// host is configured to run no policies and stale counts need cleanup
+	// (that case is also healed within the same check-in by the caller's
+	// stale-membership cleanup, which recomputes host_issues itself). A
+	// missing host_issues row always triggers the recompute, which creates
+	// it. Both the stored count and the membership snapshot behind
+	// expectedFailingCount come from the reader, so replica lag can defer the
+	// recompute by one check-in — the same accepted, self-healing tradeoff as
+	// #44191.
+	storedFailingCount, ok, err := ds.hostIssuesFailingPoliciesCount(ctx, host.ID)
+	if err != nil {
 		return nil, err
+	}
+	if !ok || storedFailingCount != expectedFailingCount {
+		if err := ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID); err != nil {
+			return nil, err
+		}
 	}
 
 	if deferredSaveHost {
@@ -840,9 +861,14 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 // longer in scope for the host (e.g. it changed teams, or the policy's
 // platform or label scope changed) and their rows are candidates for deletion.
 //
+// Finally, it returns the failing-policies count the host will have once the
+// needsWrite rows are upserted: the stored rows overlaid with the incoming
+// values being written. Stale rows are included, since deleting them is a
+// separate caller-driven step that maintains host_issues itself.
+//
 // The read is an indexed lookup on host_id and is cheap relative to the
 // writes it lets us avoid; this is the optimization #44191 is about.
-func (ds *Datastore) policiesNeedingMembershipWrite(ctx context.Context, hostID uint, incoming map[uint]*bool) (needsWrite map[uint]struct{}, stalePolicyIDs []uint, err error) {
+func (ds *Datastore) policiesNeedingMembershipWrite(ctx context.Context, hostID uint, incoming map[uint]*bool) (needsWrite map[uint]struct{}, stalePolicyIDs []uint, expectedFailingCount int, err error) {
 	needsWrite = make(map[uint]struct{}, len(incoming))
 
 	type membershipRow struct {
@@ -852,7 +878,7 @@ func (ds *Datastore) policiesNeedingMembershipWrite(ctx context.Context, hostID 
 	var stored []membershipRow
 	selectQuery := `SELECT policy_id, passes FROM policy_membership WHERE host_id = ?`
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &stored, selectQuery, hostID); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "select policy_membership for delta")
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "select policy_membership for delta")
 	}
 	storedByID := make(map[uint]sql.NullBool, len(stored))
 	for _, r := range stored {
@@ -880,7 +906,27 @@ func (ds *Datastore) policiesNeedingMembershipWrite(ctx context.Context, hostID 
 			needsWrite[policyID] = struct{}{}
 		}
 	}
-	return needsWrite, stalePolicyIDs, nil
+
+	// Overlay the values being written on the stored rows to compute the
+	// failing-policies count the host will have after the upsert. A NULL
+	// passes value (query didn't execute) does not count as failing, matching
+	// SUM(!passes) in updateHostIssuesFailingPoliciesForSingleHost.
+	merged := make(map[uint]sql.NullBool, len(storedByID)+len(needsWrite))
+	maps.Copy(merged, storedByID)
+	for policyID := range needsWrite {
+		var v sql.NullBool
+		if incomingValue := incoming[policyID]; incomingValue != nil {
+			v = sql.NullBool{Valid: true, Bool: *incomingValue}
+		}
+		merged[policyID] = v
+	}
+	for _, v := range merged {
+		if v.Valid && !v.Bool {
+			expectedFailingCount++
+		}
+	}
+
+	return needsWrite, stalePolicyIDs, expectedFailingCount, nil
 }
 
 func (ds *Datastore) ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {

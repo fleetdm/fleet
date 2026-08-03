@@ -54,6 +54,13 @@ type Service struct {
 	jitterMu *sync.RWMutex
 	jitterH  map[time.Duration]*jitterHashTable
 
+	// startedAt is when this Fleet instance started. Hosts whose periodic
+	// queries became overdue before this moment (i.e. while the server was
+	// down) have their queries splayed over
+	// config.Osquery.OverdueQuerySplayWindow instead of being sent all at
+	// once. See Service.shouldUpdate.
+	startedAt time.Time
+
 	geoIP fleet.GeoIP
 
 	*fleet.EnterpriseOverrides
@@ -182,6 +189,7 @@ func NewService(
 		authz:             authorizer,
 		jitterH:           make(map[time.Duration]*jitterHashTable),
 		jitterMu:          new(sync.RWMutex),
+		startedAt:         c.Now(),
 		geoIP:             geoIP,
 		enrollHostLimiter: enrollHostLimiter,
 		depStorage:        depStorage,

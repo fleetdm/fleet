@@ -1210,6 +1210,22 @@ to the amount of time it takes for Fleet to give the host the label queries.
     max_jitter_percent: 10
   ```
 
+### osquery_overdue_query_splay_window
+
+When the Fleet server is down for a while (e.g. during a database migration on upgrade), many hosts' label, policy, and detail update intervals elapse during the downtime. Without mitigation, every one of those hosts is sent its label, policy, and detail queries as soon as the server is back, and the flood of results reported back causes very high load on the database writer (lock contention, deadlocks, and retries).
+
+With this option set, hosts whose queries became overdue while the server was down are instead spread uniformly over the configured window after the server starts. Each host is assigned a consistent offset within the window, so the backlog drains at a steady rate regardless of how long the server was down. Hosts within their normal reporting cadence, and hosts for which a refetch was explicitly requested, are not delayed.
+
+The effective window is capped at the corresponding update interval (`osquery_label_update_interval`, `osquery_policy_update_interval`, or `osquery_detail_update_interval`). Set to `0` to disable the splay.
+
+- Default value: `30m`
+- Environment variable: `FLEET_OSQUERY_OVERDUE_QUERY_SPLAY_WINDOW`
+- Config file format:
+  ```yaml
+  osquery:
+    overdue_query_splay_window: 30m
+  ```
+
 ### osquery_enable_async_host_processing
 
 **Experimental feature**. Enable asynchronous processing of hosts' report results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled report statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).

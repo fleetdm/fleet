@@ -912,8 +912,48 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 	}
 
 	jitter := jh.jitterForHost(hostID)
-	cutoff := svc.clock.Now().Add(-(interval + jitter))
-	return lastUpdated.Before(cutoff)
+	now := svc.clock.Now()
+	cutoff := now.Add(-(interval + jitter))
+	if !lastUpdated.Before(cutoff) {
+		return false
+	}
+
+	// The host is due. If it became due before this Fleet instance started
+	// (i.e. while the server was down, e.g. during a DB migration), then a
+	// large portion of the fleet is due at once. Instead of sending the
+	// queries to every host immediately — which causes a thundering herd of
+	// distributed/write results overwhelming the DB writer — spread these
+	// hosts uniformly over the configured splay window, anchored at server
+	// start. Hosts inside their normal cadence (due after server start) are
+	// unaffected, as are explicit refetches (checked by callers).
+	window := svc.config.Osquery.OverdueQuerySplayWindow
+	if window <= 0 || lastUpdated.IsZero() {
+		return true
+	}
+	if window > interval {
+		// Keep the total added delay under one interval so the "host not
+		// responding" heuristic holds (countHostsNotRespondingDB allows up to
+		// 2x the interval to account for the artificial jitter).
+		window = interval
+	}
+	dueAt := lastUpdated.Add(interval + jitter)
+	if dueAt.Before(svc.startedAt) {
+		splay := overdueQuerySplay(hostID, window)
+		return now.After(svc.startedAt.Add(splay))
+	}
+	return true
+}
+
+// overdueQuerySplay deterministically spreads hosts uniformly over the given
+// window with one-second granularity. Host IDs are dense sequential integers,
+// so a plain modulo yields a uniform distribution, and the same host always
+// lands on the same offset regardless of which Fleet instance serves it.
+func overdueQuerySplay(hostID uint, window time.Duration) time.Duration {
+	seconds := window / time.Second
+	if seconds <= 0 {
+		return 0
+	}
+	return time.Duration(uint64(hostID)%uint64(seconds)) * time.Second //nolint:gosec // seconds is positive, dismiss G115
 }
 
 func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {

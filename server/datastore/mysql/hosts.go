@@ -6765,6 +6765,21 @@ func (ds *Datastore) UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Co
 	return updateHostIssuesFailingPoliciesForSingleHost(ctx, tx, hostID)
 }
 
+// hostIssuesFailingPoliciesCount returns the stored failing-policies count for
+// the host and whether a host_issues row exists for it.
+func (ds *Datastore) hostIssuesFailingPoliciesCount(ctx context.Context, hostID uint) (int, bool, error) {
+	var counts []int
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &counts,
+		`SELECT failing_policies_count FROM host_issues WHERE host_id = ?`, hostID,
+	); err != nil {
+		return 0, false, ctxerr.Wrap(ctx, err, "select host_issues failing policies count")
+	}
+	if len(counts) == 0 {
+		return 0, false, nil
+	}
+	return counts[0], true, nil
+}
+
 func updateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, tx sqlx.ExecerContext, hostID uint) error {
 	stmt := `
 	INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
