@@ -280,7 +280,10 @@ func runCommandCheck(v validator.Validator, server, token, hostUUID string) chec
 		"command":    base64.StdEncoding.EncodeToString([]byte("<plist/>")),
 		"host_uuids": []string{"00000000-0000-0000-0000-000000000000"},
 	}
-	b, _ := json.Marshal(body)
+	b, err := json.Marshal(body)
+	if err != nil {
+		return checkResult{label, statusFailed, err.Error()}
+	}
 	req, err := http.NewRequest("POST", server+"/api/v1/fleet/commands/run", bytes.NewReader(b))
 	if err != nil {
 		return checkResult{label, statusFailed, err.Error()}
@@ -308,7 +311,10 @@ func login(server, email, password string) (string, error) {
 	if email == "" || password == "" {
 		return "", fmt.Errorf("provide --token, or both --email and --password")
 	}
-	b, _ := json.Marshal(map[string]string{"email": email, "password": password})
+	b, err := json.Marshal(map[string]string{"email": email, "password": password})
+	if err != nil {
+		return "", err
+	}
 	resp, err := httpClient.Post(server+"/api/v1/fleet/login", "application/json", bytes.NewReader(b))
 	if err != nil {
 		return "", err

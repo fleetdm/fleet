@@ -6,6 +6,7 @@ on:
       - "docs/REST API/**"
       - "tools/openapi/**"
       - ".github/workflows/openapi.yml"
+      - "Makefile"
   workflow_dispatch:
 
 defaults:
@@ -83,11 +84,16 @@ jobs:
           FLEET_SERVER_TLS: false
         run: |
           mkdir ./fleet_log
-          for i in {1..10}; do make db-reset && break || sleep 5; done
+          for i in {1..10}; do
+            if make db-reset; then break; fi
+            if [[ "$i" -eq 10 ]]; then echo "db-reset failed after 10 attempts"; exit 1; fi
+            sleep 5
+          done
           ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
           ./build/fleetctl config set --address http://localhost:1337 --tls-skip-verify
-          until ./build/fleetctl setup --email admin@example.com --name Admin --password preview1337# --org-name Example
-          do
+          for i in {1..30}; do
+            if ./build/fleetctl setup --email admin@example.com --name Admin --password preview1337# --org-name Example; then break; fi
+            if [[ "$i" -eq 30 ]]; then echo "fleetctl setup failed after 30 attempts"; exit 1; fi
             echo "Retrying setup in 5s..."
             sleep 5
           done

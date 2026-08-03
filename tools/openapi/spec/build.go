@@ -179,7 +179,8 @@ func buildOperation(e parser.Endpoint) *Operation {
 func operationID(heading string) string {
 	words := strings.Fields(heading)
 	var b strings.Builder
-	for i, w := range words {
+	first := true
+	for _, w := range words {
 		w = strings.Map(func(r rune) rune {
 			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
 				return r
@@ -189,8 +190,9 @@ func operationID(heading string) string {
 		if w == "" {
 			continue
 		}
-		if i == 0 {
+		if first {
 			b.WriteString(strings.ToLower(w))
+			first = false
 		} else {
 			b.WriteString(strings.ToUpper(w[:1]) + w[1:])
 		}
