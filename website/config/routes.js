@@ -1373,6 +1373,7 @@ module.exports.routes = {
   'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
   'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
+  'GET /learn-more-about/release-devices': 'https://developer.apple.com/documentation/devicemanagement/disown-devices',
   'GET /learn-more-about/mdm-enrollment': '/guides/windows-mdm-setup#manual-enrollment',
   'GET /learn-more-about/windows-default-fleet': '/guides/windows-mdm-setup#set-a-default-fleet-for-new-hosts',
   'GET /learn-more-about/device-and-user-scope': '/guides/custom-os-settings#device-and-user-scope',
