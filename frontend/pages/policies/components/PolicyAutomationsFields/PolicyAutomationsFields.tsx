@@ -89,6 +89,9 @@ interface IPolicyAutomationsFieldsProps {
   /** Present only for patch policies on Premium. */
   patchOption?: PatchOption;
   onPatchOptionChange?: (patchOption: PatchOption) => void;
+  /** Rendered between the automation types and the continuous-automation
+   *  checkbox — the edit-policy Patch radios (owned by PolicyForm). */
+  patchSlot?: React.ReactNode;
 }
 
 const PolicyAutomationsFields = forwardRef<
@@ -105,6 +108,7 @@ const PolicyAutomationsFields = forwardRef<
       fleetName,
       patchOption,
       onPatchOptionChange,
+      patchSlot,
     },
     ref
   ) => {
@@ -616,6 +620,8 @@ const PolicyAutomationsFields = forwardRef<
             about automation types and their supported platforms.
           </div>
         </div>
+
+        {patchSlot}
 
         {!isGlobalPolicy && patchOption !== "manual" && (
           <div className={`${baseClass}__section`}>

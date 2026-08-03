@@ -4,7 +4,8 @@
 .software-deploy-selector {
   &__checkboxes {
     display: flex;
-    gap: $pad-xlarge;
+    flex-direction: column;
+    gap: $pad-small;
 
     .form-field--checkbox {
       margin-bottom: 0;
@@ -15,12 +16,12 @@
   &__patch-options {
     display: flex;
     flex-direction: column;
-    gap: $pad-medium;
-    margin-top: $pad-medium;
-    margin-left: $pad-xlarge;
+    gap: $pad-small;
+    margin-top: $pad-small;
+    margin-left: $pad-large;
   }
 
   &__patch-when-closed-notice {
-    margin: 0;
+    margin: $pad-large 0 0;
   }
 }

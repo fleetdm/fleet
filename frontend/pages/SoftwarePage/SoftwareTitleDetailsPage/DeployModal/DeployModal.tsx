@@ -171,6 +171,7 @@ const DeployModal = ({
               onSelectPatchOption={setPatchOption}
               disabled={disableChildren || isLoadingFleetMaintainedApp}
               showPatchWhenClosedNotice
+              hideLabel
             />
           )}
         />

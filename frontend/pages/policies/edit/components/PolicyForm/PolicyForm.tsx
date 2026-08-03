@@ -692,6 +692,24 @@ const PolicyForm = ({
       (selectedTargetType === "Custom" && !hasCustomLabels) ||
       errors.query === EMPTY_QUERY_ERR;
 
+    // Patch radios for patch policies (Premium). Rendered inside the Automations
+    // block via patchSlot when it's shown, or standalone before the automations
+    // config loads so the option stays settable.
+    const patchOptions = isEditMode && isPremiumTier && isPatchPolicy && (
+      <div className="form-field">
+        <div className="form-field__label">Patch</div>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <PatchOptionSelector
+              patchOption={patchOption}
+              onSelectPatchOption={setPatchOption}
+              disabled={disableChildren}
+            />
+          )}
+        />
+      </div>
+    );
+
     return (
       <>
         <form className={`${baseClass}__wrapper`} autoComplete="off">
@@ -721,20 +739,6 @@ const PolicyForm = ({
               disableOptions={gitOpsModeEnabled}
             />
           )}
-          {isEditMode && isPremiumTier && isPatchPolicy && (
-            <div className="form-field">
-              <div className="form-field__label">Patch</div>
-              <GitOpsModeTooltipWrapper
-                renderChildren={(disableChildren) => (
-                  <PatchOptionSelector
-                    patchOption={patchOption}
-                    onSelectPatchOption={setPatchOption}
-                    disabled={disableChildren}
-                  />
-                )}
-              />
-            </div>
-          )}
           {isEditMode && !!storedPolicy && !!automationsConfig && (
             <div className="form-field">
               <div className="form-field__label">Automations</div>
@@ -759,9 +763,12 @@ const PolicyForm = ({
                   isPremiumTier && isPatchPolicy ? patchOption : undefined
                 }
                 onPatchOptionChange={setPatchOption}
+                patchSlot={patchOptions}
               />
             </div>
           )}
+          {!(isEditMode && !!storedPolicy && !!automationsConfig) &&
+            patchOptions}
           {isEditMode &&
             isPremiumTier &&
             !isPatchPolicy &&

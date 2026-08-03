@@ -22,6 +22,8 @@ interface ISoftwareDeploySelectorProps {
   onSelectPatchOption: (value: PatchOption) => void;
   disabled?: boolean;
   showPatchWhenClosedNotice?: boolean;
+  /** Hide the "Deploy" label — e.g. in the Deploy modal, whose title is already "Deploy". */
+  hideLabel?: boolean;
 }
 
 interface IPatchOptionSelectorProps {
@@ -41,51 +43,53 @@ export const PatchOptionSelector = ({
     onSelectPatchOption(value as PatchOption);
 
   return (
-    <div
-      className={`${baseClass}__patch-options`}
-      role="radiogroup"
-      aria-label="Patch options"
-    >
-      <Radio
-        id="patch-when-closed"
-        name="patch-option"
-        value="closed"
-        label="Patch when app is closed"
-        checked={patchOption === "closed"}
-        onChange={onChangePatchOption}
-        disabled={disabled}
-      />
-      <Radio
-        id="force-patch"
-        name="patch-option"
-        value="force"
-        label="Force patch"
-        checked={patchOption === "force"}
-        onChange={onChangePatchOption}
-        disabled={disabled}
-      />
-      <Radio
-        id="manual-patch"
-        name="patch-option"
-        value="manual"
-        label="End user initiated (manual)"
-        checked={patchOption === "manual"}
-        onChange={onChangePatchOption}
-        disabled={disabled}
-      />
-      {patchOption === "force" && (
-        <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
-          End user is not notified. Patch is forced as soon as policy fails.
-          Notifications are coming soon.
-        </InfoBanner>
-      )}
+    <>
+      <div
+        className={`${baseClass}__patch-options`}
+        role="radiogroup"
+        aria-label="Patch options"
+      >
+        <Radio
+          id="patch-when-closed"
+          name="patch-option"
+          value="closed"
+          label="Patch when app is closed"
+          checked={patchOption === "closed"}
+          onChange={onChangePatchOption}
+          disabled={disabled}
+        />
+        <Radio
+          id="force-patch"
+          name="patch-option"
+          value="force"
+          label="Force patch"
+          checked={patchOption === "force"}
+          onChange={onChangePatchOption}
+          disabled={disabled}
+        />
+        <Radio
+          id="manual-patch"
+          name="patch-option"
+          value="manual"
+          label="End user initiated (manual)"
+          checked={patchOption === "manual"}
+          onChange={onChangePatchOption}
+          disabled={disabled}
+        />
+        {patchOption === "force" && (
+          <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
+            End user is not notified. Patch is forced as soon as policy fails.
+            Notifications are coming soon.
+          </InfoBanner>
+        )}
+      </div>
       {patchOption === "closed" && showPatchWhenClosedNotice && (
         <p className={`${baseClass}__patch-when-closed-notice`}>
           <b>Patch when app is closed</b> overrides the pre-install query
           (advanced option) to check if the app is closed.
         </p>
       )}
-    </div>
+    </>
   );
 };
 
@@ -98,10 +102,11 @@ const SoftwareDeploySelector = ({
   onSelectPatchOption,
   disabled = false,
   showPatchWhenClosedNotice = false,
+  hideLabel = false,
 }: ISoftwareDeploySelectorProps) => {
   return (
     <div className={`form-field ${baseClass}`}>
-      <div className="form-field__label">Deploy</div>
+      {!hideLabel && <div className="form-field__label">Deploy</div>}
       <div className={`${baseClass}__checkboxes`}>
         <Checkbox
           name="force-install"
