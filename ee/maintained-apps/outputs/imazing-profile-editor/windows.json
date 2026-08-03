@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.0.3.0",
+      "version": "2.0.4.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'iMazing Profile Editor' AND publisher = 'DigiDNA';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iMazing Profile Editor' AND publisher = 'DigiDNA' AND version_compare(version, '2.0.3.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iMazing Profile Editor' AND publisher = 'DigiDNA' AND version_compare(version, '2.0.4.0') < 0);"
       },
-      "installer_url": "https://downloads.imazing.com/windows/iMazing-Profile-Editor/2.0.3/iMazing_Profile_Editor_2.0.3.exe",
+      "installer_url": "https://downloads.imazing.com/windows/iMazing-Profile-Editor/2.0.4/iMazing_Profile_Editor_2.0.4.exe",
       "install_script_ref": "46d85965",
       "uninstall_script_ref": "120c1575",
-      "sha256": "cd9826185edd11980a0302b830092368d31aa9e890fe91699a0ae8a32ecd7141",
+      "sha256": "1bd94ad14d40321761a2c6415c6bc716fe975117c845dd24e1a81787fe1bb6a9",
       "default_categories": [
         "Developer tools"
       ]

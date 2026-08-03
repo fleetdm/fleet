@@ -2,8 +2,10 @@ import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Row } from "react-table";
 import { AxiosError } from "axios";
+import classnames from "classnames";
 
-import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+import { notify } from "components/ToastNotification";
 import {
   IPolicy,
   IPolicyAutomationActivity,
@@ -23,7 +25,6 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyState from "components/EmptyState";
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import SearchField from "components/forms/fields/SearchField";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -60,8 +61,13 @@ const PolicyAutomationsActivitiesTable = ({
   canResetPolicy,
 }: IPolicyAutomationsActivitiesTableProps): JSX.Element => {
   const { id: policyId } = policy;
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
+  const { config } = useContext(AppContext);
+
+  const {
+    activity_expiry_enabled: activityExpiryEnabled,
+    activity_expiry_window: activityExpiryWindow,
+  } = config?.activity_expiry_settings ?? {};
 
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,13 +120,15 @@ const PolicyAutomationsActivitiesTable = ({
     () => policiesAPI.reset(policyId),
     {
       onSuccess: () => {
-        renderFlash("success", "Policy reset successfully.");
+        notify.success("Policy reset successfully.");
         queryClient.invalidateQueries(["policyAutomationActivities", policyId]);
         queryClient.invalidateQueries(["policy", policyId]);
         setShowResetModal(false);
       },
-      onError: () => {
-        renderFlash("error", "Couldn't reset policy. Please try again.");
+      onError: (error) => {
+        notify.error("Couldn't reset policy. Please try again.", {
+          response: error,
+        });
       },
     }
   );
@@ -176,13 +184,15 @@ const PolicyAutomationsActivitiesTable = ({
         />
       );
     }
-    return (
-      <EmptyState
-        header="No automation runs"
-        info="When this policy's automations run, their results will appear here."
-      />
-    );
-  }, [isFiltered]);
+    const info =
+      activityExpiryEnabled && activityExpiryWindow
+        ? `Automation history is retained for ${activityExpiryWindow} ${pluralize(
+            activityExpiryWindow,
+            "day"
+          )}.`
+        : "Automation history will appear here.";
+    return <EmptyState header="No automation runs" info={info} />;
+  }, [isFiltered, activityExpiryEnabled, activityExpiryWindow]);
 
   const columnConfigs = useMemo(
     () => generateColumnConfigs(baseClass, setSelectedActivity),
@@ -200,7 +210,11 @@ const PolicyAutomationsActivitiesTable = ({
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__header`}>
+      <div
+        className={classnames(`${baseClass}__header`, {
+          [`${baseClass}__header--inline`]: !showControls,
+        })}
+      >
         <h2 className={`${baseClass}__title`}>Automation runs</h2>
         <div className={`${baseClass}__controls-row`}>
           {showControls && (
@@ -210,9 +224,13 @@ const PolicyAutomationsActivitiesTable = ({
           )}
           <div className={`${baseClass}__controls`}>
             {canResetPolicy && (
-              <Button variant="inverse" onClick={onClickResetPolicy}>
+              <Button
+                variant="subdued"
+                onClick={onClickResetPolicy}
+                icon="refresh"
+                iconPosition="right"
+              >
                 Reset policy
-                <Icon name="refresh" />
               </Button>
             )}
             {showControls && (

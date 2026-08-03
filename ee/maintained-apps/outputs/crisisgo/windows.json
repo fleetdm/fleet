@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "6.34.2.12397",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'CrisisGo' AND publisher = 'CrisisGo, Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CrisisGo' AND publisher = 'CrisisGo, Inc.' AND version_compare(version, '6.34.2.12397') < 0);"
+      },
+      "installer_url": "https://crisisgoapp.s3.amazonaws.com/Windows/CrisisGo_6.34.2.msi",
+      "install_script_ref": "27b04e7a",
+      "uninstall_script_ref": "1109525a",
+      "sha256": "c3b6d696ccf1b867c070b1f3610a3afb6baa5ab43035acba851b0f4f8539b266",
+      "default_categories": [
+        "Communication"
+      ],
+      "upgrade_code": "{A5AAD2BA-F3EC-493D-B790-0055FD3767A7}"
+    }
+  ],
+  "refs": {
+    "1109525a": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts('{A5AAD2BA-F3EC-493D-B790-0055FD3767A7}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # If the uninstall failed, bail\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "27b04e7a": "# Learn more about install scripts:\n# http://fleetdm.com/learn-more-about/install-scripts\n#\n# CrisisGo is an InstallShield Basic MSI whose InstallExecuteSequence contains\n# a \"must run setup.exe\" guard conditioned on NOT ISSETUPDRIVEN. The vendor\n# ships this bare MSI for network deployment and winget's sandbox installs it\n# silently, but we pass ISSETUPDRIVEN=1 explicitly so the guard can never fire.\n\n$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} ISSETUPDRIVEN=1 /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($installProcess.ExitCode -eq 3010 -or $installProcess.ExitCode -eq 1641) {\n  Exit 0\n}\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

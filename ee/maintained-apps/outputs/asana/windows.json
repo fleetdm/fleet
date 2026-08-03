@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.7.1",
+      "version": "2.7.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Asana' AND publisher = 'Asana, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Asana' AND publisher = 'Asana, Inc.' AND version_compare(version, '2.7.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Asana' AND publisher = 'Asana, Inc.' AND version_compare(version, '2.7.2') < 0);"
       },
-      "installer_url": "https://desktop-downloads.asana.com/win32_x64/prod/v2.7.1/AsanaSetup.exe",
+      "installer_url": "https://desktop-downloads.asana.com/win32_x64/prod/v2.7.2/AsanaSetup.exe",
       "install_script_ref": "7d7fdd9d",
       "uninstall_script_ref": "223f54f6",
-      "sha256": "33f5df50e930f38f05ffc4ff298adc2084f3254407f40101982b83c6d2ddd1d6",
+      "sha256": "9f5778c5bf886ce66c51a7719ab41bd91ad74e8f8735496843ead7bdc47030ff",
       "default_categories": [
         "Productivity"
       ]

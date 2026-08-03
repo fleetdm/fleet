@@ -106,7 +106,7 @@ Start by deciding which access patterns are acceptable without full device manag
 
 Start with signals that are both high-value and hard to argue with during support escalations: supported OS version, full-disk encryption enabled, screen lock present, and required security tooling installed and running. Add more nuanced checks (like local admin presence, firewall rules, or high-risk software) after you've validated that your reporting is accurate across macOS, Windows, and Linux and that remediation paths are clear. Fleet can run these posture checks across all three platforms from a single console. [Contact us](https://fleetdm.com/contact) to see how the reporting and remediation workflows look in practice.
 
-<meta name="articleTitle" value="How to Secure a Remote Workforce Across macOS, Windows & Linux">
+<meta name="articleTitle" value="How to secure a remote workforce across macOS, Windows & Linux">
 <meta name="authorFullName" value="Dan Gordon">
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">

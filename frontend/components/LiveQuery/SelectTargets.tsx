@@ -482,7 +482,6 @@ const SelectTargets = ({
         <>
           <Spinner
             size="x-small"
-            includeContainer={false}
             centered={false}
             className={`${baseClass}__count-spinner`}
           />
@@ -640,7 +639,7 @@ const SelectTargets = ({
         <Button
           className={`${baseClass}__btn`}
           onClick={handleClickCancel}
-          variant="inverse"
+          variant="secondary"
         >
           Cancel
         </Button>

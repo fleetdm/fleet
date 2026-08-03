@@ -34,6 +34,11 @@ const (
 	DisplayNameAllTeams = "All fleets"
 )
 
+// MaxTeamNameLength matches the varchar(255) size of teams.name in MySQL.
+// Enforce this before insert/update so callers get an InvalidArgumentError
+// instead of a raw "Data too long" MySQL error.
+const MaxTeamNameLength = 255
+
 // IsReservedTeamName checks if the name provided is a reserved fleet name (case-insensitive).
 // Both old names ("No team", "All teams") and new display names ("Unassigned", "All fleets")
 // are reserved to prevent creating teams with any of these names.
@@ -96,7 +101,17 @@ type TeamPayloadMDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates *WindowsUpdates `json:"windows_updates"`
 
-	MacOSSetup *MacOSSetup `json:"macos_setup"`
+	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
+	HostNameTemplate optjson.String `json:"name_template"`
+
+	// WindowsSettings exposes only the managed local account surface on the team PATCH endpoint;
+	// configuration profiles are managed through their own endpoints.
+	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
+}
+
+// TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH endpoint.
+type TeamPayloadWindowsSettings struct {
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -181,6 +196,16 @@ func (t Team) MarshalJSON() ([]byte, error) {
 		HostCount:   t.HostCount,
 		Hosts:       HostResponsesForHostsCheap(t.Hosts),
 		Secrets:     t.Secrets,
+	}
+
+	// Fall back to defaults when these keys are missing from the stored config
+	// (e.g. a team created before they existed), so the serialized team matches
+	// what AppConfig.MarshalJSON serves for the global config.
+	if !x.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		x.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !x.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		x.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
 
 	return json.Marshal(x)
@@ -335,6 +360,10 @@ type TeamMDM struct {
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	AndroidSettings AndroidSettings `json:"android_settings"`
+
+	// HostNameTemplate is the template used to compute a host's display name from
+	// host-identity Fleet variables (e.g. $FLEET_VAR_HOST_HARDWARE_SERIAL).
+	HostNameTemplate string `json:"name_template"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 
 	/////////////////////////////////////////////////////////////////
@@ -420,7 +449,8 @@ type TeamSpecMDM struct {
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
-	AndroidSettings AndroidSettings `json:"android_settings"`
+	AndroidSettings  AndroidSettings `json:"android_settings"`
+	HostNameTemplate optjson.String  `json:"name_template"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
@@ -746,6 +776,9 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
 	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
+	// assets are only present in ToMap for GitOps request validation; they are
+	// not stored on the team config, so keep them out of the generated spec.
+	delete(mdmSpec.MacOSSettings, "assets")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)

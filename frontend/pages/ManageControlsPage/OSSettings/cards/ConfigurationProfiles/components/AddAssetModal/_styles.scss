@@ -1,0 +1,68 @@
+.add-asset-modal {
+  &__modal-content-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__file {
+    padding: $pad-medium $pad-large;
+  }
+
+  &__file-chooser {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+    padding-top: $pad-medium;
+
+    input {
+      display: none;
+    }
+
+    &--title {
+      color: $ui-fleet-black-75;
+      font-weight: $bold;
+    }
+
+    &--message {
+      text-align: center;
+      line-height: 20px;
+      color: $ui-fleet-black-50;
+    }
+
+    &--button-wrap {
+      display: flex;
+      justify-content: center;
+      gap: $pad-small;
+      cursor: pointer;
+      height: 36px;
+      align-items: center;
+    }
+  }
+
+  &__upload-button {
+    margin-top: $pad-small;
+  }
+
+  &__selected-file {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+
+    &--details {
+      display: flex;
+      flex-direction: column;
+
+      &--name {
+        font-size: $x-small;
+        font-weight: $bold;
+      }
+
+      &--platform {
+        font-size: $x-small;
+        color: $ui-fleet-black-75;
+      }
+    }
+  }
+}

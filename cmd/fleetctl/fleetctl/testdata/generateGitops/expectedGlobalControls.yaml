@@ -43,6 +43,7 @@ apple_require_hardware_attestation: false
 android_enabled_and_configured: true
 enable_disk_encryption: true
 enable_recovery_lock_password: false
+name_template: ""
 macos_migration: # Available in Fleet Premium
   enable: true
   mode: voluntary

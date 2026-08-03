@@ -1,0 +1,1 @@
+* Fixed a bug where Apple MDM devices re-enrolling manually with a pending SCEP renewal would not be treated as a new renewal and might skip apps, profiles, etc

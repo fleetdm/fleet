@@ -41,6 +41,7 @@ controls:
     deadline: "2020-12-31"
     minimum_version: "95.1"
     update_new_hosts: true
+  name_template: iPad $FLEET_VAR_HOST_HARDWARE_SERIAL
   scripts:
   - path: "../lib/team-a-👍/scripts/Script B.ps1"
   windows_enabled_and_configured: true
@@ -209,8 +210,10 @@ software:
     - Label B
     self_service: true
     slug: fma2/windows
+    version: "10.0"
   - self_service: true
     slug: fma3/windows
+    version: "^123"
   packages:
   - categories:
     - Browsers

@@ -18,6 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
+	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -84,6 +86,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
 		{"ONCWithheldUntilCertVerified", testONCWithheldUntilCertVerified},
 		{"UnresolvableFleetVarMarksProfileFailed", testUnresolvableFleetVarMarksProfileFailed},
+		{"MissingCustomHostVitalValueMarksProfileFailed", testMissingCustomHostVitalValueMarksProfileFailed},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -180,7 +183,7 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client,
 
 	// add an android profile
 	p1 := androidProfileForTest("p1")
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 
 	// profile gets delivered to both hosts
@@ -221,11 +224,11 @@ func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock
 
 	// add an android profile
 	p1 := androidProfileWithPayloadForTest("p1", `{"key1": "a"}`)
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 	// add another one that overrides the first one
 	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b", "key2": "c"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 
 	// profiles get delivered to both hosts, but p1 is failed
@@ -274,13 +277,13 @@ func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client 
 	// and insert in different order than the names to verify that name ordering
 	// is applied.
 	p3 := androidProfileWithPayloadForTest("p3", `{"key1": "c", "key2": "c", "key3": "c", "key4": "c"}`)
-	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3)
+	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3, nil)
 	require.NoError(t, err)
 	p1 := androidProfileWithPayloadForTest("p1", `{"key1": "a", "key2": "a"}`)
-	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b", "key2": "b", "key3": "b"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 
 	// profiles get delivered to h1 only
@@ -321,7 +324,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// add an android profile
 	p1 := androidProfileForTest("p1")
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 
 	for i := range 3 {
@@ -357,7 +360,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// add a new profile that "resets" the set of profiles to send, so will retry
 	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 
 	// and this time make it succeed
@@ -400,7 +403,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 
 	// add a first android profile
 	p1 := androidProfileWithPayloadForTest("p1", `{"maximumTimeToLock": "1"}`)
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 	p1Checksum := getAndroidProfileChecksum(t, ds, p1.ProfileUUID)
 
@@ -467,7 +470,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 
 	// add a second android profile
 	p2 := androidProfileWithPayloadForTest("p2", `{"maximumTimeToLock": "4"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 	p2Checksum := getAndroidProfileChecksum(t, ds, p2.ProfileUUID)
 
@@ -582,19 +585,19 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	// create profiles based on each label, and one with no label
 	pNoLabel := androidProfileWithPayloadForTest("pNoLabel", `{"maximumTimeToLock": "1"}`)
 	pNoLabel.TeamID = &tm.ID
-	pNoLabel, err = ds.NewMDMAndroidConfigProfile(ctx, *pNoLabel)
+	pNoLabel, err = ds.NewMDMAndroidConfigProfile(ctx, *pNoLabel, nil)
 	require.NoError(t, err)
 	pInclAny := androidProfileWithPayloadForTest("pInclAny", `{"maximumTimeToLock": "2"}`, linclAny)
 	pInclAny.TeamID = &tm.ID
-	pInclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAny)
+	pInclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAny, nil)
 	require.NoError(t, err)
 	pInclAll := androidProfileWithPayloadForTest("pInclAll", `{"maximumTimeToLock": "3"}`, linclAll)
 	pInclAll.TeamID = &tm.ID
-	pInclAll, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAll)
+	pInclAll, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAll, nil)
 	require.NoError(t, err)
 	pExclAny := androidProfileWithPayloadForTest("pExclAny", `{"maximumTimeToLock": "4"}`, lexclAny)
 	pExclAny.TeamID = &tm.ID
-	pExclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pExclAny)
+	pExclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pExclAny, nil)
 	require.NoError(t, err)
 
 	// mock and control the version number, and validate the expected MaximumTimeToLock value
@@ -1305,13 +1308,13 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 		}
 	}`, certTemplate.Name))
 	oncProfile.TeamID = &team.ID
-	oncProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *oncProfile)
+	oncProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *oncProfile, nil)
 	require.NoError(t, err)
 
 	// Create a non-ONC profile (should always be applied)
 	nonONCProfile := androidProfileForTest("camera-policy")
 	nonONCProfile.TeamID = &team.ID
-	nonONCProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *nonONCProfile)
+	nonONCProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *nonONCProfile, nil)
 	require.NoError(t, err)
 
 	// --- Phase 1: cert is pending, ONC should be withheld, non-ONC applied ---
@@ -1436,7 +1439,7 @@ func testUnresolvableFleetVarMarksProfileFailed(t *testing.T, ds fleet.Datastore
 
 	// Create a profile that references an IDP variable the host can't resolve.
 	p1 := androidProfileWithPayloadForTest("wifi-eap", `{"name": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}`)
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 
 	// Reconcile — should NOT call AMAPI (no policy to patch) but should
@@ -1459,4 +1462,124 @@ func testUnresolvableFleetVarMarksProfileFailed(t *testing.T, ds fleet.Datastore
 	// the policy patch.
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
+// Failed-profile mechanism exercised above for an unresolvable $FLEET_VAR_*,
+// but taking the $FLEET_HOST_VITAL_ branch of androidVarSubstitutionFailureDetail.
+func testMissingCustomHostVitalValueMarksProfileFailed(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	// Create a host with no value set for the vital.
+	h1 := createAndroidHost(t, ds, 1)
+
+	vital, err := ds.CreateCustomHostVital(ctx, "Asset tag")
+	require.NoError(t, err)
+
+	// Create a profile that references the vital.
+	p1 := androidProfileWithPayloadForTest("asset-tag-profile", fmt.Sprintf(`{"name": "$%s%d"}`, fleet.CustomHostVitalPrefix, vital.ID))
+	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
+	require.NoError(t, err)
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{
+			HostUUID:      h1.UUID,
+			ProfileUUID:   p1.ProfileUUID,
+			ProfileName:   p1.Name,
+			Status:        &fleet.MDMDeliveryFailed,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        (&fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{vital.ID}, MissingNames: []string{vital.Name}}).Error(),
+		},
+	})
+
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
+func TestAndroidVarSubstitutionFailureDetail(t *testing.T) {
+	t.Run("missing custom host vital value", func(t *testing.T) {
+		detail, ok := androidVarSubstitutionFailureDetail(&fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}})
+		require.True(t, ok)
+		require.Contains(t, detail, "no value set for this host")
+	})
+
+	t.Run("unresolvable Fleet variable with detail", func(t *testing.T) {
+		err := &profiles.UnresolvableAndroidAppConfigVarError{FleetVar: "HOST_HARDWARE_SERIAL", Detail: "no serial for this host"}
+		detail, ok := androidVarSubstitutionFailureDetail(err)
+		require.True(t, ok)
+		require.Equal(t, "no serial for this host", detail)
+	})
+
+	t.Run("unresolvable Fleet variable without detail falls back to error message", func(t *testing.T) {
+		err := &profiles.UnresolvableAndroidAppConfigVarError{FleetVar: "SOME_VAR"}
+		detail, ok := androidVarSubstitutionFailureDetail(err)
+		require.True(t, ok)
+		require.Equal(t, err.Error(), detail)
+	})
+
+	t.Run("unrelated error is not handled here", func(t *testing.T) {
+		_, ok := androidVarSubstitutionFailureDetail(errors.New("some other error"))
+		require.False(t, ok)
+	})
+}
+
+func TestSubstituteProfileVarsForHostCustomHostVitals(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("skips datastore lookup when no vars or vitals present", func(t *testing.T) {
+		ds := new(ds_mock.DataStore)
+		profilesContents := map[string]json.RawMessage{
+			"prof-1": json.RawMessage(`{"name": "plain"}`),
+		}
+		got, err := substituteProfileVarsForHost(ctx, ds, "host-uuid-1", profilesContents)
+		require.NoError(t, err)
+		require.Equal(t, profilesContents, got)
+		require.False(t, ds.AndroidHostLiteByHostUUIDFuncInvoked)
+	})
+
+	t.Run("expands a custom host vital using the host's numeric ID", func(t *testing.T) {
+		ds := new(ds_mock.DataStore)
+		ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: 42, UUID: hostUUID}}, nil
+		}
+		ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+			require.EqualValues(t, 42, hostID)
+			return `{"name": "asset-123"}`, nil
+		}
+		profilesContents := map[string]json.RawMessage{
+			"prof-1": json.RawMessage(`{"name": "$FLEET_HOST_VITAL_7"}`),
+		}
+		got, err := substituteProfileVarsForHost(ctx, ds, "host-uuid-1", profilesContents)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"name": "asset-123"}`, string(got["prof-1"]))
+	})
+
+	t.Run("no value set for host surfaces MissingCustomHostVitalValueError", func(t *testing.T) {
+		ds := new(ds_mock.DataStore)
+		ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: 42, UUID: hostUUID}}, nil
+		}
+		ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+			return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}}
+		}
+		profilesContents := map[string]json.RawMessage{
+			"prof-1": json.RawMessage(`{"name": "$FLEET_HOST_VITAL_7"}`),
+		}
+		_, err := substituteProfileVarsForHost(ctx, ds, "host-uuid-1", profilesContents)
+		var missing *fleet.MissingCustomHostVitalValueError
+		require.ErrorAs(t, err, &missing)
+
+		detail, ok := androidVarSubstitutionFailureDetail(err)
+		require.True(t, ok)
+		require.Contains(t, detail, "no value set for this host")
+	})
 }

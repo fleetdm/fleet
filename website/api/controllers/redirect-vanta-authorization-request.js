@@ -36,6 +36,10 @@ module.exports = {
       description: 'No Vanta connection could be found using the provided vantaSourceId',
       responseType: 'badRequest'
     },
+    invalidVantaAuthorizationRequestURL: {
+      description: 'The provided vantaAuthorizationRequestURL is not a valid Vanta authorization URL.',
+      responseType: 'badRequest'
+    },
   },
 
 
@@ -47,6 +51,18 @@ module.exports = {
     // If no record of this authorization could be found, return a noMatchingVantaConnection response.
     if(!recordOfThisAuthorization){
       throw 'noMatchingVantaConnection';
+    }
+
+    // Since this is a public endpoint and the destination is caller-supplied, only allow redirecting
+    // to Vanta's authorization host. This prevents the endpoint from being abused as an open redirect.
+    let parsedVantaAuthorizationRequestURL;
+    try {
+      parsedVantaAuthorizationRequestURL = new URL(vantaAuthorizationRequestURL);
+    } catch (unusedErr) {
+      throw 'invalidVantaAuthorizationRequestURL';
+    }
+    if(parsedVantaAuthorizationRequestURL.protocol !== 'https:' || parsedVantaAuthorizationRequestURL.host !== 'app.vanta.com') {
+      throw 'invalidVantaAuthorizationRequestURL';
     }
 
     // Set a 'state' and 'vantaSourceId' cookie on the users browser.

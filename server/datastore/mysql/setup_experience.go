@@ -210,7 +210,8 @@ SELECT
 		FROM policies p
 		WHERE p.software_installer_id = si.id
 		AND ? IN ('windows', 'linux')) AS policy_gated,
-	COALESCE(stdn.display_name, st.name) AS sort_name
+	COALESCE(stdn.display_name, st.name) AS sort_name,
+	st.id AS software_title_id
 FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
@@ -229,8 +230,8 @@ AND (
 		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 		OR
 		(
-			-- tar.gz and sh can be installed on any Linux distribution
-			(si.extension = 'tar.gz' OR si.extension = 'sh')
+			-- tar.gz, sh, and py can be installed on any Linux distribution
+			(si.extension IN ('tar.gz', 'sh', 'py'))
 			OR
 			(
 				-- deb packages can only be installed on Debian-based hosts.
@@ -256,8 +257,8 @@ AND %s`
 			softwareArgs = append(softwareArgs, hostUUID)
 		}
 
-		// .sh installers are stored with platform='linux' but can run on darwin too,
-		// so include any cross-selected for macOS setup experience.
+		// .sh and .py installers are stored with platform='linux' but can run on darwin
+		// too, so include any cross-selected for macOS setup experience.
 		if fleetPlatform == "darwin" {
 			crossInstallerSelect := `
 SELECT
@@ -267,7 +268,8 @@ SELECT
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
 	FALSE AS policy_gated,
-	COALESCE(stdn.display_name, st.name) AS sort_name
+	COALESCE(stdn.display_name, st.name) AS sort_name,
+	st.id AS software_title_id
 FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
@@ -277,7 +279,7 @@ INNER JOIN setup_experience_software_installers seti
 	ON seti.software_installer_id = si.id AND seti.platform = 'darwin' AND seti.global_or_team_id = ?
 WHERE si.is_active = TRUE
 AND si.platform = 'linux'
-AND si.extension = 'sh'
+AND si.extension IN ('sh', 'py')
 AND %s`
 			if resetFailedSetupSteps {
 				crossInstallerSelect = fmt.Sprintf(crossInstallerSelect, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
@@ -302,7 +304,8 @@ SELECT
 	NULL AS software_installer_id,
 	vat.id AS vpp_app_team_id,
 	FALSE AS policy_gated,
-	COALESCE(stdn.display_name, st.name) AS sort_name
+	COALESCE(stdn.display_name, st.name) AS sort_name,
+	st.id AS software_title_id
 FROM vpp_apps va
 INNER JOIN vpp_apps_teams vat
 	ON vat.adam_id = va.adam_id
@@ -329,6 +332,9 @@ AND %s`
 
 	var stmtSoftwareCombined string
 	if len(softwareUnionParts) > 0 {
+		// A title can now hold several packages, and more than one can be flagged for setup. Queue only
+		// the first-added (smallest installer_id) package per title so setup doesn't double-queue; labels
+		// don't apply during setup. VPP apps are single-package per title, so they pass through untouched.
 		stmtSoftwareCombined = fmt.Sprintf(`
 INSERT INTO setup_experience_status_results (
 	host_uuid,
@@ -339,8 +345,14 @@ INSERT INTO setup_experience_status_results (
 	policy_gated
 )
 SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_gated FROM (
-	%s
-) AS combined
+	SELECT combined.*, ROW_NUMBER() OVER (
+		PARTITION BY software_title_id
+		ORDER BY (software_installer_id IS NULL), software_installer_id ASC
+	) AS first_added_rank FROM (
+		%s
+	) AS combined
+) AS deduped
+WHERE software_installer_id IS NULL OR first_added_rank = 1
 ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
 	}
 
@@ -529,8 +541,8 @@ VALUES %s`
 				switch {
 				case tuple.Platform == platform:
 					nativeSoftwareIDs = append(nativeSoftwareIDs, tuple.ID)
-				case platform == string(fleet.MacOSPlatform) && tuple.Platform == "linux" && tuple.Extension == "sh":
-					// .sh scripts can run on macOS; track the selection in the cross-platform table.
+				case platform == string(fleet.MacOSPlatform) && tuple.Platform == "linux" && (tuple.Extension == "sh" || tuple.Extension == "py"):
+					// .sh and .py scripts can run on macOS; track the selection in the cross-platform table.
 					crossSoftwareIDs = append(crossSoftwareIDs, tuple.ID)
 				default:
 					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -946,7 +958,8 @@ WHERE
 	return &script, nil
 }
 
-func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) (bool, error) {
+	var changed bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
@@ -979,11 +992,14 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 		}
 
 		// then create the script entity
-		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id)) // nolint: gosec
-		return err
+		if _, err = insertSetupExperienceScript(ctx, tx, script, uint(id)); err != nil { // nolint: gosec
+			return err
+		}
+		changed = true
+		return nil
 	})
 
-	return err
+	return changed, err
 }
 
 func insertSetupExperienceScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {
@@ -1119,4 +1135,32 @@ func (ds *Datastore) CancelPendingSetupExperienceSteps(ctx context.Context, host
 		return ctxerr.Wrap(ctx, err, "cancelling pending setup experience steps")
 	}
 	return nil
+}
+
+// SetSetupExperienceCrossInstallersForInstaller replaces the
+// setup_experience_software_installers rows for a single installer on a team
+// with rows for the given platforms. Other installers on the same team are
+// untouched, so a batch reconcile preserves rows for installers that did not
+// opt in. An empty platforms slice clears this installer's rows.
+func (ds *Datastore) SetSetupExperienceCrossInstallersForInstaller(ctx context.Context, installerID uint, teamID uint, platforms []string) error {
+	const stmtClear = `DELETE FROM setup_experience_software_installers WHERE software_installer_id = ? AND global_or_team_id = ?`
+	const stmtInsertTmpl = `INSERT IGNORE INTO setup_experience_software_installers (software_installer_id, platform, global_or_team_id) VALUES %s`
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmtClear, installerID, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing setup experience cross-platform installer rows")
+		}
+		if len(platforms) == 0 {
+			return nil
+		}
+		rowPlaceholders := strings.Join(slices.Repeat([]string{"(?,?,?)"}, len(platforms)), ",")
+		args := make([]any, 0, len(platforms)*3)
+		for _, p := range platforms {
+			args = append(args, installerID, p, teamID)
+		}
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmtInsertTmpl, rowPlaceholders), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting setup experience cross-platform installer rows")
+		}
+		return nil
+	})
 }

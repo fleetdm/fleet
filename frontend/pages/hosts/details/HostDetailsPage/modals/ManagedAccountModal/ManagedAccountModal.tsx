@@ -1,16 +1,15 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 
 import { IHostManagedAccountPasswordResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
-import { NotificationContext } from "context/notification";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { monthDayTimeFormat } from "utilities/date_format";
@@ -36,7 +35,6 @@ const ManagedAccountModal = ({
   onCancel,
   onRotate,
 }: IManagedAccountModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isRotating, setIsRotating] = useState(false);
   const [justRotated, setJustRotated] = useState(false);
 
@@ -64,18 +62,17 @@ const ManagedAccountModal = ({
     try {
       await hostAPI.rotateManagedLocalAccountPassword(hostId);
       setJustRotated(true);
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully sent request to rotate managed local account password."
       );
       // Notify parent so it can refetch host details + activities.
       onRotate();
     } catch (e) {
       const msg = getErrorReason(e);
-      renderFlash(
-        "error",
+      notify.error(
         msg ||
-          "Couldn't send request to rotate managed local account password. Please try again."
+          "Couldn't send request to rotate managed local account password. Please try again.",
+        { response: e }
       );
     }
     setIsRotating(false);
@@ -117,12 +114,12 @@ const ManagedAccountModal = ({
               <Button onClick={onCancel}>Close</Button>
               {canRotatePassword && (
                 <Button
-                  variant="inverse"
+                  variant="secondary"
                   onClick={onRotatePassword}
                   disabled={isRotating}
                   className={`${baseClass}__rotate-button`}
+                  icon="refresh"
                 >
-                  <Icon name="refresh" />
                   {isRotating ? "Rotating..." : "Rotate password"}
                 </Button>
               )}

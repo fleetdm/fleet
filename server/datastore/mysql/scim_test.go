@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -29,6 +30,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserByUserName", testScimUserByUserName},
 		{"ScimUserByUserNameOrEmail", testScimUserByUserNameOrEmail},
 		{"ScimUserByHostID", testScimUserByHostID},
+		{"ScimUserCreateAssociatesAllMatchingHosts", testScimUserCreateAssociatesAllMatchingHosts},
 		{"ReplaceScimUser", testReplaceScimUser},
 		{"ReplaceScimUserEmails", testReplaceScimUserEmails},
 		{"ReplaceScimUserValidation", testScimUserReplaceValidation},
@@ -46,6 +48,7 @@ func TestScim(t *testing.T) {
 		{"ScimUsersExist", testScimUsersExist},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
+		{"TriggerResendCertTemplatesAndAppConfigs", testTriggerResendCertTemplatesAndAppConfigs},
 		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
 	}
 	for _, c := range cases {
@@ -384,7 +387,7 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 	}
 
 	// Replace the user
-	err = ds.ReplaceScimUser(t.Context(), &updatedUser)
+	_, err = ds.ReplaceScimUser(t.Context(), &updatedUser)
 	require.Nil(t, err)
 
 	// Verify the user was updated correctly
@@ -431,7 +434,7 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 	}
 
-	err = ds.ReplaceScimUser(t.Context(), &nonExistentUser)
+	_, err = ds.ReplaceScimUser(t.Context(), &nonExistentUser)
 	assert.True(t, fleet.IsNotFound(err))
 }
 
@@ -473,7 +476,7 @@ func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
 	}
 
 	// Replace the user
-	err = ds.ReplaceScimUser(t.Context(), &sameEmailsUser)
+	_, err = ds.ReplaceScimUser(t.Context(), &sameEmailsUser)
 	require.NoError(t, err)
 
 	// Verify the user was updated correctly but emails remain the same
@@ -516,7 +519,7 @@ func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
 	}
 
 	// This should fail with a validation error
-	err = ds.ReplaceScimUser(t.Context(), &multiPrimaryUser)
+	_, err = ds.ReplaceScimUser(t.Context(), &multiPrimaryUser)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "only one email can be marked as primary")
 
@@ -538,7 +541,7 @@ func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	err = ds.ReplaceScimUser(t.Context(), &userWithAllFields)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithAllFields)
 	require.NoError(t, err)
 
 	// Now create a user with the same email but with nil Primary field
@@ -559,7 +562,7 @@ func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
 	}
 
 	// This should update the emails since the Primary field changed
-	err = ds.ReplaceScimUser(t.Context(), &userWithNilPrimary)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithNilPrimary)
 	require.NoError(t, err)
 
 	// Verify the email was updated
@@ -588,7 +591,7 @@ func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
 	}
 
 	// This should update the emails since the Type field changed
-	err = ds.ReplaceScimUser(t.Context(), &userWithNilType)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithNilType)
 	require.NoError(t, err)
 
 	// Verify the email was updated
@@ -627,7 +630,7 @@ func testDeleteScimUser(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user.UserName, createdUser.UserName)
 
 	// Delete the user
-	err = ds.DeleteScimUser(t.Context(), user.ID)
+	_, err = ds.DeleteScimUser(t.Context(), user.ID)
 	require.NoError(t, err)
 
 	// Verify the user was deleted
@@ -635,7 +638,7 @@ func testDeleteScimUser(t *testing.T, ds *Datastore) {
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Test deleting a non-existent user
-	err = ds.DeleteScimUser(t.Context(), 99999) // Non-existent ID
+	_, err = ds.DeleteScimUser(t.Context(), 99999) // Non-existent ID
 	assert.True(t, fleet.IsNotFound(err))
 }
 
@@ -1502,6 +1505,44 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 	assert.True(t, fleet.IsNotFound(err))
 }
 
+// testScimUserCreateAssociatesAllMatchingHosts verifies that creating a SCIM user
+// (as the IdP directory sync does) links every host whose MDM IdP account matches
+// the user.
+func testScimUserCreateAssociatesAllMatchingHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Two hosts belonging to the same person, both carrying the same MDM IdP account.
+	host1 := test.NewHost(t, ds, "multi-host-1", "1", "mh1key", "mh1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "multi-host-2", "2", "mh2key", "mh2uuid", time.Now())
+
+	const idpUUID = "multi-idp-uuid"
+	const idpUserName = "multi.user@example.com"
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?, ?, ?, ?)`,
+		idpUUID, idpUserName, "Multi User", idpUserName)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?, ?), (?, ?)`,
+		host1.UUID, idpUUID, host2.UUID, idpUUID)
+	require.NoError(t, err)
+
+	user := fleet.ScimUser{
+		UserName:   idpUserName,
+		ExternalID: new("ext-multi"),
+		Active:     new(true),
+	}
+	user.ID, err = ds.CreateScimUser(ctx, &user)
+	require.NoError(t, err)
+
+	// Both hosts must resolve to the newly-created SCIM user.
+	for _, h := range []*fleet.Host{host1, host2} {
+		got, err := ds.ScimUserByHostID(ctx, h.ID)
+		require.NoError(t, err, "host %d should be linked to the scim user", h.ID)
+		require.NotNil(t, got)
+		assert.Equal(t, user.ID, got.ID, "host %d linked to the wrong scim user", h.ID)
+	}
+}
+
 func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
 	// Create test users with different attributes and emails
 	users := []fleet.ScimUser{
@@ -1650,7 +1691,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String("Customer support"),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &userWithLongExternalID)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithLongExternalID)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "external_id exceeds maximum length")
 
@@ -1664,7 +1705,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String("Customer support"),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &userWithLongUserName)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithLongUserName)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "user_name exceeds maximum length")
 
@@ -1678,7 +1719,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String("Customer support"),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &userWithLongGivenName)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithLongGivenName)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "given_name exceeds maximum length")
 
@@ -1692,7 +1733,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String("Customer support"),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &userWithLongFamilyName)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithLongFamilyName)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "family_name exceeds maximum length")
 
@@ -1706,7 +1747,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String(longString),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &userWithLongDepartment)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithLongDepartment)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "department exceeds maximum length")
 
@@ -1720,7 +1761,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String("Customer support updated"),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &validUser)
+	_, err = ds.ReplaceScimUser(t.Context(), &validUser)
 	assert.NoError(t, err)
 
 	updated, err := ds.ScimUserByID(t.Context(), user.ID)
@@ -1922,7 +1963,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// change username of scim user 1
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com"})
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com"})
 	require.NoError(t, err)
 
 	// this triggered a resend of profUsername and profAll on host1 and hostW1
@@ -2013,7 +2054,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// user1, does not trigger anything
 	group2, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g2"})
 	require.NoError(t, err)
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: ptr.String("A")})
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: new("A")})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2221,7 +2262,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	// delete user3, affects only host3 (not the official IdP user for host1)
-	err = ds.DeleteScimUser(ctx, scimUser3)
+	_, err = ds.DeleteScimUser(ctx, scimUser3)
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2264,7 +2305,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// delete user1
-	err = ds.DeleteScimUser(ctx, scimUser1)
+	_, err = ds.DeleteScimUser(ctx, scimUser1)
 	require.NoError(t, err)
 	// add user2 as new user for host1
 	err = ds.associateHostWithScimUser(ctx, host1.ID, scimUser2)
@@ -2313,7 +2354,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 
 	// update name of user2, will affect host1 and host2, but NOT the
 	// profUsername of host1 because it is not installed (it is removed)
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser2, UserName: "B@example.com", GivenName: ptr.String("B")})
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser2, UserName: "B@example.com", GivenName: new("B")})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2640,7 +2681,7 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	hostID2 := uint(2)
 
 	// Create new host-SCIM user mapping
-	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
 	require.NoError(t, err)
 
 	// Verify the mapping was created
@@ -2652,7 +2693,7 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, scimUserID)
 
 	// Test 2: Update existing host-SCIM user mapping
-	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user2.ID)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user2.ID)
 	require.NoError(t, err)
 
 	// Verify the mapping was updated (should now point to user2)
@@ -2671,7 +2712,7 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, count)
 
 	// Test 3: Create mapping for a different host
-	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID2, user1.ID)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID2, user1.ID)
 	require.NoError(t, err)
 
 	// Verify both hosts have mappings
@@ -2689,7 +2730,7 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, count)
 
 	// Update mapping back to original user for hostID1
-	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
 	require.NoError(t, err)
 
 	// Verify hostID1 now maps to user1
@@ -2701,7 +2742,7 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 
 	// Error case - non-existent SCIM user
 	nonExistentUserID := uint(999999)
-	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, nonExistentUserID)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, nonExistentUserID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "foreign key constraint")
 
@@ -2722,4 +2763,148 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, user1.ID, result.ID)
 	assert.Equal(t, "mapping-test-user1", result.UserName)
+}
+
+func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a host.
+	host := test.NewHost(t, ds, "android-host", "10", "akey", "androiduuid", time.Now(), test.WithPlatform("android"))
+
+	// --- Certificate template resend ---
+
+	// Create a certificate authority and template.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO certificate_authorities (name, type, url) VALUES ('scim_test_ca', 'custom_scep_proxy', 'https://ca.example.com')`)
+		return err
+	})
+	var caID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &caID, `SELECT id FROM certificate_authorities WHERE name = 'scim_test_ca'`)
+	})
+
+	// Create the cert template.
+	certResp, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "wifi-cert",
+		TeamID:                 0,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+	})
+	require.NoError(t, err)
+
+	// Track the variable association.
+	err = ds.SetCertificateTemplateVariables(ctx, certResp.ID, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
+	require.NoError(t, err)
+
+	// Create a host_certificate_template row in "delivered" status.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, name) VALUES (?, ?, 'delivered', 'install', 'wifi-cert')`,
+			host.UUID, certResp.ID)
+		return err
+	})
+
+	// --- Android configuration profile resend ---
+
+	// Create an Android config profile with a variable.
+	androidProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		TeamID:  new(uint), // team 0
+		Name:    "android-var-profile",
+		RawJSON: []byte(`{"screenCaptureDisabled": true, "shortSupportMessage": {"defaultMessage": "User $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`),
+	}, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
+	require.NoError(t, err)
+
+	// Create a host_mdm_android_profiles row in "verified" status.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, profile_name, status, operation_type, checksum) VALUES (?, ?, 'android-var-profile', 'verified', 'install', 'abc123')`,
+			host.UUID, androidProfile.ProfileUUID)
+		return err
+	})
+
+	// --- Managed app config resend ---
+
+	// Create an android enterprise (required for job queuing).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO android_enterprises (signup_name, enterprise_id) VALUES ('test', 'LC0test123')`)
+		return err
+	})
+
+	// Insert a VPP app and app config with a variable.
+	appID := "com.example.varapp"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform) VALUES (?, 'android')`, appID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id) VALUES (?, 'android', 0)`, appID)
+		return err
+	})
+
+	config := []byte(`{"managedConfiguration":{"user":"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`)
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, appID, config)
+	require.NoError(t, err)
+
+	// Assign a SCIM user to the host.
+	scimUser, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "cert-user@example.com"})
+	require.NoError(t, err)
+	err = ds.associateHostWithScimUser(ctx, host.ID, scimUser)
+	require.NoError(t, err)
+
+	// Clear any jobs that may have been queued during setup.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM jobs`)
+		return err
+	})
+
+	// Change the SCIM user's username — this should trigger resends.
+	activities, err := ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "new-user@example.com"})
+	require.NoError(t, err)
+
+	// Assert that resent_certificate activities were returned.
+	require.Len(t, activities, 1)
+	assert.Equal(t, host.ID, activities[0].HostID)
+	assert.Equal(t, certResp.ID, activities[0].CertificateTemplateID)
+	assert.Equal(t, "wifi-cert", activities[0].CertificateName)
+	assert.NotEmpty(t, activities[0].HostDisplayName)
+
+	// (1) Assert certificate template was reset to pending.
+	var certStatus string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&certStatus,
+			`SELECT status FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			host.UUID, certResp.ID)
+	})
+	assert.Equal(t, string(fleet.CertificateTemplatePending), certStatus, "cert template should be reset to pending")
+
+	// (2) Assert android config profile was reset to pending (status = NULL).
+	var androidProfileStatus *string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&androidProfileStatus,
+			`SELECT status FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+			host.UUID, androidProfile.ProfileUUID)
+	})
+	assert.Nil(t, androidProfileStatus, "android profile status should be reset to NULL (pending)")
+
+	// (3) Assert a software_worker job was queued for the managed app config.
+	type jobRow struct {
+		Name string          `db:"name"`
+		Args json.RawMessage `db:"args"`
+	}
+	var jobs []jobRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &jobs,
+			`SELECT name, args FROM jobs WHERE name = 'software_worker' AND state = 'queued'`)
+	})
+	require.Len(t, jobs, 1, "expected one software_worker job to be queued")
+
+	var jobArgs map[string]any
+	err = json.Unmarshal(jobs[0].Args, &jobArgs)
+	require.NoError(t, err)
+	assert.Equal(t, "make_android_app_available", jobArgs["task"])
+	assert.Equal(t, appID, jobArgs["application_id"])
+	assert.Equal(t, true, jobArgs["app_config_changed"])
+	assert.Contains(t, jobArgs["enterprise_name"], "LC0test123")
 }

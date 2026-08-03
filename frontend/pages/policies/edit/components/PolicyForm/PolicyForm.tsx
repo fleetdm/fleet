@@ -9,7 +9,7 @@ import { size } from "lodash";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
@@ -29,7 +29,10 @@ import {
   POLICY_TARGET_EMPTY_STATE_DESCRIPTION,
 } from "pages/policies/constants";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  LEARN_MORE_ABOUT_BASE_LINK,
+  MAX_ENTITY_CHAR_LENGTH,
+} from "utilities/constants";
 
 import SQLEditor from "components/SQLEditor";
 import {
@@ -169,7 +172,6 @@ const PolicyForm = ({
     excludeAll: lastEditedQueryLabelsExcludeAll,
   });
 
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
 
   const {
@@ -278,7 +280,7 @@ const PolicyForm = ({
     onSuccess: () => {
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
     },
-    onError: () => renderFlash("error", "Could not update policy automations."),
+    onError: () => notify.error("Could not update policy automations."),
   });
 
   /* - Observer/Observer+ and Technicians cannot edit existing policies
@@ -375,9 +377,11 @@ const PolicyForm = ({
         software_title_id: storedPolicy.patch_software.software_title_id,
       });
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
-      renderFlash("success", "Automation added.");
-    } catch {
-      renderFlash("error", "Couldn't set automation. Please try again.");
+      notify.success("Automation added.");
+    } catch (e) {
+      notify.error("Couldn't set automation. Please try again.", {
+        response: e,
+      });
     } finally {
       setIsAddingAutomation(false);
     }
@@ -487,11 +491,13 @@ const PolicyForm = ({
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
         {showOpenSchemaActionText && (
-          <Button variant="inverse" onClick={onOpenSchemaSidebar}>
-            <>
-              Schema
-              <Icon name="info" />
-            </>
+          <Button
+            variant="subdued"
+            onClick={onOpenSchemaSidebar}
+            icon="info"
+            iconPosition="right"
+          >
+            Schema
           </Button>
         )}
         {!policyIdForEdit && (
@@ -517,6 +523,7 @@ const PolicyForm = ({
           error={errors && errors.name}
           onChange={(value: string) => setLastEditedQueryName(value)}
           disabled={gitOpsModeEnabled}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
       );
     }
@@ -794,9 +801,11 @@ const PolicyForm = ({
                     (isEditMode && !isAnyPlatformSelected) ||
                     disabledLiveQuery
                   }
-                  variant="inverse"
+                  variant="secondary"
+                  icon="run"
+                  iconPosition="right"
                 >
-                  Run policy <Icon name="run" />
+                  Run policy
                 </Button>
               </span>
             </TooltipWrapper>

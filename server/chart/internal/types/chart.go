@@ -48,21 +48,23 @@ type CVEChartFilter struct {
 
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
-	// FindOnlineHostIDs returns host IDs that are "online right now" per the
-	// product's standard online predicate: host_seen_times.seen_time falls
-	// within the host's own check-in interval (LEAST of distributed_interval
-	// and config_tls_refresh, plus a 60-second grace period that mirrors
-	// fleet.OnlineIntervalBuffer). Hosts without a host_seen_times row —
-	// iOS, iPadOS, and Android devices, which only check in via MDM — are
-	// excluded. Used by datasets like uptime.
+	// FindOnlineHostIDs returns host IDs that are "online right now" using a
+	// platform-specific predicate. Non-mobile (osquery) hosts use the product's
+	// standard online predicate: host_seen_times.seen_time within the host's own
+	// check-in interval (LEAST of distributed_interval and config_tls_refresh,
+	// plus a 60-second grace period that mirrors fleet.OnlineIntervalBuffer).
+	// Mobile hosts (iOS, iPadOS, Android), which only check in via MDM, use
+	// their MDM activity signal (nano_enrollments.last_seen_at, falling back to
+	// detail_updated_at) within a fixed mobile online window. Used by datasets
+	// like uptime.
 	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 
-	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
-	// cves set. nil or empty cves returns an empty map. Unresolved-only is
-	// implicit in the underlying joins: a host's software/OS row transitions
-	// when it upgrades past the vulnerable version, so the join naturally
-	// stops matching.
-	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
+	// AffectedHostIDsByCVE returns a bitmap of affected host IDs per CVE,
+	// scoped to the given cves set. nil or empty cves returns an empty map.
+	// Unresolved-only is implicit in the underlying joins: a host's software/OS
+	// row transitions when it upgrades past the vulnerable version, so the join
+	// naturally stops matching.
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string]*roaring.Bitmap, error)
 
 	// CollectibleCVEs returns every CVE ID, at all severities, on the curated
 	// set of tracked software (trackedCVESoftwareMatchers) unioned with all

@@ -108,8 +108,7 @@ export const generateTableColumnConfigs = (
           <Button
             className="script-info"
             onClick={onClickScriptName}
-            variant="inverse"
-            size="small"
+            variant="link"
           >
             <TooltipTruncatedTextCell
               value={cellProps.row.original.name}
@@ -167,7 +166,7 @@ export const generateTableColumnConfigs = (
             placeholder="Actions"
             disabled={scriptsDisabled}
             menuAlign="right"
-            variant="small-button"
+            variant="secondary"
           />
         );
       },

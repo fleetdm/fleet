@@ -1,0 +1,1 @@
+- Updated the Render deployment blueprint to use MySQL 8.0.44 (previously 8.0.24), fixing an "Error 1235 ... nesting of unions at the right-hand side" error on Render deployments.

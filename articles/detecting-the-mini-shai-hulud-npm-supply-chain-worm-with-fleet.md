@@ -2,9 +2,22 @@
 
 ![Mini Shai-Hulud: CVE-2026-45321 npm supply chain worm overview, infection chain, indicators of compromise, and priority response actions](../website/assets/images/articles/mini-shai-hulud-npm-supply-chain-worm-cover-1600x900@2x.png)
 
+*A supply chain worm that forks silently on `npm install`, steals developer credentials, and republishes itself under stolen maintainer identities is exactly the threat that signature checks wave through. Here is how Fleet's security team hunted it across our own fleet, and the detection blind spot most teams don't know they have.*
+
+## Key takeaways
+
+- **A clean-looking install is the whole trick.** Mini Shai-Hulud forks and detaches during `npm install`, so the terminal shows a normal install while a daemon quietly harvests credentials in the background. The behavior that hides it is also the behavior you detect on.
+- **Valid signatures do not mean a safe package.** Because the worm publishes through legitimate maintainer OIDC tokens, its Sigstore attestations pass and two-factor authentication offers no protection. Trust has to extend past signatures into behavior.
+- **Fleet detects it in two layers.** Live queries give a fast, fleet-wide exposure check in seconds, and deep scan scripts run through Fleet's run-script give per-host filesystem coverage. Each catches what the other misses, so run both.
+- **The `npm_packages` table only sees global installs.** It never walks into the project-local `node_modules/` directories where compromised packages actually live, so a developer with 20 infected projects can return zero rows. Filesystem scanning closes that gap.
+- **Detection runs everywhere your developers do.** The queries and scripts ship for Linux, macOS, and Windows, so the same hunt covers the whole fleet regardless of operating system.
+- **Rotate first, investigate second.** If an affected package touched a machine in the last week, assume the credentials are already gone. The response playbook starts with DNS blocking and credential rotation measured in minutes, not hours.
+
+<a purpose="cta-button" href="/contact">Talk to Fleet security</a>
+
 On May 12, the npm registry was hit by an active supply chain worm that compromised 42 TanStack packages across 84 versions, plus 175 additional packages spanning 17 namespaces. The malware daemonizes silently during installation, then harvests credentials from GitHub Actions, AWS, HashiCorp Vault, and Kubernetes service accounts before propagating to new packages using the maintainer identities it just stole.
 
-This post walks through how the Fleet security team detected the worm across our own 30-host fleet, the SQL queries and scripts we used, and the coverage gap every team relying on osquery's `npm_packages` table should know about.
+This post walks through how the Fleet security team detected the worm across our own 30-host fleet, the SQL queries and scripts we used, and the coverage gap every team relying on the `npm_packages` table should know about. Start with how the compromise actually unfolded.
 
 ## What happened
 
@@ -40,7 +53,7 @@ Socket.dev's reporting on the campaign flagged two indicators that are useful fo
 
 We approached detection in two layers and ran both against every host in our fleet.
 
-**Layer 1, live queries with osquery SQL.** Fast fleet-wide scans that surface compromised global packages, persistence files, active malware processes, and known C2 connections. Results come back in seconds.
+**Layer 1, live queries.** Fast fleet-wide SQL scans that surface compromised global packages, persistence files, active malware processes, and known C2 connections. Results come back in seconds.
 
 **Layer 2, deep scan scripts via run-script.** Comprehensive per-host filesystem analysis that catches what SQL cannot, especially compromised packages installed inside per-project `node_modules/` directories. These finish in roughly 30 seconds per host.
 
@@ -48,7 +61,7 @@ Both layers are needed. Here is why.
 
 ## The npm_packages coverage gap
 
-Fleet's `npm_packages` osquery table queries only globally installed packages, looking at default paths like `~/.npm-global`, `/usr/local/lib/node_modules`, and `/opt/homebrew/lib/node_modules`. It does not walk into project-local `node_modules/` directories.
+Fleet's agent queries the `npm_packages` table for globally installed packages only, looking at default paths like `~/.npm-global`, `/usr/local/lib/node_modules`, and `/opt/homebrew/lib/node_modules`. It does not walk into project-local `node_modules/` directories.
 
 In practice, almost no one installs npm packages globally. A developer with 20 active projects, each containing a compromised `@tanstack/react-router@1.169.8` in its own `node_modules/`, will produce zero rows from an `npm_packages` query against that host.
 

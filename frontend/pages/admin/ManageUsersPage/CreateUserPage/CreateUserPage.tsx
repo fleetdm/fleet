@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
@@ -14,6 +13,7 @@ import invitesAPI from "services/entities/invites";
 
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
+import { notify } from "components/ToastNotification";
 import UserForm from "../components/UserForm";
 import { IUserFormData, NewUserType } from "../components/UserForm/UserForm";
 
@@ -25,7 +25,6 @@ interface ICreateUserPageProps {
 
 const CreateUserPage = ({ router }: ICreateUserPageProps) => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,7 +52,7 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
       invitesAPI
         .create(requestData)
         .then(() => {
-          renderFlash("success", `${formData.name} has been invited!`);
+          notify.success(`${formData.name} has been invited!`);
           router.push(PATHS.ADMIN_USERS);
         })
         .catch((userErrors: { data: IApiError }) => {
@@ -74,7 +73,9 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
               password: "Password is over the character limit.",
             });
           } else {
-            renderFlash("error", "Could not create user. Please try again.");
+            notify.error("Could not create user. Please try again.", {
+              response: userErrors,
+            });
           }
         })
         .finally(() => {
@@ -89,7 +90,7 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
       usersAPI
         .createUserWithoutInvitation(requestData)
         .then(() => {
-          renderFlash("success", `${requestData.name} has been created!`);
+          notify.success(`${requestData.name} has been created!`);
           router.push(PATHS.ADMIN_USERS);
         })
         .catch((userErrors: { data: IApiError }) => {
@@ -110,7 +111,9 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
               password: "Password is over the character limit.",
             });
           } else {
-            renderFlash("error", "Could not create user. Please try again.");
+            notify.error("Could not create user. Please try again.", {
+              response: userErrors,
+            });
           }
         })
         .finally(() => {

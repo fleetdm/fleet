@@ -527,6 +527,9 @@ func TestGetHosts(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return []*fleet.HostPolicy{
@@ -751,6 +754,9 @@ func TestGetHostsMDM(t *testing.T) {
 		return nil, nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
@@ -1015,6 +1021,7 @@ spec:
   id: 0
   name: foo
   software_package: null
+  packages: null
   source: chrome_extensions
   extension_for: chrome
   display_name: ""
@@ -1040,6 +1047,7 @@ spec:
   id: 0
   name: bar
   software_package: null
+  packages: null
   source: deb_packages
   extension_for: ""
   display_name: ""
@@ -1091,6 +1099,7 @@ spec:
         }
       ],
       "software_package": null,
+      "packages": null,
       "app_store_app": null
     },
     {
@@ -1111,6 +1120,7 @@ spec:
         }
       ],
       "software_package": null,
+      "packages": null,
       "app_store_app": null
     }
   ]

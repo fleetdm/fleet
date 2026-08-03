@@ -1,9 +1,9 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
 
 import PATHS from "router/paths";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import { IApiError } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
@@ -30,11 +30,11 @@ import ProfileGraphic from "../ProfileGraphic";
 
 import {
   DEFAULT_ERROR_MESSAGE,
+  generateCustomTargetLabelKey,
   getErrorMessage,
   IParseFileResult,
   parseFile,
 } from "../../helpers";
-import generateCustomTargetLabelKey from "./helpers";
 
 const baseClass = "add-profile-modal";
 
@@ -61,12 +61,12 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
     />
     <Button
       className={`${baseClass}__upload-button`}
-      variant="brand-inverse-icon"
+      variant="secondary"
       isLoading={isLoading}
     >
       <label htmlFor="upload-profile">
         <span className={`${baseClass}__file-chooser--button-wrap`}>
-          Choose file <Icon name="upload" color="core-fleet-green" />
+          Choose file <Icon name="upload" />
         </span>
       </label>
     </Button>
@@ -113,8 +113,6 @@ const AddProfileModal = ({
   onUpload,
   setShowModal,
 }: IAddProfileModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isLoading, setIsLoading] = useState(false);
   const [fileDetails, setFileDetails] = useState<IParseFileResult | null>(null);
   const [selectedTargetType, setSelectedTargetType] = useState<TargetType>(
@@ -139,7 +137,7 @@ const AddProfileModal = ({
     isFetching: isFetchingLabels,
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels"],
+    ["custom_labels", currentTeamId],
     () =>
       labelsAPI
         .summary(currentTeamId)
@@ -162,7 +160,7 @@ const AddProfileModal = ({
 
   const onFileUpload = async () => {
     if (!fileRef.current) {
-      renderFlash("error", DEFAULT_ERROR_MESSAGE);
+      notify.error(DEFAULT_ERROR_MESSAGE);
       return;
     }
     const file = fileRef.current;
@@ -180,10 +178,12 @@ const AddProfileModal = ({
         teamId: currentTeamId,
         ...labelKey,
       });
-      renderFlash("success", "Successfully uploaded.");
+      notify.success("Successfully uploaded.");
       onUpload();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e as AxiosResponse<IApiError>));
+      notify.error(getErrorMessage(e as AxiosResponse<IApiError>), {
+        response: e,
+      });
     } finally {
       setIsLoading(false);
       onDone();
@@ -204,7 +204,7 @@ const AddProfileModal = ({
       const details = await parseFile(file);
       setFileDetails(details);
     } catch (e) {
-      renderFlash("error", "Invalid file type");
+      notify.error("Invalid file type", { response: e });
     } finally {
       setIsLoading(false);
     }
@@ -279,7 +279,7 @@ const AddProfileModal = ({
             </div>
           )}
           <div className={`${baseClass}__button-wrap`}>
-            <Button variant="inverse" onClick={onDone}>
+            <Button variant="secondary" onClick={onDone}>
               Cancel
             </Button>
             <Button

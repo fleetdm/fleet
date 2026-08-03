@@ -113,6 +113,21 @@ export const getSoftwareInstallHandlerOnlyPreInstallOutput = http.get(
   }
 );
 
+// Installed, with SHA-256 hash
+export const getSoftwareInstallHandlerWithHash = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  ({ params }) => {
+    return HttpResponse.json({
+      results: createMockSoftwareInstallResult({
+        install_uuid: params.install_uuid as string,
+        status: "installed",
+        hash_sha256:
+          "e6ddb2dd089ecea38ab73ed12812df269f1447e750cf4355703340bb8aa1ad",
+      }),
+    });
+  }
+);
+
 // ---- MDM Command Handlers ----
 
 /** This is used for testing command results of IPA custom packages */

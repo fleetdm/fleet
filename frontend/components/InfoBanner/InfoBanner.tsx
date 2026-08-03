@@ -5,6 +5,7 @@ import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import { IconNames } from "components/icons";
 import Card from "components/Card";
+import { Colors } from "styles/var/colors";
 
 const baseClass = "info-banner";
 
@@ -20,7 +21,12 @@ export interface IInfoBannerProps {
   cta?: JSX.Element;
   /** closable and link are mutually exclusive */
   closable?: boolean;
-  icon?: IconNames; // TODO: This is unused but several banners have icons within children that can be refactored to use this for consistent styling
+  /** Renders an icon to the left of the banner copy. When set, the banner
+   * switches from `space-between` to a left-aligned flex layout so the icon
+   * groups with the text rather than getting pushed to the opposite edge. */
+  icon?: IconNames;
+  /** Overrides the icon's default color when `icon` is set. */
+  iconColor?: Colors;
 }
 
 const InfoBanner = ({
@@ -32,6 +38,7 @@ const InfoBanner = ({
   cta,
   closable,
   icon,
+  iconColor,
 }: IInfoBannerProps) => {
   const wrapperClasses = classNames(
     baseClass,
@@ -46,17 +53,20 @@ const InfoBanner = ({
 
   const content = (
     <>
+      {icon && (
+        <Icon
+          name={icon}
+          color={iconColor}
+          className={`${baseClass}__leading-icon`}
+        />
+      )}
       <div className={`${baseClass}__info`}>{children}</div>
 
       {(cta || closable) && (
         <div className={`${baseClass}__cta`}>
           {cta}
           {closable && (
-            <Button
-              variant="icon"
-              onClick={() => setHideBanner(true)}
-              iconStroke
-            >
+            <Button variant="subdued" onClick={() => setHideBanner(true)}>
               <Icon
                 name="close"
                 color="core-fleet-black"

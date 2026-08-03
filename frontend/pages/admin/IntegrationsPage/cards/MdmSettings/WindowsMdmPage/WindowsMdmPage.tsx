@@ -3,7 +3,6 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import MainContent from "components/MainContent/MainContent";
@@ -14,6 +13,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Radio from "components/forms/fields/Radio";
 import CustomLink from "components/CustomLink";
+import { notify } from "components/ToastNotification";
 
 import { getErrorMessage } from "./helpers";
 
@@ -33,7 +33,6 @@ const useSetWindowsMdm = ({
   router,
 }: ISetWindowsMdmOptions) => {
   const { setConfig } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const turnOnWindowsMdm = async () => {
     try {
@@ -47,13 +46,9 @@ const useSetWindowsMdm = ({
         true
       );
       setConfig(updatedConfig);
-      renderFlash("success", "Windows MDM settings successfully updated.", {
-        persistOnPageChange: true,
-      });
+      notify.success("Windows MDM settings successfully updated.");
     } catch (e) {
-      renderFlash("error", getErrorMessage(e), {
-        persistOnPageChange: true,
-      });
+      notify.error(getErrorMessage(e), { response: e });
     }
 
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
@@ -115,10 +110,6 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
     updateWindowsMdm();
   };
 
-  const descriptionText = mdmOn
-    ? "Turns on MDM for Windows hosts that enroll to Fleet (excluding servers)."
-    : "Hosts with MDM already turned on will not have MDM removed.";
-
   return (
     <MainContent className={baseClass}>
       <>
@@ -131,6 +122,16 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
         </div>
         <h1>Windows MDM</h1>
         <form>
+          <p>
+            Hosts that turn on MDM manually will have a status of &quot;On
+            (manual)&quot;. To get a status of &quot;On (company-owned)&quot;,
+            use{" "}
+            <CustomLink
+              text="Windows Autopilot."
+              url="https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot"
+              newTab
+            />
+          </p>
           <Slider
             value={mdmOn}
             activeText="Windows MDM on"
@@ -138,7 +139,6 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             onChange={onChangeMdmOn}
             disabled={gitOpsModeEnabled}
           />
-          {!isPremiumTier && <p>{descriptionText}</p>}
           {isPremiumTier && (
             // NOTE: first time using fieldset and legend. if we use this more we should make
             // a reusable component
@@ -152,7 +152,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
               </div>
               <Radio
                 id="automatic-enrollment"
-                label="Automatic"
+                label="Fleet agent-driven"
                 value="automaticEnrollment"
                 name="enrollmentType"
                 checked={enrollmentType === "automatic"}
@@ -162,7 +162,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
               />
               <Radio
                 id="manual-enrollment"
-                label="Manual"
+                label="End user-driven"
                 value="manualEnrollment"
                 name="enrollmentType"
                 checked={enrollmentType === "manual"}
@@ -177,7 +177,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
                         PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS
                       }
                     />{" "}
-                    End users have to manually turn on MDM in{" "}
+                    End users have to sign in using{" "}
                     <b>Settings &gt; Access work or school.</b>
                   </>
                 }

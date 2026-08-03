@@ -1,0 +1,12 @@
+{
+  "name": "Gadwin ScreenRecorder",
+  "slug": "gadwin-screenrecorder/windows",
+  "package_identifier": "Gadwin.ScreenRecorder",
+  "unique_identifier": "Gadwin ScreenRecorder (64-Bit)",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Productivity"
+  ]
+}

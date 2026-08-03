@@ -2,8 +2,6 @@
 
 This guide provides instructions for migrating devices from your current MDM solution to Fleet. There are two different workflows to migrate your devices.
 
-> For seamless MDM migration, [view this guide](https://fleetdm.com/guides/seamless-mdm-migration).
-
 > For Apple's native MDM migration support for AB-registered devices running macOS, iOS or iPadOS 26, [consult Apple's documentation](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web)
 
 ## Requirements
@@ -37,7 +35,7 @@ First, [enroll your hosts](https://fleetdm.com/guides/enroll-hosts) to Fleet by 
 There are three migration workflows in Fleet: 
 - Default: Requires that the IT admin unenrolls hosts from the old MDM solution before the end user can complete migration. This will result in a gap in MDM coverage until the end user completes migration.
 - End user: Allows the user to kick off migration by unenrolling from the old MDM solution on their own. Once the user is unenrolled, they're prompted to turn on MDM features in Fleet, reducing the gap in MDM coverage.
-- [macOS Tahoe](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26#mdm-migration-with-apple-business-manager-abm)
+- [macOS Tahoe](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26#mdm-migration-with-apple-business-ab)
 
 Both the default and end user migration workflows require end users to have access to an admin account on their Mac. macOS asks for an admin username and password before installing the enrollment profile. The macOS Tahoe workflow supports admin and standard users.
 

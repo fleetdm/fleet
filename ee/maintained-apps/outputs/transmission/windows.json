@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.1.2",
+      "version": "4.1.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Transmission %' AND publisher = 'Transmission Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Transmission %' AND publisher = 'Transmission Project' AND version_compare(version, '4.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Transmission %' AND publisher = 'Transmission Project' AND version_compare(version, '4.1.3') < 0);"
       },
-      "installer_url": "https://github.com/transmission/transmission/releases/download/4.1.2/transmission-4.1.2-x64.msi",
+      "installer_url": "https://github.com/transmission/transmission/releases/download/4.1.3/transmission-4.1.3-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "22a80967",
-      "sha256": "f36fd9c245f3c298597ac238b319c86f00eacfd1984881aa8eca3a0943f53008",
+      "sha256": "c8ea492d8f46fadac26e0c05b244cabba556201d5fe348dfcf1cf036621741f8",
       "default_categories": [
         "Productivity"
       ],

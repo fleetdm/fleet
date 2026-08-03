@@ -205,7 +205,6 @@ are unaffected.
 | smtp4dev_test | `FLEET_SMTP4DEV_WEB_PORT`, `FLEET_SMTP4DEV_SMTP_PORT` | 8028, 1027 |
 | saml_idp | `FLEET_SAML_IDP_HTTP_PORT`, `FLEET_SAML_IDP_HTTPS_PORT` | 9080, 9443 |
 | localstack | `FLEET_LOCALSTACK_PORT`, `FLEET_LOCALSTACK_LEGACY_PORT` | 4566, 4571 |
-| cadvisor | `FLEET_CADVISOR_PORT` | 5678 |
 | prometheus | `FLEET_PROMETHEUS_PORT` | 9090 |
 
 You can verify resolved ports with:

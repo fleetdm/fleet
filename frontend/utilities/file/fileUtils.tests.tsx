@@ -17,6 +17,7 @@ describe("fileUtils", () => {
       { fileName: "test.deb", expectedExtension: "deb" },
       { fileName: "test.rpm", expectedExtension: "rpm" },
       { fileName: "test.tar", expectedExtension: "tar" },
+      { fileName: "test.py", expectedExtension: "py" },
 
       // Compound extensions
       { fileName: "test.tar.gz", expectedExtension: "tar.gz" },
@@ -56,6 +57,10 @@ describe("fileUtils", () => {
         expectedDetails: { name: "test.tar.gz", description: "Linux" },
       },
       {
+        fileName: "test.py",
+        expectedDetails: { name: "test.py", description: "macOS & Linux" },
+      },
+      {
         fileName: "unknown.file",
         expectedDetails: { name: "unknown.file", description: undefined },
       },
@@ -79,6 +84,7 @@ describe("fileUtils", () => {
       { extension: "xml", platform: "Windows" },
       { extension: "deb", platform: "Linux" },
       { extension: "tar.gz", platform: "Linux" },
+      { extension: "py", platform: "macOS & Linux" },
       { extension: undefined, platform: undefined }, // no extension
       { extension: "unknown_ext", platform: undefined }, // unmapped extension
     ];

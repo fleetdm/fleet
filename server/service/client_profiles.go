@@ -71,6 +71,34 @@ func (c *Client) GetProfileContents(profileID string) ([]byte, error) {
 	return nil, nil
 }
 
+// ListDDMAssets returns the Apple DDM assets for the given team.
+func (c *Client) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
+	verb, path := "GET", "/api/latest/fleet/assets"
+	query := make(url.Values)
+	if teamID != nil {
+		query.Add("fleet_id", strconv.FormatUint(uint64(*teamID), 10))
+	}
+	var responseBody listAppleDDMAssetsResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode()); err != nil {
+		return nil, err
+	}
+	return responseBody.Assets, nil
+}
+
+// DownloadDDMAsset returns the raw JSON contents of the DDM asset with the given UUID.
+func (c *Client) DownloadDDMAsset(assetUUID string) ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/assets/"+assetUUID
+	response, err := c.AuthenticatedDo(verb, path, "alt=media", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	defer response.Body.Close()
+	if err := c.ParseResponse(verb, path, response, nil); err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	return io.ReadAll(response.Body)
+}
+
 func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, error) {
 	if c.token == "" {
 		return 0, errors.New("authentication token is empty")

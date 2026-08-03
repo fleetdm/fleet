@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { timeAgo } from "utilities/date_format";
 import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 import { InjectedRouter } from "react-router";
@@ -21,6 +22,10 @@ import {
 } from "interfaces/activity";
 import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 
+import {
+  formatMdmCommandNameForActivityItem,
+  getMdmCommandDisplayName,
+} from "utilities/activityHelpers";
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
@@ -41,6 +46,11 @@ import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
+import MdmCommandDetailsModal, {
+  getIconName,
+  getVerbForCommandStatus,
+} from "pages/hosts/components/CommandDetailsModal";
+import IconStatusMessage from "components/IconStatusMessage";
 
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
@@ -146,6 +156,13 @@ const ActivityFeed = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [mdmCommandActivityDetails, setMdmCommandActivityDetails] = useState<{
+    host_uuid?: string;
+    command_uuid: string;
+    actor_full_name?: string;
+    host_display_name?: string;
+    request_type?: string;
+  } | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
@@ -314,6 +331,19 @@ const ActivityFeed = ({
           },
         });
         break;
+      case ActivityType.RanCustomMdmCommand: {
+        if (!details?.command_uuid) {
+          break;
+        }
+        setMdmCommandActivityDetails({
+          command_uuid: details.command_uuid,
+          host_uuid: details?.host_uuid,
+          actor_full_name,
+          host_display_name: details?.host_display_name,
+          request_type: details?.request_type,
+        });
+        break;
+      }
       default:
         break;
     }
@@ -481,6 +511,95 @@ const ActivityFeed = ({
         <FailedEnrollmentProfileModal
           command={enrollmentProfileFailedDetails.command}
           onDone={() => setEnrollmentProfileFailedDetails(null)}
+        />
+      )}
+      {!!mdmCommandActivityDetails && (
+        <MdmCommandDetailsModal
+          command={mdmCommandActivityDetails}
+          contentBody={(cls, result) => {
+            const isDeleted = result.status === "Deleted";
+            const isPending = getIconName(result.status) === "pending-outline";
+            const cmdDisplayName = getMdmCommandDisplayName(
+              isDeleted
+                ? mdmCommandActivityDetails.request_type
+                : result.request_type
+            );
+            const timeAgoText = result.updated_at
+              ? ` (${timeAgo(new Date(result.updated_at), {
+                  addSuffix: true,
+                })})`
+              : "";
+
+            if (isDeleted) {
+              // no result -- likely the host was wiped and re-enrolled since.
+              // Use the activity's own details, captured at click-time,
+              // instead of the (empty) fetched result. Both fields are
+              // optional on that captured state, so guard against a leading
+              // "ran ..." with no actor and a bare "on ." with no hostname.
+              const {
+                actor_full_name: actorText,
+                host_display_name: hostText,
+              } = mdmCommandActivityDetails;
+              return (
+                <>
+                  <IconStatusMessage
+                    className={`${cls}__status-message`}
+                    iconName="info-outline"
+                    message={
+                      <span>
+                        {actorText && <b>{actorText}</b>}
+                        {actorText ? " ran " : "Ran "}
+                        {formatMdmCommandNameForActivityItem(
+                          mdmCommandActivityDetails.request_type
+                        )}
+                        {" on "}
+                        {hostText ? <b>{hostText}</b> : "this host"}
+                        {"."}
+                      </span>
+                    }
+                  />
+                  <div>This command has been deleted.</div>
+                </>
+              );
+            }
+
+            return (
+              <IconStatusMessage
+                className={`${cls}__status-message`}
+                iconName={getIconName(result.status)}
+                message={
+                  isPending ? (
+                    <span>
+                      {cmdDisplayName ? (
+                        <>
+                          {"The "}
+                          <b>{cmdDisplayName}</b>
+                          {" custom MDM command"}
+                        </>
+                      ) : (
+                        "A custom MDM command"
+                      )}
+                      {" is pending on "}
+                      <b>{result.hostname}</b>
+                      {`${timeAgoText}.`}
+                    </span>
+                  ) : (
+                    <span>
+                      {mdmCommandActivityDetails.actor_full_name && (
+                        <b>{mdmCommandActivityDetails.actor_full_name}</b>
+                      )}
+                      {` ${getVerbForCommandStatus(result.status)} `}
+                      {formatMdmCommandNameForActivityItem(result.request_type)}
+                      {" on "}
+                      <b>{result.hostname}</b>
+                      {"."}
+                    </span>
+                  )
+                }
+              />
+            );
+          }}
+          onDone={() => setMdmCommandActivityDetails(null)}
         />
       )}
     </div>

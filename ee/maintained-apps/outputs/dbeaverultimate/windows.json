@@ -9,7 +9,7 @@
       "installer_url": "https://downloads.dbeaver.net/ultimate/26.1.0/dbeaver-ue-26.1.0-windows-x86_64.exe",
       "install_script_ref": "d46ba9a9",
       "uninstall_script_ref": "d9df80cd",
-      "sha256": "20c94c65e8584abe9866a9094af46aa3fe501e006a7b07b7a24f557c3afdeaf7",
+      "sha256": "5e068ec148de4418b13226df55ad62cee403a3ed99ff9415a887bf9dc7a0ec3f",
       "default_categories": [
         "Developer tools"
       ]

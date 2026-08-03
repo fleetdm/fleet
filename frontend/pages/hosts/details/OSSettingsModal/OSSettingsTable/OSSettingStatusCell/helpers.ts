@@ -1,5 +1,6 @@
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  HostNameSettingStatus,
   ProfileOperationType,
   RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
@@ -172,6 +173,37 @@ export const LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG: LinuxDiskEncryptionDisplayCon
     statusText: "Action required",
     iconName: "pending-outline",
     tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
+  },
+};
+
+export const HOST_NAME_DISPLAY_CONFIG: Record<
+  HostNameSettingStatus,
+  ProfileDisplayOption
+> = {
+  pending: {
+    statusText: "Enforcing",
+    iconName: "pending-outline",
+    tooltip:
+      "Fleet is enforcing this fleet's host name template. The host will be renamed when it comes online.",
+  },
+  verifying: {
+    statusText: "Verifying",
+    iconName: "success-outline",
+    tooltip:
+      "The host acknowledged the MDM command to rename it. Fleet is verifying.",
+  },
+  verified: {
+    statusText: "Verified",
+    iconName: "success",
+    tooltip:
+      "The host was renamed to match this fleet's host name template. Fleet verified.",
+  },
+  // failed has no static tooltip so the cell falls back to the error-detail
+  // tooltip (drift message or Apple error) via generateErrorTooltip.
+  failed: {
+    statusText: "Failed",
+    iconName: "error",
+    tooltip: null,
   },
 };
 

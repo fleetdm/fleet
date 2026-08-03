@@ -1,12 +1,12 @@
-import React, { useContext } from "react";
+import React from "react";
 
-import { NotificationContext } from "context/notification";
+import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
-import { stringToClipboard } from "utilities/copy_text";
 import PATHS from "router/paths";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import DataSet from "components/DataSet";
 import Textarea from "components/Textarea";
@@ -33,15 +33,30 @@ const PolicyAutomationActivityDetailsModal = ({
   onCancel,
   onResetPolicy,
 }: IPolicyAutomationActivityDetailsModalProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const { status, created_at, host_id, host_display_name } = activity;
   const detailOutput = getDetailOutputText(activity);
+  const isSoftwareInstall = activity.type === ActivityType.InstalledSoftware;
 
-  const onCopyDetails = () => {
-    stringToClipboard(detailOutput)
-      .then(() => renderFlash("success", "Details copied to clipboard."))
-      .catch(() => renderFlash("error", "Couldn't copy to clipboard."));
-  };
+  // A code-style output block with a copy button. Renders nothing when empty.
+  const renderOutputSection = (label: string, value: string | null) =>
+    value ? (
+      <Textarea
+        key={label}
+        variant="code"
+        label={
+          <div className={`${baseClass}__details-label`}>
+            <span>{label}</span>
+            <CopyButton
+              copyText={value}
+              size="small"
+              ariaLabel={`Copy ${label.toLowerCase()}`}
+            />
+          </div>
+        }
+      >
+        {value}
+      </Textarea>
+    ) : null;
 
   return (
     <Modal title="Details" onExit={onCancel} className={baseClass}>
@@ -74,35 +89,30 @@ const PolicyAutomationActivityDetailsModal = ({
             </span>
           }
         />
-        {detailOutput && (
-          <Textarea
-            variant="code"
-            label={
-              <div className={`${baseClass}__details-label`}>
-                <span>Details</span>
-                <Button
-                  variant="icon"
-                  onClick={onCopyDetails}
-                  className={`${baseClass}__copy`}
-                  ariaLabel="Copy details"
-                >
-                  <Icon name="copy" />
-                </Button>
-              </div>
-            }
-          >
-            {detailOutput}
-          </Textarea>
+        {isSoftwareInstall ? (
+          <>
+            {renderOutputSection(
+              "Pre-install query output",
+              activity.pre_install_output
+            )}
+            {renderOutputSection("Details", activity.output)}
+            {renderOutputSection(
+              "Post-install script output",
+              activity.post_install_output
+            )}
+          </>
+        ) : (
+          renderOutputSection("Details", detailOutput || null)
         )}
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>
           {onResetPolicy && (
             <Button
-              variant="inverse"
+              variant="secondary"
               onClick={onResetPolicy}
               className={`${baseClass}__reset`}
+              icon="refresh"
             >
-              <Icon name="refresh" />
               Reset policy
             </Button>
           )}

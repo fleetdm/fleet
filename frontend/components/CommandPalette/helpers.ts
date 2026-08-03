@@ -40,6 +40,7 @@ export interface ICommandPaletteContext {
   availableTeams?: ITeamSummary[];
   config: IConfig | null;
   canAccessControls?: boolean;
+  canAccessVariables?: boolean;
   canWrite?: boolean;
   canRunLiveReport?: boolean;
   canAccessSettings?: boolean;
@@ -62,6 +63,10 @@ export interface ICommandPaletteContext {
    *  page despite passing `canWrite`. Gates every software-add palette
    *  item (FMA, VPP, Android, custom package). */
   canAddSoftware?: boolean;
+  /** Global or any-team admin/maintainer. Gates the admin/maintainer-only
+   *  Controls > OS settings sub-items (Certificates, Passwords, Host names),
+   *  which technicians can't manage despite passing `canAccessControls`. */
+  isAdminOrMaintainer?: boolean;
   isTechnician?: boolean;
   isPremiumTier?: boolean;
   isPrimoMode?: boolean;

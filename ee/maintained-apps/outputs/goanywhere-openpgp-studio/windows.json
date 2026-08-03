@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.2.3",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'GoAnywhere OpenPGP Studio' AND publisher = 'Fortra';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GoAnywhere OpenPGP Studio' AND publisher = 'Fortra' AND version_compare(version, '1.2.3') < 0);"
+      },
+      "installer_url": "https://static.goanywhere.com/releases/goanywhere/openpgpstudio/gapgpstudio1_2_3_windows-x64.exe",
+      "install_script_ref": "d871f28a",
+      "uninstall_script_ref": "b0caf715",
+      "sha256": "8c50532e3ba8f8fcf2333787741c132be6dc36ab97f50f04d35764a197bf0d5d",
+      "default_categories": [
+        "Security"
+      ]
+    }
+  ],
+  "refs": {
+    "b0caf715": "# Uninstalls GoAnywhere OpenPGP Studio. install4j registers an ARP entry whose\n# UninstallString points at its uninstall.exe; -q runs it unattended.\n\n$softwareNameLike = \"GoAnywhere OpenPGP Studio*\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\nforeach ($p in @(\"OpenPGPStudio\", \"GoAnywhere OpenPGP Studio\")) {\n    Stop-Process -Name $p -Force -ErrorAction SilentlyContinue\n}\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys |\n    Where-Object { $_.DisplayName -like $softwareNameLike } |\n    Select-Object -First 1\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n$raw = $selected.UninstallString\nif ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} else {\n    $exe = $raw; $exeArgs = \"\"\n}\n\n# install4j silent uninstall flag.\nif ($exeArgs -notmatch '(?i)(^|\\s)-q(\\s|$)') { $exeArgs = \"$exeArgs -q\".Trim() }\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $exeArgs\"\n$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n",
+    "d871f28a": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# GoAnywhere OpenPGP Studio ships as an install4j installer (bundled JRE). -q\n# runs it unattended; suppressUnattendedReboot avoids an automatic reboot.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" `\n  -ArgumentList \"-q -Dinstall4j.suppressUnattendedReboot=true\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

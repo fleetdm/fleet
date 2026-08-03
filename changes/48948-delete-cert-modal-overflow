@@ -1,0 +1,1 @@
+- Fixed long certificate names overflowing the delete certificate modal in Controls > OS settings > Certificates.

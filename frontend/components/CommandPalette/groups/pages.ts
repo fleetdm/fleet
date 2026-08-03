@@ -159,7 +159,7 @@ const buildPagesItems = (
     },
 
     // Packs page — only visible when searching for "packs" or similar.
-    // The companion "Create new pack" item lives in commands.ts.
+    // The companion "Add new pack" item lives in commands.ts.
     ...(/packs|create new pack|add new pack/.test(search.toLowerCase())
       ? [
           {

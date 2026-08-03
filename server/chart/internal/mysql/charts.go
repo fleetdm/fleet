@@ -5,10 +5,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -22,6 +24,20 @@ import (
 // considered offline). Duplicated rather than imported because the chart
 // bounded context must not depend on server/fleet — arch test enforced.
 const onlineIntervalBufferSeconds = 60
+
+// mobileOnlineWindowSeconds is the window within which a mobile
+// (iOS/iPadOS/Android) host's most recent MDM activity signal must fall for it
+// to count as online. Mobile MDM devices have no osquery check-in interval
+// (distributed_interval/config_tls_refresh are 0), so instead of a per-host
+// interval we anchor the window to the iOS/iPadOS refetch cadence (1 hour; see
+// ListIOSAndIPadOSToRefetch) plus the same grace buffer used for osquery hosts.
+const mobileOnlineWindowSeconds = 3600 + onlineIntervalBufferSeconds
+
+// neverTimestamp mirrors server.NeverTimestamp, the sentinel written to
+// detail_updated_at before a host's first full detail refetch. Duplicated
+// rather than imported because the chart bounded context must not depend on the
+// server package — arch test enforced.
+const neverTimestamp = "2000-01-01 00:00:00"
 
 // Datastore is the MySQL implementation of the chart datastore.
 type Datastore struct {
@@ -72,24 +88,56 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 	return ids, nil
 }
 
-// FindOnlineHostIDs returns host IDs that are "online" at `now` per the same
-// per-host predicate used by the hosts list status=online filter
-// (filterHostsByStatus in server/datastore/mysql/hosts.go): the host has a
-// host_seen_times row whose seen_time falls within the host's own check-in
-// interval (LEAST of distributed_interval and config_tls_refresh) plus the
-// OnlineIntervalBuffer grace period.
+// FindOnlineHostIDs returns host IDs that are "online" at `now`, using a
+// platform-specific predicate:
 //
-// Because host_seen_times is updated only by osquery check-ins, MDM-only
-// mobile devices (iOS, iPadOS, Android) are currently excluded by design.
+//   - Non-mobile (osquery-capable) hosts use the same predicate as the hosts
+//     list status=online filter (filterHostsByStatus in
+//     server/datastore/mysql/hosts.go): a host_seen_times row whose seen_time
+//     falls within the host's own check-in interval (LEAST of
+//     distributed_interval and config_tls_refresh) plus the OnlineIntervalBuffer
+//     grace period.
+//   - Mobile hosts (iOS, iPadOS, Android) have no osquery check-in interval, so
+//     they use their MDM activity signal — the most recent of
+//     nano_enrollments.last_seen_at (bumped on every MDM check-in, and only
+//     considered for enabled enrollments since last_seen_at is also bumped when
+//     an enrollment is disabled on checkout) and
+//     host_seen_times.seen_time, falling back to detail_updated_at (the
+//     neverTimestamp sentinel treated as null) — within mobileOnlineWindowSeconds
+//     of `now`. There is deliberately no created_at fallback: a freshly enrolled
+//     device that never checked in is not "online".
 func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error) {
 	query := fmt.Sprintf(`
 		SELECT h.id
 		FROM hosts h
-		JOIN host_seen_times hst ON h.id = hst.host_id
-		WHERE DATE_ADD(hst.seen_time,
-			INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
-		) > ?`, onlineIntervalBufferSeconds)
-	args := []any{now.UTC()}
+			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
+			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
+				AND ne.enabled = 1
+				AND ne.type IN ('Device', 'User Enrollment (Device)')
+		WHERE (
+			(
+				h.platform NOT IN ('ios', 'ipados', 'android')
+				AND hst.seen_time IS NOT NULL
+				AND DATE_ADD(hst.seen_time,
+					INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
+				) > ?
+			)
+			OR
+			(
+				h.platform IN ('ios', 'ipados', 'android')
+				AND DATE_ADD(
+					COALESCE(
+						GREATEST(
+							COALESCE(hst.seen_time, ne.last_seen_at),
+							COALESCE(ne.last_seen_at, hst.seen_time)
+						),
+						NULLIF(h.detail_updated_at, ?)
+					),
+					INTERVAL %d SECOND
+				) > ?
+			)
+		)`, onlineIntervalBufferSeconds, mobileOnlineWindowSeconds)
+	args := []any{now.UTC(), neverTimestamp, now.UTC()}
 
 	if len(disabledFleetIDs) > 0 {
 		query += ` AND (h.team_id IS NULL OR h.team_id NOT IN (?))`
@@ -110,8 +158,9 @@ func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disab
 }
 
 // The matcher list exists as a performance optimization that bounds which CVEs
-// the chart collects.
-// TODO: implement bitmap compression so we can collect more CVE data.
+// the chart collects. Collection RAM is no longer the constraint (bits are set
+// into roaring bitmaps while streaming — see streamCVEHostPairs); the list now
+// bounds the join size and the host_scd_data row count per bucket.
 
 // cveSoftwareMatcher filters `software` rows by a MySQL LIKE pattern and an
 // optional source allowlist. Empty Sources means any source. Category groups
@@ -157,15 +206,17 @@ var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 	{api.CVECategoryOS, "kernel-%", []string{"rpm_packages"}},
 }
 
-// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
-// cves set. It streams two joins (software-level and OS-level vulnerabilities)
-// and merges the results into a single map. Duplicates across sources are
-// harmless — the downstream HostIDsToBlob setBit is idempotent.
+// AffectedHostIDsByCVE returns a bitmap of affected host IDs per CVE, scoped
+// to the given cves set. It streams two joins (software-level and OS-level
+// vulnerabilities) and merges the results into a single map, setting bits
+// while scanning so the raw (cve, host_id) rows — millions on a large fleet —
+// are never materialized. Duplicates across sources are harmless — Bitmap.Add
+// is idempotent.
 //
 // nil or empty cves returns an empty map without running any query.
-// TODO: support `nil` meaning "all CVEs" once bitmap compression is implemented.
-func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error) {
-	result := make(map[string][]uint)
+// TODO: support `nil` meaning "all CVEs".
+func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string]*roaring.Bitmap, error) {
+	result := make(map[string]*roaring.Bitmap)
 	if len(cves) == 0 {
 		return result, nil
 	}
@@ -207,6 +258,12 @@ func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs 
 	}
 	if err := ds.streamCVEHostPairs(ctx, osQuery, osArgs, result); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "stream OS CVE host pairs")
+	}
+
+	// Compact container representations now that all bits are set, so the
+	// retained op form stays small until RecordBucketData serializes it.
+	for _, rb := range result {
+		rb.RunOptimize()
 	}
 
 	return result, nil
@@ -404,14 +461,20 @@ func streamCVEStrings(ctx context.Context, q sqlx.QueryerContext, query string, 
 	return rows.Err()
 }
 
-// streamCVEHostPairs runs a query yielding (cve, host_id) pairs and appends
-// host IDs into out under each CVE key. Streams rather than materializing the
-// join result, since on a large fleet the (cve, host_id) row count can reach
-// millions.
+// streamCVEHostPairs runs a query yielding (cve, host_id) pairs and sets each
+// host's bit in out's bitmap for that CVE, allocating the bitmap on first
+// sight of the CVE. Setting bits while scanning keeps peak memory at one
+// bitmap per CVE (KBs even at 50k hosts) instead of retaining every raw
+// (cve, host_id) pair, whose row count can reach many millions on a large
+// fleet. Duplicate pairs — several matching software rows on one host, or
+// overlap between the software and OS queries — are no-op Adds.
+//
+// Host IDs of 0 or above MaxUint32 are skipped, mirroring chart.NewBitmap —
+// Fleet host IDs are AUTO_INCREMENT starting at 1.
 //
 // args are expanded via sqlx.In for slice arguments (e.g. team IDs) and
 // rebinds to the driver dialect.
-func (ds *Datastore) streamCVEHostPairs(ctx context.Context, query string, args []any, out map[string][]uint) error {
+func (ds *Datastore) streamCVEHostPairs(ctx context.Context, query string, args []any, out map[string]*roaring.Bitmap) error {
 	if len(args) > 0 {
 		expanded, expandedArgs, err := sqlx.In(query, args...)
 		if err != nil {
@@ -435,7 +498,15 @@ func (ds *Datastore) streamCVEHostPairs(ctx context.Context, query string, args 
 		if err := rows.Scan(&cve, &hostID); err != nil {
 			return err
 		}
-		out[cve] = append(out[cve], hostID)
+		if hostID == 0 || hostID > math.MaxUint32 {
+			continue
+		}
+		rb, ok := out[cve]
+		if !ok {
+			rb = roaring.New()
+			out[cve] = rb
+		}
+		rb.Add(uint32(hostID))
 	}
 	return rows.Err()
 }

@@ -4,7 +4,6 @@ import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter } from "react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import {
@@ -27,8 +26,9 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import BackButton from "components/BackButton";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import MainContent from "components/MainContent";
+import { notify } from "components/ToastNotification";
 import DeleteFleetModal from "../components/DeleteFleetModal";
 import RenameFleetModal from "../components/RenameFleetModal";
 import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
@@ -92,7 +92,6 @@ const TeamDetailsWrapper = ({
   children,
   location,
 }: ITeamDetailsPageProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
   const {
     isGlobalAdmin,
@@ -252,17 +251,16 @@ const TeamDetailsWrapper = ({
 
       toggleSecretEditorModal();
       isPremiumTier && refetchTeams();
-      renderFlash(
-        "success",
+      notify.success(
         `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
       );
     } catch (error) {
       console.error(error);
-      renderFlash(
-        "error",
+      notify.error(
         `Could not ${
           selectedSecret ? "edit" : "add"
-        } enroll secret. Please try again.`
+        } enroll secret. Please try again.`,
+        { response: error }
       );
     } finally {
       setIsUpdatingSecret(false);
@@ -282,10 +280,12 @@ const TeamDetailsWrapper = ({
       refetchTeamSecrets();
       toggleDeleteSecretModal();
       refetchTeams();
-      renderFlash("success", `Successfully deleted enroll secret.`);
+      notify.success(`Successfully deleted enroll secret.`);
     } catch (error) {
       console.error(error);
-      renderFlash("error", "Could not delete enroll secret. Please try again.");
+      notify.error("Could not delete enroll secret. Please try again.", {
+        response: error,
+      });
     } finally {
       setIsUpdatingSecret(false);
     }
@@ -300,16 +300,16 @@ const TeamDetailsWrapper = ({
 
     try {
       await teamsAPI.destroy(teamIdForApi);
+      notify.success(`Successfully deleted ${currentTeamName}.`);
       router.push(PATHS.ADMIN_FLEETS);
-      renderFlash("success", "Fleet removed");
     } catch (response) {
-      renderFlash("error", "Something went wrong removing the fleet");
+      notify.error("Something went wrong removing the fleet", { response });
       console.error(response);
     } finally {
       toggleDeleteFleetModal();
       setIsUpdatingTeams(false);
     }
-  }, [teamIdForApi, renderFlash, router, toggleDeleteFleetModal]);
+  }, [teamIdForApi, currentTeamName, router, toggleDeleteFleetModal]);
 
   const onEditSubmit = useCallback(
     async (formData: ITeamFormData) => {
@@ -326,8 +326,7 @@ const TeamDetailsWrapper = ({
       setIsUpdatingTeams(true);
       try {
         await teamsAPI.update(updatedAttrs, teamIdForApi);
-        renderFlash(
-          "success",
+        notify.success(
           `Successfully updated fleet name to ${updatedAttrs?.name}`
         );
         setBackendValidators({});
@@ -350,7 +349,9 @@ const TeamDetailsWrapper = ({
             name: `"Unassigned" is a reserved fleet name. Please try another name.`,
           });
         } else {
-          renderFlash("error", "Could not create fleet. Please try again.");
+          notify.error("Could not create fleet. Please try again.", {
+            response,
+          });
         }
       } finally {
         setIsUpdatingTeams(false);
@@ -360,7 +361,6 @@ const TeamDetailsWrapper = ({
       currentTeamDetails,
       toggleRenameFleetModal,
       teamIdForApi,
-      renderFlash,
       refetchTeams,
       refetchMe,
     ]
@@ -402,11 +402,11 @@ const TeamDetailsWrapper = ({
             {userTeams?.length === 1 ? (
               <h1>{currentTeamDetails.name}</h1>
             ) : (
-              <TeamsDropdown
-                selectedTeamId={currentTeamId}
-                currentUserTeams={userTeams || []}
+              <FleetsDropdown
+                selectedFleetId={currentTeamId}
+                currentUserFleets={userTeams || []}
                 isDisabled={isLoadingTeams}
-                includeAllTeams={false}
+                includeAllFleets={false}
                 onChange={handleTeamChange}
               />
             )}
@@ -427,24 +427,21 @@ const TeamDetailsWrapper = ({
               {
                 type: "secondary",
                 label: "Manage enroll secrets",
-                buttonVariant: "inverse",
-                iconName: "eye",
+                buttonVariant: "secondary",
                 onClick: toggleManageEnrollSecretsModal,
                 gitOpsModeCompatible: true,
               },
               {
                 type: "secondary",
                 label: "Rename fleet",
-                buttonVariant: "inverse",
-                iconName: "pencil",
+                buttonVariant: "secondary",
                 onClick: toggleRenameFleetModal,
                 gitOpsModeCompatible: true,
               },
               {
                 type: "secondary",
                 label: "Delete fleet",
-                buttonVariant: "inverse",
-                iconName: "trash",
+                buttonVariant: "secondary",
                 hideAction: !isGlobalAdmin,
                 onClick: toggleDeleteFleetModal,
                 gitOpsModeCompatible: true,

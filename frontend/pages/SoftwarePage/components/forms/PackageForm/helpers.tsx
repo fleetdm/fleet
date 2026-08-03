@@ -2,7 +2,7 @@ import React from "react";
 
 import { validateQuery } from "components/forms/validators/validate_query";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
-import { compareVersions, getGitOpsModeTipContent } from "utilities/helpers";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 
 type IMessageFunc = (formData: IPackageFormData) => string;
@@ -234,18 +234,6 @@ export const createTooltipContent = (
       ))}
     </>
   );
-};
-
-/** Keeps the latest (highest) version first and descends using compareVersions.
- Works with any array of objects that expose a string `version` field. */
-export const sortByVersionLatestFirst = <T extends { version?: string }>(
-  items: T[]
-): T[] => {
-  return items.sort((a, b) => {
-    const v1 = a.version ?? "";
-    const v2 = b.version ?? "";
-    return compareVersions(v2, v1);
-  });
 };
 
 export default generateFormValidation;

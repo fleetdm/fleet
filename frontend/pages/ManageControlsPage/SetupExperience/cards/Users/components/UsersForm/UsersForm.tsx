@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 
 import mdmAPI from "services/entities/mdm";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
@@ -41,7 +41,6 @@ const UsersForm = ({
   defaultLocalAccountType = EndUserLocalAccountType.ADMIN,
   isIdPConfigured,
 }: IUsersFormProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
   const gitOpsModeEnabled = !!config?.gitops.gitops_mode_enabled;
 
@@ -115,9 +114,11 @@ const UsersForm = ({
           end_user_local_account_type: formData.localAccountType,
         }),
       });
-      renderFlash("success", "Successfully updated.");
-    } catch {
-      renderFlash("error", "Couldn't update settings. Please try again.");
+      notify.success("Successfully updated.");
+    } catch (err) {
+      notify.error("Couldn't update settings. Please try again.", {
+        response: err,
+      });
     }
 
     setIsUpdating(false);

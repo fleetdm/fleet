@@ -888,7 +888,7 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts)
 }
 
-// deletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
+// deletePendingHostScriptExecutionsForPolicy should be called before a policy is deleted to remove any pending script executions
 func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
 	var globalOrTeamID uint
 	if teamID != nil {
@@ -2629,6 +2629,16 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 				executions = append(executions, fleet.BatchExecutionHost{
 					HostID: host.ID,
 					Error:  &fleet.BatchExecuteInvalidHost,
+				})
+				continue
+			}
+
+			// The host may have moved to a different team since the batch was
+			// scheduled, so re-check it still matches the script's team before running.
+			if !teamIDEq(host.TeamID, script.TeamID) {
+				executions = append(executions, fleet.BatchExecutionHost{
+					HostID: host.ID,
+					Error:  &fleet.BatchExecuteIncompatibleTeam,
 				})
 				continue
 			}

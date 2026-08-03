@@ -1,0 +1,1 @@
+* Fixed the Policies page automations filter disappearing from the UI when switching to the "Unassigned" fleet and selecting a different automation type.

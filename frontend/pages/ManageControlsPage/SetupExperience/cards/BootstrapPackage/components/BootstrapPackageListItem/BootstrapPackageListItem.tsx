@@ -1,11 +1,10 @@
 import React from "react";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import URL_PREFIX from "router/url_prefix";
 
 import { IBootstrapPackageMetadata } from "interfaces/mdm";
 import endpoints from "utilities/endpoints";
 
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -41,12 +40,12 @@ const DownloadPackageButton = ({ url, token, className }: ITestFormProps) => {
     >
       <input type="hidden" name="token" value={token || ""} />
       <Button
-        variant="icon"
+        variant="subdued"
         type="submit"
         className={`${baseClass}__list-item-button`}
-      >
-        <Icon name="download" />
-      </Button>
+        icon="download"
+        ariaLabel="Download bootstrap package"
+      />
     </form>
   );
 };
@@ -68,9 +67,9 @@ const BootstrapPackageListItem = ({
             {bootstrapPackage.name}
           </span>
           <span className={`${baseClass}__list-item-uploaded`}>
-            {`Uploaded ${formatDistanceToNow(
-              new Date(bootstrapPackage.created_at)
-            )} ago`}
+            {`Uploaded ${timeAgo(new Date(bootstrapPackage.created_at), {
+              addSuffix: true,
+            })}`}
           </span>
         </div>
       </div>
@@ -87,12 +86,12 @@ const BootstrapPackageListItem = ({
           renderChildren={(disabled) => (
             <Button
               className={`${baseClass}__list-item-button`}
-              variant="icon"
+              variant="subdued"
               disabled={disabled}
               onClick={() => onDelete(bootstrapPackage)}
-            >
-              <Icon name="trash" />
-            </Button>
+              icon="trash"
+              ariaLabel="Delete bootstrap package"
+            />
           )}
         />
       </div>

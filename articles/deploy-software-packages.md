@@ -57,9 +57,9 @@ Script-only packages are useful for:
 - Deploying configuration changes that don't require a traditional installer
 
 
-Script packages do not support `install_script` (the file contents are the install script), `uninstall_script`, `post_install_script`, `pre_install_query`, and automatic install.
+Script packages do not support `install_script` (the file contents are the install script) or automatic install. They do support `uninstall_script`, `post_install_script`, and `pre_install_query`.
 
-If these parameters are provided when uploading a script package, they will be ignored.
+If an `install_script` is provided when uploading a script package, it will be ignored.
 
 
 ### Pre-install query

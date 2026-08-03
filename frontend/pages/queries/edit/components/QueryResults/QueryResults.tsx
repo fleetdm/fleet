@@ -15,7 +15,6 @@ import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import TabNav from "components/TabNav";
@@ -193,11 +192,11 @@ const QueryResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="inverse"
+          variant="secondary"
+          icon="eye"
+          iconPosition="right"
         >
-          <>
-            Show query <Icon name="eye" />
-          </>
+          Show query
         </Button>
         <Button
           className={`${baseClass}__export-btn`}
@@ -206,12 +205,11 @@ const QueryResults = ({
               ? onExportErrorsResults
               : onExportQueryResults
           }
-          variant="inverse"
+          variant="secondary"
+          icon="download"
+          iconPosition="right"
         >
-          <>
-            Export {tableType}
-            <Icon name="download" />
-          </>
+          Export {tableType}
         </Button>
       </div>
     );
@@ -273,7 +271,11 @@ const QueryResults = ({
   });
 
   return (
-    <div className={baseClass}>
+    // `notranslate`: Chrome's auto-translate wraps text nodes in <font> elements,
+    // detaching nodes React holds refs to. As live results stream in and cells
+    // unmount, React's removeChild throws NotFoundError and error-boundaries the
+    // page (#48277). Excluding this streaming subtree from translation avoids it.
+    <div className={`${baseClass} notranslate`}>
       <LiveResultsHeading
         numHostsTargeted={targetsTotalCount}
         numHostsResponded={uiHostCounts.total}

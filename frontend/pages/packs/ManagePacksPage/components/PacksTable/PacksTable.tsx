@@ -68,7 +68,7 @@ const PacksTable = ({
           className={`${baseClass}__create-button`}
           onClick={onCreatePackClick}
         >
-          Create new pack
+          Add new pack
         </Button>
       ),
     };
@@ -88,14 +88,14 @@ const PacksTable = ({
       name: "enable",
       onClick: onEnablePackClick,
       buttonText: "Enable",
-      variant: "inverse",
+      variant: "secondary",
       iconSvg: "check",
     },
     {
       name: "disable",
       onClick: onDisablePackClick,
       buttonText: "Disable",
-      variant: "inverse",
+      variant: "secondary",
       iconSvg: "disable",
     },
   ];
@@ -123,7 +123,7 @@ const PacksTable = ({
           name: "delete pack",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "inverse",
+          variant: "secondary",
           onClick: onDeletePackClick,
         }}
         renderCount={renderPackCount}

@@ -57,7 +57,11 @@ data "aws_caller_identity" "current" {}
 locals {
   customer       = "fleet-dogfood"
   fleet_image    = var.fleet_image # Set this to the version of fleet to be deployed
-  geolite2_image = "${aws_ecr_repository.fleet.repository_url}:${split(":", var.fleet_image)[1]}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
+  # Tag component for the geolite2 image. Handle both ":tag" and "@sha256:digest" refs
+  # so deploying a digest-pinned image (e.g. from main) yields a clean tag, not a 64-char hex.
+  # For tag refs, take the last ":" segment so registries with a port (host:5000/repo:tag) still resolve to the tag.
+  fleet_image_tag = strcontains(var.fleet_image, "@sha256:") ? "sha256-${substr(split("@sha256:", var.fleet_image)[1], 0, 12)}" : reverse(split(":", var.fleet_image))[0]
+  geolite2_image  = "${aws_ecr_repository.fleet.repository_url}:${local.fleet_image_tag}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
   extra_environment_variables = {
     FLEET_LICENSE_KEY             = var.fleet_license
     FLEET_LOGGING_DEBUG           = "true"
@@ -148,10 +152,32 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.26.1"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.30.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
-    name = local.customer
+    name                                            = local.customer
+    enable_flow_log                                 = true
+    create_flow_log_cloudwatch_log_group            = true
+    create_flow_log_cloudwatch_iam_role             = true
+    flow_log_max_aggregation_interval               = 60
+    flow_log_cloudwatch_log_group_name_prefix       = "/aws/vpc-flow-logs/"
+    flow_log_cloudwatch_log_group_name_suffix       = local.customer
+    flow_log_cloudwatch_log_group_retention_in_days = 365
+
+    default_network_acl_ingress = [
+      { rule_no = 100, action = "allow", protocol = "tcp", from_port = 0, to_port = 21, cidr_block = "0.0.0.0/0" },
+      { rule_no = 101, action = "allow", protocol = "tcp", from_port = 23, to_port = 3388, cidr_block = "0.0.0.0/0" },
+      { rule_no = 102, action = "allow", protocol = "tcp", from_port = 3390, to_port = 65535, cidr_block = "0.0.0.0/0" },
+      { rule_no = 103, action = "allow", protocol = "udp", from_port = 0, to_port = 21, cidr_block = "0.0.0.0/0" },
+      { rule_no = 104, action = "allow", protocol = "udp", from_port = 23, to_port = 3388, cidr_block = "0.0.0.0/0" },
+      { rule_no = 105, action = "allow", protocol = "udp", from_port = 3390, to_port = 65535, cidr_block = "0.0.0.0/0" },
+      { rule_no = 106, action = "allow", protocol = "icmp", from_port = 0, to_port = 0, icmp_type = "8", icmp_code = "-1", cidr_block = "0.0.0.0/0" },
+      { rule_no = 110, action = "deny", protocol = "-1", from_port = 0, to_port = 0, ipv6_cidr_block = "::/0" },
+    ]
+    default_network_acl_egress = [
+      { rule_no = 100, action = "allow", protocol = "-1", from_port = 0, to_port = 0, cidr_block = "0.0.0.0/0" },
+      { rule_no = 110, action = "deny", protocol = "-1", from_port = 0, to_port = 0, ipv6_cidr_block = "::/0" },
+    ]
   }
   rds_config = {
     preferred_maintenance_window = "fri:04:00-fri:05:00"
@@ -536,7 +562,7 @@ module "firehose-logging" {
 }
 
 module "osquery-carve" {
-  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.3.1"
+  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.4.0"
   osquery_carve_s3_bucket = {
     name = "fleet-${local.customer}-osquery-carve"
   }
@@ -587,7 +613,8 @@ module "monitoring" {
     # Format of https://pkg.go.dev/time#ParseDuration
     delay_tolerance = "4h"
     # Interval format for: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#rate-based
-    run_interval = "1 hour"
+    run_interval          = "1 hour"
+    log_retention_in_days = 365
     # Optional: ignore_list = ["comma", "delimited", "cron", "names", "to", "ignore"]
     # ignore_list = []
   }
@@ -825,7 +852,7 @@ resource "aws_iam_policy" "osquery_sidecar" {
 }
 
 module "cloudfront-software-installers" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v2.0.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v3.0.0"
   customer          = local.customer
   s3_bucket         = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.bucket_name
   public_key        = var.cloudfront_public_key

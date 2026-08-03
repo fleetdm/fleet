@@ -22,12 +22,12 @@ import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
-import Icon from "components/Icon";
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
 import DataError from "components/DataError/DataError";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
@@ -127,7 +127,6 @@ const QueryDetailsPage = ({
     () => queryAPI.load(queryId),
     {
       enabled: !!queryId,
-      refetchOnWindowFocus: false,
       select: (data) => data.query,
       onError: (error) => handlePageError(error),
     }
@@ -153,6 +152,11 @@ const QueryDetailsPage = ({
     );
   }
 
+  const discardData = !!storedQuery?.discard_data;
+  const loggingSnapshot = storedQuery?.logging === "snapshot";
+  const reportCachingDisabled =
+    disabledCachingGlobally || discardData || !loggingSnapshot;
+
   const {
     isLoading: isQueryReportLoading,
     data: queryReport,
@@ -169,7 +173,9 @@ const QueryDetailsPage = ({
       }),
     {
       enabled: !!queryId,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: !reportCachingDisabled,
+      refetchInterval: (data) =>
+        !reportCachingDisabled && data?.results?.length === 0 ? 5000 : false,
       onError: (error) => handlePageError(error),
     }
   );
@@ -246,16 +252,19 @@ const QueryDetailsPage = ({
         {!isLoading && !isApiError && (
           <>
             <div className={`${baseClass}__title-bar`}>
-              <div className="name-description">
+              <div className={`${baseClass}__name-description`}>
                 <h1 className={`${baseClass}__query-name`}>
-                  {storedQuery?.name}
+                  <TooltipTruncatedText
+                    value={storedQuery?.name}
+                    fixedPositionStrategy
+                  />
                 </h1>
               </div>
               <div className={`${baseClass}__action-button-container`}>
                 <Button
                   className={`${baseClass}__show-query-btn`}
                   onClick={onShowQueryModal}
-                  variant="inverse"
+                  variant="secondary"
                 >
                   Show query
                 </Button>
@@ -273,7 +282,7 @@ const QueryDetailsPage = ({
                       <div>
                         <Button
                           className={`${baseClass}__run`}
-                          variant="inverse"
+                          variant="secondary"
                           onClick={() => {
                             queryId &&
                               router.push(
@@ -287,8 +296,10 @@ const QueryDetailsPage = ({
                               );
                           }}
                           disabled={isLiveQueryDisabled}
+                          icon="run"
+                          iconPosition="right"
                         >
-                          Live report <Icon name="run" />
+                          Live report
                         </Button>
                       </div>
                     </TooltipWrapper>
@@ -374,10 +385,6 @@ const QueryDetailsPage = ({
   );
 
   const renderReport = () => {
-    const discardData = !!storedQuery?.discard_data;
-    const loggingSnapshot = storedQuery?.logging === "snapshot";
-    const disabledCaching =
-      disabledCachingGlobally || discardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
     if (isLoading) {
@@ -395,7 +402,7 @@ const QueryDetailsPage = ({
           queryId={queryId}
           queryInterval={storedQuery?.interval}
           queryUpdatedAt={storedQuery?.updated_at}
-          disabledCaching={disabledCaching}
+          disabledCaching={reportCachingDisabled}
           disabledCachingGlobally={disabledCachingGlobally}
           discardDataEnabled={discardData}
           loggingSnapshot={loggingSnapshot}

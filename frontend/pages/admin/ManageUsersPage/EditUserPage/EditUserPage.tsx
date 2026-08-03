@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "react-query";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
 import { IInvite, IEditInviteFormData } from "interfaces/invite";
@@ -15,6 +14,7 @@ import invitesAPI from "services/entities/invites";
 
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
+import { notify } from "components/ToastNotification";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import UserForm from "../components/UserForm";
@@ -36,7 +36,6 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
   const entityId = parseInt(params.user_id, 10);
   const isInvite = location.query?.type === "invite";
   const { config, isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const queryClient = useQueryClient();
   const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
@@ -92,7 +91,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
           if (entityData.email !== formData.email) {
             msg += `. A confirmation email was sent to ${formData.email}.`;
           }
-          renderFlash("success", msg);
+          notify.success(msg);
           router.push(PATHS.ADMIN_USERS);
         })
         .catch((inviteErrors: { data: IApiError }) => {
@@ -101,9 +100,9 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
               email: "A user with this email address already exists",
             });
           } else {
-            renderFlash(
-              "error",
-              `Could not edit ${entityData.name}. Please try again.`
+            notify.error(
+              `Could not edit ${entityData.name}. Please try again.`,
+              { response: inviteErrors }
             );
           }
         })
@@ -141,7 +140,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
       .update(entityId, requestData)
       .then(() => {
         queryClient.invalidateQueries(["user", entityId]);
-        renderFlash("success", successMessage);
+        notify.success(successMessage);
         router.push(PATHS.ADMIN_USERS);
       })
       .catch((userErrors: { data: IApiError }) => {
@@ -156,10 +155,9 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
             password: "Password must meet the criteria below",
           });
         } else {
-          renderFlash(
-            "error",
-            `Could not edit ${entityData.name}. Please try again.`
-          );
+          notify.error(`Could not edit ${entityData.name}. Please try again.`, {
+            response: userErrors,
+          });
         }
       })
       .finally(() => {
@@ -184,14 +182,11 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
       })
       .then(() => {
         queryClient.invalidateQueries(["user", entityId]);
-        renderFlash("success", `Successfully edited ${formData.name}.`);
+        notify.success(`Successfully edited ${formData.name}.`);
         router.push(PATHS.ADMIN_USERS);
       })
       .catch(() => {
-        renderFlash(
-          "error",
-          `Could not edit ${entityData.name}. Please try again.`
-        );
+        notify.error(`Could not edit ${entityData.name}. Please try again.`);
       })
       .finally(() => {
         setIsSubmitting(false);

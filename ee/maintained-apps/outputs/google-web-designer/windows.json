@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "14.3.0.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Google Web Designer' AND publisher = 'Google LLC.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Web Designer' AND publisher = 'Google LLC.' AND version_compare(version, '14.3.0.0') < 0);"
+      },
+      "installer_url": "https://dl.google.com/release2/Webdesigner/acky5xyddb2r44okdi2iwoujpiwa_14.3.0.0/googlewebdesigner_win_x64_14.3.0.0.exe",
+      "install_script_ref": "a7d586ca",
+      "uninstall_script_ref": "ecb2fc92",
+      "sha256": "0bd982d5af4ba0cf4178dfbf25730ae27bd79b597a6096498b66563eae338faf",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "a7d586ca": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Google Web Designer is a Nullsoft (NSIS) installer declaring machine scope;\n# /S runs it silently and installs machine-wide to Program Files.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" -ArgumentList \"/S\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "ecb2fc92": "# Uninstalls Google Web Designer. Locates the NSIS uninstaller from the registry\n# by DisplayName and runs it silently with /S.\n\n$softwareNameLike = \"Google Web Designer*\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys |\n    Where-Object { $_.DisplayName -like $softwareNameLike } |\n    Select-Object -First 1\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n$raw = if ($selected.QuietUninstallString) { $selected.QuietUninstallString } else { $selected.UninstallString }\n\n# Parse exe + args (quoted / unquoted / bare).\nif ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} else {\n    $exe = $raw; $exeArgs = \"\"\n}\n\n# NSIS uninstallers require /S for a silent uninstall.\nif ($exeArgs -notmatch '(?i)(^|\\s)/S(\\s|$)') { $exeArgs = \"$exeArgs /S\".Trim() }\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $exeArgs\"\n$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n"
+  }
+}

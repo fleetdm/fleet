@@ -42,7 +42,7 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
   const isAbmConfigured = config?.mdm?.apple_bm_enabled_and_configured ?? false;
 
   // GitOps mode disables write actions in the UI; mirrors the predicate
-  // ManageFleetsPage uses to disable its Create fleet button.
+  // ManageFleetsPage uses to disable its Add fleet button.
   const isGitOpsMode = !!(
     config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url
   );

@@ -4,29 +4,49 @@ Fleet supports [Okta](#okta), [authentik](#authentik), [Google Workspace](#googl
 
 To configure SSO, follow steps for your IdP and then complete [Fleet configuration](#fleet-configuration).
 
-> JIT? SAML implementation supports just-in-time (JIT) user provisioning, as well as both IdP-initiated login and service-initiated (SP) login.
+> JIT SAML implementation supports just-in-time (JIT) user provisioning, as well as both IdP-initiated login and service-initiated (SP) login.
 
 
 ## Okta
 
 > Okta added a built-in Fleet app and Fleet is testing it internally. Keep in mind that adding push groups will create new fleets. Currently, the best practice is to create a SAML app (instructions below).
 
-Create a new SAML app in Okta:
+Create a new SAML app in Okta:  
+1. Name your application and add a logo tile
 
-![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
+   ![Step One](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-step-1.png)
 
-If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
+   You can use the following Fleet logo for your tile:
 
-> Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)", but after the app is set up, Okta labels this as "Audience Restriction".
+   ![Logo](https://raw.githubusercontent.com/fleetdm/fleet/main/assets/images/fleet-logo-blue-118x41%402x.png)
+2. Configure the SAML settings:
+   - The **Single sign-on URL** depends on which connection you're configuring:
+     - For Fleet users, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`
+     - If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`
+   - Check **Use this for Recipient URL and Destination URL**
+   - **Audience URI (SP Entity ID):** the same unique identifier as you'll use [in Fleet](#fleet-configuration) (e.g., `fleet`).
+   - **Name ID Format**: `EmailAddress`  
+   - **Application username**: `Email`  
 
-Once configured, you will need to retrieve the Identity Provider metadata URL either from **View Setup Instructions** from the **Identity Provider metadata** link within the application **Sign on** settings, or under the **SAML 2.0** section under **Metadata details**.
-
-> The Provider Sign-on URL within **View Setup Instructions** has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
-
+      ![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
+      > Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)", but after the app is set up, Okta labels this as "Audience Restriction".
+3. Go to the **Sign On** tab and add the following attribute statements:
+   1. **Name:** `displayname`  
+      **Expression:** `user.profile.firstName + " " + user.profile.lastName`
+   2. If required, set group mapping:  
+      **Name:** `FLEET_JIT_USER_ROLE_GLOBAL` or `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>` — see [Customization of User Roles](#customization-of-user-roles) for other options  
+      **Expression (example):**
+    ```
+          user.isMemberOf({'group.profile.name': '<fleet_admin_group>', 'operator': 'EXACT'}) ? "admin" :
+          user.isMemberOf({'group.profile.name': '<fleet_maintainer_group>', 'operator': 'EXACT'}) ? "maintainer" :
+          user.isMemberOf({'group.profile.name': '<fleet_technician_group>', 'operator': 'EXACT'}) ? "technician" :
+          user.isMemberOf({'group.profile.name': '<fleet_observer_plus_group>', 'operator': 'EXACT'}) ? "observer_plus" :
+          user.isMemberOf({'group.profile.name': '<fleet_observer_group>', 'operator': 'EXACT'}) ? "observer" : null
+    ```
+4. Copy the metadata URL above on the **Sign On** Tab 
+6. Proceed to [Fleet configuration](#fleet-configuration).
 
 ## Google Workspace
-
-If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
 
 Create a new SAML app in Google Workspace:
 
@@ -43,13 +63,16 @@ Create a new SAML app in Google Workspace:
   ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. Configure the **Service provider details**:
-    - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
-    - For Entity ID, use **the same unique identifier as you'll use [in Fleet](#fleet-configuration)** (e.g., `fleet`).
+
+    - For Entity ID, use the same unique identifier as you'll use [in Fleet](#fleet-configuration) (e.g., `fleet`).
     - For **Name ID format**, choose `EMAIL`.
     - For **Name ID**, choose `Basic Information > Primary email`.
+    - The **ACS URL** depends on which connection you're configuring:
+       - For Fleet users, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`
+       - If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`
     - All other fields can be left blank.
-
-  Click **Continue** at the bottom of the page.
+    
+    Click **Continue** at the bottom of the page.
 
   ![Configuring the service provider details in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-5.png)
 
@@ -65,7 +88,8 @@ Create a new SAML app in Google Workspace:
 
   ![The new SAML app's service status page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-8.png)
 
-8. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
+9. Proceed to [Fleet configuration](#fleet-configuration).
+10. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
 ## Entra
 
@@ -78,26 +102,16 @@ Create a new SAML app in Microsoft Entra Admin Center:
    - Click **Create**.
 4. In your newly crated Fleet app, select **Single sign-on** from the menu on the left. Then, on the Single sign-on page, select **SAML**.
 5. Click the **Edit** button in the (1) Basic SAML Configuration Box.
-   - For **Identifier (Entity ID)**, click **Add identifier** and enter `fleet`.
-   - For **Reply URL (Assertion Consumer Service URL)**, enter `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+   - For **Identifier (Entity ID)**, the same unique identifier as you'll use [in Fleet](#fleet-configuration) (e.g., `fleet`).
+   - The **Reply URL (Assertion Consumer Service URL)** depends on which connection you're configuring:
+     - For Fleet users, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`
+     - If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`
+   - Check **Use this for Recipient URL and Destination URL**
    - Click **Save**.
 6. In the **(3) SAML Certificates** box, click the copy button in the **App Federation Metadata Url** field.
  ![The new SAML app's details page in Enta Admin Center](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-step-6.png)
+7. Proceed to [Fleet configuration](#fleet-configuration).
 
-On your Fleet server: 
-1. Navigate to **Settings > Organization settings > Single sign-on (SSO)**.
-2. On the **Single sign-on (SSO)** page:
-   - Check the box to **Enable single sign-on**.
-   - For **Identity provider name**, enter `Entra`.
-   - For **Entity ID**, enter `fleet`.
-   - In the **Metadata URL** field, paste the URL that you copied from Entra in step 6 in the previous section.
-   - Click **Save**.
-
- ![The configuration for the SSO connection in Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-fleet-config.png) 
-3. Enable SSO for a test user and try to log in with Entra.
-	- Click the **Account** icon in the top right and select **Users**.
-	- Select a test user and choose **Actions** > **Edit**.
-	- Under **Authentication**, select **Single sign-on** and save.
 
 
 ## authentik
@@ -106,17 +120,15 @@ Fleet can be configured to use authentik as an identity provider. To continue, y
 
 
 1. Log in to authentik and click **Admin interface**.
-
 2. Navigate to **Applications -> Applications** and click **Create with Provider** to create an application and provider pair.
-
 3. Enter "Fleet" for the **App name** and click **Next**.
-
 4. Choose **SAML** as the **Provider Type** and click **Next**.
     - For **Name**, enter "Fleet".
     - For **Authorization flow**, choose `default-provider-authorization-implicit-consent (Authorize Application)`.
     - In the **Protocol settings** section, configure the following:
-      - For **Assertion Consumer Service URL** use `https://<your_fleet_url>/api/v1/fleet/sso/callback`.
-        - If you're configuring **[Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication)**, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`.
+      - For **Assertion Consumer Service URL** depends on which connection you're configuring:
+     - For Fleet users, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`
+     - If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`
       - For **Issuer**, use `authentik`.
       - For **Service Provider Binding**, choose `Post`.
       - For **audience**, use `https://<your_fleet_url>`.
@@ -125,17 +137,17 @@ Fleet can be configured to use authentik as an identity provider. To continue, y
       - For **NameID Property Mapping**, choose `default SAML Mapping: Email`.
     - Click **Next**.
     - Continue to the **Review and Submit Application** page and click **Submit**.
-
 5. Navigate to **Applications -> Providers** and click on the Fleet provider you just created.
     - In the **Related objects** section, click **Copy Metadata URL** and paste the URL to a text editor for later use.
-
 6. Proceed to [Fleet configuration](#fleet-configuration).
+
 
 ## Other IdPs
 
 IdPs generally requires the following information:
-
-- Assertion Consumer Service - This is the call-back URL that the identity provider will use to send security assertions to Fleet. Use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring IdP authentication for setup experience, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+  - The **Assertion Consumer Service URL** depends on which connection you're configuring:
+     - For Fleet users, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`
+     - If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback``https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`
 
 - Entity ID - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration. In the other examples, we used `fleet`.
 
@@ -171,7 +183,7 @@ If you're configuring IdP authentication for setup experience head to **Settings
 - **Metadata** - If the IdP does not provide a metadata URL, the metadata must
   be obtained from the IdP and entered.
 
-![Example SSO Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/sso-setup.png)
+  ![Example SSO Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/sso-setup.png)
 
 ## Just-in-time (JIT) user provisioning
 

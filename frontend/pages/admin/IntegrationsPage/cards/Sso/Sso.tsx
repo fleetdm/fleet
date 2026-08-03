@@ -348,7 +348,7 @@ const Sso = ({
   );
 
   return (
-    <SettingsSection title="Single sign-on (SSO)">
+    <SettingsSection title="Authentication (SSO)">
       <PageDescription
         content={
           <>

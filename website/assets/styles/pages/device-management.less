@@ -90,6 +90,14 @@
     max-width: 527px;
   }
 
+  [purpose='section-buttons'] {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    align-items: center;
+    white-space: nowrap;
+  }
+
   [purpose='section-button'] {
     .cta-button();
     width: fit-content;
@@ -236,12 +244,6 @@
           padding: 26px 17px 27px 16px;
           img {
             height: 23px;
-          }
-        }
-        &.mozilla {
-          padding: 25px 31.451px 26px 32px;
-          img {
-            height: 25px;
           }
         }
         &.calendly {
@@ -413,6 +415,7 @@
   [purpose='feature-with-image'] {
     .feature-with-image();
     [purpose='feature-text'] {
+      max-width: 50%;
       h2 {
         font-size: 28px;
         margin-bottom: 0px;
@@ -552,6 +555,12 @@
         padding-bottom: 120px;
       }
     }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+    }
     [purpose='large-page-section'] {
       display: flex;
       flex-direction: column;
@@ -592,12 +601,6 @@
             padding: 0 8.138px 0 7.804px;
             img {
               height: 18px;
-            }
-          }
-          &.mozilla {
-            padding: 0 24.239px 0 25.455px;
-            img {
-              height: 20px;
             }
           }
           &.calendly {
@@ -643,6 +646,12 @@
       display: flex;
       flex-direction: column;
       gap: 48px;
+    }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: row;
+      gap: 24px;
+      align-items: center;
     }
     [purpose='quote-and-logos'] {
       display: flex;
@@ -701,12 +710,6 @@
                 height: 23px;
               }
             }
-            &.mozilla {
-              padding: 25px 31.451px 26px 32px;
-              img {
-                height: 25px;
-              }
-            }
             &.calendly {
               padding: 26px 34.551px 26px 34px;
               img {
@@ -721,6 +724,7 @@
     }
     [purpose='feature-with-image'] {
       [purpose='feature-text'] {
+        max-width: unset;
         width: 100%;
         margin-left: auto;
         margin-right: auto;
@@ -742,6 +746,12 @@
           font-size: 24px;
         }
       }
+    }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
     }
     [purpose='hero-image'] {
        img {
@@ -816,12 +826,6 @@
               padding: unset;
               img {
                 height: 22px;
-              }
-            }
-            &.mozilla {
-              padding: unset;
-              img {
-                height: 25px;
               }
             }
             &.calendly {

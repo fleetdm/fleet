@@ -67,7 +67,8 @@ export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 3, label: "🧰 Developer tools", value: "Developer tools" },
   { id: 4, label: "🖥️ Productivity", value: "Productivity" },
   { id: 5, label: "🔐 Security", value: "Security" },
-  { id: 6, label: "🛠️ Utilities", value: "Utilities" },
+  { id: 6, label: "🛟 Support", value: "Support" },
+  { id: 7, label: "🛠️ Utilities", value: "Utilities" },
 ];
 
 // Client-side category filter by name — both sides come from
@@ -97,6 +98,23 @@ export const filterSoftwareByCustomCategory = (
     ];
     return itemCategories.some((c) => c.toLowerCase() === normalized);
   });
+};
+
+// Keeps only categories that have at least one software item. Membership is
+// resolved the same way as `filterSoftwareByCustomCategory` so the dropdown
+// stays consistent with what selecting a category shows.
+export const filterCategoriesWithSoftware = (
+  categories: ISelfServiceCategory[],
+  software: IDeviceSoftwareWithUiStatus[]
+): ISelfServiceCategory[] => {
+  const categoryNamesInUse = new Set<string>();
+  software.forEach((item) => {
+    [
+      ...(item.software_package?.categories ?? []),
+      ...(item.app_store_app?.categories ?? []),
+    ].forEach((name) => categoryNamesInUse.add(name.toLowerCase()));
+  });
+  return categories.filter((c) => categoryNamesInUse.has(c.name.toLowerCase()));
 };
 
 /** Count of items in the list that are eligible to be queued by install_all. */

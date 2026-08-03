@@ -4,4 +4,9 @@
   form {
     @include vertical-form-layout;
   }
+
+  .form-field__label {
+    font-size: $small;
+    margin-bottom: $pad-small;
+  }
 }

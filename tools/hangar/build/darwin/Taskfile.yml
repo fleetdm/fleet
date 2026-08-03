@@ -1,0 +1,185 @@
+version: '3'
+
+includes:
+  common: ../Taskfile.yml
+
+vars:
+  # Signing configuration - fill these in for Developer ID signing / notarization
+  # (or override on the CLI). Leave empty for ad-hoc signing via `task package`.
+  SIGN_IDENTITY: ""    # e.g. "Developer ID Application: Your Company (TEAMID)"
+  KEYCHAIN_PROFILE: "" # e.g. "my-notarize-profile"
+  ENTITLEMENTS: ""     # e.g. "build/darwin/entitlements.plist"
+
+tasks:
+  build:
+    summary: Builds the application (macOS-only, native)
+    cmds:
+      - task: build:native
+        vars:
+          ARCH: '{{.ARCH}}'
+          DEV: '{{.DEV}}'
+          OUTPUT: '{{.OUTPUT}}'
+          EXTRA_TAGS: '{{.EXTRA_TAGS}}'
+          OBFUSCATED: '{{.OBFUSCATED}}'
+          GARBLE_ARGS: '{{.GARBLE_ARGS}}'
+    vars:
+      DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
+      OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
+
+  build:native:
+    summary: Builds the application natively on macOS
+    internal: true
+    deps:
+      - task: common:go:mod:tidy
+      - task: common:build:frontend
+        vars:
+          BUILD_FLAGS:
+            ref: .BUILD_FLAGS
+          OBFUSCATED:
+            ref: .OBFUSCATED
+          DEV:
+            ref: .DEV
+      - task: common:generate:icons
+    preconditions:
+      - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
+        msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
+    cmds:
+      - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"'
+    vars:
+      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
+      DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
+      OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
+    env:
+      GOOS: darwin
+      CGO_ENABLED: 1
+      GOARCH: '{{.ARCH | default ARCH}}'
+      CGO_CFLAGS: "-mmacosx-version-min=12.0"
+      CGO_LDFLAGS: "-mmacosx-version-min=12.0"
+      MACOSX_DEPLOYMENT_TARGET: "12.0"
+
+  build:universal:
+    summary: Builds darwin universal binary (arm64 + amd64)
+    deps:
+      - task: build
+        vars:
+          ARCH: amd64
+          OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}-amd64"
+      - task: build
+        vars:
+          ARCH: arm64
+          OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+    cmds:
+      - task: build:universal:lipo:native
+
+  build:universal:lipo:native:
+    summary: Creates universal binary using native lipo (macOS)
+    internal: true
+    cmds:
+      - lipo -create -output "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+      - rm "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+
+  package:
+    summary: Packages the application into a `.app` bundle
+    deps:
+      - task: build
+    cmds:
+      - task: create:app:bundle
+
+  package:universal:
+    summary: Packages darwin universal binary (arm64 + amd64)
+    deps:
+      - task: build:universal
+    cmds:
+      - task: create:app:bundle
+
+
+  dist:
+    summary: Zips the packaged `.app` into a single shareable archive
+    desc: |
+      Packages the existing {{.BIN_DIR}}/{{.PRODUCT_NAME}}.app into
+      {{.BIN_DIR}}/{{.PRODUCT_NAME}}.zip for distribution.
+
+      Run a build step FIRST to produce the .app — `dist` zips whatever bundle is
+      already present and never rebuilds, so it can't clobber a notarized signature:
+        task package              # ad-hoc signed (recipient must clear quarantine)
+        task darwin:sign:notarize # Developer ID + notarized (opens cleanly anywhere)
+
+      Uses `ditto`, which preserves the code signature and resource forks (a plain
+      `zip` corrupts the bundle's signature).
+    preconditions:
+      - sh: test -d "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app"
+        msg: |
+          No {{.BIN_DIR}}/{{.PRODUCT_NAME}}.app found. Build it first:
+            task package              # ad-hoc signed
+            task darwin:sign:notarize # Developer ID + notarized
+    cmds:
+      - rm -f "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.zip"
+      - ditto -c -k --sequesterRsrc --keepParent "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.zip"
+      - 'echo "Created {{.BIN_DIR}}/{{.PRODUCT_NAME}}.zip"'
+
+  create:app:bundle:
+    summary: Creates an `.app` bundle
+    cmds:
+      # Start clean so artifacts from older builds (e.g. a previously-generated
+      # Assets.car) can't linger in the bundle.
+      - rm -rf "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app"
+      - mkdir -p "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/MacOS"
+      - mkdir -p "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/Resources"
+      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/Resources"
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/MacOS"
+      - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents"
+      - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
+
+  codesign:adhoc:
+    summary: Ad-hoc signs the app bundle (macOS only)
+    internal: true
+    cmds:
+      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app"
+
+  codesign:skip:
+    summary: Skips codesigning when cross-compiling
+    internal: true
+    cmds:
+      - 'echo "Skipping codesign (not available on {{OS}}). Sign the .app on macOS before distribution."'
+
+  run:
+    cmds:
+      - rm -rf "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app"
+      - mkdir -p "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/MacOS"
+      - mkdir -p "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/Resources"
+      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/Resources"
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/MacOS"
+      - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/Info.plist"
+      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app"
+      - '"{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
+
+  sign:
+    summary: Signs the application bundle with Developer ID
+    desc: |
+      Signs the .app bundle for distribution.
+      Configure SIGN_IDENTITY in the vars section at the top of this file.
+    deps:
+      - task: package
+    cmds:
+      - wails3 tool sign --input "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app" --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}}
+    preconditions:
+      - sh: '[ -n "{{.SIGN_IDENTITY}}" ]'
+        msg: "SIGN_IDENTITY is required. Set it in the vars section at the top of build/darwin/Taskfile.yml"
+
+  sign:notarize:
+    summary: Signs and notarizes the application bundle
+    desc: |
+      Signs the .app bundle and submits it for notarization.
+      Configure SIGN_IDENTITY and KEYCHAIN_PROFILE in the vars section at the top of this file.
+
+      Setup (one-time):
+        wails3 signing credentials --apple-id "you@email.com" --team-id "TEAMID" --password "app-specific-password" --profile "my-profile"
+    deps:
+      - task: package
+    cmds:
+      - wails3 tool sign --input "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app" --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}} --notarize --keychain-profile {{.KEYCHAIN_PROFILE}}
+    preconditions:
+      - sh: '[ -n "{{.SIGN_IDENTITY}}" ]'
+        msg: "SIGN_IDENTITY is required. Set it in the vars section at the top of build/darwin/Taskfile.yml"
+      - sh: '[ -n "{{.KEYCHAIN_PROFILE}}" ]'
+        msg: "KEYCHAIN_PROFILE is required. Set it in the vars section at the top of build/darwin/Taskfile.yml"

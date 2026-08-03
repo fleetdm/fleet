@@ -1,16 +1,105 @@
 package maintained_apps
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// fakeFMACache is a minimal FMAInstallerCache backed by an in-memory version map.
+type fakeFMACache struct {
+	versions map[string]*fleet.MaintainedApp
+}
+
+func (c fakeFMACache) GetCachedFMAInstallerMetadata(_ context.Context, _ *uint, _ uint, version string) (*fleet.MaintainedApp, error) {
+	if a, ok := c.versions[version]; ok {
+		return a, nil
+	}
+	return nil, fmaNotFoundErr{}
+}
+
+type fmaNotFoundErr struct{}
+
+func (fmaNotFoundErr) Error() string    { return "not found" }
+func (fmaNotFoundErr) IsNotFound() bool { return true }
+
+func TestHydrate(t *testing.T) {
+	const slug = "test-app/darwin"
+	newApp := func() *fleet.MaintainedApp {
+		return &fleet.MaintainedApp{ID: 1, Name: "Test App", Slug: slug}
+	}
+
+	// Mock manifest server publishing 2.0 as the latest (currently-published) version.
+	var manifestHits atomic.Int32
+	manifest := ma.FMAManifestFile{
+		Versions: []*ma.FMAManifestApp{{
+			Version:            "2.0",
+			InstallerURL:       "https://example.com/test-2.0.pkg",
+			SHA256:             "hash-2.0",
+			InstallScriptRef:   "i",
+			UninstallScriptRef: "u",
+			Queries:            ma.FMAQueries{Exists: "exists", Patched: "patched"},
+			DefaultCategories:  []string{"Productivity"},
+		}},
+		Refs: map[string]string{"i": "install", "u": "uninstall"},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		manifestHits.Add(1)
+		assert.Equal(t, "/"+slug+".json", r.URL.Path)
+		assert.NoError(t, json.NewEncoder(w).Encode(manifest))
+	}))
+	defer srv.Close()
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", srv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", srv.URL, t)
+
+	// Cache holds only an older 1.0 (still cached, not the published latest).
+	cache := fakeFMACache{versions: map[string]*fleet.MaintainedApp{
+		"1.0": {Version: "1.0", Platform: "darwin", InstallerURL: "cached-1.0", SHA256: "hash-1.0", InstallScript: "ci", UninstallScript: "cu"},
+	}}
+
+	t.Run("no version requested hydrates the latest published version", func(t *testing.T) {
+		app, err := Hydrate(t.Context(), newApp(), "", nil, nil)
+		require.NoError(t, err)
+		require.Equal(t, "2.0", app.Version)
+		require.Equal(t, "https://example.com/test-2.0.pkg", app.InstallerURL)
+		require.Equal(t, "install", app.InstallScript)
+	})
+
+	t.Run("a cached version is served from the cache without a manifest fetch", func(t *testing.T) {
+		before := manifestHits.Load()
+		app, err := Hydrate(t.Context(), newApp(), "1.0", nil, cache)
+		require.NoError(t, err)
+		require.Equal(t, "1.0", app.Version)
+		require.Equal(t, "cached-1.0", app.InstallerURL)
+		require.Equal(t, before, manifestHits.Load(), "cache hit must not fetch the manifest")
+	})
+
+	t.Run("an uncached but published version falls back to the manifest", func(t *testing.T) {
+		// Pinning to a freshly-published version that isn't cached must hydrate
+		// from the manifest so it gets downloaded, rather than erroring.
+		app, err := Hydrate(t.Context(), newApp(), "2.0", nil, cache)
+		require.NoError(t, err)
+		require.Equal(t, "2.0", app.Version)
+		require.Equal(t, "https://example.com/test-2.0.pkg", app.InstallerURL)
+		require.Equal(t, "darwin", app.Platform)
+		require.Equal(t, "install", app.InstallScript)
+	})
+
+	t.Run("an uncached and unpublished version is not available", func(t *testing.T) {
+		_, err := Hydrate(t.Context(), newApp(), "9.9", nil, cache)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "specified version is not available")
+	})
+}
 
 // newTestAppsJSON returns a valid apps.json payload for testing.
 func newTestAppsJSON() []byte {

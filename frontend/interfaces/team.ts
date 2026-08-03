@@ -49,6 +49,7 @@ export interface ITeam extends ITeamSummary {
   mdm?: {
     enable_disk_encryption: boolean;
     enable_recovery_lock_password: boolean;
+    name_template?: string;
     windows_require_bitlocker_pin: boolean;
     macos_updates: IAppleDeviceUpdates;
     ios_updates: IAppleDeviceUpdates;

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "10.0.0",
+      "version": "10.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'YACReader %' AND publisher = 'YACReader';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'YACReader %' AND publisher = 'YACReader' AND version_compare(version, '10.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'YACReader %' AND publisher = 'YACReader' AND version_compare(version, '10.1.0') < 0);"
       },
-      "installer_url": "https://github.com/YACReader/yacreader/releases/download/10.0.0/YACReader-v10.0.0.260501214-winx64-7z-qt6.exe",
+      "installer_url": "https://github.com/YACReader/yacreader/releases/download/10.1.0/YACReader-v10.1.0.260703260-winx64-7z-qt6.exe",
       "install_script_ref": "128a9799",
       "uninstall_script_ref": "ff48db76",
-      "sha256": "945b57496bb436c27b0ae017aa72c4aab006c0af94931f029603f9d3798df4da",
+      "sha256": "53bfdcd8a4d5ae5de7f1b77318e54da5fa8ccbdf0a427e7905f4cde8407f0a29",
       "default_categories": [
         "Productivity"
       ]

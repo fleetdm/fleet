@@ -1,0 +1,2 @@
+- Added vulnerability (CVE) reporting for Android OS versions on the Software > OS page, where Android previously showed as "Not supported."
+- Folded the Android security patch level into the host's OS version so Android versions read as "Android 16 (2026-05-01)", giving vulnerability-relevant granularity per patch level.

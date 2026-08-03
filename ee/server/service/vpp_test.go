@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -63,6 +65,73 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 			}, false)
 			require.ErrorContains(t, err, "could not retrieve vpp token")
 		})
+	})
+
+	t.Run("Rejects malformed custom host vital reference in Android app configuration", func(t *testing.T) {
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+			return nil, nil
+		}
+		_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			{
+				AppStoreID:       "com.example.app",
+				LabelsExcludeAny: []string{},
+				LabelsIncludeAny: []string{},
+				LabelsIncludeAll: []string{},
+				Categories:       []string{},
+				Platform:         fleet.AndroidPlatform,
+				Configuration:    json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_asset_tag"}}`),
+			},
+		}, true)
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.ErrorContains(t, err, "Invalid custom host vital reference")
+	})
+
+	t.Run("Rejects Android app configuration referencing an unknown custom host vital", func(t *testing.T) {
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+			return nil, nil
+		}
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{9}}
+		}
+		_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			{
+				AppStoreID:       "com.example.app",
+				LabelsExcludeAny: []string{},
+				LabelsIncludeAny: []string{},
+				LabelsIncludeAll: []string{},
+				Categories:       []string{},
+				Platform:         fleet.AndroidPlatform,
+				Configuration:    json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_9"}}`),
+			},
+		}, true)
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArgErr)
+		require.ErrorContains(t, err, "is not defined")
+	})
+
+	t.Run("Android app configuration: infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+			return nil, nil
+		}
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+		_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			{
+				AppStoreID:       "com.example.app",
+				LabelsExcludeAny: []string{},
+				LabelsIncludeAny: []string{},
+				LabelsIncludeAll: []string{},
+				Categories:       []string{},
+				Platform:         fleet.AndroidPlatform,
+				Configuration:    json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_9"}}`),
+			},
+		}, true)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "connection refused")
+		var invalidArgErr2 *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr2, "an infrastructure failure must not be reported as invalid input (422)")
 	})
 
 	t.Run("Fails for Fleet Agent Android apps via GitOps", func(t *testing.T) {
@@ -344,4 +413,83 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	require.ErrorContains(t, err, "requested app not available on vpp account: "+adamID)
 	require.Equal(t, 1, strings.Count(err.Error(), adamID),
 		"missing-asset error must dedup by AdamID, got: %s", err.Error())
+}
+
+// TestGetVPPTokensScoping verifies that GetVPPTokens returns every token to
+// global readers but scopes the list to a team-scoped user's readable teams
+// (plus "All teams" tokens), without leaking tokens from teams the user can't
+// read. See #46057.
+func TestGetVPPTokensScoping(t *testing.T) {
+	ds := new(mock.Store)
+	// Tokens: team 1, team 2, "All teams" (non-nil empty Teams), and an
+	// unassigned token (nil Teams).
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{
+			{ID: 1, OrgName: "team1", Teams: []fleet.TeamTuple{{ID: 1, Name: "Workstations"}}},
+			{ID: 2, OrgName: "team2", Teams: []fleet.TeamTuple{{ID: 2, Name: "Servers"}}},
+			{ID: 3, OrgName: "allteams", Teams: []fleet.TeamTuple{}},
+			{ID: 4, OrgName: "unassigned", Teams: nil},
+		}, nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{
+		authz:  authorizer,
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	globalMaintainer := &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}
+	// Technician can read installable entities but not write them, so it must be
+	// able to read the token list to use the picker (#46057 names this role).
+	globalTechnician := &fleet.User{GlobalRole: new(fleet.RoleTechnician)}
+	teamMaintainer1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
+	}}
+	teamTechnician1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician},
+	}}
+	// Observer on the first team, maintainer on the second: must still be
+	// authorized (via team 2) and scoped to team 2, never team 1.
+	observerThenMaintainer := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+		{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer},
+	}}
+	teamObserver1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+	}}
+
+	tests := []struct {
+		name    string
+		user    *fleet.User
+		wantErr bool
+		wantIDs []uint
+	}{
+		{"global admin sees all", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false, []uint{1, 2, 3, 4}},
+		{"global maintainer sees all", globalMaintainer, false, []uint{1, 2, 3, 4}},
+		{"global technician sees all", globalTechnician, false, []uint{1, 2, 3, 4}},
+		{"team maintainer scoped to team + all-teams", teamMaintainer1, false, []uint{1, 3}},
+		{"team technician scoped to team + all-teams", teamTechnician1, false, []uint{1, 3}},
+		{"observer-then-maintainer scoped to second team", observerThenMaintainer, false, []uint{2, 3}},
+		{"team observer forbidden", teamObserver1, true, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: tt.user})
+			got, err := svc.GetVPPTokens(ctx)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+				return
+			}
+			require.NoError(t, err)
+			gotIDs := make([]uint, 0, len(got))
+			for _, tok := range got {
+				gotIDs = append(gotIDs, tok.ID)
+			}
+			require.ElementsMatch(t, tt.wantIDs, gotIDs)
+		})
+	}
 }

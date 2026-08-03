@@ -19,7 +19,7 @@ import {
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import hostAPI, {
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
   IDepAssignmentHostResponse,
 } from "services/entities/hosts";
 
@@ -52,7 +52,7 @@ interface IMDMStatusModal {
 type ProfileStatusCode = "" | "empty" | "removed" | "assigned" | "pushed";
 
 type DepAssignProfileResponseErrors = Exclude<
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
   "SUCCESS" | undefined
 >;
 
@@ -76,7 +76,7 @@ const PROFILE_STATUS_UI_MAP: Record<
     label: "Assigned",
     tooltip: (
       <>
-        Profile is assigned in ABM, and ABM <br />
+        Profile is assigned in AB, and AB <br />
         is preparing to push it to the host.
       </>
     ),
@@ -96,6 +96,9 @@ const getProfileStatusUI = (raw?: string | null) => {
 
   return PROFILE_STATUS_UI_MAP[label] ?? PROFILE_STATUS_UI_MAP[""];
 };
+
+const DEFAULT_DEP_ERROR_MESSAGE =
+  "Fleet can't retrieve data from Apple right now. Please try again later.";
 
 export const getThrottleCopy = (responseUpdatedAt?: string | null) => {
   if (!responseUpdatedAt) {
@@ -187,7 +190,7 @@ const MDMStatusModal = ({
     }
 
     const raw = (depAssignmentData?.host_dep_assignment
-      .assign_profile_response || "") as DepAssignProfileResponseErrors;
+      ?.assign_profile_response || "") as DepAssignProfileResponseErrors;
 
     let responseParam: string | undefined;
 
@@ -271,7 +274,7 @@ const MDMStatusModal = ({
             queryParams={{
               dep_assign_profile_response: (
                 depAssignmentData?.host_dep_assignment
-                  .assign_profile_response || ""
+                  ?.assign_profile_response || ""
               ).toLowerCase(),
             }}
             rowHover
@@ -305,24 +308,40 @@ const MDMStatusModal = ({
       return <Spinner />;
     }
 
+    if (isDepAssignmentError || !depAssignmentData) {
+      return (
+        <DataError singleCustomLine description={DEFAULT_DEP_ERROR_MESSAGE} />
+      );
+    }
+
+    // host_dep_assignment present but no dep_device means Apple didn't return
+    // device details -- dep_device_error explains why, if known.
     if (
-      // Only show the error if there is a DEP assignment error OR if the data contains the host_dep_assignment(meaning we
-      // expect the host to be in DEP) but there's no dep_device(meaning Apple returned nothing). If host_dep_assignment is
-      // not present the device isn't expected to be in DEP
-      isDepAssignmentError ||
-      !depAssignmentData ||
-      (depAssignmentData?.host_dep_assignment && !depAssignmentData?.dep_device)
+      depAssignmentData.host_dep_assignment &&
+      !depAssignmentData.dep_device
     ) {
       return (
         <DataError
           singleCustomLine
-          description="We can't retrieve data from Apple right now. Please try again later."
+          className={`${baseClass}__dep-error`}
+          description={
+            depAssignmentData.dep_device_error ?? DEFAULT_DEP_ERROR_MESSAGE
+          }
         />
       );
     }
 
+    const depDevice = depAssignmentData.dep_device;
+    if (!depDevice) {
+      // host_dep_assignment is expected to be present whenever this section
+      // renders (see the parent's gating condition below) -- the case above
+      // already covers host_dep_assignment set with no dep_device (including
+      // the NOT_ACCESSIBLE/NOT_FOUND case, via dep_device_error).
+      return null;
+    }
+
     const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
-      Exclude<DepAssignProfileResponse, "SUCCESS" | undefined>,
+      Exclude<DEPDeviceStatus, "SUCCESS" | undefined>,
       { label: JSX.Element | string; tooltip: JSX.Element | string }
     > = {
       THROTTLED: {
@@ -333,7 +352,7 @@ const MDMStatusModal = ({
             API rate limit when preparing the macOS Setup Assistant for this
             host. Fleet will try again{" "}
             {getThrottleCopy(
-              depAssignmentData.host_dep_assignment.response_updated_at
+              depAssignmentData.host_dep_assignment?.response_updated_at
             )}
           </>
         ),
@@ -376,12 +395,10 @@ const MDMStatusModal = ({
         ),
         // Follow current pattern of international time format for dates in UI
         status:
-          !depAssignmentData.dep_device?.profile_assign_time ||
-          depAssignmentData.dep_device.profile_assign_time < INITIAL_FLEET_DATE
+          !depDevice.profile_assign_time ||
+          depDevice.profile_assign_time < INITIAL_FLEET_DATE
             ? "Never"
-            : internationalTimeFormat(
-                new Date(depAssignmentData.dep_device.profile_assign_time)
-              ),
+            : internationalTimeFormat(new Date(depDevice.profile_assign_time)),
       },
       {
         id: "profile-pushed",
@@ -395,30 +412,26 @@ const MDMStatusModal = ({
         ),
         // Follow current pattern of international time format for dates in UI
         status:
-          !depAssignmentData.dep_device.profile_push_time ||
-          depAssignmentData.dep_device.profile_push_time < INITIAL_FLEET_DATE
+          !depDevice.profile_push_time ||
+          depDevice.profile_push_time < INITIAL_FLEET_DATE
             ? "Never"
-            : internationalTimeFormat(
-                new Date(depAssignmentData.dep_device.profile_push_time)
-              ),
+            : internationalTimeFormat(new Date(depDevice.profile_push_time)),
       },
       {
         id: "profile-status",
         name: "Profile status",
-        status: getProfileStatusUI(depAssignmentData.dep_device.profile_status)
-          .label,
+        status: getProfileStatusUI(depDevice.profile_status).label,
         statusTooltip:
-          depAssignmentData.dep_device.profile_status === ""
+          depDevice.profile_status === ""
             ? DEFAULT_EMPTY_CELL_VALUE
-            : getProfileStatusUI(depAssignmentData.dep_device.profile_status)
-                .tooltip,
+            : getProfileStatusUI(depDevice.profile_status).tooltip,
       },
     ];
 
     if (depProfileError && depAssignmentData) {
       const assignmentError = getProfileAssignmentError(
         depAssignmentData.host_dep_assignment
-          .assign_profile_response as DepAssignProfileResponseErrors
+          ?.assign_profile_response as DepAssignProfileResponseErrors
       );
 
       if (assignmentError) {

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.8.0.492",
+      "version": "1.8.0.502",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon Corretto JRE 8 (x64)' AND publisher = 'Amazon';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto JRE 8 (x64)' AND publisher = 'Amazon' AND version_compare(version, '1.8.0.492') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto JRE 8 (x64)' AND publisher = 'Amazon' AND version_compare(version, '1.8.0.502') < 0);"
       },
-      "installer_url": "https://corretto.aws/downloads/resources/8.492.09.2/amazon-corretto-8.492.09.2-windows-x64-jre.msi",
+      "installer_url": "https://corretto.aws/downloads/resources/8.502.07.1/amazon-corretto-8.502.07.1-windows-x64-jre.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "a91b27a6",
-      "sha256": "9777acb74091b23f075e0bfb98326c44c0e84e698c8d916c3582d3fdcd0cd37c",
+      "sha256": "c3cc682c34fd9cf1a50606f9185f97abc1a2ff11323456b070034357bb049063",
       "default_categories": [
         "Developer tools"
       ],

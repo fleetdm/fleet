@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
 
@@ -55,7 +55,6 @@ const Passwords = ({
     isTeamTechnician,
     isGlobalTechnician,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
 
@@ -83,8 +82,10 @@ const Passwords = ({
           res.mdm?.enable_recovery_lock_password ?? false
         );
       },
-      onError: () => {
-        renderFlash("error", "Couldn't load team settings. Please try again.");
+      onError: (err) => {
+        notify.error("Couldn't load team settings. Please try again.", {
+          response: err,
+        });
       },
     }
   );
@@ -119,8 +120,7 @@ const Passwords = ({
           currentTeamId
         );
       }
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully updated Recovery Lock password enforcement."
       );
       onMutation();
@@ -128,7 +128,7 @@ const Passwords = ({
       const errorMsg =
         getErrorReason(e) ??
         "Couldn't update Recovery Lock password enforcement. Please try again.";
-      renderFlash("error", errorMsg);
+      notify.error(errorMsg, { response: e });
     } finally {
       setUpdating(false);
     }

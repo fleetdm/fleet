@@ -2,26 +2,52 @@
 
 ## The Challenge
 
-Thumbtack needed a more responsive device management partner. Their existing Mac MDM relied on slow, ticket-based support channels, which delayed feedback and made it harder to move quickly. At the same time, Thumbtack needed stronger CI/CD integration and faster feature delivery to keep up with their engineering workflows.
+Thumbtack helps homeowners care for and improve their homes by connecting them with local service professionals. The platform links more than 300,000 service businesses to homeowners across the United States, and runs on the engineering practices that define the rest of modern software: infrastructure as code, CI/CD, Git-based workflows, and code review before anything ships.
 
-## The search for a solution
+Apple MDM ran in a different world. Configuration changes happened in a dashboard. One person clicked, one change went out, no review. Feedback came back through a ticket queue. If a configuration was wrong, there was no second set of eyes to catch it before it hit every Mac in the company, and rolling it back was neither fast nor straightforward.
 
-Thumbtack evaluated numerous Mac MDM vendors. Most vendors were too small, and some did not offer mature support for CI/CD operations. Thumbtack wanted a vendor with some track record and also wanted to ensure they would not need to seek another vendor in the near future.
+That risk was not theoretical. While updating the macOS nudge profile, the team got the version number right but accidentally set the date field to the past. Instead of giving employees the standard two-week window to upgrade, every Mac in the company was immediately forced to update.
 
-After a comprehensive review of market options, Thumbtack selected Fleet. Fleet’s extensive support for Apple MDM configurations, its strong customer referrals, and its robust infrastructure-as-code support gave Thumbtack the confidence that Fleet was the right option.
 
 <div purpose="attribution-quote">
 
-*I really like how robust Fleet’s API is.*
+*Before Fleet, a misconfigured update could immediately hit every Mac in the company and be very hard to roll back safely. Now every change is reviewed before it ships, and if something’s wrong, we can revert it.*
 
 **Adam Anklewicz**
 
-Manager, IT Endpoint Engineering, Thumbtack
+Manager, IT Systems Engineering, Thumbtack
 </div>
 
-## Choosing Fleet
+Engineering moved at engineering speed. IT moved cautiously, because the cost of getting something wrong was high. The gap was a tax on velocity, and on confidence.
 
-Fleet offered a robust set of controls for managing Mac devices. Fleet’s API controls enabled Thumbtack to easily access Apple MDM configurations and replace existing controls with their current MDM. 
+## Why Fleet
+
+Thumbtack evaluated several vendors. Fleet was the one that matched the way Thumbtack’s engineers already work.
+
+With Fleet, device configuration is managed in code, reviewed before it ships, and reverted from version control if something is wrong. The only actions that still run through a manual interface are the ones that should: blocking a device, running a one-time script, executing a query. Everything that touches configuration goes through review.
+
+
+<div purpose="attribution-quote">
+
+*With Fleet, every change gets a second set of eyes on it before it’s deployed. That alone has prevented mistakes that would have been very expensive to fix.*
+
+**Adam Anklewicz**
+
+Manager, IT Systems Engineering, Thumbtack
+</div>
+
+Fleet’s API-first architecture meant configuration changes could be triggered, tested, and deployed inside the same CI/CD workflows engineering already runs. Open-source code and a GitOps model gave the team a full audit history of every change, who made it, and why.
+
+Fleet’s support model removed another tax: instead of waiting 24 hours between ticket replies, the Thumbtack team could reach the Fleet team directly in a shared Slack channel.
+
+<div purpose="attribution-quote">
+
+*With our previous MDM vendor, every reply took 24 hours. With Fleet, I post in our joint Slack channel and within minutes I get a reply and we can have a conversation. Their support is huge - it’s a big selling point for us.*
+
+**Adam Anklewicz**
+
+Manager, IT Systems Engineering, Thumbtack
+</div>
 
 In addition, Fleet’s community engagement with the MacAdmins community helped Thumbtack gain confidence that other enterprise customers had had great experiences with the company and its software.
 
@@ -31,25 +57,29 @@ In addition, Fleet’s community engagement with the MacAdmins community helped 
 
 **Adam Anklewicz**
 
-Manager, IT Endpoint Engineering, Thumbtack
+Manager, IT Systems Engineering, Thumbtack
 </div>
 
-## The results
+## The outcome
 
-The migration to Fleet went very smoothly, with over 90% of devices migrated without any IT intervention. In addition, the team now enjoys strong support, with dedicated Slack channels and fast response times.
+Thumbtack migrated more than 90% of its Mac fleet to Fleet with no manual IT intervention. Direct Slack access to the Fleet team kept the migration unblocked. The team now ships endpoint changes the same way engineering ships product: fast, reviewed, and reversible.
 
-Fleet’s open-source model proved even more valuable than Thumbtack initially expected. Their IT team could dive into the documentation, identify issues, and even troubleshoot software behavior directly by reviewing the source code. This level of transparency was refreshing and gave them far greater confidence in Fleet.
+With Fleet, Thumbtack has:
 
-The shift to GitOps has also been a major win for Thumbtack’s team. They can now inspect and approve changes before deployment, enabling tighter collaboration and greater confidence in how their endpoint environment is managed.
+- Device configuration managed in Git, reviewed before it deploys, and revertable in minutes
+- More than 90% of Macs migrated with no IT-driven enrollment work
+- A clear audit history of every configuration change, who made it, and why
+- Endpoint changes triggered, tested, and deployed inside the same CI/CD pipelines engineering already runs
+- A direct Slack channel to Fleet’s support team, replacing 24-hour ticket cycles
 
-<div purpose="attribution-quote">
+What changed is not just the tooling. It is the cost of moving. The IT team used to ship cautiously because a single mistake could hit every Mac at once. Now every change goes through review, every change can be reverted, and the team keeps pace with engineering without flying blind.
 
-*With our previous MDM, we would send in a ticket and maybe get one reply asking us to do something we've already told them we've done. It would take 24 hours before we get our next reply. And, like, 24 hours in between every single message. With Fleet, I just post something in our joint Slack channel and within minutes I will get a reply and we can have a proper conversation. Their support is huge — it's a big selling point for us.*
+## Looking ahead
 
-**Adam Anklewicz**
+Thumbtack continues to pull more endpoint operations into the same workflows the rest of the company runs on - deeper CI/CD integration, broader policy coverage, and automation that removes IT as a manual dependency anywhere a workflow can be code instead.
 
-Manager, IT Endpoint Engineering, Thumbtack
-</div>
+For an engineering-driven company, the role of Fleet is clear: not a dashboard to click through, but a layer that runs on the same review, version control, and automation as the rest of the stack. Endpoint management finally moves at the speed of the company.
+
 
 <meta name="category" value="case study">
 <meta name="articleTitle" value="Thumbtack migrates more than 90% of Macs with no IT intervention">
@@ -63,12 +93,12 @@ Manager, IT Endpoint Engineering, Thumbtack
 <meta name="companyLogoFilename" value="thumbtack-logo-197x40@2x.png">
 <meta name="quoteAuthorImageFilename" value="adam-anklewicz-120x120@2x.png">
 <meta name="quoteAuthorName" value="Adam Anklewicz">
-<meta name="quoteAuthorJobTitle" value="Manager, IT Endpoint Engineering, Thumbtack">
-<meta name="quoteContent" value="With Fleet, I just post something in our joint Slack channel and within minutes I will get a reply and we can have a proper conversation. Their support is huge — it's a big selling point for us.">
+<meta name="quoteAuthorJobTitle" value="Manager, IT Systems Engineering, Thumbtack">
+<meta name="quoteContent" value="With Fleet, every change gets a second set of eyes on it before it's deployed. That alone has prevented mistakes that would have been very expensive to fix.">
 
 <meta name="companyName" value="Thumbtack">
 <meta name="companyInfo" value="Thumbtack helps homeowners care for and improve their homes by connecting them with local service professionals. Through its platform, people get guidance on what projects to do, when to do them, and who to hire from a community of more than 300,000 service businesses across the United States.">
 
-<meta name="summaryChallenge" value="Thumbtack needed a device management partner that could move at the same pace as its engineering team. Their existing Mac MDM relied on slow, ticket-based support, which delayed feedback and limited their ability to ship changes quickly. They also needed stronger CI/CD integration and a platform that could support infrastructure-as-code workflows.">
-<meta name="summarySolution" value="After evaluating several vendors, Thumbtack selected Fleet. Fleet offered mature Apple MDM support, strong infrastructure-as-code capabilities, and a proven track record backed by customer references. With Fleet, Thumbtack gained a device management platform that integrates with its engineering workflows and supports faster iteration.">
-<meta name="summaryKeyResults" value="Migrated more than 90% of Macs with no IT intervention.; Received fast, direct support during the migration, which increased confidence in the rollout.; Aligned endpoint management with existing GitOps workflows used across the engineering team.; Gained transparency by reviewing Fleet’s open source code and documentation.">
+<meta name="summaryChallenge" value="Configuration changes happened in a dashboard. One person clicked, one change went out, no review. Feedback came through a ticket queue. If a configuration was wrong, there was no second set of eyes to catch it before it hit every Mac in the company, and rolling it back was neither fast nor straightforward.">
+<meta name="summarySolution" value="Thumbtack chose Fleet to bring code review, version control, and rollback to device management. Fleet’s API-first architecture meant configuration changes could be triggered, tested, and deployed inside the same CI/CD workflows engineering already runs.">
+<meta name="summaryKeyResults" value="Device configuration managed in Git, reviewed before it deploys, and revertable in minutes.; A clear audit history of every configuration change, who made it, and why.; Endpoint changes triggered, tested, and deployed inside the same CI/CD pipelines engineering already runs.; A direct Slack channel to Fleet’s support team, replacing 24-hour ticket cycles.; More than 90% of Macs migrated with no IT-driven enrollment work.;">

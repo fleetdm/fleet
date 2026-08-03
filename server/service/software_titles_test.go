@@ -272,3 +272,65 @@ func TestSoftwareNameUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.UpdateSoftwareTitleNameFuncInvoked)
 }
+
+func TestSoftwareTitleByIDTeamIDZero(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		return &fleet.SoftwareTitle{BundleIdentifier: new("com.example.app")}, nil
+	}
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) { return true, nil }
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	teamIDZero := new(uint) // *uint pointing to 0
+
+	// Team-scoped user on team 1 should not be able to access software with team_id=0
+	teamUser := &fleet.User{
+		ID: 1,
+		Teams: []fleet.UserTeam{{
+			Team: fleet.Team{ID: 1},
+			Role: fleet.RoleAdmin,
+		}},
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: teamUser})
+
+	_, err := svc.SoftwareTitleByID(ctx, 1, teamIDZero)
+	checkAuthErr(t, true, err)
+
+	// Global admin should still be able to access software with team_id=0
+	globalAdmin := &fleet.User{
+		ID:         2,
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	adminCtx := viewer.NewContext(ctx, viewer.Viewer{User: globalAdmin})
+
+	_, err = svc.SoftwareTitleByID(adminCtx, 1, teamIDZero)
+	checkAuthErr(t, false, err)
+}
+
+func TestSoftwareTitleByIDNilTeamIDExistsElsewhere(t *testing.T) {
+	ds := new(mock.Store)
+	var filtersUsed []fleet.TeamFilter
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		filtersUsed = append(filtersUsed, tmFilter)
+		return nil, newNotFoundError()
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	teamUser := &fleet.User{
+		ID:    1,
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}},
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: teamUser})
+
+	_, err := svc.SoftwareTitleByID(ctx, 1, nil)
+	require.Error(t, err)
+	// A title's existence on a team the caller can't see must not be
+	// distinguishable (via status code) from it not existing at all.
+	require.True(t, fleet.IsNotFound(err), "expected NotFound, got: %v", err)
+
+	// Guard against reintroducing a secondary lookup: exactly one call, and
+	// never with a global-role filter standing in for the real caller.
+	require.Len(t, filtersUsed, 1)
+	require.Equal(t, teamUser, filtersUsed[0].User)
+}

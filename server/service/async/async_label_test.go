@@ -359,8 +359,10 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 
 	res, err := redigo.IntMap(conn.Do("ZPOPMIN", keySet, 10))
 	require.NoError(t, err)
-	require.Equal(t, 4, len(res))
-	require.Equal(t, map[string]int{"1": 1, "2": 1, "3": -1, "4": -1}, res)
+	// label 4's query errored (nil result); it must be skipped rather than
+	// treated as a "delete" so that existing membership is left untouched.
+	require.Len(t, res, 3)
+	require.Equal(t, map[string]int{"1": 1, "2": 1, "3": -1}, res)
 
 	ts, err := redigo.Int64(conn.Do("GET", keyTs))
 	require.NoError(t, err)

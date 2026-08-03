@@ -9,6 +9,7 @@ import { createMockSelfServiceCategory } from "test/handlers/self-service-catego
 import {
   countUninstalledForInstallAll,
   hasInProgressInstallAllItems,
+  filterCategoriesWithSoftware,
   filterSoftwareByCustomCategory,
 } from "./helpers";
 
@@ -257,5 +258,78 @@ describe("filterSoftwareByCustomCategory", () => {
     expect(filterSoftwareByCustomCategory([security], categories, 1)).toEqual(
       []
     );
+  });
+});
+
+describe("filterCategoriesWithSoftware", () => {
+  const browsersPackage = createMockHostSoftwarePackage({
+    categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+  });
+  const securityPackage = createMockHostSoftwarePackage({
+    categories: (["🔐 Security"] as string[]) as SoftwareCategory[],
+  });
+  const browser = makeItem("uninstalled", {
+    name: "browser",
+    software_package: browsersPackage,
+  });
+  const security = makeItem("uninstalled", {
+    name: "security",
+    software_package: securityPackage,
+  });
+
+  const browsers = createMockSelfServiceCategory({
+    id: 1,
+    name: "🌎 Browsers",
+  });
+  const securityCat = createMockSelfServiceCategory({
+    id: 2,
+    name: "🔐 Security",
+  });
+  const devTools = createMockSelfServiceCategory({
+    id: 3,
+    name: "🧰 Developer tools",
+  });
+
+  it("keeps only categories that have at least one software item", () => {
+    expect(
+      filterCategoriesWithSoftware(
+        [browsers, securityCat, devTools],
+        [browser, security]
+      )
+    ).toEqual([browsers, securityCat]);
+  });
+
+  it("drops every category when there is no software", () => {
+    expect(
+      filterCategoriesWithSoftware([browsers, securityCat, devTools], [])
+    ).toEqual([]);
+  });
+
+  it("returns [] when there are no categories", () => {
+    expect(filterCategoriesWithSoftware([], [browser, security])).toEqual([]);
+  });
+
+  it("matches case-insensitively", () => {
+    const lowerBrowsers = createMockSelfServiceCategory({
+      id: 1,
+      name: "🌎 browsers",
+    });
+    expect(filterCategoriesWithSoftware([lowerBrowsers], [browser])).toEqual([
+      lowerBrowsers,
+    ]);
+  });
+
+  it("considers categories on app_store_app as well as software_package", () => {
+    const vppApp = makeItem("uninstalled", {
+      name: "vpp-app",
+      software_package: null,
+      app_store_app: {
+        ...createMockHostSoftwarePackage(),
+        categories: ["🌎 Browsers"],
+      } as never,
+    });
+    expect(filterCategoriesWithSoftware([browsers], [vppApp])).toEqual([
+      browsers,
+    ]);
   });
 });

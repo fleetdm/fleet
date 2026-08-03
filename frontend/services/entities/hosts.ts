@@ -46,7 +46,7 @@ export interface ILoadHostsResponse {
   mobile_device_management_solution: IMdmSolution;
 }
 
-export type DepAssignProfileResponse =
+export type DEPDeviceStatus =
   | "SUCCESS"
   | "FAILED"
   | "THROTTLED"
@@ -68,9 +68,11 @@ export interface IDepAssignmentHostResponse {
     profile_uuid: string;
     mdm_migration_deadline: string | null;
     serial_number: string;
-  };
+    response_status: DEPDeviceStatus;
+  } | null;
+  dep_device_error: string | null;
   host_dep_assignment: {
-    assign_profile_response: DepAssignProfileResponse;
+    assign_profile_response: DEPDeviceStatus;
     profile_uuid: string;
     response_updated_at: string;
     added_at: string;
@@ -78,7 +80,7 @@ export interface IDepAssignmentHostResponse {
     abm_token_id: number;
     mdm_migration_deadline: string;
     mdm_migration_completed: string;
-  };
+  } | null;
 }
 
 export type IUnlockHostResponse =
@@ -139,7 +141,7 @@ export interface ILoadHostsOptions {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IExportHostsOptions {
@@ -177,7 +179,7 @@ export interface IExportHostsOptions {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IActionByFilter {
@@ -207,7 +209,7 @@ export interface IActionByFilter {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IGetHostSoftwareResponse {
@@ -728,6 +730,12 @@ export default {
       "POST",
       HOST_RESEND_CERTIFICATE(hostId, certificateTemplateId)
     );
+  },
+
+  resendNameTemplate: (hostId: number): Promise<void> => {
+    const { HOST_RESEND_NAME_TEMPLATE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_NAME_TEMPLATE(hostId));
   },
 
   getHostSoftware: (

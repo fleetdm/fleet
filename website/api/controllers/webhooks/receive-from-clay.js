@@ -32,8 +32,9 @@ module.exports = {
       type: 'string',
       required: true,
       isIn: [
-        'Attended a call with Fleet',
-        'Event',
+        'Event - 2026-07 PSU MacAdmins',
+        'GitHub - Stared fleetdm/fleet',
+        'GitHub - Forked fleetdm/fleet',
         'GitHub - Contributed to fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',
         'GitHub - Stared fleetdm/fleet',

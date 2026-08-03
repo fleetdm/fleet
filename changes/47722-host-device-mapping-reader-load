@@ -1,0 +1,1 @@
+* Reduced MySQL reader load when listing hosts with `device_mapping=true` and a search query by evaluating device mapping as a per-row correlated subquery instead of a fully-materialized derived-table join, and by skipping it entirely in the host count query.

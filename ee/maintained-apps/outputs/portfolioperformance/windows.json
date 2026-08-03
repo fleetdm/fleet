@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.84.1",
+      "version": "0.86.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Portfolio Performance' AND publisher = 'Andreas Buchen';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Portfolio Performance' AND publisher = 'Andreas Buchen' AND version_compare(version, '0.84.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Portfolio Performance' AND publisher = 'Andreas Buchen' AND version_compare(version, '0.86.0') < 0);"
       },
-      "installer_url": "https://github.com/portfolio-performance/portfolio/releases/download/0.84.1/PortfolioPerformance-0.84.1-setup.exe",
+      "installer_url": "https://github.com/portfolio-performance/portfolio/releases/download/0.86.0/PortfolioPerformance-0.86.0-setup.exe",
       "install_script_ref": "efa25f6a",
       "uninstall_script_ref": "1d78c875",
-      "sha256": "302ccff9f6a93b3aee713cf42387f569cc0e931b1e1bd7f27658e02a31f60c00",
+      "sha256": "eb7fd19031ee54864d8d05cc98c71e63a465cf4fc9543e2b1446ae0ee6dff876",
       "default_categories": [
         "Productivity"
       ]

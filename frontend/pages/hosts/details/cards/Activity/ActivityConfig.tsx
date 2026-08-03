@@ -35,6 +35,11 @@ import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/Rota
 import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
 import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
+import MdmEnrolledActivityItem from "./ActivityItems/MdmEnrolledActivityItem";
+import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommandActivityItem";
+import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustomHostVitalValueActivityItem";
+import PolicyAutomationActivityItem from "./ActivityItems/PolicyAutomationActivityItem";
+import ReleasedFromABActivityItem from "./ActivityItems/ReleasedFromABActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -90,6 +95,18 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedToRotateManagedLocalAccountPassword]: FailedToRotateManagedLocalAccountPasswordActivityItem,
   [ActivityType.FailedEnrollmentProfileRenewal]: FailedEnrollmentProfileRenewalActivityItem,
   [ActivityType.MdmUnenrolled]: MdmUnenrolledActivityItem,
+  [ActivityType.MdmEnrolled]: MdmEnrolledActivityItem,
+  [ActivityType.RanCustomMdmCommand]: RanCustomMdmCommandActivityItem,
+  [ActivityType.EditedCustomHostVitalValue]: EditedCustomHostVitalValueActivityItem,
+  [ActivityType.RanAutomationWebhook]: PolicyAutomationActivityItem,
+  [ActivityType.RanAutomationTicket]: PolicyAutomationActivityItem,
+  [ActivityType.RanAutomationCalendarEvent]: PolicyAutomationActivityItem,
+  [ActivityType.RanAutomationConditionalAccess]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationWebhook]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationTicket]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationCalendarEvent]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationConditionalAccess]: PolicyAutomationActivityItem,
+  [ActivityType.ReleasedDeviceFromAB]: ReleasedFromABActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

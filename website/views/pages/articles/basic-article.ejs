@@ -34,7 +34,8 @@
         </div>
         <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
           <div purpose="article-details" class="d-flex align-items-sm-center">
-            <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+            <span v-if="!showUpdatedTimestamp"><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+            <span v-else>Updated <js-timestamp format="billing" :at="thisPage.lastModifiedAt"></js-timestamp></span>
             <span  purpose="divider" class="px-2">|</span>
             <% if(articleCategorySlug !== 'customers') { %>
               <div purpose="article-author" class="d-flex flex-row align-items-center">
@@ -68,7 +69,7 @@
             <a purpose="sidebar-link" href="/docs"><img alt="Docs" src="/images/icon-docs-16x16@2x.png"> Docs</a>
             <a purpose="sidebar-link" href="/docs/rest-api"><img alt="REST API" src="/images/icon-api-16x16@2x.png"> REST API</a>
             <a purpose="sidebar-link" href="/guides"><img alt="Guides" src="/images/icon-guides-16x16@2x.png"> Guides</a>
-            <a purpose="sidebar-link" href="/contact"><img alt="Get a demo" src="/images/icon-contact-16x16@2x.png">Get a demo</a>
+            <a purpose="sidebar-link" href="/contact?talkToUs"><img alt="Get a demo" src="/images/icon-contact-16x16@2x.png">Get a demo</a>
             <div purpose="edit-link">
               <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
             </div>
@@ -84,7 +85,8 @@
           </div>
           <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
             <div purpose="article-details" class="d-flex flex-row align-items-center">
-              <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+              <span v-if="!showUpdatedTimestamp"><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+              <span v-else>Updated <js-timestamp format="billing" :at="thisPage.lastModifiedAt"></js-timestamp></span>
               <% if(articleCategorySlug !== 'customers') { %>
                 <span class="px-2">|</span>
                 <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">

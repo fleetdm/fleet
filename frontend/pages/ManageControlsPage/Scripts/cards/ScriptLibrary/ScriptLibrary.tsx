@@ -24,6 +24,7 @@ import InfoBanner from "components/InfoBanner";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -32,7 +33,6 @@ import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
 import EditScriptModal from "../../components/EditScriptModal";
 import ScriptUploadModal from "../../components/ScriptUploadModal";
-import ScriptListHeading from "../../components/ScriptListHeading";
 import ScriptListItem from "../../components/ScriptListItem";
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
 import { SCRIPT_UPLOADER_EMPTY_STATE_TEXT } from "../../helpers";
@@ -158,20 +158,11 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
       return null;
     }
 
-    const headingComponent = () => (
-      <ScriptListHeading
-        onClickAddScript={
-          isTechnician ? undefined : () => setShowAddScriptModal(true)
-        }
-      />
-    );
-
     return (
       <>
         <UploadList
           keyAttribute="id"
           listItems={scripts || []}
-          HeadingComponent={headingComponent}
           ListItemComponent={({ listItem }) => (
             <ScriptListItem
               script={listItem}
@@ -209,6 +200,28 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
   return (
     <div className={baseClass}>
       <SectionHeader title="Library" alignLeftHeaderVertically />
+      <div className={`${baseClass}__tab-header`}>
+        <PageDescription
+          variant="right-panel"
+          content="A collection of scripts for configuring and remediating hosts."
+        />
+        {canUploadScripts && (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => setShowAddScriptModal(true)}
+                disabled={disableChildren}
+                icon="plus"
+              >
+                Add script
+              </Button>
+            )}
+          />
+        )}
+      </div>
       {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
       {!isLoading && !isError && currentPage === 0 && !scripts?.length && (

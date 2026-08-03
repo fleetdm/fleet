@@ -34,6 +34,7 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     missingOriginHeader: { description: 'The request was missing an Origin header', responseType: 'badRequest'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
+    enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
   },
 
@@ -63,28 +64,17 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
 
     // List android devices from an enterprises using the passed parameters
     return await sails.helpers.flow.build(async ()=>{
       let { google } = require('googleapis');
-      let androidmanagement = google.androidmanagement('v1');
-
-      let googleAuth = new google.auth.GoogleAuth({
-        scopes: [
-          'https://www.googleapis.com/auth/androidmanagement'
-        ],
-        credentials: {
-          client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-          private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-        },
-      });
-
-      // Acquire the google auth client
-      let authClient = await googleAuth.getClient();
-      google.options({auth: authClient});
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
 
       // Get the Android devices list from Google
-      let devicesResponse = await androidmanagement.enterprises.devices.list({
+      let devicesResponse = await androidManagementConnection.enterprises.devices.list({
         parent: `enterprises/${thisAndroidEnterprise.androidEnterpriseId}`,
         pageSize: pageSize,
         pageToken: pageToken,
@@ -97,6 +87,9 @@ module.exports = {
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
       return new Error(`When attempting to list devices for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+    }).intercept({status: 403}, ()=>{
+      // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
+      return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};
     }).intercept((err)=>{
       return new Error(`When attempting to list devices for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });

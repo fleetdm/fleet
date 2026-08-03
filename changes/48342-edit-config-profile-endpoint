@@ -1,0 +1,1 @@
+* Added support for editing existing configuration profiles (Apple `.mobileconfig`, Apple DDM declarations, Windows, and Android) in place via `PATCH /api/v1/fleet/configuration_profiles/:profile_uuid`.

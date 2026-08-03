@@ -227,11 +227,31 @@ as this allows us to use hooks to better share common logic between components.
 
 ### Passing props into components
 
-We tend to use explicit assignment of prop values, instead of object spread syntax:
+We strongly prefer explicit assignment of prop values over object spread syntax. In almost all cases, list every prop by name:
 
 ```tsx
-<ExampleComponent prop1={pop1Val} prop2={prop2Val} prop3={prop3Val} />
+<ExampleComponent prop1={prop1Val} prop2={prop2Val} prop3={prop3Val} />
 ```
+
+Spreading is hard to review (the reader can't see what's being passed), brittle under refactors (adding a key to the source bag silently changes the target), and on native DOM elements it's a real security footgun — anything in the bag (including `dangerouslySetInnerHTML`, `href`, `src`, event handlers) gets applied.
+
+#### Accepted exceptions
+
+Spread is acceptable in these cases:
+
+- **react-select 5 custom subcomponents** — the library contract requires forwarding the full internal props bag (`innerRef`, `innerProps`, `selectProps`, …) to `components.X`. The bag is library-generated, not user input.
+- **react-table v7 prop getters** (`getCellProps()`, `getRowProps()`, `getHeaderProps()`, `getToggleAllRowsSelectedProps()`) — the prop-getter pattern *is* the library's API. Cell data is rendered through `cell.render("Cell")`, never as attributes.
+- **react-markdown renderer overrides** (e.g. `code: ({...props}) => <code {...props}>`) — the bag is library-controlled HAST metadata, not raw markdown. Do not enable the `rehype-raw` plugin: it lets raw HTML from the markdown source pass through to the bag, and the spread would forward it straight to the DOM — author-controlled HTML rendering verbatim is an XSS sink.
+- **Typed SVG icon components** (`SVGProps<SVGSVGElement>` flowing into `<svg>`, as in `pages/SoftwarePage/components/icons/*`) — the `SVGProps` type constrains callers to valid SVG attributes. Do *not* widen the prop type to `any` or `Record<string, unknown>`; that removes the guard that makes this safe.
+- **Test helpers, factories, and Storybook stories** — non-production code. The bag is built locally in the same file by code that owns its shape.
+
+#### Not safe — never spread
+
+Never spread props (especially anything derived from API responses, URLs, markdown source, MDM payloads, host facts, software metadata, or other external data) onto:
+
+`<a>`, `<img>`, `<iframe>`, `<object>`, `<embed>`, `<source>`, `<link>`, `<script>`, `<form>`, `<video>`, `<audio>`.
+
+For those elements, pick out `href` / `src` / etc. explicitly and validate the value (scheme allowlist, no `javascript:` URIs, etc.) before passing it.
 
 ### Naming handlers
 
@@ -298,84 +318,136 @@ export default PackComposerPage;
 When building a React-controlled form:
 - Use the native HTML `form` element to wrap the form.
 - Use a `Button` component with `type="submit"` for its submit button.
-- Write a submit handler, e.g. `handleSubmit`, that accepts an `evt:
-React.FormEvent<HTMLFormElement>` argument and, critically:
-  - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom
-handler's logic.
-  - does nothing (e.g., returns `null`) if the form is in an invalid state, preventing submission by any means.
-- Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
-- Disable the form's submit button when the form is in an invalid state. Redundancy with the submit handler returning `null` is good.
+- Write a submit handler, e.g. `handleSubmit`, that accepts an `evt: React.FormEvent<HTMLFormElement>` argument and, critically:
+  - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom handler's logic.
+  - runs `validate` against the full form, sets errors on every invalid field, and returns without submitting when any errors are present.
+- Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`).
+- Disable the submit button only while a submission is in flight, or when the whole form is disabled by GitOps mode. Do not disable it because required fields are empty or values are currently invalid — see [Submit button state](#submit-button-state).
 
 ### Data validation
 
+The rules below describe the target behavior. Not every existing form complies yet — they're migrated one at a time, without a wrapper or shim. New forms should follow these rules on day one.
+
 #### How to validate
 
-Forms should make use of a pure `validate` function whose input(s) correspond to form data (may include
-new and possibly former form data) and whose output is an object of formFieldName:errorMessage
-key-value pairs (`Record<string,string>`) e.g.
+Forms use a pure `validate` function whose input is the current form data and whose output is a `Record<string, string>` of `fieldName → errorMessage` pairs. Only invalid fields appear in the output.
 
 ```tsx
-const validate = (newFormData: IFormData) => {
-  const errors = {};
-  ...
-  return errors;
-}
-```
-
-The output of `validate` should be used by the calling handler to set a `formErrors`
-state.
-
-#### When to validate
-
-Form fields should *set only new errors* on blur and on save, and *set or remove* errors on change. This provides
-an "optimistic" user experience. The user is only told they have an error once they navigate
-away from a field or hit enter, actions which imply they are finished editing the field, while they are informed they have fixed
-an error as soon as possible, that is, as soon as they make the fixing change. e.g.
-
-```tsx
-const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-  const newFormData = { ...formData, [name]: value };
-  setFormData(newFormData);
-  const newErrs = validateFormData(newFormData);
-  // only set errors that are updates of existing errors
-  // new errors are only set onBlur
-  const errsToSet: Record<string, string> = {};
-  Object.keys(formErrors).forEach((k) => {
-    // @ts-ignore
-    if (newErrs[k]) {
-      // @ts-ignore
-      errsToSet[k] = newErrs[k];
-    }
-  });
-  setFormErrors(errsToSet);
-};
-
-```
-
-,
-
-```tsx
-const onInputBlur = () => {
-  setFormErrors(validateFormData(formData));
-};
-```
-
-, and
-
-```tsx
-const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
-  evt.preventDefault();
-  // return null if there are errors
-  const errs = validateFormData(formData);
-  if (Object.keys(errs).length > 0) {
-    setFormErrors(errs);
-    return;
+const validate = (formData: IFormData): Record<string, string> => {
+  const errors: Record<string, string> = {};
+  const email = formData.email.trim();
+  if (!email) {
+    errors.email = "Enter your email";
+  } else if (!isValidEmail(email)) {
+    errors.email = "Enter a valid email";
   }
-
-  ...
-  // continue with submit logic if no errors
-
+  return errors;
+};
 ```
+
+The output of `validate` is used by the calling handler to update a `formErrors` state that feeds each `InputField`'s `error` prop.
+
+#### When errors appear
+
+A field is **dirty** once the user has typed into it or the browser has autofilled it. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
+
+- Never show a field's error before the field is dirty.
+- On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Do not touch errors on other fields.
+- On submit, validate every field regardless of dirty state. If any are invalid, show all inline errors simultaneously and return without calling the API. Submit is a checkpoint that bypasses the dirty gate — pristine required fields surface their errors too.
+- On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
+
+#### When errors clear
+
+- On focus of a field that has an error (via click, tab, or programmatic focus), clear that field's error immediately — do not wait for the user to type a valid value. The error text replaces the field's label (see [Visual affordances](#visual-affordances)), so clearing on focus restores the label and lets the user see what they're editing.
+- Re-validate on blur, not on keystroke.
+- Typing in one field never clears errors on other fields. Clearing is per-field.
+- When a validation becomes irrelevant (e.g. a conditional requirement is removed by toggling a checkbox), clear the newly-irrelevant error immediately.
+
+#### Error priority
+
+- Presence errors take priority over format errors. If a field is both empty and format-invalid, show the presence error.
+- Show one error per field at a time. Never stack multiple errors on the same field.
+- Server-set errors follow the same "one at a time" rule.
+
+#### Submit button state
+
+- The submit button is enabled by default. Empty required fields, currently-invalid values, unchanged Edit forms, and prior server errors do not disable it.
+- The only reasons to disable the submit button are an in-flight submission (see [In-flight and submission lifecycle](#in-flight-and-submission-lifecycle)) or the entire form being disabled by GitOps mode. GitOps-managed pages disable the form's fields and submit button together — users cannot save through the UI at all.
+- If the user clicks submit with invalid data, the submit handler shows all inline client-side errors and returns without calling the API. The button itself stays enabled so the click can surface the errors.
+- Do not gate on form-level `isDirty` ("form has changes"). A no-op re-save is allowed.
+
+#### Server-side errors
+
+- Field-specific server errors (e.g. "email already taken") render inline on the field via the same `error` prop as client-side errors, AND fire a toast with the error message. Submit stays enabled. The toast is intentional even when the inline error is visible — forms can be long enough that the errored field is scrolled off-screen after submission.
+- Cross-field or global server errors (e.g. `formatErrorResponse` `.base`) surface as a toast only. No inline surface.
+- When the user focuses a field that has a server-set error, clear it immediately — same rule as client-side.
+- Multiple field errors returned by the server: iterate the error map and set all inline. Each field-specific error still gets its own toast per the rule above.
+
+#### Conditional / dependent validation
+
+- Cross-field checks (e.g. password + confirmation match) run on blur of the dependent/confirmation field only, and only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the field being blurred (the dependent/confirmation), consistent with the "blur validates that field only" rule. Editing the source field after the mismatch error is set does not re-run the cross-field check; the error stays until the confirmation field is edited or re-blurred.
+- Fields that become required based on another field's state (e.g. password required when SSO is off) still follow the "no error until dirty" rule. There is no visual indicator that a field is conditionally required.
+- When a condition changes such that an existing error no longer applies (e.g. SSO toggled on), clear the error immediately.
+- Client-side "at least one X must be selected" errors render inline on the selector's label, not as a toast. Server-side variants of the same error also fire a toast in addition to the inline surface.
+
+#### Optional and disabled fields
+
+- Empty optional fields never show an error.
+- An optional field that has a value with a format constraint (e.g. an optional email field) validates the format on blur and shows an inline error on invalid. (Submit-button disable follows the general rule at [Submit button state](#submit-button-state) — the button stays enabled.)
+- Disabled fields skip validation entirely. A disabled field is never in an error state, regardless of its value.
+
+#### Input hygiene
+
+- Trim leading and trailing whitespace client-side before submitting. Send the trimmed value to the API.
+- Whitespace-only content in a required field counts as empty.
+- Cap free-text `maxLength` to the backend column length via `inputOptions={{ maxLength: N }}` on `InputField`. The native input silently truncates paste. See [Forms](../../.claude/rules/fleet-frontend.md#forms) in the top-level rules.
+- If the max length is unusual (e.g. a 48-character password), show an inline error on the field instead of relying on silent truncation.
+
+#### In-flight and submission lifecycle
+
+- During submission, the submit button shows a spinner AND is disabled. Do not change the button's color/variant.
+- Form fields are disabled while a submission is in flight — the user cannot edit during the request.
+- The submit handler must guard against a second submission while one is in flight. Do not rely solely on the button being disabled.
+- The Cancel button remains enabled during submission and closes the modal immediately. It does not abort the in-flight request; the request completes in the background. We don't require abort because most call sites use plain Promises (not `useMutation`), and we don't want a confirmation dialog on Cancel — it adds friction to the common case for a rare one.
+- Because Cancel doesn't abort, the submission must be resilient to the modal being closed before the request resolves. Guard post-success side effects (toast, navigation, cache invalidation) so they don't fire against an unmounted component or a screen the user has already left. Failures on a closed modal are dropped silently — no toast, no re-open.
+- On success, close the modal and call `notify.success` before `router.push` / `router.replace`. This is a code-call order, not a visual order — `notify.success` defers toast creation by a tick, so calling it first lets the toast land on the destination page instead of getting wiped by its own navigation. See [Notifications](../../.claude/rules/fleet-frontend.md#notifications).
+- On failure, fields become editable again, the submit button re-enables immediately, and server errors surface per [Server-side errors](#server-side-errors).
+- Closing a modal with unsaved changes silently discards them. No confirmation dialog. (Exceptions like the SQL editor stay exceptions.)
+
+#### Visual affordances
+
+- There is no visual indicator for required fields. No asterisk, no `(required)` suffix. Users discover requirements through post-interaction errors.
+- On error, `FormField` renders the error text in the label slot, replacing the label text and applying the `--error` modifier (red).
+- Help text below the input is independent of error state. Do not duplicate error messages into help text.
+- The input border is red while an error is showing and returns to the default (black) when the error clears. There is no green "valid" transition.
+- No inline error icon. Text only.
+
+<!-- Design may iterate on error placement (e.g. moving the error text out of the label slot). Document any change here first. -->
+
+#### Error message copy register
+
+Every validation error follows a single grammar pattern: **verb + object + constraint (if any)**.
+
+- **Verb**: the action that fixes the error. `Enter`, `Choose`, `Select`, `Upload`.
+- **Object**: the thing being fixed. `your email`, `a valid URL`, `a password`.
+- **Constraint**: only when the rule isn't obvious. `with at least 8 characters`, `between 1 and 100`.
+
+Examples:
+- `Enter your email` — empty field
+- `Enter a valid email` — bad format
+- `Enter a password with at least 8 characters` — rule violation
+- `Choose an end date after the start date` — logical conflict
+- `Upload a file smaller than 5 MB` — limit
+
+Rules:
+- Second-person imperative, implied subject. Never `You must...` or `The user should...`.
+- Present tense, active voice. Not `must be completed`, not `was not provided`.
+- Article discipline: `your` for the user's own data (`your email`, `your name`); `a` for a value the user is constructing (`a valid URL`, `a password`).
+- One sentence per error. If it needs a second sentence, the constraint probably belongs in help text below the field, not in the error.
+- **No terminal periods on field errors.** They render in the label slot, and labels don't end with periods. (System/transport errors in toasts — see below — are the one place periods appear.)
+- See [Terminology](../../.claude/rules/fleet-frontend.md#terminology) for `fleet` vs `team` and other renaming rules.
+
+System/transport errors (server failures, timeouts, network errors — things the user can't fix by editing a field) render as toasts, not inline, and use a different register: **what happened + what to do**. Example: `Couldn't save your changes. Try again in a few minutes.` This is the one place periods appear (two sentences). Field-specific server errors — e.g. `"email already taken"` per [Server-side errors](#server-side-errors) — stay in the verb + object register.
 
 ## Tier modes
 
@@ -436,7 +508,7 @@ There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disable
 #### What it affects
 
 - **"Create fleet" button**: disabled on ManageFleetsPage
-- **Fleet switcher**: hidden (both the page `TeamsDropdown` header and the command palette fleet picker)
+- **Fleet switcher**: hidden (both the page `FleetsDropdown` header and the command palette fleet picker)
 - **Selected fleet**: `useTeamIdParam` defaults to "Unassigned" instead of "All fleets"
 - **Empty states**: skip the fleet-scoped copy premium normally shows, falling back to the generic header that free tier already uses (e.g., "No policies yet" instead of "No policies for this fleet" or "No policies apply to all fleets")
 - **User form**: fleets dropdown disabled
@@ -533,6 +605,7 @@ Custom hook names should be camel-cased and use the `use` prefix, and should liv
 
 Current custom hooks include:
 
+- [`useBlockNavigation`](../hooks/useBlockNavigation.ts) — Attaches a `beforeunload` handler while its `block` argument is true, prompting the user before tab close / hard navigation.
 - [`useCheckTruncatedElement`](../hooks/useCheckTruncatedElement.ts) — Returns whether a referenced element's content is overflowing/truncated, updating on resize.
 - [`useCheckboxListStateManagement`](../hooks/useCheckboxListStateManagement.tsx) — Manages checked/unchecked state for a list of policies with a toggle updater.
 - [`useDeepEffect`](../hooks/useDeepEffect.ts) — `useEffect` variant that does a deep (lodash `isEqual`) comparison of dependencies.
@@ -555,7 +628,6 @@ initialized. View currently working contexts in the [context directory](../conte
 
 ```typescript
 // Consuming a context — destructure what you need from useContext
-const { renderFlash } = useContext(NotificationContext);
 const { currentUser, isPremiumTier } = useContext(AppContext);
 ```
 
@@ -564,7 +636,6 @@ const { currentUser, isPremiumTier } = useContext(AppContext);
 | Context | Purpose | Use this when |
 |---|---|---|
 | `AppContext` | Global app state: current user, config, team selection, role flags, license info | You need user identity, permissions, feature flags, or the active fleet |
-| `NotificationContext` | Flash message banners (`renderFlash`, `renderMultiFlash`, `hideFlash`) | You need to show success/error/warning notifications after an action |
 | `PolicyContext` | In-progress policy editing state: name, query, resolution, platform, labels | You're on the policy edit/create flow and need to persist form state across steps |
 | `QueryContext` | In-progress report editing state: name, query body, frequency, targets, logging | You're on the report edit/create flow and need to persist form state across steps |
 | `RoutingContext` | Stores a redirect location for post-auth navigation | You need to redirect the user after login (e.g., deep link they hit while logged out) |
@@ -595,7 +666,7 @@ const PageOrComponent = (props) => {
       // do something
     } catch(error) {
       console.error(error);
-      // maybe trigger renderFlash
+      // maybe trigger notify.error
     }
   };
 
@@ -675,7 +746,7 @@ try {
   await softwareAPI.install()
   // successful messgae
 } catch (e) {
-  renderFlash("error", getErrorMessage(e))
+  notify.error(getErrorMessage(e))
 }
 
 /* in helpers.tsx */
@@ -1047,20 +1118,17 @@ then the [app's context](#react-context) should be used.
 If you are dealing with a page that *updates* any kind of config, set the local
 config with the response of your update call to make sure it has the latest.
 
-### Rendering flash messages
+### Toast notifications
 
-Flash messages by default will be hidden when the user performs any navigation that changes the URL,
-in addition to the timeout set for success messages. The `renderFlash` method from notification
-context accepts an optional third `options` argument which contains an optional
-`persistOnPageChange` boolean field that can be set to `true` to negate this default behavior.
+Use `notify.success(msg)` / `notify.error(msg, { response })` / `notify.batch([...])` from
+`components/ToastNotification`. Success toasts auto-dismiss after 5s by default; error toasts are sticky by default.
+Visible toasts are dismissed automatically on URL change.
 
-If the `renderFlash` is accompanied by a router push, it's important to push to the router *before*
-calling `renderFlash`. If the push comes after the `renderFlash` call,
-the flash message may register the `push` and immediately hide itself.
+**When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page.
 
 ```tsx
-// first push
+// first notify
+notify.success("Package successfully added.");
+// then push
 router.push(newPath);
-// then flash
-renderFlash("error", "Something went wrong");
 ```

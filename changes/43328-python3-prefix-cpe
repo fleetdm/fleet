@@ -1,0 +1,1 @@
+- Fixed vulnerability detection for Python packages on Ubuntu/Debian devices by stripping the "python3-" name prefix during CPE matching.

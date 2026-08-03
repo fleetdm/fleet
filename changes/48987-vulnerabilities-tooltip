@@ -1,0 +1,1 @@
+- Fixed an issue where the truncated vulnerabilities list in the Update details modal did not show a tooltip listing the remaining CVEs.

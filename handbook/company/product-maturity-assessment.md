@@ -171,16 +171,16 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Platform | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| macOS | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
-| Windows | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Linux (Ubuntu) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Linux (RHEL) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Linux (Debian) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Linux (Arch) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Linux (SUSE) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Android | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
+| macOS | 🐥 | 🐥 | 🐥 | 🦆 | 🦢 |
+| Windows | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 |
+| Linux (Ubuntu) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (RHEL) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (Debian) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (Arch) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (SUSE) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Android | 🐣 | 🐣 | 🐣 | 🐥 | 🐥 |
 | tvOS/visionOS/watchOS | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
-| iOS/iPadOS | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| iOS/iPadOS | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 |
 | ChromeOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
 ---

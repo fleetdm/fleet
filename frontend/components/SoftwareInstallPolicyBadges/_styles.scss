@@ -1,0 +1,8 @@
+.software-install-policy-badges {
+  &__dynamic-policy-tooltip {
+    .component__tooltip-wrapper__element {
+      display: inline-flex;
+      align-items: center;
+    }
+  }
+}

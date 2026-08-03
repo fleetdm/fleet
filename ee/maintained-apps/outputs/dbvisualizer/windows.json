@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.2",
+      "version": "26.2.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'DbVisualizer' AND publisher = 'DbVis Software AB';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DbVisualizer' AND publisher = 'DbVis Software AB' AND version_compare(version, '26.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DbVisualizer' AND publisher = 'DbVis Software AB' AND version_compare(version, '26.2.1') < 0);"
       },
-      "installer_url": "https://www.dbvis.com/product_download/dbvis-26.2/media/dbvis_windows-x64_26_2_jre.exe",
+      "installer_url": "https://www.dbvis.com/product_download/dbvis-26.2.1/media/dbvis_windows-x64_26_2_1_jre.exe",
       "install_script_ref": "a8ba6613",
       "uninstall_script_ref": "32e47ba9",
-      "sha256": "d5164243f3d15d7a07f3fedb289a73c3736b28c87efa62f8fdf57fa02d9f4d9a",
+      "sha256": "d387267dfc380a42bf881c2d4ab15f72139e31c7f4810045c96bc22b0b307c53",
       "default_categories": [
         "Developer tools"
       ]

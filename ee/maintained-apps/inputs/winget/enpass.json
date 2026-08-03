@@ -1,0 +1,13 @@
+{
+  "name": "Enpass",
+  "slug": "enpass/windows",
+  "package_identifier": "Sinew.Enpass",
+  "unique_identifier": "Enpass",
+  "program_publisher": "Enpass Technologies Inc.",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/enpass_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/enpass_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

@@ -9,9 +9,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.fleetdm.fleet-desktop</string>
     <key>CFBundleVersion</key>
-    <string>6</string>
+    <string>10</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.3.1</string>
+    <string>1.4.0</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
@@ -21,6 +21,8 @@
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>LSMultipleInstancesProhibited</key>
     <true/>
     <key>CFBundleURLTypes</key>
     <array>

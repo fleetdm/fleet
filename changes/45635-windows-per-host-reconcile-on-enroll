@@ -1,1 +1,0 @@
-- Windows configuration profiles are now queued immediately when a host enrolls in Windows MDM, instead of waiting for the next profile reconciliation cron pass.

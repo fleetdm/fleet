@@ -31,11 +31,15 @@ const baseClass = "chart-filter-modal";
 
 export type ChartFilterTab = "hosts" | "software";
 
-const PLATFORM_OPTIONS = [
+// Exported for testing.
+export const PLATFORM_OPTIONS = [
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
   { label: "ChromeOS", value: "chrome" },
+  { label: "iOS", value: "ios" },
+  { label: "iPadOS", value: "ipados" },
+  { label: "Android", value: "android" },
 ];
 
 type HostFilterMode = "none" | "include" | "exclude";
@@ -411,12 +415,12 @@ const ChartFilterModal = ({
       )}
       <div className={`${baseClass}__btn-wrap`}>
         {hasFilters && (
-          <Button variant="inverse" onClick={handleClear}>
+          <Button variant="secondary" onClick={handleClear}>
             Clear all
           </Button>
         )}
         <div className={`${baseClass}__btn-actions`}>
-          <Button variant="inverse" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
           {applyDisabled ? (

@@ -447,6 +447,23 @@ This activity contains the following fields:
 }
 ```
 
+## user_mfa_requested
+
+Generated when a user with multi-factor authentication (MFA) enabled submits valid credentials and Fleet sends a verification email.
+
+This activity contains the following fields:
+- "email": The email used in the login request.
+- "public_ip": Public IP of the login request.
+
+#### Example
+
+```json
+{
+	"email": "foo@example.com",
+	"public_ip": "168.226.215.82"
+}
+```
+
 ## created_user
 
 Generated when a user is created.
@@ -1746,6 +1763,7 @@ This activity contains the following fields:
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
+- "pinned_version": The version a Fleet-maintained app is pinned to — a specific version (e.g. `"149.0.7827.54"`) or a caret major-version constraint (e.g. `"^147"`). `null` when the app automatically updates to the latest version, or when the version wasn't changed.
 
 #### Example
 
@@ -1761,6 +1779,7 @@ This activity contains the following fields:
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
   "software_display_name": "Crowdstrike Falcon",
+  "pinned_version": "149.0.7827.54",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2547,6 +2566,48 @@ Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 
+## added_google_workspace_integration
+
+Generated when a Google Workspace integration is configured to sync IdP host vitals.
+
+This activity contains a `domain` field with the Google Workspace primary domain that was configured.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
+## edited_google_workspace_integration
+
+Generated when an existing Google Workspace integration is edited.
+
+This activity contains a `domain` field with the Google Workspace primary domain.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
+## deleted_google_workspace_integration
+
+Generated when a Google Workspace integration is removed.
+
+This activity contains a `domain` field with the Google Workspace primary domain that was removed.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
 ## enabled_conditional_access_automations
 
 Generated when conditional access automations are enabled for a fleet.
@@ -2619,6 +2680,21 @@ This activity contains the following fields:
 }
 ```
 
+## updated_custom_variable
+
+Generated when a custom variable's value is updated.
+
+This activity contains the following fields:
+- "custom_variable_name": the name of the custom variable.
+
+#### Example
+
+```json
+{
+	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
 ## deleted_custom_variable
 
 Generated when custom variable is deleted.
@@ -2654,6 +2730,44 @@ This activity contains the following fields:
 	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
+}
+```
+
+## created_setup_experience_script
+
+Generated when a script is added to (or replaced in) setup experience.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet that the script applies to (`null` for hosts that aren't assigned to a fleet).
+- "fleet_name": the name of the fleet that the script applies to (`null` for hosts that aren't assigned to a fleet).
+- "script_name": the name of the script that was added.
+
+#### Example
+
+```json
+{
+	"fleet_id": 123,
+	"fleet_name": "Workstations",
+	"script_name": "set-timezones.sh"
+}
+```
+
+## deleted_setup_experience_script
+
+Generated when a script is removed from setup experience.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet that the script applied to (`null` for hosts that aren't assigned to a fleet).
+- "fleet_name": the name of the fleet that the script applied to (`null` for hosts that aren't assigned to a fleet).
+- "script_name": the name of the script that was removed.
+
+#### Example
+
+```json
+{
+	"fleet_id": 123,
+	"fleet_name": "Workstations",
+	"script_name": "set-timezones.sh"
 }
 ```
 
@@ -3005,6 +3119,23 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## edited_account_provisioning
+
+Generated when settings for account provisioning are edited.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the label belonged to.
+- "fleet_name": the name of the fleet the label belonged to.
+
+#### Example
+
+```json
+{
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations"
 }
 ```
 

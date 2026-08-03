@@ -3,11 +3,9 @@ import classnames from "classnames";
 
 import { PlacesType } from "react-tooltip-5";
 
-import { stringToClipboard } from "utilities/copy_text";
-
 import FormField from "components/forms/FormField";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import CopyButton from "components/buttons/CopyButton";
 
 const baseClass = "input-field";
 
@@ -91,7 +89,6 @@ const InputField = ({
   min,
   max,
 }: IInputFieldProps): JSX.Element => {
-  const [copied, setCopied] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
@@ -123,31 +120,15 @@ const InputField = ({
     setShowSecret((prev) => !prev);
   }, []);
 
-  const onClickCopy = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      stringToClipboard(value).then(() => {
-        setCopied(true);
-        setTimeout(() => {
-          setCopied(false);
-        }, 2000);
-      });
-    },
-    [value]
-  );
+  const copyText = typeof value === "string" ? value : String(value ?? "");
 
-  // Old-style icon copy button for textarea (positioned absolutely above textarea)
+  // Copy button for textarea (positioned absolutely above textarea)
   const renderTextareaCopyButton = () => {
     return (
       <div
         className={`${baseClass}__copy-wrapper ${baseClass}__copy-wrapper--text-area`}
       >
-        {copied && (
-          <span className={`${baseClass}__copied-confirmation`}>Copied!</span>
-        )}
-        <Button variant="icon" onClick={onClickCopy} size="small" iconStroke>
-          <Icon name="copy" />
-        </Button>
+        <CopyButton copyText={copyText} variant="subdued" size="small" />
       </div>
     );
   };
@@ -157,32 +138,22 @@ const InputField = ({
     return (
       <div className={`${baseClass}__action-buttons`}>
         {enableCopy && (
-          <div className={`${baseClass}__action-button-wrapper`}>
-            {copied && (
-              <span className={`${baseClass}__copied-confirmation`}>
-                Copied!
-              </span>
-            )}
-            <button
-              type="button"
-              className={`${baseClass}__action-button`}
-              onClick={onClickCopy}
-              aria-label="Copy to clipboard"
-            >
-              <Icon name="copy" />
-            </button>
-          </div>
+          <CopyButton
+            copyText={copyText}
+            variant="secondary"
+            className={`${baseClass}__action-button`}
+            tooltipOffset={10}
+          />
         )}
         {enableShowSecret && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             className={`${baseClass}__action-button`}
             onClick={onToggleSecret}
-            aria-label={showSecret ? "Hide secret" : "Show secret"}
-            aria-pressed={showSecret}
-          >
-            <Icon name="eye" />
-          </button>
+            ariaLabel={showSecret ? "Hide secret" : "Show secret"}
+            ariaPressed={showSecret}
+            icon="eye"
+          />
         )}
       </div>
     );

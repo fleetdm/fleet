@@ -41,6 +41,7 @@ const (
 	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
 	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
 	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
+	WindowsMDMNotTurnedOnMessage                                 = `Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -77,6 +78,14 @@ const (
 	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
+
+	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in
+	// the RegistrationToken key of a Fleet com.apple.extensiblesso (Platform SSO
+	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same
+	// name at profile-send time and is expanded to a per-host, Fleet-signed JWT
+	// at command-fetch time (so the token is never stored and never visible on
+	// the /mdm/commands endpoint).
+	FleetVarPSSODeviceRegistrationToken FleetVarName = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: variable name, not a credential
 
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
@@ -129,9 +138,10 @@ var (
 		`(\$FLEET_VAR_%[1]s)|(\${FLEET_VAR_%[1]s})|(\$FLEET_VAR_%[2]s)|(\${FLEET_VAR_%[2]s})`,
 		FleetVarCertificateRenewalID, FleetVarSCEPRenewalID,
 	))
-	FleetVarHostUUIDRegexp                 = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
-	FleetVarHostPlatformRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
-	FleetVarSCEPWindowsCertificateIDRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarHostUUIDRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
+	FleetVarHostPlatformRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
+	FleetVarSCEPWindowsCertificateIDRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarPSSODeviceRegistrationTokenRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarPSSODeviceRegistrationToken))
 
 	// Fleet variable replacement failed errors
 	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
@@ -178,6 +188,7 @@ type ABMToken struct {
 	OrganizationName    string    `db:"organization_name" json:"org_name"`
 	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
 	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
+	TokenInvalid        bool      `db:"token_invalid" json:"token_invalid"`
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
@@ -222,14 +233,17 @@ func (a AppleCSR) AuthzType() string {
 }
 
 // ABMTermsUpdater is the minimal interface required to get and update the
-// AppConfig, and set an ABM token's terms_expired flag as required to handle
-// the DEP API errors to indicate that Apple's terms have changed and must be
-// accepted. The Fleet Datastore satisfies this interface.
+// AppConfig, and set an ABM token's terms_expired and token_invalid flags as
+// required to handle the DEP API errors to indicate that Apple's terms have
+// changed and must be accepted, or that the token itself was rejected.
+// The Fleet Datastore satisfies this interface.
 type ABMTermsUpdater interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
 	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
+	SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error)
+	IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error)
 }
 
 // MDMIdPAccount contains account information of a third-party IdP that can be
@@ -1043,6 +1057,22 @@ const (
 
 	// MDMAssetVPPProxyBearerToken is the bearer token Fleet uses to communicate with the fleetdm.com VPP metadata proxy
 	MDMAssetVPPProxyBearerToken MDMAssetName = "vpp_proxy_bearer_token" //nolint:gosec // no, this is not a credential
+	// MDMAssetPSSOSigningKey is the EC P-256 private key Fleet uses to sign Platform SSO responses
+	// and publishes via the PSSO JWKS endpoint for the Mac extension to verify.
+	MDMAssetPSSOSigningKey MDMAssetName = "psso_signing_key" //nolint:gosec // private key, not a credential string
+	// MDMAssetPSSOCACert is the self-signed Platform SSO CA certificate Fleet uses
+	// to certify the provisioned unlock-key during key exchange. Its private key is
+	// MDMAssetPSSOSigningKey; both are minted once when the feature is first configured.
+	MDMAssetPSSOCACert MDMAssetName = "psso_ca_cert"
+	// MDMAssetPSSOEncryptionKey is the EC P-256 private key Fleet uses to decrypt
+	// the password the Mac extension encrypts "on the wire" (the embedded login
+	// assertion). It is published as an ECDH-ES encryption key in the PSSO JWKS so
+	// the extension can set it as loginRequestEncryptionPublicKey.
+	MDMAssetPSSOEncryptionKey MDMAssetName = "psso_encryption_key" //nolint:gosec // private key, not a credential string
+	// MDMAssetAppleAccountProvisioningIdPClientSecret is the OAuth ROPG IdP client
+	// secret for the macOS account provisioning / Platform SSO feature. Stored
+	// here (encrypted) rather than in the AppConfig JSON so the API never returns it.
+	MDMAssetAppleAccountProvisioningIdPClientSecret MDMAssetName = "apple_account_provisioning_idp_client_secret" //nolint:gosec // stored credential, name is not itself a secret
 )
 
 type MDMConfigAsset struct {
@@ -1069,25 +1099,43 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	return clone
 }
 
-// MDMPlatform returns "darwin" or "windows" as MDM platforms
-// derived from a host's platform (hosts.platform field).
+// ClassicMDMPlatform returns "darwin" or "windows" as MDM platforms derived
+// from a host's platform (a raw hosts.platform value, or the collapsed one
+// returned by Host.FleetPlatform), or "" for platforms that don't take part in
+// the classic MDM command pipeline.
 //
 // Note that "darwin" as MDM platform means Apple (we keep it as "darwin"
 // to keep backwards compatibility throughout the app).
-func MDMPlatform(hostPlatform string) string {
+//
+// Android is deliberately not part of this list: Android hosts don't take part
+// in the classic MDM command pipeline (raw XML/plist commands, the
+// nano_commands and mdm_windows_commands listings, the mdmlifecycle hooks and
+// the host_mdm turn-off/reset paths MDMTurnOff and MDMResetEnrollment). Android
+// has its own commands table and its own unenroll path. To check whether Fleet
+// can turn MDM on for a platform at all, use MDMTurnedOnSupported instead.
+func ClassicMDMPlatform(hostPlatform string) string {
 	switch hostPlatform {
 	case "darwin", "ios", "ipados":
 		return "darwin"
 	case "windows":
 		return "windows"
-		// TODO(android): add android to this list?
 	}
 	return ""
 }
 
-// MDMSupported returns whether MDM is supported for a given host platform.
-func MDMSupported(hostPlatform string) bool {
-	return MDMPlatform(hostPlatform) != ""
+// ClassicMDMSupported returns whether the given host platform takes part in the
+// classic MDM command pipeline. It returns false for Android, see
+// ClassicMDMPlatform for details.
+func ClassicMDMSupported(hostPlatform string) bool {
+	return ClassicMDMPlatform(hostPlatform) != ""
+}
+
+// MDMTurnedOnSupported returns whether Fleet supports any form of MDM
+// enrollment for the given host platform, Android included. Use this for the
+// checks that only care about MDM being turned on for the host, such as the
+// "Can't <action> the host because it doesn't have MDM turned on." pre-checks.
+func MDMTurnedOnSupported(hostPlatform string) bool {
+	return ClassicMDMSupported(hostPlatform) || IsAndroidPlatform(hostPlatform)
 }
 
 // FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices
@@ -1124,6 +1172,9 @@ const (
 	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
 	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
+
+// DeviceNameCommandUUIDPrefix is the prefix used for the MDM command that renames a device.
+const DeviceNameCommandUUIDPrefix = "DEVNAME-"
 
 func RefetchAppsCommandUUID() string {
 	return RefetchAppsCommandUUIDPrefix + uuid.NewString()

@@ -215,7 +215,7 @@ func TestCarveStoreGCSIAMAuthUsesBearerToken(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, err = store.listS3Carves(context.Background(), "", 10)
+	_, err = store.carveObjectExists(context.Background(), "carves-prefix/some-key")
 	require.NoError(t, err)
 
 	select {

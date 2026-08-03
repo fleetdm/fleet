@@ -33,14 +33,7 @@ The following terms were recently renamed. Use the new terms in conversation and
 
 ## Fleet-specific patterns
 
-### Go backend
-- **Error wrapping**: `ctxerr.Wrap(ctx, err, "description")` — never pkg/errors
-- **Request/Response**: lowercase struct types, `Err error` field, `Error()` method returning `r.Err`
-- **Endpoint registration**: `ue.POST("/api/_version_/fleet/resource", fn, reqType{})`
-- **Authorization**: `svc.authz.Authorize(ctx, entity, fleet.ActionX)` at start of service methods
-- **Logging**: slog with `DebugContext/InfoContext/WarnContext/ErrorContext` — never bare slog.Debug/Info/Warn/Error
-- **Pointers**: Use Go 1.26 `new(expression)` for pointer values (e.g., `new("value")`, `new(true)`, `new(42)`). Do NOT use the legacy `server/ptr` package in new code — it exists throughout the codebase but is superseded by `new(expr)`.
-- **Reference example**: `server/service/vulnerabilities.go`
+Go and API conventions (ctxerr error wrapping, error types, request/response structs, auth, slog, `new(expression)` pointers, endpoint registration) auto-load from `.claude/rules/` when you edit matching files — see `rules/fleet-go-backend.md`, `rules/fleet-api.md`, and `rules/fleet-database.md`. Reference example: `server/service/vulnerabilities.go`.
 
 ## Before writing a fix
 

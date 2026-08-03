@@ -20,6 +20,7 @@ var testFunctions = [...]func(*testing.T, fleet.LiveQueryStore){
 	testLiveQueryOnlyExpired,
 	testLiveQueryCleanupInactive,
 	testLiveQuerySetBitOnlyIfKeyExists,
+	testLiveQueryResultsCounts,
 }
 
 func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
@@ -263,4 +264,66 @@ func testLiveQuerySetBitOnlyIfKeyExists(t *testing.T, store fleet.LiveQueryStore
 	n, err := redigo.Int(conn.Do("EXISTS", queryKeyPrefix+"{test-2}"))
 	require.NoError(t, err)
 	require.Zero(t, n)
+}
+
+func testLiveQueryResultsCounts(t *testing.T, store fleet.LiveQueryStore) {
+	// Use many query IDs so that, in cluster mode, their keys spread across
+	// multiple hash slots - exercising the split-by-slot pipelining.
+	queryIDs := []uint{1, 2, 3, 4, 5, 10, 42, 100, 250, 999}
+
+	// The query_results_count keys are not covered by the test cleanup key
+	// prefix, so clear any leftover state from previous runs and after this one.
+	cleanup := func() {
+		for _, id := range append(append([]uint{}, queryIDs...), 123456) {
+			require.NoError(t, store.DeleteQueryResultsCount(id))
+		}
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	// counts for never-incremented queries default to 0
+	counts, err := store.GetQueryResultsCounts(queryIDs)
+	require.NoError(t, err)
+	for _, id := range queryIDs {
+		require.Zero(t, counts[id])
+	}
+
+	// increment each query by a distinct amount
+	increments := make(map[uint]int, len(queryIDs))
+	for i, id := range queryIDs {
+		increments[id] = i + 1
+	}
+	err = store.IncrQueryResultsCounts(increments)
+	require.NoError(t, err)
+
+	counts, err = store.GetQueryResultsCounts(queryIDs)
+	require.NoError(t, err)
+	for _, id := range queryIDs {
+		require.Equal(t, increments[id], counts[id])
+	}
+
+	// incrementing again accumulates
+	err = store.IncrQueryResultsCounts(increments)
+	require.NoError(t, err)
+
+	counts, err = store.GetQueryResultsCounts(queryIDs)
+	require.NoError(t, err)
+	for _, id := range queryIDs {
+		require.Equal(t, 2*increments[id], counts[id])
+	}
+
+	// a query that was never incremented is explicitly populated with 0 in the
+	// returned map, mixed with ones that were incremented
+	counts, err = store.GetQueryResultsCounts([]uint{queryIDs[0], 123456})
+	require.NoError(t, err)
+	require.Equal(t, 2*increments[queryIDs[0]], counts[queryIDs[0]])
+	require.Contains(t, counts, uint(123456))
+	require.Zero(t, counts[123456])
+
+	// empty inputs are no-ops
+	err = store.IncrQueryResultsCounts(nil)
+	require.NoError(t, err)
+	counts, err = store.GetQueryResultsCounts(nil)
+	require.NoError(t, err)
+	require.Empty(t, counts)
 }

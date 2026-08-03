@@ -23,8 +23,8 @@ If the script fails, you can reset a script automation and trigger the script to
 ## How does it work?
 
 * Online hosts report policy status when on a configurable cadence, with hourly default.
-* Fleet will send scripts to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". By default, policies that remain failed ("No") for a host in consecutive reports will not be resent to the script.
-* To run the script on _every_ failing result, including consecutive failures ("No" -> "No"), set `continuous_automations_enabled` to `true` on the policy (_Available in Fleet Premium_). Because this can retry a script that doesn't resolve the policy, it may cause a retry loop.
+* Fleet will send scripts to the hosts on the first policy failure or if a policy goes from "Pass" to "Fail". By default, policies that remain failed for a host in consecutive reports will not be resent to the script.
+* To run the script on _every_ failing result, including consecutive failures, set `continuous_automations_enabled` to `true` on the policy (_Available in Fleet Premium_). Because this can retry a script that doesn't resolve the policy, it may cause a retry loop.
 
 > When script automation on a policy is added or switched to a different script, the policy's status will reset for associated hosts. This allows the newly attached script to run on hosts that had previously failed the policy.
 

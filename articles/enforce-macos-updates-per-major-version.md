@@ -6,8 +6,8 @@ This guide shows how to work around that limitation using custom Apple DDM decla
 
 ## Prerequisites
 
-- Fleet v4.88 or earlier: enable the `mdm.allow_all_declarations` feature flag on your Fleet server before following these steps. Set the environment variable `FLEET_MDM_ALLOW_ALL_DECLARATIONS=1` and restart your Fleet server. See [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) for details.
-- Fleet v4.89 or later: this flag is enabled by default. No action needed.
+- Fleet v4.86 or earlier: enable the `mdm.allow_all_declarations` feature flag on your Fleet server before following these steps. Set the environment variable `FLEET_MDM_ALLOW_ALL_DECLARATIONS=1` and restart your Fleet server. See [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) for details.
+- Fleet v4.87 or later: this flag is enabled by default. No action needed.
 - macOS 14 or later on managed devices (required by Apple for `softwareupdate.enforcement.specific` declarations).
 - Fleet Premium (required for label-scoped profiles).
 
@@ -15,31 +15,55 @@ This guide shows how to work around that limitation using custom Apple DDM decla
 
 ## How it works
 
-You'll create one DDM declaration per supported major OS version, each targeting a specific minimum patch version. Then you'll scope each declaration to a label that identifies devices running that major OS. Fleet delivers the right declaration to the right device automatically.
+You'll create one DDM declaration per supported major OS version, each targeting a specific minimum patch version. Then you'll scope each declaration to a label that identifies devices running that major OS.
 
 ## Step 1: Create labels for each major OS version
 
 Create a dynamic label for each major macOS version you need to support. In Fleet, go to **Labels** and create a new dynamic label using an osquery query.
 
-For macOS 15 devices:
+For macOS 15 devices, for 15.7.7:
 
-- Label name: `macOS 15`
+- Label name: `macOS 15 update`
 - Query:
 
 ```sql
-SELECT 1 FROM os_version WHERE major = 15;
+SELECT 1 FROM os_version
+WHERE major = 15
+  AND (
+    minor < 7
+    OR (minor = 7 AND patch < 7)
+  );
 ```
 
-For macOS 26 devices:
+For macOS 26 devices, for 26.5.1:
 
-- Label name: `macOS 26`
+- Label name: `macOS 26 update`
 - Query:
 
 ```sql
-SELECT 1 FROM os_version WHERE major = 26;
+SELECT 1 FROM os_version
+WHERE major = 26
+  AND (
+    minor < 5
+    OR (minor = 5 AND patch < 1)
+  );
+```
+
+If the profile only includes major and minor version numbers, you can simplify the query. For 26.5:
+
+```sql
+SELECT 1 FROM os_version WHERE major = 26 AND minor < 5;
 ```
 
 Repeat for any other major versions you need to cover.
+
+> **Note:** If you deploy a profile that targets a version that a device is already at or above, then the profile will fail to apply to the device. The error will look similar to this:
+> 
+> ```
+> Error.ConfigurationCannotBeApplied: Configuration cannot be applied map[Error:[kSUCoreErrorDDMInvalidDeclarationFailure] Invalid declaration: target OS version (15.7) is older than current version (15.7.7)]
+> ```
+> 
+> This means that the device is already compliant and no update is needed, but Fleet will show the profile status as "Failed".
 
 ## Step 2: Create a DDM declaration for each major OS version
 
@@ -83,9 +107,9 @@ Update `TargetOSVersion` to the minimum patch you want to enforce and `TargetLoc
 2. Click **Add profile**.
 3. Upload `macos-15-update-enforcement.json`.
 4. Set **Display name** to something descriptive, like `macOS 15 update enforcement`.
-5. Under **Target**, select **Include any** and choose the `macOS 15` label.
+5. Under **Target**, select **Include any** and choose the `macOS 15 update` label.
 6. Click **Save**.
-7. Repeat for `macos-26-update-enforcement.json`, targeting the `macOS 26` label.
+7. Repeat for `macos-26-update-enforcement.json`, targeting the `macOS 26 update` label.
 
 ### Using GitOps
 
@@ -97,10 +121,10 @@ controls:
     custom_settings:
       - path: ./declarations/macos-15-update-enforcement.json
         labels_include_any:
-          - macOS 15
+          - macOS 15 update
       - path: ./declarations/macos-26-update-enforcement.json
         labels_include_any:
-          - macOS 26
+          - macOS 26 update
 ```
 
 Run `fleetctl gitops` to apply.
@@ -109,11 +133,11 @@ Run `fleetctl gitops` to apply.
 
 After Fleet delivers the declarations, check that each device received the correct one:
 
-1. Go to **Hosts** and filter by the `macOS 15` label.
+1. Go to **Hosts** and filter by the `macOS 15 update` label.
 2. Click a host and go to the **OS settings** tab.
 3. Confirm `macOS 15 update enforcement` shows as **Verified**.
 
-Repeat for the `macOS 26` label.
+Repeat for the `macOS 26 update` label.
 
 Devices that don't match any label won't receive a software update declaration via this method. If you have devices on older major versions you want to force off, create an additional declaration (or use Fleet's built-in enforcement) targeting those devices.
 

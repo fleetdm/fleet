@@ -1,7 +1,6 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 
 import SectionCard from "../../SectionCard";
 
@@ -27,8 +26,7 @@ const AppleAutomaticEnrollmentCard = ({
     <SectionCard
       iconName="success"
       cta={
-        <Button onClick={viewDetails} variant="inverse">
-          <Icon name="pencil" />
+        <Button onClick={viewDetails} variant="subdued" icon="pencil">
           Edit
         </Button>
       }
@@ -43,7 +41,7 @@ const AppleAutomaticEnrollmentCard = ({
       header="Apple (macOS, iOS, iPadOS) company-owned and personal hosts enrollment"
       cta={
         <Button className="add-abm-button" onClick={viewDetails}>
-          Add ABM
+          Add AB
         </Button>
       }
     >
