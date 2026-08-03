@@ -5229,7 +5229,7 @@ Retrieves MDM enrollment status and Munki versions, aggregated across all hosts.
 
 | Name    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
-| fleet_id | integer | query | _Available in Fleet Premium_. Filters the aggregate host information to only include hosts in the specified fleet. |                           |
+| fleet_id | integer | query | _Available in Fleet Premium_. Filters the aggregate host information to only include hosts in the specified fleet. |
 
 A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `null` or missing `fleet_id` returns statistics for all hosts on all fleets.
 
@@ -7796,8 +7796,8 @@ _Available in Fleet Premium_
 | require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
-| enable_managed_local_account     | boolean | During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| enable_managed_local_account     | boolean | body | During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
+| end_user_local_account_type     | string | body | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
@@ -11265,7 +11265,7 @@ The script will be added to each host's list of upcoming activities.
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
 | script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
-| host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
+| host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
 | filters | object  | body | See [filters](#filters4). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
 | not_before       | string  | body | UTC time when the script run is scheduled to begin. If omitted, the batch script will begin right away. |
 
