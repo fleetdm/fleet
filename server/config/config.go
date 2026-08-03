@@ -949,6 +949,14 @@ type MDMConfig struct {
 	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
 	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
 
+	// AllowOrbitEndUserAuthBypass controls whether an Orbit/fleetd host that does
+	// not complete end user authentication is allowed to enroll into a team that
+	// requires it. Defaults to true so that agents predating end user
+	// authentication (and installers built with `fleetctl package
+	// --bypass-end-user-auth`) can still enroll. Set to false to strictly enforce
+	// end user authentication for all Orbit enrollments.
+	AllowOrbitEndUserAuthBypass bool `yaml:"allow_orbit_end_user_auth_bypass"`
+
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
@@ -1806,6 +1814,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
+	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
@@ -2152,6 +2161,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
 			EnableCustomDiskEncryption:        man.getConfigBool("mdm.enable_custom_disk_encryption"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
+			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
@@ -2568,6 +2578,9 @@ func TestConfig() FleetConfig {
 		},
 		Vulnerabilities: VulnerabilitiesConfig{
 			OSVForVulnerabilities: true,
+		},
+		MDM: MDMConfig{
+			AllowOrbitEndUserAuthBypass: true,
 		},
 	}
 }

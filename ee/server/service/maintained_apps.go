@@ -212,6 +212,23 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "setting downloaded installer")
 	}
 
+	// Windows programs report the version inside their name, so software already
+	// inventoried for this app sits under a versioned title rather than the one this
+	// installer now owns, and the uninstall action stays hidden until they are merged.
+	// The periodic pass would get there, but only on its next run: doing it here is what
+	// makes the action appear as soon as the app is added.
+	//
+	// Best effort on purpose. The app is added and stored at this point, so failing the
+	// request over a merge that the periodic pass will redo would be the wrong trade.
+	if app.Platform == "windows" {
+		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
+			svc.logger.WarnContext(ctx, "reconciling Windows software titles after adding a maintained app",
+				"slug", app.Slug,
+				"err", err,
+			)
+		}
+	}
+
 	// Save in S3
 	if err := svc.storeSoftware(ctx, payload); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "upload maintained app installer to S3")

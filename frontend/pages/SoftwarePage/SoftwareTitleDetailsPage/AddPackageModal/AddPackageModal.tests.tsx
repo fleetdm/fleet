@@ -119,7 +119,7 @@ describe("AddPackageModal", () => {
       const link = screen.getByRole("link", { name: /YAML docs/i });
       expect(link).toHaveAttribute(
         "href",
-        expect.stringMatching(/learn-more-about\/software-yaml$/)
+        expect.stringMatching(/learn-more-about\/yaml-software$/)
       );
     });
 

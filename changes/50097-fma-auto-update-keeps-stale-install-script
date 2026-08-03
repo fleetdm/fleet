@@ -1,0 +1,1 @@
+- Fixed a bug where the Fleet-maintained app auto-update job could keep an app's previous install script (which references the old installer filename) after downloading a newer version, causing the install to fail.

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.28.3",
+      "version": "1.29.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Podman Desktop %' AND publisher = 'Podman Desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Podman Desktop %' AND publisher = 'Podman Desktop' AND version_compare(version, '1.28.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Podman Desktop %' AND publisher = 'Podman Desktop' AND version_compare(version, '1.29.1') < 0);"
       },
-      "installer_url": "https://github.com/containers/podman-desktop/releases/download/v1.28.3/podman-desktop-1.28.3-setup-x64.exe",
+      "installer_url": "https://github.com/containers/podman-desktop/releases/download/v1.29.1/podman-desktop-1.29.1-setup-x64.exe",
       "install_script_ref": "a1a2e133",
       "uninstall_script_ref": "934e0da5",
-      "sha256": "1b405749ae21b3c84d639fd01d6f667076d439a13e5498d2c084cb158bb6bb05",
+      "sha256": "43143381361e1343cf6c037dad0b5e52e95d6e352a8ac5725026eb67b882b89b",
       "default_categories": [
         "Developer tools"
       ]

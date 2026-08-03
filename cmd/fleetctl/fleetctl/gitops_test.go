@@ -386,9 +386,9 @@ policies:
 agent_options:
 queries:
 labels:
-  - name: Test - Linux invalid platform
+  - name: Test - bados invalid platform
     query: SELECT 1;
-    platform: linux
+    platform: bados
 org_settings:
   server_settings:
     server_url: https://fleet.example.com
@@ -401,7 +401,7 @@ org_settings:
 
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	require.ErrorContains(t, err, "invalid platform")
-	require.ErrorContains(t, err, "linux")
+	require.ErrorContains(t, err, "bados")
 }
 
 func TestGitOpsBasicGlobalPremium(t *testing.T) {

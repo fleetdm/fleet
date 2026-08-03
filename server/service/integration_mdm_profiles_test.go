@@ -9616,6 +9616,101 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 	getHostProfiles(host1.ID, []string{string(fleet.MDMDeliveryVerified), string(fleet.MDMDeliveryVerified), string(fleet.MDMDeliveryFailed)})
 }
 
+func (s *integrationMDMTestSuite) TestIPadOSUpdateDeclarationAfterMDMReset() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	teamName := t.Name() + "team"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+	require.NotZero(t, teamID)
+
+	ipad, device := s.createAppleMobileHostThenEnrollMDM("ipados")
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &teamID, HostIDs: []uint{ipad.ID}}, http.StatusOK)
+
+	// Clear commands sent during enrollment so the command assertions below
+	// isolate the OS update declaration.
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = device.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// Automatic enrollment resets stale host state. Built-in memberships must
+	// survive so label-scoped declarations still target the device.
+	require.NoError(t, s.ds.MDMAppleResetOnReenrollment(ctx, ipad.UUID, true))
+	labels, err := s.ds.ListLabelsForHost(ctx, ipad.ID)
+	require.NoError(t, err)
+	labelNames := make([]string, 0, len(labels))
+	for _, label := range labels {
+		labelNames = append(labelNames, label.Name)
+	}
+	require.ElementsMatch(t, []string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelIPadOS}, labelNames)
+
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("17.6.1"),
+				Deadline:       optjson.SetString("2025-06-01"),
+			},
+		},
+	}}}, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	const updateIdentifier = "ipados-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+	var status fleet.MDMDeliveryStatus
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &status, `
+			SELECT status FROM host_mdm_apple_declarations
+			WHERE host_uuid = ? AND declaration_identifier = ?`, ipad.UUID, updateIdentifier)
+	})
+	require.Equal(t, fleet.MDMDeliveryPending, status)
+
+	cmd, err = device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+	_, err = device.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	resp, err := device.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	var items fleet.MDMAppleDDMDeclarationItemsResponse
+	require.NoError(t, json.Unmarshal(body, &items))
+	var serverToken string
+	for _, declaration := range items.Declarations.Configurations {
+		if declaration.Identifier == updateIdentifier {
+			serverToken = declaration.ServerToken
+			break
+		}
+	}
+	require.NotEmpty(t, serverToken)
+
+	report := fleet.MDMAppleDDMStatusReport{}
+	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{{
+		Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: updateIdentifier, ServerToken: serverToken,
+	}}
+	statusResp, err := device.DeclarativeManagement("status", report)
+	require.NoError(t, err)
+	statusResp.Body.Close()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &status, `
+			SELECT status FROM host_mdm_apple_declarations
+			WHERE host_uuid = ? AND declaration_identifier = ?`, ipad.UUID, updateIdentifier)
+	})
+	require.Equal(t, fleet.MDMDeliveryVerified, status)
+}
+
 // TestSpecTeamsOSUpdatesDeployToHosts verifies that POST /api/latest/fleet/spec/teams
 // deploys OS updates declarations/profiles to enrolled Windows, iOS, iPadOS, and macOS
 // hosts when OS update settings are initially set or when deadline/minimum version changes.

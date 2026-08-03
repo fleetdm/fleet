@@ -719,6 +719,59 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	}
 }
 
+// TestBatchNeedsWindowsTitleReconcile pins the predicate that decides whether a GitOps
+// batch kicks the Windows title reconcile. A false negative here is invisible: the batch
+// succeeds, the uninstall action stays hidden, and nothing surfaces until the periodic
+// pass runs up to an hour later.
+func TestBatchNeedsWindowsTitleReconcile(t *testing.T) {
+	fmaID := uint(7)
+
+	cases := []struct {
+		name       string
+		installers []*fleet.UploadSoftwareInstallerPayload
+		want       bool
+	}{
+		{"empty batch", nil, false},
+		{
+			"custom installers only",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Custom", Platform: "windows"},
+				{Title: "Other", Platform: "darwin"},
+			},
+			false,
+		},
+		{
+			"maintained app present",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Custom", Platform: "windows"},
+				{Title: "Granola", Platform: "windows", FleetMaintainedAppID: &fmaID},
+			},
+			true,
+		},
+		{
+			// Deliberately still true: the platform is not part of the decision, since it
+			// is not reliably populated this far down the batch payload chain and the
+			// reconcile is a no-op for non-Windows apps anyway.
+			"maintained app with no platform set",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Granola", FleetMaintainedAppID: &fmaID},
+			},
+			true,
+		},
+		{
+			"nil entries are skipped",
+			[]*fleet.UploadSoftwareInstallerPayload{nil, {Title: "Custom"}},
+			false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, batchNeedsWindowsTitleReconcile(c.installers))
+		})
+	}
+}
+
 func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	t.Helper()
 	authorizer, err := authz.NewAuthorizer()
@@ -1804,7 +1857,7 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
 	require.NotNil(t, bre)
-	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+	require.Contains(t, bre.Message, "can be installed only on macOS and Linux hosts")
 }
 
 // .py packages are stored with platform='linux', but the unix-like exception
@@ -1920,7 +1973,7 @@ func TestInstallPyScriptOnWindowsFails(t *testing.T) {
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
 	require.NotNil(t, bre)
-	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+	require.Contains(t, bre.Message, "can be installed only on macOS and Linux hosts")
 }
 
 // .py packages are stored with platform='linux'; the self-service install path
@@ -2461,12 +2514,12 @@ func TestBatchSetSoftwareInstallersDryRunEmptyReportsDeletions(t *testing.T) {
 	require.Equal(t, wouldDelete, gotDeleted)
 
 	// The result endpoint returns the deleted packages on the dry-run completed branch.
-	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
+	result, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
 	require.NoError(t, err)
-	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
-	require.Empty(t, message)
-	require.Empty(t, packages)
-	require.Equal(t, wouldDelete, deletedPackages)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, result.Status)
+	require.Empty(t, result.Message)
+	require.Empty(t, result.Packages)
+	require.Equal(t, wouldDelete, result.DeletedPackages)
 }
 
 func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testing.T) {
@@ -2530,12 +2583,13 @@ func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
 		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 	})
 
-	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
+	result, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
 	require.NoError(t, err)
-	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
-	require.Empty(t, message)
-	require.Empty(t, packages)
-	require.Empty(t, deletedPackages)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, result.Status)
+	require.Empty(t, result.Message)
+	require.Empty(t, result.Packages)
+	require.Empty(t, result.DeletedPackages)
+	require.Empty(t, result.DownloadProgress)
 }
 
 func TestVersionMatchesMajor(t *testing.T) {
@@ -2621,6 +2675,10 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .pkg package`},
 		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .msi package`},
 		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`},
+		{name: "py darwin", input: []string{"darwin"}, extension: "py", want: []string{"darwin"}},
+		{name: "py linux", input: []string{"linux"}, extension: "py", want: []string{"linux"}},
+		{name: "py both platforms", input: []string{"darwin", "linux"}, extension: "py", want: []string{"darwin", "linux"}},
+		{name: "py unsupported windows", input: []string{"windows"}, extension: "py", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .py package`},
 		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
 	}
 
