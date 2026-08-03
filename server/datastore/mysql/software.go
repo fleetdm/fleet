@@ -3471,8 +3471,10 @@ func (ds *Datastore) reconcileSoftwareGroup(ctx context.Context, g softwareCheck
 		// any row with the canonical checksum shares this identity and would be in
 		// this group, and none here has it.
 		survivorIdx = 0
-		if _, err := ds.writer(ctx).ExecContext(ctx,
-			`UPDATE software SET checksum = ? WHERE id = ?`, canonical, parsed[0].id); err != nil {
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, `UPDATE software SET checksum = ? WHERE id = ?`, canonical, parsed[0].id)
+			return err
+		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "fix software checksum in place")
 		}
 		ds.logger.DebugContext(ctx, "software checksum migration: fixed checksum in place",
@@ -3530,15 +3532,19 @@ func (ds *Datastore) mergeSoftwareRow(ctx context.Context, staleID, survivorID u
 
 	// kernel_host_counts is a derived aggregate with no cascade; drop the stale rows so
 	// no dangling software_id remains (recomputed by the kernel counters).
-	if _, err := ds.writer(ctx).ExecContext(ctx,
-		`DELETE FROM kernel_host_counts WHERE software_id = ?`, staleID); err != nil {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM kernel_host_counts WHERE software_id = ?`, staleID)
+		return err
+	}); err != nil {
 		return moved, ctxerr.Wrap(ctx, err, "delete stale kernel host counts")
 	}
 	// Deleting the stale software row cascades software_cpe (FK ON DELETE CASCADE).
 	// software_cve and software_host_counts for the stale id are removed by the
 	// existing orphan-cleanup crons, matching cleanupUnusedSoftware's behavior.
-	if _, err := ds.writer(ctx).ExecContext(ctx,
-		`DELETE FROM software WHERE id = ?`, staleID); err != nil {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM software WHERE id = ?`, staleID)
+		return err
+	}); err != nil {
 		return moved, ctxerr.Wrap(ctx, err, "delete stale software row")
 	}
 	return moved, nil
@@ -3554,12 +3560,18 @@ func (ds *Datastore) execReconcileBatches(ctx context.Context, stmt string, args
 	fullArgs := append(append([]any{}, args...), reconcileRepointBatch)
 	var total int64
 	for {
-		res, err := ds.writer(ctx).ExecContext(ctx, stmt, fullArgs...)
-		if err != nil {
-			return total, err
-		}
-		n, err := res.RowsAffected()
-		if err != nil {
+		// Each batch runs in its own transaction with deadlock retry: batches run
+		// concurrently with live software ingestion writing host_software, so a
+		// transient deadlock should retry rather than fail the whole migration.
+		var n int64
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			res, err := tx.ExecContext(ctx, stmt, fullArgs...)
+			if err != nil {
+				return err
+			}
+			n, err = res.RowsAffected()
+			return err
+		}); err != nil {
 			return total, err
 		}
 		total += n
