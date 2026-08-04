@@ -71,6 +71,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -3357,6 +3358,120 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	}}, http.StatusOK, &defaultTeamResp)
 	require.NotNil(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook)
 	require.False(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.Enable)
+}
+
+// A failing-policy webhook automation batch is sent, records
+// a ran_automation_webhook activity carrying host_ids, and that activity fires
+// the per-fleet host activities webhook with the same details.
+func (s *integrationEnterpriseTestSuite) TestFailingPolicyAutomationFiresHostActivitiesWebhook() {
+	t := s.T()
+	ctx := t.Context()
+
+	// One receiver, two endpoints: the failing-policies destination and the
+	// per-fleet host activities destination.
+	type hostActivitiesWebhookPayload struct {
+		Type    string          `json:"type"`
+		Details json.RawMessage `json:"details"`
+	}
+	fpwCalled := make(chan struct{}, 1)
+	hostActivitiesCalled := make(chan hostActivitiesWebhookPayload, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/fpw":
+			_, _ = io.Copy(io.Discard, r.Body)
+			fpwCalled <- struct{}{}
+		case "/host-activities":
+			var p hostActivitiesWebhookPayload
+			if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+				t.Log(err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			hostActivitiesCalled <- p
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         new(t.Name() + "-key"),
+		UUID:            t.Name() + "-uuid",
+		Hostname:        "host-activities-webhook-host",
+		Platform:        "ubuntu",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	pol, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  "host-activities-webhook-failing-policy",
+		Query: "SELECT 1 WHERE 0",
+	})
+	require.NoError(t, err)
+
+	// Enable the per-fleet host activities webhook on the team.
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+			Enable:         true,
+			DestinationURL: srv.URL + "/host-activities",
+		},
+	}}, http.StatusOK, &tmResp)
+
+	// Send the failing-policies automation batch through the production
+	// sender, with the real activity service as the activity sink.
+	failingPolicySet := NewMemFailingPolicySet()
+	require.NoError(t, failingPolicySet.AddHost(pol.ID, fleet.PolicySetHost{
+		ID:       host.ID,
+		Hostname: host.Hostname,
+	}))
+	policy, err := s.ds.Policy(ctx, pol.ID)
+	require.NoError(t, err)
+	serverURL, err := url.Parse("https://fleet.example.com")
+	require.NoError(t, err)
+	webhookURL, err := url.Parse(srv.URL + "/fpw")
+	require.NoError(t, err)
+
+	activitySvc := mysqltest.NewTestActivityService(t, s.ds)
+	require.NoError(t, webhooks.SendFailingPoliciesBatchedPOSTs(
+		ctx, policy, failingPolicySet, 0, serverURL, webhookURL, time.Now(),
+		slog.New(slog.DiscardHandler), activitySvc,
+	))
+
+	// The failing-policies webhook received the batch POST.
+	select {
+	case <-fpwCalled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for failing policies webhook")
+	}
+
+	// The per-fleet host activities webhook received the resulting
+	// ran_automation_webhook activity with host_ids in details.
+	select {
+	case p := <-hostActivitiesCalled:
+		require.Equal(t, "ran_automation_webhook", p.Type)
+		var details struct {
+			PolicyID uint   `json:"policy_id"`
+			HostIDs  []uint `json:"host_ids"`
+		}
+		require.NoError(t, json.Unmarshal(p.Details, &details))
+		assert.Equal(t, pol.ID, details.PolicyID)
+		assert.Equal(t, []uint{host.ID}, details.HostIDs)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for host activities webhook")
+	}
+
+	// The stored activity exposes the same host_ids via the activities API.
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanAutomationWebhook{}.ActivityName(),
+		fmt.Sprintf(`{"policy_id": %d, "host_ids": [%d]}`, pol.ID, host.ID),
+		0)
 }
 
 func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger() {
