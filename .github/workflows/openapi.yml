@@ -98,7 +98,7 @@ jobs:
             sleep 5
           done
 
-      - name: Verify pilot endpoints against the live server
+      - name: Verify endpoints against the live server
         run: |
           cd tools/openapi
           go run . generate

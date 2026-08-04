@@ -39,8 +39,8 @@ cd tools/openapi
 go run . verify --server https://localhost:8080 --email admin@example.com --password '...'
 ```
 
-Verify is a hand-built contract test covering the 10 endpoints from the
-original pilot (see DESIGN.md), not every endpoint in the spec. It calls each
+Verify is a hand-built contract test covering a fixed set of 10 commonly
+integrated endpoints (see DESIGN.md), not every endpoint in the spec. It calls each
 one and validates the response against the spec.
 It seeds data it can create over the API (a policy, a report, a fleet) using
 `openapi-verify-` prefixed names, and does not clean them up. Use a disposable
