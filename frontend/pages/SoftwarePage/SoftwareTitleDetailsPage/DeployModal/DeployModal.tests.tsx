@@ -139,7 +139,7 @@ describe("DeployModal", () => {
         automatic_install_query: "",
       }),
     });
-    const errorSpy = jest.spyOn(notify, "error").mockImplementation(noop);
+    const errorSpy = jest.spyOn(notify, "error");
     const onExit = jest.fn();
     const { user } = renderModal({ onExit });
 
@@ -274,7 +274,7 @@ describe("DeployModal", () => {
   it("warns about a partial save, then closes and refreshes so retry uses fresh policy state", async () => {
     const onExit = jest.fn();
     const onSuccess = jest.fn();
-    const errorSpy = jest.spyOn(notify, "error").mockImplementation(noop);
+    const errorSpy = jest.spyOn(notify, "error");
     (teamPoliciesAPI.create as jest.Mock)
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error("Patch failed"));
