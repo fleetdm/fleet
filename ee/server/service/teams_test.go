@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1680,6 +1681,10 @@ func TestModifyTeamSwitchingOSUpdateModes(t *testing.T) {
 	}
 
 	setup := func(t *testing.T, stored fleet.AppleOSUpdateSettings) (*Service, func() *fleet.Team) {
+		// ModifyTeam checks minimum_version against GDMF, so serve Apple's asset
+		// list from the local fixture rather than reaching out to Apple.
+		mdmtest.StartNewAppleGDMFTestServer(t)
+
 		mockSvc := &svcmock.Service{}
 		mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
 			return nil
@@ -1728,22 +1733,19 @@ func TestModifyTeamSwitchingOSUpdateModes(t *testing.T) {
 	}
 
 	t.Run("switching to a specific version", func(t *testing.T) {
-		// NOTE: ModifyTeam checks minimum_version against Apple's GDMF list, so
-		// this has to be a version Apple still publishes. If this starts failing
-		// with "isn't supported by Apple", bump it.
 		svc, saved := setup(t, storedLatest)
 
 		// deadline_days is deliberately absent, as a sparse PATCH would leave it.
 		_, err := svc.ModifyTeam(ctx, 1, fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("15.7.8"),
+				MinimumVersion: optjson.SetString("14.6.1"),
 				Deadline:       optjson.SetString("2026-09-01"),
 			},
 		}})
 		require.NoError(t, err)
 
 		require.NotNil(t, saved())
-		require.Equal(t, "15.7.8", saved().Config.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.Equal(t, "14.6.1", saved().Config.MDM.MacOSUpdates.MinimumVersion.Value)
 		require.False(t, saved().Config.MDM.MacOSUpdates.DeadlineDays.Valid,
 			"the stored deadline_days must not survive the mode change")
 	})
@@ -1768,7 +1770,7 @@ func TestModifyTeamSwitchingOSUpdateModes(t *testing.T) {
 		// the mirror direction: a stored deadline is the stale field here, and the
 		// wholesale replace has to drop it just the same.
 		svc, saved := setup(t, fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("15.7.8"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2026-09-01"),
 		})
 

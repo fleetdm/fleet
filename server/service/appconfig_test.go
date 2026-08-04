@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1706,12 +1707,19 @@ func TestModifyAppConfigClearsStaleAppleOSUpdateDeadline(t *testing.T) {
 		DeadlineDays:   optjson.SetInt(14),
 	}
 
+	// 14.6.1 is a macOS version present in the GDMF fixture.
 	specific := fleet.AppleOSUpdateSettings{
-		MinimumVersion: optjson.SetString("15.7.8"),
+		MinimumVersion: optjson.SetString("14.6.1"),
 		Deadline:       optjson.SetString("2026-09-01"),
 	}
 
 	setup := func(t *testing.T, stored fleet.MDM) (fleet.Service, context.Context) {
+		// validateMDM checks minimum_version against GDMF unconditionally, so
+		// serve Apple's asset list from the local fixture. Without this the
+		// subtests reach out to Apple and start failing whenever a version stops
+		// being published.
+		mdmtest.StartNewAppleGDMFTestServer(t)
+
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
@@ -1757,17 +1765,14 @@ func TestModifyAppConfigClearsStaleAppleOSUpdateDeadline(t *testing.T) {
 	}
 
 	t.Run("macOS switching to a specific version", func(t *testing.T) {
-		// NOTE: validateMDM always checks minimum_version against Apple's GDMF
-		// list, so this version has to be one Apple still publishes. If this
-		// starts failing with "isn't supported by Apple", bump it.
 		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: latest})
 
 		modified, err := svc.ModifyAppConfig(ctx,
-			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"15.7.8","deadline":"2026-09-01"}}}`),
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"14.6.1","deadline":"2026-09-01"}}}`),
 			fleet.ApplySpecOptions{})
 		require.NoError(t, err)
 
-		require.Equal(t, "15.7.8", modified.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.Equal(t, "14.6.1", modified.MDM.MacOSUpdates.MinimumVersion.Value)
 		require.Equal(t, "2026-09-01", modified.MDM.MacOSUpdates.Deadline.Value)
 		require.False(t, modified.MDM.MacOSUpdates.DeadlineDays.Valid)
 	})
@@ -1848,7 +1853,7 @@ func TestModifyAppConfigClearsStaleAppleOSUpdateDeadline(t *testing.T) {
 		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: latest})
 
 		_, err := svc.ModifyAppConfig(ctx,
-			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"15.7.8","deadline":"2026-09-01","deadline_days":14}}}`),
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"14.6.1","deadline":"2026-09-01","deadline_days":14}}}`),
 			fleet.ApplySpecOptions{})
 		require.Error(t, err)
 		require.ErrorContains(t, err, `deadline_days can only be set when minimum_version is set to "latest"`)
