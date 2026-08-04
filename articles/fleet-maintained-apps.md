@@ -111,9 +111,9 @@ SELECT 1 WHERE NOT EXISTS (
 
 You can create a **patch policy** for a Fleet-maintained app to automatically detect hosts running outdated versions. With [GitOps](https://fleetdm.com/docs/configuration/yaml-files#patch-policy), the patch policy query automatically updates to include the latest version each time specs are applied.
 
-To add a patch policy, open the app's details page under **Software**, then select **Actions > Patch**.
+To add a patch policy, open the app's details page under **Software**, then select **Actions > Deploy** and enable **Patch**.
 
-To automatically install updates when the policy fails, enable the automation at **Policies > Manage automations > Install software**.
+To automatically install updates when the policy fails, select **Patch when app is closed** or **Force patch**. Change this later at **Actions > Deploy** or **Policies > [policy] > Edit policy > Patch**.
 
 For a detailed walkthrough, see the [patch management guide](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet).
 
