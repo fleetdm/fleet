@@ -206,8 +206,8 @@ const HostNameTemplate = ({
     <>
       Set a naming convention for all macOS, iOS, or iPadOS hosts{scopeSuffix}{" "}
       Use <CustomLink text="built-in" url={builtInVariablesUrl} newTab />{" "}
-      variables,{" "}
-      <CustomLink text="custom" url={customVariablesUrl} /> variables, or{" "}
+      variables, <CustomLink text="custom" url={customVariablesUrl} />{" "}
+      variables, or{" "}
       <CustomLink text="custom host vitals" url={customHostVitalsUrl} />{" "}
       variables to differentiate between hosts.
     </>
