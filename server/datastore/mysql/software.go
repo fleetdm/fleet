@@ -3363,6 +3363,12 @@ func (g softwareChecksumDupGroup) software() fleet.Software {
 // the current ingestion path computes, so a second row gets inserted for the
 // same software, producing duplicate inventory entries (same name/version/source,
 // different checksum, split host counts).
+//
+// It runs to completion, merging every duplicate group onto a single canonical row
+// (the one whose stored checksum equals ComputeRawChecksum). It is idempotent —
+// re-running finds nothing to do — so it is safe to run repeatedly. It is invoked by
+// the one-shot cronSoftwareChecksumMigration schedule (auto-runs once after startup,
+// re-triggerable with `fleetctl trigger --name software_checksum_migration`).
 func (ds *Datastore) ReconcileSoftwareChecksums(ctx context.Context) error {
 	ds.logger.InfoContext(ctx, "software checksum migration starting")
 
