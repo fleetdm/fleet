@@ -3761,7 +3761,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			a.stats.IncrementMDMCommandsReceived()
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
-				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithExtra(udid, mdmCommandPayload.CommandUUID, deviceName,
+				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithVitals(udid, mdmCommandPayload.CommandUUID, deviceName,
 					productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
