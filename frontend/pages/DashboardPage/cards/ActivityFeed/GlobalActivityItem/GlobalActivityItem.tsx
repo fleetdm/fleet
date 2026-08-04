@@ -521,6 +521,19 @@ const TAGGED_TEMPLATES = {
       <>unassigned</>
     );
 
+    // "latest" isn't a minimum -- the target floats with what Apple publishes --
+    // so the sentence drops "the minimum" rather than contradicting itself.
+    // There's no deadline to report either: it's derived from deadline_days,
+    // which the activity doesn't record.
+    if (activity.details?.minimum_version === "latest") {
+      return (
+        <>
+          {editedActivity} {applePlatform} version to <b>latest</b> on hosts
+          assigned to {teamSection}.
+        </>
+      );
+    }
+
     return (
       <>
         {editedActivity} the minimum {applePlatform} version {versionSection}{" "}
