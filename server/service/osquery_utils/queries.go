@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -3214,6 +3215,12 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		return updated, nil
 	}
 	device.HostUUID = hostUUID // in case the read was stale due to replication lag
+	// Newly created hosts from user-driven enrollments are assigned the configured default fleet.
+	if err := maybeAssignWindowsEnrollmentDefaultFleet(ctx, logger, ds, hostID, device); err != nil {
+		// Best-effort. In the unlikely event of a failure, the host remains in Unassigned fleet.
+		logger.ErrorContext(ctx, "failed to assign windows enrollment default fleet", "err", err, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+	}
 	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
 	// reflect this state.
 	if device.MDMNotInOOBE {
@@ -3249,6 +3256,44 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		}
 	}
 	return updated, nil
+}
+
+// maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment default fleet iff all of: the linked
+// enrollment is user-driven, a default fleet is configured, the host has no fleet, and the host record was created at or after
+// the enrollment row (MDM-first ordering, as in Autopilot, where Fleet installs fleetd after MDM enrollment). Hosts that enrolled
+// fleetd first keep the fleet their enroll secret chose. Pre-existing hosts are never moved, including hosts deliberately parked
+// in Unassigned, matching macOS ABM re-enrollment behavior.
+func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, device *fleet.MDMWindowsEnrolledDevice) error {
+	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
+	}
+	if teamID == nil {
+		return nil
+	}
+	// replica lag could permanently lose the assignment by a NotFound on a hosts row that orbit enroll inserted seconds ago.
+	ctxPrimary := ctxdb.RequirePrimary(ctx, true)
+	host, err := ds.HostLiteByID(ctxPrimary, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host for windows enrollment default fleet assignment")
+	}
+	if host.TeamID != nil {
+		return nil
+	}
+	if host.CreatedAt.Before(device.CreatedAt) {
+		// The host existed before this MDM enrollment: keep its fleet (Unassigned included).
+		return nil
+	}
+	if err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{hostID})); err != nil {
+		return ctxerr.Wrap(ctx, err, "assign windows enrollment default fleet")
+	}
+	// Same side effect as a manual transfer so the new fleet's profiles reconcile immediately
+	if _, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{hostID}, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending profiles after windows enrollment default fleet assignment")
+	}
+	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
+		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
+	return nil
 }
 
 var luksVerifyQuery = DetailQuery{

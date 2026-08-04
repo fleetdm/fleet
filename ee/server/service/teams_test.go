@@ -1521,3 +1521,83 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 		require.Equal(t, []string{"enabled_managed_local_account:windows"}, activities)
 	})
 }
+
+func TestDeleteTeamWindowsEnrollmentDefaultFleet(t *testing.T) {
+	deletedTeamID, otherTeamID := uint(42), uint(43)
+
+	testCases := []struct {
+		name           string
+		defaultFleetID *uint
+		wantCleared    bool
+	}{
+		{name: "deleted fleet is the configured default", defaultFleetID: &deletedTeamID, wantCleared: true},
+		{name: "another fleet is the configured default", defaultFleetID: &otherTeamID},
+		{name: "no default configured"},
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.TeamLiteFunc = func(_ context.Context, tid uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{ID: tid, Name: "team-1"}, nil
+			}
+			ds.ListHostsFunc = func(context.Context, fleet.TeamFilter, fleet.HostListOptions) ([]*fleet.Host, error) {
+				return nil, nil
+			}
+			ds.GetCertificateTemplatesByTeamIDFunc = func(context.Context, uint, fleet.ListOptions) (
+				[]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error,
+			) {
+				return nil, nil, nil
+			}
+			ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(context.Context, *uint) ([]string, error) {
+				return nil, nil
+			}
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(context.Context) (*uint, string, error) {
+				return tc.defaultFleetID, "default-fleet", nil
+			}
+			var clearedTo *uint
+			ds.SetWindowsEnrollmentDefaultFleetFunc = func(_ context.Context, fleetID *uint) error {
+				clearedTo = fleetID
+				return nil
+			}
+			ds.DeleteTeamFunc = func(context.Context, uint) error { return nil }
+
+			var activities []string
+			mockSvc := &svcmock.Service{}
+			mockSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+				if a, ok := act.(fleet.ActivityTypeEditedWindowsEnrollmentDefaultFleet); ok {
+					require.Nil(t, a.FleetID, "cleared default must not name a fleet")
+					require.Nil(t, a.FleetName, "cleared default must not name a fleet")
+				}
+				activities = append(activities, act.ActivityName())
+				return nil
+			}
+
+			svc := &Service{
+				Service: mockSvc,
+				ds:      ds,
+				authz:   authorizer,
+				logger:  slog.New(slog.DiscardHandler),
+			}
+
+			require.NoError(t, svc.DeleteTeam(ctx, deletedTeamID))
+
+			// The deleted fleet activity always fires; the enrollment one only when the default was actually cleared.
+			require.Contains(t, activities, fleet.ActivityTypeDeletedTeam{}.ActivityName())
+			clearedActivity := fleet.ActivityTypeEditedWindowsEnrollmentDefaultFleet{}.ActivityName()
+			if tc.wantCleared {
+				require.True(t, ds.SetWindowsEnrollmentDefaultFleetFuncInvoked)
+				require.Nil(t, clearedTo, "default fleet should be cleared, not reassigned")
+				require.Contains(t, activities, clearedActivity)
+			} else {
+				require.False(t, ds.SetWindowsEnrollmentDefaultFleetFuncInvoked)
+				require.NotContains(t, activities, clearedActivity)
+			}
+		})
+	}
+}
