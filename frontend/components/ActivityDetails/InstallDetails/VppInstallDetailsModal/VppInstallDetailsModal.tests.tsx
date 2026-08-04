@@ -132,12 +132,32 @@ describe("getStatusMessage helper function", () => {
         platform: "windows",
       })
     );
+    expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/The MDM command \(request\) to install/i)
+      screen.getByText(/The end user can retry via the Google Play Store/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows first-person failed_install message for non-Apple platform on My Device page", () => {
+    render(
+      getStatusMessage({
+        isMyDevicePage: true,
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "windows",
+      })
+    );
+    expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Retry via the Google Play Store in your work profile/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Please re-attempt this installation/i)
-    ).toBeInTheDocument();
+      screen.queryByText(/The end user can retry/i)
+    ).not.toBeInTheDocument();
   });
 
   it("shows Apple-specific message when MDM command fails on macOS", () => {

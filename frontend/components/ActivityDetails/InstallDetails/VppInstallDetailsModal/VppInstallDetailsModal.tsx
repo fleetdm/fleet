@@ -221,23 +221,31 @@ export const getStatusMessage = ({
   }
 
   // Install command failed
+  if (displayStatus === "failed_install" && isAppleDevice(platform)) {
+    return (
+      <>
+        The MDM command to install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try again.
+      </>
+    );
+  }
+
+  if (displayStatus === "failed_install" && isMyDevicePage) {
+    return (
+      <>
+        Fleet failed to install <b>{appName}</b>
+        {displayTimestamp && <> {displayTimestamp}</>}. Retry via the Google
+        Play Store in your work profile, or select <b>Retry</b> below.
+      </>
+    );
+  }
+
   if (displayStatus === "failed_install") {
     return (
       <>
-        {isAppleDevice(platform) ? (
-          <>
-            The MDM command to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try
-            again.
-          </>
-        ) : (
-          <>
-            The MDM command (request) to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} failed
-            {displayTimestamp && <> {displayTimestamp}</>}. Please re-attempt
-            this installation.
-          </>
-        )}
+        Fleet failed to install <b>{appName}</b> on {formattedHost}
+        {displayTimestamp && <> {displayTimestamp}</>}. The end user can retry
+        via the Google Play Store in their work profile.
       </>
     );
   }
