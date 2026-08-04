@@ -1794,7 +1794,7 @@ None.
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
     "activity_expiry_window": 0,
-    "preserve_host_activity_on_reenrollment": false,
+    "preserve_host_activity_on_reenrollment": false
   },
   "features": {
     "enable_host_users": true,
@@ -2050,7 +2050,8 @@ None.
     "disable_data_sync": false,
     "periodicity": 3600000000000,
     "recent_vulnerability_max_age": 2592000000000000
-  }
+  },
+  "max_software_package_size": 10737418240
 }
 ```
 
@@ -2160,7 +2161,7 @@ Modifies the Fleet's configuration with the supplied information.
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
     "activity_expiry_window": 0,
-    "preserve_host_activity_on_reenrollment": false,
+    "preserve_host_activity_on_reenrollment": false
   },
   "features": {
     "enable_host_users": true,
