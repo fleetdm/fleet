@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
 
 import { IAppleDeviceUpdates } from "interfaces/config";
@@ -74,23 +74,28 @@ interface IVitalsProps extends IHostVitalsSources {
 
 export type VitalForSort = { sortKey: string; element: React.ReactNode };
 
-/** How many vitals an iOS/iPadOS card shows before the rest move behind
- * "View all". Other platforms are unaffected and still render every vital. */
-const IOS_CARD_VITAL_COUNT = 8;
+/** How many grid rows an iOS/iPadOS card fills before the rest move behind "View all" (#39281). */
+const IOS_CARD_VITAL_ROWS = 2;
 
-/** Vitals an iOS/iPadOS card shows first, per #39281. "Enrollment ID" sits
- * alongside "Serial number" because BYOD hosts report one instead of the other. */
-const IOS_CARD_PRIORITY_SORT_KEYS = new Set([
-  "Added to Fleet",
-  "Disk space available",
-  "Enrollment ID",
-  "Hardware model",
-  "MDM server URL",
-  "MDM status",
-  "Operating system",
-  "Serial number",
-  "Timezone",
-]);
+/** Column count assumed until the grid can be measured — matches the widest
+ * breakpoint in _styles.scss, so the first paint errs toward showing too many
+ * vitals rather than hiding ones that fit. */
+const FALLBACK_COLUMN_COUNT = 6;
+
+/** Reads the grid's resolved column count. Browsers report
+ * grid-template-columns as a resolved track list ("214px 214px …"), so the
+ * track count is the column count; environments without layout (jsdom) report
+ * the unresolved value instead, hence the fallback. */
+const getGridColumnCount = (grid: HTMLElement | null) => {
+  if (!grid) return FALLBACK_COLUMN_COUNT;
+
+  const tracks = window
+    .getComputedStyle(grid)
+    .gridTemplateColumns.split(" ")
+    .filter((track) => track.endsWith("px"));
+
+  return tracks.length || FALLBACK_COLUMN_COUNT;
+};
 
 const baseClass = "vitals-card";
 
@@ -733,6 +738,20 @@ const Vitals = ({
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
 
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [columnCount, setColumnCount] = useState(FALLBACK_COLUMN_COUNT);
+
+  useEffect(() => {
+    const measure = () => setColumnCount(getGridColumnCount(gridRef.current));
+
+    measure();
+
+    if (!gridRef.current) return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(gridRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   const allVitals = buildHostVitals({
     vitalsData,
     munki,
@@ -744,23 +763,14 @@ const Vitals = ({
     onEditCustomHostVital,
   });
 
-  // iOS/iPadOS cards show the priority vitals first, backfilled to
-  // IOS_CARD_VITAL_COUNT with whatever else the host reports, and move the
-  // remainder behind "View all". The backfill is sorted so the choice is
-  // stable rather than dependent on the order buildHostVitals appends in.
-  // Every other platform keeps rendering all of its vitals in the card.
-  const cardVitals = isIosOrIpadosHost
-    ? [
-        ...allVitals.filter((vital) =>
-          IOS_CARD_PRIORITY_SORT_KEYS.has(vital.sortKey)
-        ),
-        ...sortHostVitals(
-          allVitals.filter(
-            (vital) => !IOS_CARD_PRIORITY_SORT_KEYS.has(vital.sortKey)
-          )
-        ),
-      ].slice(0, IOS_CARD_VITAL_COUNT)
-    : allVitals;
+  const sortedVitals = sortHostVitals(allVitals);
+
+  // Only cap where "View all" can reach what's hidden. Capping without it
+  // would drop vitals with no way to see them.
+  const cardVitals =
+    isIosOrIpadosHost && toggleVitalsModal
+      ? sortedVitals.slice(0, columnCount * IOS_CARD_VITAL_ROWS)
+      : sortedVitals;
 
   const classNames = classnames(baseClass, className);
 
@@ -778,8 +788,8 @@ const Vitals = ({
           </Button>
         )}
       </div>
-      <div className={`${baseClass}__info-grid`}>
-        {sortHostVitals(cardVitals).map((vital) => vital.element)}
+      <div className={`${baseClass}__info-grid`} ref={gridRef}>
+        {cardVitals.map((vital) => vital.element)}
       </div>
     </Card>
   );

@@ -130,6 +130,17 @@ describe("VitalsModal component", () => {
     expect(screen.getAllByText("False").length).toBeGreaterThan(0);
   });
 
+  it("treats a negative battery level as unknown, since Apple reports -1 when it can't determine one", () => {
+    const host = buildFullyPopulatedHost({ battery_level: -1 });
+
+    const { container } = render(
+      <VitalsModal host={host} vitalsData={host} mdm={host.mdm} onExit={noop} />
+    );
+
+    expect(findValueCell(container, "Battery level")?.textContent).toBe("None");
+    expect(screen.queryByText("-100%")).not.toBeInTheDocument();
+  });
+
   it("renders the attestation certificate chain as one line per certificate", () => {
     const host = buildFullyPopulatedHost({
       device_properties_attestation: ["Y2VydC1vbmU=", "Y2VydC10d28="],

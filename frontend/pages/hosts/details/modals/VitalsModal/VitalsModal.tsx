@@ -7,6 +7,7 @@ import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 
 import {
@@ -26,10 +27,12 @@ const renderBoolean = (value?: boolean | null) => {
   return value ? "True" : "False";
 };
 
-const renderText = (value?: string | null) => value || EMPTY_VITAL_VALUE;
+const renderText = (value?: string | null) =>
+  value ? <TooltipTruncatedText value={value} /> : EMPTY_VITAL_VALUE;
 
 const renderBatteryLevel = (value?: number | null) =>
-  value === undefined || value === null
+  // Apple reports -1 when the device can't determine the level.
+  value === undefined || value === null || value < 0
     ? EMPTY_VITAL_VALUE
     : `${Math.round(value * 100)}%`;
 
@@ -434,7 +437,6 @@ const VITALS: IVital[] = [
     render: (host) => renderText(host.wifi_mac),
   },
 ];
-VITALS.sort((a, b) => a.label.localeCompare(b.label));
 
 /** Takes the same vitals sources as the Vitals card so it can rebuild the
  * pre-existing rows, plus the full host for the iOS/iPadOS-only fields (which

@@ -24,6 +24,13 @@
       padding-right: $pad-large;
     }
 
+    // Grid items default to min-width: auto, which refuses to shrink below the
+    // content's intrinsic width — so TooltipTruncatedText would never truncate
+    // and a long value would widen the column instead.
+    .data-set dd {
+      min-width: 0;
+    }
+
     .data-set:first-child {
       dt,
       dd {
