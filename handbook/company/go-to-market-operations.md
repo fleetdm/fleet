@@ -73,6 +73,11 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 ![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
 
 
+## GTM territory assignments
+
+For current territory assignments, see the ["GTM territory assignments" spreadsheet (confidential)](https://docs.google.com/spreadsheets/d/1QuxmpSDeAaobE9IFBM7BLASoQwU-YeFs7DUsey59bNM/edit?gid=1371329015#gid=1371329015).
+
+
 ## Go-To-Market tools
 
 Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by IT, and made available to all necessary stakeholders.
@@ -80,6 +85,16 @@ Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onbo
 Any GTM tool, automation, or functionality that someone wants to explore using in Sales, Marketing, or Customer Success, including any tool we want to integrate with Salesforce or use its data in Salesforce, must first be evaluated and approved by the Head of GTM Architecture before being used by anyone at the company. This includes demos of GTM tools — any demo of a tool used in Sales, Marketing, Customer Success, or that integrates with/uses data from Salesforce must be kicked off by the Head of GTM Architecture.
 
 To request approval for a new GTM tool/functionality, [create a GitHub issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&template=1-custom-request.md&labels=%3Ahelp-gtm-ops) and include a user story describing the goal of the added tool/automation.
+
+
+## GTM ops SLAs
+
+| Request type | Priority | Intake | DRI | Escalation path | SLA |
+|:---|:---|:---|:---|:---|:---|
+| Revenue/pipeline blocking error (e.g. error trying to generate a quote for a customer or prospect) | BUG - P0 | #help-gtm-ops | Sam | Sam => UTTR | 1 business hour |
+| Large GTM system changes (requires changes in 2+ systems, e.g. territory change request === Salesforce + website + Calendly) | TOP | #help-gtm-ops | Sam | Sam | 10 business days |
+| Changes to functionality in 1 system (changes to functionality that would require a user story, e.g. new closed-lost reasons) | TOP | #help-gtm-ops | Sam | Sam => UTTR | 2 business days |
+| Adhoc enrichment/import/data correction | TOP | #help-gtm-ops | Sam | Sam => Eric => UTTR | 1 business day |
 
 
 ## GTM strategy
@@ -310,6 +325,10 @@ Monitor hourly, sorted by Created Date (newest first). No lead untouched > 60 mi
 - All priority leads engaged within SLA
 - Salesforce updated before moving to next lead
 
+
+## "Let's get you set up" calls
+
+"Let's get you set up" calls happen every Friday at 10 AM and 2 PM US Central time. [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ on the Solutions Consulting team is point person for these calls. He will be on these calls as his schedule allows and coordinates coverage when he is unable to attend. Every call includes a Solutions Consultant and a Solutions Specialist.
 
 
 ## Proof of value (POV)

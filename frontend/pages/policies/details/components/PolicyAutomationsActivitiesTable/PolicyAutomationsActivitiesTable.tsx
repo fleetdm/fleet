@@ -25,7 +25,6 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyState from "components/EmptyState";
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import SearchField from "components/forms/fields/SearchField";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -225,9 +224,13 @@ const PolicyAutomationsActivitiesTable = ({
           )}
           <div className={`${baseClass}__controls`}>
             {canResetPolicy && (
-              <Button variant="subdued" onClick={onClickResetPolicy}>
+              <Button
+                variant="subdued"
+                onClick={onClickResetPolicy}
+                icon="refresh"
+                iconPosition="right"
+              >
                 Reset policy
-                <Icon name="refresh" />
               </Button>
             )}
             {showControls && (

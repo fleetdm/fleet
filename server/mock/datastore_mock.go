@@ -568,6 +568,8 @@ type CleanupSoftwareTitlesFunc func(ctx context.Context) error
 
 type SyncHostsSoftwareTitlesFunc func(ctx context.Context, updatedAt time.Time) error
 
+type ReconcileSoftwareChecksumsFunc func(ctx context.Context) error
+
 type HostVulnSummariesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error)
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error)
@@ -1186,6 +1188,10 @@ type ReconcileHostDeviceNamesForHostsFunc func(ctx context.Context, hostIDs []ui
 
 type SaveHostManagedLocalAccountFunc func(ctx context.Context, hostUUID string, plaintextPassword string, commandUUID string) error
 
+type SaveHostManagedLocalAccountFromEscrowFunc func(ctx context.Context, hostUUID string, plaintextPassword string) error
+
+type ReportManagedLocalAccountEscrowErrorFunc func(ctx context.Context, hostUUID string, clientError string) error
+
 type GetHostManagedLocalAccountPasswordFunc func(ctx context.Context, hostUUID string) (*fleet.HostManagedLocalAccountPassword, error)
 
 type GetHostManagedLocalAccountStatusFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error)
@@ -1395,6 +1401,8 @@ type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDe
 type MDMWindowsEnqueuePollScheduleCommandFunc func(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool) error
 
 type SetMDMWindowsEnrollmentFleetdSyncCapableFunc func(ctx context.Context, hostUUID string, capable bool) error
+
+type SetMDMWindowsManagedLocalAccountEscrowedFunc func(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
 
 type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
@@ -1846,7 +1854,11 @@ type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp)
 
 type ReconcileMaintainedAppSoftwareNamesFunc func(ctx context.Context) error
 
+type ReconcileWindowsMaintainedAppSoftwareTitlesFunc func(ctx context.Context) error
+
 type GetFMANamesByIdentifierFunc func(ctx context.Context) (map[string]string, error)
+
+type GetWindowsFMAMatchesFunc func(ctx context.Context) ([]fleet.MaintainedApp, error)
 
 type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error
 
@@ -3069,6 +3081,9 @@ type DataStore struct {
 	SyncHostsSoftwareTitlesFunc        SyncHostsSoftwareTitlesFunc
 	SyncHostsSoftwareTitlesFuncInvoked bool
 
+	ReconcileSoftwareChecksumsFunc        ReconcileSoftwareChecksumsFunc
+	ReconcileSoftwareChecksumsFuncInvoked bool
+
 	HostVulnSummariesBySoftwareIDsFunc        HostVulnSummariesBySoftwareIDsFunc
 	HostVulnSummariesBySoftwareIDsFuncInvoked bool
 
@@ -3996,6 +4011,12 @@ type DataStore struct {
 	SaveHostManagedLocalAccountFunc        SaveHostManagedLocalAccountFunc
 	SaveHostManagedLocalAccountFuncInvoked bool
 
+	SaveHostManagedLocalAccountFromEscrowFunc        SaveHostManagedLocalAccountFromEscrowFunc
+	SaveHostManagedLocalAccountFromEscrowFuncInvoked bool
+
+	ReportManagedLocalAccountEscrowErrorFunc        ReportManagedLocalAccountEscrowErrorFunc
+	ReportManagedLocalAccountEscrowErrorFuncInvoked bool
+
 	GetHostManagedLocalAccountPasswordFunc        GetHostManagedLocalAccountPasswordFunc
 	GetHostManagedLocalAccountPasswordFuncInvoked bool
 
@@ -4310,6 +4331,9 @@ type DataStore struct {
 
 	SetMDMWindowsEnrollmentFleetdSyncCapableFunc        SetMDMWindowsEnrollmentFleetdSyncCapableFunc
 	SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked bool
+
+	SetMDMWindowsManagedLocalAccountEscrowedFunc        SetMDMWindowsManagedLocalAccountEscrowedFunc
+	SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked bool
 
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFunc        MDMWindowsGetEnrolledDeviceWithHostUUIDFunc
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked bool
@@ -4986,8 +5010,14 @@ type DataStore struct {
 	ReconcileMaintainedAppSoftwareNamesFunc        ReconcileMaintainedAppSoftwareNamesFunc
 	ReconcileMaintainedAppSoftwareNamesFuncInvoked bool
 
+	ReconcileWindowsMaintainedAppSoftwareTitlesFunc        ReconcileWindowsMaintainedAppSoftwareTitlesFunc
+	ReconcileWindowsMaintainedAppSoftwareTitlesFuncInvoked bool
+
 	GetFMANamesByIdentifierFunc        GetFMANamesByIdentifierFunc
 	GetFMANamesByIdentifierFuncInvoked bool
+
+	GetWindowsFMAMatchesFunc        GetWindowsFMAMatchesFunc
+	GetWindowsFMAMatchesFuncInvoked bool
 
 	BulkUpsertMDMManagedCertificatesFunc        BulkUpsertMDMManagedCertificatesFunc
 	BulkUpsertMDMManagedCertificatesFuncInvoked bool
@@ -7502,6 +7532,13 @@ func (s *DataStore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.
 	return s.SyncHostsSoftwareTitlesFunc(ctx, updatedAt)
 }
 
+func (s *DataStore) ReconcileSoftwareChecksums(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileSoftwareChecksumsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileSoftwareChecksumsFunc(ctx)
+}
+
 func (s *DataStore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
 	s.mu.Lock()
 	s.HostVulnSummariesBySoftwareIDsFuncInvoked = true
@@ -9665,6 +9702,20 @@ func (s *DataStore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID st
 	return s.SaveHostManagedLocalAccountFunc(ctx, hostUUID, plaintextPassword, commandUUID)
 }
 
+func (s *DataStore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID string, plaintextPassword string) error {
+	s.mu.Lock()
+	s.SaveHostManagedLocalAccountFromEscrowFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveHostManagedLocalAccountFromEscrowFunc(ctx, hostUUID, plaintextPassword)
+}
+
+func (s *DataStore) ReportManagedLocalAccountEscrowError(ctx context.Context, hostUUID string, clientError string) error {
+	s.mu.Lock()
+	s.ReportManagedLocalAccountEscrowErrorFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReportManagedLocalAccountEscrowErrorFunc(ctx, hostUUID, clientError)
+}
+
 func (s *DataStore) GetHostManagedLocalAccountPassword(ctx context.Context, hostUUID string) (*fleet.HostManagedLocalAccountPassword, error) {
 	s.mu.Lock()
 	s.GetHostManagedLocalAccountPasswordFuncInvoked = true
@@ -10398,6 +10449,13 @@ func (s *DataStore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context
 	s.SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMWindowsEnrollmentFleetdSyncCapableFunc(ctx, hostUUID, capable)
+}
+
+func (s *DataStore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error) {
+	s.mu.Lock()
+	s.SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsManagedLocalAccountEscrowedFunc(ctx, hostUUID, escrowed)
 }
 
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -11975,11 +12033,25 @@ func (s *DataStore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) err
 	return s.ReconcileMaintainedAppSoftwareNamesFunc(ctx)
 }
 
+func (s *DataStore) ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileWindowsMaintainedAppSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileWindowsMaintainedAppSoftwareTitlesFunc(ctx)
+}
+
 func (s *DataStore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
 	s.mu.Lock()
 	s.GetFMANamesByIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetFMANamesByIdentifierFunc(ctx)
+}
+
+func (s *DataStore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.MaintainedApp, error) {
+	s.mu.Lock()
+	s.GetWindowsFMAMatchesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsFMAMatchesFunc(ctx)
 }
 
 func (s *DataStore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
