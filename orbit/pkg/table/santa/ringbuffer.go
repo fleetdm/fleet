@@ -53,9 +53,14 @@ func (r *ringBuffer) Reset() {
 }
 
 func (r *ringBuffer) SliceChrono() []logEntry {
-	out := make([]logEntry, r.size)
-	for i := 0; i < r.size; i++ {
-		out[i] = r.buf[(r.start+i)%len(r.buf)]
+	return r.AppendTo(make([]logEntry, 0, r.size))
+}
+
+// AppendTo appends the buffer's entries, oldest first, to dst. It lets several
+// buffers be assembled into one result without a slice per buffer.
+func (r *ringBuffer) AppendTo(dst []logEntry) []logEntry {
+	for i := range r.size {
+		dst = append(dst, r.buf[(r.start+i)%len(r.buf)])
 	}
-	return out
+	return dst
 }

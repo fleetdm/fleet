@@ -405,7 +405,7 @@ func scrapeArchive(ctx context.Context, a archive, decision santaDecisionType, r
 	// so newsyslog is mid-rotation and the .gz may be incomplete. Collect the
 	// compressed read separately, so that falling back to the uncompressed file
 	// cannot double-count the entries the failed attempt already collected.
-	scratch := newRingBuffer(maxEntries)
+	scratch := newRingBuffer(rb.cap)
 	err := scrapeArchiveFile(ctx, a.path, a.compressed, decision, scratch)
 	if err != nil && ctx.Err() == nil {
 		scratch.Reset()
@@ -431,19 +431,39 @@ func scrapeSantaLog(ctx context.Context, decision santaDecisionType) ([]logEntry
 	return scrapeSantaLogFromBase(ctx, decision, logPath)
 }
 
+// scrapeSantaLogFromBase returns up to maxEntries of the most recent events,
+// oldest first.
+//
+// Files are read newest first and only until the cap is met, so on a busy host in
+// monitor mode the active log alone satisfies the query and the archives are never
+// opened, let alone decompressed. Each file is read forward into a buffer sized to
+// what is still needed, which yields that file's last N events; the per-file
+// results are then concatenated oldest file first.
+//
+// Every read is best effort: a file that cannot be read is reported without
+// discarding the events collected from the others.
 func scrapeSantaLogFromBase(ctx context.Context, decision santaDecisionType, path string) ([]logEntry, error) {
-	var (
-		rb   = newRingBuffer(maxEntries)
-		errs []error
-	)
+	var errs []error
 
-	// Archives oldest → newest, then the current log, so the ring buffer keeps the
-	// most recent entries overall. Every read is best effort: a file that cannot be
-	// read is reported, never discarding the entries collected from the others.
 	rotated := archives(path)
-	for _, a := range rotated {
-		err := scrapeArchive(ctx, a, decision, rb)
-		switch {
+
+	// The active log holds the newest events, so it is read first.
+	current := newRingBuffer(maxEntries)
+	if err := scrapeCurrentSantaLog(ctx, path, decision, current, len(rotated) > 0); err != nil {
+		errs = append(errs, err)
+	}
+
+	// Per-file results, newest file first.
+	collected := []*ringBuffer{current}
+	remaining := maxEntries - current.Len()
+
+	for _, a := range slices.Backward(rotated) {
+		if remaining <= 0 || ctx.Err() != nil {
+			break
+		}
+
+		buf := newRingBuffer(remaining)
+		switch err := scrapeArchive(ctx, a, decision, buf); {
 		case err == nil:
 		case errors.Is(err, errLogMissing):
 			// Rotated away between being discovered and being read: its events moved to
@@ -453,12 +473,18 @@ func scrapeSantaLogFromBase(ctx context.Context, decision santaDecisionType, pat
 		default:
 			errs = append(errs, err)
 		}
+
+		collected = append(collected, buf)
+		remaining -= buf.Len()
 	}
 
-	if err := scrapeCurrentSantaLog(ctx, path, decision, rb, len(rotated) > 0); err != nil {
-		errs = append(errs, err)
+	total := 0
+	for _, buf := range collected {
+		total += buf.Len()
 	}
-
-	// Return the last N entries (oldest → newest among those last N).
-	return rb.SliceChrono(), errors.Join(errs...)
+	entries := make([]logEntry, 0, total)
+	for _, buf := range slices.Backward(collected) {
+		entries = buf.AppendTo(entries)
+	}
+	return entries, errors.Join(errs...)
 }

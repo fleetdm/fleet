@@ -492,6 +492,53 @@ func stubRetryWait(tb testing.TB, onWait func()) {
 	}
 }
 
+// TestScrapeSantaLogFromBase_StopsOnceCapIsMet verifies that archives are not
+// opened once the active log alone satisfies the entry cap, which is the common
+// case in monitor mode. The archive here cannot be read, so opening it at all
+// would surface an error.
+func TestScrapeSantaLogFromBase_StopsOnceCapIsMet(t *testing.T) {
+	oldCap := maxEntries
+	maxEntries = 2
+	defer func() { maxEntries = oldCap }()
+
+	tmp := t.TempDir()
+	base := filepath.Join(tmp, "santa.log")
+
+	writeFile(t, base,
+		mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/A", "ok", "aaa")+
+			mkLine("decision=ALLOW", "2025-09-18 12:00:01.000", "/B", "ok", "bbb")+
+			mkLine("decision=ALLOW", "2025-09-18 12:00:02.000", "/C", "ok", "ccc"))
+	writeFile(t, base+".0.gz", "definitely not gzip")
+
+	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
+	require.NoError(t, err, "the archive should not have been opened")
+	require.Equal(t, []string{"/B", "/C"}, apps(got))
+}
+
+// TestScrapeSantaLogFromBase_StopsOnceOlderArchivesAreUnneeded verifies the same
+// short circuit part way through the archives: enough events are found in the
+// active log and the newest archive, so the older one is left alone.
+func TestScrapeSantaLogFromBase_StopsOnceOlderArchivesAreUnneeded(t *testing.T) {
+	oldCap := maxEntries
+	maxEntries = 3
+	defer func() { maxEntries = oldCap }()
+
+	tmp := t.TempDir()
+	base := filepath.Join(tmp, "santa.log")
+
+	writeFile(t, base,
+		mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/CUR1", "ok", "aaa")+
+			mkLine("decision=ALLOW", "2025-09-18 12:00:01.000", "/CUR2", "ok", "bbb"))
+	writeGz(t, base+".0.gz",
+		mkLine("decision=ALLOW", "2025-09-18 11:59:58.000", "/ARC0-1", "ok", "ccc")+
+			mkLine("decision=ALLOW", "2025-09-18 11:59:59.000", "/ARC0-2", "ok", "ddd"))
+	writeFile(t, base+".1.gz", "definitely not gzip")
+
+	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
+	require.NoError(t, err, "the older archive should not have been opened")
+	require.Equal(t, []string{"/ARC0-2", "/CUR1", "/CUR2"}, apps(got))
+}
+
 func TestScrapeStream_EnforcesGlobalCap(t *testing.T) {
 	// Lower the global cap to make the test fast and predictable.
 	oldCap := maxEntries
@@ -780,6 +827,38 @@ func BenchmarkScrapeSantaLogFromBase_10MB_PlainPlus5x10MB_Gzip(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Choose either decision; archives contain both.
 		if _, err := scrapeSantaLogFromBase(ctx, decisionDenied, base); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// ~10MB current log of ALLOW events plus five compressed archives, querying the
+// events the current log already holds enough of: the archives should not be read.
+// This is the shape of a busy host in monitor mode.
+//
+// Note that the reported MB/s counts the whole corpus, so it overstates real
+// throughput: the point of this benchmark is that most of those bytes are skipped.
+func BenchmarkScrapeSantaLogFromBase_CapMetByCurrentLog(b *testing.B) {
+	tmp := b.TempDir()
+	base := filepath.Join(tmp, "santa.log")
+
+	plain := fillToSize(10*1024*1024, "decision=ALLOW")
+	writeFile(b, base, plain)
+
+	totalUncompressed := len(plain)
+	for i := range 5 {
+		raw := fillToSize(10*1024*1024, "decision=ALLOW")
+		writeGz(b, base+fmt.Sprintf(".%d.gz", i), raw)
+		totalUncompressed += len(raw)
+	}
+
+	ctx := context.Background()
+	b.SetBytes(int64(totalUncompressed))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for b.Loop() {
+		if _, err := scrapeSantaLogFromBase(ctx, decisionAllowed, base); err != nil {
 			b.Fatal(err)
 		}
 	}
