@@ -199,6 +199,8 @@ const AddProfileModal = ({
         file,
         teamId: currentTeamId,
         ...labelKey,
+        // only declarations on Premium have an activation to send.
+        customActivation: showAdvancedOptions ? customActivation : undefined,
       });
       notify.success("Successfully uploaded.");
       onUpload();

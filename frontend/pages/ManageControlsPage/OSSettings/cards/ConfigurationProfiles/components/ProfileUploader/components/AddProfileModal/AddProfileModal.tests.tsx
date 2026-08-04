@@ -6,6 +6,8 @@ import { createCustomRenderer } from "test/test-utils";
 import labelsAPI from "services/entities/labels";
 import mdmAPI from "services/entities/mdm";
 
+import { EXAMPLE_CUSTOM_ACTIVATION } from "../../helpers";
+
 import AddProfileModal from "./AddProfileModal";
 
 const ADVANCED_OPTIONS = "Advanced options";
@@ -199,6 +201,63 @@ describe("AddProfileModal upload result", () => {
 
     await waitFor(() => {
       expect(setShowModal).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it("sends the activation for a declaration", async () => {
+    jest.spyOn(mdmAPI, "uploadProfile").mockResolvedValue({});
+
+    await uploadDeclaration(noop);
+
+    await waitFor(() => {
+      expect(mdmAPI.uploadProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customActivation: EXAMPLE_CUSTOM_ACTIVATION,
+        })
+      );
+    });
+  });
+
+  it("sends no activation for a .mobileconfig", async () => {
+    // the advanced options section is Apple-declaration-only, so there is no
+    // activation to send even though the modal holds the state.
+    jest.spyOn(mdmAPI, "uploadProfile").mockResolvedValue({});
+    const { user, container } = renderModal(true);
+
+    await screen.findByText("Target");
+    await user.upload(
+      getFileInput(container),
+      new File(["<plist></plist>"], "profile.mobileconfig", {
+        type: "application/x-apple-aspen-config",
+      })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Add profile" })
+    );
+
+    await waitFor(() => {
+      expect(mdmAPI.uploadProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ customActivation: undefined })
+      );
+    });
+  });
+
+  it("sends no activation on free tier", async () => {
+    // custom activations are premium-only, so the section never renders and the
+    // seeded example must not reach the API.
+    jest.spyOn(mdmAPI, "uploadProfile").mockResolvedValue({});
+    const { user, container } = renderModal(false);
+
+    await user.upload(getFileInput(container), ddmFile());
+    await screen.findByText("declaration");
+    await user.click(
+      await screen.findByRole("button", { name: "Add profile" })
+    );
+
+    await waitFor(() => {
+      expect(mdmAPI.uploadProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ customActivation: undefined })
+      );
     });
   });
 });
