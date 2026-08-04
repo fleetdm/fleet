@@ -264,8 +264,9 @@ func scrapeStream(ctx context.Context, r io.Reader, decision santaDecisionType, 
 }
 
 // errLogMissing reports a log file that was not there to open, as opposed to one
-// that failed while being read. Only the former is safe to retry: a retry after a
-// partial read would add the entries it already collected a second time.
+// that failed while being read. Only the former is benign: Santa may not be
+// installed, or a rotation may have just renamed the file, so it is reported as no
+// events rather than as a failed read.
 var errLogMissing = errors.New("santa log file does not exist")
 
 // openLog opens a log file, distinguishing a file that is not there from one that
@@ -400,6 +401,17 @@ func scrapeSantaLog(ctx context.Context, decision santaDecisionType) ([]logEntry
 func scrapeSantaLogFromBase(ctx context.Context, decision santaDecisionType, path string) ([]logEntry, error) {
 	var errs []error
 
+	// Archives are discovered before the active log is read, and that order matters:
+	// were discovery to run afterwards, a rotation in between would move the events
+	// just read from santa.log into a santa.log.0 that discovery then finds, returning
+	// them twice. The stat calls are cheap enough to pay even when the active log ends
+	// up satisfying the cap on its own.
+	//
+	// A rotation landing between reading the active log and reading the archives can
+	// still return a few events twice, because santa.log.0 then holds what santa.log
+	// held moments earlier. That window is a few milliseconds against a rotation
+	// interval of hours, and repeating an event is a better failure for an audit table
+	// than silently dropping one.
 	rotated := archives(path)
 
 	// The active log holds the newest events, so it is read first.
