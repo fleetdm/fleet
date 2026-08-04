@@ -1017,6 +1017,11 @@ var ForbiddenDeclTypes = map[string]struct{}{
 const (
 	MDMAppleConfigurationTypePrefix = "com.apple.configuration."
 	MDMAppleManagementTypePrefix    = "com.apple.management."
+
+	// Apple's DeclarationBase caps Identifier at 64 octets. A longer one is
+	// stored fine but rejected by the device at delivery.
+	// https://developer.apple.com/documentation/devicemanagement/declarationbase
+	MDMAppleDeclarationIdentifierMaxLen = 64
 )
 
 func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
@@ -1036,6 +1041,11 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 
 	if !strings.HasPrefix(r.Type, MDMAppleConfigurationTypePrefix) && !strings.HasPrefix(r.Type, MDMAppleManagementTypePrefix) {
 		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported.")
+	}
+
+	if len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen {
+		return NewInvalidArgumentError("Identifier", fmt.Sprintf(
+			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
 	}
 
 	return err
@@ -1102,8 +1112,12 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 		invalid.Append("Type", fmt.Sprintf("Only activation declarations (%s) are supported.", MDMAppleActivationTypePrefix))
 	}
 
-	if strings.TrimSpace(r.Identifier) == "" {
+	switch {
+	case strings.TrimSpace(r.Identifier) == "":
 		invalid.Append("Identifier", "Activation must include an Identifier.")
+	case len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen:
+		invalid.Append("Identifier", fmt.Sprintf(
+			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
 	}
 
 	switch configs := r.Payload.StandardConfigurations; {

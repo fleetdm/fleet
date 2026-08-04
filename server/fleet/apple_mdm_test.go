@@ -235,6 +235,7 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 	cases := []struct {
 		name        string
 		declType    string
+		identifier  string
 		wantErr     bool
 		errContains string
 	}{
@@ -290,13 +291,32 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 			declType: "com.apple.management.properties",
 			wantErr:  false,
 		},
+		{
+			name:        "identifier over Apple's 64 octet limit",
+			declType:    "com.apple.configuration.passcode.settings",
+			identifier:  strings.Repeat("a", 65),
+			wantErr:     true,
+			errContains: "Identifier must be 64 bytes or fewer.",
+		},
+		{
+			// octets, not characters: 22 three-byte runes exceed 64
+			name:        "multibyte identifier counted in octets",
+			declType:    "com.apple.configuration.passcode.settings",
+			identifier:  strings.Repeat("日", 22),
+			wantErr:     true,
+			errContains: "Identifier must be 64 bytes or fewer.",
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			identifier := c.identifier
+			if identifier == "" {
+				identifier = "test-identifier"
+			}
 			decl := &MDMAppleRawDeclaration{
 				Type:       c.declType,
-				Identifier: "test-identifier",
+				Identifier: identifier,
 			}
 
 			err := decl.ValidateUserProvided()
@@ -1146,6 +1166,12 @@ func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
 			activation:  rawActivation("com.apple.activation.simple", "   ", configIdentifier),
 			wantErr:     true,
 			errContains: "Activation must include an Identifier.",
+		},
+		{
+			name:        "identifier over Apple's 64 octet limit",
+			activation:  rawActivation("com.apple.activation.simple", strings.Repeat("a", 65), configIdentifier),
+			wantErr:     true,
+			errContains: "Identifier must be 64 bytes or fewer.",
 		},
 		{
 			name:        "no configurations referenced",
