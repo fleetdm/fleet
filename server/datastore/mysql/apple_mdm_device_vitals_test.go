@@ -142,6 +142,32 @@ func testHostMDMAppleDeviceVitalsServiceSubscriptionsReplace(t *testing.T, ds *D
 	require.Equal(t, "iccid-1-updated", iccid)
 }
 
+func testHostMDMAppleDeviceVitalsResubmitIdenticalPayload(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "vitals-idempotent-host", "1.1.1.9", "vitals-idempotent-host-key", "vitals-idempotent-host-uuid", time.Now(), test.WithPlatform("ios"))
+
+	vitals := fleet.MDMAppleDeviceVitals{
+		UDID:         new("00008030-CCC"),
+		BatteryLevel: new(0.5),
+		ServiceSubscriptions: []fleet.MDMAppleServiceSubscription{
+			{Slot: "CTSubscriptionSlotOne", ICCID: new("iccid-1")},
+		},
+	}
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals))
+	// Resubmitting the exact same values (main row and subscription slot) must
+	// not error. Relies on clientFoundRows=true in the connection DSN so
+	// RowsAffected reflects rows matched, not rows changed -- otherwise the
+	// no-op UPDATE would report 0 affected and the fallback INSERT would hit a
+	// duplicate key.
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals))
+
+	var count int
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM host_mdm_apple_device_vitals WHERE host_uuid = ?`, host.UUID))
+	require.Equal(t, 1, count)
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM host_mdm_apple_service_subscriptions WHERE host_uuid = ?`, host.UUID))
+	require.Equal(t, 1, count)
+}
+
 func testLoadHostMDMAppleDeviceVitalsDB(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "vitals-load-host", "1.1.1.4", "vitals-load-host-key", "vitals-load-host-uuid", time.Now(), test.WithPlatform("ios"))
@@ -272,30 +298,4 @@ func testLoadHostMDMAppleDeviceVitalsDBNoRow(t *testing.T, ds *Datastore) {
 	require.Nil(t, loaded.BatteryLevel)
 	require.Nil(t, loaded.AccessibilitySettings)
 	require.Empty(t, loaded.ServiceSubscriptions)
-}
-
-func testHostMDMAppleDeviceVitalsResubmitIdenticalPayload(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	host := test.NewHost(t, ds, "vitals-idempotent-host", "1.1.1.9", "vitals-idempotent-host-key", "vitals-idempotent-host-uuid", time.Now(), test.WithPlatform("ios"))
-
-	vitals := fleet.MDMAppleDeviceVitals{
-		UDID:         new("00008030-CCC"),
-		BatteryLevel: new(0.5),
-		ServiceSubscriptions: []fleet.MDMAppleServiceSubscription{
-			{Slot: "CTSubscriptionSlotOne", ICCID: new("iccid-1")},
-		},
-	}
-	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals))
-	// Resubmitting the exact same values (main row and subscription slot) must
-	// not error. Relies on clientFoundRows=true in the connection DSN so
-	// RowsAffected reflects rows matched, not rows changed -- otherwise the
-	// no-op UPDATE would report 0 affected and the fallback INSERT would hit a
-	// duplicate key.
-	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals))
-
-	var count int
-	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM host_mdm_apple_device_vitals WHERE host_uuid = ?`, host.UUID))
-	require.Equal(t, 1, count)
-	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM host_mdm_apple_service_subscriptions WHERE host_uuid = ?`, host.UUID))
-	require.Equal(t, 1, count)
 }
