@@ -8523,7 +8523,7 @@ func (ds *Datastore) InsertAppleSoftwareUpdateDeviceID(ctx context.Context, host
 	`
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, updateDeviceID); err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting macOS software update device ID")
+		return ctxerr.Wrap(ctx, err, "inserting Apple software update device ID")
 	}
 
 	return nil

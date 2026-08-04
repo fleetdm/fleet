@@ -3311,14 +3311,14 @@ func directIngestMDMMacOSSoftwareUpdateID(ctx context.Context, logger *slog.Logg
 	var boardID, bridgeModel, compatible string
 	for _, row := range rows {
 		if val, ok := row["key"]; ok && val == "board-id" {
-			// If board-id presents itself, then always take that as that represent an Intel based mac.
+			// board-id identifies Intel-based Macs.
 			boardID = row["value"]
 		} else if val, ok := row["key"]; ok && val == "bridge-model" {
-			// If bridge-model presents itself, then always take that as that represent an Intel based mac. It takes priority over board-id.
+			// bridge-model identifies Intel Macs with a T2 chip; takes priority over board-id.
 			bridgeModel = row["value"]
 		} else if val, ok := row["key"]; ok && val == "compatible" {
-			// If compatible presents itself, then always take that as that represent an Apple Silicon based mac.
-			// It might be present as well on Intel macs, but then board-id will override the value.
+			// compatible identifies Apple Silicon Macs. On Intel Macs it may also
+			// be present, but board-id or bridge-model will take precedence below.
 			v := row["value"]
 			compatible = strings.Split(v, "\x00")[0] // take the first element of the null-separated list. While queries checked does not return multiple, the HEX value does (indicating truncation happens indirectly elsewhere upstream.)
 		}
