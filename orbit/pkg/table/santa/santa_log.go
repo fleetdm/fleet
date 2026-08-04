@@ -19,7 +19,6 @@ import (
 	"io/fs"
 	"os"
 	"slices"
-	"time"
 
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
@@ -38,11 +37,6 @@ const (
 var (
 	maxEntries = 10_000
 	logPath    = defaultLogPath
-
-	// The active log is briefly absent between newsyslog renaming it and santad
-	// recreating it, so a missing file is retried before being given up on.
-	currentLogAttempts   = 3
-	currentLogRetryDelay = 50 * time.Millisecond
 )
 
 type santaDecisionType int
@@ -313,45 +307,6 @@ func scrapeCompressedSantaLog(ctx context.Context, path string, decision santaDe
 	return scrapeStream(ctx, gzReader, decision, rb)
 }
 
-// scrapeCurrentSantaLog reads the active log, retrying a missing file for the
-// window in which newsyslog has renamed it and santad has not recreated it yet.
-// A file that stays missing is not an error: Santa may not be installed, or may
-// not be configured to log to a file (see `santa_status.log_type`). Its rotated
-// contents are still read from the archives.
-//
-// hasArchives reports whether any rotated log was found. Waiting is only worth it
-// mid-rotation, which implies at least one rotated log on disk, because newsyslog
-// renames santa.log to santa.log.0 before santad recreates it. With no archives at
-// all nothing is being rotated, and every host that does not run Santa would pay
-// the retry delay on every query.
-func scrapeCurrentSantaLog(ctx context.Context, path string, decision santaDecisionType, rb *ringBuffer, hasArchives bool) error {
-	for attempt := 1; ; attempt++ {
-		err := scrapePlainSantaLog(ctx, path, decision, rb)
-		if !errors.Is(err, errLogMissing) {
-			return err
-		}
-		if !hasArchives || attempt >= currentLogAttempts {
-			log.Debug().Str("path", path).Msg("santa log not found")
-			return nil
-		}
-
-		if err := retryWait(ctx); err != nil {
-			return err
-		}
-	}
-}
-
-// retryWait waits before the next attempt at reading the current log. It is a
-// variable so tests can drive the retry without sleeping.
-var retryWait = func(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(currentLogRetryDelay):
-		return nil
-	}
-}
-
 // archive is a rotated log file. newsyslog compresses a rotated log after
 // renaming it, so for a brief window the compressed file is incomplete while the
 // uncompressed one is still on disk; keep the latter as a fallback. Hosts whose
@@ -449,7 +404,20 @@ func scrapeSantaLogFromBase(ctx context.Context, decision santaDecisionType, pat
 
 	// The active log holds the newest events, so it is read first.
 	current := newRingBuffer(maxEntries)
-	if err := scrapeCurrentSantaLog(ctx, path, decision, current, len(rotated) > 0); err != nil {
+	switch err := scrapePlainSantaLog(ctx, path, decision, current); {
+	case err == nil:
+	case errors.Is(err, errLogMissing):
+		// Not an error: Santa may not be installed, or may not be configured to log to
+		// a file (see `santa_status.log_type`). It may also have been renamed by
+		// newsyslog a moment ago, in which case its events are in a santa.log.0 that
+		// discovery ran too early to see, so look again. With archives already found
+		// there is nothing to look for: newsyslog's rename shifts the events into a
+		// path that is on the list either way.
+		log.Debug().Str("path", path).Msg("santa log not found")
+		if len(rotated) == 0 {
+			rotated = archives(path)
+		}
+	default:
 		errs = append(errs, err)
 	}
 

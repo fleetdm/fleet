@@ -187,15 +187,15 @@ func TestScrapeSantaLogFromBase_EndToEnd(t *testing.T) {
 
 	denied, err := scrapeSantaLogFromBase(ctx, decisionDenied, base)
 	require.NoError(t, err)
-	// With current scanned first, chronological (insertion) order is:
-	// current DENY, then archive 0 DENY.
+	// Results are chronological regardless of the order the files are read in, so
+	// the archived DENY comes before the one in the active log.
 	require.Len(t, denied, 2)
 	require.Equal(t, "/Blocked/X", denied[0].Application)
 	require.Equal(t, "/Applications/B.app", denied[1].Application)
 
 	allowed, err := scrapeSantaLogFromBase(ctx, decisionAllowed, base)
 	require.NoError(t, err)
-	// current ALLOW, then archive 1 ALLOW.
+	// Likewise the ALLOW from the older archive comes first.
 	require.Len(t, allowed, 2)
 	require.Equal(t, "/OK/C", allowed[0].Application)
 	require.Equal(t, "/Applications/A.app", allowed[1].Application)
@@ -213,7 +213,7 @@ func TestScrapeSantaLogFromBase_IgnoresGapsAfterFirstMiss(t *testing.T) {
 	// only current exists; no .0.gz
 	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/A", "ok", "aaa"))
 
-	got, err := scrapeSantaLogFromBase(context.Background(), decisionAllowed, base)
+	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, "/A", got[0].Application)
@@ -442,54 +442,63 @@ func TestScrapeSantaLogFromBase_ArchiveRotatedAwayIsNotReported(t *testing.T) {
 	require.Equal(t, []string{"/ARC1", "/CUR"}, apps(got))
 }
 
-// TestScrapeSantaLogFromBase_RetriesRotatingCurrentLog covers the window in
-// which newsyslog has renamed santa.log and santad has not recreated it yet.
-func TestScrapeSantaLogFromBase_RetriesRotatingCurrentLog(t *testing.T) {
+// TestScrapeSantaLogFromBase_MissingCurrentLogMidRotation covers the window in
+// which newsyslog has renamed santa.log and santad has not recreated it yet: the
+// events written before the rotation are read from the renamed file, which has not
+// been compressed yet.
+func TestScrapeSantaLogFromBase_MissingCurrentLogMidRotation(t *testing.T) {
 	tmp := t.TempDir()
 	base := filepath.Join(tmp, "santa.log")
 
-	// The rotated log is on disk; the current one does not exist yet.
+	// The renamed log is on disk; the active one does not exist yet.
 	writeFile(t, base+".0", mkLine("decision=ALLOW", "2025-09-18 11:59:59.000", "/ARC0", "ok", "bbb"))
-
-	var waits int
-	stubRetryWait(t, func() {
-		waits++
-		// santad recreates the log between attempts.
-		writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/CUR", "ok", "aaa"))
-	})
 
 	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
 	require.NoError(t, err)
-	require.Equal(t, 1, waits, "should have retried once")
-	require.Equal(t, []string{"/ARC0", "/CUR"}, apps(got))
+	require.Equal(t, []string{"/ARC0"}, apps(got))
 }
 
-// TestScrapeSantaLogFromBase_MissingLogIsNotAnError verifies that a log that
-// never shows up yields no rows and no error: Santa may not be installed, or may
-// not be configured to log to a file. With no rotated log on disk there is no
-// rotation in progress to wait for, so no host without Santa pays the retry delay.
+// TestScrapeSantaLogFromBase_RediscoversArchivesAfterRotation covers a rotation
+// landing between discovering the archives and reading the active log, on a host
+// that had no archives at all: the events are in a santa.log.0 that the first
+// discovery pass ran too early to see.
+func TestScrapeSantaLogFromBase_RediscoversArchivesAfterRotation(t *testing.T) {
+	tmp := t.TempDir()
+	base := filepath.Join(tmp, "santa.log")
+
+	// The renamed log is on disk; the active one has not been recreated yet.
+	writeFile(t, base+".0", mkLine("decision=ALLOW", "2025-09-18 11:59:59.000", "/ARC0", "ok", "bbb"))
+
+	// Each discovery pass starts by looking for santa.log.0.gz. The first pass sees
+	// nothing, as it would if it ran a moment before newsyslog's rename.
+	original := statFile
+	t.Cleanup(func() { statFile = original })
+	passes := 0
+	statFile = func(path string) (os.FileInfo, error) {
+		if strings.HasSuffix(path, ".0.gz") {
+			passes++
+		}
+		if passes == 1 {
+			return nil, os.ErrNotExist
+		}
+		return original(path)
+	}
+
+	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
+	require.NoError(t, err)
+	require.Equal(t, 2, passes, "should have looked for archives again")
+	require.Equal(t, []string{"/ARC0"}, apps(got))
+}
+
+// TestScrapeSantaLogFromBase_MissingLogIsNotAnError verifies that a log that is
+// not there yields no rows and no error: Santa may not be installed, or may not be
+// configured to log to a file.
 func TestScrapeSantaLogFromBase_MissingLogIsNotAnError(t *testing.T) {
 	tmp := t.TempDir()
-
-	var waits int
-	stubRetryWait(t, func() { waits++ })
 
 	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, filepath.Join(tmp, "santa.log"))
 	require.NoError(t, err)
 	require.Empty(t, got)
-	require.Zero(t, waits, "should not wait when there are no archives to rotate")
-}
-
-// stubRetryWait replaces the between-attempts wait with onWait, so retries are
-// driven by the test instead of the clock.
-func stubRetryWait(tb testing.TB, onWait func()) {
-	tb.Helper()
-	original := retryWait
-	tb.Cleanup(func() { retryWait = original })
-	retryWait = func(context.Context) error {
-		onWait()
-		return nil
-	}
 }
 
 // TestScrapeSantaLogFromBase_StopsOnceCapIsMet verifies that archives are not
@@ -591,7 +600,7 @@ func TestScrapeSantaLogFromBase_PrefersLatestWithinArchiveOnCap(t *testing.T) {
 	// Since only .1.gz has DENY lines and it contains more than maxEntries,
 	// the ring should end up with the last 3 from that archive:
 	// "/DENY-3", "/DENY-4", "/DENY-5" (chronological).
-	got, err := scrapeSantaLogFromBase(context.Background(), decisionDenied, base)
+	got, err := scrapeSantaLogFromBase(t.Context(), decisionDenied, base)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -601,7 +610,7 @@ func TestScrapeSantaLogFromBase_PrefersLatestWithinArchiveOnCap(t *testing.T) {
 	)
 
 	maxEntries = 2
-	got, err = scrapeSantaLogFromBase(context.Background(), decisionDenied, base)
+	got, err = scrapeSantaLogFromBase(t.Context(), decisionDenied, base)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -611,7 +620,7 @@ func TestScrapeSantaLogFromBase_PrefersLatestWithinArchiveOnCap(t *testing.T) {
 	)
 
 	maxEntries = 1
-	got, err = scrapeSantaLogFromBase(context.Background(), decisionDenied, base)
+	got, err = scrapeSantaLogFromBase(t.Context(), decisionDenied, base)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -752,13 +761,14 @@ func writeTruncatedGz(tb testing.TB, path, keep, drop string) {
 // multiple compressed archives. These benchmarks help track performance
 // over time.
 //
+// Recorded on:
 // goos: darwin
 // goarch: arm64
-// cpu: Apple M2 Pro
+// cpu: Apple M4 Max
 //////////////////
 
 // Small (~150KB) non-compressed
-// BenchmarkScrapeSantaLogFromBase_SmallPlain-12               1436            827449 ns/op         185.63 MB/s      966170 B/op       5060 allocs/op
+// BenchmarkScrapeSantaLogFromBase_SmallPlain-16              10514            226687 ns/op         677.58 MB/s      504616 B/op       5060 allocs/op
 func BenchmarkScrapeSantaLogFromBase_SmallPlain(b *testing.B) {
 	tmp := b.TempDir()
 	base := filepath.Join(tmp, "santa.log")
@@ -766,7 +776,7 @@ func BenchmarkScrapeSantaLogFromBase_SmallPlain(b *testing.B) {
 	content := fillToSize(150*1024, "decision=ALLOW")
 	writeFile(b, base, content)
 
-	ctx := context.Background()
+	ctx := b.Context()
 	b.SetBytes(int64(len(content)))
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -779,7 +789,7 @@ func BenchmarkScrapeSantaLogFromBase_SmallPlain(b *testing.B) {
 }
 
 // ~10MB non-compressed
-// BenchmarkScrapeSantaLogFromBase_10MB_Plain-12                 20          58003575 ns/op         180.78 MB/s    75833864 B/op     343898 allocs/op
+// BenchmarkScrapeSantaLogFromBase_10MB_Plain-16                177          13231784 ns/op         792.46 MB/s     8772758 B/op     343823 allocs/op
 func BenchmarkScrapeSantaLogFromBase_10MB_Plain(b *testing.B) {
 	tmp := b.TempDir()
 	base := filepath.Join(tmp, "santa.log")
@@ -787,7 +797,7 @@ func BenchmarkScrapeSantaLogFromBase_10MB_Plain(b *testing.B) {
 	content := fillToSize(10*1024*1024, "decision=ALLOW")
 	writeFile(b, base, content)
 
-	ctx := context.Background()
+	ctx := b.Context()
 	b.SetBytes(int64(len(content)))
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -799,8 +809,10 @@ func BenchmarkScrapeSantaLogFromBase_10MB_Plain(b *testing.B) {
 	}
 }
 
-// ~10MB current log + five compressed archives (each ~10MB uncompressed)
-// BenchmarkScrapeSantaLogFromBase_10MB_PlainPlus5x10MB_Gzip-12                   6         212764465 ns/op         295.70 MB/s    281107640 B/op   1298057 allocs/op
+// ~10MB current log + five compressed archives (each ~10MB uncompressed), querying
+// events the archives hold. Reading stops once the entry cap is met, so the reported
+// MB/s counts bytes that were never read and overstates real throughput.
+// BenchmarkScrapeSantaLogFromBase_10MB_PlainPlus5x10MB_Gzip-16                 135          17888254 ns/op        3517.07 MB/s     8942730 B/op    346729 allocs/op
 func BenchmarkScrapeSantaLogFromBase_10MB_PlainPlus5x10MB_Gzip(b *testing.B) {
 	tmp := b.TempDir()
 	base := filepath.Join(tmp, "santa.log")
@@ -819,7 +831,7 @@ func BenchmarkScrapeSantaLogFromBase_10MB_PlainPlus5x10MB_Gzip(b *testing.B) {
 		totalUncompressed += len(raw)
 	}
 
-	ctx := context.Background()
+	ctx := b.Context()
 	b.SetBytes(int64(totalUncompressed))
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -838,6 +850,7 @@ func BenchmarkScrapeSantaLogFromBase_10MB_PlainPlus5x10MB_Gzip(b *testing.B) {
 //
 // Note that the reported MB/s counts the whole corpus, so it overstates real
 // throughput: the point of this benchmark is that most of those bytes are skipped.
+// BenchmarkScrapeSantaLogFromBase_CapMetByCurrentLog-16                        182          13192218 ns/op        4769.02 MB/s     8778596 B/op    343872 allocs/op
 func BenchmarkScrapeSantaLogFromBase_CapMetByCurrentLog(b *testing.B) {
 	tmp := b.TempDir()
 	base := filepath.Join(tmp, "santa.log")
@@ -852,7 +865,7 @@ func BenchmarkScrapeSantaLogFromBase_CapMetByCurrentLog(b *testing.B) {
 		totalUncompressed += len(raw)
 	}
 
-	ctx := context.Background()
+	ctx := b.Context()
 	b.SetBytes(int64(totalUncompressed))
 	b.ReportAllocs()
 	b.ResetTimer()
