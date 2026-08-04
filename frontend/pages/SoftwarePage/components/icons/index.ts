@@ -375,7 +375,6 @@ import Fastscripts from "./Fastscripts";
 import Fellow from "./Fellow";
 import Ferdium from "./Ferdium";
 import FetchApp from "./FetchApp";
-import Fig from "./Fig";
 import Figma from "./Figma";
 import Filebeat from "./Filebeat";
 import FileJuicer from "./FileJuicer";
@@ -1537,7 +1536,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   fellow: Fellow,
   ferdium: Ferdium,
   fetch: FetchApp,
-  fig: Fig,
   figma: Figma,
   "file juicer": FileJuicer,
   filebeat: Filebeat,

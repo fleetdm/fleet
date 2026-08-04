@@ -3222,13 +3222,6 @@
       "description": "Fetch is a file transfer client."
     },
     {
-      "name": "fig",
-      "slug": "fig/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.mschrage.fig",
-      "description": "fig is a terminal app."
-    },
-    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
