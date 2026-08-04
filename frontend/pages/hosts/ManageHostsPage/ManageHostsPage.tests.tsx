@@ -7,6 +7,9 @@ import { createCustomRenderer, baseUrl } from "test/test-utils";
 import mockServer from "test/mock-server";
 import createMockConfig from "__mocks__/configMock";
 import createMockUser from "__mocks__/userMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
+
+import { notify } from "components/ToastNotification";
 
 import ManageHostsPage from "./ManageHostsPage";
 
@@ -207,6 +210,72 @@ describe("ManageHostsPage", () => {
         "Activity automations are available in Fleet Premium."
       )
     ).toBeInTheDocument();
+  });
+
+  it("shows an error and keeps the modal closed when activity automations fail to load", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/fleets"), () => {
+        return HttpResponse.json({
+          teams: [{ id: 1, name: "Team 1", description: "" }],
+        });
+      }),
+      http.get(baseUrl("/fleets/1/secrets"), () => {
+        return HttpResponse.json({ secrets: [] });
+      }),
+      // the activity automations settings load fails
+      http.get(baseUrl("/fleets/1"), () => {
+        return HttpResponse.json(
+          { message: "internal error" },
+          { status: 500 }
+        );
+      })
+    );
+
+    const errorSpy = jest
+      .spyOn(notify, "error")
+      .mockImplementation(() => "toast-id");
+    try {
+      const premiumAdminContext = {
+        ...mockAppContext,
+        isPremiumTier: true,
+        isFreeTier: false,
+        availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+        setCurrentTeam: jest.fn(),
+      };
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: premiumAdminContext },
+      });
+
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: "?fleet_id=1",
+          hash: "",
+          query: { fleet_id: "1" },
+        },
+      });
+      const { user } = render(<ManageHostsPage {...(props as any)} />);
+
+      await screen.findByText("No hosts");
+      await user.click(
+        screen.getByRole("button", { name: "Hosts page settings" })
+      );
+      await user.click(screen.getByText("Activity automations"));
+
+      // The load fails: the user is notified and the modal never mounts —
+      // mounting it would seed disabled defaults that, if saved, overwrite
+      // the configured webhook.
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalledWith(
+          "Could not load activity automations. Please try again."
+        );
+      });
+      expect(screen.queryByText("Manage automations")).not.toBeInTheDocument();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("renders filtered empty state with enabled controls", async () => {

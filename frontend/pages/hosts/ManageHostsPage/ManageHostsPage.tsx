@@ -565,6 +565,7 @@ const ManageHostsPage = ({
   const {
     data: teamResponse,
     isLoading: isLoadingHostActivityAutomations,
+    isError: isErrorHostActivityAutomations,
     refetch: refetchHostActivityAutomations,
   } = useQuery<ILoadTeamResponse, Error>(
     ["team webhook settings", teamIdForApi],
@@ -577,6 +578,13 @@ const ManageHostsPage = ({
         showHostActivityAutomationsModal &&
         teamIdForApi !== undefined &&
         !!isPremiumTier,
+      // Close the modal on load failure: mounting it without the stored
+      // settings would show disabled defaults, and saving those would
+      // silently overwrite the configured webhook.
+      onError: () => {
+        notify.error("Could not load activity automations. Please try again.");
+        setShowHostActivityAutomationsModal(false);
+      },
     }
   );
   const hostActivityAutomations =
@@ -2314,8 +2322,13 @@ const ManageHostsPage = ({
       {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
       {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}
       {canEnrollHosts && showEnrollSecretModal && renderEnrollSecretModal()}
+      {/* Mounted only once the stored settings load: the form seeds its
+          state from automationSettings at mount, so mounting early (or on a
+          failed load — see the query's onError) would show disabled defaults
+          that, if saved, overwrite the configured webhook. */}
       {showHostActivityAutomationsModal &&
-        !isLoadingHostActivityAutomations && (
+        !isLoadingHostActivityAutomations &&
+        !isErrorHostActivityAutomations && (
           <HostActivityAutomationsModal
             automationSettings={hostActivityAutomations}
             onSubmit={updateHostActivityAutomations}

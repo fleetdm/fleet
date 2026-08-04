@@ -122,6 +122,78 @@ describe("HostActivityAutomationsModal", () => {
     expect(screen.queryByText(/"activity_id"/)).not.toBeInTheDocument();
   });
 
+  it("disables Save while an update is in flight", () => {
+    const render = createCustomRenderer({
+      context: { app: { config: createMockConfig() } },
+    });
+
+    render(
+      <HostActivityAutomationsModal
+        {...defaultProps}
+        isUpdating
+        automationSettings={{
+          enable_host_activities_webhook: true,
+          destination_url: "https://example.com/hook",
+        }}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("clears an invalid URL and its error when disabling, keeps it cleared on re-enable", async () => {
+    const render = createCustomRenderer({
+      context: { app: { config: createMockConfig() } },
+    });
+
+    const { user } = render(
+      <HostActivityAutomationsModal
+        {...defaultProps}
+        automationSettings={{
+          enable_host_activities_webhook: true,
+          destination_url: "not-a-url",
+        }}
+      />
+    );
+
+    // Surface the validation error, then disable the webhook.
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      screen.getByText("not-a-url is not a valid destination URL")
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("switch"));
+    expect(
+      screen.queryByText("not-a-url is not a valid destination URL")
+    ).not.toBeInTheDocument();
+
+    // Re-enabling starts clean: the invalid URL was dropped.
+    await user.click(screen.getByRole("switch"));
+    expect(screen.queryByDisplayValue("not-a-url")).not.toBeInTheDocument();
+  });
+
+  it("keeps a valid URL when the webhook is toggled off and back on", async () => {
+    const render = createCustomRenderer({
+      context: { app: { config: createMockConfig() } },
+    });
+
+    const { user } = render(
+      <HostActivityAutomationsModal
+        {...defaultProps}
+        automationSettings={{
+          enable_host_activities_webhook: true,
+          destination_url: "https://example.com/hook",
+        }}
+      />
+    );
+
+    await user.click(screen.getByRole("switch"));
+    await user.click(screen.getByRole("switch"));
+    expect(
+      screen.getByDisplayValue("https://example.com/hook")
+    ).toBeInTheDocument();
+  });
+
   it("blocks saving in GitOps mode", async () => {
     const onSubmit = jest.fn();
     const config = createMockConfig();

@@ -51,14 +51,13 @@ const HostActivityAutomationsModal = ({
 
   const { gitOpsModeEnabled } = useGitOpsMode();
 
-  const validateForm = (newFormData: IHostActivityAutomationsFormData) => {
+  const isValidDestinationURL = (destinationURL: string) =>
+    validURL({ url: destinationURL || "", protocols: ["http", "https"] });
+
+  const validateForm = (data: IHostActivityAutomationsFormData) => {
     const errors: Record<string, string> = {};
-    const { url: newUrl } = newFormData;
-    if (
-      formData.enabled &&
-      !validURL({ url: newUrl || "", protocols: ["http", "https"] })
-    ) {
-      const errorPrefix = newUrl ? `${newUrl} is not` : "Please enter";
+    if (data.enabled && !isValidDestinationURL(data.url)) {
+      const errorPrefix = data.url ? `${data.url} is not` : "Please enter";
       errors.url = `${errorPrefix} a valid destination URL`;
     }
 
@@ -71,13 +70,13 @@ const HostActivityAutomationsModal = ({
     const isDisabling = newFormData.enabled === false;
 
     if (isDisabling) {
-      const errors = validateForm(newFormData);
-
-      if (errors.url) {
+      // Drop an invalid leftover URL so re-enabling starts clean; a valid URL
+      // is kept so it reappears when the webhook is turned back on. Any
+      // in-flight error is cleared because the field is no longer editable.
+      if (!isValidDestinationURL(newFormData.url)) {
         newFormData.url = "";
-        delete formErrors.url;
-        setFormErrors(formErrors);
       }
+      setFormErrors({});
       setShowExamplePayload(false);
     }
 
@@ -191,7 +190,11 @@ const HostActivityAutomationsModal = ({
                 onClick={onModalSubmit}
                 className="save-loading"
                 isLoading={isUpdating}
-                disabled={disableChildren || Object.keys(formErrors).length > 0}
+                disabled={
+                  disableChildren ||
+                  isUpdating ||
+                  Object.keys(formErrors).length > 0
+                }
               >
                 Save
               </Button>
