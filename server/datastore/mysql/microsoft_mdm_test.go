@@ -8100,15 +8100,22 @@ func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
-	// With two unlinked enrollments sharing a serial, the most recent one wins. created_at has second precision, so
-	// back-to-back inserts can tie; the id DESC tiebreak makes insertion order decisive either way.
-	olderTwin := newEnrollment("")
-	newerTwin := newEnrollment("")
-	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, olderTwin.MDMDeviceID, "SER-3"))
-	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, newerTwin.MDMDeviceID, "SER-3"))
+	// Two unlinked enrollments sharing a serial is ambiguous, so the lookup refuses rather than picking one.
+	firstTwin := newEnrollment("")
+	secondTwin := newEnrollment("")
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, firstTwin.MDMDeviceID, "SER-3"))
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, secondTwin.MDMDeviceID, "SER-3"))
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-3")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Linking one of them resolves the ambiguity: a single unlinked row is left, so the lookup returns it again.
+	updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, "33333333-3333-3333-3333-333333333333", secondTwin.MDMDeviceID)
+	require.NoError(t, err)
+	require.True(t, updated)
 	got, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-3")
 	require.NoError(t, err)
-	require.Equal(t, newerTwin.MDMDeviceID, got.MDMDeviceID)
+	require.Equal(t, firstTwin.MDMDeviceID, got.MDMDeviceID)
 }
 
 func testWindowsEnrollmentDefaultFleet(t *testing.T, ds *Datastore) {

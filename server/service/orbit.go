@@ -374,9 +374,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 					"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
 			}
 			// A Windows orbit enrollment is not linked when it is not MDM, when it is already linked, or when it is a
-			// programmatic fleetd-first enrollment. Note this matches on serial alone. Devices reporting a non-unique
-			// placeholder SMBIOS serial (common on VMs, e.g. "System Serial Number") can therefore be linked to another
-			// device's unlinked enrollment.
+			// programmatic fleetd-first enrollment. Note this matches on serial alone, so the lookup refuses when several
+			// unlinked enrollments share the serial.
 		}
 	}
 

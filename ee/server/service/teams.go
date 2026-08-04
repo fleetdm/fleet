@@ -996,7 +996,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 
-	// If this fleet is the Windows enrollment default, clear it.
+	// If this fleet is the Windows enrollment default, clear it explicitly to revoke the cache.
 	winDefaultFleetID, _, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")

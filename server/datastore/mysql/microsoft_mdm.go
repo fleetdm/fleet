@@ -216,7 +216,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx conte
 		updated_at,
 		host_uuid
 		FROM mdm_windows_enrollments
-		WHERE device_name = ? AND (host_uuid IS NULL OR host_uuid = '')
+		WHERE device_name = ? AND host_uuid = ''
 		ORDER BY created_at DESC, id DESC LIMIT 1`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
@@ -260,7 +260,7 @@ func (ds *Datastore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwa
 func (ds *Datastore) MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET hardware_serial = ?
-		 WHERE mdm_device_id = ? AND (host_uuid IS NULL OR host_uuid = '')
+		 WHERE mdm_device_id = ? AND host_uuid = ''
 		 ORDER BY created_at DESC, id DESC LIMIT 1`,
 		hardwareSerial, mdmDeviceID); err != nil {
 		return ctxerr.Wrap(ctx, err, "save unlinked windows enrollment hardware serial")
@@ -268,8 +268,9 @@ func (ds *Datastore) MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.
 	return nil
 }
 
-// MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the most recent unlinked (host_uuid = "") Windows MDM
-// enrollment whose device-reported SMBIOS serial matches.
+// MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the unlinked (host_uuid = "") Windows MDM enrollment whose
+// device-reported SMBIOS serial matches. If more than one unlinked enrollment shares the serial the caller cannot pick
+// safely, so we return NotFound rather than guess, matching WindowsHostLiteByHardwareSerial.
 func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	if hardwareSerial == "" {
 		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage("empty hardware serial"))
@@ -295,32 +296,33 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 		updated_at,
 		host_uuid
 		FROM mdm_windows_enrollments
-		WHERE hardware_serial = ? AND (host_uuid IS NULL OR host_uuid = '')
-		ORDER BY created_at DESC, id DESC LIMIT 1`
+		WHERE hardware_serial = ? AND host_uuid = ''
+		LIMIT 2`
 
-	var winMDMDevice fleet.MDMWindowsEnrolledDevice
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, hardwareSerial); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hardwareSerial))
-		}
+	var devices []fleet.MDMWindowsEnrolledDevice
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, stmt, hardwareSerial); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial")
 	}
-	return &winMDMDevice, nil
+	if len(devices) != 1 {
+		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hardwareSerial))
+	}
+	return &devices[0], nil
 }
 
 // GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments.
 // Returns (nil, "") when no default is configured (including when the referenced fleet was deleted, which nulls the FK).
 func (ds *Datastore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (*uint, string, error) {
 	var row struct {
-		TeamID   *uint   `db:"team_id"`
+		TeamID   *uint   `db:"default_team_id"`
 		TeamName *string `db:"team_name"`
 	}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, `
-		SELECT wec.team_id, t.name AS team_name
-		FROM windows_enrollment_config wec
-		LEFT JOIN teams t ON t.id = wec.team_id
-		WHERE wec.id = 1`)
+		SELECT mwec.default_team_id, t.name AS team_name
+		FROM mdm_windows_enrollment_config mwec
+		LEFT JOIN teams t ON t.id = mwec.default_team_id
+		WHERE mwec.id = 1`)
 	if err != nil {
+		// The migration seeds the singleton row, so this is only reachable if it was deleted out from under us.
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, "", nil
 		}
@@ -334,10 +336,14 @@ func (ds *Datastore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (*uin
 
 // SetWindowsEnrollmentDefaultFleet sets (or clears, with nil) the default fleet for new user-driven Windows MDM enrollments.
 func (ds *Datastore) SetWindowsEnrollmentDefaultFleet(ctx context.Context, fleetID *uint) error {
-	if _, err := ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO windows_enrollment_config (id, team_id) VALUES (1, ?)
-		ON DUPLICATE KEY UPDATE team_id = VALUES(team_id)`, fleetID); err != nil {
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollment_config SET default_team_id = ? WHERE id = 1`, fleetID)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set windows enrollment default fleet")
+	}
+	rows, _ := res.RowsAffected()
+	if rows != 1 {
+		return ctxerr.Wrap(ctx, fmt.Errorf("set windows enrollment default fleet: expected 1 row updated, got %d", rows))
 	}
 	return nil
 }

@@ -2175,6 +2175,20 @@ CREATE TABLE `mdm_windows_configuration_profiles_prior_content` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mdm_windows_enrollment_config` (
+  `id` int unsigned NOT NULL,
+  `default_team_id` int unsigned DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  KEY `fk_mdm_windows_enrollment_config_default_team_id` (`default_team_id`),
+  CONSTRAINT `fk_mdm_windows_enrollment_config_default_team_id` FOREIGN KEY (`default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `ck_mdm_windows_enrollment_config_singleton` CHECK ((`id` = 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `mdm_windows_enrollment_config` VALUES (1,NULL,'2026-08-03 00:00:00.000000','2026-08-03 00:00:00.000000');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `mdm_windows_enrollments` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `mdm_device_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -2202,8 +2216,7 @@ CREATE TABLE `mdm_windows_enrollments` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_type` (`mdm_hardware_id`),
   KEY `idx_mdm_windows_enrollments_mdm_device_id` (`mdm_device_id`),
-  KEY `idx_mdm_windows_enrollments_host_uuid` (`host_uuid`),
-  KEY `idx_mdm_windows_enrollments_hardware_serial` (`hardware_serial`)
+  KEY `idx_mdm_windows_enrollments_host_uuid_hardware_serial` (`host_uuid`,`hardware_serial`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -3596,18 +3609,6 @@ CREATE TABLE `vulnerability_host_counts` (
   UNIQUE KEY `cve_team_id_global_stats` (`cve`,`team_id`,`global_stats`),
   KEY `idx_vhc_scope_cve` (`global_stats`,`team_id`,`host_count`,`cve`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `windows_enrollment_config` (
-  `id` int unsigned NOT NULL,
-  `team_id` int unsigned DEFAULT NULL,
-  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`),
-  KEY `fk_windows_enrollment_config_team_id` (`team_id`),
-  CONSTRAINT `fk_windows_enrollment_config_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

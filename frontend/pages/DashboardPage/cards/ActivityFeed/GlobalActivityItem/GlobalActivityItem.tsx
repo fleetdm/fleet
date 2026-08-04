@@ -1096,12 +1096,13 @@ const TAGGED_TEMPLATES = {
     return `disabled the ${exception} exception for GitOps.`;
   },
   editedWindowsEnrollmentDefaultFleet: (activity: IActivity) => {
-    const fleetText = activity.details?.fleet_name ? (
-      <b>{activity.details.fleet_name}</b>
-    ) : (
-      <b>Unassigned</b>
+    return (
+      <>
+        {" "}
+        edited the default fleet for Windows hosts to{" "}
+        <b>{activity.details?.fleet_name || "Unassigned"}</b>.
+      </>
     );
-    return <> edited the default fleet for Windows hosts to {fleetText}.</>;
   },
   enabledWindowsMdmMigration: () => {
     return (

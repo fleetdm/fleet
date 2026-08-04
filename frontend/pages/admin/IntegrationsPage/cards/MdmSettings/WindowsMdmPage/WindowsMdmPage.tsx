@@ -15,7 +15,6 @@ import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import { notify } from "components/ToastNotification";
 
@@ -170,25 +169,19 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
     />
   );
 
-  const programmaticToggleLabel = (
-    <TooltipWrapper
-      tipContent={
-        <>
-          When enabled, MDM is turned on when Fleet&apos;s agent is installed.
-          When disabled, end users turn on MDM manually in{" "}
-          <b>Settings &gt; Access work or school</b> (requires Microsoft Entra).
-          Only applies to manual enrollment.{" "}
-          <CustomLink
-            text="Learn more"
-            url="https://fleetdm.com/learn-more-about/mdm-enrollment"
-            newTab
-            variant="tooltip-link"
-          />
-        </>
-      }
-    >
-      Turn on MDM programmatically
-    </TooltipWrapper>
+  const programmaticToggleTooltip = (
+    <>
+      When enabled, MDM is turned on when Fleet&apos;s agent is installed. When
+      disabled, end users turn on MDM manually in{" "}
+      <b>Settings &gt; Access work or school</b> (requires Microsoft Entra).
+      Only applies to manual enrollment.{" "}
+      <CustomLink
+        text="Learn more"
+        url="https://fleetdm.com/learn-more-about/mdm-enrollment"
+        newTab
+        variant="tooltip-link"
+      />
+    </>
   );
 
   return (
@@ -213,8 +206,9 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
           {isPremiumTier && (
             <Slider
               value={turnOnProgrammatically}
-              activeText={programmaticToggleLabel}
-              inactiveText={programmaticToggleLabel}
+              activeText="Turn on MDM programmatically"
+              inactiveText="Turn on MDM programmatically"
+              labelTooltip={programmaticToggleTooltip}
               onChange={onChangeTurnOnProgrammatically}
               disabled={!mdmOn || gitOpsModeEnabled}
             />

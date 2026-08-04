@@ -266,8 +266,8 @@ type MDM struct {
 	// Windows automatic enrollment.
 	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
 
-	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it (windows_enrollment_config)
-	// is the source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
+	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the
+	// source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
 	WindowsEnrollment optjson.Any[WindowsEnrollment] `json:"windows_enrollment"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
