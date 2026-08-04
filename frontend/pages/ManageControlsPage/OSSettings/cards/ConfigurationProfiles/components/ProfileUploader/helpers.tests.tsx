@@ -6,6 +6,7 @@ import { IApiError } from "interfaces/errors";
 import {
   DEFAULT_EDIT_ERROR_MESSAGE,
   DEFAULT_ERROR_MESSAGE,
+  decodeCustomActivation,
   EXAMPLE_CUSTOM_ACTIVATION,
   generateCustomTargetLabelKey,
   getErrorMessage,
@@ -170,6 +171,46 @@ describe("EXAMPLE_CUSTOM_ACTIVATION", () => {
 
   it("renders indented JSON so the editor is readable", () => {
     expect(EXAMPLE_CUSTOM_ACTIVATION).toContain('\n  "Type"');
+  });
+});
+
+describe("decodeCustomActivation", () => {
+  const encode = (value: string) => {
+    const bytes = new TextEncoder().encode(value);
+    let binary = "";
+    bytes.forEach((byte) => {
+      binary += String.fromCharCode(byte);
+    });
+    return btoa(binary);
+  };
+
+  it("returns an empty string when there's nothing to decode", () => {
+    // a declaration using Fleet's generated activation has no activation field.
+    expect(decodeCustomActivation(undefined)).toEqual("");
+    expect(decodeCustomActivation("")).toEqual("");
+  });
+
+  it("decodes base64 raw JSON", () => {
+    const activation = JSON.stringify({
+      Type: "com.apple.activation.simple",
+      Identifier: "com.fleetdm.activation.test",
+    });
+
+    expect(decodeCustomActivation(encode(activation))).toEqual(activation);
+  });
+
+  it("preserves the formatting the activation was uploaded with", () => {
+    // the editor should show the admin their own layout, not a reformatted one.
+    const indented = `{\n  "Type": "com.apple.activation.simple"\n}`;
+
+    expect(decodeCustomActivation(encode(indented))).toEqual(indented);
+  });
+
+  it("decodes non-ASCII characters without mangling them", () => {
+    // atob alone yields a binary string, which would corrupt these.
+    const activation = '{"Identifier":"café-日本-\\u00e9"}';
+
+    expect(decodeCustomActivation(encode(activation))).toEqual(activation);
   });
 });
 

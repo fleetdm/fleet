@@ -138,8 +138,10 @@ const AddProfileModal = ({
 
   // NOTE: validating per keystroke deviates from the validation pattern in
   // frontend/docs/patterns.md#data-validation, which says to re-validate on
-  // blur. Partial JSON is invalid by definition, so this shows an error for
-  // most of the time the user is typing.
+  // blur. Approved for this field: partial JSON is invalid by definition, so
+  // the error shows for most of the time the admin is typing, but blur-only
+  // feedback would leave them composing a multi-line snippet with none at all.
+  // To be raised with the frontend leads for a wider decision.
   const onChangeCustomActivation = (value: string) => {
     setCustomActivation(value);
     setCustomActivationError(validateCustomActivation(value));

@@ -74,3 +74,43 @@ describe("mdmAPI.uploadProfile", () => {
     expect(await sent.text()).toEqual(activation);
   });
 });
+
+describe("mdmAPI.updateProfile", () => {
+  beforeEach(() => {
+    mockedSendRequest.mockResolvedValue({});
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("sends a replacement activation as a named file part", async () => {
+    const activation = '{"Type":"com.apple.activation.simple"}';
+
+    await mdmAPI.updateProfile({
+      profileUUID: "d-uuid",
+      customActivation: activation,
+    });
+
+    const sent = sentFormData().get("activation") as File;
+    expect(sent.name).toEqual("activation.json");
+    expect(await sent.text()).toEqual(activation);
+  });
+
+  it("omits the activation when it was cleared", async () => {
+    // the API deletes a stored activation when the write omits one, so an empty
+    // editor is how an admin removes it.
+    await mdmAPI.updateProfile({
+      profileUUID: "d-uuid",
+      customActivation: "",
+    });
+
+    expect(sentFormData().has("activation")).toBe(false);
+  });
+
+  it("omits the activation for a non-declaration edit", async () => {
+    await mdmAPI.updateProfile({ profileUUID: "p-uuid" });
+
+    expect(sentFormData().has("activation")).toBe(false);
+  });
+});

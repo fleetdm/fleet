@@ -285,6 +285,83 @@ describe("EditProfileModal", () => {
       screen.getByRole("button", { name: "Update profile" })
     ).toBeDisabled();
   });
+
+  // declarations are identified by their profile_uuid prefix (see isDDMProfile).
+  const STORED_ACTIVATION = '{"Type":"com.apple.activation.simple"}';
+  const declarationProfile: IMdmProfile = {
+    ...baseProfile,
+    profile_uuid: "d-abc-123",
+    activation: btoa(STORED_ACTIVATION),
+  };
+
+  it("shows the activation section for a declaration on premium", async () => {
+    render(
+      <EditProfileModal
+        profile={declarationProfile}
+        currentTeamId={0}
+        isPremiumTier
+        onUpdate={noop}
+        onCancel={noop}
+      />
+    );
+
+    expect(await screen.findByText("Advanced options")).toBeInTheDocument();
+  });
+
+  it("hides the activation section for a configuration profile", async () => {
+    render(
+      <EditProfileModal
+        profile={baseProfile}
+        currentTeamId={0}
+        isPremiumTier
+        onUpdate={noop}
+        onCancel={noop}
+      />
+    );
+
+    await screen.findByText("Target");
+    expect(screen.queryByText("Advanced options")).not.toBeInTheDocument();
+  });
+
+  it("hides the activation section on free tier", async () => {
+    // custom activations are premium-only.
+    render(
+      <EditProfileModal
+        profile={declarationProfile}
+        currentTeamId={0}
+        isPremiumTier={false}
+        onUpdate={noop}
+        onCancel={noop}
+      />
+    );
+
+    await screen.findByText("Test Profile");
+    expect(screen.queryByText("Advanced options")).not.toBeInTheDocument();
+  });
+
+  it("resends the stored activation when only the labels change", async () => {
+    // the API deletes a stored activation when a write omits one, so an edit
+    // that doesn't touch the activation still has to submit it. Getting this
+    // wrong would silently drop the admin's activation.
+    const { user } = render(
+      <EditProfileModal
+        profile={declarationProfile}
+        currentTeamId={0}
+        isPremiumTier
+        onUpdate={noop}
+        onCancel={noop}
+      />
+    );
+
+    await screen.findByText("Target");
+    await user.click(screen.getByRole("button", { name: "Update profile" }));
+
+    await waitFor(() => {
+      expect(mdmAPI.updateProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ customActivation: STORED_ACTIVATION })
+      );
+    });
+  });
 });
 
 describe("getAcceptedExtensions", () => {

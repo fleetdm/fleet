@@ -147,6 +147,26 @@ export const EXAMPLE_CUSTOM_ACTIVATION = JSON.stringify(
   2
 );
 
+/** Decodes the `activation` a profile is returned with. The API sends it as
+ * base64-encoded raw JSON rather than an inline object, so it has to be decoded
+ * before it can be shown in the editor.
+ *
+ * Decoded via TextDecoder rather than atob alone: atob yields a binary string,
+ * which mangles any non-ASCII character in an identifier or predicate. The
+ * contents are returned as uploaded, so the admin's own formatting survives a
+ * round trip.
+ *
+ * Returns an empty string when there's nothing to decode, which is also what
+ * the API sends for a declaration using Fleet's generated activation. */
+export const decodeCustomActivation = (encoded?: string): string => {
+  if (!encoded) {
+    return "";
+  }
+  const binary = atob(encoded);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder("utf-8").decode(bytes);
+};
+
 /** Validates the custom activation JSON, returning the first problem found or
  * null when it's usable. An empty value is valid: Fleet synthesizes a simple
  * activation when the admin doesn't supply one.
