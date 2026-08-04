@@ -673,6 +673,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
 	appConfig.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
 
+	clearStaleAppleOSUpdateDeadline(&appConfig.MDM.MacOSUpdates, newAppConfig.MDM.MacOSUpdates)
+	clearStaleAppleOSUpdateDeadline(&appConfig.MDM.IOSUpdates, newAppConfig.MDM.IOSUpdates)
+	clearStaleAppleOSUpdateDeadline(&appConfig.MDM.IPadOSUpdates, newAppConfig.MDM.IPadOSUpdates)
+
 	// Handle Google Calendar API key preservation/replacement.
 	// The custom GoogleCalendarApiKey type handles unmarshaling "********" as masked.
 	if newAppConfig.Integrations.GoogleCalendar != nil {
@@ -1879,6 +1883,33 @@ func diffStringSlices(old, current []string) (added, removed []string) {
 		removed = append(removed, v)
 	}
 	return added, removed
+}
+
+// clearStaleAppleOSUpdateDeadline drops whichever deadline field belongs to the
+// mode a PATCH is leaving. The two modes are mutually exclusive — "latest"
+// derives its deadline from deadline_days, a specific version uses deadline —
+// and Validate rejects the wrong one being present. Because the payload is
+// merged over the stored config, a mode switch that doesn't mention the old
+// field keeps it and fails validation, forcing callers to send an explicit null
+// or empty string just to change modes.
+//
+// merged is the stored config with the payload already applied; incoming is the
+// payload on its own, so its Set flags say what the caller actually sent. A
+// value the caller supplied is left alone, so a genuine mismatch still fails
+// validation with the error that explains it.
+func clearStaleAppleOSUpdateDeadline(merged *fleet.AppleOSUpdateSettings, incoming fleet.AppleOSUpdateSettings) {
+	if merged.EnforcesLatestVersion() {
+		if !incoming.Deadline.Set {
+			// SetString("") rather than the zero value so this still marshals as
+			// "" — deadline has always been a string on the wire, and null would
+			// be a breaking change for API consumers.
+			merged.Deadline = optjson.SetString("")
+		}
+		return
+	}
+	if !incoming.DeadlineDays.Set {
+		merged.DeadlineDays = optjson.Int{}
+	}
 }
 
 func (svc *Service) validateMDM(

@@ -1692,6 +1692,181 @@ func TestMDMConfig(t *testing.T) {
 	}
 }
 
+// A sparse PATCH that switches mode doesn't mention the outgoing mode's
+// deadline field, so the merged config keeps the stale value and validation
+// rejects it. Both directions are affected: "latest" rejects a deadline, a
+// specific version rejects deadline_days. TestMDMConfig can't cover either: it
+// builds payloads with json.Marshal of a whole fleet.MDM, and optjson emits an
+// explicit null for every unset field, which clears the value on the way in.
+func TestModifyAppConfigClearsStaleAppleOSUpdateDeadline(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	latest := fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+		DeadlineDays:   optjson.SetInt(14),
+	}
+
+	specific := fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("15.7.8"),
+		Deadline:       optjson.SetString("2026-09-01"),
+	}
+
+	setup := func(t *testing.T, stored fleet.MDM) (fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			MDM:            stored,
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return dsAppConfig, nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(context.Context, uint) (bool, error) {
+			return false, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{}, nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{}, nil
+		}
+		// changing OS updates reconciles the reserved software-update
+		// declaration, so the write path has to be stubbed for the success cases
+		// to get past validation.
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, tmFilter fleet.TeamFilter) (map[string]uint, error) {
+			ids := make(map[string]uint, len(names))
+			for i, name := range names {
+				ids[name] = uint(i + 1) //nolint:gosec // G115: small test values
+			}
+			return ids, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			return d, nil
+		}
+		ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+			return nil
+		}
+		return svc, ctx
+	}
+
+	t.Run("macOS switching to a specific version", func(t *testing.T) {
+		// NOTE: validateMDM always checks minimum_version against Apple's GDMF
+		// list, so this version has to be one Apple still publishes. If this
+		// starts failing with "isn't supported by Apple", bump it.
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: latest})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"15.7.8","deadline":"2026-09-01"}}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.Equal(t, "15.7.8", modified.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.Equal(t, "2026-09-01", modified.MDM.MacOSUpdates.Deadline.Value)
+		require.False(t, modified.MDM.MacOSUpdates.DeadlineDays.Valid)
+	})
+
+	t.Run("switching into latest mode drops the stored deadline", func(t *testing.T) {
+		// the mirror case: "latest" derives its deadline from deadline_days, so a
+		// stored deadline is what's stale here.
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: specific})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"latest","deadline_days":14}}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.Equal(t, fleet.AppleOSUpdateLatestVersion, modified.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.Equal(t, 14, modified.MDM.MacOSUpdates.DeadlineDays.Value)
+		require.Empty(t, modified.MDM.MacOSUpdates.Deadline.Value)
+
+		// deadline has always serialized as a string, so the cleared value has to
+		// stay "" rather than becoming null.
+		raw, err := json.Marshal(modified.MDM.MacOSUpdates)
+		require.NoError(t, err)
+		require.Contains(t, string(raw), `"deadline":""`)
+	})
+
+	t.Run("an explicitly supplied deadline is still rejected in latest mode", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: specific})
+
+		_, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"latest","deadline":"2026-09-01","deadline_days":14}}}`),
+			fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `deadline cannot be set when minimum_version is set to "latest"`)
+	})
+
+	t.Run("clearing enforcement entirely", func(t *testing.T) {
+		// turning enforcement off also leaves "latest" mode, so the stored
+		// deadline_days must not block it either.
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: latest})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"","deadline":""}}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.Empty(t, modified.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.False(t, modified.MDM.MacOSUpdates.DeadlineDays.Valid)
+	})
+
+	// the clearing is wired up per platform, so cover the other two. They clear
+	// enforcement rather than set a version to keep Apple's supported-version
+	// list out of it.
+	t.Run("iOS clearing enforcement", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.MDM{IOSUpdates: latest})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"ios_updates":{"minimum_version":"","deadline":""}}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.False(t, modified.MDM.IOSUpdates.DeadlineDays.Valid)
+	})
+
+	t.Run("iPadOS clearing enforcement", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.MDM{IPadOSUpdates: latest})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"ipados_updates":{"minimum_version":"","deadline":""}}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.False(t, modified.MDM.IPadOSUpdates.DeadlineDays.Valid)
+	})
+
+	t.Run("an explicitly supplied deadline_days is still rejected", func(t *testing.T) {
+		// the caller sent it, so this is a real mistake and has to keep failing
+		// with the error that explains the constraint.
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: latest})
+
+		_, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"15.7.8","deadline":"2026-09-01","deadline_days":14}}}`),
+			fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `deadline_days can only be set when minimum_version is set to "latest"`)
+	})
+
+	t.Run("latest mode is untouched when the payload omits the platform", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: latest})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"org_info":{"org_name":"Renamed"}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.Equal(t, fleet.AppleOSUpdateLatestVersion, modified.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.Equal(t, 14, modified.MDM.MacOSUpdates.DeadlineDays.Value)
+	})
+}
+
 func TestModifyAppConfigWindowsEntraClientIDNormalization(t *testing.T) {
 	ds := new(mock.Store)
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
