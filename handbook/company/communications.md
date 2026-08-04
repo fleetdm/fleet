@@ -121,22 +121,43 @@ Fleet is successful because of our customers and community, and those relationsh
 
 ### Recording meetings
 
-Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry. At Fleet, we use Gong to capture Zoom meetings and share them company-wide. If a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
-  - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
-  - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
-  - If the call has external participants and is recorded, this call is stored in Gong for future use. 
-To access a recording saved in Gong, visit [app.gong.io](https://app.gong.io) and sign in with SSO. 
-  - Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). 
-If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to 🌐 [IT](https://fleetdm.com/handbook/it#contact-us) for help. They will delete it immediately without watching the video. 
-  - Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. 
+At Fleet, we use Gong to capture Zoom meetings and share them company-wide. Recording meetings with customers, prospects, and community members is an important part of building world-class sales and customer success teams.
 
-Most folks at Fleet should see no difference in their meetings if they aren't interfacing with external parties. 
-Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, 🌐 [IT](https://fleetdm.com/handbook/it#contact-us) if you have questions or concerns.  
+#### How meeting recording works
+
+A meeting is recorded when **both** of the following are true:
+1. The Gong bot is invited to the meeting calendar event: `fleet-device-management@assistant.gong.io`
+2. The meeting host has **Zoom local recording enabled** (the Gong bot relies on Zoom's local recording capability to capture meetings).
+
+This applies to both external and internal-only meetings. Any team member can have their meeting recorded without a paid Gong license — a Gong license is only needed when someone requires direct access to Gong features (e.g., reviewing recordings, analytics dashboards, conversation intelligence).
+
+#### Accessing recordings
+
+To access a recording saved in Gong, visit [app.gong.io](https://app.gong.io) and sign in with SSO. Everyone at Fleet has access to view recordings whether they have a paid Gong seat or not.
+
+#### Troubleshooting
+
+If a meeting was not captured, check:
+1. Was the Gong bot (`fleet-device-management@assistant.gong.io`) invited to the calendar event?
+2. Does the meeting host have Zoom local recording enabled?
+
+If you ever need to delete a recording, you can delete it in Gong or reach out to 🌐 [IT](https://fleetdm.com/handbook/it#contact-us) for help. They will delete it immediately without watching the video.
+  - Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it.
+
+#### Gong licenses
+
+A paid Gong seat is typically used by employees on Fleet's sales, customer success, or customer support teams who need access to Gong features like conversation analytics, coaching tools, or deal intelligence. A paid license is **not** required merely to have a meeting recorded. To request a Gong license, contact the [Head of People](https://fleetdm.com/handbook/people#contact-us).
+
+#### General notes
+
+  - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress." To stop a recording, the host of the call can press "Stop."
+  - If the call has external participants and is recorded, this call is stored in Gong for future use.
+  - Our goal in using Gong is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, 🌐 [IT](https://fleetdm.com/handbook/it#contact-us) if you have questions or concerns.
 
 
 > ***Excluding calls from being recorded***
 >
-> For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, make sure your calendar event title contains `[no shadows]`.  You can also read the [complete list of exclusion rules](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
+> If you do not want a call to be recorded, make sure your calendar event title contains `[no shadows]`. You can also read the [complete list of exclusion rules](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
 
 
 #### Sharing a local Zoom recording 
