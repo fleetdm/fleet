@@ -1755,19 +1755,31 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 
 	// DeviceInformation is last because the refetch response clears the refetch_requested flag
-	deviceInfoUUIDs := make([]string, 0, len(devices))
+	deviceInfoUUIDs := struct {
+		Personal []string
+		Other    []string
+	}{}
 	for _, device := range devices {
 		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchDeviceCommandUUIDPrefix) {
-			deviceInfoUUIDs = append(deviceInfoUUIDs, device.UUID)
+			if device.IsPersonalEnrollment {
+				deviceInfoUUIDs.Personal = append(deviceInfoUUIDs.Personal, device.UUID)
+			} else {
+				deviceInfoUUIDs.Other = append(deviceInfoUUIDs.Other, device.UUID)
+			}
 			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
 				HostID:      device.HostID,
 				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
 			})
 		}
 	}
-	if len(deviceInfoUUIDs) > 0 {
+	for i, uuids := range [][]string{deviceInfoUUIDs.Personal, deviceInfoUUIDs.Other} {
+		isPersonalEnrollment := i == 0
+		if len(uuids) == 0 {
+			continue
+		}
+
 		commandUUID := uuid.NewString()
-		err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID)
+		err := commander.DeviceInformation(ctx, uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, isPersonalEnrollment)
 		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
 		if turnedOffError != nil {
 			return turnedOffError

@@ -1158,61 +1158,95 @@ func TestMDMAppleCommanderDeviceInformation(t *testing.T) {
 		return false, nil
 	}
 
-	var gotCommand struct {
+	type gotCommandType struct {
 		Command struct {
 			Queries     []string `plist:"Queries"`
 			RequestType string   `plist:"RequestType"`
 		} `plist:"Command"`
 	}
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
-		require.NoError(t, plist.Unmarshal(cmd.Raw, &gotCommand))
-		return nil, nil
-	}
 
-	cmdUUID := uuid.New().String()
-	err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID)
-	require.NoError(t, err)
-	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	t.Run("non-personal enrollment requests all fields", func(t *testing.T) {
+		var gotCommand gotCommandType
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &gotCommand))
+			return nil, nil
+		}
 
-	require.Equal(t, "DeviceInformation", gotCommand.Command.RequestType)
-	// Compared against an explicit, independent list (not the package's own
-	// deviceInformationQueryKeys var) so an accidental edit to that var would
-	// actually be caught here.
-	require.Equal(t, []string{
-		"DeviceName",
-		"DeviceCapacity",
-		"AvailableDeviceCapacity",
-		"OSVersion",
-		"SupplementalOSVersionExtra",
-		"WiFiMAC",
-		"ProductName",
-		"IsMDMLostModeEnabled",
-		"TimeZone",
-		"AccessibilitySettings",
-		"AppAnalyticsEnabled",
-		"AwaitingConfiguration",
-		"BatteryLevel",
-		"BluetoothMAC",
-		"CellularTechnology",
-		"DataRoamingEnabled",
-		"DevicePropertiesAttestation",
-		"DiagnosticSubmissionEnabled",
-		"EASDeviceIdentifier",
-		"IsCloudBackupEnabled",
-		"IsDeviceLocatorServiceEnabled",
-		"IsDoNotDisturbInEffect",
-		"IsNetworkTethered",
-		"iTunesStoreAccountHash",
-		"iTunesStoreAccountIsActive",
-		"LastCloudBackupDate",
-		"MDMOptions",
-		"ModelNumber",
-		"ModemFirmwareVersion",
-		"OrganizationInfo",
-		"PersonalHotspotEnabled",
-		"PushToken",
-		"ServiceSubscriptions",
-		"SupplementalBuildVersion",
-		"UDID",
-	}, gotCommand.Command.Queries)
+		cmdUUID := uuid.New().String()
+		err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID, false)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+
+		require.Equal(t, "DeviceInformation", gotCommand.Command.RequestType)
+		// Compared against an explicit, independent list (not the package's own
+		// deviceInformationQueryKeys var) so an accidental edit to that var would
+		// actually be caught here.
+		require.Equal(t, []string{
+			"DeviceName",
+			"DeviceCapacity",
+			"AvailableDeviceCapacity",
+			"OSVersion",
+			"SupplementalOSVersionExtra",
+			"WiFiMAC",
+			"ProductName",
+			"IsMDMLostModeEnabled",
+			"TimeZone",
+			"AccessibilitySettings",
+			"AppAnalyticsEnabled",
+			"AwaitingConfiguration",
+			"BatteryLevel",
+			"BluetoothMAC",
+			"CellularTechnology",
+			"DataRoamingEnabled",
+			"DevicePropertiesAttestation",
+			"DiagnosticSubmissionEnabled",
+			"EASDeviceIdentifier",
+			"IsCloudBackupEnabled",
+			"IsDeviceLocatorServiceEnabled",
+			"IsDoNotDisturbInEffect",
+			"IsNetworkTethered",
+			"iTunesStoreAccountHash",
+			"iTunesStoreAccountIsActive",
+			"LastCloudBackupDate",
+			"MDMOptions",
+			"ModelNumber",
+			"ModemFirmwareVersion",
+			"OrganizationInfo",
+			"PersonalHotspotEnabled",
+			"PushToken",
+			"ServiceSubscriptions",
+			"SupplementalBuildVersion",
+			"UDID",
+		}, gotCommand.Command.Queries)
+	})
+
+	t.Run("personal (BYOD) enrollment only requests pre-#49984 fields", func(t *testing.T) {
+		var gotCommand gotCommandType
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &gotCommand))
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		cmdUUID := uuid.New().String()
+		err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID, true)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+
+		require.Equal(t, "DeviceInformation", gotCommand.Command.RequestType)
+		// None of the PII-bearing fields added by #49984 (battery level,
+		// service subscriptions/phone numbers, accessibility settings, etc.)
+		// must appear here.
+		require.Equal(t, []string{
+			"DeviceName",
+			"DeviceCapacity",
+			"AvailableDeviceCapacity",
+			"OSVersion",
+			"SupplementalOSVersionExtra",
+			"WiFiMAC",
+			"ProductName",
+			"IsMDMLostModeEnabled",
+			"TimeZone",
+		}, gotCommand.Command.Queries)
+	})
 }

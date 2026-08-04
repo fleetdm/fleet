@@ -1599,13 +1599,14 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			return err
 		}
 
+		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host MDM info")
+		}
+
 		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3)
 		cmdUUID := uuid.NewString()
 		if doAppRefetch {
-			hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get host MDM info")
-			}
 			isBYOD := !hostMDM.InstalledFromDep
 			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID, isBYOD)
 			if err != nil {
@@ -1629,7 +1630,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 
 		if doDeviceInfoRefetch {
 			// DeviceInformation is last because the refetch response clears the refetch_requested flag
-			err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID)
+			err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID, hostMDM.IsPersonalEnrollment)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch host with MDM")
 			}
