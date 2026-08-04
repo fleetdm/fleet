@@ -111,7 +111,9 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 5. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
 6. From the side menu, select **Overview** and select **Start provisioning**.
 
-> Note: Entra does not support [syncing nested groups using SCIM](https://learn.microsoft.com/en-us/entra/identity/app-provisioning/application-provisioning-config-problem-no-users-provisioned). Please consider using dynamic group membership instead.
+Fleet supports nested groups in Entra. When a user belongs to a nested group, Fleet maps the user to that group and all of its parent groups.
+
+> Assign each nested group to your app in step 5, just like a top-level group. Entra won't send a nested group to Fleet just because its parent group is assigned.
 
 It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To speed this up, you can use the "Provision on demand" option in Microsoft Entra ID.
 
