@@ -3222,13 +3222,6 @@
       "description": "Fetch is a file transfer client."
     },
     {
-      "name": "fig",
-      "slug": "fig/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.mschrage.fig",
-      "description": "fig is a terminal app."
-    },
-    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -3535,27 +3528,6 @@
       "platform": "darwin",
       "unique_identifier": "com.nektony.Funter-SIII",
       "description": "Funter is a shows hidden files and folders and switches their visibility in Finder."
-    },
-    {
-      "name": "Gadwin PrintScreen Pro",
-      "slug": "gadwin-printscreen-pro/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin PrintScreenPro (64-Bit)",
-      "description": "Gadwin PrintScreen Pro is a screen capture tool for saving, printing, and sharing screenshots."
-    },
-    {
-      "name": "Gadwin PrintScreen",
-      "slug": "gadwin-printscreen/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin PrintScreen (64-Bit)",
-      "description": "Gadwin PrintScreen is a screen capture tool that saves screenshots in multiple graphics formats."
-    },
-    {
-      "name": "Gadwin ScreenRecorder",
-      "slug": "gadwin-screenrecorder/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin ScreenRecorder (64-Bit)",
-      "description": "Gadwin ScreenRecorder is a screen recording tool for creating videos of on-screen activity."
     },
     {
       "name": "Galaxy Modeler",
@@ -7077,6 +7049,13 @@
       "platform": "windows",
       "unique_identifier": "Python 3.14.5 (64-bit)",
       "description": "Python 3.14 is a high-level, general-purpose programming language used for web development, data analysis, automation, scripting, and scientific computing."
+    },
+    {
+      "name": "QEMU",
+      "slug": "qemu/windows",
+      "platform": "windows",
+      "unique_identifier": "QEMU",
+      "description": "QEMU is an open-source machine emulator and virtualizer."
     },
     {
       "name": "QLab",

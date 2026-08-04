@@ -197,13 +197,19 @@ const HostNameTemplate = ({
   const customVariablesUrl = getPathWithQueryParams(PATHS.CONTROLS_VARIABLES, {
     fleet_id: currentTeamId,
   });
+  const customHostVitalsUrl = getPathWithQueryParams(
+    PATHS.CONTROLS_VARIABLES_CUSTOM_HOST_VITALS,
+    { fleet_id: currentTeamId }
+  );
 
   const description = (
     <>
       Set a naming convention for all macOS, iOS, or iPadOS hosts{scopeSuffix}{" "}
-      Use <CustomLink text="built-in" url={builtInVariablesUrl} newTab /> or{" "}
-      <CustomLink text="custom" url={customVariablesUrl} /> variables to
-      differentiate between hosts.
+      Use <CustomLink text="built-in" url={builtInVariablesUrl} newTab />{" "}
+      variables, <CustomLink text="custom" url={customVariablesUrl} />{" "}
+      variables, or{" "}
+      <CustomLink text="custom host vitals" url={customHostVitalsUrl} />{" "}
+      variables to differentiate between hosts.
     </>
   );
 

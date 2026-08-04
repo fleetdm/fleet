@@ -800,6 +800,13 @@ type Datastore interface {
 	// software_titles_host_counts table.
 	SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error
 
+	// ReconcileSoftwareChecksums repairs software rows whose checksum predates
+	// the field-ordering change in Fleet v4.76.0, which produced duplicate
+	// software inventory entries (same name/version/source, different checksum).
+	// It merges each duplicate group onto a single canonical row in batched
+	// transactions and self-limits once no duplicates remain.
+	ReconcileSoftwareChecksums(ctx context.Context) error
+
 	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
 	// specified Software installed. Includes the path were the software was installed.
 	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)

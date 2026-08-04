@@ -53,6 +53,8 @@ module.exports = {
     conditionalAccessEnabled: {type: 'boolean', defaultsTo: false},
     gitOpsModeEnabled: {type: 'boolean', defaultsTo: false},
     gitOpsModeExceptions: {type: ['string'], defaultsTo: [] },
+    numHostsFleetMDMEnrolledMacOS: {type: 'number', defaultsTo: 0 },
+    numHostsFleetMDMEnrolledWindows: {type: 'number', defaultsTo: 0 },
   },
 
 

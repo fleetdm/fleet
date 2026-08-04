@@ -128,6 +128,10 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 		})
 	}
 
+	deps.register(fmt.Sprintf("failed to register %s", fleet.CronSoftwareChecksumMigration), func() (fleet.CronSchedule, error) {
+		return cronSoftwareChecksumMigration(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
 	if deps.config.Server.FrequentCleanupsEnabled {
 		deps.register("failed to register frequent_cleanups schedule", func() (fleet.CronSchedule, error) {
 			return newFrequentCleanupsSchedule(ctx, deps.instanceID, deps.ds, deps.liveQueryStore, deps.logger)
