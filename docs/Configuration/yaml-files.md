@@ -1189,7 +1189,7 @@ _Available in Fleet Premium._
 - `enable_host_activities_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when an activity linked to one of the fleet's hosts is generated (default: `""`)
 
-Can be configured for specific fleets (`settings`) or "Unassigned" (`settings` in `unassigned.yml`). The webhook payload has the same format as [activities_webhook](#activities-webhook). If `webhook_settings` is specified for "Unassigned" hosts and `host_activities_webhook` is omitted, the webhook is turned off.
+Can be configured for specific fleets (`settings`) or "Unassigned" (`settings` in `unassigned.yml`). The webhook payload has the same format as [activities_webhook](#activities-webhook). MDM command results (shown via **Show MDM commands** on the host details page) are not activities and don't trigger this webhook yet. If `webhook_settings` is specified for "Unassigned" hosts and `host_activities_webhook` is omitted, the webhook is turned off.
 
 ### Example
 
