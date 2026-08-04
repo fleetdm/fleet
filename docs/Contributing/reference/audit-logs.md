@@ -3135,7 +3135,7 @@ Generated when a user edits disk encryption settings for hosts on a fleet (or un
 This activity contains the following fields:
 - "fleet_id": The ID of the fleet, `null` if it applies to hosts that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet, `null` if it applies to devices that are not in a fleet ("Unassigned").
-- "platform": The platform of the fleet. Options are "macos", "windows", or "linux".
+- "platform": The platform that disk encryption settings were updated for. Options are "macos", "windows", or "linux".
 
 #### Example
 
