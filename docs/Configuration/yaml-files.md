@@ -1170,7 +1170,7 @@ The `webhook_settings` section lets you define webhook settings for failing poli
 - `enable_activities_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when an activity is generated (default: `""`)
 
-Can be configured for all fleets (`org_settings`), specific fleets (`settings`), or "Unassigned" (`settings`).
+Can only be configured for "All fleets" (`org_settings`). To send webhooks for a specific fleet's host activities, see [host_activities_webhook](#host-activities-webhook).
 
 ### Example
 
@@ -1179,6 +1179,26 @@ org_settings:
   webhook_settings:
     activities_webhook:
       enable_activities_webhook: true
+      destination_url: https://example.org/webhook_handler
+```
+
+#### host_activities_webhook
+
+_Available in Fleet Premium._
+
+- `enable_host_activities_webhook` (default: `false`)
+- `destination_url` is the URL to `POST` to when an activity linked to one of the fleet's hosts is generated (default: `""`)
+
+Can be configured for specific fleets (`settings`) or "Unassigned" (`settings` in `unassigned.yml`). The webhook payload has the same format as [activities_webhook](#activities-webhook). If `webhook_settings` is specified for "Unassigned" hosts and `host_activities_webhook` is omitted, the webhook is turned off.
+
+### Example
+
+```yaml
+name: Workstations
+team_settings:
+  webhook_settings:
+    host_activities_webhook:
+      enable_host_activities_webhook: true
       destination_url: https://example.org/webhook_handler
 ```
 
