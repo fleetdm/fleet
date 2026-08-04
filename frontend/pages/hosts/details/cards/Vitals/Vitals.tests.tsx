@@ -5,8 +5,9 @@ import { createCustomRenderer } from "test/test-utils";
 import createMockHost, { createMockHostGeolocation } from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
 import { HostPlatform } from "interfaces/platform";
-
+import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { normalizeEmptyValues } from "utilities/helpers";
 import Vitals from "./Vitals";
 
 describe("Vitals Card component", () => {
@@ -316,8 +317,14 @@ describe("Location vital", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders 'Show location' button for ADE-enrolled iDevices when toggleLocationModal is provided", () => {
-    renderLocationVital({ ade: true, withToggle: true });
+  it("backfills the Location row onto an iOS/iPadOS card that is short a priority vital", () => {
+    // Dropping Timezone leaves only 7 priority vitals, so the card has one
+    // slot left for the backfill to fill.
+    renderLocationVital({
+      ade: true,
+      withToggle: true,
+      hostOverrides: { timezone: null },
+    });
 
     expect(screen.getByText("Location")).toBeInTheDocument();
     expect(
@@ -397,6 +404,231 @@ describe("MDM status vital", () => {
     expect(
       screen.queryByRole("button", { name: "On (manual)" })
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("View all vitals button", () => {
+  const renderVitalsCard = ({
+    platform = "ios",
+    withToggle = false,
+  }: {
+    platform?: HostPlatform;
+    withToggle?: boolean;
+  } = {}) => {
+    const mockHost = createMockHost({ platform });
+    const toggleVitalsModal = withToggle ? jest.fn() : undefined;
+
+    const utils = render(
+      <Vitals
+        vitalsData={mockHost}
+        mdm={mockHost.mdm}
+        toggleVitalsModal={toggleVitalsModal}
+      />
+    );
+
+    return { ...utils, toggleVitalsModal };
+  };
+
+  it("renders a 'View all' button for iOS hosts when toggleVitalsModal is provided", () => {
+    renderVitalsCard({ platform: "ios", withToggle: true });
+
+    expect(
+      screen.getByRole("button", { name: "View all" })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'View all' button for iPadOS hosts when toggleVitalsModal is provided", () => {
+    renderVitalsCard({ platform: "ipados", withToggle: true });
+
+    expect(
+      screen.getByRole("button", { name: "View all" })
+    ).toBeInTheDocument();
+  });
+
+  it("invokes toggleVitalsModal when the 'View all' button is clicked", () => {
+    const { toggleVitalsModal } = renderVitalsCard({
+      platform: "ios",
+      withToggle: true,
+    });
+
+    screen.getByRole("button", { name: "View all" }).click();
+
+    expect(toggleVitalsModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render the button for iOS hosts when toggleVitalsModal is not provided (e.g., My device page)", () => {
+    renderVitalsCard({ platform: "ios" });
+
+    expect(
+      screen.queryByRole("button", { name: "View all" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not render the button for non-iOS/iPadOS hosts even when toggleVitalsModal is provided", () => {
+    renderVitalsCard({ platform: "darwin", withToggle: true });
+
+    expect(
+      screen.queryByRole("button", { name: "View all" })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("Card vitals cap", () => {
+  const IOS_CARD_VITAL_ROWS = 2;
+  const FALLBACK_COLUMN_COUNT = 6;
+  // jsdom does no layout, so getComputedStyle can't resolve the grid's track
+  // list and the card falls back to its widest-breakpoint column count.
+  const CAP = FALLBACK_COLUMN_COUNT * IOS_CARD_VITAL_ROWS;
+
+  const getRenderedVitals = (container: HTMLElement) =>
+    Array.from(
+      container.querySelectorAll(".vitals-card__info-grid > .data-set > dt")
+    ).map((el) => el.textContent);
+
+  const isAlphabetical = (labels: (string | null)[]) =>
+    labels.every(
+      (label, i) =>
+        i === 0 || (labels[i - 1] ?? "").localeCompare(label ?? "") <= 0
+    );
+
+  /** Mirrors production: HostDetailsPage/DeviceUserPage both hand the card
+   * normalizeEmptyValues(pick(host, HOST_VITALS_DATA)), which replaces empty
+   * values with DEFAULT_EMPTY_CELL_VALUE rather than leaving them null. */
+  const renderCard = (
+    platform: HostPlatform,
+    {
+      customHostVitals,
+      withModal = true,
+    }: { customHostVitals?: IHostCustomVital[]; withModal?: boolean } = {}
+  ) => {
+    const mockHost = createMockHost({
+      platform,
+      hardware_serial: "test-serial",
+      timezone: "America/Argentina/Buenos_Aires",
+      memory: 8589934592,
+      cpu_type: "arm64",
+      primary_ip: "192.168.1.1",
+      public_ip: "203.0.113.1",
+      mdm: createMockHostMdmData({ enrollment_status: "On (manual)" }),
+    });
+
+    return render(
+      <Vitals
+        vitalsData={normalizeEmptyValues(mockHost)}
+        mdm={mockHost.mdm}
+        customHostVitals={customHostVitals}
+        toggleVitalsModal={withModal ? jest.fn() : undefined}
+      />
+    );
+  };
+
+  const makeCustomVitals = (count: number): IHostCustomVital[] =>
+    Array.from({ length: count }, (_, i) => ({
+      custom_host_vital_id: i + 1,
+      // "zz" so these sort after every built-in label, making them the rows the
+      // cap drops; lettered rather than numbered so the sort order reads the
+      // same as the suffix ("zz vital 10" would sort before "zz vital 2").
+      name: `zz vital ${String.fromCharCode(97 + i)}`,
+      value: `value ${i + 1}`,
+    }));
+
+  it("renders every vital an iOS host reports when they fit within two rows", () => {
+    const { container } = renderCard("ios");
+
+    const rendered = getRenderedVitals(container);
+
+    expect(rendered).toEqual([
+      "Added to Fleet",
+      "Disk space available",
+      "Hardware model",
+      "MDM server URL",
+      "MDM status",
+      "Operating system",
+      "Serial number",
+      "Timezone",
+    ]);
+    expect(rendered.length).toBeLessThanOrEqual(CAP);
+  });
+
+  it("renders the same vitals for an iPadOS host", () => {
+    const { container } = renderCard("ipados");
+
+    expect(getRenderedVitals(container)).toEqual([
+      "Added to Fleet",
+      "Disk space available",
+      "Hardware model",
+      "MDM server URL",
+      "MDM status",
+      "Operating system",
+      "Serial number",
+      "Timezone",
+    ]);
+  });
+
+  it("caps an iOS card at two rows once it has more vitals than fit", () => {
+    const { container } = renderCard("ios", {
+      customHostVitals: makeCustomVitals(10),
+    });
+
+    const rendered = getRenderedVitals(container);
+
+    expect(rendered).toHaveLength(CAP);
+    expect(isAlphabetical(rendered)).toBe(true);
+    // 8 built-in vitals plus the first 4 custom ones fill the two rows; the
+    // remaining 6 move behind "View all".
+    expect(rendered).toContain("zz vital d");
+    expect(rendered).not.toContain("zz vital e");
+  });
+
+  it("does not cap a surface without a 'View all' button, which would strand the hidden vitals", () => {
+    const { container } = renderCard("ios", {
+      customHostVitals: makeCustomVitals(10),
+      withModal: false,
+    });
+
+    expect(getRenderedVitals(container).length).toBeGreaterThan(CAP);
+    expect(
+      screen.queryByRole("button", { name: "View all" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("leaves other platforms uncapped, rendering vitals outside the iOS subset", () => {
+    const { container } = renderCard("darwin", {
+      customHostVitals: makeCustomVitals(10),
+    });
+
+    const rendered = getRenderedVitals(container);
+
+    // Vitals a macOS card shows that an iOS card never does.
+    expect(rendered).toContain("Memory");
+    expect(rendered).toContain("Processor type");
+    expect(rendered).toContain("Private IP address");
+    expect(rendered.length).toBeGreaterThan(CAP);
+    expect(isAlphabetical(rendered)).toBe(true);
+  });
+
+  it("shows Enrollment ID instead of Serial number for a personally-enrolled iOS host", () => {
+    const mockHost = createMockHost({
+      platform: "ios",
+      hardware_serial: "",
+      uuid: "enrollment-id-12345",
+      mdm: createMockHostMdmData({
+        enrollment_status: "On (manual - personal)",
+      }),
+    });
+
+    const { container } = render(
+      <Vitals
+        vitalsData={normalizeEmptyValues(mockHost)}
+        mdm={mockHost.mdm}
+        toggleVitalsModal={jest.fn()}
+      />
+    );
+
+    const rendered = getRenderedVitals(container);
+
+    expect(rendered).toContain("Enrollment ID");
+    expect(rendered).not.toContain("Serial number");
   });
 });
 
