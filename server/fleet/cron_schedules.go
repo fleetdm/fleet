@@ -33,6 +33,13 @@ const (
 	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
 	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
 	CronMaintainedApps               CronScheduleName = "maintained_apps"
+	// CronWindowsMaintainedAppTitles merges Windows software titles whose reported
+	// name embeds the version onto the title owned by the Fleet-maintained app's
+	// installer. Separate from CronMaintainedApps because it reads only local
+	// installer and title state, so it must not be gated on the catalog fetch, and
+	// separate from CronCleanupsThenAggregation so it can run shortly after startup
+	// without changing the startup behaviour of that schedule's other jobs.
+	CronWindowsMaintainedAppTitles CronScheduleName = "windows_maintained_app_titles"
 	// CronMaintainedAppsAutoUpdate advances each Fleet-maintained app's active
 	// installer to the newest cached version its pin state allows. Premium only;
 	// runs every 1h.

@@ -99,7 +99,7 @@ export interface CustomOptionType {
   iconName?: IconNames;
 }
 
-type DropdownWrapperVariant = "table-filter" | "button";
+type DropdownWrapperVariant = "table-filter";
 
 export interface IDropdownWrapper {
   options: CustomOptionType[];
@@ -118,8 +118,7 @@ export interface IDropdownWrapper {
   placeholder?: string;
   /** E.g. scroll to view dropdown menu in a scrollable parent container */
   onMenuOpen?: () => void;
-  /** Table filter dropdowns have filter icon and height: 40px
-   *  Button dropdowns have hover/active state, padding, height matching actual buttons, and no selected option styling */
+  /** Table filter dropdowns have filter icon and height: 40px */
   variant?: DropdownWrapperVariant;
   /** This makes the menu fit all text without wrapping,
    * aligning right to fit text on screen */
@@ -141,19 +140,6 @@ const getOptionBackgroundColor = (
   return "transparent";
 };
 
-const getOptionFontWeight = (
-  state: OptionProps<CustomOptionType, false>,
-  variant?: DropdownWrapperVariant
-) => {
-  // For "button" dropdowns, selected options are not styled differently
-  if (variant === "button") {
-    return "normal";
-  }
-
-  // For other variants, selected options are bold
-  return state.isSelected ? "600" : "normal";
-};
-
 /** generates the default custom styles for the dropdown component.
  * NOTE: we export this from DropdownWrapper components so that other more
  * customisable dropdown components can use this for consistency in styling */
@@ -165,76 +151,20 @@ export const generateCustomDropdownStyles = (
 ): StylesConfig<CustomOptionType, false> => {
   return {
     container: (provided) => {
-      const buttonVariantContainer = {
-        borderRadius: "6px",
-        "&:active": {
-          backgroundColor: COLORS["ui-fleet-black-5"],
-        },
-        height: "38px",
-      };
-
       return {
         ...provided,
         width: "100%",
         height: "36px",
-        ...(variant === "button" && buttonVariantContainer),
       };
     },
 
     control: (provided, state) => {
-      if (variant === "button") {
-        return {
-          backgroundColor: "initial",
-          borderColor: "none",
-          display: "flex",
-          flexDirection: "row",
-          width: "max-content",
-          padding: PADDING["pad-small"],
-          border: 0,
-          borderRadius: "6px",
-          boxShadow: "none",
-          cursor: "pointer",
-          ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["ui-fleet-black-75"],
-          },
-          "&:hover": {
-            backgroundColor: COLORS["ui-fleet-black-5"],
-            boxShadow: "none",
-            ".dropdown-wrapper__placeholder": {
-              color: COLORS["ui-fleet-black-75-over"],
-            },
-            ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["ui-fleet-black-75-over"],
-            },
-          },
-          // Note: state.isFocused is intentionally not used as a highlight
-          // trigger here. react-select's internal input retains focus after
-          // the menu closes (outside click, post-modal-close, etc.), so
-          // styling on it would leave the trigger visually highlighted
-          // indefinitely (#45853). Hover + menuIsOpen cover the meaningful
-          // interactive states for an action button.
-          ...(state.menuIsOpen && {
-            backgroundColor: COLORS["ui-fleet-black-5"],
-            ".dropdown-wrapper__placeholder": {
-              color: COLORS["ui-fleet-black-75-down"],
-            },
-            ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["ui-fleet-black-75-down"],
-            },
-            ".dropdown-wrapper__indicator svg": {
-              transform: "rotate(180deg)",
-              transition: "transform 0.25s ease",
-            },
-          }),
-          ...(variant === "button" && { height: "22px" }),
-        };
-      }
-
       return {
         ...provided,
         display: "flex",
         flexDirection: "row",
         width: "100%",
+        minHeight: "36px", // react-select-5 defaults control minHeight to 38px
         backgroundColor: COLORS["core-fleet-white"],
         paddingLeft: "8px", // TODO: Update to match styleguide of (16px) when updating rest of UI (8px)
         paddingRight: "8px",
@@ -308,23 +238,10 @@ export const generateCustomDropdownStyles = (
         }),
       };
     },
-    placeholder: (provided, state) => {
-      const buttonVariantPlaceholder = {
-        color: state.isFocused
-          ? COLORS["ui-fleet-black-75-over"]
-          : COLORS["ui-fleet-black-75"],
-        fontSize: "13px",
-        fontWeight: "600",
-        lineHeight: "normal",
-        paddingLeft: 0,
-        opacity: isDisabled ? 0.5 : 1,
-        marginTop: variant === "button" ? "-1px" : "1px", // TODO: Figure out vertical centering to not need pixel fix
-      };
-
+    placeholder: (provided) => {
       return {
         ...provided,
         fontSize: "13px",
-        ...(variant === "button" && buttonVariantPlaceholder),
       };
     },
     input: (provided) => {
@@ -383,7 +300,7 @@ export const generateCustomDropdownStyles = (
       ...provided,
       padding: 0,
       display: "flex",
-      gap: PADDING[variant === "button" ? "pad-xsmall" : "pad-small"],
+      gap: PADDING["pad-small"],
       flexWrap: "nowrap", // This ensures the value is on a single line and truncated
     }),
     option: (provided, state) => ({
@@ -392,7 +309,7 @@ export const generateCustomDropdownStyles = (
       fontSize: "13px",
       borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
-      fontWeight: getOptionFontWeight(state, variant),
+      fontWeight: state.isSelected ? "600" : "normal",
       color: COLORS["core-fleet-black"],
       "&:hover": {
         backgroundColor: state.isDisabled
@@ -462,7 +379,6 @@ const DropdownWrapper = ({
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
-    [`${baseClass}__button`]: variant === "button",
     [`${wrapperClassname}`]: !!wrapperClassname,
   });
 
@@ -481,13 +397,6 @@ const DropdownWrapper = ({
 
   // Ability to handle value of type string or CustomOptionType
   const getCurrentValue = () => {
-    // Button variant is a fire-and-forget action menu (selection isn't displayed
-    // via `controlShouldRenderValue`). Forcing null prevents react-select from
-    // tracking the last click as the selected value and re-focusing it on reopen
-    // (#45853).
-    if (variant === "button") {
-      return null;
-    }
     if (typeof value === "string") {
       return options.find((option) => option.value === value) || null;
     }
@@ -565,7 +474,6 @@ const DropdownWrapper = ({
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}
-        controlShouldRenderValue={variant !== "button"} // Control doesn't change placeholder to selected value
         // Resolve accessible name: explicit prop wins, otherwise fall back
         // to the placeholder (usually "Select X"), otherwise the required
         // `name` (often a kebab-case identifier — least readable but

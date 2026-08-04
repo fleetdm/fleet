@@ -156,6 +156,85 @@ spec:
 	}
 }
 
+func TestExtractMacOSAssetSpecs(t *testing.T) {
+	// GitOps decodes macos_settings into a fleet.MacOSSettings struct. Whenever
+	// the struct is present, assets must be reconciled (a nil/empty asset set
+	// clears existing assets), so the extractor returns a non-nil slice.
+	t.Run("gitops struct, no assets => non-nil empty (reconcile to empty)", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(fleet.MacOSSettings{CustomSettings: []fleet.MDMProfileSpec{{Path: "a"}}})
+		require.NotNil(t, got)
+		assert.Empty(t, got)
+	})
+	t.Run("gitops struct with assets", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(fleet.MacOSSettings{Assets: []fleet.MDMProfileSpec{{Path: "x"}}})
+		assert.Equal(t, []fleet.MDMProfileSpec{{Path: "x"}}, got)
+	})
+	t.Run("gitops struct pointer with assets", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(&fleet.MacOSSettings{Assets: []fleet.MDMProfileSpec{{Path: "x"}}})
+		assert.Equal(t, []fleet.MDMProfileSpec{{Path: "x"}}, got)
+	})
+	// Legacy fleetctl apply passes a raw map; there the assets key drives
+	// behavior: absent means "leave untouched" (nil), present means reconcile.
+	t.Run("legacy map, no assets key => nil (leave untouched)", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(map[string]any{"custom_settings": []any{}})
+		assert.Nil(t, got)
+	})
+	t.Run("legacy map, empty assets => non-nil empty", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(map[string]any{"assets": []any{}})
+		require.NotNil(t, got)
+		assert.Empty(t, got)
+	})
+	t.Run("legacy map with assets", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(map[string]any{"assets": []any{map[string]any{"path": "x"}}})
+		assert.Equal(t, []fleet.MDMProfileSpec{{Path: "x"}}, got)
+	})
+	t.Run("unrelated type => nil", func(t *testing.T) {
+		assert.Nil(t, extractMacOSAssetSpecs("nope"))
+	})
+}
+
+func TestExtractTmSpecsMDMAssets(t *testing.T) {
+	cases := []struct {
+		desc string
+		spec string
+		// want is the expected value keyed by team name; nil means the team must
+		// be absent from the result map (assets left untouched).
+		want map[string][]fleet.MDMProfileSpec
+	}{
+		{
+			"macos_settings absent => untouched",
+			`{"name":"T1","mdm":{}}`,
+			nil,
+		},
+		{
+			"macos_settings present, no assets => reconcile to empty (clear)",
+			`{"name":"T1","mdm":{"macos_settings":{"custom_settings":[]}}}`,
+			map[string][]fleet.MDMProfileSpec{"T1": {}},
+		},
+		{
+			"macos_settings present, empty assets => reconcile to empty (clear)",
+			`{"name":"T1","mdm":{"macos_settings":{"assets":[]}}}`,
+			map[string][]fleet.MDMProfileSpec{"T1": {}},
+		},
+		{
+			"macos_settings present with assets",
+			`{"name":"T1","mdm":{"macos_settings":{"assets":[{"path":"x"}]}}}`,
+			map[string][]fleet.MDMProfileSpec{"T1": {{Path: "x"}}},
+		},
+		{
+			"empty team name => skipped",
+			`{"name":"","mdm":{"macos_settings":{"assets":[]}}}`,
+			nil,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			got := extractTmSpecsMDMAssets([]json.RawMessage{json.RawMessage(c.spec)})
+			assert.Equal(t, c.want, got)
+		})
+	}
+}
+
 func TestExtractAppConfigWindowsCustomSettings(t *testing.T) {
 	cases := []struct {
 		desc string

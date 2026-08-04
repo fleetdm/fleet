@@ -81,7 +81,7 @@ const SetupAssistantProfileCard = (props: ISetupAssistantProfileCardProps) => {
       <div className={`${baseClass}__actions`}>
         <Button
           className={`${baseClass}__download-button`}
-          variant="icon"
+          variant="secondary"
           onClick={onDownload}
         >
           <Icon name="download" />
@@ -89,7 +89,7 @@ const SetupAssistantProfileCard = (props: ISetupAssistantProfileCardProps) => {
         {!props.defaultProfile && (
           <Button
             className={`${baseClass}__delete-button`}
-            variant="icon"
+            variant="secondary"
             onClick={props.onDelete}
           >
             <Icon name="trash" />

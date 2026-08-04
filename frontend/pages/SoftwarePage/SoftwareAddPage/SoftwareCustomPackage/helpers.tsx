@@ -65,7 +65,7 @@ export const getErrorMessage = (err: unknown, softwareTitle?: string) => {
   if (reason.includes("not a valid .tar.gz archive")) {
     return (
       <>
-        This is not a valid .tar.gz archive.{" "}
+        {ADD_SOFTWARE_ERROR_PREFIX} This is not a valid .tar.gz archive.{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/tarball-archives`}
           text="Learn more"

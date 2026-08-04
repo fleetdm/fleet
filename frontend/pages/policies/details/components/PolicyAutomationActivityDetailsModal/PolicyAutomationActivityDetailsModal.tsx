@@ -108,7 +108,7 @@ const PolicyAutomationActivityDetailsModal = ({
           <Button onClick={onCancel}>Done</Button>
           {onResetPolicy && (
             <Button
-              variant="inverse"
+              variant="secondary"
               onClick={onResetPolicy}
               className={`${baseClass}__reset`}
             >

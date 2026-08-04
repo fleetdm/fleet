@@ -447,6 +447,23 @@ This activity contains the following fields:
 }
 ```
 
+## user_mfa_requested
+
+Generated when a user with multi-factor authentication (MFA) enabled submits valid credentials and Fleet sends a verification email.
+
+This activity contains the following fields:
+- "email": The email used in the login request.
+- "public_ip": Public IP of the login request.
+
+#### Example
+
+```json
+{
+	"email": "foo@example.com",
+	"public_ip": "168.226.215.82"
+}
+```
+
 ## created_user
 
 Generated when a user is created.
@@ -628,7 +645,8 @@ This activity contains the following fields:
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
+- "host_serial": Serial number of the host.
+- "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
@@ -640,6 +658,7 @@ This activity contains the following fields:
 ```json
 {
   "host_serial": "C08VQ2AXHT96",
+  "host_id": "123",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
   "mdm_platform": "apple",
@@ -945,6 +964,7 @@ This activity contains the following fields:
 ```
 
 ## enabled_macos_disk_encryption
+> **Deprecated:** Use `edited_disk_encryption_settings` instead.
 
 Generated when a user turns on disk encryption for a fleet (or no fleet).
 
@@ -964,6 +984,7 @@ This activity contains the following fields:
 ```
 
 ## disabled_macos_disk_encryption
+> **Deprecated:** Use `edited_disk_encryption_settings` instead.
 
 Generated when a user turns off disk encryption for a fleet (or no fleet).
 
@@ -2716,6 +2737,44 @@ This activity contains the following fields:
 }
 ```
 
+## created_setup_experience_script
+
+Generated when a script is added to (or replaced in) setup experience.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet that the script applies to (`null` for hosts that aren't assigned to a fleet).
+- "fleet_name": the name of the fleet that the script applies to (`null` for hosts that aren't assigned to a fleet).
+- "script_name": the name of the script that was added.
+
+#### Example
+
+```json
+{
+	"fleet_id": 123,
+	"fleet_name": "Workstations",
+	"script_name": "set-timezones.sh"
+}
+```
+
+## deleted_setup_experience_script
+
+Generated when a script is removed from setup experience.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet that the script applied to (`null` for hosts that aren't assigned to a fleet).
+- "fleet_name": the name of the fleet that the script applied to (`null` for hosts that aren't assigned to a fleet).
+- "script_name": the name of the script that was removed.
+
+#### Example
+
+```json
+{
+	"fleet_id": 123,
+	"fleet_name": "Workstations",
+	"script_name": "set-timezones.sh"
+}
+```
+
 ## edited_host_idp_data
 
 Generated when a user updates a host's IdP data. Currently IdP username can be edited.
@@ -3143,6 +3202,24 @@ This activity contains the following fields:
 }
 ```
 
+## edited_disk_encryption_settings
+
+Generated when a user edits disk encryption settings for hosts on a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet, `null` if it applies to hosts that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "platform": The platform that disk encryption settings were updated for. Options are "macos", "windows", or "linux".
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
+  "platform": "windows"
+}
+```
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

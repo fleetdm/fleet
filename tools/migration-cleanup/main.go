@@ -529,13 +529,17 @@ func buildSQL(tableName string, stmts sqlStatements, renames []migrationRename) 
 
 	lines = append(lines, fmt.Sprintf("SELECT (SELECT MAX(id) FROM `%s` WHERE id > (SELECT id FROM `%s` WHERE version_id = %d)) - (SELECT id FROM `%s` WHERE version_id = %d) + 1 INTO @%s;", tableName, tableName, maxNewVID, tableName, minNewVID, varName))
 
+	targetIDVar := "target_id_" + tableName
 	var whereClause string
 	if movesUp {
 		whereClause = fmt.Sprintf("WHERE version_id BETWEEN %d AND %d", minNewVID, maxNewVID)
 		lines = append(lines, fmt.Sprintf("SELECT %d INTO @%s;", maxNewVID, maxMovedVar))
 	} else {
-		whereClause = fmt.Sprintf("WHERE id < (SELECT id FROM `%s` WHERE version_id = %d) AND version_id > %d", tableName, minNewVID, maxNewVID)
-		lines = append(lines, fmt.Sprintf("SELECT MAX(version_id) INTO @%s FROM `%s` %s ;", maxMovedVar, tableName, whereClause))
+		// Extract the target row's id into a variable first so we don't reference
+		// the same table in a subquery inside an UPDATE (MySQL doesn't allow that).
+		lines = append(lines, fmt.Sprintf("SELECT id INTO @%s FROM `%s` WHERE version_id = %d;", targetIDVar, tableName, minNewVID))
+		whereClause = fmt.Sprintf("WHERE id < @%s AND version_id > %d", targetIDVar, maxNewVID)
+		lines = append(lines, fmt.Sprintf("SELECT MAX(version_id) INTO @%s FROM `%s` %s;", maxMovedVar, tableName, whereClause))
 	}
 
 	lines = append(lines,

@@ -130,6 +130,11 @@ func packageCommand() *cli.Command {
 				Usage:       "Disable setup experience for Linux or Windows hosts",
 				Destination: &opt.DisableSetupExperience,
 			},
+			&cli.BoolFlag{
+				Name:        "bypass-end-user-auth",
+				Usage:       "Skip the end-user authentication prompt during fleetd enrollment (applies to Linux and Windows hosts; macOS only handles end-user auth during MDM enrollment)",
+				Destination: &opt.BypassEndUserAuth,
+			},
 			&cli.StringFlag{
 				Name:        "update-url",
 				Usage:       "URL for update server",

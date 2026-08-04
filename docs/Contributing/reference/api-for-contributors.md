@@ -3383,7 +3383,6 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's software](#get-devices-software)
 - [Get device's software install results](#get-devices-software-install-results)
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results)
-- [Install self-service software](#install-self-service-software)
 - [Uninstall software via self-service](#uninstall-software-via-self-service)
 - [Get uninstall results via self-service](#get-uninstall-results-via-self-service)
 - [Get device's policies](#get-devices-policies)
@@ -3747,37 +3746,6 @@ For VPP `InstallApplication` command results, `results_metadata` may include:
 | vpp_verify_timeout_seconds | integer | The VPP install verification timeout, in seconds, used by Fleet when determining whether an acknowledged install should be marked failed. |
 
 > Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
-
-#### Install self-service software
-
-Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The software must have a `self_service` flag `true` to be installed.
-
-`POST /api/v1/fleet/device/{token}/software/install/{software_title_id}`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | **Required**. The device's authentication token. |
-| software_title_id | string | path | **Required**. The software title's ID. |
-
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
-
-##### Example
-
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
-
-##### Default response
-
-`Status: 202`
 
 #### Install all self-service software
 

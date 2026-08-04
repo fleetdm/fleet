@@ -20,7 +20,7 @@ const Fleet404 = () => (
         The page you are looking for has either moved, or doesn&apos;t exist.
       </p>
       <Button
-        variant="inverse"
+        variant="secondary"
         onClick={() =>
           window.open(SUPPORT_LINK, "_blank", "noopener,noreferrer")
         }

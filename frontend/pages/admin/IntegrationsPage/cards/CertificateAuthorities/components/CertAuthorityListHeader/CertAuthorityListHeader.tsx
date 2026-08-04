@@ -21,10 +21,9 @@ const CertAuthorityListHeader = ({
           renderChildren={(disableChildren) => (
             <Button
               disabled={disableChildren}
-              variant="inverse"
+              variant="secondary"
               className={`${baseClass}__add-button`}
               onClick={onClickAddCertAuthority}
-              iconStroke
             >
               <>
                 <Icon name="plus" />

@@ -2416,6 +2416,11 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}, nil
 	}
 
+	// Default to connected to Fleet MDM; the dedicated subtest below overrides this.
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+		return true, nil
+	}
+
 	var wantKey string
 
 	mockFileLines := func(wantKey string, wantEncrypted string) []map[string]string {
@@ -2453,6 +2458,28 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 		return false, nil
 	}
+
+	t.Run("host not connected to Fleet MDM", func(t *testing.T) {
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		defer func() {
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+				return true, nil
+			}
+		}()
+
+		// A host that isn't enrolled in Fleet's MDM must not have its key escrowed,
+		// even with an encrypted disk and a key present (e.g. left over from a prior MDM).
+		err := directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds,
+			[]map[string]string{{"encrypted": "1", "hex_line": hex.EncodeToString([]byte("prk"))}})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, mockFilevaultPRK("prk", "1"))
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+	})
 
 	t.Run("empty key", func(t *testing.T) {
 		err := directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, []map[string]string{})

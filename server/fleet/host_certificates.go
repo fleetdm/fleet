@@ -91,6 +91,9 @@ type HostCertificateRecord struct {
 
 	Source   HostCertificateSource `json:"-" db:"source"`
 	Username string                `json:"-" db:"username"` // username that owns the certificate, only if source == 'user'
+	// SourceID is the id of the host_certificate_sources row this record's Source/Username pair came from. Internal:
+	// populated by the datastore list query so stale source rows can be deleted precisely by primary key.
+	SourceID uint `json:"-" db:"source_id"`
 
 	// Origin identifies the ingestion source (osquery vs mdm). Used internally to
 	// scope deletion semantics; not exposed in the public API.

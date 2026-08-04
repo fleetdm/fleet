@@ -15,11 +15,12 @@ import Card from "components/Card/Card";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Icon from "components/Icon";
+import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import UploadList from "components/UploadList";
 
-import UploadListHeading from "../../../../../components/UploadListHeading";
 import AssetListItem from "../AssetListItem";
 import AddAssetModal from "../AddAssetModal";
 import DeleteAssetModal from "../DeleteAssetModal";
@@ -159,15 +160,6 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
       <UploadList
         keyAttribute="asset_uuid"
         listItems={assets}
-        HeadingComponent={() => (
-          <UploadListHeading
-            onClickAdd={
-              isTechnician ? undefined : () => setShowAddAssetModal(true)
-            }
-            entityName="Assets"
-            createEntityText="Add asset"
-          />
-        )}
         ListItemComponent={({ listItem }) => (
           <AssetListItem
             asset={listItem}
@@ -179,8 +171,32 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
     );
   };
 
+  const showAddAssetButton = isPremiumTier && mdmAppleEnabled && !isTechnician;
+
   return (
     <div className={baseClass}>
+      <div className={`${baseClass}__tab-header`}>
+        <PageDescription
+          variant="right-panel"
+          content="Manage assets that provide data or credentials referenced by DDM declarations."
+        />
+        {showAddAssetButton && (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => setShowAddAssetModal(true)}
+                disabled={disableChildren}
+              >
+                <Icon name="plus" size="small" />
+                <span>Add asset</span>
+              </Button>
+            )}
+          />
+        )}
+      </div>
       {renderContent()}
       {showAddAssetModal && (
         <AddAssetModal

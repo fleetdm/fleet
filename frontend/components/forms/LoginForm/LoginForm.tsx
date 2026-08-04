@@ -88,7 +88,7 @@ const LoginForm = ({
       <Button
         className={`${baseClass}__sso-btn`}
         type="button"
-        variant="inverse"
+        variant="secondary"
         onClick={handleSSOSignOn}
         tabIndex={0}
       >
@@ -134,10 +134,10 @@ const LoginForm = ({
         <>
           <Button
             onClick={() => setShowPendingEmail(false)}
-            variant="inverse"
+            variant="subdued"
             className="back-link"
           >
-            <Icon name="chevron-left" color="ui-fleet-black-75" />
+            <Icon name="chevron-left" />
             Back to login
           </Button>
           <h1>Check your email</h1>

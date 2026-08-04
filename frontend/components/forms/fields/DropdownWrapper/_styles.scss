@@ -20,14 +20,4 @@
       height: 36px;
     }
   }
-
-  // Button-variant: background while focused so keyboard tabbing is
-  // visible. Mirrors the menuIsOpen background applied via emotion in
-  // DropdownWrapper.tsx. Inputs always match :focus-visible, so this
-  // also applies on click — that's fine since it matches the open state.
-  &__button {
-    .react-select__control:has(input:focus-visible) {
-      background-color: $ui-fleet-black-5;
-    }
-  }
 }
