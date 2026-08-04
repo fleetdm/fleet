@@ -1,0 +1,1 @@
+* Fixed a brief EmptyState flash on the My device > Self-service tab when clearing the search box while a category filter was active. The stale client filter count no longer triggers the empty state during the client-side filter's re-run.
