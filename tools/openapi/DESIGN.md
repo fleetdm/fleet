@@ -1,4 +1,4 @@
-# OpenAPI spec pilot: design
+# OpenAPI spec: design
 
 Story: [fleetdm/fleet#45279](https://github.com/fleetdm/fleet/issues/45279)
 Date: 2026-07-31
@@ -11,12 +11,9 @@ Publish a downloadable OpenAPI 3.1 spec (`openapi.yml`) with every Fleet release
 
 The spec covers every endpoint documented in `docs/REST API/rest-api.md`:
 every `### ` section with a request line becomes an operation. There's no
-allowlist. This started as a 10-endpoint pilot (the issue's original list,
-mapped to current documented paths after the docs adopted the
-teams-to-fleets and queries-to-reports renames); those 10 endpoints remain
-useful as a fixed reference point and are still the live contract-test set
-exercised by `verify` (see "The verify subcommand" below, which is
-unchanged):
+allowlist. A fixed set of 10 commonly integrated endpoints serves as the
+live contract-test set exercised by `verify` (see "The verify subcommand"
+below):
 
 | # | Method | Path | Markdown section |
 |---|--------|------|------------------|
@@ -82,7 +79,7 @@ Triggered on pull requests touching `docs/REST API/**` or `tools/openapi/**`. Tw
 
 ### The verify subcommand
 
-Walks the 10 pilot endpoints against a live server and validates each response body against the generated spec's schemas:
+Walks the 10 contract-test endpoints against a live server and validates each response body against the generated spec's schemas:
 
 - Seeds what it can through the API itself: create a policy, a report, and a fleet, so list endpoints return non-empty data.
 - `GET /hosts` and `GET /hosts/{id}`: in CI there are no enrolled hosts, so `GET /hosts` validates the empty-list envelope and `GET /hosts/{id}` is reported as "partially verified"; the dev-instance run exercises real hosts.

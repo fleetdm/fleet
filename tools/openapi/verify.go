@@ -224,8 +224,8 @@ func runChecks(v validator.Validator, server, token, mdmHostUUID string) []check
 		"query":       "SELECT 1;",
 		"description": "Created by tools/openapi verify.",
 	}))
-	// Seed a fleet so GET /fleets returns a row. POST /fleets is not in the
-	// pilot spec, so this call is raw (not validated).
+	// Seed a fleet so GET /fleets returns a row. POST /fleets is not part
+	// of the contract-test set, so this call is raw (not validated).
 	if err := rawPost(server, token, "/api/v1/fleet/fleets", map[string]any{
 		"name": "openapi-verify-" + suffix,
 	}); err != nil {

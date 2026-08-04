@@ -227,8 +227,8 @@ func splitRow(row string) []string {
 
 // parseResponses extracts the "##### Default response" block: a Status line
 // and an optional fenced json example. Only the default response is modeled;
-// error responses share Fleet's standard error envelope and are out of the
-// pilot's scope.
+// error responses share Fleet's standard error envelope and aren't
+// modeled per endpoint.
 func parseResponses(body []string) ([]Response, error) {
 	for i, l := range body {
 		if strings.TrimSpace(l) != "##### Default response" {
