@@ -34,7 +34,7 @@ interface IDismissibleTagProps extends ITagBaseProps {
   type: "dismissible";
   onClick?: never;
   onDismiss: () => void;
-  /** Accessible name (and native tooltip) for the dismiss button. Defaults to "Dismiss". */
+  /** Accessible name for the dismiss button (screen readers only, no native tooltip). Defaults to "Dismiss". */
   dismissLabel?: string;
   /** Dismissible tags are always interactive — no production caller disables them. */
   disabled?: never;
@@ -75,7 +75,6 @@ const Tag = (props: ITagProps) => {
           className={`${baseClass}__dismiss`}
           onClick={props.onDismiss}
           aria-label={dismissLabel}
-          title={!tooltip ? dismissLabel : undefined}
         >
           <Icon name="close" color="core-fleet-black" size="small" />
         </button>

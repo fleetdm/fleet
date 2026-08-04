@@ -104,26 +104,9 @@ describe("Tag", () => {
     ).toBeInTheDocument();
   });
 
-  it("sets the dismiss button's title when the tag has no wrapping tooltip", () => {
+  it("does not render a native title tooltip on the dismiss button (aria-label carries the accessible name)", () => {
     render(
       <Tag type="dismissible" onDismiss={() => undefined}>
-        Apple Silicon macOS hosts
-      </Tag>
-    );
-
-    expect(screen.getByRole("button", { name: "Dismiss" })).toHaveAttribute(
-      "title",
-      "Dismiss"
-    );
-  });
-
-  it("suppresses the dismiss button's title when the tag has a wrapping tooltip, so the two tooltips don't compete", () => {
-    render(
-      <Tag
-        type="dismissible"
-        tooltip="Hosts filtered by Apple Silicon"
-        onDismiss={() => undefined}
-      >
         Apple Silicon macOS hosts
       </Tag>
     );

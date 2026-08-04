@@ -52,20 +52,12 @@
   &--dismissible {
     padding: 0 $pad-xsmall 0 $pad-small;
 
-    &:hover {
-      background-color: $ui-off-white;
-      border-color: $ui-fleet-black-50;
-    }
-
-    // the dismiss `<button>` is the only focusable descendant, so
-    // :focus-within is what lets the tag itself pick up the focus ring
+    // Only the dismiss button is interactive on a dismissible tag, so hover
+    // and active feedback lives on the button itself (see &__dismiss below).
+    // :focus-within stays here — when the button takes keyboard focus, the
+    // outer tag border lights up so the focused element is easy to see.
     &:focus-within {
       border-color: $core-fleet-black;
-    }
-
-    &:active {
-      background-color: $ui-fleet-black-5;
-      border-color: $ui-fleet-black-50;
     }
   }
 
@@ -85,7 +77,16 @@
     padding: 0;
     background: none;
     border: none;
+    border-radius: 50%;
     cursor: pointer;
+
+    &:hover {
+      background-color: $ui-off-white;
+    }
+
+    &:active {
+      background-color: $ui-fleet-black-5;
+    }
 
     &:focus-visible {
       outline: none;

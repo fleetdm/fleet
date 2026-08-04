@@ -67,7 +67,7 @@ const FilterPill = ({
         type="dismissible"
         className={labelClasses}
         onDismiss={onClear}
-        dismissLabel={label}
+        dismissLabel="Remove filter"
       >
         {icon && <Icon name={icon} />}
         {labelWithTooltip}
