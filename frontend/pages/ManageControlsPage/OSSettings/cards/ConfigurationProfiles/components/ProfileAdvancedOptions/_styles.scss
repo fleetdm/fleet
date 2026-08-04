@@ -31,5 +31,16 @@
     .ace_marker-layer .ace_bracket {
       display: none;
     }
+
+    // ace's placeholder defaults to arial at 0.9 scale with a 10px side margin,
+    // so it renders ragged, smaller and further right than the text that
+    // replaces it as soon as the user types. The gutter is hidden on this
+    // editor, so the text layer starts flush and the margin has to go too.
+    // Scoped so any future editor keeps ace's defaults.
+    .ace_placeholder {
+      font-family: inherit;
+      transform: none;
+      margin: 0;
+    }
   }
 }

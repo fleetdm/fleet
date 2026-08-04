@@ -229,11 +229,11 @@ const AddProfileModal = ({
     try {
       const details = await parseFile(file);
       setFileDetails(details);
-      // seed the editor with the example activation, which the admin edits to
-      // name their configuration and add a predicate.
-      setCustomActivation(
-        details.isAppleDeclaration ? EXAMPLE_CUSTOM_ACTIVATION : ""
-      );
+      // the example is a placeholder rather than a seeded value, so choosing a
+      // file leaves the editor empty and nothing is sent unless the admin
+      // writes an activation.
+      setCustomActivation("");
+      setCustomActivationError(null);
     } catch (e) {
       notify.error("Invalid file type", { response: e });
     } finally {
@@ -313,6 +313,7 @@ const AddProfileModal = ({
             <ProfileAdvancedOptions
               customActivation={customActivation}
               onChangeCustomActivation={onChangeCustomActivation}
+              placeholder={EXAMPLE_CUSTOM_ACTIVATION}
               error={customActivationError}
             />
           )}

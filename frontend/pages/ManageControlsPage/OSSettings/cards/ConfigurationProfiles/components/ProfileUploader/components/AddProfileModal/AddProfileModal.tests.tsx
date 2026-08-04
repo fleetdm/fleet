@@ -6,8 +6,6 @@ import { createCustomRenderer } from "test/test-utils";
 import labelsAPI from "services/entities/labels";
 import mdmAPI from "services/entities/mdm";
 
-import { EXAMPLE_CUSTOM_ACTIVATION } from "../../helpers";
-
 import AddProfileModal from "./AddProfileModal";
 
 const ADVANCED_OPTIONS = "Advanced options";
@@ -204,19 +202,26 @@ describe("AddProfileModal upload result", () => {
     });
   });
 
-  it("sends the activation for a declaration", async () => {
+  it("sends no activation when the editor is untouched", async () => {
+    // the example is only a placeholder, so an admin who doesn't write an
+    // activation submits nothing and Fleet synthesizes its default. Sending the
+    // example would be rejected: it names a configuration that doesn't exist.
     jest.spyOn(mdmAPI, "uploadProfile").mockResolvedValue({});
 
     await uploadDeclaration(noop);
 
     await waitFor(() => {
       expect(mdmAPI.uploadProfile).toHaveBeenCalledWith(
-        expect.objectContaining({
-          customActivation: EXAMPLE_CUSTOM_ACTIVATION,
-        })
+        expect.objectContaining({ customActivation: "" })
       );
     });
   });
+
+  // NOTE: there is no counterpart test for a typed activation. Ace proxies
+  // keystrokes through a hidden textarea and relies on selection/composition
+  // behaviour jsdom doesn't implement, so user.type() on .ace_text-input never
+  // fires onChange and the value stays empty. What the modal does with a
+  // non-empty value is therefore unasserted here.
 
   it("sends no activation for a .mobileconfig", async () => {
     // the advanced options section is Apple-declaration-only, so there is no

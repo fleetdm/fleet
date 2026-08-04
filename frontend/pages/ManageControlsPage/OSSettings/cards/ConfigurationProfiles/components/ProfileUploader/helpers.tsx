@@ -129,18 +129,18 @@ export const parseFile = async (file: File): Promise<IParseFileResult> => {
   }
 };
 
-/** The example activation shown in the custom activation editor, matching the
- * design. Its identifiers are illustrative: `StandardConfigurations` has to
- * name the uploaded declaration's identifier, so this example is a scaffold to
- * edit rather than something that would be accepted as-is.
+/** The example activation shown as the custom activation editor's placeholder,
+ * matching the design. A placeholder rather than a seeded value: the identifiers
+ * are illustrative, and `StandardConfigurations` has to name the uploaded
+ * declaration's identifier, so submitting this as-is would be rejected.
  *
  * Built via JSON.stringify so it can't drift into invalid JSON. */
 export const EXAMPLE_CUSTOM_ACTIVATION = JSON.stringify(
   {
     Type: "com.apple.activation.simple",
-    Identifier: "myIdentifier",
+    Identifier: "01234567-ABCD-EFGH-IJKL-0123456789AB",
     Payload: {
-      StandardConfigurations: ["myConfigurationIdentifier"],
+      StandardConfigurations: ["01234567-ABCD-EFGH-IJKL-0123456789YZ"],
     },
   },
   null,

@@ -161,9 +161,9 @@ describe("EXAMPLE_CUSTOM_ACTIVATION", () => {
   it("matches the activation shape shown in the design", () => {
     expect(JSON.parse(EXAMPLE_CUSTOM_ACTIVATION)).toEqual({
       Type: "com.apple.activation.simple",
-      Identifier: "myIdentifier",
+      Identifier: "01234567-ABCD-EFGH-IJKL-0123456789AB",
       Payload: {
-        StandardConfigurations: ["myConfigurationIdentifier"],
+        StandardConfigurations: ["01234567-ABCD-EFGH-IJKL-0123456789YZ"],
       },
     });
   });
