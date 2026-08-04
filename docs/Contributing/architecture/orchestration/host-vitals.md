@@ -60,7 +60,7 @@ See the [host details API](https://fleetdm.com/docs/rest-api/rest-api#get-host) 
 
 ### iOS and iPadOS
 
-iOS and iPadOS hosts don't run the agent, so the collection flow above doesn't apply to them. Their vitals come from the `DeviceInformation` MDM command instead, which Fleet sends on each refetch and whose response it parses and stores.
+iOS and iPadOS hosts don't run the osquery agent, so the collection flow above doesn't apply to them. Their vitals come from the `DeviceInformation` MDM command instead, which Fleet sends on each refetch and whose response it parses and stores.
 
 The set of properties Apple can return, and the OS versions and access rights each requires, are documented in Apple's [`DeviceInformationCommand` queries dictionary](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary).
 
