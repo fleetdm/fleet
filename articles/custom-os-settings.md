@@ -64,7 +64,7 @@ When a configuration profile is removed from Fleet or a host changes teams, Flee
 
   Fleet handles these cases as follows:
 
-  - **CSPs that don't support <Delete>:** Fleet maintains a list of CSPs known to not support <Delete> and skips sending the command for these LocURIs. The setting remains on the device at its last configured value but is no longer enforced by Fleet.
+  - **CSPs that don't support `<Delete>`:** Fleet maintains a list of CSPs known to not support <Delete> and skips sending the command for these LocURIs. The setting remains on the device at its last configured value but is no longer enforced by Fleet.
   - **Failed removals:** If a profile removal fails with an unexpected error, Fleet treats the removal as best-effort — the profile is no longer managed by Fleet, but the setting may still be active on the device. Failed removals are not surfaced in the UI. To manually remove the setting, you can re-enroll the host or use a new configuration profile with a `<Replace>` command to reset the setting to its desired value.
 
   When you delete a Windows configuration profile in the Fleet UI, a warning is displayed explaining that some settings may not be cleanly removed from hosts.
