@@ -268,7 +268,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		var password string
 		cmdUUID := uuid.New().String()
 		if managedAdminAccountEnabled {
-			password = fleet.GenerateManagedLocalAccountPasswordForMacOS()
+			password = fleet.GenerateManagedLocalAccountPassword(false)
 			passwordHash, err := apple_mdm.GenerateSaltedSHA512PBKDF2Hash(password)
 			if err != nil {
 				return err

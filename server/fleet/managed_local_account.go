@@ -26,39 +26,22 @@ const (
 	managedAccountDigits    = "23456789"
 	managedAccountUppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ"
 	managedAccountLowercase = "abcdefghijkmnpqrstuvwxyz"
-	// managedAccountSpecial stays deliberately narrow. This password is read off a screen and typed at a sign-in prompt
-	// on a machine whose keyboard layout Fleet does not control, so it omits anything that is a dead key on a common
-	// non-US layout (^ ~ ` ' "), the characters that are confusable with one another (. , : ; and the bracket families),
-	// the underscore, which disappears against an underline, the backslash and pipe, and the hyphen, which already
-	// separates the groups. What remains is reachable on US, UK, German, and French layouts, some of it through AltGr
-	// but none of it as a dead key.
-	managedAccountSpecial = "!#$%*+=?@"
 )
 
-// GenerateManagedLocalAccountPasswordForMacOS returns a password for the macOS managed local admin account. It draws
-// from uppercase letters and digits only, matching the recovery lock password format admins already read off a screen.
-func GenerateManagedLocalAccountPasswordForMacOS() string {
-	return generateManagedLocalAccountPassword(managedAccountDigits, managedAccountUppercase)
-}
-
-// GenerateManagedLocalAccountPasswordForWindows returns a password for the Windows managed local admin account. On top
-// of the macOS classes it draws from lowercase and special characters, so the password satisfies a policy that demands
-// all four Windows character categories. fleetd cannot read that policy before it calls NetUserAdd, and Windows reports
-// every rejection as the same opaque code after the fact, so the password covers the strictest case up front.
-func GenerateManagedLocalAccountPasswordForWindows() string {
-	return generateManagedLocalAccountPassword(
-		managedAccountDigits, managedAccountUppercase, managedAccountLowercase, managedAccountSpecial)
-}
-
-// generateManagedLocalAccountPassword returns a cryptographically random password drawn from the given character
-// classes, formatted in hyphen-separated groups so it can be read aloud and typed at a login prompt without error.
+// GenerateManagedLocalAccountPassword returns a cryptographically random password for the managed local admin account,
+// formatted in hyphen-separated groups so it can be read aloud and typed at a login prompt without error.
 //
-// The password is guaranteed to contain at least one character from each class, so the category count never depends on
-// chance. That guarantee is applied by discarding and redrawing a password that misses a class, rather than by seeding
-// one character per class and shuffling: seeding skews the result towards balanced class counts, while redrawing stays
-// exactly uniform over the passwords that satisfy the guarantee. About one Windows draw in fourteen is discarded, and
-// one macOS draw in a thousand.
-func generateManagedLocalAccountPassword(classes ...string) string {
+// includeLowercase controls whether lowercase letters appear.
+//
+// The password is guaranteed to contain at least one character from each enabled class, so the category count never
+// depends on chance. That guarantee is applied by discarding and redrawing a password that misses a class, rather than
+// by seeding one character per class and shuffling: seeding skews the result towards balanced class counts, while
+// redrawing stays exactly uniform over the passwords that satisfy the guarantee. Roughly one draw in 40 is discarded.
+func GenerateManagedLocalAccountPassword(includeLowercase bool) string {
+	classes := []string{managedAccountDigits, managedAccountUppercase}
+	if includeLowercase {
+		classes = append(classes, managedAccountLowercase)
+	}
 	all := strings.Join(classes, "")
 	total := managedAccountPasswordGroupCount * managedAccountPasswordGroupLen
 
@@ -95,7 +78,7 @@ func containsEachClass(chars []byte, classes []string) bool {
 func randomIndex(n int) int {
 	const span = int64(1) << 32
 	// limit rounds span down to the largest exact multiple of n, discarding that remainder. Note it is
-	// the size of the draw range, not of the alphabet: for n=65 it is 4294967235, only 61 short of span.
+	// the size of the draw range, not of the alphabet: for n=56 it is 4294967264, only 32 short of span.
 	limit := span - span%int64(n)
 	var b [4]byte
 	for {

@@ -128,9 +128,9 @@ const LocalAccountSection = ({
                   <TooltipWrapper
                     tipContent={
                       <>
-                        Creates a hidden managed local admin account for
-                        <br />
-                        remote troubleshooting on macOS hosts.
+                        Fleet creates a user (_fleetadmin) and unique password
+                        for each host, accessible in{" "}
+                        <b>Host details &gt; Show managed account</b>.
                       </>
                     }
                   >

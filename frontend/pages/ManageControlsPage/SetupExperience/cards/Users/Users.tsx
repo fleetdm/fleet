@@ -198,6 +198,7 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
         }
       />
       <PageDescription
+        className={`${baseClass}__page-description`}
         content={
           <>
             Customize local user accounts. For advanced account configuration,

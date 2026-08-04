@@ -105,7 +105,7 @@ func (r *Receiver) attempt() <-chan struct{} {
 // password of an existing account, which is what makes that retry safe.
 // It reports whether the password was successfully escrowed.
 func (r *Receiver) createAndEscrow() bool {
-	password := fleet.GenerateManagedLocalAccountPasswordForWindows()
+	password := fleet.GenerateManagedLocalAccountPassword(true)
 
 	provision := r.provision
 	if provision == nil {

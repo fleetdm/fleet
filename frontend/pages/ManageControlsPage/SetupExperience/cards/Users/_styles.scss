@@ -5,6 +5,12 @@
     margin: 0;
   }
 
+  // The card is wider than this copy needs; the design wraps it to two lines
+  // rather than letting it run the full width of the content column.
+  &__page-description {
+    max-width: px-to-rem(650);
+  }
+
   .form-field--checkbox {
     gap: $pad-xsmall;
   }
