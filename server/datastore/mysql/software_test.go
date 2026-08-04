@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"crypto/md5" //nolint:gosec // matches the software checksum hash, used to simulate legacy rows in tests
 	crand "crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -1249,7 +1250,9 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	checkTableTotalCount(6)
 
 	// create a software entry without any host and any counts
-	_, err = ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`INSERT INTO software (name, version, source, checksum) VALUES ('baz', '0.0.1', 'testing', %s)`, softwareChecksumComputedColumn("", "testing")))
+	bazChecksum, err := fleet.Software{Name: "baz", Version: "0.0.1", Source: "testing"}.ComputeRawChecksum()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO software (name, version, source, checksum) VALUES ('baz', '0.0.1', 'testing', ?)`, bazChecksum)
 	require.NoError(t, err)
 
 	// listing does not return the new software entry
@@ -1412,38 +1415,6 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	listSoftwareCheckCount(t, ds, 0, 0, team2Opts, false)
 	checkTableTotalCount(7)
-}
-
-// softwareChecksumComputedColumn computes the checksum for a software entry
-// The calculation must match the one in computeRawChecksum
-func softwareChecksumComputedColumn(tableAlias string, source string) string {
-	if tableAlias != "" && !strings.HasSuffix(tableAlias, ".") {
-		tableAlias += "."
-	}
-
-	var nameCol string
-	if source != "apps" {
-		nameCol = fmt.Sprintf("%sname,", tableAlias)
-	}
-
-	// concatenate with separator \x00
-	return fmt.Sprintf(
-		` UNHEX(
-		MD5(
-			CONCAT_WS(CHAR(0),
-				%s
-				%[2]sversion,
-				%[2]ssource,
-				COALESCE(%[2]sbundle_identifier, ''),
-				`+"%[2]s`release`"+`,
-				%[2]sarch,
-				%[2]svendor,
-				%[2]sextension_for,
-				%[2]sextension_id
-			)
-		)
-	) `, nameCol, tableAlias,
-	)
 }
 
 func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datastore) {
@@ -12056,6 +12027,84 @@ func TestUniqueSoftwareTitleStrNormalization(t *testing.T) {
 	assert.Contains(t, keyJapanese, "日本語ソフト")
 }
 
+func TestMatchWindowsFMATitle(t *testing.T) {
+	// win builds an FMA whose installer title agrees with the catalog name, which is
+	// the normal case. titleID doubles as the identity used for ambiguity checks.
+	win := func(titleID uint, name, uniqueIdentifier string) fleet.MaintainedApp {
+		return fleet.MaintainedApp{
+			Name: name, UniqueIdentifier: uniqueIdentifier,
+			Platform: "windows", TitleID: &titleID, TitleName: name,
+		}
+	}
+
+	granola := win(1, "Granola", "Granola")
+	zoom := win(2, "Zoom", "Zoom")
+	// osquery reports "CPUID CPU-Z ...", so only the identifier is a usable prefix.
+	cpuz := win(3, "CPU-Z", "CPUID CPU-Z")
+	// apps.json entries are append-only, so some identifiers carry a stale version;
+	// only the name is a usable prefix here.
+	notion := win(4, "Notion", "Notion 6.1.0")
+	// Two apps reporting under the same identifier that own different titles.
+	acmeReader := win(5, "Acme Reader", "Acme")
+	acmeWriter := win(6, "Acme Writer", "Acme")
+	// A more specific app whose prefix extends another's.
+	fooBar := win(7, "Foo Bar", "Foo Bar")
+	foo := win(8, "Foo", "Foo")
+	// The catalog renamed this app; the installer's title keeps the older name, which
+	// is what inventory still reports under and where software must land.
+	renamed := fleet.MaintainedApp{
+		Name: "Zoom Workplace", UniqueIdentifier: "Zoom",
+		Platform: "windows", TitleID: new(uint(9)), TitleName: "Zoom",
+	}
+	// Two slugs of the same app resolving to one title: not ambiguous.
+	dupTitleID := uint(10)
+	sameTitleA := fleet.MaintainedApp{Name: "Dup A", UniqueIdentifier: "Dup", Platform: "windows", TitleID: &dupTitleID, TitleName: "Dup"}
+	sameTitleB := fleet.MaintainedApp{Name: "Dup B", UniqueIdentifier: "Dup", Platform: "windows", TitleID: &dupTitleID, TitleName: "Dup"}
+
+	cases := []struct {
+		name        string
+		reported    string
+		fmas        []fleet.MaintainedApp
+		wantTitle   string
+		wantTitleID uint
+		wantOK      bool
+	}{
+		{"version suffix", "Granola 7.373.2", []fleet.MaintainedApp{granola}, "Granola", 1, true},
+		{"exact name", "Granola", []fleet.MaintainedApp{granola}, "Granola", 1, true},
+		{"case insensitive", "granola 7.373.2", []fleet.MaintainedApp{granola}, "Granola", 1, true},
+		{"no separator is not a match", "Zoombie 5.0", []fleet.MaintainedApp{zoom}, "", 0, false},
+		{"prefix without space", "Granolabar 1.0", []fleet.MaintainedApp{granola}, "", 0, false},
+		{"unrelated", "Firefox 141.0", []fleet.MaintainedApp{granola, zoom}, "", 0, false},
+		{"matches via unique identifier", "CPUID CPU-Z 2.16", []fleet.MaintainedApp{cpuz}, "CPU-Z", 3, true},
+		{"matches via name when identifier is stale", "Notion 7.2.0", []fleet.MaintainedApp{notion}, "Notion", 4, true},
+		{"stale identifier still matches itself", "Notion 6.1.0 extra", []fleet.MaintainedApp{notion}, "Notion", 4, true},
+		{"longest prefix wins", "Foo Bar 1.0", []fleet.MaintainedApp{foo, fooBar}, "Foo Bar", 7, true},
+		{"longest prefix wins regardless of order", "Foo Bar 1.0", []fleet.MaintainedApp{fooBar, foo}, "Foo Bar", 7, true},
+		{"shorter prefix still matches its own app", "Foo 1.0", []fleet.MaintainedApp{foo, fooBar}, "Foo", 8, true},
+		{"ambiguous tie is no match", "Acme 3.0", []fleet.MaintainedApp{acmeReader, acmeWriter}, "", 0, false},
+		{"ambiguous tie is no match, reversed", "Acme 3.0", []fleet.MaintainedApp{acmeWriter, acmeReader}, "", 0, false},
+		{"same destination is not ambiguous", "Dup 1.0", []fleet.MaintainedApp{sameTitleA, sameTitleB}, "Dup", 10, true},
+		{"no FMAs", "Granola 7.373.2", nil, "", 0, false},
+
+		// Destination is the installer's title, never the current catalog name.
+		{"renamed catalog: matches old name", "Zoom 6.1.0", []fleet.MaintainedApp{renamed}, "Zoom", 9, true},
+		{"renamed catalog: matches new name", "Zoom Workplace 7.0", []fleet.MaintainedApp{renamed}, "Zoom", 9, true},
+
+		// MySQL's utf8mb4_unicode_ci ignores Unicode format characters, so Go-side
+		// matching must too or a name carrying one silently stops matching.
+		{"reported name with RTL mark", "Granola\u200f 7.373.2", []fleet.MaintainedApp{granola}, "Granola", 1, true},
+		{"zero-width joiner in reported name", "Gran\u200dola 7.373.2", []fleet.MaintainedApp{granola}, "Granola", 1, true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, ok := matchWindowsFMATitle(c.reported, windowsFMAPrefixes(c.fmas))
+			require.Equal(t, c.wantOK, ok)
+			require.Equal(t, c.wantTitle, got.titleName)
+			require.Equal(t, c.wantTitleID, got.titleID)
+		})
+	}
+}
 func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -14058,4 +14107,318 @@ func testListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned(t *testing.T,
 	}
 	require.NotContains(t, listed, prunedTitleID, "out-of-scope title whose first-added installer failed should be pruned")
 	require.Contains(t, listed, keptTitleID, "out-of-scope title whose first-added installer succeeded must remain (prune is status-selective)")
+}
+
+// legacyNameFirstChecksum reproduces the pre-v4.76.0 checksum ordering (name
+// first) so tests can seed software rows as they would have existed before the
+// field-ordering change that produced duplicate inventory entries.
+func legacyNameFirstChecksum(t *testing.T, s fleet.Software) []byte {
+	t.Helper()
+	h := md5.New() //nolint:gosec // matches the (non-security) software checksum hash
+	cols := []string{s.Name, s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.ExtensionFor, s.ExtensionID}
+	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
+	require.NoError(t, err)
+	return h.Sum(nil)
+}
+
+func TestReconcileSoftwareChecksumsInPlaceFix(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "recon-host", "", "recon-key", "recon-uuid", time.Now())
+	foo := fleet.Software{Name: "foo", Version: "1.0.0", Source: "deb_packages"}
+	canonical, err := foo.ComputeRawChecksum()
+	require.NoError(t, err)
+
+	// Two rows sharing an identity, neither carrying the canonical checksum (two
+	// different legacy formulas). Reconciliation must fix one in place, then merge.
+	legacy := legacyNameFirstChecksum(t, foo)
+	other := md5.Sum([]byte("some-other-legacy-formula")) //nolint:gosec // arbitrary distinct non-canonical checksum
+	require.NotEqual(t, canonical, legacy)
+	require.NotEqual(t, canonical, other[:])
+
+	insertSoftware := func(cksum []byte) int64 {
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO software (name, version, source, checksum) VALUES ('foo', '1.0.0', 'deb_packages', ?)`, cksum)
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		return id
+	}
+	insertSoftware(legacy)
+	otherID := insertSoftware(other[:])
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, host.ID, otherID)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.ReconcileSoftwareChecksums(ctx))
+
+	// Exactly one row remains, and it now carries the canonical checksum.
+	var rows []struct {
+		ID       uint   `db:"id"`
+		Checksum []byte `db:"checksum"`
+	}
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &rows,
+		`SELECT id, checksum FROM software WHERE name = 'foo'`))
+	require.Len(t, rows, 1)
+	// The surviving row carries the canonical checksum: one member was fixed in
+	// place to become the survivor, and the other was merged into it.
+	require.Equal(t, canonical, rows[0].Checksum)
+}
+
+func TestReconcileSoftwareChecksumsBatching(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	// Shrink the batch sizes so a modest amount of data exercises both loops: the
+	// group-fetch loop (more groups than reconcileGroupsPerRun) and the per-table
+	// repoint loop (more host links than reconcileRepointBatch).
+	oldGroups, oldRepoint := reconcileGroupsPerRun, reconcileRepointBatch
+	reconcileGroupsPerRun, reconcileRepointBatch = 2, 3
+	t.Cleanup(func() { reconcileGroupsPerRun, reconcileRepointBatch = oldGroups, oldRepoint })
+
+	hosts := make([]*fleet.Host, 8)
+	for i := range hosts {
+		hosts[i] = test.NewHost(t, ds, fmt.Sprintf("batch-host%d", i), "",
+			fmt.Sprintf("batch-key%d", i), fmt.Sprintf("batch-uuid%d", i), time.Now())
+	}
+
+	const groupCount = 5
+	for g := range groupCount {
+		sw := fleet.Software{Name: fmt.Sprintf("pkg%d", g), Version: "1.0", Source: "deb_packages"}
+		// canonical row via the normal ingestion path (on host0).
+		_, err := ds.UpdateHostSoftware(ctx, hosts[0].ID, []fleet.Software{sw})
+		require.NoError(t, err)
+		// stale duplicate row.
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO software (name, version, source, checksum) VALUES (?, '1.0', 'deb_packages', ?)`,
+			sw.Name, legacyNameFirstChecksum(t, sw))
+		require.NoError(t, err)
+		staleID, err := res.LastInsertId()
+		require.NoError(t, err)
+		// group 0 gets all 8 hosts on the stale row (> reconcileRepointBatch) to force
+		// the repoint loop; the rest get a single host.
+		nHosts := 1
+		if g == 0 {
+			nHosts = len(hosts)
+		}
+		for i := range nHosts {
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				`INSERT IGNORE INTO host_software (host_id, software_id) VALUES (?, ?)`, hosts[i].ID, staleID)
+			require.NoError(t, err)
+		}
+	}
+
+	countDeb := func() int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n,
+			`SELECT COUNT(*) FROM software WHERE source = 'deb_packages'`))
+		return n
+	}
+	require.Equal(t, groupCount*2, countDeb())
+
+	require.NoError(t, ds.ReconcileSoftwareChecksums(ctx))
+
+	// Every group collapsed to exactly one row.
+	require.Equal(t, groupCount, countDeb())
+	var maxPerName int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &maxPerName,
+		`SELECT COALESCE(MAX(c), 0) FROM (SELECT COUNT(*) c FROM software WHERE source = 'deb_packages' GROUP BY name) x`))
+	require.Equal(t, 1, maxPerName)
+}
+
+func TestReconcileSoftwareChecksumsCoalescesNullAndEmpty(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	// Two rows with the same identity but application_id NULL vs '' must be treated
+	// as one group: ComputeRawChecksum treats an absent/empty application_id
+	// identically, so the COALESCE in the detection query must fold them together.
+	sw := fleet.Software{Name: "androidpkg", Version: "2.0", Source: "android"}
+	canonical, err := sw.ComputeRawChecksum()
+	require.NoError(t, err)
+
+	insert := func(appID any, cksum []byte) {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO software (name, version, source, application_id, checksum) VALUES ('androidpkg', '2.0', 'android', ?, ?)`,
+			appID, cksum)
+		require.NoError(t, err)
+	}
+	insert(nil, legacyNameFirstChecksum(t, sw))
+	other := md5.Sum([]byte("coalesce-other")) //nolint:gosec // arbitrary distinct non-canonical checksum
+	insert("", other[:])
+
+	require.NoError(t, ds.ReconcileSoftwareChecksums(ctx))
+
+	var checksums [][]byte
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &checksums,
+		`SELECT checksum FROM software WHERE name = 'androidpkg'`))
+	require.Len(t, checksums, 1)
+	require.Equal(t, canonical, checksums[0])
+}
+
+func TestParseSoftwareChecksumMembers(t *testing.T) {
+	got, err := parseSoftwareChecksumMembers("10:aa,20:bb,30:cc", 3)
+	require.NoError(t, err)
+	require.Equal(t, []softwareChecksumMember{
+		{id: 10, checksum: "aa"},
+		{id: 20, checksum: "bb"},
+		{id: 30, checksum: "cc"},
+	}, got)
+
+	// Fewer parsed members than the group's count => GROUP_CONCAT truncation; must fail
+	// rather than merge against a partial view of the group.
+	_, err = parseSoftwareChecksumMembers("10:aa,20:bb", 3)
+	require.ErrorContains(t, err, "truncated")
+
+	// Token missing the id:checksum separator.
+	_, err = parseSoftwareChecksumMembers("10aa,20:bb", 2)
+	require.ErrorContains(t, err, "malformed")
+
+	// Non-numeric id.
+	_, err = parseSoftwareChecksumMembers("xx:aa", 1)
+	require.ErrorContains(t, err, "parse software id")
+}
+
+func TestReconcileSoftwareChecksumsThreeMembers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	host1 := test.NewHost(t, ds, "recon3-host1", "", "recon3-key1", "recon3-uuid1", time.Now())
+	host2 := test.NewHost(t, ds, "recon3-host2", "", "recon3-key2", "recon3-uuid2", time.Now())
+
+	sw := fleet.Software{Name: "zlib", Version: "1.3", Source: "homebrew_packages"}
+	// canonical row via the normal ingestion path (host1).
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{sw})
+	require.NoError(t, err)
+	var canonical struct {
+		ID      uint  `db:"id"`
+		TitleID *uint `db:"title_id"`
+	}
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &canonical,
+		`SELECT id, title_id FROM software WHERE name = 'zlib' AND version = '1.3' AND source = 'homebrew_packages'`))
+
+	// Two distinct stale rows for the same identity (two different legacy formulas), so
+	// the group has three members: canonical + staleA + staleB.
+	insertStale := func(cksum []byte) int64 {
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO software (name, version, source, checksum, title_id) VALUES ('zlib', '1.3', 'homebrew_packages', ?, ?)`,
+			cksum, canonical.TitleID)
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		return id
+	}
+	staleA := insertStale(legacyNameFirstChecksum(t, sw))
+	otherB := md5.Sum([]byte("zlib-other-legacy")) //nolint:gosec // arbitrary distinct non-canonical checksum
+	staleB := insertStale(otherB[:])
+
+	// host2 on staleA; host1 (already on canonical) also on staleB, so staleB's merge
+	// exercises a collision as well.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software (host_id, software_id) VALUES (?, ?), (?, ?)`, host2.ID, staleA, host1.ID, staleB)
+	require.NoError(t, err)
+	// an installed path on a stale row must be repointed onto the survivor.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, '/opt/homebrew/Cellar/zlib')`,
+		host2.ID, staleA)
+	require.NoError(t, err)
+
+	countZlib := func() int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM software WHERE name = 'zlib'`))
+		return n
+	}
+	require.Equal(t, 3, countZlib())
+
+	require.NoError(t, ds.ReconcileSoftwareChecksums(ctx))
+
+	// All three members collapsed onto the canonical row.
+	require.Equal(t, 1, countZlib())
+	var remainingID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &remainingID,
+		`SELECT id FROM software WHERE name = 'zlib'`))
+	require.Equal(t, canonical.ID, remainingID)
+
+	// Both hosts on the canonical row, each once (host1's staleB collision resolved).
+	var hostIDs []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
+		`SELECT host_id FROM host_software WHERE software_id = ? ORDER BY host_id`, canonical.ID))
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, hostIDs)
+
+	// The installed path on staleA was repointed onto the canonical row.
+	var pathSoftwareIDs []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &pathSoftwareIDs,
+		`SELECT software_id FROM host_software_installed_paths WHERE host_id = ?`, host2.ID))
+	require.Equal(t, []uint{canonical.ID}, pathSoftwareIDs)
+}
+
+// TestReconcileSoftwareChecksumsGroupsByChecksumIdentity guards against drift
+// between the reconciliation GROUP BY and Software.ComputeRawChecksum. Every field
+// that feeds the checksum must also be part of the GROUP BY; if one is missing, two
+// genuinely-different software rows (distinct checksums) would be grouped together
+// and wrongly merged. For each such field, insert two rows that differ ONLY in that
+// field and confirm reconciliation leaves both intact.
+func TestReconcileSoftwareChecksumsGroupsByChecksumIdentity(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	appA, upgradeA := "app-a", "upgrade-a"
+	base := fleet.Software{
+		Version: "1.0", Source: "deb_packages", BundleIdentifier: "com.example",
+		Release: "1", Arch: "amd64", Vendor: "vendorA", ExtensionFor: "chrome",
+		ExtensionID: "extA", ApplicationID: &appA, UpgradeCode: &upgradeA,
+	}
+
+	// One mutator per identity field in ComputeRawChecksum; each changes exactly one.
+	cases := []struct {
+		field  string
+		mutate func(*fleet.Software)
+	}{
+		{"name", func(s *fleet.Software) { s.Name += "-variant" }},
+		{"version", func(s *fleet.Software) { s.Version = "2.0" }},
+		{"source", func(s *fleet.Software) { s.Source = "rpm_packages" }},
+		{"bundle_identifier", func(s *fleet.Software) { s.BundleIdentifier = "com.other" }},
+		{"release", func(s *fleet.Software) { s.Release = "2" }},
+		{"arch", func(s *fleet.Software) { s.Arch = "arm64" }},
+		{"vendor", func(s *fleet.Software) { s.Vendor = "vendorB" }},
+		{"extension_for", func(s *fleet.Software) { s.ExtensionFor = "firefox" }},
+		{"extension_id", func(s *fleet.Software) { s.ExtensionID = "extB" }},
+		{"application_id", func(s *fleet.Software) { v := "app-b"; s.ApplicationID = &v }},
+		{"upgrade_code", func(s *fleet.Software) { v := "upgrade-b"; s.UpgradeCode = &v }},
+	}
+
+	insert := func(t *testing.T, sw fleet.Software, tag string) int64 {
+		cksum := md5.Sum([]byte(tag)) //nolint:gosec // arbitrary distinct checksum
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO software (name, version, source, bundle_identifier, `release`, arch, vendor, extension_for, extension_id, application_id, upgrade_code, checksum) "+
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor,
+			sw.ExtensionFor, sw.ExtensionID, sw.ApplicationID, sw.UpgradeCode, cksum[:])
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		return id
+	}
+
+	for _, c := range cases {
+		t.Run(c.field, func(t *testing.T) {
+			b := base
+			b.Name = "grpident-" + c.field // unique per case so cases don't group together
+			variant := b
+			c.mutate(&variant)
+
+			idA := insert(t, b, "a-"+c.field)
+			idB := insert(t, variant, "b-"+c.field)
+
+			require.NoError(t, ds.ReconcileSoftwareChecksums(ctx))
+
+			var count int
+			require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+				`SELECT COUNT(*) FROM software WHERE id IN (?, ?)`, idA, idB))
+			require.Equalf(t, 2, count,
+				"rows differing only in %q were merged; is %q missing from the reconciliation GROUP BY (it must match ComputeRawChecksum)?",
+				c.field, c.field)
+		})
+	}
 }

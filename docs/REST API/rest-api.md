@@ -517,6 +517,10 @@ Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 
 ## Activities
 
++ [List activities](#list-activities)
++ [List policy automation activities](#list-policy-automation-activities)
++ [Reset policy results](#reset-policy-results)
+
 ### List activities
 
 Returns a list of the activities that have been performed in Fleet. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
@@ -564,7 +568,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
         "install_uuid": "23c18ea1-8cd7-4af4-a1d8-f2666993a66b",
         "self_service": false,
         "software_title": "zoom.us.app",
-        "software_package": "ZoomInstallerIT.pkg",
+        "software_package": "ZoomInstallerIT.pkg"
       }
     },
     {
@@ -598,7 +602,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
         "install_uuid": "077970ab-0ed6-4573-9cdc-ca9ef9015283",
         "self_service": false,
         "software_title": "zoom.us.app",
-        "software_package": "ZoomInstallerIT.pkg",
+        "software_package": "ZoomInstallerIT.pkg"
       }
     }
   ],
@@ -609,6 +613,156 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 }
 
 ```
+
+### List policy automation activities
+
+`GET /api/v1/fleet/policies/:id/automation_activities`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The policy ID. |
+| status   | string | path | Optional filter by automation status. Either "success" or "error" |
+| query   | string | path | Search query to filter by. Can search by host's name. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
+| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, and `activity_type`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+#### Example
+
+`GET /api/v1/fleet/policies/12/automation_activities?query=Anna's%20MacBook`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 412,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "failed_webhook_policy_automation",
+      "fleet_initiated": true,
+      "details": {
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "error",
+      "output": null
+    },
+    {
+      "created_at": "2023-07-27T14:34:22Z",
+      "id": 410,
+      "actor_full_name": "Anna Chao",
+      "actor_id": 3,
+      "actor_gravatar": "",
+      "actor_email": "anna@example.com",
+      "type": "ran_script",
+      "fleet_initiated": false,
+      "details": {
+        "host_id": 10,
+        "host_display_name": "Anna's MacBook Pro",
+        "script_name": "remediate-gatekeeper.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "success",
+      "output": "Gatekeeper enabled\n"
+    },
+    {
+      "created_at": "2023-07-27T14:33:01Z",
+      "id": 407,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "installed_software",
+      "fleet_initiated": true,
+      "details": {
+        "host_id": 11,
+        "host_display_name": "Marco's Windows",
+        "install_uuid": "23c18ea1-8cd7-4af4-a1d8-f2666993a66b",
+        "software_title": "1Password",
+        "software_package": "1Password.msi",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 11,
+      "host_display_name": "Marco's Windows",
+      "status": "error",
+      "output": "Installing software...\nFailed\nExit code: 1"
+    },
+    {
+      "created_at": "2023-07-27T14:31:47Z",
+      "id": 404,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "installed_app_store_app",
+      "fleet_initiated": true,
+      "details": {
+        "host_id": 10,
+        "host_display_name": "Anna's MacBook Pro",
+        "software_title": "Logic Pro",
+        "app_store_id": "1234567",
+        "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "success",
+      "output": null
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Reset policy results
+
+Clears a policy's pass/fail results, identical to the side effect of editing its query. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
+
+`POST /api/v1/fleet/policies/:policy_id/reset`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                                                                                   |
+| --------- | ------- | ---- | --------------------------------------------------------------------------------------------- |
+| policy_id | integer | path | **Required.** The policy's ID.                                                                |
+| host_id   | integer | query | When set, resets only this host's result for the policy instead of resetting all hosts.      |
+
+#### Example
+
+`POST /api/v1/fleet/policies/123/reset?host_id=42`
+
+##### Default response
+
+`Status: 200`
+
+#### Errors
+
+| Status | Description                                                            |
+| ------ | ---------------------------------------------------------------------- |
+| 403    | The authenticated user does not have write access to the policy.       |
+| 404    | No policy with the given `policy_id` exists.                           |
 
 ---
 
@@ -879,7 +1033,7 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
       "id": 5,
       "name": "SECTIGO_WIFI",
       "type": "custom_est_proxy"
-    }
+    },
     {
       "id": 6,
       "name": "SMALLSTEP_WIFI",
@@ -919,7 +1073,7 @@ Get details of the certificate authority.
   "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
   "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
   "certificate_user_principal_names": [
-    "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+    "$FLEET_VAR_HOST_HARDWARE_SERIAL"
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
 }
@@ -992,7 +1146,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
       "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
       "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
-      "created_at": "2025-11-04T00:00:00Z",
+      "created_at": "2025-11-04T00:00:00Z"
     },
     {
       "id": 2,
@@ -1000,7 +1154,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
       "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID",
-      "created_at": "2025-11-04T00:00:00Z",
+      "created_at": "2025-11-04T00:00:00Z"
     }
   ],
   "meta": {
@@ -1640,7 +1794,7 @@ None.
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
     "activity_expiry_window": 0,
-    "preserve_host_activity_on_reenrollment": false,
+    "preserve_host_activity_on_reenrollment": false
   },
   "features": {
     "enable_host_users": true,
@@ -1705,7 +1859,7 @@ None.
          "path": "path/to/profile2.xml",
          "labels": ["Label 3", "Label 4"]
         }
-      ],
+      ]
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -1726,7 +1880,7 @@ None.
       "enable_release_device_manually": false,
       "manual_agent_install": false,
       "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin",
+      "end_user_local_account_type": "admin"
     },
     "setup_experience": {
       "bootstrap_package": "",
@@ -1799,7 +1953,7 @@ None.
   },
   "gitops": {
     "gitops_mode_enabled": false,
-    "repository_url": "",
+    "repository_url": ""
   },
   "webhook_settings": {
     "host_status_webhook": {
@@ -2006,7 +2160,7 @@ Modifies the Fleet's configuration with the supplied information.
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
     "activity_expiry_window": 0,
-    "preserve_host_activity_on_reenrollment": false,
+    "preserve_host_activity_on_reenrollment": false
   },
   "features": {
     "enable_host_users": true,
@@ -2062,7 +2216,7 @@ Modifies the Fleet's configuration with the supplied information.
         {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
-        },
+        }
       ]
     },
     "apple_settings": {
@@ -2078,7 +2232,7 @@ Modifies the Fleet's configuration with the supplied information.
         {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
-        },
+        }
       ]
     },
     "windows_settings": {
@@ -2152,7 +2306,7 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "gitops": {
     "gitops_mode_enabled": false,
-    "repository_url": "",
+    "repository_url": ""
   },
   "webhook_settings": {
     "host_status_webhook": {
@@ -3101,7 +3255,7 @@ None.
       "created_at": "2021-06-16T22:05:49Z",
       "secret": "aFtH2Nq09hrvi73ErlWNQfa7M53D3rPR",
       "team_id": 1,
-      "fleet_id": 1,
+      "fleet_id": 1
     }
   ]
 }
@@ -3481,7 +3635,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
               "cvss_score": 7.5, // Fleet Premium only
               "epss_probability": 0.01537, // Fleet Premium only
               "cisa_known_exploit": false, // Fleet Premium only
-              "cve_published": "2022-01-01 12:32:00", // Fleet Premium only
+              "cve_published": "2022-01-01T12:32:00Z", // Fleet Premium only
               "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.", // Fleet Premium only
               "resolved_in_version": "2.28" // Fleet Premium only
             }
@@ -3890,7 +4044,7 @@ Returns the information of the specified host.
       }
     },
     "maintenance_window": {
-      "starts_at": "2024-06-18T13:27:18−04:00",
+      "starts_at": "2024-06-18T13:27:18-04:00",
       "timezone": "America/New_York"
     },
     "users": [
@@ -3977,7 +4131,7 @@ Returns the information of the specified host.
         "resolution": "fix with these other steps...",
         "platform": "darwin",
         "response": "fail",
-        "critical": false,
+        "critical": false
       },
       {
         "id": 3,
@@ -3987,7 +4141,7 @@ Returns the information of the specified host.
         "resolution": "",
         "platform": "",
         "response": "",
-        "critical": false,
+        "critical": false
       },
       {
         "id": 1,
@@ -3997,7 +4151,7 @@ Returns the information of the specified host.
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
         "response": "pass",
-        "critical": false,
+        "critical": false
       }
     ],
     "software": [
@@ -4022,7 +4176,7 @@ Returns the information of the specified host.
         "generated_cpe": "",
         "vulnerabilities": null,
         "installed_paths": ["/usr/lib/some-path-2"]
-      },
+      }
     ],
     "mdm": {
       "encryption_key_available": true,
@@ -4259,7 +4413,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "created_at": "2022-09-02T18:52:19Z",
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
-        "critical": false,
+        "critical": false
       }
     ],
     "software": [
@@ -4879,14 +5033,14 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
         "id": 123,
         "name": "Google Chrome is up to date",
         "critical": true, // Fleet Premium only
-        "resolution": "Follow the Update Google Chrome instructions here: https://support.google.com/chrome/answer/95414?sjid=6534253818042437614-NA",
+        "resolution": "Follow the Update Google Chrome instructions here: https://support.google.com/chrome/answer/95414?sjid=6534253818042437614-NA"
       }
     ],
     "vulnerable_software": [
       {
         "id": 321,
         "name": "Firefox.app",
-        "version": "116.0.3",
+        "version": "116.0.3"
       }
     ]
   }
@@ -5075,7 +5229,7 @@ Retrieves MDM enrollment status and Munki versions, aggregated across all hosts.
 
 | Name    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
-| fleet_id | integer | query | _Available in Fleet Premium_. Filters the aggregate host information to only include hosts in the specified fleet. |                           |
+| fleet_id | integer | query | _Available in Fleet Premium_. Filters the aggregate host information to only include hosts in the specified fleet. |
 
 A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `null` or missing `fleet_id` returns statistics for all hosts on all fleets.
 
@@ -5470,7 +5624,7 @@ Rotates the Recovery Lock password for a host.
 
 ##### Default response
 
-`204`
+`Status: 200`
 
 ### Get host's certificates
 
@@ -5497,7 +5651,7 @@ For macOS hosts, certificates from MDM-delivered profiles containing an ACME pay
 
 `GET /api/v1/fleet/hosts/8/certificates`
 
-#### Default response
+##### Default response
 
 `Status: 200`
 
@@ -5753,8 +5907,8 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": true
-      },
-    },
+      }
+    }
   ],
   "meta": {
     "has_next_results": false,
@@ -5823,7 +5977,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": true
-      },
+      }
     },
     {
       "created_at": "2021-07-27T13:25:21Z",
@@ -5840,8 +5994,8 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "script_name": "",
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": false
-      },
-    },
+      }
+    }
   ],
   "meta": {
     "has_next_results": false,
@@ -6045,7 +6199,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `POST /api/v1/fleet/device/abcdef012456789/bypass_conditional_access`
 
-#### Default response 
+##### Default response 
 
 `Status: 200` 
 
@@ -6068,7 +6222,7 @@ Remotely clear the passcode on a host. Requires iOS/iPadOS host to have sent its
 
 `POST /api/v1/fleet/hosts/123/clear_passcode`
 
-#### Default response 
+##### Default response 
 
 `Status: 200` 
 
@@ -6100,7 +6254,7 @@ Rotates the managed local account password for a host.
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 ### Get host's managed account password
 
@@ -6315,7 +6469,7 @@ Returns the specified label.
     "team_id": null,
     "fleet_id": null,
     "team_name": null,
-    "fleet_name": null,
+    "fleet_name": null
   }
 }
 ```
@@ -6809,7 +6963,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "labels_include_all": [
         {
           "name": "Label name 2",
-          "broken": true,
+          "broken": true
         },
         {
           "name": "Label name 3",
@@ -7006,7 +7160,7 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
       "profile": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KCTxrZXk+UGF5bG9hZENvbnRlbnQ8L2tleT4KCTxhcnJheT4KCQk8ZGljdD4KCQkJPGtleT5BbGxvd1ByZVJlbGVhc2VJbnN0YWxsYXRpb248L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkF1dG9tYXRpY0NoZWNrRW5hYmxlZDwva2V5PgoJCQk8dHJ1ZS8+CgkJCTxrZXk+QXV0b21hdGljRG93bmxvYWQ8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkF1dG9tYXRpY2FsbHlJbnN0YWxsQXBwVXBkYXRlczwva2V5PgoJCQk8dHJ1ZS8+CgkJCTxrZXk+QXV0b21hdGljYWxseUluc3RhbGxNYWNPU1VwZGF0ZXM8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkNvbmZpZ0RhdGFJbnN0YWxsPC9rZXk+CgkJCTx0cnVlLz4KCQkJPGtleT5Dcml0aWNhbFVwZGF0ZUluc3RhbGw8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PlBheWxvYWREZXNjcmlwdGlvbjwva2V5PgoJCQk8c3RyaW5nPkNvbmZpZ3VyZXMgU29mdHdhcmUgVXBkYXRlIHNldHRpbmdzPC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+CgkJCTxzdHJpbmc+U29mdHdhcmUgVXBkYXRlPC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZElkZW50aWZpZXI8L2tleT4KCQkJPHN0cmluZz5jb20uZ2l0aHViLmVyaWtiZXJnbHVuZC5Qcm9maWxlQ3JlYXRvci5CRUJBMDc0MC00RERCLTRBQzQtODVEQy1CQTQ4Qjk2QzBEQzguY29tLmFwcGxlLlNvZnR3YXJlVXBkYXRlLkE4Qjk3MDMyLTc2NDUtNDA2OC1CNDU3LTAxREU1QzZCMzNGNzwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRPcmdhbml6YXRpb248L2tleT4KCQkJPHN0cmluZz48L3N0cmluZz4KCQkJPGtleT5QYXlsb2FkVHlwZTwva2V5PgoJCQk8c3RyaW5nPmNvbS5hcHBsZS5Tb2Z0d2FyZVVwZGF0ZTwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRVVUlEPC9rZXk+CgkJCTxzdHJpbmc+QThCOTcwMzItNzY0NS00MDY4LUI0NTctMDFERTVDNkIzM0Y3PC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZFZlcnNpb248L2tleT4KCQkJPGludGVnZXI+MTwvaW50ZWdlcj4KCQk8L2RpY3Q+Cgk8L2FycmF5PgoJPGtleT5QYXlsb2FkRGVzY3JpcHRpb248L2tleT4KCTxzdHJpbmc+RW5hYmxlcyBhdXRvbWF0aWMgdXBkYXRlczwvc3RyaW5nPgoJPGtleT5QYXlsb2FkRGlzcGxheU5hbWU8L2tleT4KCTxzdHJpbmc+VHVybiBvbiBhdXRvbWF0aWMgdXBkYXRlczwvc3RyaW5nPgoJPGtleT5QYXlsb2FkSWRlbnRpZmllcjwva2V5PgoJPHN0cmluZz5jb20uZ2l0aHViLmVyaWtiZXJnbHVuZC5Qcm9maWxlQ3JlYXRvci5CRUJBMDc0MC00RERCLTRBQzQtODVEQy1CQTQ4Qjk2QzBEQzg8L3N0cmluZz4KCTxrZXk+UGF5bG9hZE9yZ2FuaXphdGlvbjwva2V5PgoJPHN0cmluZz5GbGVldERNPC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRSZW1vdmFsRGlzYWxsb3dlZDwva2V5PgoJPHRydWUvPgoJPGtleT5QYXlsb2FkU2NvcGU8L2tleT4KCTxzdHJpbmc+U3lzdGVtPC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRUeXBlPC9rZXk+Cgk8c3RyaW5nPkNvbmZpZ3VyYXRpb248L3N0cmluZz4KCTxrZXk+UGF5bG9hZFVVSUQ8L2tleT4KCTxzdHJpbmc+QkVCQTA3NDAtNEREQi00QUM0LTg1REMtQkE0OEI5NkMwREM4PC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRWZXJzaW9uPC9rZXk+Cgk8aW50ZWdlcj4xPC9pbnRlZ2VyPgo8L2RpY3Q+CjwvcGxpc3Q+",
       "labels_include_any": [
         "Apple Silicon macOS hosts"
-      ],
+      ]
     }
   ]
 }
@@ -7014,7 +7168,7 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 ### Resend configuration profile by Fleet Desktop token
 
@@ -7098,7 +7252,7 @@ _Available in Fleet Premium_
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 
 ### Get disk encryption status
@@ -7197,7 +7351,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
   "verified": 123,
   "verifying": 123,
   "failed": 123,
-  "pending": 123,
+  "pending": 123
 }
 ```
 
@@ -7642,8 +7796,8 @@ _Available in Fleet Premium_
 | require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
-| enable_managed_local_account     | boolean | During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| enable_managed_local_account     | boolean | body | During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
+| end_user_local_account_type     | string | body | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
@@ -8265,70 +8419,72 @@ None.
 `Status: 200`
 
 ```json
-"ab_tokens": [
-  {
-    "id": 1,
-    "apple_id": "apple@example.com",
-    "org_name": "Fleet Device Management Inc.",
-    "mdm_server_url": "https://example.com/mdm/apple/mdm",
-    "renew_date": "2023-11-29T00:00:00Z",
-    "terms_expired": false,
-    "macos_fleet": {
-      "name": "💻 Workstations",
-      "id": 1
-    },
-    "ios_fleet": {
-      "name": "📱🏢 Company-owned iPhones",
-      "id": 2
-    },
-    "ipados_fleet": {
-      "name": "🔳🏢 Company-owned iPads",
-      "id": 3
+{
+  "ab_tokens": [
+    {
+      "id": 1,
+      "apple_id": "apple@example.com",
+      "org_name": "Fleet Device Management Inc.",
+      "mdm_server_url": "https://example.com/mdm/apple/mdm",
+      "renew_date": "2023-11-29T00:00:00Z",
+      "terms_expired": false,
+      "macos_fleet": {
+        "name": "💻 Workstations",
+        "fleet_id": 1
+      },
+      "ios_fleet": {
+        "name": "📱🏢 Company-owned iPhones",
+        "fleet_id": 2
+      },
+      "ipados_fleet": {
+        "name": "🔳🏢 Company-owned iPads",
+        "fleet_id": 3
+      }
     }
-  }
-],
-"abm_tokens": [
-  {
-    "id": 1,
-    "apple_id": "apple@example.com",
-    "org_name": "Fleet Device Management Inc.",
-    "mdm_server_url": "https://example.com/mdm/apple/mdm",
-    "renew_date": "2023-11-29T00:00:00Z",
-    "terms_expired": false,
-    "macos_team": {
-      "name": "💻 Workstations",
-      "id": 1
-    },
-    "macos_fleet": {
-      "name": "💻 Workstations",
-      "id": 1
-    },
-    "ios_team": {
-      "name": "📱🏢 Company-owned iPhones",
-      "id": 2
-    },
-    "ios_fleet": {
-      "name": "📱🏢 Company-owned iPhones",
-      "id": 2
-    },
-    "ipados_team": {
-      "name": "🔳🏢 Company-owned iPads",
-      "id": 3
-    },
-    "ipados_fleet": {
-      "name": "🔳🏢 Company-owned iPads",
-      "id": 3
-    },
-    "byod_team": {
-      "name": "📱 BYOD iPhones",
-      "id": 4
-    },
-    "byod_fleet": {
-      "name": "📱 BYOD iPhones",
-      "id": 4
+  ],
+  "abm_tokens": [
+    {
+      "id": 1,
+      "apple_id": "apple@example.com",
+      "org_name": "Fleet Device Management Inc.",
+      "mdm_server_url": "https://example.com/mdm/apple/mdm",
+      "renew_date": "2023-11-29T00:00:00Z",
+      "terms_expired": false,
+      "macos_team": {
+        "name": "💻 Workstations",
+        "team_id": 1
+      },
+      "macos_fleet": {
+        "name": "💻 Workstations",
+        "fleet_id": 1
+      },
+      "ios_team": {
+        "name": "📱🏢 Company-owned iPhones",
+        "team_id": 2
+      },
+      "ios_fleet": {
+        "name": "📱🏢 Company-owned iPhones",
+        "fleet_id": 2
+      },
+      "ipados_team": {
+        "name": "🔳🏢 Company-owned iPads",
+        "team_id": 3
+      },
+      "ipados_fleet": {
+        "name": "🔳🏢 Company-owned iPads",
+        "fleet_id": 3
+      },
+      "byod_team": {
+        "name": "📱 BYOD iPhones",
+        "team_id": 4
+      },
+      "byod_fleet": {
+        "name": "📱 BYOD iPhones",
+        "fleet_id": 4
+      }
     }
-  }
-]
+  ]
+}
 ```
 
 ### List Volume Purchasing Program (VPP) tokens
@@ -8350,33 +8506,53 @@ None.
 `Status: 200`
 
 ```json
-"vpp_tokens": [
-  {
-    "id": 1,
-    "org_name": "Fleet Device Management Inc.",
-    "location": "https://example.com/mdm/apple/mdm",
-    "country_code": "us",
-    "renew_date": "2023-11-29T00:00:00Z",
-    "fleets": [
-      {
-        "name": "💻 Workstations",
-        "id": 1
-      },
-      {
-        "name": "💻🐣 Workstations (canary)",
-        "id": 2
-      },
-      {
-        "name": "📱🏢 Company-owned iPhones",
-        "id": 3
-      },
-      {
-        "name": "🔳🏢 Company-owned iPads",
-        "id": 4
-      }
-    ],
-  }
-]
+{
+  "vpp_tokens": [
+    {
+      "id": 1,
+      "org_name": "Fleet Device Management Inc.",
+      "location": "https://example.com/mdm/apple/mdm",
+      "country_code": "us",
+      "renew_date": "2023-11-29T00:00:00Z",
+      "teams": [
+        {
+          "name": "💻 Workstations",
+          "team_id": 1
+        },
+        {
+          "name": "💻🐣 Workstations (canary)",
+          "team_id": 2
+        },
+        {
+          "name": "📱🏢 Company-owned iPhones",
+          "team_id": 3
+        },
+        {
+          "name": "🔳🏢 Company-owned iPads",
+          "team_id": 4
+        }
+      ],
+      "fleets": [
+        {
+          "name": "💻 Workstations",
+          "fleet_id": 1
+        },
+        {
+          "name": "💻🐣 Workstations (canary)",
+          "fleet_id": 2
+        },
+        {
+          "name": "📱🏢 Company-owned iPhones",
+          "fleet_id": 3
+        },
+        {
+          "name": "🔳🏢 Company-owned iPads",
+          "fleet_id": 4
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Get Android Enterprise
@@ -9093,14 +9269,12 @@ None.
     {
       "id": "urn:ietf:params:scim:schemas:core:2.0:User",
       "name": "User",
-      "description": "SCIM User",
-      "attributes": [...]
+      "description": "SCIM User"
     },
     {
       "id": "urn:ietf:params:scim:schemas:core:2.0:Group",
       "name": "Group",
-      "description": "SCIM Group",
-      "attributes": [...]
+      "description": "SCIM Group"
     }
   ]
 }
@@ -9687,7 +9861,7 @@ _Available in Fleet Premium_
     "patch_software": {
       "display_name": "", 
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234,
+      "software_title_id": 1234
     },
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -11042,6 +11216,8 @@ By default, script runs time out after 5 minutes. You can modify this default in
 
 Gets the result of a script that was executed.
 
+`GET /api/v1/fleet/scripts/results/:execution_id`
+
 #### Parameters
 
 | Name         | Type   | In   | Description                                   |
@@ -11089,7 +11265,7 @@ The script will be added to each host's list of upcoming activities.
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
 | script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
-| host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
+| host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
 | filters | object  | body | See [filters](#filters4). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
 | not_before       | string  | body | UTC time when the script run is scheduled to begin. If omitted, the batch script will begin right away. |
 
@@ -11203,7 +11379,7 @@ Returns a list of batch script executions.
   ],
   "meta": {
     "has_next_results": false,
-    "has_previous_results": false,
+    "has_previous_results": false
   },
   "count": 1
 }
@@ -11267,7 +11443,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 | Name                | Type    | In    | Description                                                                                    |
 | --------------------| ------- | ----- | --------------------------------------------                                                   |
 | batch_execution_id  | string  | path  | **Required**. The ID returned from a batch script run. |
-| status              | string  | query | Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
+| status              | string  | query | **Required** Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
 | page                | integer | query | Page number of the results to fetch. |
 | per_page            | integer | query | Results per page. |
 | order_key           | string  | query | What to order results by. Allowed fields are `display_name`, `hostname`, and `updated_at`. |
@@ -11490,40 +11666,41 @@ Deletes an existing script.
 `Status: 200`
 
 ```json
-"scripts": [
-  {
-    "script_id": 3,
-    "name": "remove-zoom-artifacts.sh",
-    "last_execution": {
-      "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "error"
+{
+  "scripts": [
+    {
+      "script_id": 3,
+      "name": "remove-zoom-artifacts.sh",
+      "last_execution": {
+        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "error"
+      }
+    },
+    {
+      "script_id": 5,
+      "name": "set-timezone.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "pending"
+      }
+    },
+    {
+      "script_id": 8,
+      "name": "uninstall-zoom.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "ran"
+      }
     }
-  },
-  {
-    "script_id": 5,
-    "name": "set-timezone.sh",
-    "last_execution": {
-      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "pending"
-    }
-  },
-  {
-    "script_id": 8,
-    "name": "uninstall-zoom.sh",
-    "last_execution": {
-      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "ran"
-    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
   }
-],
-"meta": {
-  "has_next_results": false,
-  "has_previous_results": false
 }
-
 ```
 
 ### Get or download script
@@ -11803,7 +11980,7 @@ Get a list of all software versions.
 
 ```json
 {
-    "counts_updated_at": "2022-01-01 12:32:00",
+    "counts_updated_at": "2022-01-01T12:32:00Z",
     "count": 2,
     "software": [
       {
@@ -11823,7 +12000,7 @@ Get a list of all software versions.
             "cvss_score": 7.5,
             "epss_probability": 0.01537,
             "cisa_known_exploit": false,
-            "cve_published": "2022-01-01 12:32:00",
+            "cve_published": "2022-01-01T12:32:00Z",
             "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.",
             "resolved_in_version": "2.28"
           }
@@ -12456,7 +12633,9 @@ icon="crowdstrike-icon-512x512.png"
 `Status: 200`
 
 ```json
+{
   "icon_url": "/api/latest/fleet/software/titles/33/icon?team_id=2"
+}
 ```
 
 ### Download software icon
@@ -12562,7 +12741,7 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
       "latest_version": "2.04",
       "app_store_id": "634148309",
       "platform": "ipados"
-    },
+    }
   ]
 }
 ```
@@ -12686,7 +12865,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
   "app_store_app": {
     "name": "Logic Pro",
     "display_name": "",
-    "icon_url" null,
+    "icon_url": null,
     "app_store_id": 1091189122,
     "categories": ["Browser"],
     "latest_version": "2.04",
@@ -12711,7 +12890,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
     "status": {
       "installed": 3,
       "pending": 1,
-      "failed": 2,
+      "failed": 2
     }
   }
 }
@@ -12771,8 +12950,7 @@ List available Fleet-maintained apps.
       "platform": "darwin",
       "version": "2.39.179",
       "software_title_id": 3
-    },
-    ...
+    }
   ],
   "count": 250,
   "meta": {
@@ -12817,7 +12995,7 @@ Returns information about the specified Fleet-maintained app.
     "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
-    "software_title_id": 3
+    "software_title_id": 3,
     "categories": ["Productivity"]
   }
 }
@@ -13273,7 +13451,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "epss_probability": 0.9729,// Available in Fleet Premium
       "cisa_known_exploit": false,// Available in Fleet Premium
       "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability." // Available in Fleet Premium
     }
   ],
   "count": 123,
@@ -13310,43 +13488,45 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 `Status: 200`
 
 ```json
-"vulnerability": {
-  "cve": "CVE-2022-30190",
-  "created_at": "2022-06-01T00:15:00Z",
-  "hosts_count": 1234,
-  "hosts_count_updated_at": "2023-12-20T15:23:57Z",
-  "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
-  "cvss_score": 7.8,// Available in Fleet Premium
-  "epss_probability": 0.9729,// Available in Fleet Premium
-  "cisa_known_exploit": false,// Available in Fleet Premium
-  "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-  "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
-  "os_versions" : [
-    {
-      "os_version_id": 6,
-      "hosts_count": 200,
-      "name": "macOS 14.1.2",
-      "name_only": "macOS",
-      "version": "14.1.2",
-      "resolved_in_version": "14.2",
-      "generated_cpes": [
-        "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
-        "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
-      ]
-    }
-  ],
-  "software": [
-    {
-      "id": 2363,
-      "software_title_id": 124,
-      "name": "Docker Desktop",
-      "version": "4.9.1",
-      "source": "programs",
-      "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
-      "hosts_count": 50,
-      "resolved_in_version": "5.0.0"
-    }
-  ]
+{
+  "vulnerability": {
+    "cve": "CVE-2022-30190",
+    "created_at": "2022-06-01T00:15:00Z",
+    "hosts_count": 1234,
+    "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+    "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+    "cvss_score": 7.8,// Available in Fleet Premium
+    "epss_probability": 0.9729,// Available in Fleet Premium
+    "cisa_known_exploit": false,// Available in Fleet Premium
+    "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+    "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+    "os_versions" : [
+      {
+        "os_version_id": 6,
+        "hosts_count": 200,
+        "name": "macOS 14.1.2",
+        "name_only": "macOS",
+        "version": "14.1.2",
+        "resolved_in_version": "14.2",
+        "generated_cpes": [
+          "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+          "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+        ]
+      }
+    ],
+    "software": [
+      {
+        "id": 2363,
+        "software_title_id": 124,
+        "name": "Docker Desktop",
+        "version": "4.9.1",
+        "source": "programs",
+        "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+        "hosts_count": 50,
+        "resolved_in_version": "5.0.0"
+      }
+    ]
+  }
 }
 ```
 
@@ -14535,7 +14715,7 @@ _Available in Fleet Premium_
 
 `DELETE /api/v1/fleet/fleets/1`
 
-#### Default response
+##### Default response
 
 `Status: 200`
 
@@ -15710,6 +15890,31 @@ Returns information about the current state of the database; valid keys are:
 
 None.
 
+#### Example
+
+`GET /debug/db/process-list`
+
+##### Default response
+
+`Status: 200`
+
+```json
+[
+  {
+    "id": 1234,
+    "user": "fleet",
+    "host": "10.0.0.5:52014",
+    "db": "fleet",
+    "command": "Query",
+    "time": 0,
+    "state": "executing",
+    "info": "SELECT * FROM hosts"
+  }
+]
+```
+
+> The response shape depends on the requested `key`. `locks` returns a list of objects with `waiting_trx_id`, `waiting_thread`, `waiting_query`, `blocking_trx_id`, `blocking_thread`, and `blocking_query`. `innodb-status` returns a JSON string containing the raw `SHOW ENGINE INNODB STATUS` output. `process-list` returns a list of objects as shown above.
+
 ### Get profiling information
 
 Returns runtime profiling data of the server in the format expected by `go tools pprof`. The responses are equivalent to those returned by the Go `http/pprof` package.
@@ -15720,6 +15925,16 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 
 #### Parameters
 None.
+
+#### Example
+
+`GET /debug/pprof/cmdline`
+
+##### Default response
+
+`Status: 200`
+
+The response body is the same as the Go [`net/http/pprof`](https://pkg.go.dev/net/http/pprof) package returns for the given `key`: plain text for `cmdline` and `symbol`, and a binary pprof profile for `profile` and `trace`.
 
 ### Get trace sampling settings
 
@@ -15831,7 +16046,7 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
   ],
   "meta": {
     "has_next_results": false,
-    "has_previous_results": false,
+    "has_previous_results": false
   },
   "count": 1
 }

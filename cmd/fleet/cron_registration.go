@@ -128,6 +128,10 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 		})
 	}
 
+	deps.register(fmt.Sprintf("failed to register %s", fleet.CronSoftwareChecksumMigration), func() (fleet.CronSchedule, error) {
+		return cronSoftwareChecksumMigration(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
 	if deps.config.Server.FrequentCleanupsEnabled {
 		deps.register("failed to register frequent_cleanups schedule", func() (fleet.CronSchedule, error) {
 			return newFrequentCleanupsSchedule(ctx, deps.instanceID, deps.ds, deps.liveQueryStore, deps.logger)
@@ -304,6 +308,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register maintained apps schedule", func() (fleet.CronSchedule, error) {
 		return newMaintainedAppSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
+	deps.register("failed to register windows maintained app titles schedule", func() (fleet.CronSchedule, error) {
+		return newWindowsMaintainedAppTitlesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 
 	deps.register("failed to register maintained apps auto-update schedule", func() (fleet.CronSchedule, error) {

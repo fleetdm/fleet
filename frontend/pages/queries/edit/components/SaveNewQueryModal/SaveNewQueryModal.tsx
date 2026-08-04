@@ -339,7 +339,6 @@ const SaveNewQueryModal = ({
           showText="Advanced options"
           caretPosition="after"
           onClick={toggleAdvancedOptions}
-          variant="secondary"
         />
         {showAdvancedOptions && (
           <>

@@ -592,16 +592,12 @@ Any fleetie can follow the process below to add a priority label to an issue.
 4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
 
 
-### Notify stakeholders when a user story is pushed to the next release
+### Notify stakeholders when a user story is pushed
 
-[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be [drafted](#drafting) in a single release cycle and built in the following single, often but not always, release cycle. 
+[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be [drafted](#drafting) in a single release cycle and built in the following single, often but not always, release cycle. When stories take longer than expected, they're pushed to a later release and stakeholders are notified:
 
-When the Product Designers (PD) knows a user story in drafting will be pushed, it is the PD's responsibility to notify stakeholders.
-
-When an Engineering Manager (EM) knows a user story being built will be pushed, it is the EM's responsibility to notify stakeholders.
-
-1. If the story is being built, send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
-2. If `~activation-blocker`, `~customer promise`, or both a `customer-*` and a `P*` label are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel.
+1. If the story is being built, the Engineering Manager (EM) send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
+2. If `~activation-blocker`, `~customer promise`, or both a `customer-*` and a `P*` label are applied to the user story, also at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel. If the user story is still in drafting, it's up to the Product Designers (PD) to notify.
 
 > Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
 

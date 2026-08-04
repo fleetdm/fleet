@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "17.0.19.10",
+      "version": "17.0.20.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '17.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '17.%' AND version_compare(version, '17.0.19.10') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '17.%' AND version_compare(version, '17.0.20.8') < 0);"
       },
-      "installer_url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.19+10/OpenJDK17U-jdk_x64_windows_hotspot_17.0.19_10.msi",
+      "installer_url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20+8/OpenJDK17U-jdk_x64_windows_hotspot_17.0.20_8.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "a8451a5d",
-      "sha256": "ccd97a7e313381a84e3567ffe10ad562884e399cc1fb1b4c5fa417de49efac78",
+      "sha256": "1a8ec6023937b94e26691a2369e9f99dfeae3a25351a7e4f9320828aae481898",
       "default_categories": [
         "Developer tools"
       ],

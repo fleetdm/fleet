@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.4.2",
+      "version": "5.4.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'AWS VPN Client' AND publisher = 'Amazon';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AWS VPN Client' AND publisher = 'Amazon' AND version_compare(version, '5.4.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AWS VPN Client' AND publisher = 'Amazon' AND version_compare(version, '5.4.3') < 0);"
       },
-      "installer_url": "https://d20adtppz83p9s.cloudfront.net/WPF/5.4.2/AWS_VPN_Client.msi",
+      "installer_url": "https://d20adtppz83p9s.cloudfront.net/WPF/5.4.3/AWS_VPN_Client.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "ff441c4a",
-      "sha256": "de6ede73c4a8de70d6e21b5c5d54b2b0c496eab788234e981467b721dbf31c9c",
+      "sha256": "eaa60ff88478745604c500020d824bfdd361a739b5021db0378ece4c3f4d60b1",
       "default_categories": [
         "Productivity"
       ],

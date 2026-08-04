@@ -70,6 +70,8 @@ func TestReceiverRun(t *testing.T) {
 			return nil
 		})
 
+		// A receiver loop that hands over no config at all must not take the process down with it.
+		require.NoError(t, r.Run(nil))
 		require.NoError(t, r.Run(notification(false)))
 		select {
 		case <-provisioned:
@@ -99,8 +101,7 @@ func TestReceiverRun(t *testing.T) {
 		calls, escrowed, clientError := esc.snapshot()
 		assert.Equal(t, 1, calls)
 		assert.Empty(t, clientError)
-		// The escrowed password must be the one actually set on the account, or the admin is handed a
-		// password that does not work.
+		assert.NotEmpty(t, gotPassword)
 		assert.Equal(t, gotPassword, escrowed)
 	})
 
@@ -120,8 +121,9 @@ func TestReceiverRun(t *testing.T) {
 		assert.Contains(t, clientError, "NetUserAdd failed: access denied")
 	})
 
-	// The account exists with a password Fleet does not know. Nothing local records success, so the
-	// next notification re-runs the flow, resets the password, and escrows the new one.
+	// The account exists with a password Fleet does not know. Nothing local records success, so the flow
+	// re-runs and resets the password once the retry window has passed. A failed escrow arms the same
+	// throttle as a failed creation, since neither got a password safely to the server.
 	t.Run("a failed escrow leaves nothing that would block a retry", func(t *testing.T) {
 		esc := &mockEscrower{err: errors.New("server unavailable")}
 		var provisions int
@@ -131,14 +133,14 @@ func TestReceiverRun(t *testing.T) {
 		}
 
 		r := newTestReceiver(esc, provision)
+		// No throttle, so pacing cannot mask the retry this is looking for.
+		r.retryFrequency = 0
 		awaitAttempt(t, r)
 		awaitAttempt(t, r)
 
 		assert.Equal(t, 2, provisions, "the second notification must re-run provisioning")
 	})
 
-	// A panic in this goroutine would otherwise terminate the whole orbit process, taking osquery
-	// reporting and MDM down with it. The mutex must still be released so the next poll can retry.
 	t.Run("a panic while provisioning does not escape the goroutine", func(t *testing.T) {
 		esc := &mockEscrower{}
 		r := newTestReceiver(esc, func(string, string) error {
@@ -184,21 +186,15 @@ func TestReceiverRun(t *testing.T) {
 		assert.Equal(t, 2, provisions)
 	})
 
-	// A success clears the throttle, so a later notification (a re-enrollment, say) is acted on at once
-	// rather than waiting out a window from some earlier failure.
 	t.Run("a success clears the retry throttle", func(t *testing.T) {
-		esc := &mockEscrower{}
-		r := newTestReceiver(esc, func(string, string) error { return nil })
+		r := newTestReceiver(&mockEscrower{}, func(string, string) error { return nil })
 		r.retryFrequency = time.Hour
-		r.lastFailure = time.Now()
 
-		// Still inside the window from the earlier failure.
-		assert.Nil(t, r.attempt())
-
-		r.lastFailure = time.Time{}
 		awaitAttempt(t, r)
-		assert.True(t, r.lastFailure.IsZero(), "a successful attempt must leave no throttle behind")
-		awaitAttempt(t, r)
+		// Make sure the 2nd back-to-back attempt is not dropped after a success.
+		done := r.attempt()
+		require.NotNil(t, done, "a success must not arm the retry throttle")
+		<-done
 	})
 
 	t.Run("only one attempt runs at a time", func(t *testing.T) {

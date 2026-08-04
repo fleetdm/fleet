@@ -231,18 +231,15 @@ $shadow-transition-width: 16px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: $gap-table-elements;
 
         p {
-          margin: 0 $pad-medium 0 0;
+          margin: 0;
           font-weight: $regular;
 
           span {
             font-weight: $bold;
           }
-        }
-
-        button {
-          margin-right: $pad-medium;
         }
       }
 
@@ -250,6 +247,7 @@ $shadow-transition-width: 16px;
       &__inner-right {
         display: flex;
         align-items: center;
+        gap: $gap-table-elements;
       }
     }
 

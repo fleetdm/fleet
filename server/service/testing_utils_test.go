@@ -1392,6 +1392,10 @@ type fmaTestState struct {
 	sha256         string
 	installerPath  string
 	patchQuery     string
+	// installScript is the manifest install script content. Defaults to a
+	// placeholder when empty; set it to vary the script across builds (a real FMA
+	// script embeds the versioned installer filename, so a rebuild changes it).
+	installScript string
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1410,24 +1414,25 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		}
 	}
 
-	statesByInstallerPath := make(map[string]*fmaTestState, len(states))
 	for _, state := range states {
 		state.ComputeSHA(state.installerBytes)
-		statesByInstallerPath[state.installerPath] = state
 	}
 	var downloadMu sync.Mutex
 
-	// Mock installer server — routes by path to serve per-FMA bytes.
+	// Mock installer server — routes by path to serve per-FMA bytes. The lookup
+	// happens per request so a test can change a state's installerPath or bytes
+	// between applies (recomputing sha256) without restarting the server.
 	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		downloadMu.Lock()
 		defer downloadMu.Unlock()
 
-		state, found := statesByInstallerPath[r.URL.Path]
-		if !found {
-			http.NotFound(w, r)
-			return
+		for _, state := range states {
+			if state.installerPath == r.URL.Path {
+				_, _ = w.Write(state.installerBytes)
+				return
+			}
 		}
-		_, _ = w.Write(state.installerBytes)
+		http.NotFound(w, r)
 	}))
 
 	// Locate the repo's apps.json so the manifest server can serve it.
@@ -1470,9 +1475,13 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 				DefaultCategories:  []string{"Productivity"},
 			},
 		}
+		installScript := state.installScript
+		if installScript == "" {
+			installScript = "Hello World!"
+		}
 		manifest := ma.FMAManifestFile{
 			Versions: versions,
-			Refs:     map[string]string{"foobaz": "Hello World!"},
+			Refs:     map[string]string{"foobaz": installScript},
 		}
 		require.NoError(t, json.NewEncoder(w).Encode(manifest))
 	}))

@@ -420,6 +420,12 @@ func (p *MDMAppleProfilePayload) FailedInstallOnHost() bool {
 	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
 }
 
+func (p *MDMAppleProfilePayload) FailedVerificationOnHost() bool {
+	return p.FailedInstallOnHost() &&
+		(p.Detail == string(HostMDMProfileDetailFailedWasVerifying) ||
+			p.Detail == string(HostMDMProfileDetailFailedWasVerified))
+}
+
 // PendingInstallOnHost indicates whether this profile is pending to install on the host.
 // The profile in Pending status could be on the host, but Fleet has not received an Acknowledged status yet.
 func (p *MDMAppleProfilePayload) PendingInstallOnHost() bool {

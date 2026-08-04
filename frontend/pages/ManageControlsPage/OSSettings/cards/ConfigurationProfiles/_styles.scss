@@ -37,7 +37,19 @@
     margin: px-to-rem(32) 0 0;
     max-width: none;
   }
+}
 
+// Split from `.configuration-profiles` (the card wrapper above) because this
+// card renders two inner tabs — Profiles and Assets — and each tab needs its
+// own layout scope. `.assets-tab` mirrors this in AssetsTab/_styles.scss.
+// Certificates and ScriptLibrary don't split because each is a single-tab
+// card.
+.profiles-tab {
+  @include vertical-page-tab-panel-layout;
+
+  &__tab-header {
+    @include tab-header;
+  }
 }
 
 // this is used to format the long error message when uploading invalid keys

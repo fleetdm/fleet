@@ -23,7 +23,10 @@ import {
   MAX_PACKAGES_PER_TITLE,
   NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import {
+  APP_CONTEXT_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+} from "interfaces/team";
 import {
   canDownloadSoftwareInstaller,
   canWriteSoftware,
@@ -38,7 +41,6 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
@@ -435,8 +437,8 @@ const SoftwareTitleDetailsPage = ({
         variant="secondary"
         onClick={() => setShowAddPackageModal(true)}
         disabled={atPackageLimit}
+        icon="plus"
       >
-        <Icon name="plus" />
         Add package
       </Button>
     );
@@ -665,7 +667,11 @@ const SoftwareTitleDetailsPage = ({
     if (isSoftwareTitleError) {
       return (
         <DetailsNoHosts
-          header="Software not detected"
+          header={
+            currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
+              ? "Software not found"
+              : "Software not found in this fleet"
+          }
           details="Expecting to see software? Check back later."
         />
       );

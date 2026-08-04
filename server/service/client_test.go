@@ -3,8 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -1301,6 +1307,106 @@ func TestEnsureHistoricalDataDefaults(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.wantValue, tt.features["historical_data"])
+		})
+	}
+}
+
+func TestApplySoftwareInstallersProgress(t *testing.T) {
+	pkg := func(name string, status fleet.SoftwarePackageDownloadStatus) fleet.SoftwarePackageDownloadProgress {
+		return fleet.SoftwarePackageDownloadProgress{Name: name, Status: status}
+	}
+	poll := func(status string, progress ...fleet.SoftwarePackageDownloadProgress) batchSetSoftwareInstallersResultResponse {
+		return batchSetSoftwareInstallersResultResponse{Status: status, DownloadProgress: progress}
+	}
+	// Fakes the batch endpoints, handing out one scripted response per poll.
+	newClient := func(t *testing.T, polls []batchSetSoftwareInstallersResultResponse) *Client {
+		var mu sync.Mutex
+		var polled int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.Method == "POST" {
+				_ = json.NewEncoder(w).Encode(batchSetSoftwareInstallersResponse{RequestUUID: "test-uuid"})
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			_ = json.NewEncoder(w).Encode(polls[min(polled, len(polls)-1)])
+			polled++
+		}))
+		t.Cleanup(srv.Close)
+		client, err := NewClient(srv.URL, true, "", "")
+		require.NoError(t, err)
+		client.SetToken("test-token")
+		return client
+	}
+
+	processing, completed := fleet.BatchSetSoftwareInstallersStatusProcessing, fleet.BatchSetSoftwareInstallersStatusCompleted
+	downloading, downloaded := fleet.SoftwarePackageDownloadStarted, fleet.SoftwarePackageDownloadFinished
+
+	testCases := []struct {
+		name      string
+		polls     []batchSetSoftwareInstallersResultResponse
+		wantLines []string
+	}{
+		{
+			// A package keeps its entry for the rest of the batch, so a line that already
+			// printed must not print again on the next poll.
+			name: "prints each line once however often it polls",
+			polls: []batchSetSoftwareInstallersResultResponse{
+				poll(processing, pkg("zoom.pkg", downloading)),
+				poll(processing, pkg("zoom.pkg", downloaded), pkg("slack.pkg", downloading)),
+				poll(completed, pkg("zoom.pkg", downloaded), pkg("slack.pkg", downloaded)),
+			},
+			wantLines: []string{
+				"[+] downloading software package - zoom.pkg ...",
+				"[+] downloaded software package - zoom.pkg",
+				"[+] downloading software package - slack.pkg ...",
+				"[+] downloaded software package - slack.pkg",
+			},
+		},
+		{
+			// Fleet already has the bytes, so there is no download to report.
+			name:  "a package already in storage reports the skip and no download",
+			polls: []batchSetSoftwareInstallersResultResponse{poll(completed, pkg("zoom.pkg", fleet.SoftwarePackageDownloadSkipped))},
+			wantLines: []string{
+				"[+] skipped downloading the software package (already in storage) - zoom.pkg",
+			},
+		},
+		{
+			// The same maintained app for two platforms carries one name.
+			name: "two packages sharing a name each report",
+			polls: []batchSetSoftwareInstallersResultResponse{
+				poll(processing, pkg("OneDrive", downloaded), pkg("OneDrive", downloading)),
+				poll(completed, pkg("OneDrive", downloaded), pkg("OneDrive", downloaded)),
+			},
+			wantLines: []string{
+				"[+] downloading software package - OneDrive ...",
+				"[+] downloaded software package - OneDrive",
+				"[+] downloading software package - OneDrive ...",
+				"[+] downloaded software package - OneDrive",
+			},
+		},
+		{
+			name:  "packages the batch never downloads stay silent",
+			polls: []batchSetSoftwareInstallersResultResponse{poll(completed, fleet.SoftwarePackageDownloadProgress{}, pkg("zoom.pkg", downloaded), fleet.SoftwarePackageDownloadProgress{})},
+			wantLines: []string{
+				"[+] downloading software package - zoom.pkg ...",
+				"[+] downloaded software package - zoom.pkg",
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			var lines []string
+			logFn := func(format string, args ...any) {
+				lines = append(lines, strings.TrimSuffix(fmt.Sprintf(format, args...), "\n"))
+			}
+
+			client := newClient(t, tt.polls)
+			_, _, _, err := client.applySoftwareInstallers(nil, url.Values{}, false, logFn)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantLines, lines)
 		})
 	}
 }

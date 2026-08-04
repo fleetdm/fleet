@@ -55,12 +55,12 @@ module.exports = {
         'Website - Contact forms',
         'Website - Contact forms - Demo - ICP',
         'Website - Contact forms - Demo',
-        'Website - GitOps',
+        'Website - Workshop request',
         'Website - Newsletter',
         'Website - Sign up',
         'Website - Swag request',
         'Website - Gated document',
-        'Webinar',
+        'Website - Gated video',
       ],
     },
     getStartedResponses: {
@@ -207,7 +207,7 @@ module.exports = {
       'Website - Contact forms',
       'Website - Contact forms - Demo - ICP',
       'Website - Contact forms - Demo',
-      'Website - GitOps',
+      'Website - Workshop request',
       'Webinar',
       'Website - Gated document',
     ];

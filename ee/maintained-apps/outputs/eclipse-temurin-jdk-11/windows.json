@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "11.0.31.11",
+      "version": "11.0.32.9",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '11.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '11.%' AND version_compare(version, '11.0.31.11') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '11.%' AND version_compare(version, '11.0.32.9') < 0);"
       },
-      "installer_url": "https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.31+11/OpenJDK11U-jdk_x64_windows_hotspot_11.0.31_11.msi",
+      "installer_url": "https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.32+9/OpenJDK11U-jdk_x64_windows_hotspot_11.0.32_9.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "1a3513d1",
-      "sha256": "432d897f39766288a5747ec5f4927136ce89b743df2ab436cf7d230fbbcd596a",
+      "sha256": "f6079d2975e9b7f9707b18ec6a24841fa327aafa749b032c4ab74cdf9746b76e",
       "default_categories": [
         "Developer tools"
       ],
