@@ -29,7 +29,10 @@ import {
   POLICY_TARGET_EMPTY_STATE_DESCRIPTION,
 } from "pages/policies/constants";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  LEARN_MORE_ABOUT_BASE_LINK,
+  MAX_ENTITY_CHAR_LENGTH,
+} from "utilities/constants";
 
 import SQLEditor from "components/SQLEditor";
 import {
@@ -63,8 +66,6 @@ import {
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 
 const baseClass = "policy-form";
-
-const NAME_MAX_LENGTH = 255;
 
 interface IPolicyFormProps {
   router: InjectedRouter;
@@ -490,11 +491,13 @@ const PolicyForm = ({
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
         {showOpenSchemaActionText && (
-          <Button variant="subdued" onClick={onOpenSchemaSidebar}>
-            <>
-              Schema
-              <Icon name="info" />
-            </>
+          <Button
+            variant="subdued"
+            onClick={onOpenSchemaSidebar}
+            icon="info"
+            iconPosition="right"
+          >
+            Schema
           </Button>
         )}
         {!policyIdForEdit && (
@@ -520,7 +523,7 @@ const PolicyForm = ({
           error={errors && errors.name}
           onChange={(value: string) => setLastEditedQueryName(value)}
           disabled={gitOpsModeEnabled}
-          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
       );
     }
@@ -799,8 +802,10 @@ const PolicyForm = ({
                     disabledLiveQuery
                   }
                   variant="secondary"
+                  icon="run"
+                  iconPosition="right"
                 >
-                  Run policy <Icon name="run" />
+                  Run policy
                 </Button>
               </span>
             </TooltipWrapper>

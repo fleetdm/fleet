@@ -74,7 +74,7 @@ module.exports = {
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
-        contactSource: 'Website - GitOps',
+        contactSource: 'Website - Workshop request',
         description: descriptionForCrmUpdate,
         marketingAttributionCookie: attributionCookieOrUndefined
       }).intercept((err)=>{

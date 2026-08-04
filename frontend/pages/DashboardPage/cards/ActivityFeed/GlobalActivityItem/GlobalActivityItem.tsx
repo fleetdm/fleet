@@ -615,31 +615,39 @@ const TAGGED_TEMPLATES = {
     );
   },
   enabledManagedLocalAccount: (activity: IActivity) => {
+    // activities created before the platform detail existed omit it, which means macOS
+    const platformDisplay =
+      PLATFORM_DISPLAY_NAMES[activity.details?.platform ?? "darwin"];
     return (
       <>
         {" "}
         enabled managed local accounts for{" "}
         {activity.details?.team_name ? (
           <>
-            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
+            {platformDisplay} hosts assigned to the{" "}
+            <b>{activity.details.team_name}</b> fleet.
           </>
         ) : (
-          "unassigned hosts."
+          `unassigned ${platformDisplay} hosts.`
         )}
       </>
     );
   },
   disabledManagedLocalAccount: (activity: IActivity) => {
+    // activities created before the platform detail existed omit it, which means macOS
+    const platformDisplay =
+      PLATFORM_DISPLAY_NAMES[activity.details?.platform ?? "darwin"];
     return (
       <>
         {" "}
         disabled managed local accounts for{" "}
         {activity.details?.team_name ? (
           <>
-            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
+            {platformDisplay} hosts assigned to the{" "}
+            <b>{activity.details.team_name}</b> fleet.
           </>
         ) : (
-          "unassigned hosts."
+          `unassigned ${platformDisplay} hosts.`
         )}
       </>
     );
@@ -1086,6 +1094,15 @@ const TAGGED_TEMPLATES = {
   disabledGitOpsException: (activity: IActivity) => {
     const exception = activity.details?.exception ?? "";
     return `disabled the ${exception} exception for GitOps.`;
+  },
+  editedWindowsEnrollmentDefaultFleet: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        edited the default fleet for Windows hosts to{" "}
+        <b>{activity.details?.fleet_name || "Unassigned"}</b>.
+      </>
+    );
   },
   enabledWindowsMdmMigration: () => {
     return (
@@ -2515,6 +2532,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
+    }
+    case ActivityType.EditedWindowsEnrollmentDefaultFleet: {
+      return TAGGED_TEMPLATES.editedWindowsEnrollmentDefaultFleet(activity);
     }
     case ActivityType.RanCustomMdmCommand: {
       return TAGGED_TEMPLATES.ranCustomMdmCommand(activity);

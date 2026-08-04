@@ -100,7 +100,14 @@ export interface IMdmConfig {
   };
   windows_entra_tenant_ids: string[] | null;
   windows_entra_client_ids: string[] | null;
+  windows_enrollment?: IWindowsEnrollment | null;
   apple_account_provisioning?: IAppleAccountProvisioning;
+}
+
+/** Settings for new user-driven Windows MDM enrollments (Premium only). */
+export interface IWindowsEnrollment {
+  /** Name of the fleet new MDM-enrolled Windows hosts are assigned to; "" means Unassigned. */
+  default_fleet: string;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config

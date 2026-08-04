@@ -266,6 +266,10 @@ type MDM struct {
 	// Windows automatic enrollment.
 	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
 
+	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the
+	// source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
+	WindowsEnrollment optjson.Any[WindowsEnrollment] `json:"windows_enrollment"`
+
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
@@ -503,7 +507,8 @@ type MacOSSettings struct {
 	// paths. Unlike CustomSettings, assets are not stored on the AppConfig/team
 	// spec: this field is only populated while parsing a GitOps file so the
 	// assets can be applied via their own batch endpoint. It is intentionally
-	// omitted from ToMap/FromMap.
+	// omitted from FromMap; ToMap includes it only so the key passes the team
+	// spec's strict key validation (see applyTeamSpecsRequest.DecodeBody).
 	Assets []MDMProfileSpec `json:"assets,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
@@ -517,6 +522,7 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
+		"assets":                 s.Assets,
 	}
 }
 
@@ -2114,10 +2120,42 @@ func (v *Version) AuthzType() string {
 	return "version"
 }
 
+// ManagedLocalAccountSettings configures the hidden managed local admin account for one platform.
+// Future fields (username, password policy) land here.
+type ManagedLocalAccountSettings struct {
+	Enabled optjson.Bool `json:"enabled"`
+}
+
+// MarshalJSON defaults the enabled flag to false when it was never set, so every serialization
+// path (API responses, stored config JSON, spec exports, GitOps payloads) emits a boolean
+// rather than null. Request payloads are unaffected: clients send raw JSON, not this struct.
+func (m ManagedLocalAccountSettings) MarshalJSON() ([]byte, error) {
+	if !m.Enabled.Valid {
+		m.Enabled = optjson.SetBool(false)
+	}
+	// the alias type has no methods, so marshaling it avoids infinite recursion into this MarshalJSON
+	type alias ManagedLocalAccountSettings
+	return json.Marshal(alias(m))
+}
+
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
+
+	// ManagedLocalAccountSettings configures the hidden managed local admin account created by
+	// fleetd on Windows hosts during Autopilot/OOBE enrollment.
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
+}
+
+// WindowsEnrollment are settings for new user-driven Windows MDM enrollments.
+type WindowsEnrollment struct {
+	// DefaultFleet is the name of the fleet that new user-driven Windows MDM enrollments are assigned to.
+	// Empty means no default: new hosts stay Unassigned.
+	//
+	// Do NOT read this field for logic: it is the transport/display shape only, and the copy stored in app_config_json can be stale
+	// after a fleet rename or deletion. The source of truth is via Datastore.GetWindowsEnrollmentDefaultFleet
+	DefaultFleet string `json:"default_fleet"`
 }
 
 func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {

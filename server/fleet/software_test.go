@@ -170,6 +170,41 @@ func TestEnhanceOutputDetails(t *testing.T) {
 			expectedPostInstallScriptOutput: nil,
 		},
 		{
+			name: "non-pending status with fleet variable resolution failed exit code",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				InstallScriptExitCode: new(ExitCodeFleetVarResolutionFailed),
+				Output:                new("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME."),
+			},
+			expectedPreInstallQueryOutput: nil,
+			expectedOutput: new(fmt.Sprintf(SoftwareInstallerFleetVarsFailedCopy,
+				"There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")),
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "non-pending status with script timeout/could-not-run exit code and empty output",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				InstallScriptExitCode: new(ExitCodeScriptTimeout),
+				Output:                new(""),
+			},
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  new(fmt.Sprintf(SoftwareInstallerScriptCouldNotRunCopy, "")),
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "non-pending status with script timeout/could-not-run exit code and partial output",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				InstallScriptExitCode: new(ExitCodeScriptTimeout),
+				Output:                new("partial output before the process was stopped"),
+			},
+			expectedPreInstallQueryOutput: nil,
+			expectedOutput: new(fmt.Sprintf(SoftwareInstallerScriptCouldNotRunCopy,
+				"partial output before the process was stopped")),
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
 			name: "non-pending status with failed install script",
 			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallFailed,

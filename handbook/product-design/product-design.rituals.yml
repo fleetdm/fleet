@@ -30,7 +30,7 @@
   task: "🦢📨 Unpacking the 'why'"
   startedOn: "2024-09-30" 
   frequency: "Daily" 
-  description: "Break down the 'why' for new customer requests in the 'Inbox' column on the drafting board." 
+  description: "Break down the 'why' for new customer requests in the 'Inbox'." 
   moreInfoUrl: "https://fleetdm.com/handbook/product-design#unpacking-the-why" 
   dri: "noahtalerman"
 -

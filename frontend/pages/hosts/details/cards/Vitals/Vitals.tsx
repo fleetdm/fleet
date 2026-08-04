@@ -23,6 +23,7 @@ import {
   removeOSPrefix,
   compareVersions,
 } from "utilities/helpers";
+import { getHardwareModelDisplay } from "pages/hosts/helpers";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -109,7 +110,8 @@ const getHostDiskEncryptionTooltipMessage = (
     platform === "archarm" ||
     platform === "manjaro" ||
     platform === "manjaro-arm" ||
-    platform === "cachyos"
+    platform === "cachyos" ||
+    platform === "omarchy"
   ) {
     return DISK_ENCRYPTION_MESSAGES.linux[
       diskEncryptionEnabled ? "enabled" : "unknown"
@@ -347,19 +349,30 @@ const Vitals = ({
     }
 
     // Hardware model
+    const hardwareModelDisplay = getHardwareModelDisplay(
+      vitalsData.platform,
+      vitalsData.hardware_model,
+      vitalsData.hardware_marketing_name
+    );
     vitals.push({
       sortKey: "Hardware model",
       element: (
         <DataSet
           key="hardware-model"
           title="Hardware model"
-          value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+          value={
+            <TooltipTruncatedText
+              value={hardwareModelDisplay.value}
+              tooltip={hardwareModelDisplay.tooltip}
+              alwaysShowTooltip={hardwareModelDisplay.alwaysShowTooltip}
+            />
+          }
         />
       ),
     });
 
     // Last restarted
-    if (!isIosOrIpadosHost && !isAndroidHost) {
+    if (!isIosOrIpadosHost && !isAndroidHost && !isChromeHost) {
       vitals.push({
         sortKey: "Last restarted",
         element: (

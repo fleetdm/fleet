@@ -463,6 +463,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
 	config.MDM.ValidateAndroidBatchSize(initFatal)
+	config.GoogleWorkspace.Validate(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
 		logger,

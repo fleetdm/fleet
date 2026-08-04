@@ -103,9 +103,12 @@ spec:
       require_all_software_windows: false
       macos_script:
       software:
+    windows_enrollment: null
     windows_settings:
       custom_settings: null
       configuration_profiles: null
+      managed_local_account_settings:
+        enabled: false
     android_settings:
       certificates: null
       custom_settings: null

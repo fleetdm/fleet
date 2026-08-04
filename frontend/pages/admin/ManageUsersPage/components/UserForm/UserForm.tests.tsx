@@ -95,6 +95,51 @@ describe("UserForm - component", () => {
     ).not.toBeInTheDocument();
   });
 
+  // #40410: blurring one field must not surface errors on fields the user has
+  // not yet touched (previously, blurring the autofocused Name field flagged the
+  // empty Email and Password fields).
+  it("does not surface an Email error when only the Name field is blurred", async () => {
+    const { user } = renderWithSetup(<UserForm {...defaultProps} />);
+
+    await user.click(screen.getByLabelText("Full name"));
+    await user.tab();
+
+    expect(
+      screen.queryByText("Email field must be completed")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Password field must be completed")
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the Email error after the Email field is blurred", async () => {
+    const { user } = renderWithSetup(<UserForm {...defaultProps} />);
+
+    await user.click(screen.getByLabelText("Email"));
+    await user.tab();
+
+    expect(
+      screen.getByText("Email field must be completed")
+    ).toBeInTheDocument();
+  });
+
+  it("clears the Email error once a valid email is entered", async () => {
+    const { user } = renderWithSetup(<UserForm {...defaultProps} />);
+
+    const emailField = screen.getByLabelText("Email");
+    await user.click(emailField);
+    await user.tab();
+    expect(
+      screen.getByText("Email field must be completed")
+    ).toBeInTheDocument();
+
+    await user.type(emailField, "user@example.com");
+
+    expect(
+      screen.queryByText("Email field must be completed")
+    ).not.toBeInTheDocument();
+  });
+
   it("displays disabled SSO option when SSO is globally disabled but was previously enabled for the user", async () => {
     const props = {
       ...defaultProps,
