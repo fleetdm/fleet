@@ -469,7 +469,6 @@ const SelectTargets = ({
               showText="Show more"
               hideText="Show less"
               isShowing={isListExpanded}
-              variant="secondary"
             />
           </div>
         )}

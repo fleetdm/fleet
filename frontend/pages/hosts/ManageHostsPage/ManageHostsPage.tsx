@@ -86,7 +86,6 @@ import { strToBool } from "utilities/strings/stringUtils";
 
 import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -1638,10 +1637,14 @@ const ManageHostsPage = ({
           .filter((element) => element !== "" && element !== "selection")
           // "agent" is a display-only column that coalesces orbit and osquery
           // versions; it has no corresponding CSV field on the backend, so we
-          // substitute the real fields it's derived from.
+          // substitute the real fields it's derived from. Likewise, the
+          // "hardware_model" column also surfaces the Apple marketing name in
+          // the UI, so we export both fields separately.
           .reduce((acc: string[], element) => {
             if (element === "agent") {
               acc.push("orbit_version", "osquery_version");
+            } else if (element === "hardware_model") {
+              acc.push("hardware_model", "hardware_marketing_name");
             } else {
               acc.push(element);
             }
@@ -1787,11 +1790,9 @@ const ManageHostsPage = ({
               onClick={onExportHostsResults}
               variant="secondary"
               disabled={isTrulyEmpty}
+              icon="download"
             >
-              <>
-                <Icon name="download" size="small" />
-                Export hosts
-              </>
+              Export hosts
             </Button>
           )}
           <Button
@@ -1799,11 +1800,9 @@ const ManageHostsPage = ({
             onClick={toggleEditColumnsModal}
             variant="secondary"
             disabled={isTrulyEmpty}
+            icon="columns"
           >
-            <>
-              <Icon name="columns" color="ui-fleet-black-75" />
-              Edit columns
-            </>
+            Edit columns
           </Button>
         </div>
         <div className={`${baseClass}__filter-dropdowns`}>
@@ -2082,8 +2081,8 @@ const ManageHostsPage = ({
                 }
                 className={`${baseClass}__custom-host-vitals`}
                 variant="secondary"
+                icon="pencil"
               >
-                <Icon name="pencil" />
                 <span>Custom host vitals</span>
               </Button>
             )}
@@ -2092,8 +2091,8 @@ const ManageHostsPage = ({
                 onClick={() => setShowEnrollSecretModal(true)}
                 className={`${baseClass}__enroll-hosts button`}
                 variant="secondary"
+                icon="settings"
               >
-                <Icon name="settings" />
                 <span>Enroll secrets</span>
               </Button>
             )}

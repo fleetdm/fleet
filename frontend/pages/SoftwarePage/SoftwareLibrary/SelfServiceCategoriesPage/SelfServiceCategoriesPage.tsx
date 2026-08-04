@@ -221,8 +221,11 @@ const SelfServiceCategoriesPage = ({
               Self-service categories
             </span>
             {canManage && (
-              <Button variant="secondary" onClick={() => setShowAddModal(true)}>
-                <Icon name="plus" />
+              <Button
+                variant="secondary"
+                onClick={() => setShowAddModal(true)}
+                icon="plus"
+              >
                 Add category
               </Button>
             )}
@@ -236,7 +239,7 @@ const SelfServiceCategoriesPage = ({
             {canManage && (
               <div className={`${baseClass}__row-actions`}>
                 <Button
-                  variant="subdued"
+                  variant="secondary"
                   onClick={() => setCategoryToEdit(listItem)}
                   ariaLabel={`Edit ${listItem.name}`}
                   title="Edit"
@@ -244,7 +247,7 @@ const SelfServiceCategoriesPage = ({
                   <Icon name="pencil" />
                 </Button>
                 <Button
-                  variant="subdued"
+                  variant="secondary"
                   onClick={() => setCategoryToDelete(listItem)}
                   ariaLabel={`Delete ${listItem.name}`}
                   title="Delete"

@@ -1131,6 +1131,20 @@ func (c *TestAppleMDMClient) UserAcknowledge(cmdUUID string) (*mdm.Command, erro
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+// UserNotNow sends a NotNow message on the user channel.
+func (c *TestAppleMDMClient) UserNotNow(cmdUUID string) (*mdm.Command, error) {
+	if c.UserUUID == "" {
+		return nil, errors.New("user UUID must be set for a user channel not now")
+	}
+	payload := map[string]any{
+		"Status":      "NotNow",
+		"UDID":        c.UUID,
+		"UserID":      c.UserUUID,
+		"CommandUUID": cmdUUID,
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
 // UserDeclarativeManagement sends a DeclarativeManagement checkin request on the
 // user channel. UserID makes the server serve the user-scoped declarations
 // (tokens, declaration-items, declaration content and status are all scoped to

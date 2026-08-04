@@ -61,7 +61,8 @@ func enqueue(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.Com
 }
 
 func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.CommandWithSubtype) (map[string]error,
-	error) {
+	error,
+) {
 	// We need to retry because this transaction may deadlock with updates to nano_enrollment.last_seen_at
 	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
 	err := common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
@@ -272,7 +273,8 @@ func (m *MySQLStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Cont
 }
 
 func (m *MySQLStorage) bulkDeleteHostUserCommandsWithoutResults(ctx context.Context, tx sqlx.ExtContext,
-	commandToIDs map[string][]string) error {
+	commandToIDs map[string][]string,
+) error {
 	stmt := `
 DELETE
     eq
@@ -281,7 +283,7 @@ FROM
 	LEFT JOIN nano_command_results AS cr
 		ON cr.command_uuid = eq.command_uuid AND cr.id = eq.id
 WHERE
-	cr.command_uuid IS NULL AND eq.command_uuid = ? AND eq.id IN (?);`
+	(cr.command_uuid IS NULL OR cr.status = 'NotNow') AND eq.command_uuid = ? AND eq.id IN (?);`
 
 	// We process each commandUUID one at a time, in batches of hostUserIDs.
 	// This is because the number of hostUserIDs can be large, and number of unique commands is normally small.

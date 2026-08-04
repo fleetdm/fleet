@@ -15,6 +15,7 @@ import Select, {
   components,
   DropdownIndicatorProps,
   GroupBase,
+  MenuPlacement,
   OptionProps,
   PropsValue,
   SingleValue,
@@ -130,6 +131,10 @@ export interface IDropdownWrapper {
    * not infer any of these on its own; without a value here screen readers
    * announce a bare "combobox". */
   ariaLabel?: string;
+  /** Defaults to "auto" so a menu near the viewport bottom flips upward
+   * instead of stretching the page and triggering a scrollbar-driven
+   * layout shift. */
+  menuPlacement?: MenuPlacement;
 }
 
 const getOptionBackgroundColor = (
@@ -376,6 +381,7 @@ const DropdownWrapper = ({
   nowrapMenu,
   customNoOptionsMessage,
   ariaLabel,
+  menuPlacement = "auto",
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
@@ -474,6 +480,7 @@ const DropdownWrapper = ({
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}
+        menuPlacement={menuPlacement}
         // Resolve accessible name: explicit prop wins, otherwise fall back
         // to the placeholder (usually "Select X"), otherwise the required
         // `name` (often a kebab-case identifier — least readable but

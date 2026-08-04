@@ -64,6 +64,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   cpu_logical_cores: 8,
   hardware_vendor: "",
   hardware_model: "",
+  hardware_marketing_name: "",
   hardware_version: "",
   hardware_serial: "",
   computer_name: "9b20fc72a247",

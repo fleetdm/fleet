@@ -145,6 +145,7 @@ const ClickableYAxisTick = ({
         dy={4}
         textAnchor="end"
         fontSize={fontSize}
+        fontWeight="normal"
         className={clickable ? `${baseClass}__tick--clickable` : undefined}
       >
         {payload.value}
@@ -218,12 +219,10 @@ const HostsEnrolledCard = ({
   }, []);
 
   const chartHeight = isWide ? CHART_HEIGHT_WIDE : CHART_HEIGHT_NARROW;
-  // 7 platforms in ~166px (narrow) leaves ~23px per row, so the default 14px
-  // ticks crowd. Step down a couple sizes when narrow.
-  const tickFontSize = isWide ? 14 : 11;
-  // ChromeOS is the widest label and just barely doesn't fit at 80/60, so add
-  // a bit of breathing room.
-  const yAxisWidth = isWide ? 90 : 68;
+  const tickFontSize = 12;
+  // ChromeOS is the widest label and clips without this margin at 12px medium
+  // weight.
+  const yAxisWidth = isWide ? 90 : 84;
 
   return (
     <div className={baseClass} ref={containerRef}>
@@ -258,7 +257,7 @@ const HostsEnrolledCard = ({
               axisLine={false}
               tickLine={false}
               tickMargin={6}
-              tick={{ fontSize: tickFontSize }}
+              tick={{ fontSize: tickFontSize, fontWeight: 600 }}
               allowDecimals={false}
             />
             <YAxis

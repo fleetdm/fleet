@@ -8,6 +8,11 @@
     color: $ui-error;
   }
 
+  &__description {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
   .empty-table__container {
     margin: $pad-large auto $pad-medium;
     gap: $pad-medium;

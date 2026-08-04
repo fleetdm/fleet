@@ -209,11 +209,14 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
           onMouseDown={addFleetMouseDown}
           onKeyDown={addFleetKeyDown}
         >
-          <Button variant="subdued" onClick={onClickAddFleet} size="small">
-            <>
-              Add fleet
-              <Icon name="plus" />
-            </>
+          <Button
+            variant="subdued"
+            onClick={onClickAddFleet}
+            size="small"
+            icon="plus"
+            iconPosition="right"
+          >
+            Add fleet
           </Button>
         </div>
       )}
@@ -270,7 +273,6 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
         },
         onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => {
           originalOnMouseDown?.(event);
-          event.stopPropagation();
         },
         // Chrome (and other browsers with `keyboard-focusable-scrollers`
         // enabled) auto-focuses scrollable containers to allow keyboard
