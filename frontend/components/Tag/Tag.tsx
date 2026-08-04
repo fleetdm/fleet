@@ -10,7 +10,6 @@ interface ITagBaseProps {
   children: React.ReactNode;
   /** Default: "large" (28px). Per design, use "small" (24px) sparingly. */
   size?: "large" | "small";
-  disabled?: boolean;
   className?: string;
   /** Wraps the tag in a tooltip that shows this content on hover */
   tooltip?: JSX.Element | string;
@@ -21,6 +20,8 @@ interface IStaticTagProps extends ITagBaseProps {
   onClick?: never;
   onDismiss?: never;
   dismissLabel?: never;
+  /** Static tags are non-interactive — disabled doesn't apply. */
+  disabled?: never;
 }
 
 interface IClickableTagProps extends ITagBaseProps {
@@ -28,6 +29,7 @@ interface IClickableTagProps extends ITagBaseProps {
   onClick: () => void;
   onDismiss?: never;
   dismissLabel?: never;
+  disabled?: boolean;
 }
 
 interface IDismissibleTagProps extends ITagBaseProps {
@@ -43,7 +45,7 @@ interface IDismissibleTagProps extends ITagBaseProps {
 type ITagProps = IStaticTagProps | IClickableTagProps | IDismissibleTagProps;
 
 const Tag = (props: ITagProps) => {
-  const { children, disabled, className, tooltip } = props;
+  const { children, className, tooltip } = props;
 
   const classNames = classnames(baseClass, className, {
     [`${baseClass}--clickable`]: props.type === "clickable",
@@ -58,7 +60,7 @@ const Tag = (props: ITagProps) => {
       <button
         type="button"
         className={classNames}
-        disabled={disabled}
+        disabled={props.disabled}
         onClick={props.onClick}
       >
         {children}
@@ -95,7 +97,7 @@ const Tag = (props: ITagProps) => {
       underline={false}
       position="top"
       tipOffset={12}
-      delayInMs={300}
+      delayShow={300}
       fixedPositionStrategy
     >
       {content}
