@@ -2298,7 +2298,7 @@ func EnqueueManagedLocalAccountRotation(
 	commander ManagedLocalAccountRotationCommander,
 	hostUUID, accountUUID string,
 ) (cmdUUID string, err error, rollbackErr error) {
-	newPassword := fleet.GenerateManagedLocalAccountPassword(false)
+	newPassword := fleet.GenerateManagedLocalAccountPasswordForMacOS()
 	hashPlist, hashErr := GenerateSaltedSHA512PBKDF2Hash(newPassword)
 	if hashErr != nil {
 		return "", hashErr, nil
