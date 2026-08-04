@@ -4,6 +4,7 @@ import { createCustomRenderer } from "test/test-utils";
 
 import createMockHost, { createMockHostGeolocation } from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { HostPlatform } from "interfaces/platform";
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -411,11 +412,20 @@ describe("View all vitals button", () => {
   const renderVitalsCard = ({
     platform = "ios",
     withToggle = false,
+    enrollmentStatus,
   }: {
     platform?: HostPlatform;
     withToggle?: boolean;
+    enrollmentStatus?: MdmEnrollmentStatus;
   } = {}) => {
-    const mockHost = createMockHost({ platform });
+    const mockHost = createMockHost({
+      platform,
+      ...(enrollmentStatus
+        ? {
+            mdm: createMockHostMdmData({ enrollment_status: enrollmentStatus }),
+          }
+        : {}),
+    });
     const toggleVitalsModal = withToggle ? jest.fn() : undefined;
 
     const utils = render(
@@ -471,6 +481,18 @@ describe("View all vitals button", () => {
       screen.queryByRole("button", { name: "View all" })
     ).not.toBeInTheDocument();
   });
+
+  it("does not render the button for a personal (BYOD) iOS host even when toggleVitalsModal is provided", () => {
+    renderVitalsCard({
+      platform: "ios",
+      withToggle: true,
+      enrollmentStatus: "On (manual - personal)",
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "View all" })
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe("Card vitals cap", () => {
@@ -499,7 +521,12 @@ describe("Card vitals cap", () => {
     {
       customHostVitals,
       withModal = true,
-    }: { customHostVitals?: IHostCustomVital[]; withModal?: boolean } = {}
+      enrollmentStatus = "On (manual)",
+    }: {
+      customHostVitals?: IHostCustomVital[];
+      withModal?: boolean;
+      enrollmentStatus?: MdmEnrollmentStatus;
+    } = {}
   ) => {
     const mockHost = createMockHost({
       platform,
@@ -509,7 +536,7 @@ describe("Card vitals cap", () => {
       cpu_type: "arm64",
       primary_ip: "192.168.1.1",
       public_ip: "203.0.113.1",
-      mdm: createMockHostMdmData({ enrollment_status: "On (manual)" }),
+      mdm: createMockHostMdmData({ enrollment_status: enrollmentStatus }),
     });
 
     return render(
@@ -584,6 +611,18 @@ describe("Card vitals cap", () => {
     const { container } = renderCard("ios", {
       customHostVitals: makeCustomVitals(10),
       withModal: false,
+    });
+
+    expect(getRenderedVitals(container).length).toBeGreaterThan(CAP);
+    expect(
+      screen.queryByRole("button", { name: "View all" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not cap a personal (BYOD) iOS host, since there's nothing extra behind 'View all'", () => {
+    const { container } = renderCard("ios", {
+      customHostVitals: makeCustomVitals(10),
+      enrollmentStatus: "On (manual - personal)",
     });
 
     expect(getRenderedVitals(container).length).toBeGreaterThan(CAP);

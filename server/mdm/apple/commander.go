@@ -460,8 +460,21 @@ func (svc *MDMAppleCommander) DeviceConfigured(ctx context.Context, hostUUID, cm
 	return svc.EnqueueCommand(ctx, []string{hostUUID}, raw)
 }
 
+var byodDeviceInformationQueryKeys = []string{
+	"DeviceName",
+	"DeviceCapacity",
+	"AvailableDeviceCapacity",
+	"OSVersion",
+	"SupplementalOSVersionExtra",
+	"WiFiMAC",
+	"ProductName",
+	"IsMDMLostModeEnabled",
+	"TimeZone",
+}
+
 // deviceInformationQueryKeys are the Apple query keys requested in a
-// DeviceInformation command's <Queries> array, in request order.
+// DeviceInformation command's <Queries> array for non-personal
+// (company-owned) hosts, in request order.
 var deviceInformationQueryKeys = []string{
 	"DeviceName",
 	"DeviceCapacity",
@@ -500,9 +513,14 @@ var deviceInformationQueryKeys = []string{
 	"UDID",
 }
 
-func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs []string, cmdUUID string, isPersonalEnrollment bool) error {
+	keys := deviceInformationQueryKeys
+	if isPersonalEnrollment {
+		keys = byodDeviceInformationQueryKeys
+	}
+
 	var queries strings.Builder
-	for _, key := range deviceInformationQueryKeys {
+	for _, key := range keys {
 		queries.WriteString("            <string>")
 		queries.WriteString(key)
 		queries.WriteString("</string>\n")

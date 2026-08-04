@@ -6062,6 +6062,7 @@ SELECT
 	h.id as host_id,
 	h.uuid as uuid,
 	hmdm.installed_from_dep,
+	hmdm.is_personal_enrollment,
 	JSON_ARRAYAGG(hmc.command_type) as commands_already_sent
 FROM hosts h
 	INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id

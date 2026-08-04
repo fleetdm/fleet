@@ -737,6 +737,9 @@ const Vitals = ({
   onEditCustomHostVital,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
+  const showExpandedVitals =
+    isIosOrIpadosHost &&
+    !isBYODAccountDrivenUserEnrollment(mdm?.enrollment_status ?? null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(FALLBACK_COLUMN_COUNT);
@@ -768,7 +771,7 @@ const Vitals = ({
   // Only cap where "View all" can reach what's hidden. Capping without it
   // would drop vitals with no way to see them.
   const cardVitals =
-    isIosOrIpadosHost && toggleVitalsModal
+    showExpandedVitals && toggleVitalsModal
       ? sortedVitals.slice(0, columnCount * IOS_CARD_VITAL_ROWS)
       : sortedVitals;
 
@@ -782,7 +785,7 @@ const Vitals = ({
     >
       <div className={`${baseClass}__header`}>
         <CardHeader header="Vitals" />
-        {isIosOrIpadosHost && toggleVitalsModal && (
+        {showExpandedVitals && toggleVitalsModal && (
           <Button variant="subdued" size="small" onClick={toggleVitalsModal}>
             View all
           </Button>
