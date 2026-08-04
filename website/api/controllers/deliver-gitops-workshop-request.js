@@ -86,7 +86,7 @@ module.exports = {
         salesforceContactId: recordDetails.salesforceContactId,
         salesforceCampaignId: '701UG00000bLCLpYAO',// 2026_01-FE-GitOps_Workshop_Interest Campaign
       }).tolerate((err)=>{
-        sails.log.warn(`Wehn a user  (${firstName} ${lastName}, email: ${emailAddress}) submitted the GitOps workshop request form, an error occurred when adding this user to a Salesforce campaign. Full error: ${require('util').inspect(err)}`);
+        sails.log.warn(`When a user (${firstName} ${lastName}, email: ${emailAddress}) submitted the GitOps workshop request form, an error occurred when adding this user to a Salesforce campaign. Full error: ${require('util').inspect(err)}`);
       });
 
       if(!recordDetails.salesforceAccountId) {
