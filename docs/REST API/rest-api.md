@@ -14534,7 +14534,7 @@ _Available in Fleet Premium_
 
 `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `scripts`, and `mdm.setup_experience` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
-"Unassigned" (id 0) will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
+"Unassigned" (id 0) will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `webhook_settings.host_activities_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
 
 #### Parameters
 
@@ -14584,6 +14584,10 @@ _Available in Fleet Premium_
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
+      },
+      "host_activities_webhook": {
+        "enable_host_activities_webhook": true,
+        "destination_url": "https://server.com/example"
       }
     },
     "integrations": {
@@ -14749,7 +14753,7 @@ _Available in Fleet Premium_
 
 | Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
+| id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `webhook_settings.host_activities_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
 | name                                                    | string  | body | The fleet's name. Fleet names must differ by more than letter case. Renaming a fleet into another fleet's name returns a 409 Conflict error.                                                                                                                                                                                          |
 | host_ids                                                | array    | body | A list of hosts that belong to the fleet.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
@@ -14827,7 +14831,8 @@ Returned when the requested name only differs from another fleet's name by lette
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
-      }
+      },
+      "host_activities_webhook": null
     }
   }
 }
@@ -14839,6 +14844,7 @@ Returned when the requested name only differs from another fleet's name by lette
 | ---------------------             | ----- | ---------------------------------------------------------------------------------------------- |
 | failing_policies_webhook          | array | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook2). |
 | host_status_webhook               | array | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook2).           |
+| host_activities_webhook           | object | See [`webhook_settings.host_activities_webhook`](#webhook-settings-host-activities-webhook).   |
 
 <br/>
 
@@ -14868,6 +14874,19 @@ Returned when the requested name only differs from another fleet's name by lette
 
 <br/>
 
+##### webhook_settings.host_activities_webhook
+
+`webhook_settings.host_activities_webhook` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_host_activities_webhook | boolean | Whether or not the host activities webhook is enabled. When enabled, Fleet sends a webhook request every time an activity linked to one of this fleet's hosts is created. The webhook payload has the same format as the global [activities webhook](#webhook-settings-activities-webhook). MDM command results (shown via **Show MDM commands** on the host details page) are not activities and don't trigger this webhook yet. |
+| destination_url                | string  | The URL to deliver the webhook requests to.                                                                                                                                                               |
+
+Omitting `host_activities_webhook` from a `webhook_settings` update leaves the stored value unchanged. To turn the webhook off, send the object with `enable_host_activities_webhook: false`.
+
+<br/>
+
 ##### Example request body
 
 ```json
@@ -14884,6 +14903,10 @@ Returned when the requested name only differs from another fleet's name by lette
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
+    },
+    "host_activities_webhook": {
+      "enable_host_activities_webhook": true,
+      "destination_url": "https://server.com"
     }
   }
 }

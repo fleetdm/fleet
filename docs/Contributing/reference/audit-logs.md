@@ -645,6 +645,7 @@ This activity contains the following fields:
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
+- "host_id": ID of the host. Omitted when the host is not yet known at enrollment time (Windows Azure automatic enrollments, which are linked to their host when the device reports its serial number on the first management session).
 - "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
@@ -656,6 +657,7 @@ This activity contains the following fields:
 
 ```json
 {
+  "host_id": 42,
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
@@ -1594,6 +1596,7 @@ This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_display_name": The display name of the host.
 - "profile_name": The name of the configuration profile.
+- "profile_uuid": The UUID of the configuration profile.
 
 #### Example
 
@@ -1601,7 +1604,8 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
-  "profile_name": "Passcode requirements"
+  "profile_name": "Passcode requirements",
+  "profile_uuid": "a1234567-1234-1234-1234-1234567890ab"
 }
 ```
 
@@ -1611,6 +1615,7 @@ Generated when a user resends a configuration profile to a batch of hosts.
 
 This activity contains the following fields:
 - "profile_name": The name of the configuration profile.
+- "profile_uuid": The UUID of the configuration profile.
 - "host_count": Number of hosts in the batch.
 
 #### Example
@@ -1618,6 +1623,7 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Passcode requirements",
+  "profile_uuid": "a1234567-1234-1234-1234-1234567890ab",
   "host_count": 3
 }
 ```
@@ -2398,6 +2404,164 @@ This activity contains the following field:
 Generated when activity automations are disabled
 
 This activity does not contain any detail fields.
+
+## ran_automation_webhook
+
+Generated when a failing-policy webhook automation batch is accepted by the destination server. One activity is recorded per successful batch POST and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch.
+- "status_code": (Optional) HTTP status code returned by the destination.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "status_code": 200
+}
+```
+
+## failed_automation_webhook
+
+Generated when a failing-policy webhook automation batch is rejected by the destination server. One activity is recorded per failed batch POST and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch.
+- "status_code": (Optional) HTTP status code returned by the destination.
+- "error_response": Error returned by the destination.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "status_code": 500,
+  "error_response": "Internal Server Error"
+}
+```
+
+## ran_automation_ticket
+
+Generated when a failing-policy ticket automation (Jira or Zendesk) creates a ticket. One activity is recorded per created ticket and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch.
+- "type": Ticket destination ("jira" or "zendesk").
+- "ticket_key": (Optional) Key of the created ticket.
+- "ticket_id": (Optional) ID of the created ticket.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "type": "jira",
+  "ticket_key": "ABC-123"
+}
+```
+
+## failed_automation_ticket
+
+Generated when a failing-policy ticket automation (Jira or Zendesk) fails to create a ticket. One activity is recorded per failed attempt and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch.
+- "type": Ticket destination ("jira" or "zendesk").
+- "error_response": Error returned by the destination.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "type": "jira",
+  "error_response": "401 Unauthorized"
+}
+```
+
+## ran_automation_calendar_event
+
+Generated when a failing calendar policy results in a calendar event. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1]
+}
+```
+
+## failed_automation_calendar_event
+
+Generated when a failing-calendar-policy automation fails. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts.
+- "status_code": (Optional) HTTP status code returned by the calendar provider.
+- "error_response": Error details.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1],
+  "error_response": "calendar API error"
+}
+```
+
+## ran_automation_conditional_access
+
+Generated when a failing-policy conditional access automation pushes a host's compliance status to the provider as non-compliant. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1]
+}
+```
+
+## failed_automation_conditional_access
+
+Generated when a failing-policy conditional access automation fails to push a host's compliance status to the provider. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts.
+- "status_code": (Optional) HTTP status code returned by the provider.
+- "error_response": Error returned by the provider.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1],
+  "status_code": 403,
+  "error_response": "Forbidden"
+}
+```
 
 ## canceled_run_script
 
