@@ -15,7 +15,7 @@ import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
   getAutomationRunDisplayName,
-  getAutomationStatusIconName,
+  getAutomationStatusIcon,
   getDetailOutputText,
 } from "../PolicyAutomationsActivitiesTable/helpers";
 
@@ -33,7 +33,7 @@ const PolicyAutomationActivityDetailsModal = ({
   onCancel,
   onResetPolicy,
 }: IPolicyAutomationActivityDetailsModalProps): JSX.Element => {
-  const { status, created_at, host_id, host_display_name } = activity;
+  const { created_at, host_id, host_display_name } = activity;
   const detailOutput = getDetailOutputText(activity);
   const isSoftwareInstall = activity.type === ActivityType.InstalledSoftware;
 
@@ -84,7 +84,10 @@ const PolicyAutomationActivityDetailsModal = ({
           title="Status"
           value={
             <span className={`${baseClass}__status`}>
-              <Icon name={getAutomationStatusIconName(status)} />
+              <Icon
+                name={getAutomationStatusIcon(activity).name}
+                color={getAutomationStatusIcon(activity).color}
+              />
               {getAutomationRunDisplayName(activity)}
             </span>
           }

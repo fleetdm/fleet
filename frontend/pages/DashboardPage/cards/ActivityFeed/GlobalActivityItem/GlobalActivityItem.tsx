@@ -1478,12 +1478,22 @@ const TAGGED_TEMPLATES = {
       source,
       self_service,
       from_setup_experience,
+      install_skipped_when_app_open,
     } = details;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
+
+    if (install_skipped_when_app_open) {
+      return (
+        <>
+          {" "}
+          skipped install of <b>{title}</b> on <b>{hostName}</b>.
+        </>
+      );
+    }
 
     // Self-service actions: drop the actor and switch to passive voice so the
     // sentence reads "<title> was installed on <host> (self-service)." without

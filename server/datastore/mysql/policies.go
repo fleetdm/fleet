@@ -2994,7 +2994,7 @@ func (ds *Datastore) getPatchPolicyInstaller(ctx context.Context, teamID uint, t
 }
 
 func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
-	query := `SELECT id, name, patch_when_closed FROM policies WHERE team_id = ? AND patch_software_title_id = ?`
+	query := `SELECT id, name, patch_when_closed, continuous_automations_enabled FROM policies WHERE team_id = ? AND patch_software_title_id = ?`
 	var policy fleet.PatchPolicyData
 
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy, query, ptr.ValOrZero(teamID), titleID)

@@ -21809,15 +21809,16 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	_, err = maintained_apps.Hydrate(ctx, dbAppRecord, "", nil, nil)
 	require.NoError(t, err)
 	dbAppResponse := fleet.MaintainedApp{
-		ID:              dbAppRecord.ID,
-		Name:            dbAppRecord.Name,
-		Slug:            dbAppRecord.Slug,
-		Version:         dbAppRecord.Version,
-		Platform:        dbAppRecord.Platform,
-		InstallerURL:    dbAppRecord.InstallerURL,
-		InstallScript:   dbAppRecord.InstallScript,
-		UninstallScript: dbAppRecord.UninstallScript,
-		Categories:      []string{"Productivity"},
+		ID:                    dbAppRecord.ID,
+		Name:                  dbAppRecord.Name,
+		Slug:                  dbAppRecord.Slug,
+		Version:               dbAppRecord.Version,
+		Platform:              dbAppRecord.Platform,
+		InstallerURL:          dbAppRecord.InstallerURL,
+		InstallScript:         dbAppRecord.InstallScript,
+		UninstallScript:       dbAppRecord.UninstallScript,
+		AutomaticInstallQuery: dbAppRecord.AutomaticInstallQuery,
+		Categories:            []string{"Productivity"},
 	}
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallerURL)
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallScript)
