@@ -208,8 +208,8 @@ const HostNameTemplate = ({
       Use <CustomLink text="built-in" url={builtInVariablesUrl} newTab />{" "}
       variables,{" "}
       <CustomLink text="custom" url={customVariablesUrl} /> variables, or{" "}
-      <CustomLink text="host vitals" url={customHostVitalsUrl} /> to
-      differentiate between hosts.
+      <CustomLink text="custom host vitals" url={customHostVitalsUrl} />{" "}
+      variables to differentiate between hosts.
     </>
   );
 
