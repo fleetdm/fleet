@@ -945,7 +945,7 @@ This activity contains the following fields:
 ```
 
 ## enabled_macos_disk_encryption
-> **Deprecated:** Use platform based `edited_disk_encryption_settings` instead.
+> **Deprecated:** Use `edited_disk_encryption_settings` instead.
 
 Generated when a user turns on disk encryption for a fleet (or no fleet).
 
@@ -965,7 +965,7 @@ This activity contains the following fields:
 ```
 
 ## disabled_macos_disk_encryption
-> **Deprecated:** Use platform based `edited_disk_encryption_settings` instead.
+> **Deprecated:** Use `edited_disk_encryption_settings` instead.
 
 Generated when a user turns off disk encryption for a fleet (or no fleet).
 
