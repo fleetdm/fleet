@@ -30,11 +30,12 @@ const (
 type uiMode int
 
 const (
-	modeNormal       uiMode = iota
-	modeSnooze              // picking a snooze duration
-	modeConfirmMerge        // confirming a merge
-	modeComment             // typing a comment
-	modeStartWork           // naming a branch + picking a clone to start work in
+	modeNormal        uiMode = iota
+	modeSnooze               // picking a snooze duration
+	modeConfirmMerge         // confirming a merge
+	modeComment              // typing a comment
+	modeStartWork            // naming a branch + picking a clone to start work in
+	modeProjectSelect        // picking primary project boards (the P picker)
 )
 
 // Model is the Bubble Tea model for the jarvis dashboard.
@@ -80,6 +81,9 @@ type Model struct {
 	config    *Config
 	cachePath string
 	noCache   bool
+
+	// picker is the in-dashboard project selector (P), non-nil only in modeProjectSelect.
+	picker    *onboardModel
 	fromCache bool // the currently displayed data came from the on-disk cache
 
 	// Start Work modal state.
@@ -88,6 +92,9 @@ type Model struct {
 	startBranchInput textinput.Model
 	startClones      []CloneStatus
 	startCloneCursor int
+	// startQA marks the Start Work modal as a QA "test" launch: pick a clone and
+	// launch a repro/verify Claude session, with no branch creation or status write.
+	startQA bool
 
 	// mergeCherryPick marks the pending merge confirmation as a merge + cherry-pick.
 	mergeCherryPick bool
@@ -221,7 +228,7 @@ func (m *Model) rebuild() {
 
 	// Rebuild the issue-centric overlay from the raw board + stores + cached
 	// statuses (cheap; no network) so pin/unpin and status writes reflect at once.
-	m.work = BuildWorkItems(m.board, m.links, m.focus, m.statuses, m.projects, m.mergedPRs)
+	m.work = BuildWorkItems(m.board, m.links, m.focus, m.statuses, m.projects, m.mergedPRs, m.config.EffectiveRole())
 	m.workByIssue = make(map[int]WorkItem, len(m.work))
 	m.focusList = m.focusList[:0]
 	for _, w := range m.work {
@@ -461,10 +468,10 @@ type projectRefreshedMsg struct {
 // refreshProjectCmd reloads one project's view live: its assigned issues (so
 // newly-assigned ones appear), Ready-unassigned count, and the merged/closed PRs
 // linked to its issues by branch. Errors when the project can't be resolved.
-func refreshProjectCmd(repo string, project int, login string, branchByIssue map[int]string) tea.Cmd {
+func refreshProjectCmd(repo string, project int, login, role string, branchByIssue map[int]string) tea.Cmd {
 	return func() tea.Msg {
 		owner := repoOwner(repo)
-		pv, statuses, projects := RefreshProjectView(project, owner, login)
+		pv, statuses, projects := RefreshProjectView(project, owner, login, role)
 		if !pv.Resolved {
 			return projectRefreshedMsg{project: project, err: fmt.Errorf("could not resolve project %d", project)}
 		}
@@ -544,13 +551,29 @@ func (m *Model) replaceProjectView(msg projectRefreshedMsg) {
 	}
 }
 
+// projectPickerReadyMsg carries the org's projects for the in-dashboard P picker.
+type projectPickerReadyMsg struct {
+	projects []ghapi.OrgProject
+	err      error
+}
+
+// projectPickerCmd lists the org's projects in the background so pressing P can
+// open the selector without blocking the UI.
+func projectPickerCmd(repo string) tea.Cmd {
+	return func() tea.Msg {
+		projects, err := ghapi.ListOrgProjects(repoOwner(repo))
+		return projectPickerReadyMsg{projects: projects, err: err}
+	}
+}
+
 func (m *Model) fetchCmd() tea.Cmd {
 	repo, limit := m.repo, m.limit
 	primary := m.config.PrimaryProjects
+	role := m.config.EffectiveRole()
 	baseDirs := m.config.CloneBaseDirs
 	branchByIssue := m.linkBranches()
 	return func() tea.Msg {
-		res, err := Fetch(repo, limit, primary)
+		res, err := Fetch(repo, limit, primary, role)
 		if err == nil {
 			res.LocalBranches = LocalBranchFolders(baseDirs, repo)
 			res.LinkedMergedPRs = linkedMergedPRs(repo, res.Board, branchByIssue)
@@ -760,6 +783,18 @@ func Run(repo string, limit int, noCache bool) error {
 		}
 		if cancelled {
 			return nil // user aborted setup; don't launch or write a config
+		}
+	} else if cfg := LoadConfig(cfgPath); cfg.Role == "" {
+		// Config predates roles — ask once and persist, leaving other fields intact.
+		role, cancelled, err := runRolePicker("")
+		if err != nil {
+			return err
+		}
+		if !cancelled {
+			cfg.Role = role
+			if err := cfg.Save(cfgPath); err != nil {
+				return err
+			}
 		}
 	}
 	m := NewModel(repo, limit, noCache)

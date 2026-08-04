@@ -18,6 +18,7 @@ const (
 	ActMarkInReview          // PR mergeable while In progress → set In review
 	ActMerge                 // PR mergeable while In review → merge (then Awaiting QA)
 	ActMarkAwaitingQA        // PR merged/closed but status not yet advanced → Awaiting QA
+	ActTestQA                // QA role, issue Awaiting QA → set up a repro/verify session
 )
 
 type actionMeta struct {
@@ -33,6 +34,7 @@ var actionMetas = map[Action]actionMeta{
 	ActMarkInReview:   {"mark in review", "v"},
 	ActMerge:          {"merge", "m"},
 	ActMarkAwaitingQA: {"→ awaiting QA", "a"},
+	ActTestQA:         {"test", "t"},
 }
 
 // Label returns the human label for an action.
@@ -58,6 +60,7 @@ type WorkItem struct {
 	SessionID string
 	Cwd       string
 	Focused   bool
+	Role      string // the viewer's role, so nextAction can offer role-specific steps
 	Next      Action
 }
 
@@ -73,6 +76,11 @@ func (w WorkItem) hasSession() bool { return w.SessionID != "" }
 // nextAction computes the state-machine step. Order matters: the first matching
 // condition wins, surfacing the most advanced actionable step.
 func (w WorkItem) nextAction() Action {
+	// QA's job begins where the developer's ends: once an issue is Awaiting QA, the
+	// most useful step is to reproduce and verify the fix, not sit on ActNone.
+	if w.Role == RoleQA && w.awaitingQA() {
+		return ActTestQA
+	}
 	if w.PR != nil {
 		pr := w.PR.PR
 		if pr != nil && pr.IsMerged() {
@@ -124,7 +132,8 @@ func (w WorkItem) nextAction() Action {
 // have dropped off the open-PR list (so they're not in the board), but we still
 // surface them on the issue — labeled merged/closed — so it's clear the work
 // shipped and the issue is ready to advance to QA. May be nil.
-func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[int]string, projects map[int]int, mergedPRs map[int]*ghapi.PullRequest) []WorkItem {
+func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[int]string, projects map[int]int, mergedPRs map[int]*ghapi.PullRequest, role string) []WorkItem {
+	role = normalizeRole(role)
 	// Index PR items by number and by head branch.
 	prByNum := map[int]*Item{}
 	prByBranch := map[string]*Item{}
@@ -168,6 +177,7 @@ func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[i
 				URL:     it.URL,
 				Status:  statuses[it.Number],
 				Project: projects[it.Number],
+				Role:    role,
 			}
 			if focus != nil {
 				w.Focused = focus.Has(it.Number)

@@ -71,6 +71,27 @@ func TestChosenHandlesSortedByNumber(t *testing.T) {
 	}
 }
 
+func TestSeedSelection(t *testing.T) {
+	projects := []ghapi.OrgProject{
+		{Number: 108, Title: "🍎 #g-apple-at-work"},
+		{Number: 109, Title: "❤️‍🩹 #g-auto-patching"},
+		{Number: 70, Title: "📦 #g-software"},
+	}
+	m := newOnboardModel("fleetdm", projects)
+	// Seed from a config mixing a name and a numeric id.
+	m.seedSelection([]string{"g-apple-at-work", "109"})
+
+	if _, ok := m.selected[0]; !ok {
+		t.Error("expected apple (index 0) selected by name")
+	}
+	if _, ok := m.selected[1]; !ok {
+		t.Error("expected auto-patching (index 1) selected by number")
+	}
+	if _, ok := m.selected[2]; ok {
+		t.Error("did not expect g-software (index 2) selected")
+	}
+}
+
 func TestConfigSaveRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	cfg := &Config{PrimaryProjects: []string{"g-apple-at-work", "g-auto-patching"}}

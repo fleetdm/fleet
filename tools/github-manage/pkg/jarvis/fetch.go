@@ -41,7 +41,7 @@ type ProjectRef struct {
 // sequentially; each one wraps the gh CLI via ghapi. primaryProjects are the
 // user's configured primary boards (numbers, aliases, or names) whose assigned
 // issues surface in the top section.
-func Fetch(repo string, limit int, primaryProjects []string) (FetchResult, error) {
+func Fetch(repo string, limit int, primaryProjects []string, role string) (FetchResult, error) {
 	login, err := ghapi.GetCurrentLogin()
 	if err != nil {
 		return FetchResult{}, err
@@ -79,7 +79,7 @@ func Fetch(repo string, limit int, primaryProjects []string) (FetchResult, error
 	var primaryItems []Item
 	exclude := map[int]bool{}
 	if len(primaryProjects) > 0 {
-		views, shown, pProjects, pStatuses := buildProjectViews(login, repoOwner(repo), primaryProjects)
+		views, shown, pProjects, pStatuses := buildProjectViews(login, repoOwner(repo), primaryProjects, role)
 		for n := range shown {
 			exclude[n] = true
 		}

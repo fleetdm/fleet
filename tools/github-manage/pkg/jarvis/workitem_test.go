@@ -30,6 +30,11 @@ func TestNextAction(t *testing.T) {
 		{"already awaiting QA, merged PR → none", WorkItem{Status: "Awaiting QA", PR: &Item{PR: merged}}, ActNone},
 		{"closed PR, no session → none", WorkItem{Status: "In progress", PR: &Item{PR: closed}}, ActNone},
 		{"closed PR, live session → open PR", WorkItem{Status: "In progress", SessionID: "s1", PR: &Item{PR: closed}}, ActOpenPR},
+
+		// QA role: awaiting-QA issues become a test/verify step, not a dead end.
+		{"qa, awaiting QA → test", WorkItem{Role: RoleQA, Status: "Awaiting QA"}, ActTestQA},
+		{"qa, awaiting QA, merged PR → test", WorkItem{Role: RoleQA, Status: "Awaiting QA", PR: &Item{PR: merged}}, ActTestQA},
+		{"qa, in progress → start work like dev", WorkItem{Role: RoleQA, Status: "Ready"}, ActStartWork},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -52,7 +57,7 @@ func TestBuildWorkItemsAttachesMergedPR(t *testing.T) {
 		49329: {Number: 49380, State: "MERGED", HeadRefName: "georgekarrv-49329-windows-mdm"},
 	}
 
-	work := BuildWorkItems(b, links, focus, map[int]string{49329: "In review"}, map[int]int{49329: 108}, merged)
+	work := BuildWorkItems(b, links, focus, map[int]string{49329: "In review"}, map[int]int{49329: 108}, merged, RoleDeveloper)
 	if len(work) != 1 {
 		t.Fatalf("expected 1 work item, got %d", len(work))
 	}
@@ -93,7 +98,7 @@ func TestBuildWorkItemsLinksPRByClosingKeyword(t *testing.T) {
 	}}
 	links, _ := LoadLinkStore("")
 	focus, _ := LoadFocusStore("")
-	work := BuildWorkItems(b, links, focus, map[int]string{38348: "In progress"}, map[int]int{38348: 58}, nil)
+	work := BuildWorkItems(b, links, focus, map[int]string{38348: "In progress"}, map[int]int{38348: 58}, nil, RoleDeveloper)
 
 	if len(work) != 1 {
 		t.Fatalf("expected 1 work item, got %d", len(work))

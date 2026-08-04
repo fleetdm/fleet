@@ -51,11 +51,18 @@ func statusExcluded(status string) bool {
 // (not "Ready for review" / "Ready for release").
 func statusIsReady(status string) bool { return normalizeStatus(status) == "ready" }
 
+// statusIsAwaitingQA reports whether a status is the "Awaiting QA" column. Matched
+// loosely (emoji/wording drift) via the "await"/"qa" substrings after normalizing.
+func statusIsAwaitingQA(status string) bool {
+	n := normalizeStatus(status)
+	return strings.Contains(n, "await") || strings.Contains(n, "qa")
+}
+
 // buildProjectViews resolves each configured primary project and loads its items.
 // It returns the views (one per configured entry, in order), the set of issue
 // numbers surfaced (to exclude from the leverage buckets), and status/project
 // maps for the overlay.
-func buildProjectViews(login, owner string, primary []string) (views []ProjectView, shown, projects map[int]int, statuses map[int]string) {
+func buildProjectViews(login, owner string, primary []string, role string) (views []ProjectView, shown, projects map[int]int, statuses map[int]string) {
 	shown = map[int]int{}
 	projects = map[int]int{}
 	statuses = map[int]string{}
@@ -64,7 +71,7 @@ func buildProjectViews(login, owner string, primary []string) (views []ProjectVi
 	}
 	orgProjects, _ := ghapi.ListOrgProjects(owner)
 	for _, entry := range primary {
-		pv := loadProject(entry, owner, orgProjects, login, statuses, projects)
+		pv := loadProject(entry, owner, orgProjects, login, statuses, projects, role)
 		views = append(views, pv)
 		for _, it := range pv.Issues {
 			shown[it.Number] = pv.Number
@@ -77,18 +84,18 @@ func buildProjectViews(login, owner string, primary []string) (views []ProjectVi
 // assigned to you, and the Ready-unassigned count) plus the status/project maps
 // for those issues. It's the per-project counterpart to buildProjectViews, backing
 // a targeted refresh so newly-assigned issues appear without a full pull.
-func RefreshProjectView(num int, owner, login string) (ProjectView, map[int]string, map[int]int) {
+func RefreshProjectView(num int, owner, login, role string) (ProjectView, map[int]string, map[int]int) {
 	statuses := map[int]string{}
 	projects := map[int]int{}
 	orgProjects, _ := ghapi.ListOrgProjects(owner)
-	pv := loadProject(strconv.Itoa(num), owner, orgProjects, login, statuses, projects)
+	pv := loadProject(strconv.Itoa(num), owner, orgProjects, login, statuses, projects, role)
 	return pv, statuses, projects
 }
 
 // loadProject resolves one configured entry to a project and loads its items.
 // Always returns a view (unresolved entries yield an empty, non-Resolved view so
 // the row is still shown).
-func loadProject(entry, owner string, orgProjects []ghapi.OrgProject, login string, statuses map[int]string, projects map[int]int) ProjectView {
+func loadProject(entry, owner string, orgProjects []ghapi.OrgProject, login string, statuses map[int]string, projects map[int]int, role string) ProjectView {
 	num, title, url := resolveProject(entry, owner, orgProjects)
 	if num == 0 {
 		return ProjectView{Title: entry, Resolved: false}
@@ -98,15 +105,25 @@ func loadProject(entry, owner string, orgProjects []ghapi.OrgProject, login stri
 	if err != nil {
 		return pv // header only
 	}
+	isQA := normalizeRole(role) == RoleQA
 	for _, it := range items {
 		isIssue := strings.EqualFold(it.Content.Type, "Issue")
 		isDraft := strings.EqualFold(it.Content.Type, "DraftIssue")
-		if isIssue && containsFold(it.Assignees, login) && !statusExcluded(it.Status) {
+		// Normally surface issues assigned to you. In the QA view also surface issues
+		// awaiting QA regardless of assignee — that's the QA engineer's queue, and
+		// those issues are usually still assigned to the developer who shipped them.
+		assigned := containsFold(it.Assignees, login)
+		qaQueue := isQA && statusIsAwaitingQA(it.Status)
+		if isIssue && !statusExcluded(it.Status) && (assigned || qaQueue) {
 			n := it.Content.Number
+			reason := "assigned"
+			if !assigned && qaQueue {
+				reason = "awaiting QA"
+			}
 			pv.Issues = append(pv.Issues, Item{
 				Kind: KindIssue, Bucket: BucketPrimary,
 				Number: n, Title: it.Content.Title, URL: it.Content.URL,
-				Reason: "assigned",
+				Reason: reason,
 			})
 			statuses[n] = it.Status
 			projects[n] = num

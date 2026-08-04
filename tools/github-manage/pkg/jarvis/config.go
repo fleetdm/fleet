@@ -20,6 +20,27 @@ type Config struct {
 	// known gm alias, or a project name/title (e.g. "g-apple-at-work"). Managers
 	// of multiple teams can list several.
 	PrimaryProjects []string `json:"primary_projects,omitempty"`
+
+	// Role is the user's primary role: "developer" (default), "manager", "qa", or
+	// "design". It tailors the seed prompt sent to a launched Claude session and,
+	// for "qa", surfaces issues awaiting QA with a test/verify action. Chosen at
+	// onboarding. Empty means "never chosen" (treated as developer via EffectiveRole).
+	Role string `json:"role,omitempty"`
+
+	// StartPrompts optionally overrides the start-work prompt per role, keyed by
+	// role name ("developer", "qa", …). Each value is a Go text/template rendered
+	// against PromptData — available fields: {{.Issue}}, {{.Title}}, {{.URL}},
+	// {{.Branch}}. Unset roles use the built-in default for that role.
+	StartPrompts map[string]string `json:"start_prompts,omitempty"`
+}
+
+// EffectiveRole returns the user's role, defaulting to RoleDeveloper when unset or
+// unrecognized. Use this everywhere behavior branches on role.
+func (c *Config) EffectiveRole() string {
+	if c == nil {
+		return RoleDeveloper
+	}
+	return normalizeRole(c.Role)
 }
 
 // normalizeProjectName lowercases a project name and strips a leading '#' so

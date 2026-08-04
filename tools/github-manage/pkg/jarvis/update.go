@@ -2,6 +2,7 @@ package jarvis
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -11,11 +12,40 @@ import (
 )
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// The project picker (P) owns all input while open.
+	if m.mode == modeProjectSelect && m.picker != nil {
+		return m.updateProjectSelect(msg)
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		return m, nil
+
+	case projectPickerReadyMsg:
+		if msg.err != nil {
+			m.notice = "couldn't load projects: " + truncate(firstLine(msg.err.Error()), 80)
+			m.noticeErr = true
+			return m, nil
+		}
+		open := msg.projects[:0]
+		for _, p := range msg.projects {
+			if !p.Closed {
+				open = append(open, p)
+			}
+		}
+		if len(open) == 0 {
+			m.notice = "no open projects to choose from"
+			m.noticeErr = true
+			return m, nil
+		}
+		pk := newOnboardModel(repoOwner(m.repo), open)
+		pk.embedded = true
+		pk.seedSelection(m.config.PrimaryProjects)
+		m.picker = pk
+		m.mode = modeProjectSelect
+		m.notice = ""
+		return m, pk.Init()
 
 	case fetchDoneMsg:
 		if msg.err != nil {
@@ -182,6 +212,41 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// updateProjectSelect drives the in-dashboard project picker. It delegates every
+// message to the embedded picker, then acts on the outcome: on confirm it saves
+// the selection to config and triggers a full refresh so the Project View reflects
+// it; on cancel it returns to the board unchanged.
+func (m *Model) updateProjectSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width, m.height = ws.Width, ws.Height
+	}
+	updated, cmd := m.picker.Update(msg)
+	m.picker = updated.(*onboardModel)
+
+	switch {
+	case m.picker.confirmed:
+		handles := m.picker.chosenHandles()
+		m.picker = nil
+		m.mode = modeNormal
+		m.config.PrimaryProjects = handles
+		if err := m.config.Save(DefaultConfigPath()); err != nil {
+			m.notice = "saving projects failed: " + truncate(firstLine(err.Error()), 80)
+			m.noticeErr = true
+			return m, nil
+		}
+		m.notice = fmt.Sprintf("saved %d project(s) · refreshing…", len(handles))
+		m.noticeErr = false
+		m.state = stateLoading
+		return m, tea.Batch(m.spinner.Tick, m.fetchCmd())
+	case m.picker.cancelled:
+		m.picker = nil
+		m.mode = modeNormal
+		m.notice = "project selection cancelled"
+		return m, nil
+	}
+	return m, cmd
+}
+
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.mode {
 	case modeSnooze:
@@ -240,15 +305,19 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.notice = fmt.Sprintf("refreshing #%d…", it.Number)
 				w := m.workByIssue[it.Number]
 				cmds := []tea.Cmd{refreshIssueCmd(m.repo, it.Number, w.Project)}
-				// No PR linked yet but we know the branch — discover a PR opened
-				// since the last full fetch and inject it into the board.
-				if w.PR == nil && w.Branch != "" {
+				switch {
+				case w.PR != nil:
+					// Re-fetch the linked PR so its draft/approval/CI state updates too.
+					cmds = append(cmds, refreshPRCmd(m.repo, w.PR.Number))
+				case w.Branch != "":
+					// No PR linked yet but we know the branch — discover one opened
+					// since the last full fetch and inject it into the board.
 					cmds = append(cmds, refreshPRByBranchCmd(m.repo, w.Branch, it.Number))
 				}
 				return m, tea.Batch(cmds...)
 			case KindProject:
 				m.notice = fmt.Sprintf("refreshing project %s…", it.Title)
-				return m, refreshProjectCmd(m.repo, it.Number, m.login, m.linkBranches())
+				return m, refreshProjectCmd(m.repo, it.Number, m.login, m.config.EffectiveRole(), m.linkBranches())
 			default:
 				m.notice = "nothing to refresh here (R for a full refresh)"
 			}
@@ -353,6 +422,12 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.rebuild()
 		}
 
+	case "P":
+		// Re-open the project picker to change which boards drive the Project View.
+		m.notice = "loading projects…"
+		m.noticeErr = false
+		return m, projectPickerCmd(m.repo)
+
 	case "v":
 		// Mark the selected work item's issue In review.
 		if w, ok := m.currentWork(); ok {
@@ -406,6 +481,7 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "w":
 		// Start work on the selected issue: name a branch, pick a clone.
 		if w, ok := m.currentWork(); ok {
+			m.startQA = false
 			m.startIssue = w.Number
 			m.startProject = w.Project
 			m.startBranchInput.SetValue(suggestBranch(m.login, w.Number, w.Title))
@@ -417,26 +493,36 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+	case "t":
+		// QA: launch a repro/verify Claude session on the selected item — pick a
+		// clone; no branch or status change (the QA prompt drives the git setup).
+		if w, ok := m.currentWork(); ok && w.Next == ActTestQA {
+			m.startQA = true
+			m.startIssue = w.Number
+			m.startProject = w.Project
+			m.startBranchInput.Blur()
+			m.startClones = DiscoverClones(m.config.CloneBaseDirs, m.repo)
+			m.startCloneCursor = 0
+			m.mode = modeStartWork
+			return m, nil
+		}
+
 	case "m":
-		// Merge: a PR item in board view, or the selected work item's PR in focus view.
-		if m.focusView {
-			if w, ok := m.currentWork(); ok && w.PR != nil {
-				m.mode = modeConfirmMerge
-			}
-		} else if it, ok := m.currentItem(); ok && it.Kind == KindPR {
+		// Merge the selected item's PR (a Project View/focus issue's linked PR, or a
+		// standalone PR row), then advance the linked issue to Awaiting QA.
+		if _, _, _, ok := m.mergeTarget(); ok {
 			m.mode = modeConfirmMerge
+		} else {
+			m.notice = "no PR to merge here"
 		}
 
 	case "M":
 		// Merge, then start a Claude cherry-pick session for the merged PR.
-		if m.focusView {
-			if w, ok := m.currentWork(); ok && w.PR != nil {
-				m.mergeCherryPick = true
-				m.mode = modeConfirmMerge
-			}
-		} else if it, ok := m.currentItem(); ok && it.Kind == KindPR {
+		if _, _, _, ok := m.mergeTarget(); ok {
 			m.mergeCherryPick = true
 			m.mode = modeConfirmMerge
+		} else {
+			m.notice = "no PR to merge here"
 		}
 	case "c":
 		if _, ok := m.currentItem(); ok {
@@ -504,22 +590,20 @@ func (m *Model) handleConfirmMergeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // mergeTarget resolves the PR to merge and its linked issue/project (for the
-// Awaiting QA follow-up), in both the board and focus views.
+// Awaiting QA follow-up). It works from the selected work item first — so merging
+// works on a Project View / focus issue whose PR isn't separately selectable — and
+// falls back to a standalone PR row in the board.
 func (m *Model) mergeTarget() (prItem Item, issue, project int, ok bool) {
-	if m.focusView {
-		if w, wok := m.currentWork(); wok && w.PR != nil {
-			return *w.PR, w.Number, w.Project, true
+	if w, wok := m.currentWork(); wok && w.PR != nil {
+		return *w.PR, w.Number, w.Project, true
+	}
+	if it, iok := m.currentItem(); iok && it.Kind == KindPR {
+		if w, wok := m.workForPR(it.Number); wok {
+			return it, w.Number, w.Project, true
 		}
-		return Item{}, 0, 0, false
+		return it, 0, 0, true
 	}
-	it, iok := m.currentItem()
-	if !iok || it.Kind != KindPR {
-		return Item{}, 0, 0, false
-	}
-	if w, wok := m.workForPR(it.Number); wok {
-		return it, w.Number, w.Project, true
-	}
-	return it, 0, 0, true
+	return Item{}, 0, 0, false
 }
 
 func (m *Model) handleCommentKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -548,6 +632,7 @@ func (m *Model) handleStartWorkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		m.mode = modeNormal
+		m.startQA = false
 		m.startBranchInput.Blur()
 		return m, nil
 	case "up", "ctrl+p":
@@ -561,19 +646,30 @@ func (m *Model) handleStartWorkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "enter":
+		if len(m.startClones) == 0 {
+			m.notice = "no local clone of " + m.repo + " found (set clone_base_dirs in config.json)"
+			m.noticeErr = true
+			m.mode = modeNormal
+			m.startQA = false
+			return m, nil
+		}
+		clone := m.startClones[m.startCloneCursor]
+		if m.startQA {
+			// QA test launch: no branch, no status write — just seed a repro/verify
+			// session in the chosen clone. The QA prompt handles branch/main checkout.
+			issue := m.startIssue
+			m.mode = modeNormal
+			m.startQA = false
+			m.notice = fmt.Sprintf("testing #%d in %s…", issue, filepath.Base(clone.Path))
+			m.noticeErr = false
+			return m, launchSessionCmd(clone.Path, m.startPrompt(issue))
+		}
 		branch := strings.TrimSpace(m.startBranchInput.Value())
 		if branch == "" {
 			m.notice = "enter a branch name"
 			m.noticeErr = true
 			return m, nil
 		}
-		if len(m.startClones) == 0 {
-			m.notice = "no local clone of " + m.repo + " found (set clone_base_dirs in config.json)"
-			m.noticeErr = true
-			m.mode = modeNormal
-			return m, nil
-		}
-		clone := m.startClones[m.startCloneCursor]
 		m.mode = modeNormal
 		m.startBranchInput.Blur()
 		m.notice = "starting work…"
@@ -586,17 +682,14 @@ func (m *Model) handleStartWorkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-// startPrompt builds the seed prompt for a freshly launched Claude session.
+// startPrompt builds the role-aware seed prompt for a freshly launched Claude
+// session, honoring any per-role override in config.StartPrompts.
 func (m *Model) startPrompt(issue int) string {
-	w, ok := m.workByIssue[issue]
-	if !ok {
-		return fmt.Sprintf("Let's work on issue #%d.", issue)
+	data := PromptData{Issue: issue}
+	if w, ok := m.workByIssue[issue]; ok {
+		data.Title, data.URL, data.Branch = w.Title, w.URL, w.Branch
 	}
-	prompt := fmt.Sprintf("Let's work on issue #%d: %s", issue, w.Title)
-	if w.URL != "" {
-		prompt += "\n" + w.URL
-	}
-	return prompt
+	return renderStartPrompt(m.config.EffectiveRole(), m.config, data)
 }
 
 func (m *Model) currentItem() (Item, bool) {

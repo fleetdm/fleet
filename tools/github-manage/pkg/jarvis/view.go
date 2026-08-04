@@ -28,6 +28,9 @@ var (
 )
 
 func (m Model) View() string {
+	if m.mode == modeProjectSelect && m.picker != nil {
+		return m.picker.View()
+	}
 	switch m.state {
 	case stateLoading:
 		return fmt.Sprintf("\n  %s Summoning your work from GitHub…\n", m.spinner.View())
@@ -151,6 +154,12 @@ func (m Model) renderBoard() string {
 	var lines []string
 	cursorLine := 0
 	itemIdx := 0
+	// No primary projects configured — nudge the user to the picker.
+	if len(m.config.PrimaryProjects) == 0 {
+		lines = append(lines, m.bucketHeader(BucketPrimary, 0))
+		lines = append(lines, dimStyle.Render("  use P to select projects to focus on"))
+		lines = append(lines, "")
+	}
 	for _, bk := range BucketOrder {
 		items := m.filtered.Buckets[bk]
 		if len(items) == 0 {
@@ -327,27 +336,43 @@ func (m Model) projectIssueLines(it Item, selected bool) []string {
 			pr = w.PR.PR
 		}
 		if st := prStatusLabel(pr); st != "" {
-			parts = append(parts, reasonStyle.Render(st))
+			parts = append(parts, prStatusStyle(st).Render(st))
 		}
 		lines = append(lines, "      "+strings.Join(parts, "  "))
 	}
 	return lines
 }
 
-// prStatusLabel summarizes a PR's state as open / approved / merged / closed.
+// prStatusLabel summarizes a PR's state as draft / open / approved / merged /
+// closed. "approved" means GitHub's reviewDecision is APPROVED — i.e. it has the
+// approvals branch protection requires to merge; a still-open PR awaiting approval
+// stays "open".
 func prStatusLabel(pr *ghapi.PullRequest) string {
 	if pr == nil {
 		return ""
 	}
 	switch {
-	case strings.EqualFold(pr.State, "MERGED"):
+	case pr.IsMerged():
 		return "merged"
-	case strings.EqualFold(pr.State, "CLOSED"):
+	case pr.IsClosed():
 		return "closed"
+	case pr.IsDraft:
+		return "draft"
 	case pr.IsApproved():
 		return "approved"
 	default:
 		return "open"
+	}
+}
+
+// prStatusStyle colors a PR status label: grey for not-yet-actionable states
+// (draft, closed), green for live/positive ones (open, approved, merged).
+func prStatusStyle(label string) lipgloss.Style {
+	switch label {
+	case "draft", "closed":
+		return dimStyle
+	default:
+		return reasonStyle
 	}
 }
 
@@ -375,13 +400,8 @@ func (m Model) footer() string {
 			dimStyle.Render("· esc cancel")
 	case modeConfirmMerge:
 		n := ""
-		if it, ok := m.currentItem(); ok {
-			n = fmt.Sprintf("#%d", it.Number)
-		}
-		if m.focusView {
-			if w, ok := m.currentWork(); ok && w.PR != nil {
-				n = fmt.Sprintf("#%d", w.PR.Number)
-			}
+		if prItem, _, _, ok := m.mergeTarget(); ok {
+			n = fmt.Sprintf("#%d", prItem.Number)
 		}
 		prompt := fmt.Sprintf("Merge %s with squash? ", n)
 		if m.mergeCherryPick {
@@ -397,6 +417,9 @@ func (m Model) footer() string {
 		if m.focusView {
 			nav := "↑/↓ move · g/G top/bottom · enter open · J jump · b project · f board-view · r/R refresh(one/all) · q quit"
 			actions := "w start · v in-review · m merge · M merge+cherry-pick · a awaiting-qa · p unpin"
+			if m.config.EffectiveRole() == RoleQA {
+				actions += " · t test"
+			}
 			return dimStyle.Render(nav) + "\n" + dimStyle.Render(actions)
 		}
 		hidden := ""
@@ -408,17 +431,26 @@ func (m Model) footer() string {
 			hidden = dimStyle.Render(fmt.Sprintf(" · %d hidden (H to %s)", m.hidden, state))
 		}
 		nav := "↑/↓ move · g/G top/bottom · enter open · b project · f focus · J jump · r/R refresh(one/all) · q quit"
-		actions := "w start · v review · m merge · M merge+cp · p pin · c comment · s snooze · d dismiss · x done · u clear"
+		actions := "w start · v review · m merge · M merge+cp · p pin · P projects · c comment · s snooze · d dismiss · x done · u clear"
+		if m.config.EffectiveRole() == RoleQA {
+			actions += " · t test"
+		}
 		return dimStyle.Render(nav) + hidden + "\n" + dimStyle.Render(actions)
 	}
 }
 
-// startWorkFooter renders the branch input and the clone picker.
+// startWorkFooter renders the branch input and the clone picker. In QA "test"
+// mode there's no branch to name — it's just a clone picker for the repro session.
 func (m Model) startWorkFooter() string {
 	var b strings.Builder
-	b.WriteString(titleBarStyle.Render(fmt.Sprintf("Start work on #%d", m.startIssue)))
-	b.WriteString("\n")
-	b.WriteString("branch: " + m.startBranchInput.View() + "\n")
+	if m.startQA {
+		b.WriteString(titleBarStyle.Render(fmt.Sprintf("Test #%d", m.startIssue)))
+		b.WriteString("\n")
+	} else {
+		b.WriteString(titleBarStyle.Render(fmt.Sprintf("Start work on #%d", m.startIssue)))
+		b.WriteString("\n")
+		b.WriteString("branch: " + m.startBranchInput.View() + "\n")
+	}
 	if len(m.startClones) == 0 {
 		b.WriteString(errStyle.Render(fmt.Sprintf("  no local clone of %s under %s", m.repo, strings.Join(m.config.CloneBaseDirs, ", "))))
 		b.WriteString("\n" + dimStyle.Render("esc cancel · set clone_base_dirs in ~/.config/gm/jarvis/config.json"))
@@ -438,7 +470,11 @@ func (m Model) startWorkFooter() string {
 		}
 		b.WriteString(line + "\n")
 	}
-	b.WriteString(dimStyle.Render("enter start · esc cancel"))
+	action := "enter start · esc cancel"
+	if m.startQA {
+		action = "enter test · esc cancel"
+	}
+	b.WriteString(dimStyle.Render(action))
 	return b.String()
 }
 

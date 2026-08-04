@@ -32,12 +32,27 @@ func TestPRStatusLabel(t *testing.T) {
 	cases := map[*ghapi.PullRequest]string{
 		{State: "MERGED"}: "merged",
 		{State: "CLOSED"}: "closed",
+		{State: "OPEN", IsDraft: true}:              "draft",
 		{State: "OPEN", ReviewDecision: "APPROVED"}: "approved",
 		{State: "OPEN"}: "open",
+		// A draft that also happens to be approved still reads as draft (not mergeable yet).
+		{State: "OPEN", IsDraft: true, ReviewDecision: "APPROVED"}: "draft",
 	}
 	for pr, want := range cases {
 		if got := prStatusLabel(pr); got != want {
 			t.Errorf("prStatusLabel(%+v) = %q, want %q", pr, got, want)
+		}
+	}
+
+	// Colors: draft/closed are dim; open/approved/merged are green.
+	for _, label := range []string{"draft", "closed"} {
+		if prStatusStyle(label).GetForeground() != dimStyle.GetForeground() {
+			t.Errorf("expected %q to use dim style", label)
+		}
+	}
+	for _, label := range []string{"open", "approved", "merged"} {
+		if prStatusStyle(label).GetForeground() != reasonStyle.GetForeground() {
+			t.Errorf("expected %q to use green style", label)
 		}
 	}
 }

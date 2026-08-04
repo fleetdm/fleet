@@ -59,6 +59,7 @@ type onboardModel struct {
 
 	confirmed bool // enter pressed
 	cancelled bool // esc / ctrl+c
+	embedded  bool // running inside the dashboard (via P) rather than as first-run setup
 	width     int
 }
 
@@ -80,6 +81,28 @@ func newOnboardModel(owner string, projects []ghapi.OrgProject) *onboardModel {
 }
 
 func (m *onboardModel) Init() tea.Cmd { return textinput.Blink }
+
+// seedSelection pre-checks the projects that current config entries resolve to, so
+// re-opening the picker shows the existing selection. Matching mirrors
+// resolveProject: numeric ID / gm alias first, then a case-insensitive name match.
+func (m *onboardModel) seedSelection(current []string) {
+	for _, entry := range current {
+		if id, err := ghapi.ResolveProjectID(entry); err == nil {
+			for i, p := range m.projects {
+				if p.Number == id {
+					m.selected[i] = struct{}{}
+				}
+			}
+			continue
+		}
+		want := normalizeProjectName(entry)
+		for i, p := range m.projects {
+			if strings.Contains(strings.ToLower(p.Title), want) {
+				m.selected[i] = struct{}{}
+			}
+		}
+	}
+}
 
 // recompute refilters and reranks the project list against the current query.
 func (m *onboardModel) recompute() {
@@ -141,11 +164,21 @@ func (m *onboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "esc":
+		case "ctrl+c":
+			// Quit the whole app, standalone or embedded.
 			m.cancelled = true
+			return m, tea.Quit
+		case "esc":
+			m.cancelled = true
+			if m.embedded {
+				return m, nil // hand control back to the dashboard
+			}
 			return m, tea.Quit
 		case "enter":
 			m.confirmed = true
+			if m.embedded {
+				return m, nil
+			}
 			return m, tea.Quit
 		case "up", "ctrl+p":
 			if m.cursor > 0 {
@@ -184,9 +217,14 @@ func (m *onboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *onboardModel) View() string {
 	var b strings.Builder
-	b.WriteString(headerStyle.Render(" Welcome to jarvis ") + "\n\n")
-	b.WriteString("No config found yet. Pick the project board(s) you work out of —\n")
-	b.WriteString(subtitleStyle.Render("they seed the Project View. You can edit this later in config.json.") + "\n\n")
+	if m.embedded {
+		b.WriteString(headerStyle.Render(" Select projects ") + "\n\n")
+		b.WriteString("Pick the project board(s) you work out of —\n")
+	} else {
+		b.WriteString(headerStyle.Render(" Welcome to jarvis ") + "\n\n")
+		b.WriteString("No config found yet. Pick the project board(s) you work out of —\n")
+	}
+	b.WriteString(subtitleStyle.Render("they drive the Project View. Saved to config.json; re-open anytime with P.") + "\n\n")
 	b.WriteString(m.filter.View() + "\n\n")
 
 	if len(m.matches) == 0 {
@@ -240,10 +278,100 @@ func (m *onboardModel) chosenHandles() []string {
 	return out
 }
 
-// runOnboarding runs the first-run project picker and writes a fresh config.json
-// with the chosen primary projects. Returns cancelled=true if the user aborted
-// (esc/ctrl+c) so the caller can exit without writing anything.
+// roleModel is the first-run role picker: a simple single-select list of the
+// roles jarvis supports, used to seed `role` in a fresh config.
+type roleModel struct {
+	cursor    int
+	confirmed bool
+	cancelled bool
+	width     int
+}
+
+// newRoleModel builds the role picker, landing on the role matching current (or
+// the first role when current is empty/unknown).
+func newRoleModel(current string) *roleModel {
+	m := &roleModel{width: 100}
+	want := normalizeRole(current)
+	for i, r := range RoleChoices {
+		if r.Role == want {
+			m.cursor = i
+			break
+		}
+	}
+	return m
+}
+
+func (m *roleModel) Init() tea.Cmd { return nil }
+
+func (m *roleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		return m, nil
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "esc":
+			m.cancelled = true
+			return m, tea.Quit
+		case "enter":
+			m.confirmed = true
+			return m, tea.Quit
+		case "up", "ctrl+p", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+			return m, nil
+		case "down", "ctrl+n", "j":
+			if m.cursor < len(RoleChoices)-1 {
+				m.cursor++
+			}
+			return m, nil
+		}
+	}
+	return m, nil
+}
+
+func (m *roleModel) View() string {
+	var b strings.Builder
+	b.WriteString(headerStyle.Render(" Welcome to jarvis ") + "\n\n")
+	b.WriteString("What's your primary role? It tailors how Start Work seeds a Claude session.\n")
+	b.WriteString(subtitleStyle.Render("Saved to config.json; override the per-role prompt there anytime.") + "\n\n")
+	for i, r := range RoleChoices {
+		line := fmt.Sprintf("%-10s %s", r.Label, dimStyle.Render(r.Desc))
+		if i == m.cursor {
+			b.WriteString(selectedStyle.Render("▸ "+line) + "\n")
+		} else {
+			b.WriteString("  " + line + "\n")
+		}
+	}
+	b.WriteString("\n" + subtitleStyle.Render("↑/↓ move · enter confirm · esc cancel") + "\n")
+	return lipgloss.NewStyle().Padding(1, 2).Render(b.String())
+}
+
+// runRolePicker runs the standalone role picker and returns the chosen role.
+// cancelled is true if the user aborted (esc/ctrl+c).
+func runRolePicker(current string) (role string, cancelled bool, err error) {
+	rm := newRoleModel(current)
+	res, err := tea.NewProgram(rm, tea.WithAltScreen()).Run()
+	if err != nil {
+		return "", false, err
+	}
+	final := res.(*roleModel)
+	if final.cancelled {
+		return "", true, nil
+	}
+	return RoleChoices[final.cursor].Role, false, nil
+}
+
+// runOnboarding runs the first-run role + project pickers and writes a fresh
+// config.json with the chosen role and primary projects. Returns cancelled=true if
+// the user aborted (esc/ctrl+c) so the caller can exit without writing anything.
 func runOnboarding(repo, configPath string) (cancelled bool, err error) {
+	role, cancelled, err := runRolePicker("")
+	if err != nil || cancelled {
+		return cancelled, err
+	}
+
 	owner := repoOwner(repo)
 	projects, err := ghapi.ListOrgProjects(owner)
 	if err != nil {
@@ -269,7 +397,7 @@ func runOnboarding(repo, configPath string) (cancelled bool, err error) {
 		return true, nil
 	}
 
-	cfg := &Config{PrimaryProjects: final.chosenHandles()}
+	cfg := &Config{Role: role, PrimaryProjects: final.chosenHandles()}
 	if err := cfg.Save(configPath); err != nil {
 		return false, fmt.Errorf("saving config: %w", err)
 	}
