@@ -1831,6 +1831,80 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
 	), "no disable historical data activity for ignored patch")
 }
 
+func (s *integrationEnterpriseTestSuite) TestModifyTeamEnableSoftwareInventory() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a fleet — features.enable_software_inventory snapshots the global
+	// config. `features` in the POST payload is ignored (pre-existing
+	// behavior, consistent with historical_data), so send the OPPOSITE of the
+	// global value to make the ignore observable.
+	globalCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	globalEnabled := globalCfg.Features.EnableSoftwareInventory
+	teamName := t.Name() + "softwareInventoryFleet"
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", json.RawMessage(fmt.Sprintf(
+		`{"name": %q, "features": {"enable_software_inventory": %t}}`, teamName, !globalEnabled,
+	)), http.StatusOK, &createResp)
+	require.Equal(t, globalEnabled, createResp.Team.Config.Features.EnableSoftwareInventory,
+		"features is ignored on POST; new fleet snapshots the global config value")
+	teamID := createResp.Team.ID
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(ctx, teamID))
+	})
+
+	// PATCH enable_software_inventory=false.
+	var modResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": false}}`),
+		http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.Features.EnableSoftwareInventory)
+
+	// PATCH other fields without the key — value retained (PATCH-merge semantics).
+	newName := teamName + "renamed"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(fmt.Sprintf(`{"name": %q, "features": {"historical_data": {"uptime": false}}}`, newName)),
+		http.StatusOK, &modResp)
+	require.Equal(t, newName, modResp.Team.Name)
+	require.False(t, modResp.Team.Config.Features.EnableSoftwareInventory,
+		"enable_software_inventory preserved when omitted from PATCH")
+	require.False(t, modResp.Team.Config.Features.HistoricalData.Uptime)
+
+	// Invalid value returns a 4xx error and does not change the setting.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": "yes"}}`),
+		http.StatusBadRequest, &modResp)
+	teamFeatures, err := s.ds.TeamFeatures(ctx, teamID)
+	require.NoError(t, err)
+	require.False(t, teamFeatures.EnableSoftwareInventory,
+		"setting unchanged after invalid value")
+
+	// `null` is treated as omitted — value retained.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": null}}`),
+		http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.Features.EnableSoftwareInventory)
+
+	// Re-enable.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": true}}`),
+		http.StatusOK, &modResp)
+	require.True(t, modResp.Team.Config.Features.EnableSoftwareInventory)
+
+	// PATCH /fleets/0 (Unassigned) ignores `features` (pre-existing behavior,
+	// consistent with historical_data); Unassigned hosts follow the global
+	// config setting, so send the OPPOSITE of the global value and verify it
+	// is unchanged.
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0",
+		json.RawMessage(fmt.Sprintf(`{"features": {"enable_software_inventory": %t}}`, !globalEnabled)),
+		http.StatusOK, &modResp)
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, globalEnabled, appCfg.Features.EnableSoftwareInventory,
+		"global setting unchanged by Unassigned fleet PATCH")
+}
+
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 	t := s.T()
 

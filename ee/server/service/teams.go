@@ -503,6 +503,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 
+	if payload.Features != nil && payload.Features.EnableSoftwareInventory.Valid {
+		team.Config.Features.EnableSoftwareInventory = payload.Features.EnableSoftwareInventory.Value
+	}
+
 	team, err = svc.ds.SaveTeam(ctx, team)
 	if err != nil {
 		return nil, err
