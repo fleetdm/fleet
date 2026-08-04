@@ -7079,6 +7079,13 @@
       "description": "Python 3.14 is a high-level, general-purpose programming language used for web development, data analysis, automation, scripting, and scientific computing."
     },
     {
+      "name": "QEMU",
+      "slug": "qemu/windows",
+      "platform": "windows",
+      "unique_identifier": "QEMU",
+      "description": "QEMU is an open-source machine emulator and virtualizer."
+    },
+    {
       "name": "QLab",
       "slug": "qlab/darwin",
       "platform": "darwin",
