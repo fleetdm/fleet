@@ -165,6 +165,7 @@ func runVerify(args []string) int {
 		fmt.Fprintln(os.Stderr, "error: --server is required")
 		return 1
 	}
+	*server = strings.TrimRight(*server, "/")
 	specBytes, err := os.ReadFile(*specPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
