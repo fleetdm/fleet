@@ -17,7 +17,9 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   failed_install: "error",
   pending_uninstall: "pending-outline",
   failed_uninstall: "error",
-  skipped_install: "info",
+  // Same "!" glyph as a failure, but the call site renders it muted grey
+  // (ui-fleet-black-50): a skip is deferred (app was open), not an error.
+  skipped_install: "error-outline",
 } as const;
 
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<

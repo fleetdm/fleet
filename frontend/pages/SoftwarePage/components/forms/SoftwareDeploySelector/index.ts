@@ -1,4 +1,3 @@
-export { default } from "./SoftwareDeploySlider";
 export {
   default as SoftwareDeploySelector,
   PatchOptionSelector,

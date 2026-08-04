@@ -38,7 +38,7 @@ import CustomLink from "components/CustomLink";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 import { createTooltipContent, generateFormValidation } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySelector";
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 export const baseClass = "package-form";
 

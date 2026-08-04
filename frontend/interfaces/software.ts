@@ -70,7 +70,7 @@ export interface ISoftwarePatchPolicy {
   id: number;
   name: string;
   patch_when_closed: boolean;
-  continuous_automations_enabled?: boolean;
+  continuous_automations_enabled: boolean;
 }
 
 export type SoftwareInstallPolicyType = "dynamic" | "patch";

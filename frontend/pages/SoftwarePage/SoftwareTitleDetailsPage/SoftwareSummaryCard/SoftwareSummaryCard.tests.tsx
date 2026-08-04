@@ -545,6 +545,7 @@ describe("Software Summary Card", () => {
                 id: 42,
                 name: "Outdated Postman",
                 patch_when_closed: false,
+                continuous_automations_enabled: false,
               },
             }),
           })}
@@ -616,6 +617,7 @@ describe("Software Summary Card", () => {
                 id: 42,
                 name: "Outdated Postman",
                 patch_when_closed: false,
+                continuous_automations_enabled: false,
               },
             }),
           })}
@@ -644,6 +646,7 @@ describe("Software Summary Card", () => {
                 id: 42,
                 name: "Outdated Postman",
                 patch_when_closed: false,
+                continuous_automations_enabled: false,
               },
             }),
           })}

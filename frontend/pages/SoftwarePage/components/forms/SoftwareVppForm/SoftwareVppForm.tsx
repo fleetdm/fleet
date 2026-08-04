@@ -26,7 +26,7 @@ import {
 } from "pages/SoftwarePage/helpers";
 
 import { generateFormValidation, getUniqueAppId } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySelector";
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 const baseClass = "software-vpp-form";
 

@@ -9,6 +9,7 @@ import {
 } from "__mocks__/softwareMock";
 import softwareAPI from "services/entities/software";
 import teamPoliciesAPI from "services/entities/team_policies";
+import { notify } from "components/ToastNotification";
 import { createCustomRenderer } from "test/test-utils";
 
 import DeployModal from "./DeployModal";
@@ -68,6 +69,7 @@ describe("DeployModal", () => {
           id: 22,
           name: "Firefox up to date",
           patch_when_closed: false,
+          continuous_automations_enabled: false,
         },
         automatic_install_policies: [],
       }),
@@ -76,6 +78,16 @@ describe("DeployModal", () => {
     expect(screen.getByRole("checkbox", { name: "patch" })).toBeChecked();
     expect(
       screen.getByRole("radio", { name: "End user initiated (manual)" })
+    ).toBeChecked();
+  });
+
+  it("defaults a newly-checked patch to the top option (Patch when app is closed)", async () => {
+    const { user } = renderModal();
+
+    await user.click(screen.getByRole("checkbox", { name: "patch" }));
+
+    expect(
+      screen.getByRole("radio", { name: "Patch when app is closed" })
     ).toBeChecked();
   });
 
@@ -121,6 +133,31 @@ describe("DeployModal", () => {
     );
   });
 
+  it("shows a specific error and skips the create when the FMA install query is missing", async () => {
+    jest.spyOn(softwareAPI, "getFleetMaintainedApp").mockResolvedValue({
+      fleet_maintained_app: createMockFleetMaintainedAppDetails({
+        automatic_install_query: "",
+      }),
+    });
+    const errorSpy = jest.spyOn(notify, "error").mockImplementation(noop);
+    const onExit = jest.fn();
+    const { user } = renderModal({ onExit });
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled()
+    );
+    await user.click(screen.getByRole("checkbox", { name: "force-install" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Couldn't create the Force install policy. Try again."
+      )
+    );
+    expect(teamPoliciesAPI.create).not.toHaveBeenCalled();
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
   it("attaches install automation when a manual patch policy changes to Force patch", async () => {
     const { user } = renderModal({
       softwarePackage: createMockSoftwarePackage({
@@ -129,6 +166,7 @@ describe("DeployModal", () => {
           id: 22,
           name: "Firefox up to date",
           patch_when_closed: false,
+          continuous_automations_enabled: false,
         },
         automatic_install_policies: [],
       }),
@@ -155,6 +193,7 @@ describe("DeployModal", () => {
           id: 22,
           name: "Firefox up to date",
           patch_when_closed: false,
+          continuous_automations_enabled: true,
         },
         automatic_install_policies: [
           { id: 22, name: "Firefox up to date", type: "patch" },
@@ -217,6 +256,7 @@ describe("DeployModal", () => {
           id: 22,
           name: "Firefox up to date",
           patch_when_closed: true,
+          continuous_automations_enabled: true,
         },
       }),
     });
@@ -231,9 +271,10 @@ describe("DeployModal", () => {
     });
   });
 
-  it("closes and refreshes after a partial save so retry uses fresh policy state", async () => {
+  it("warns about a partial save, then closes and refreshes so retry uses fresh policy state", async () => {
     const onExit = jest.fn();
     const onSuccess = jest.fn();
+    const errorSpy = jest.spyOn(notify, "error").mockImplementation(noop);
     (teamPoliciesAPI.create as jest.Mock)
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error("Patch failed"));
@@ -251,6 +292,13 @@ describe("DeployModal", () => {
       expect(onSuccess).toHaveBeenCalledTimes(1);
       expect(onExit).toHaveBeenCalledTimes(1);
     });
+    // Partial success must be surfaced, not swallowed behind the raw error.
+    expect(
+      errorSpy
+    ).toHaveBeenCalledWith(
+      "Some changes were saved, but others couldn't be. Try again.",
+      { response: expect.anything() }
+    );
   });
 
   it("disables the Deploy control and Save in GitOps mode", () => {

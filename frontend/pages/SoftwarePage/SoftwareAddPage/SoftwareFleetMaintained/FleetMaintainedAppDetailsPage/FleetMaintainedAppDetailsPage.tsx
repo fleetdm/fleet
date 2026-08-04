@@ -179,6 +179,27 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
+    // Refresh the software caches and land on the new title's details. Shared
+    // by the success path and the partial-success path (title added, but the
+    // patch policy failed) so the two can't drift apart.
+    const refreshAndGoToTitle = (titleId: number) => {
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "fleet-maintained-apps" }],
+      });
+      router.push(
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(titleId.toString()),
+          { fleet_id: teamId }
+        )
+      );
+    };
+
     let softwareFmaTitleId: number | undefined;
     try {
       const response = await softwareAPI.addFleetMaintainedApp(
@@ -203,24 +224,7 @@ const FleetMaintainedAppDetailsPage = ({
         });
       }
 
-      queryClient.invalidateQueries({
-        queryKey: [{ scope: "software-titles" }],
-      });
-      queryClient.invalidateQueries({
-        queryKey: [{ scope: "software-library" }],
-      });
-      queryClient.invalidateQueries({
-        queryKey: [{ scope: "fleet-maintained-apps" }],
-      });
-
-      router.push(
-        getPathWithQueryParams(
-          PATHS.SOFTWARE_TITLE_DETAILS(addedSoftwareTitleId.toString()),
-          {
-            fleet_id: teamId,
-          }
-        )
-      );
+      refreshAndGoToTitle(addedSoftwareTitleId);
 
       notify.success(
         <>
@@ -231,21 +235,7 @@ const FleetMaintainedAppDetailsPage = ({
       const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
 
       if (softwareFmaTitleId) {
-        queryClient.invalidateQueries({
-          queryKey: [{ scope: "software-titles" }],
-        });
-        queryClient.invalidateQueries({
-          queryKey: [{ scope: "software-library" }],
-        });
-        queryClient.invalidateQueries({
-          queryKey: [{ scope: "fleet-maintained-apps" }],
-        });
-        router.push(
-          getPathWithQueryParams(
-            PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
-            { fleet_id: teamId }
-          )
-        );
+        refreshAndGoToTitle(softwareFmaTitleId);
         notify.error(
           "Software was added, but the deployment settings couldn't be saved. Try again from Actions > Deploy.",
           { response: error }

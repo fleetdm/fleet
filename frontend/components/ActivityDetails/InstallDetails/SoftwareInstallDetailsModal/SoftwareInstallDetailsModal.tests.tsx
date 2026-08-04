@@ -156,6 +156,9 @@ describe("SoftwareInstallDetailsModal", () => {
         )
       ).toBeInTheDocument();
       expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
+      // Grey "!" (error-outline), not the red failure icon.
+      expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+      expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
     });
 
     it("on host details page/install activity, renders installed message with timestamp", () => {
@@ -349,10 +352,14 @@ describe("SoftwareInstallDetailsModal", () => {
       await screen.findByText(/Fleet skipped install of/);
       await user.click(screen.getByRole("button", { name: /Details/i }));
 
+      expect(screen.getByText("Pre-install query output:")).toBeInTheDocument();
+      // Figma: the code block shows both the generic no-result line and the
+      // app-open reason (label stays "Pre-install query output:").
       expect(
-        screen.getByText("Query didn't return result or failed:")
+        screen.getByText(
+          /Query didn't return result or failed\s+The app was open/
+        )
       ).toBeInTheDocument();
-      expect(screen.getByText("The app was open")).toBeInTheDocument();
       expect(screen.queryByText("Install stopped")).not.toBeInTheDocument();
     });
 

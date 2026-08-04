@@ -48,7 +48,10 @@ const DeployModal = ({
   const patchHasAutomation =
     !!patchPolicy &&
     automaticInstallPolicies.some((policy) => policy.id === patchPolicy.id);
-  let initialPatchOption: PatchOption = "manual";
+  // With no existing patch policy, default to the top option ("closed") so a
+  // newly-checked Patch matches the Add software page. An existing policy
+  // reflects its real state instead.
+  let initialPatchOption: PatchOption = patchPolicy ? "manual" : "closed";
   if (patchPolicy?.patch_when_closed) {
     initialPatchOption = "closed";
   } else if (patchHasAutomation) {
@@ -87,9 +90,13 @@ const DeployModal = ({
       if (forceInstall !== !!forceInstallPolicy) {
         if (forceInstall) {
           if (!fleetMaintainedApp?.automatic_install_query) {
-            throw new Error(
+            // A plain Error wouldn't survive getErrorReason in the catch below
+            // (it only unwraps API responses), so surface the toast directly
+            // and bail — the finally resets isSaving.
+            notify.error(
               "Couldn't create the Force install policy. Try again."
             );
+            return;
           }
           await teamPoliciesAPI.create({
             team_id: teamId,
@@ -141,10 +148,19 @@ const DeployModal = ({
       onSuccess();
       onExit();
     } catch (error) {
-      notify.error(getErrorReason(error), { response: error });
       if (savedAnyChange) {
+        // A partial save (e.g. Force install created, then the patch policy
+        // failed): tell the user some changes landed — mirroring the Add
+        // flow — rather than only the raw error, then refresh + close so a
+        // retry starts from the real state.
+        notify.error(
+          "Some changes were saved, but others couldn't be. Try again.",
+          { response: error }
+        );
         onSuccess();
         onExit();
+      } else {
+        notify.error(getErrorReason(error), { response: error });
       }
     } finally {
       setIsSaving(false);

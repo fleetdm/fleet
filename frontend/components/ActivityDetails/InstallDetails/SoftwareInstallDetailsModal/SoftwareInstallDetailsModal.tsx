@@ -151,6 +151,7 @@ export const StatusMessage = ({
       <IconStatusMessage
         className={`${baseClass}__status-message`}
         iconName={INSTALL_DETAILS_STATUS_ICONS.skipped_install}
+        iconColor="ui-fleet-black-50"
         message={
           <span>
             Fleet skipped install of <b>{software_title}</b> ({software_package}
@@ -315,11 +316,9 @@ export const SoftwareInstallDetailsModal = ({
   const renderInstallDetailsSection = () => {
     const outputs = [
       {
-        label: detailsFromProps.install_skipped_when_app_open
-          ? "Query didn't return result or failed:"
-          : "Pre-install query output:",
+        label: "Pre-install query output:",
         value: detailsFromProps.install_skipped_when_app_open
-          ? "The app was open"
+          ? "Query didn't return result or failed\nThe app was open"
           : swInstallResult?.pre_install_query_output,
       },
       {
