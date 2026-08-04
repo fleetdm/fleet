@@ -2763,6 +2763,8 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 ## S3
 
+> For single-container environments — like local development, or services such as Render that don't offer S3-compatible storage — Fleet can store software installers and bootstrap packages on local disk instead, via the `FLEET_SOFTWARE_INSTALLER_STORE_DIR` environment variable (no YAML or flag equivalent). This won't work correctly once you scale to more than one Fleet server container. Use S3 (below) for multi-container production deployments.
+
 ### s3_software_installers_bucket
 
 *Available in Fleet Premium.*
