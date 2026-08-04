@@ -146,9 +146,9 @@ describe("getStatusMessage helper function", () => {
         isMDMStatusNotNow: false,
         isMDMStatusAcknowledged: false,
         appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
+        hostDisplayName: "Marko's Pixel 8",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
-        platform: "windows",
+        platform: "android",
       })
     );
     expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
