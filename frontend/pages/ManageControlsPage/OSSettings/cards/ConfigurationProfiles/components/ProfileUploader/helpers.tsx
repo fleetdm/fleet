@@ -457,6 +457,14 @@ export const getErrorMessage = (
     return generateGenericLearnMoreErrMsg(apiReason);
   }
 
+  // custom activation errors already read as complete sentences, so they pass
+  // through unprefixed. This one carries a trailing link to render.
+  if (
+    apiReason.includes("can only have one referenced configuration profile")
+  ) {
+    return generateGenericLearnMoreErrMsg(apiReason);
+  }
+
   // // FIXME: Should we include a default case to catch any other learn more links from the API?
   // // Can we get rid of some/all of the specific cases above and just have this generic one?
   // if (apiReason.includes(" Learn more: https://")) {

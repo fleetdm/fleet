@@ -1,4 +1,5 @@
 import { AxiosResponse } from "axios";
+import { render, screen } from "@testing-library/react";
 
 import { IApiError } from "interfaces/errors";
 
@@ -388,5 +389,30 @@ describe("getErrorMessage", () => {
       "Couldn't edit profile. OS updates are already configured. Remove the OS updates settings first."
     );
     expect(getErrorMessage(createErrResponse(reason))).toEqual(reason);
+  });
+
+  it("passes the referenced-configuration error through verbatim", () => {
+    // the API phrases custom activation errors as complete sentences, so they
+    // need no prefixing or rewording.
+    const reason =
+      "Couldn't add custom activation. The referenced configuration com.fleetdm.config.passcode doesn't exist. Please add the referenced configuration profile and try again.";
+    expect(getErrorMessage(createErrResponse(reason))).toEqual(reason);
+  });
+
+  it("renders the trailing link on the one-configuration error", () => {
+    const reason =
+      "Couldn't add custom activation. The custom activation can only have one referenced configuration profile. Learn more: https://fleetdm.com/learn-more-about/ddm-activations";
+
+    render(getErrorMessage(createErrResponse(reason)) as JSX.Element);
+
+    expect(
+      screen.getByText(
+        "Couldn't add custom activation. The custom activation can only have one referenced configuration profile."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Learn more/ })).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/ddm-activations"
+    );
   });
 });
