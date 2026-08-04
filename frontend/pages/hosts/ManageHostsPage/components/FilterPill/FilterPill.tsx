@@ -26,9 +26,7 @@ const FilterPill = ({
   onClear,
 }: IFilterPillProps) => {
   const baseClasses = classnames(baseClass, className);
-  const labelClasses = classnames(`${baseClass}__label`, {
-    tooltip: tooltipDescription !== undefined && tooltipDescription !== "",
-  });
+  const labelClasses = `${baseClass}__label`;
 
   const pillText = useRef(null);
   const isTruncated = useCheckTruncatedElement(pillText);
