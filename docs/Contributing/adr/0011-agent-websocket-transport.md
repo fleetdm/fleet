@@ -6,9 +6,9 @@ Proposed
 
 ## Authors
 
-- Luke Heath
-- Sharon Katz
-- Lucas Rodriguez
+- @lucasmrod
+- @lukeheath
+- @sharon-fdm
 
 ## Date
 
