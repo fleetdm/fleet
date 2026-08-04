@@ -340,12 +340,8 @@ extension BrowserWindow: WKNavigationDelegate {
     private func checkPageForErrors(_ webView: WKWebView) {
         let js = """
         (function() {
-            var body = document.body ? document.body.innerText : '';
-            var errors = 0;
-            if (body.indexOf('Something went wrong') !== -1) errors++;
-            if (body.indexOf('Error loading software') !== -1) errors++;
-            if (body.indexOf('Please contact your IT admin') !== -1) errors++;
-            return errors >= 2 ? 'error' : 'ok';
+            var text = document.body ? document.body.innerText : '';
+            return \(FleetErrorPage.matchesExpression) ? 'error' : 'ok';
         })();
         """
         webView.evaluateJavaScript(js) { [weak self] result, _ in
