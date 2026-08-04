@@ -1000,6 +1000,18 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 
+	// If this fleet is the Windows enrollment default, clear it explicitly to revoke the cache.
+	winDefaultFleetID, _, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
+	}
+	clearedWindowsEnrollmentDefaultFleet := winDefaultFleetID != nil && *winDefaultFleetID == teamID
+	if clearedWindowsEnrollmentDefaultFleet {
+		if err := svc.ds.SetWindowsEnrollmentDefaultFleet(ctx, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear windows enrollment default fleet")
+		}
+	}
+
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
 	}
@@ -1037,6 +1049,17 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for team deletion")
+	}
+
+	if clearedWindowsEnrollmentDefaultFleet {
+		// Record the change in Windows enrollment default
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedWindowsEnrollmentDefaultFleet{},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for cleared windows enrollment default fleet")
+		}
 	}
 	return nil
 }

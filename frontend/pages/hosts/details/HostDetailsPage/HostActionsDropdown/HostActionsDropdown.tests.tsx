@@ -1242,6 +1242,38 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Run script")).toBeInTheDocument();
     });
 
+    it("renders the Run script action for Arch-based Linux distributions", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+            config: {
+              server_settings: {
+                scripts_disabled: false,
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          isConnectedToFleetMdm
+          hostPlatform="omarchy"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      expect(screen.getByText("Run script")).toBeInTheDocument();
+    });
+
     it("renders the Run script action as enabled when scripts_enabled is null", async () => {
       const render = createCustomRenderer({
         context: {

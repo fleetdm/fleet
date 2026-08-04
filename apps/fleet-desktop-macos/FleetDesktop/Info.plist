@@ -9,9 +9,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.fleetdm.fleet-desktop</string>
     <key>CFBundleVersion</key>
-    <string>10</string>
+    <string>11</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.4.0</string>
+    <string>1.5.0</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
@@ -24,6 +24,14 @@
     <true/>
     <key>LSMultipleInstancesProhibited</key>
     <true/>
+    <!-- What this build's CLI supports. Callers probe for a capability rather than
+         comparing version numbers, so adding a command later doesn't mean updating a
+         hardcoded minimum version in every script that invokes us. -->
+    <key>FleetDesktopCapabilities</key>
+    <dict>
+        <key>notify</key>
+        <true/>
+    </dict>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
