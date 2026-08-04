@@ -1,0 +1,1 @@
+- Removed the misleading Self-service preview tab from the "Edit appearance" modal for Android apps, since Android apps are installed from the Play Store rather than the Fleet self-service web view.
