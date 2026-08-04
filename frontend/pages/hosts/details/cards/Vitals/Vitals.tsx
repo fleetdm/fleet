@@ -739,7 +739,7 @@ const Vitals = ({
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
   const showExpandedVitals =
     isIosOrIpadosHost &&
-    !isBYODAccountDrivenUserEnrollment(mdm?.enrollment_status);
+    !isBYODAccountDrivenUserEnrollment(mdm?.enrollment_status ?? null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(FALLBACK_COLUMN_COUNT);
