@@ -1212,6 +1212,100 @@ func (s *integrationTestSuite) TestTranslator() {
 	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{List: []fleet.TranslatePayload{{Type: "notavalidtype", Payload: fleet.StringIdentifierToIDPayload{}}}}, http.StatusBadRequest, &payload)
 }
 
+func (s *integrationTestSuite) TestSoftwareChecksumReconciliation() {
+	t := s.T()
+	ctx := context.Background()
+
+	newHost := func(suffix string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new(t.Name() + suffix),
+			UUID:            t.Name() + suffix,
+			Hostname:        t.Name() + suffix,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	host1, host2, host3 := newHost("1"), newHost("2"), newHost("3")
+
+	// Unique name so the software/versions query isolates this test's rows in the
+	// shared suite database.
+	const name = "giflib-recon-e2e"
+	sw := fleet.Software{Name: name, Version: "5.2.2", Source: "homebrew_packages"}
+
+	// host1 reports the software the normal way => canonical (current-formula) row.
+	_, err := s.ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{sw})
+	require.NoError(t, err)
+
+	var canonical struct {
+		ID      uint  `db:"id"`
+		TitleID *uint `db:"title_id"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &canonical,
+			`SELECT id, title_id FROM software WHERE name = ? AND version = '5.2.2' AND source = 'homebrew_packages'`, name)
+	})
+
+	// Simulate a pre-v4.76.0 duplicate: same identity, a different (legacy) checksum,
+	// referenced by other hosts. host3 is linked to both rows (a collision).
+	var staleID int64
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO software (name, version, source, checksum, title_id) VALUES (?, '5.2.2', 'homebrew_packages', ?, ?)`,
+			name, []byte("recon-e2e-stale!"), canonical.TitleID)
+		if err != nil {
+			return err
+		}
+		staleID, err = res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx,
+			`INSERT INTO host_software (host_id, software_id) VALUES (?, ?), (?, ?), (?, ?)`,
+			host2.ID, staleID, host3.ID, staleID, host3.ID, canonical.ID)
+		return err
+	})
+
+	// Populate host counts so the versions endpoint returns the software.
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+
+	// Before reconciliation the bug is visible through the API: two entries for the
+	// same name/version/source, with split host counts.
+	var versions listSoftwareVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versions, "query", name)
+	require.Len(t, versions.Software, 2)
+
+	// Run the migration (what `fleetctl trigger --name software_checksum_migration` invokes).
+	require.NoError(t, s.ds.ReconcileSoftwareChecksums(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+
+	// Now a single deduplicated entry with the combined host count (host1 + host2 +
+	// host3, with host3's duplicate link resolved).
+	versions = listSoftwareVersionsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versions, "query", name)
+	require.Len(t, versions.Software, 1)
+	require.Equal(t, canonical.ID, versions.Software[0].ID)
+	require.Equal(t, 3, versions.Software[0].HostsCount)
+
+	// The stale row is gone.
+	var staleCount int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &staleCount, `SELECT COUNT(*) FROM software WHERE id = ?`, staleID)
+	})
+	require.Zero(t, staleCount)
+
+	// Idempotent: re-running the migration changes nothing.
+	require.NoError(t, s.ds.ReconcileSoftwareChecksums(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	versions = listSoftwareVersionsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versions, "query", name)
+	require.Len(t, versions.Software, 1)
+	require.Equal(t, 3, versions.Software[0].HostsCount)
+}
+
 func (s *integrationTestSuite) TestVulnerableSoftware() {
 	t := s.T()
 
