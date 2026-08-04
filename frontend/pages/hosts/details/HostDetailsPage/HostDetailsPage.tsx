@@ -1099,10 +1099,9 @@ const HostDetailsPage = ({
           false
         }
         isManagedLocalAccountEnabled={
-          // The setting is per platform: Windows lives under windows_settings,
-          // macOS under macos_setup. Reading the macOS one for a Windows host
-          // evaluates as disabled and hides the action until a password row
-          // exists, which is exactly the state the action should surface.
+          // The setting lives in a different place per platform: Windows under
+          // windows_settings, macOS under macos_setup. Reading the wrong one
+          // reports the account as disabled and hides the action.
           host.platform === "windows"
             ? mdmConfig?.windows_settings?.managed_local_account_settings
                 ?.enabled ?? false

@@ -11,6 +11,7 @@ import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import EndUserAuthSection from "./components/EndUserAuthSection";
@@ -140,21 +141,25 @@ const UsersForm = ({
 
       // The Windows toggle isn't part of the Apple Setup Assistant flow that
       // /setup_experience models, so it saves through the MDM config instead.
-      // Sent on every save like the call above; the server only records an
-      // activity when the value actually changes.
-      const mdmUpdate = {
-        windows_settings: {
-          managed_local_account_settings: {
-            enabled: formData.enableManagedLocalAccountWindows,
+      // Skipped entirely when Windows MDM is off, matching how the Apple fields
+      // above are omitted: the tab is hidden then, so there is nothing the user
+      // could have changed. Within the gate it is sent on every save, since the
+      // server only records an activity when the value actually changes.
+      if (isWindowsMdmEnabledAndConfigured) {
+        const mdmUpdate = {
+          windows_settings: {
+            managed_local_account_settings: {
+              enabled: formData.enableManagedLocalAccountWindows,
+            },
           },
-        },
-      };
-      // teamsAPI.update only types the *_updates keys, so arbitrary MDM
-      // settings go through updateConfig (same as the Passwords card).
-      if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
-        await configAPI.update({ mdm: mdmUpdate });
-      } else {
-        await teamsAPI.updateConfig({ mdm: mdmUpdate }, currentTeamId);
+        };
+        // teamsAPI.update only types the *_updates keys, so arbitrary MDM
+        // settings go through updateConfig (same as the Passwords card).
+        if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
+          await configAPI.update({ mdm: mdmUpdate });
+        } else {
+          await teamsAPI.updateConfig({ mdm: mdmUpdate }, currentTeamId);
+        }
       }
 
       notify.success("Successfully updated.");
@@ -185,10 +190,16 @@ const UsersForm = ({
         <TabNav secondary>
           <Tabs>
             <TabList>
-              <Tab>macOS</Tab>
+              <Tab>
+                <TabText>macOS</TabText>
+              </Tab>
               {/* Windows MDM has to be on for the toggle to do anything, so the
               tab is only offered when it is configured. */}
-              {isWindowsMdmEnabledAndConfigured && <Tab>Windows</Tab>}
+              {isWindowsMdmEnabledAndConfigured && (
+                <Tab>
+                  <TabText>Windows</TabText>
+                </Tab>
+              )}
             </TabList>
             <TabPanel>
               <LocalAccountSection

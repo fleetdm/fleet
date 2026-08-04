@@ -275,5 +275,36 @@ describe("UsersForm", () => {
         7
       );
     });
+
+    // Windows MDM off means the tab is never rendered, so there is nothing the
+    // user could have changed. Both the no-team and fleet branches are covered
+    // because each sends through a different API.
+    it.each([
+      { target: "no team", currentTeamId: 0 },
+      { target: "a fleet", currentTeamId: 7 },
+    ])(
+      "skips the windows PATCH for $target when windows mdm is not configured",
+      async ({ currentTeamId }) => {
+        const setupSpy = jest
+          .spyOn(mdmAPI, "updateSetupExperienceSettings")
+          .mockResolvedValue({});
+        const configSpy = jest
+          .spyOn(configAPI, "update")
+          .mockResolvedValue({} as never);
+        const teamSpy = jest
+          .spyOn(teamsAPI, "updateConfig")
+          .mockResolvedValue({} as never);
+
+        const { user } = render(
+          <UsersForm {...defaultProps} currentTeamId={currentTeamId} />
+        );
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        // The rest of the form still saves; only the Windows call is skipped.
+        expect(setupSpy).toHaveBeenCalled();
+        expect(configSpy).not.toHaveBeenCalled();
+        expect(teamSpy).not.toHaveBeenCalled();
+      }
+    );
   });
 });
