@@ -87,6 +87,7 @@ module.exports = {
       isIn: [
         'Attended a call with Fleet',
         'Event',
+        'Event - 2026-07 PSU MacAdmins',
         'GitHub - Contributed to fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',
         'GitHub - Stared fleetdm/fleet',
@@ -101,12 +102,12 @@ module.exports = {
         'Website - Contact forms',
         'Website - Contact forms - Demo - ICP',
         'Website - Contact forms - Demo',
-        'Website - GitOps',
+        'Website - Workshop request',
         'Website - Newsletter',
         'Website - Sign up',
         'Website - Swag request',
         'Website - Gated document',
-        'Webinar',
+        'Website - Gated video',
       ],
     }
   },
@@ -175,8 +176,8 @@ module.exports = {
 
         Page_URL__c: fleetWebsitePageUrl,// eslint-disable-line camelcase
         Website_visit_reason__c: websiteVisitReason,// eslint-disable-line camelcase
-        Related_campaign__c: relatedCampaign// eslint-disable-line camelcase
-        Event_source__c: eventSource// eslint-disable-line camelcase
+        Related_campaign__c: relatedCampaign,// eslint-disable-line camelcase
+        Historical_event_source__c: eventSource// eslint-disable-line camelcase
       });
     }).intercept((err)=>{
       return new Error(`An error occured when creating a new Historical event record in Salesforce. full error ${require('util').inspect(err, {depth: null})}`);
