@@ -9,7 +9,7 @@
       "installer_url": "https://dl.google.com/credentialprovider/gcpwstandaloneenterprise64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "23ea1ef2",
-      "sha256": "06bc1fcab9c4f8e1d27d12d0c8c5e342c8ee8e07102f219e0372d255b0074f11",
+      "sha256": "no_check",
       "default_categories": [
         "Productivity"
       ]
