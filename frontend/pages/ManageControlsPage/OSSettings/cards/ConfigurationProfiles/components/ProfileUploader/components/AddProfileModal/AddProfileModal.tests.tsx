@@ -4,6 +4,7 @@ import { noop } from "lodash";
 
 import { createCustomRenderer } from "test/test-utils";
 import labelsAPI from "services/entities/labels";
+import mdmAPI from "services/entities/mdm";
 
 import AddProfileModal from "./AddProfileModal";
 
@@ -27,13 +28,13 @@ const androidFile = () =>
 
 const render = createCustomRenderer({ withBackendMock: true });
 
-const renderModal = (isPremiumTier: boolean) =>
+const renderModal = (isPremiumTier: boolean, setShowModal = noop) =>
   render(
     <AddProfileModal
       currentTeamId={0}
       isPremiumTier={isPremiumTier}
       onUpload={noop}
-      setShowModal={noop}
+      setShowModal={setShowModal}
     />
   );
 
@@ -148,5 +149,56 @@ describe("AddProfileModal advanced options", () => {
     expect(
       container.querySelector(".profile-advanced-options__custom-activation")
     ).toBeInTheDocument();
+  });
+});
+
+describe("AddProfileModal upload result", () => {
+  beforeEach(() => {
+    jest.spyOn(labelsAPI, "summary").mockResolvedValue({ labels: [] });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const uploadDeclaration = async (setShowModal: () => void) => {
+    const { user, container } = renderModal(true, setShowModal);
+
+    await screen.findByText("Target");
+    await user.upload(getFileInput(container), ddmFile());
+    await user.click(
+      await screen.findByRole("button", { name: "Add profile" })
+    );
+  };
+
+  it("keeps the modal open when the upload is rejected", async () => {
+    const setShowModal = jest.fn();
+    jest.spyOn(mdmAPI, "uploadProfile").mockRejectedValue({
+      data: {
+        errors: [
+          { name: "base", reason: "The profile should include valid JSON" },
+        ],
+      },
+    });
+
+    await uploadDeclaration(setShowModal);
+
+    await waitFor(() => {
+      expect(mdmAPI.uploadProfile).toHaveBeenCalled();
+    });
+    expect(setShowModal).not.toHaveBeenCalled();
+    // the chosen file survives the rejection so the admin can correct and retry
+    expect(screen.getByText("declaration")).toBeInTheDocument();
+  });
+
+  it("closes the modal when the upload succeeds", async () => {
+    const setShowModal = jest.fn();
+    jest.spyOn(mdmAPI, "uploadProfile").mockResolvedValue({});
+
+    await uploadDeclaration(setShowModal);
+
+    await waitFor(() => {
+      expect(setShowModal).toHaveBeenCalledWith(false);
+    });
   });
 });

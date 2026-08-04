@@ -202,13 +202,15 @@ const AddProfileModal = ({
       });
       notify.success("Successfully uploaded.");
       onUpload();
+      // only closed on success: a rejected upload keeps the modal open with the
+      // file and activation intact so the admin can correct and retry.
+      onDone();
     } catch (e) {
       notify.error(getErrorMessage(e as AxiosResponse<IApiError>), {
         response: e,
       });
     } finally {
       setIsLoading(false);
-      onDone();
     }
   };
 
