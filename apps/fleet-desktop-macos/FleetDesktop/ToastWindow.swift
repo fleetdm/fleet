@@ -65,6 +65,8 @@ final class ToastWindow: NSObject {
     /// margins, computed per-screen in `clampHeight(_:on:)`.
     private static let minHeight: CGFloat = 200
 
+    private static let defaultHTTPSPort = 443
+
     // MARK: - Bridge
 
     /// Message handler name the page posts to.
@@ -72,22 +74,17 @@ final class ToastWindow: NSObject {
 
     /// Classifies the loaded document as empty, an error page, or usable.
     ///
-    /// The error test mirrors `BrowserWindow.checkPageForErrors`: Fleet returns HTTP 200
-    /// with error copy when a device token expires, so there is no status code to key
-    /// off. Two phrases must match, which is what keeps legitimate page content from
-    /// tripping it. Being copy-based it is inherently brittle — the durable fix is for
+    /// Error detection is copy-based and so inherently brittle — the durable fix is for
     /// the page to post an `error` action over the bridge, which is also handled.
-    private static let contentProbe = """
+    private static var contentProbe: String {
+        """
         (function () {
           if (!document.body || document.body.children.length === 0) { return "empty"; }
           var text = document.body.innerText || "";
-          var hits = 0;
-          if (text.indexOf("Something went wrong") !== -1) { hits++; }
-          if (text.indexOf("Error loading software") !== -1) { hits++; }
-          if (text.indexOf("Please contact your IT admin") !== -1) { hits++; }
-          return hits >= 2 ? "error" : "ok";
+          return \(FleetErrorPage.matchesExpression) ? "error" : "ok";
         })();
         """
+    }
 
     /// Reports the document's content height whenever it changes.
     ///
@@ -128,6 +125,10 @@ final class ToastWindow: NSObject {
     /// Host the page must post from, captured from the URL we load.
     private let expectedHost: String?
 
+    /// Port that goes with `expectedHost`, defaulted to https's 443 when the URL omits
+    /// it. Without this, a Fleet server on :8080 would also trust :9999 on that host.
+    private let expectedPort: Int
+
     private var cardSize: NSSize
 
     /// Fires once, when the toast is on screen.
@@ -152,6 +153,7 @@ final class ToastWindow: NSObject {
         self.cardSize = Self.cardSize
 
         self.expectedHost = url.host?.lowercased()
+        self.expectedPort = url.port ?? Self.defaultHTTPSPort
 
         let pad = Self.shadowPadding
         let cardRect = NSRect(origin: NSPoint(x: pad, y: pad), size: Self.cardSize)
@@ -462,8 +464,11 @@ extension ToastWindow: WKScriptMessageHandler {
 
     private func isTrusted(_ origin: WKSecurityOrigin) -> Bool {
         guard let expectedHost = expectedHost else { return false }
+        // WebKit reports 0 for a scheme's default port.
+        let port = origin.port == 0 ? Self.defaultHTTPSPort : origin.port
         return origin.protocol.lowercased() == "https"
             && origin.host.lowercased() == expectedHost
+            && port == expectedPort
     }
 }
 
@@ -584,6 +589,7 @@ extension ToastWindow: WKNavigationDelegate, WKUIDelegate {
     private func isSameOrigin(_ candidate: URL) -> Bool {
         candidate.scheme?.lowercased() == "https"
             && candidate.host?.lowercased() == expectedHost
+            && (candidate.port ?? Self.defaultHTTPSPort) == expectedPort
     }
 
     private func handleNavigationFailure(_ error: Error) {

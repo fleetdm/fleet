@@ -35,6 +35,7 @@ SDK="$(xcrun --show-sdk-path)"
 # --- Host app -------------------------------------------------------------
 SOURCES=(
     "$SRC_DIR/cli.swift"
+    "$SRC_DIR/FleetErrorPage.swift"
     "$SRC_DIR/FleetService.swift"
     "$SRC_DIR/BrowserWindow.swift"
     "$SRC_DIR/ToastWindow.swift"

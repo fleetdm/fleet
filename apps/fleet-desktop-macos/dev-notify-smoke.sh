@@ -7,7 +7,7 @@
 
 set -uo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 
 BIN="build/Fleet Desktop.app/Contents/MacOS/FleetDesktop"
 if [ ! -x "$BIN" ]; then
@@ -41,6 +41,8 @@ expect 2 "not a url"               notify --url "not a url"
 expect 2 "unknown option"          notify --url https://example.com --nope
 expect 2 "unknown subcommand"      frobnicate
 expect 2 "child without pipe"      notify --url https://example.com --detached-child
+expect 2 "fd is not a number"      notify --url https://example.com --detached-child --handshake-fd abc
+expect 2 "negative fd"             notify --url https://example.com --detached-child --handshake-fd -1
 expect 0 "help"                    help
 expect 0 "--help"                  --help
 

@@ -14,7 +14,7 @@
 # Note: no `set -e`. Observing a non-zero exit code is the point.
 set -uo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 
 # Accept both `dev-notify.sh <url>` and `dev-notify.sh --url <url>`. The flag is what
 # the binary takes, so typing it here is the natural thing to do.

@@ -16,6 +16,12 @@ import os
 enum NotifyCommand {
     private static let logger = Logger(subsystem: "com.fleetdm.fleet-desktop", category: "notify")
 
+    /// How long the parent waits for the child's line. Longer than the child's load
+    /// deadline, since reporting a load failure legitimately takes that long.
+    private static let handshakeTimeout: TimeInterval = ToastWindow.loadTimeout + 15
+
+    private static let maxHandshakeLength = 4096
+
     static func run(_ options: NotifyOptions) -> Never {
         if options.isDetachedChild {
             runChild(options)
@@ -56,11 +62,21 @@ enum NotifyCommand {
         posix_spawn_file_actions_addopen(&fileActions, 0, "/dev/null", O_RDONLY, 0)
         posix_spawn_file_actions_addopen(&fileActions, 1, "/dev/null", O_WRONLY, 0)
         posix_spawn_file_actions_addopen(&fileActions, 2, "/dev/null", O_WRONLY, 0)
+        // Only meaningful together with CLOEXEC_DEFAULT below: without it everything is
+        // inherited anyway and this line does nothing.
         posix_spawn_file_actions_addinherit_np(&fileActions, writeFD)
+
+        // Close every other descriptor in the child. Otherwise it inherits the pipe's
+        // read end plus whatever the caller had open, and holds them for the toast's
+        // whole lifetime. The three addopen calls above keep stdio working.
+        var attributes: posix_spawnattr_t?
+        posix_spawnattr_init(&attributes)
+        defer { posix_spawnattr_destroy(&attributes) }
+        posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT))
 
         var pid: pid_t = 0
         let spawnStatus = withCStrings(arguments) { argv in
-            posix_spawn(&pid, executable, &fileActions, nil, argv, environ)
+            posix_spawn(&pid, executable, &fileActions, &attributes, argv, environ)
         }
         guard spawnStatus == 0 else {
             report(.internalError, "Could not spawn the toast process (\(spawnStatus)).")
@@ -69,7 +85,7 @@ enum NotifyCommand {
         // Our copy of the write end must go, or the read below never sees EOF.
         close(writeFD)
 
-        let line = readLine(from: readFD)
+        let line = readLine(from: readFD, deadline: Date().addingTimeInterval(handshakeTimeout))
         close(readFD)
 
         guard let line = line, let outcome = Handshake.decode(line) else {
@@ -78,17 +94,42 @@ enum NotifyCommand {
         report(outcome.code, outcome.message)
     }
 
-    /// Reads up to the first newline, or to EOF.
-    private static func readLine(from fd: Int32) -> String? {
+    /// Reads one line, or gives up at `deadline`.
+    ///
+    /// The deadline is what keeps a wedged child from hanging the caller: every other
+    /// bound lives on the child's main queue, which is exactly what freezes if WebKit
+    /// stalls. Returns nil on timeout, EOF before a newline, or an over-long line —
+    /// all of which the caller reports as an internal error.
+    private static func readLine(from fd: Int32, deadline: Date) -> String? {
         var data = Data()
         var byte: UInt8 = 0
+
         while true {
+            let remaining = deadline.timeIntervalSinceNow
+            if remaining <= 0 { return nil }
+
+            var descriptor = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+            let milliseconds = Int32(min(remaining * 1000, Double(Int32.max)))
+            let ready = poll(&descriptor, 1, milliseconds)
+            if ready < 0 {
+                if errno == EINTR { continue }
+                return nil
+            }
+            if ready == 0 { return nil } // deadline passed
+
             let count = Foundation.read(fd, &byte, 1)
-            if count <= 0 { break }
+            if count < 0 {
+                if errno == EINTR { continue }
+                return nil
+            }
+            if count == 0 { break } // EOF
             if byte == UInt8(ascii: "\n") { break }
+            // Checked before appending, so an over-long line is rejected rather than
+            // silently truncated into something that still decodes.
+            if data.count >= maxHandshakeLength { return nil }
             data.append(byte)
-            if data.count > 4096 { break } // bounds a runaway child
         }
+
         return data.isEmpty ? nil : String(data: data, encoding: .utf8)
     }
 
@@ -195,7 +236,9 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
     private var toast: ToastWindow?
     private var watchdog: DispatchWorkItem?
 
-    /// Set once the handshake line has been sent, so it is never sent twice.
+    /// Guards `didReport`. The watchdog fires on a background queue, so the flag is
+    /// reachable from two threads.
+    private let reportLock = NSLock()
     private var didReport = false
 
     init(url: URL, handshake: Handshake, logger: Logger) {
@@ -225,19 +268,30 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
 
     /// Last resort: the toast has no title bar, no close button and no Esc handling, so
     /// a wedged WebKit would leave an undismissable window floating over everything.
+    ///
+    /// Deliberately NOT on the main queue. A frozen main thread is the case this exists
+    /// to catch, and a watchdog scheduled there would freeze with it.
     private func armWatchdog() {
         let limit = ToastWindow.watchdogLimit
         let item = DispatchWorkItem { [weak self] in
             self?.finish(.internalError, "Watchdog fired after \(Int(limit))s.")
         }
         watchdog = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + limit, execute: item)
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + limit, execute: item)
+    }
+
+    /// Claims the right to send the handshake line. Returns false if it is already sent.
+    private func claimReport() -> Bool {
+        reportLock.lock()
+        defer { reportLock.unlock() }
+        if didReport { return false }
+        didReport = true
+        return true
     }
 
     /// The toast is up. Let the parent exit, but keep running.
     private func reportDisplayed() {
-        guard !didReport else { return }
-        didReport = true
+        guard claimReport() else { return }
         handshake.send(.displayed, "Notification displayed.")
     }
 
@@ -265,18 +319,24 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
 
     /// Reports, if the parent is still waiting, and exits.
     private func finish(_ code: ExitCode, _ message: String) -> Never {
-        if !didReport {
-            didReport = true
+        if claimReport() {
             handshake.send(code, message)
         }
         logger.log("finished: \(message, privacy: .public) code=\(code.rawValue)")
         exit(code.rawValue)
     }
 
-    /// Exits after the toast was already reported as displayed, so this status is only
-    /// visible in the logs.
+    /// Exits after a user action or the display timeout.
+    ///
+    /// Normally the toast was already reported, so this status only reaches the logs.
+    /// But a page can post `primary` or `dismiss` before it posts `ready`, in which case
+    /// nothing has been reported yet and exiting silently would leave the parent reading
+    /// EOF and calling it an internal error.
     private func exitChild(_ code: ExitCode) -> Never {
         watchdog?.cancel()
+        if claimReport() {
+            handshake.send(code, "Notification closed before it was displayed.")
+        }
         exit(code.rawValue)
     }
 }
