@@ -45,8 +45,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
 	"github.com/remitly-oss/httpsig-go"
+	"github.com/smallstep/pkcs7"
 )
 
 var (
@@ -503,6 +505,10 @@ type agent struct {
 	ddmUserGlobalToken string
 	// ddmUserDeclTokens caches per-declaration tokens (identifier → serverToken).
 	ddmUserDeclTokens map[string]string
+
+	// notNowProfiles tracks the profile identifiers (per channel) this agent has
+	// already responded NotNow to, so the redelivered command is acknowledged.
+	notNowProfiles map[string]bool
 
 	disableScriptExec   bool
 	disableFleetDesktop bool
@@ -1280,6 +1286,46 @@ func (a *agent) runOrbitLoop() {
 	}
 }
 
+// profileNotNowRequested reports whether the delivered InstallProfile command
+// carries a profile whose decoded content contains the marker string "NotNow"
+// and this agent has not yet responded NotNow to that profile identifier on
+// the given channel. When it returns true it records the identifier, so the
+// redelivered command is acknowledged. Only called from the MDM loop
+// goroutine, so notNowProfiles needs no locking.
+func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
+	var full micromdm.CommandPayload
+	if err := plist.Unmarshal(cmd.Raw, &full); err != nil || full.Command.InstallProfile == nil {
+		return false
+	}
+	profile := full.Command.InstallProfile.Payload
+	// The mobileconfig may be PKCS7-signed; unwrap to the raw XML plist.
+	if !bytes.HasPrefix(profile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(profile)
+		if err != nil {
+			return false
+		}
+		profile = p7.Content
+	}
+	if !bytes.Contains(profile, []byte("NotNow")) {
+		return false
+	}
+	var parsed struct {
+		PayloadIdentifier string `plist:"PayloadIdentifier"`
+	}
+	if err := plist.Unmarshal(profile, &parsed); err != nil || parsed.PayloadIdentifier == "" {
+		return false
+	}
+	key := channel + "/" + parsed.PayloadIdentifier
+	if a.notNowProfiles[key] {
+		return false
+	}
+	if a.notNowProfiles == nil {
+		a.notNowProfiles = make(map[string]bool)
+	}
+	a.notNowProfiles[key] = true
+	return true
+}
+
 func (a *agent) runMacosMDMLoop() {
 	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
 
@@ -1313,6 +1359,19 @@ func (a *agent) runMacosMDMLoop() {
 						break INNER_FOR_LOOP
 					}
 				} else {
+					// A profile whose content carries the "NotNow" marker is
+					// rejected with NotNow on first delivery and installed on the
+					// redelivery, so check before treating it as installed.
+					if a.profileNotNowRequested(mdmCommandPayload, "device") {
+						mdmCommandPayload, err = a.macMDMClient.NotNow(mdmCommandPayload.CommandUUID)
+						if err != nil {
+							log.Printf("MDM NotNow request failed: %s", err)
+							a.stats.IncrementMDMErrors()
+							break INNER_FOR_LOOP
+						}
+						continue
+					}
+
 					// The profile installed successfully. If it's the PSSO
 					// profile, capture the Fleet-signed registration token it
 					// carries and unblock the PSSO loop — the token only reaches
@@ -1495,6 +1554,16 @@ func (a *agent) runMacosMDMLoop() {
 							break INNER_FOR_LOOP_USER
 						}
 					} else {
+						if a.profileNotNowRequested(mdmCommandPayload, "user") {
+							mdmCommandPayload, err = a.macMDMClient.UserNotNow(mdmCommandPayload.CommandUUID)
+							if err != nil {
+								log.Printf("MDM NotNow request failed: %s", err)
+								a.stats.IncrementMDMUserErrors()
+								break INNER_FOR_LOOP_USER
+							}
+							continue
+						}
+
 						mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
 						if err != nil {
 							log.Printf("MDM Acknowledge request failed: %s", err)
