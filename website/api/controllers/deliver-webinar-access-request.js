@@ -58,7 +58,7 @@ module.exports = {
         eventType: 'Intent signal',
         intentSignal: 'Requested webinar recording',
         eventContent: webinarName,
-        eventSource: 'Webinar',
+        eventSource: 'Website - Gated video',
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });
