@@ -7,6 +7,7 @@ import createMockConfig from "__mocks__/configMock";
 import HostActivityAutomationsModal from "./HostActivityAutomationsModal";
 
 const defaultProps = {
+  fleetName: "Workstations",
   onSubmit: jest.fn(),
   onExit: jest.fn(),
   isUpdating: false,
@@ -32,6 +33,8 @@ describe("HostActivityAutomationsModal", () => {
     expect(
       screen.getByDisplayValue("https://example.com/hook")
     ).toBeInTheDocument();
+    // Description names the selected fleet.
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
   });
 
   it("renders disabled defaults when the webhook was never configured", () => {

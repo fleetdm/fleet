@@ -23,6 +23,7 @@ export interface IHostActivityAutomationsFormData {
 
 interface IHostActivityAutomationsModal {
   automationSettings?: IWebhookHostActivities | null;
+  fleetName: string;
   onSubmit: (formData: IHostActivityAutomationsFormData) => void;
   onExit: () => void;
   isUpdating: boolean;
@@ -30,6 +31,7 @@ interface IHostActivityAutomationsModal {
 
 const HostActivityAutomationsModal = ({
   automationSettings,
+  fleetName,
   onSubmit,
   onExit,
   isUpdating,
@@ -143,12 +145,17 @@ const HostActivityAutomationsModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Manage automations"
+      title="Activity automations"
       width="large"
       onExit={onExit}
       onEnter={onModalSubmit}
     >
       <div className={`${baseClass} form`}>
+        <p>
+          Send webhooks for host-level activities on the <b>{fleetName}</b>{" "}
+          fleet. These activities can be found on individual host detail pages
+          under <b>Activity &gt; Past</b>.
+        </p>
         <Slider
           value={formData.enabled}
           onChange={onFeatureEnabledChange}
@@ -166,7 +173,7 @@ const HostActivityAutomationsModal = ({
             name="url"
             value={formData.url}
             error={formErrors.url}
-            helpText="Fleet will send a JSON payload to this URL whenever an activity is generated for one of this fleet's hosts."
+            helpText="Fleet will send a JSON payload to this URL whenever a new activity is generated."
             disabled={!formData.enabled || gitOpsModeEnabled}
           />
         </div>

@@ -272,7 +272,11 @@ describe("ManageHostsPage", () => {
           "Could not load activity automations. Please try again."
         );
       });
-      expect(screen.queryByText("Manage automations")).not.toBeInTheDocument();
+      // Assert on the modal's description ("Activity automations" would also
+      // match the gear menu item).
+      expect(
+        screen.queryByText(/Send webhooks for host-level activities/)
+      ).not.toBeInTheDocument();
     } finally {
       errorSpy.mockRestore();
     }

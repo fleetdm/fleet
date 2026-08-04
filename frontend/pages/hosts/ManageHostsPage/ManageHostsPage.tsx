@@ -2331,6 +2331,7 @@ const ManageHostsPage = ({
         !isErrorHostActivityAutomations && (
           <HostActivityAutomationsModal
             automationSettings={hostActivityAutomations}
+            fleetName={currentTeamName || "Fleet"}
             onSubmit={updateHostActivityAutomations}
             onExit={toggleHostActivityAutomationsModal}
             isUpdating={isUpdatingHostActivityAutomations}
