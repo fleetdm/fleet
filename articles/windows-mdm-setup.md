@@ -258,7 +258,7 @@ A host is assigned to the default fleet only when it enrolls in MDM before Fleet
 - Hosts you moved to another fleet manually aren't moved back to the default.
 - Deleting the fleet you set as the default clears the setting, and new hosts go to "Unassigned" until you set a new one.
 
-> **Warning:** Some virtual machines report a placeholder hardware serial such as `System Serial Number` instead of a unique one. If two Windows hosts report the same serial, Fleet can link a host to the other host's MDM enrollment and assign it to the wrong fleet. This affects Windows MDM enrollment generally, not only default fleets. Configure unique serial numbers on your virtual machines.
+> **Warning:** Some virtual machines report a placeholder hardware serial such as `System Serial Number` instead of a unique one. Fleet matches a new host to its MDM enrollment by serial number. If two or more unmatched enrollments share a serial, Fleet leaves the host in "Unassigned". This affects Windows MDM enrollment generally, not only default fleets. Configure unique serial numbers on your virtual machines.
 
 ## Automatic Windows MDM migration
 
