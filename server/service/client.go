@@ -751,8 +751,13 @@ func (c *Client) ApplyGroup(
 		// custom settings but windows is present and empty (but mac is absent),
 		// shouldn't that clear the windows ones?
 		// Apply DDM assets before profiles/declarations so a declaration in the
-		// same GitOps run can reference an asset uploaded alongside it.
-		if macosAssets := extractAppCfgMacOSAssets(specs.AppConfig); len(macosAssets) > 0 {
+		// same GitOps run can reference an asset uploaded alongside it. Assets
+		// require premium and turned-on MDM (the batch endpoint rejects the call
+		// otherwise), so skip it when either is missing. A non-nil spec means
+		// macos_settings is managed, so reconcile even when the asset set is empty
+		// (that clears any existing assets).
+		if macosAssets := extractAppCfgMacOSAssets(specs.AppConfig); macosAssets != nil &&
+			appconfig != nil && appconfig.License.IsPremium() && appconfig.MDM.EnabledAndConfigured {
 			assetContents, err := getAssetsContents(baseDir, macosAssets, opts.ExpandEnvConfigProfiles)
 			if err != nil {
 				return nil, nil, nil, nil, err
@@ -1057,8 +1062,10 @@ func (c *Client) ApplyGroup(
 		}
 
 		// Apply DDM assets before profiles/declarations so a declaration in the
-		// same GitOps run can reference an asset uploaded alongside it.
-		if len(tmAssetContents) > 0 {
+		// same GitOps run can reference an asset uploaded alongside it. Assets
+		// require premium and turned-on MDM (the batch endpoint rejects the call
+		// otherwise), so skip it when either is missing.
+		if len(tmAssetContents) > 0 && appconfig != nil && appconfig.License.IsPremium() && appconfig.MDM.EnabledAndConfigured {
 			for tmName, assets := range tmAssetContents {
 				currentTeamName := getTeamName(tmName)
 				teamID, ok := teamIDsByName[currentTeamName]
@@ -1686,8 +1693,20 @@ func extractAppCfgAndroidCustomSettings(appCfg interface{}) []fleet.MDMProfileSp
 func extractMacOSAssetSpecs(macOSSettings any) []fleet.MDMProfileSpec {
 	switch v := macOSSettings.(type) {
 	case fleet.MacOSSettings:
+		// macos_settings is present (GitOps decodes it into the struct), so assets
+		// are reconciled even when none are listed. Normalize nil to a non-nil
+		// empty slice so the caller treats it as "reconcile to empty".
+		if v.Assets == nil {
+			return []fleet.MDMProfileSpec{}
+		}
 		return v.Assets
 	case *fleet.MacOSSettings:
+		if v == nil {
+			return nil
+		}
+		if v.Assets == nil {
+			return []fleet.MDMProfileSpec{}
+		}
 		return v.Assets
 	case map[string]any:
 		raw, ok := v["assets"].([]any)
@@ -1720,13 +1739,20 @@ func extractAppCfgMacOSAssets(appCfg any) []fleet.MDMProfileSpec {
 }
 
 // extractTmSpecsMDMAssets returns the Apple DDM asset specs keyed by team name.
+//
+// Assets are reconciled whenever a team manages macos_settings (the key is
+// present), mirroring how custom_settings behaves: a present-but-empty asset
+// set is a request to clear all of the team's assets. macos_settings is decoded
+// through a pointer so its absence (leave assets untouched) is distinguishable
+// from an empty macos_settings (reconcile assets to the provided, possibly
+// empty, set).
 func extractTmSpecsMDMAssets(tmSpecs []json.RawMessage) map[string][]fleet.MDMProfileSpec {
 	var m map[string][]fleet.MDMProfileSpec
 	for _, tm := range tmSpecs {
 		var spec struct {
 			Name string `json:"name"`
 			MDM  struct {
-				MacOSSettings struct {
+				MacOSSettings *struct {
 					Assets []fleet.MDMProfileSpec `json:"assets"`
 				} `json:"macos_settings"`
 			} `json:"mdm"`
@@ -1736,13 +1762,20 @@ func extractTmSpecsMDMAssets(tmSpecs []json.RawMessage) map[string][]fleet.MDMPr
 			continue
 		}
 		spec.Name = norm.NFC.String(spec.Name)
-		if spec.Name == "" || len(spec.MDM.MacOSSettings.Assets) == 0 {
+		if spec.Name == "" || spec.MDM.MacOSSettings == nil {
+			// macos_settings not managed for this team; leave its assets untouched.
 			continue
 		}
 		if m == nil {
 			m = make(map[string][]fleet.MDMProfileSpec)
 		}
-		m[spec.Name] = spec.MDM.MacOSSettings.Assets
+		// A present but empty (or absent) assets key clears the team's assets, so
+		// normalize nil to a non-nil empty slice to signal "reconcile to empty".
+		assets := spec.MDM.MacOSSettings.Assets
+		if assets == nil {
+			assets = []fleet.MDMProfileSpec{}
+		}
+		m[spec.Name] = assets
 	}
 	return m
 }

@@ -1,7 +1,7 @@
 import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import Icon from "components/Icon";
-import { ButtonVariant } from "./Button";
+import { ButtonVariant, IButtonProps } from "./Button";
 import Button from ".";
 
 const DEFAULT_ARGS = {
@@ -32,11 +32,16 @@ export default meta;
 type Story = StoryObj<typeof Button>;
 
 // Base template for NON-loading variants (explicitly hides isLoading)
-const Template = (variant: ButtonVariant, children?: JSX.Element): Story => ({
+const Template = (
+  variant: ButtonVariant,
+  children?: JSX.Element,
+  extraArgs?: Partial<IButtonProps> // e.g. { size: "small" } or { disabled: true }
+): Story => ({
   args: {
     ...DEFAULT_ARGS,
     variant,
     children: children || DEFAULT_ARGS.children, // Fall back to default text
+    ...extraArgs,
   },
   argTypes: {
     isLoading: { control: false }, // Explicitly hide for these
@@ -64,25 +69,68 @@ const createLoadingVariant = (variant: ButtonVariant): Story => ({
 // Variants with loading state
 export const DefaultVariant = createLoadingVariant("default");
 export const AlertVariant = createLoadingVariant("alert");
-export const InverseVariant = Template("inverse");
-export const InverseAlertVariant = Template("inverse-alert");
 
-export const PillVariant = Template("pill");
-export const LinkVariant = Template("link");
-export const TextIconVariant = Template(
-  "text-icon",
+// Bordered secondary button — see #35329
+export const SecondaryVariant = Template("secondary");
+export const SecondaryIconAfterVariant = Template(
+  "secondary",
   <>
     Button text <Icon name="plus" size="small" />
   </>
 );
-export const BrandInverseIconVariant = Template(
-  "brand-inverse-icon",
+export const SecondaryIconBeforeVariant = Template(
+  "secondary",
   <>
     <Icon name="plus" size="small" />
     Button text
   </>
 );
-export const IconVariant = Template("text-icon", <Icon name="trash" />);
+export const SecondaryIconOnlyVariant = Template(
+  "secondary",
+  <Icon name="trash" />
+);
+export const SecondarySmallVariant = Template("secondary", undefined, {
+  size: "small",
+});
+export const SecondaryDisabledVariant = Template("secondary", undefined, {
+  disabled: true,
+});
+
+// Borderless subdued button (low-emphasis text + icon)
+export const SubduedIconAfterVariant = Template(
+  "subdued",
+  <>
+    Button text <Icon name="chevron-right" size="small" />
+  </>
+);
+export const SubduedIconBeforeVariant = Template(
+  "subdued",
+  <>
+    <Icon name="chevron-left" size="small" />
+    Button text
+  </>
+);
+export const SubduedIconOnlyVariant = Template(
+  "subdued",
+  <Icon name="chevron-right" />
+);
+export const SubduedSmallVariant = Template(
+  "subdued",
+  <>
+    Button text <Icon name="chevron-right" size="small" />
+  </>,
+  { size: "small" }
+);
+export const SubduedDisabledVariant = Template(
+  "subdued",
+  <>
+    Button text <Icon name="chevron-right" size="small" />
+  </>,
+  { disabled: true }
+);
+
+export const PillVariant = Template("pill");
+export const LinkVariant = Template("link");
 
 export const UnstyledVariant = Template("unstyled");
 export const UnstyledModalQueryVariant = Template("unstyled-modal-query");

@@ -54,11 +54,7 @@ const DeleteCategoryModal = ({
           >
             Delete
           </Button>
-          <Button
-            variant="inverse-alert"
-            onClick={onExit}
-            disabled={isDeleting}
-          >
+          <Button variant="secondary" onClick={onExit} disabled={isDeleting}>
             Cancel
           </Button>
         </div>

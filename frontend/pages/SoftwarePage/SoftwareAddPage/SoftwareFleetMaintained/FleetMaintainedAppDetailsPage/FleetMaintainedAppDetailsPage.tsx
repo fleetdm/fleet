@@ -92,7 +92,7 @@ const FleetAppSummary = ({
         </div>
       </div>
       <div className={`${baseClass}__fleet-app-summary--show-details`}>
-        <Button variant="inverse" onClick={onClickShowAppDetails}>
+        <Button variant="subdued" onClick={onClickShowAppDetails}>
           <Icon name="info" /> Show details
         </Button>
       </div>

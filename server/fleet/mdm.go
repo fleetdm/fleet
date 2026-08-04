@@ -41,6 +41,7 @@ const (
 	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
 	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
 	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
+	WindowsMDMNotTurnedOnMessage                                 = `Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -187,6 +188,7 @@ type ABMToken struct {
 	OrganizationName    string    `db:"organization_name" json:"org_name"`
 	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
 	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
+	TokenInvalid        bool      `db:"token_invalid" json:"token_invalid"`
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
@@ -231,14 +233,17 @@ func (a AppleCSR) AuthzType() string {
 }
 
 // ABMTermsUpdater is the minimal interface required to get and update the
-// AppConfig, and set an ABM token's terms_expired flag as required to handle
-// the DEP API errors to indicate that Apple's terms have changed and must be
-// accepted. The Fleet Datastore satisfies this interface.
+// AppConfig, and set an ABM token's terms_expired and token_invalid flags as
+// required to handle the DEP API errors to indicate that Apple's terms have
+// changed and must be accepted, or that the token itself was rejected.
+// The Fleet Datastore satisfies this interface.
 type ABMTermsUpdater interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
 	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
+	SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error)
+	IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error)
 }
 
 // MDMIdPAccount contains account information of a third-party IdP that can be
@@ -1094,25 +1099,43 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	return clone
 }
 
-// MDMPlatform returns "darwin" or "windows" as MDM platforms
-// derived from a host's platform (hosts.platform field).
+// ClassicMDMPlatform returns "darwin" or "windows" as MDM platforms derived
+// from a host's platform (a raw hosts.platform value, or the collapsed one
+// returned by Host.FleetPlatform), or "" for platforms that don't take part in
+// the classic MDM command pipeline.
 //
 // Note that "darwin" as MDM platform means Apple (we keep it as "darwin"
 // to keep backwards compatibility throughout the app).
-func MDMPlatform(hostPlatform string) string {
+//
+// Android is deliberately not part of this list: Android hosts don't take part
+// in the classic MDM command pipeline (raw XML/plist commands, the
+// nano_commands and mdm_windows_commands listings, the mdmlifecycle hooks and
+// the host_mdm turn-off/reset paths MDMTurnOff and MDMResetEnrollment). Android
+// has its own commands table and its own unenroll path. To check whether Fleet
+// can turn MDM on for a platform at all, use MDMTurnedOnSupported instead.
+func ClassicMDMPlatform(hostPlatform string) string {
 	switch hostPlatform {
 	case "darwin", "ios", "ipados":
 		return "darwin"
 	case "windows":
 		return "windows"
-		// TODO(android): add android to this list?
 	}
 	return ""
 }
 
-// MDMSupported returns whether MDM is supported for a given host platform.
-func MDMSupported(hostPlatform string) bool {
-	return MDMPlatform(hostPlatform) != ""
+// ClassicMDMSupported returns whether the given host platform takes part in the
+// classic MDM command pipeline. It returns false for Android, see
+// ClassicMDMPlatform for details.
+func ClassicMDMSupported(hostPlatform string) bool {
+	return ClassicMDMPlatform(hostPlatform) != ""
+}
+
+// MDMTurnedOnSupported returns whether Fleet supports any form of MDM
+// enrollment for the given host platform, Android included. Use this for the
+// checks that only care about MDM being turned on for the host, such as the
+// "Can't <action> the host because it doesn't have MDM turned on." pre-checks.
+func MDMTurnedOnSupported(hostPlatform string) bool {
+	return ClassicMDMSupported(hostPlatform) || IsAndroidPlatform(hostPlatform)
 }
 
 // FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices

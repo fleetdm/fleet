@@ -67,6 +67,9 @@ type Options struct {
 	DisableUpdates bool
 	// DisableSetupExperience disables setup experience for Linux hosts
 	DisableSetupExperience bool
+	// BypassEndUserAuth configures fleetd to skip end-user authentication during enrollment by not
+	// advertising the end-user auth capability to the Fleet server.
+	BypassEndUserAuth bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
 	// OsquerydChannel is the update channel to use for Osquery (osqueryd).

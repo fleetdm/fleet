@@ -151,13 +151,16 @@ type customHostVitalRefEntity struct {
 	Contents string `db:"contents"`
 }
 
-// customHostVitalUsedBy scans script_contents, Apple configuration profiles,
-// Apple declarations, Windows configuration profiles, software installer and
-// setup-experience scripts, and team/No-team host name templates for a
-// $FLEET_HOST_VITAL_<id> (or ${FLEET_HOST_VITAL_<id>}) reference to the given
-// vital id. It returns a *fleet.CustomHostVitalUsedInfo describing the first
-// referencing entity found, or nil if unreferenced. Mirrors the scan structure
-// of DeleteSecretVariable. The second return is a real DB error.
+// customHostVitalUsedBy scans scripts, Apple configuration profiles, Apple
+// declarations, Windows configuration profiles, Android configuration
+// profiles, software installer scripts, setup-experience scripts, and
+// team/No-team host name templates for a $FLEET_HOST_VITAL_<id> (or
+// ${FLEET_HOST_VITAL_<id>}) reference to the given vital id, then separately
+// checks host-vitals labels (which reference the vital by id in their
+// criteria JSON, not via the token). It returns a *fleet.CustomHostVitalUsedInfo
+// describing the first referencing entity found, or nil if unreferenced.
+// Mirrors the scan structure of DeleteSecretVariable. The second return is a
+// real DB error.
 func (ds *Datastore) customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, name string) (*fleet.CustomHostVitalUsedInfo, error) {
 	// The token embeds the numeric id (survives renames), so match by id, not name.
 	token := fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, id)
@@ -196,6 +199,13 @@ func (ds *Datastore) customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtConte
 			stmt: `SELECT 'windows_profile' AS entity, p.name,
 				COALESCE(t.name, 'Unassigned') AS team_name, p.syncml AS contents
 				FROM mdm_windows_configuration_profiles p
+				LEFT JOIN teams t ON t.id = p.team_id;`,
+		},
+		{
+			desc: "get android profile contents",
+			stmt: `SELECT 'android_profile' AS entity, p.name,
+				COALESCE(t.name, 'Unassigned') AS team_name, p.raw_json AS contents
+				FROM mdm_android_configuration_profiles p
 				LEFT JOIN teams t ON t.id = p.team_id;`,
 		},
 		// Software installer and setup-experience scripts exceed secret-variable
@@ -328,18 +338,20 @@ func (ds *Datastore) SetHostCustomHostVitalValue(ctx context.Context, hostID uin
 	})
 }
 
-// resendMDMProfilesForCustomHostVital resets the status of the Apple/Windows
-// configuration profiles and Apple DDM declarations already delivered to the
-// host that reference $FLEET_HOST_VITAL_<vitalID>, so the reconcilers resend
-// them with the host's newly-set value. Mirrors triggerResendProfilesUsingVariables,
+// resendMDMProfilesForCustomHostVital resets the status of the Apple/Windows/
+// Android configuration profiles and Apple DDM declarations already delivered
+// to the host that reference $FLEET_HOST_VITAL_<vitalID>, so the reconcilers
+// resend them with the host's newly-set value. Mirrors triggerResendProfilesUsingVariables,
 // but matches by profile/declaration content because custom host vitals aren't
 // tracked in mdm_configuration_profile_variables. Declarations only reset status
 // (the DDM reconciler re-stamps variables_updated_at, cache-busting the token).
 //
 // Unlike the IdP resend, this deliberately omits certificate templates and
-// Android managed configs: a vital can't reach either (cert templates only take
-// fleet_variables, and Android rejects $FLEET_HOST_VITAL_ at upload), so there's
-// nothing on those surfaces to resend.
+// Android managed app config: a vital can't reach cert templates (they only
+// take fleet_variables), and Android managed app config isn't tracked by
+// content-match resend like profiles are (its delivery is driven by the
+// software worker, not the profile reconciler), so there's nothing on those
+// two surfaces to resend here.
 func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext, hostID, vitalID uint) error {
 	var hostUUID string
 	if err := sqlx.GetContext(ctx, tx, &hostUUID, `SELECT uuid FROM hosts WHERE id = ?`, hostID); err != nil {
@@ -374,6 +386,11 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 			FROM host_mdm_apple_declarations hmad
 			JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
 			WHERE hmad.host_uuid = ? AND hmad.operation_type = ? AND hmad.status IS NOT NULL AND INSTR(mad.raw_json, ?) > 0`
+
+		customHostVitalResendAndroidProfilesSelectStmt = `SELECT hmap.profile_uuid AS uuid, macp.raw_json AS contents
+			FROM host_mdm_android_profiles hmap
+			JOIN mdm_android_configuration_profiles macp ON macp.profile_uuid = hmap.profile_uuid
+			WHERE hmap.host_uuid = ? AND hmap.operation_type = ? AND hmap.status IS NOT NULL AND INSTR(macp.raw_json, ?) > 0`
 	)
 
 	targets := []struct {
@@ -401,6 +418,13 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 			updateStmt: `UPDATE host_mdm_apple_declarations
 				SET status = NULL, detail = NULL
 				WHERE host_uuid = ? AND operation_type = ? AND declaration_uuid IN (?)`,
+		},
+		{
+			desc:       "android profiles",
+			selectStmt: customHostVitalResendAndroidProfilesSelectStmt,
+			updateStmt: `UPDATE host_mdm_android_profiles
+				SET status = NULL, detail = NULL
+				WHERE host_uuid = ? AND operation_type = ? AND profile_uuid IN (?)`,
 		},
 	}
 
@@ -458,7 +482,7 @@ func (ds *Datastore) GetHostCustomHostVitals(ctx context.Context, hostID uint) (
 // the host (no row, or an empty value), it returns a MissingCustomHostVitalValueError
 // so delivery fails rather than substituting an empty value (product decision).
 func (ds *Datastore) ExpandCustomHostVitals(ctx context.Context, hostID uint, document string) (string, error) {
-	refIDs := fleet.ContainsCustomHostVitalIDs(document)
+	refIDs := fleet.FindCustomHostVitalIDs(document)
 	if len(refIDs) == 0 {
 		return document, nil
 	}
@@ -527,7 +551,7 @@ func (ds *Datastore) ValidateReferencedCustomHostVitals(ctx context.Context, doc
 			seenMalformed[ref] = struct{}{}
 			malformed = append(malformed, ref)
 		}
-		for _, id := range fleet.ContainsCustomHostVitalIDs(document) {
+		for _, id := range fleet.FindCustomHostVitalIDs(document) {
 			wantIDs[id] = struct{}{}
 		}
 	}

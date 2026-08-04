@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "22.8.0",
+      "version": "22.8.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'SQL Server Management Studio 22';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'SQL Server Management Studio 22' AND version_compare(version, '22.8.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'SQL Server Management Studio 22' AND version_compare(version, '22.8.2') < 0);"
       },
-      "installer_url": "https://download.visualstudio.microsoft.com/download/pr/e05c0bc8-d058-4b2b-937c-1c80073d7633/059d84ec668e6cb82f7471852cca2daacfc156c8a77136e9f45222ba80948580/vs_SSMS.exe",
+      "installer_url": "https://download.visualstudio.microsoft.com/download/pr/58aec969-7d60-47ab-a001-285ca0c69097/48e041e0c0733e22d9035a085cfea82370c9ca1dc0dcc8f8d2717453f8b5e35f/vs_SSMS.exe",
       "install_script_ref": "660f158a",
       "uninstall_script_ref": "13740770",
-      "sha256": "059d84ec668e6cb82f7471852cca2daacfc156c8a77136e9f45222ba80948580",
+      "sha256": "48e041e0c0733e22d9035a085cfea82370c9ca1dc0dcc8f8d2717453f8b5e35f",
       "default_categories": [
         "Developer tools"
       ]

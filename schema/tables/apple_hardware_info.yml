@@ -1,0 +1,24 @@
+name: apple_hardware_info
+platforms:
+  - darwin
+description: Maps the Apple hardware model identifier to its marketing name.
+examples: |-
+  Get the marketing name for the current Mac.
+
+  ```
+  SELECT marketing_name FROM apple_hardware_info;
+  ```
+
+  Join with `system_info` to get both the identifier and the marketing name.
+
+  ```
+  SELECT si.hardware_model, ahi.marketing_name FROM system_info si, apple_hardware_info ahi;
+  ```
+columns:
+  - name: marketing_name
+    type: text
+    required: false
+    description: "The Apple marketing name for the hardware, e.g. MacBook Pro (16-inch, Nov 2023)."
+notes: |-
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+evented: false

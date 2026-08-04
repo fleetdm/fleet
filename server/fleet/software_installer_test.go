@@ -184,6 +184,30 @@ func TestSoftwareInstallerPlatformFromExtension(t *testing.T) {
 	}
 }
 
+func TestAllowedSetupExperiencePlatformsForExtension(t *testing.T) {
+	testCases := []struct {
+		ext      string
+		expected []string
+	}{
+		{".py", []string{"darwin", "linux"}},
+		{"py", []string{"darwin", "linux"}},
+		{".sh", []string{"darwin", "linux"}},
+		{"sh", []string{"darwin", "linux"}},
+		{".ps1", nil},
+		{"ps1", nil},
+		{".exe", nil},
+		{"exe", nil},
+		{"", nil},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.ext, func(t *testing.T) {
+			result := AllowedSetupExperiencePlatformsForExtension(tc.ext)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
 func TestSofwareInstallerSourceFromExtensionAndName(t *testing.T) {
 	testCases := []struct {
 		ext      string
@@ -395,6 +419,59 @@ func TestHostSoftwareInstallResultPayloadStatus(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, tc.payload.Status())
+		})
+	}
+}
+
+func TestValidateTitlePackages(t *testing.T) {
+	fma := func(appID uint, title string) *UploadSoftwareInstallerPayload {
+		return &UploadSoftwareInstallerPayload{Title: title, FleetMaintainedAppID: new(appID)}
+	}
+	custom := func(title, storage string) *UploadSoftwareInstallerPayload {
+		return &UploadSoftwareInstallerPayload{Title: title, StorageID: storage, Filename: storage}
+	}
+
+	cases := []struct {
+		name     string
+		payloads []*UploadSoftwareInstallerPayload
+		wantErr  string
+	}{
+		{
+			name:     "two different FMAs on one title is rejected",
+			payloads: []*UploadSoftwareInstallerPayload{fma(1, "Mozilla Firefox"), fma(2, "Mozilla Firefox ESR")},
+			wantErr:  "Only one of Mozilla Firefox or Mozilla Firefox ESR can be added to the same fleet",
+		},
+		{
+			name:     "same FMA across multiple versions is allowed",
+			payloads: []*UploadSoftwareInstallerPayload{fma(1, "Mozilla Firefox"), fma(1, "Mozilla Firefox")},
+		},
+		{
+			name:     "single FMA is allowed",
+			payloads: []*UploadSoftwareInstallerPayload{fma(1, "Mozilla Firefox")},
+		},
+		{
+			name:     "mixing an FMA with a custom package is rejected",
+			payloads: []*UploadSoftwareInstallerPayload{fma(1, "Mozilla Firefox"), custom("Mozilla Firefox", "hash-1")},
+			wantErr:  "Fleet-maintained app",
+		},
+		{
+			name:     "duplicate custom-package hash is rejected",
+			payloads: []*UploadSoftwareInstallerPayload{custom("App", "same-hash"), custom("App", "same-hash")},
+			wantErr:  "same SHA-256 hash",
+		},
+		{
+			name:     "distinct custom packages are allowed",
+			payloads: []*UploadSoftwareInstallerPayload{custom("App", "hash-a"), custom("App", "hash-b")},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateTitlePackages(tc.payloads, "Workstations")
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
 		})
 	}
 }

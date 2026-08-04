@@ -253,7 +253,7 @@ const SoftwareTable = ({
           disableTooltip={!hasVulnFilters}
         >
           <Button
-            variant="inverse"
+            variant="secondary"
             onClick={onAddFiltersClick}
             disabled={controlsDisabled}
           >

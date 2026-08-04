@@ -19,6 +19,8 @@ import Button from "components/buttons/Button";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import useGitOpsMode from "hooks/useGitOpsMode";
+import { isPremiumTier } from "utilities/permissions/permissions";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 const baseClass = "account-provisioning";
 
@@ -132,73 +134,85 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
     }
   };
 
+  const render = () => {
+    if (!isPremiumTier(appConfig)) {
+      return <PremiumFeatureMessage />;
+    }
+
+    return (
+      <>
+        <PageDescription
+          variant="right-panel"
+          content={
+            <>
+              Create and sync macOS accounts using IdP credentials with any IdP
+              that supports OAuth ROPG (Okta){" "}
+              <CustomLink
+                newTab
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/idp-account-sync`}
+                text="Learn more"
+              />
+            </>
+          }
+        />
+        <form onSubmit={onSubmit}>
+          <div
+            className={`form ${
+              gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+            }`}
+          >
+            <InputField
+              label="Token URL"
+              name="tokenUrl"
+              value={formData.tokenUrl}
+              onChange={onInputChange}
+              onBlur={onInputBlur("tokenUrl")}
+              parseTarget
+              placeholder="https://yourdomain.okta.com/oauth2/v1/token"
+              error={formErrors.tokenUrl}
+              helpText="Your IdP URL for verifying login credentials. For Okta, this is typically https://yourdomain.okta.com/oauth2/v1/token."
+            />
+            <InputField
+              label="Client ID"
+              name="clientId"
+              value={formData.clientId}
+              onChange={onInputChange}
+              onBlur={onInputBlur("clientId")}
+              parseTarget
+              error={formErrors.clientId}
+              helpText="In Okta, this will be in the Client Credentials section."
+            />
+            <InputField
+              type="password"
+              label="Client secret"
+              name="clientSecret"
+              value={formData.clientSecret}
+              onChange={onInputChange}
+              onBlur={onInputBlur("clientSecret")}
+              parseTarget
+              error={formErrors.clientSecret}
+              helpText="In Okta, this will be in the Client Credentials section."
+            />
+          </div>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={disableChildren}
+                isLoading={isUpdating}
+              >
+                Save
+              </Button>
+            )}
+          />
+        </form>
+      </>
+    );
+  };
+
   return (
     <SettingsSection title="Account provisioning" className={baseClass}>
-      <PageDescription
-        variant="right-panel"
-        content={
-          <>
-            Create and sync macOS accounts using IdP credentials with any IdP
-            that supports OAuth ROPG (Okta){" "}
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/idp-account-sync`}
-              text="Learn more"
-            />
-          </>
-        }
-      />
-      <form onSubmit={onSubmit}>
-        <div
-          className={`form ${
-            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-          }`}
-        >
-          <InputField
-            label="Token URL"
-            name="tokenUrl"
-            value={formData.tokenUrl}
-            onChange={onInputChange}
-            onBlur={onInputBlur("tokenUrl")}
-            parseTarget
-            placeholder="https://yourdomain.okta.com/oauth2/v1/token"
-            error={formErrors.tokenUrl}
-            helpText="Your IdP URL for verifying login credentials. For Okta, this is typically https://yourdomain.okta.com/oauth2/v1/token."
-          />
-          <InputField
-            label="Client ID"
-            name="clientId"
-            value={formData.clientId}
-            onChange={onInputChange}
-            onBlur={onInputBlur("clientId")}
-            parseTarget
-            error={formErrors.clientId}
-            helpText="In Okta, this will be in the Client Credentials section."
-          />
-          <InputField
-            type="password"
-            label="Client secret"
-            name="clientSecret"
-            value={formData.clientSecret}
-            onChange={onInputChange}
-            onBlur={onInputBlur("clientSecret")}
-            parseTarget
-            error={formErrors.clientSecret}
-            helpText="In Okta, this will be in the Client Credentials section."
-          />
-        </div>
-        <GitOpsModeTooltipWrapper
-          renderChildren={(disableChildren) => (
-            <Button
-              type="submit"
-              disabled={disableChildren}
-              isLoading={isUpdating}
-            >
-              Save
-            </Button>
-          )}
-        />
-      </form>
+      {render()}
     </SettingsSection>
   );
 };

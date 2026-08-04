@@ -143,7 +143,7 @@ const HostQueries = ({
       <div className={`${baseClass}__header`}>
         <CardHeader header="Reports" />
         {canAddQuery && (
-          <Button variant="inverse" onClick={onClickAddQuery} size="small">
+          <Button variant="secondary" onClick={onClickAddQuery} size="small">
             <Icon name="plus" />
             Add report
           </Button>

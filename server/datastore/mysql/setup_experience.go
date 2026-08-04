@@ -958,7 +958,8 @@ WHERE
 	return &script, nil
 }
 
-func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) (bool, error) {
+	var changed bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
@@ -991,11 +992,14 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 		}
 
 		// then create the script entity
-		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id)) // nolint: gosec
-		return err
+		if _, err = insertSetupExperienceScript(ctx, tx, script, uint(id)); err != nil { // nolint: gosec
+			return err
+		}
+		changed = true
+		return nil
 	})
 
-	return err
+	return changed, err
 }
 
 func insertSetupExperienceScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {

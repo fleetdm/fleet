@@ -198,7 +198,7 @@ const ScriptDetailsModal = ({
             <>
               <Button
                 className={`${baseClass}__action-button`}
-                variant="icon"
+                variant="subdued"
                 onClick={() => onClickDownload()}
               >
                 <Icon name="download" />
@@ -209,7 +209,7 @@ const ScriptDetailsModal = ({
                   <Button
                     disabled={disableChildren}
                     className={`${baseClass}__action-button`}
-                    variant="icon"
+                    variant="subdued"
                     onClick={onDelete}
                   >
                     <Icon name="trash" color="ui-fleet-black-75" />
@@ -240,6 +240,7 @@ const ScriptDetailsModal = ({
                       selectedScriptDetails as IHostScript
                     )}
                     menuPlacement="top"
+                    variant="subdued"
                   />
                 </div>
               )}

@@ -230,7 +230,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `redis-tests/` | Redis testing configs | ElastiCache and general Redis test configs |
 | `snapshot/` | Database snapshot/restore tool | `go run ./tools/snapshot s` or `go run ./tools/snapshot r` |
 | **Development Tools** | | |
-| `app/` | Prometheus config for local dev | See `prometheus.yml` |
 | `ci/` | CI helper tools (golangci-lint rules) | `rules.go` - ruleguard custom linting rules |
 | `desktop/` | Fleet Desktop development tool | `go run ./tools/desktop` - builds Desktop app |
 | `dialog/` | Test zenity/kdialog dialogs on Linux | `go run ./tools/dialog -dialog zenity` |

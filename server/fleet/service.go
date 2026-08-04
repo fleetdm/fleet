@@ -461,8 +461,10 @@ type Service interface {
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 
-	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
-	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
+	// ListDevicePolicies lists all policies for the given host in their
+	// device-safe representation (which excludes the policy author's identity
+	// and the raw SQL query), including passing / failing responses.
+	ListDevicePolicies(ctx context.Context, host *Host) ([]*DevicePolicy, error)
 
 	// BypassConditionalAccess lets a host skip conditional access checks for one check
 	BypassConditionalAccess(ctx context.Context, host *Host) error
@@ -774,7 +776,7 @@ type Service interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
-	SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name, displayName string, err error)
+	SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error)
 
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
@@ -928,9 +930,10 @@ type Service interface {
 
 	// GetHostDEPAssignmentDetails retrieves Fleet's DEP assignment record and
 	// Apple's live device details from ABM for the given host ID.
-	// Returns (nil, nil, nil) for non-DEP hosts.
-	// If ABM returns an error, dep_device is nil and the error is logged.
-	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, error)
+	// Returns (nil, nil, "", nil) for non-DEP hosts.
+	// If ABM returns an error, dep_device is nil, depError classifies why, and
+	// the original error is logged rather than returned to the caller.
+	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)

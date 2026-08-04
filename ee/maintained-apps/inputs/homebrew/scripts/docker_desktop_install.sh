@@ -126,11 +126,14 @@ quit_and_track_application 'com.electron.dockerdesktop'
 if [ -d "$APPDIR/Docker.app" ]; then
 	sudo mv "$APPDIR/Docker.app" "$TMPDIR/Docker.app.bkp"
 fi
-# Docker Desktop's own in-app updater leaves a Docker.app.back bundle alongside
-# Docker.app when it self-updates. osquery's apps table still picks up the
-# stale bundle by its bundle_identifier, which causes Fleet patch policies to
-# report Docker as out of date even after a successful upgrade.
+# Docker Desktop's own in-app updater leaves stale copies of the old app behind:
+# a Docker.app.back bundle alongside Docker.app, and a staged copy at
+# ~/Library/Application Support/com.docker.install/in_progress/Docker.app.
+# osquery's apps table still picks these up by bundle_identifier, which causes
+# Fleet patch policies to report Docker as out of date even after a successful
+# upgrade.
 sudo rm -rf "$APPDIR/Docker.app.back"
+sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install/in_progress/Docker.app
 sudo cp -R "$TMPDIR/Docker.app" "$APPDIR"
 relaunch_application 'com.electron.dockerdesktop'
 mkdir -p /usr/local/cli-plugins
@@ -142,3 +145,8 @@ mkdir -p /usr/local/bin
 /bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-desktop" "/usr/local/bin/docker-credential-desktop"
 /bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-ecr-login" "/usr/local/bin/docker-credential-ecr-login"
 /bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-osxkeychain" "/usr/local/bin/docker-credential-osxkeychain"
+# A staged self-update can fire during the quit/relaunch window above and
+# recreate the stale copies after the earlier removal, so delete them again
+# now that the new bundle is in place.
+sudo rm -rf "$APPDIR/Docker.app.back"
+sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install/in_progress/Docker.app
