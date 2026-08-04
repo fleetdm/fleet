@@ -1,0 +1,1 @@
+- Fixed duplicate software inventory entries (same name, version, and source with the same vulnerabilities but different host counts) that could appear on instances upgraded to Fleet v4.76.0 or later. New duplicates are prevented automatically; to merge duplicates that already exist, run `fleetctl trigger --name software_checksum_migration`.

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.12.7",
+      "version": "1.13.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Obsidian %' AND publisher = 'Obsidian';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Obsidian %' AND publisher = 'Obsidian' AND version_compare(version, '1.12.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Obsidian %' AND publisher = 'Obsidian' AND version_compare(version, '1.13.4') < 0);"
       },
-      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.12.7/Obsidian-1.12.7.exe",
+      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.4/Obsidian-1.13.4.exe",
       "install_script_ref": "b9f2d8ad",
       "uninstall_script_ref": "bf621308",
-      "sha256": "f35d2a35061098400a3fafc1bfd38d8bd33f1ad76df8b78b62ccdf20b0a30d26",
+      "sha256": "8c761aaa40310d339b6936092e91e99a9886daf1fd655f4c8d59e9f7fa46e7a0",
       "default_categories": [
         "Productivity"
       ]

@@ -2312,6 +2312,33 @@ func cronUpgradeCodeSoftwareMigration(
 	return s, nil
 }
 
+// cronSoftwareChecksumMigration registers the on-demand migration that merges
+// duplicate software inventory entries left behind by the software checksum
+// field-ordering change in Fleet v4.76.0.
+//
+// It never runs on a schedule: it runs only when invoked with
+// `fleetctl trigger --name software_checksum_migration`.
+func cronSoftwareChecksumMigration(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name               = string(fleet.CronSoftwareChecksumMigration)
+		manualOnlyInterval = 100 * 365 * 24 * time.Hour
+	)
+	logger = logger.With("cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, manualOnlyInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return ds.ReconcileSoftwareChecksums(ctx)
+		}),
+	)
+	return s, nil
+}
+
 func newMaintainedAppSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -2332,6 +2359,43 @@ func newMaintainedAppSchedule(
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
 			return maintained_apps.SyncAppsList(ctx, ds)
+		}),
+	)
+
+	return s, nil
+}
+
+// newWindowsMaintainedAppTitlesSchedule merges Windows software titles whose
+// reported name embeds the version (e.g. "Granola 7.373.2") onto the title owned
+// by the Fleet-maintained app's installer ("Granola").
+//
+// This is deliberately not a job on the Fleet-maintained apps schedule: it reads
+// only local installer and software title state, so it must keep running even when
+// the catalog fetch fails or the instance is not Premium. It is also not a job on
+// cleanups_then_aggregation, so that back-dating the first run to shortly after
+// startup — which is what makes existing mismatched titles heal on upgrade without
+// manual action — does not change the startup behaviour of that schedule's other
+// jobs.
+func newWindowsMaintainedAppTitlesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronWindowsMaintainedAppTitles)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("reconcile_windows_maintained_app_titles", func(ctx context.Context) error {
+			return ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx)
 		}),
 	)
 

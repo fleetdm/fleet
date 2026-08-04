@@ -779,6 +779,30 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-13 12:01:46
 
+### [CVE-2026-59850](https://nvd.nist.gov/vuln/detail/CVE-2026-59850)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
+
+### [CVE-2026-59849](https://nvd.nist.gov/vuln/detail/CVE-2026-59849)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
+
+### [CVE-2026-59847](https://nvd.nist.gov/vuln/detail/CVE-2026-59847)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
+
 ### [CVE-2026-5773](https://nvd.nist.gov/vuln/detail/CVE-2026-5773)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -786,6 +810,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libcurl4t64`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-13 12:01:46
+
+### [CVE-2026-56408](https://nvd.nist.gov/vuln/detail/CVE-2026-56408)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libexpat1 is only present as a transitive dependency of libfontconfig1 (required by Wine). No attacker-controlled XML is parsed with libexpat when fleetctl uses fleetdm/wix to generate MSI packages: fontconfig only parses trusted font configuration files shipped in the image, and the WiX toolset parses the fleetctl-generated .wxs files using .NET's System.Xml under Wine.
+- **Products:** `wix`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-31 09:46:22
+
+### [CVE-2026-56131](https://nvd.nist.gov/vuln/detail/CVE-2026-56131)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libexpat1 is only present as a transitive dependency of libfontconfig1 (required by Wine). No attacker-controlled XML is parsed with libexpat when fleetctl uses fleetdm/wix to generate MSI packages: fontconfig only parses trusted font configuration files shipped in the image, and the WiX toolset parses the fleetctl-generated .wxs files using .NET's System.Xml under Wine.
+- **Products:** `wix`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-31 09:46:22
 
 ### [CVE-2026-55200](https://nvd.nist.gov/vuln/detail/CVE-2026-55200)
 - **Author:** @lucasmrod
@@ -834,6 +874,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-06-15 08:42:45
+
+### [CVE-2026-45186](https://nvd.nist.gov/vuln/detail/CVE-2026-45186)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libexpat1 is only present as a transitive dependency of libfontconfig1 (required by Wine). No attacker-controlled XML is parsed with libexpat when fleetctl uses fleetdm/wix to generate MSI packages: fontconfig only parses trusted font configuration files shipped in the image, and the WiX toolset parses the fleetctl-generated .wxs files using .NET's System.Xml under Wine.
+- **Products:** `wix`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-31 09:46:22
 
 ### [CVE-2026-42011](https://nvd.nist.gov/vuln/detail/CVE-2026-42011)
 - **Author:** @lucasmrod
@@ -914,6 +962,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libgnutls30t64`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-20 10:30:00
+
+### [CVE-2026-3731](https://nvd.nist.gov/vuln/detail/CVE-2026-3731)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
 
 ### [CVE-2026-33846](https://nvd.nist.gov/vuln/detail/CVE-2026-33846)
 - **Author:** @lucasmrod
@@ -1019,6 +1075,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:16:53
 
+### [CVE-2026-25210](https://nvd.nist.gov/vuln/detail/CVE-2026-25210)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libexpat1 is only present as a transitive dependency of libfontconfig1 (required by Wine). No attacker-controlled XML is parsed with libexpat when fleetctl uses fleetdm/wix to generate MSI packages: fontconfig only parses trusted font configuration files shipped in the image, and the WiX toolset parses the fleetctl-generated .wxs files using .NET's System.Xml under Wine.
+- **Products:** `wix`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-31 09:46:22
+
 ### [CVE-2026-1837](https://nvd.nist.gov/vuln/detail/CVE-2026-1837)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1027,6 +1091,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:16:53
 
+### [CVE-2026-15370](https://nvd.nist.gov/vuln/detail/CVE-2026-15370)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
+
 ### [CVE-2026-12912](https://nvd.nist.gov/vuln/detail/CVE-2026-12912)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1034,6 +1106,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libtiff6`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-27 17:21:36
+
+### [CVE-2026-0966](https://nvd.nist.gov/vuln/detail/CVE-2026-0966)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-03 09:32:48
 
 ### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
 - **Author:** @lucasmrod
@@ -1074,6 +1154,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libpng16-16`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2025-12-19 18:02:56
+
+### [CVE-2025-59375](https://nvd.nist.gov/vuln/detail/CVE-2025-59375)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libexpat1 is only present as a transitive dependency of libfontconfig1 (required by Wine). No attacker-controlled XML is parsed with libexpat when fleetctl uses fleetdm/wix to generate MSI packages: fontconfig only parses trusted font configuration files shipped in the image, and the WiX toolset parses the fleetctl-generated .wxs files using .NET's System.Xml under Wine.
+- **Products:** `wix`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-31 09:46:22
 
 ### [CVE-2023-31484](https://nvd.nist.gov/vuln/detail/CVE-2023-31484)
 - **Author:** @lucasmrod

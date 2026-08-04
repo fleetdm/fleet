@@ -2192,7 +2192,7 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
 		}
 
-		if !fleet.MDMSupported(host.Platform) {
+		if !fleet.ClassicMDMSupported(host.Platform) {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
@@ -4534,7 +4534,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 		}
 		host := hosts[0]
 
-		if !fleet.MDMSupported(host.Platform) {
+		if !fleet.ClassicMDMSupported(host.Platform) {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
@@ -7939,31 +7939,38 @@ var appleHostRefsForMDMReset = []string{
 
 func (ds *Datastore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var hostIds []uint
+		var hosts []fleet.Host
 		err := sqlx.SelectContext(
-			ctx, tx, &hostIds,
-			`SELECT id FROM hosts WHERE uuid = ?`, hostUUID,
+			ctx, tx, &hosts,
+			`SELECT id, platform FROM hosts WHERE uuid = ?`, hostUUID,
 		)
 		switch {
 		case err != nil:
 			return ctxerr.Wrap(ctx, err, "resetting mdm enrollment: getting host info from UUID")
-		case len(hostIds) == 0:
+		case len(hosts) == 0:
 			return ctxerr.Wrap(ctx, notFound("Host").WithName(hostUUID), "resetting mdm enrollment: getting host info from UUID")
-		case len(hostIds) > 1:
+		case len(hosts) > 1:
 			// This shouldn't happen, but if it does, we log the IDs of the hosts
 			// with the same UUID for debugging purposes.
-			ds.logger.InfoContext(ctx, "multiple hosts found with the same uuid", "host_ids", fmt.Sprintf("%v", hostIds), "processed_host_id", hostIds[0])
+			hostIDs := make([]uint, len(hosts))
+			for i, host := range hosts {
+				hostIDs[i] = host.ID
+			}
+			ds.logger.InfoContext(ctx, "multiple hosts found with the same uuid", "host_ids", fmt.Sprintf("%v", hostIDs), "processed_host_id", hosts[0].ID)
 		}
-		hostID := hostIds[0]
+		host := hosts[0]
 
-		if _, err := ds.batchCancelAllHostUpcomingActivities(ctx, tx, hostID); err != nil {
+		if _, err := ds.batchCancelAllHostUpcomingActivities(ctx, tx, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "cancel upcoming activities for mdm reset", "host_uuid", hostUUID)
 		}
 
 		for _, table := range appleHostRefsForMDMReset {
-			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE host_id = ?", table), hostID); err != nil {
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE host_id = ?", table), host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, fmt.Sprintf("clear %s for mdm reset", table), "host_uuid", hostUUID)
 			}
+		}
+		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "restore builtin label memberships for mdm reset", "host_uuid", hostUUID)
 		}
 
 		// Clear the PSSO registration (keys cascade) so an ADE re-enrollment
@@ -7973,7 +7980,7 @@ func (ds *Datastore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID s
 		}
 
 		if !preserveHostActivities {
-			if err := ds.clearHostActivitiesForAppleMDMReset(ctx, tx, hostUUID, hostID); err != nil {
+			if err := ds.clearHostActivitiesForAppleMDMReset(ctx, tx, hostUUID, host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "clear host activities for mdm reset")
 			}
 		}
