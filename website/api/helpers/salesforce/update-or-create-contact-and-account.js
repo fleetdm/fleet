@@ -208,8 +208,8 @@ module.exports = {
       'Website - Contact forms - Demo - ICP',
       'Website - Contact forms - Demo',
       'Website - Workshop request',
-      'Webinar',
       'Website - Gated document',
+      'Website - Gated video',
     ];
     if(contactSource && formBasedContactSources.includes(contactSource)) {
       contactValuesToSet.Most_recent_campaign_member_status__c = 'Registered';// eslint-disable-line camelcase
