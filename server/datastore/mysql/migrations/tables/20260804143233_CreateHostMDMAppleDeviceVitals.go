@@ -6,15 +6,15 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260727191311, Down_20260727191311)
+	MigrationClient.AddMigration(Up_20260804143233, Down_20260804143233)
 }
 
-// Up_20260727191311 creates host_mdm_apple_device_vitals and
+// Up_20260804143233 creates host_mdm_apple_device_vitals and
 // host_mdm_apple_service_subscriptions, which hold the additional
 // iOS/iPadOS host vitals collected via the expanded DeviceInformation MDM
 // command (see #49984). Both tables are keyed by host_uuid, no FK, and are
 // registered in additionalHostRefsByUUID for host-deletion cleanup.
-func Up_20260727191311(tx *sql.Tx) error {
+func Up_20260804143233(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE host_mdm_apple_device_vitals (
   host_uuid                         varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -85,6 +85,6 @@ CREATE TABLE host_mdm_apple_service_subscriptions (
 	return nil
 }
 
-func Down_20260727191311(tx *sql.Tx) error {
+func Down_20260804143233(tx *sql.Tx) error {
 	return nil
 }
