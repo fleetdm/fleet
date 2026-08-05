@@ -46,7 +46,7 @@ Replace polling with a persistent WebSocket connection per agent. The server pus
 
 ### How it works today (polling)
 
-> The diagrams below are simplified for illustration. See the full sequence diagrams in confidential #17019.
+| The diagrams below are simplified for illustration. See the full sequence diagrams in sections below. |
 
 ```mermaid
 sequenceDiagram
