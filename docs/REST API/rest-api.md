@@ -13424,7 +13424,7 @@ Deletes the specified self-service category. Software assigned to the deleted ca
 - [Get vulnerability](#get-vulnerability)
 - [List vulnerability exceptions](#list-vulnerability-exceptions)
 - [Create vulnerability exception](#create-vulnerability-exception)
-- [Modify vulnerability exception](#modify-vulnerability-exception)
+- [Update vulnerability exception](#update-vulnerability-exception)
 - [Delete vulnerability exception](#delete-vulnerability-exception)
 
 ### List vulnerabilities
@@ -13667,9 +13667,9 @@ Creates an auditable exception for one CVE in one fleet. Only global and fleet a
 }
 ```
 
-Fleet returns `409 Conflict` if an exception already exists for the CVE in the specified fleet, and `422 Unprocessable Entity` if the CVE does not currently affect any host there. Creating, modifying, and deleting an exception adds an entry to Fleet's activity feed.
+Fleet returns `409 Conflict` if an exception already exists for the CVE in the specified fleet, and `422 Unprocessable Entity` if the CVE does not currently affect any host there. Creating, updating, and deleting an exception adds an entry to Fleet's activity feed.
 
-### Modify vulnerability exception
+### Update vulnerability exception
 
 Changes the reason or note for an existing vulnerability exception. The CVE and fleet are immutable; delete the exception and create a new one to change its scope. Only global and fleet admins and maintainers can call this endpoint.
 
