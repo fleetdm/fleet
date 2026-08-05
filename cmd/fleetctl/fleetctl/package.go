@@ -332,12 +332,6 @@ func packageCommand() *cli.Command {
 				return errors.New("native tooling is only available in Linux")
 			}
 
-			if opt.LocalWixDir != "" && runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
-				return errors.New(
-					`Could not use local WiX to generate an osquery installer. This option is only available on Windows and macOS.
-				Visit https://wixtoolset.org/ for more information about how to use WiX.`)
-			}
-
 			if opt.EndUserEmail != "" {
 				if !fleet.IsLooseEmail(opt.EndUserEmail) {
 					return errors.New("Invalid email address specified for --end-user-email.")
