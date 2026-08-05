@@ -71,6 +71,20 @@ type hostActivity struct {
 
 func (a hostActivity) HostIDs() []uint { return a.hostIDs }
 
+// hostActivityWithID mirrors the single-host activity types (ran_script,
+// locked_host, ...) whose details already carry host_id.
+type hostActivityWithID struct {
+	hostActivity
+	HostID uint `json:"host_id"`
+}
+
+// hostActivityNestedID has a host_id key only inside a nested object; the
+// top-level details carry no host identifier, so injection must still happen.
+type hostActivityNestedID struct {
+	hostActivity
+	Nested map[string]uint `json:"nested"`
+}
+
 type aliasedActivity struct {
 	TeamID uint `json:"team_id" renameto:"fleet_id"`
 }
@@ -469,9 +483,82 @@ func TestNewActivityHostWebhook(t *testing.T) {
 			assert.Equal(t, user.ID, *body.ActorID)
 			require.NotNil(t, body.ActorEmail)
 			assert.Equal(t, user.Email, *body.ActorEmail)
-			var details map[string]string
+			var details map[string]any
 			require.NoError(t, json.Unmarshal(*body.Details, &details))
 			assert.Equal(t, "host act", details["name"])
+			// host_ids is injected into the webhook payload at fire time...
+			assert.Equal(t, []any{float64(42), float64(43)}, details["host_ids"])
+		}
+		// ...but not into the stored details, which stay lean for API/feed
+		// responses.
+		var stored map[string]any
+		require.NoError(t, json.Unmarshal(ds.lastDetails, &stored))
+		_, hasHostIDs := stored["host_ids"]
+		assert.False(t, hasHostIDs, "host_ids must not be stored in details")
+	})
+
+	t.Run("details with their own host_id get no host_ids injected", func(t *testing.T) {
+		ds := &newActivityMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+				hostWebhooks: []activity.HostActivitiesWebhook{
+					{DestinationURL: srv.URL + "/single-host"},
+				},
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		act := hostActivityWithID{
+			hostActivity: hostActivity{simpleActivity: simpleActivity{Name: "single"}, hostIDs: []uint{7}},
+			HostID:       7,
+		}
+		err := svc.NewActivity(t.Context(), user, act)
+		require.NoError(t, err)
+
+		select {
+		case <-time.After(3 * time.Second):
+			t.Fatal("timeout waiting for host activities webhook")
+		case p := <-received:
+			require.Equal(t, "/single-host", p.path)
+			var details map[string]any
+			require.NoError(t, json.Unmarshal(*p.body.Details, &details))
+			assert.EqualValues(t, 7, details["host_id"])
+			_, hasHostIDs := details["host_ids"]
+			assert.False(t, hasHostIDs, "host_ids must not be injected when host_id is present")
+		}
+	})
+
+	t.Run("nested host_id keys do not suppress injection", func(t *testing.T) {
+		ds := &newActivityMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+				hostWebhooks: []activity.HostActivitiesWebhook{
+					{DestinationURL: srv.URL + "/nested"},
+				},
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		act := hostActivityNestedID{
+			hostActivity: hostActivity{simpleActivity: simpleActivity{Name: "nested"}, hostIDs: []uint{5}},
+			Nested:       map[string]uint{"host_id": 5},
+		}
+		require.NoError(t, svc.NewActivity(t.Context(), user, act))
+
+		select {
+		case <-time.After(3 * time.Second):
+			t.Fatal("timeout waiting for host activities webhook")
+		case p := <-received:
+			require.Equal(t, "/nested", p.path)
+			var details map[string]any
+			require.NoError(t, json.Unmarshal(*p.body.Details, &details))
+			// Only top-level keys count: the nested host_id must not
+			// suppress the injection.
+			assert.Equal(t, []any{float64(5)}, details["host_ids"])
 		}
 	})
 
@@ -585,7 +672,16 @@ func TestNewActivityHostWebhook(t *testing.T) {
 		require.Len(t, paths, 2)
 		assert.Contains(t, paths, "/global")
 		assert.Contains(t, paths, "/fleet-c")
-		// Identical payload on both destinations.
-		assert.Equal(t, paths["/global"], paths["/fleet-c"])
+		// Same envelope on both destinations, but host_ids is injected into
+		// the per-fleet payload only — the global payload keeps its
+		// pre-existing format (stored details, no host_ids).
+		var globalDetails, fleetDetails map[string]any
+		require.NoError(t, json.Unmarshal(*paths["/global"].Details, &globalDetails))
+		require.NoError(t, json.Unmarshal(*paths["/fleet-c"].Details, &fleetDetails))
+		assert.Equal(t, "both", globalDetails["name"])
+		assert.Equal(t, "both", fleetDetails["name"])
+		_, globalHasHostIDs := globalDetails["host_ids"]
+		assert.False(t, globalHasHostIDs, "global payload must not carry injected host_ids")
+		assert.Equal(t, []any{float64(9)}, fleetDetails["host_ids"])
 	})
 }

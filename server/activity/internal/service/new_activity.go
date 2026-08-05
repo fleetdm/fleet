@@ -63,8 +63,16 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 				s.logger.ErrorContext(ctx, "get host activities webhooks",
 					slog.String("activity", activity.ActivityName()), slog.String("err", err.Error()))
 			}
+			// Per-fleet payloads carry host_ids for activities whose stored
+			// details don't already identify their hosts (batch automation
+			// activities). The list is injected at fire time only: batches can
+			// span thousands of hosts, so storing it would bloat every affected
+			// host's feed response and expose the full batch to any user who
+			// can read one of its hosts. The global webhook payload above is
+			// intentionally left as stored (matching its pre-existing format).
+			webhookDetails := s.detailsWithHostIDs(ctx, activity, detailsBytes)
 			for _, hook := range hooks {
-				s.fireActivityWebhook(ctx, user, activity, detailsBytes, timestamp, hook.DestinationURL)
+				s.fireActivityWebhook(ctx, user, activity, webhookDetails, timestamp, hook.DestinationURL)
 			}
 		}
 	}
@@ -83,6 +91,54 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 	ctx = context.WithValue(ctx, types.ActivityWebhookContextKey, true)
 
 	return s.store.NewActivity(ctx, user, activity, detailsBytes, timestamp)
+}
+
+// detailsWithHostIDs returns the details to use in per-fleet host activities
+// webhook payloads: for
+// host-linked activities whose details carry no host identifier of their own
+// (neither host_id nor host_ids), it returns a copy with the host_ids list
+// added. On any failure it falls back to the stored details rather than
+// blocking webhook delivery.
+func (s *Service) detailsWithHostIDs(ctx context.Context, activity api.ActivityDetails, detailsBytes []byte) []byte {
+	ah, ok := activity.(types.ActivityHosts)
+	if !ok {
+		return detailsBytes
+	}
+	hostIDs := ah.HostIDs()
+	if len(hostIDs) == 0 {
+		return detailsBytes
+	}
+
+	var details map[string]json.RawMessage
+	if err := json.Unmarshal(detailsBytes, &details); err != nil {
+		s.logger.ErrorContext(ctx, "unmarshal details to inject host_ids",
+			slog.String("activity", activity.ActivityName()), slog.String("err", err.Error()))
+		return detailsBytes
+	}
+	if _, ok := details["host_id"]; ok {
+		return detailsBytes
+	}
+	if _, ok := details["host_ids"]; ok {
+		return detailsBytes
+	}
+	if details == nil { // details were JSON null
+		details = make(map[string]json.RawMessage, 1)
+	}
+
+	idsBytes, err := json.Marshal(hostIDs)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "marshal host_ids",
+			slog.String("activity", activity.ActivityName()), slog.String("err", err.Error()))
+		return detailsBytes
+	}
+	details["host_ids"] = idsBytes
+	withIDs, err := json.Marshal(details)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "marshal details with host_ids",
+			slog.String("activity", activity.ActivityName()), slog.String("err", err.Error()))
+		return detailsBytes
+	}
+	return withIDs
 }
 
 // fireActivityWebhook sends the activity to the configured webhook URL asynchronously.

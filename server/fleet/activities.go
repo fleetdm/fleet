@@ -2263,7 +2263,7 @@ func (a ActivityTypeDeletedSelfServiceCategory) ActivityName() string {
 // for Zendesk, TicketID holds the numeric ticket ID.
 type ActivityTypeRanAutomationTicket struct {
 	PolicyID   uint   `json:"policy_id"`
-	HostIDList []uint `json:"host_ids"`
+	HostIDList []uint `json:"-"`
 	Type       string `json:"type"`
 	TicketKey  string `json:"ticket_key,omitempty"`
 	TicketID   int64  `json:"ticket_id,omitempty"`
@@ -2287,7 +2287,7 @@ func (a ActivityTypeRanAutomationTicket) WasFromAutomation() bool {
 // failing-policy job targeted. The Type field is "jira" or "zendesk".
 type ActivityTypeFailedAutomationTicket struct {
 	PolicyID      uint   `json:"policy_id"`
-	HostIDList    []uint `json:"host_ids"`
+	HostIDList    []uint `json:"-"`
 	Type          string `json:"type"`
 	ErrorResponse string `json:"error_response"`
 }
@@ -2310,7 +2310,7 @@ func (a ActivityTypeFailedAutomationTicket) WasFromAutomation() bool {
 // failing calendar policy the host belongs to, associated with that host.
 type ActivityTypeFailedAutomationCalendarEvent struct {
 	PolicyID      uint   `json:"policy_id"`
-	HostIDList    []uint `json:"host_ids"`
+	HostIDList    []uint `json:"-"`
 	StatusCode    int    `json:"status_code,omitempty"`
 	ErrorResponse string `json:"error_response"`
 }
@@ -2334,7 +2334,7 @@ func (a ActivityTypeFailedAutomationCalendarEvent) WasFromAutomation() bool {
 // associated with that host.
 type ActivityTypeRanAutomationCalendarEvent struct {
 	PolicyID   uint   `json:"policy_id"`
-	HostIDList []uint `json:"host_ids"`
+	HostIDList []uint `json:"-"`
 }
 
 func (a ActivityTypeRanAutomationCalendarEvent) ActivityName() string {
@@ -2355,7 +2355,7 @@ func (a ActivityTypeRanAutomationCalendarEvent) WasFromAutomation() bool {
 // batch.
 type ActivityTypeFailedAutomationWebhook struct {
 	PolicyID      uint   `json:"policy_id"`
-	HostIDList    []uint `json:"host_ids"`
+	HostIDList    []uint `json:"-"`
 	StatusCode    int    `json:"status_code,omitempty"`
 	ErrorResponse string `json:"error_response"`
 }
@@ -2378,7 +2378,7 @@ func (a ActivityTypeFailedAutomationWebhook) WasFromAutomation() bool {
 // that batch. The activity name is "ran_automation_webhook".
 type ActivityTypeRanAutomationWebhook struct {
 	PolicyID   uint   `json:"policy_id"`
-	HostIDList []uint `json:"host_ids"`
+	HostIDList []uint `json:"-"`
 	StatusCode int    `json:"status_code,omitempty"`
 }
 
@@ -2401,7 +2401,7 @@ func (a ActivityTypeRanAutomationWebhook) WasFromAutomation() bool {
 // that host.
 type ActivityTypeFailedAutomationConditionalAccess struct {
 	PolicyID      uint   `json:"policy_id"`
-	HostIDList    []uint `json:"host_ids"`
+	HostIDList    []uint `json:"-"`
 	StatusCode    int    `json:"status_code,omitempty"`
 	ErrorResponse string `json:"error_response"`
 }
@@ -2425,7 +2425,7 @@ func (a ActivityTypeFailedAutomationConditionalAccess) WasFromAutomation() bool 
 // failing, associated with that host.
 type ActivityTypeRanAutomationConditionalAccess struct {
 	PolicyID   uint   `json:"policy_id"`
-	HostIDList []uint `json:"host_ids"`
+	HostIDList []uint `json:"-"`
 }
 
 func (a ActivityTypeRanAutomationConditionalAccess) ActivityName() string {
