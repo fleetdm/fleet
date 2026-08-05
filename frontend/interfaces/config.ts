@@ -250,6 +250,7 @@ export interface IConfig {
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;
+  max_software_package_size: number;
 }
 
 interface IFleetPartnerships {

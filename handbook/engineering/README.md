@@ -124,10 +124,6 @@ Because of this shift, the review effort for any change is the same regardless o
 
 The goal is to not go more than one business day without responding to the contributor and routing the PR to the right team. This applies to PRs from Fleeties, open source contributors, members of the Customer Success team, etc.
 
-If the PR is a bug fix that the author has not validated manually, close the PR. Notify the author that the PR will be re-opened and reviewed after they validate the fix.
-
-Make sure to create a Github issue and link it to the PR so that we can track the changes in our release process. Make sure to assign the correct milestone to the issue (by having an issue, QA will make sure the fix is not causing regressions).
-
 1. **On-call triage**: All community PRs are first reviewed by the on-call engineer, who routes the PR to the appropriate product group's EM. Internal Fleeties who already know the owning team can go directly to the EM.
 
 2. **Classification** (EM): The Engineering Manager (EM) of the owning product group determines what type of change this is: bug fix, reliability improvement, product change, or something else.
