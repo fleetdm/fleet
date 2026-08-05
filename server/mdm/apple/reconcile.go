@@ -264,6 +264,12 @@ func ComputeDeclarationDeltas(
 				// Same, for an edited custom activation. Editing only its predicate
 				// leaves the declaration's own content untouched.
 				needsInstall = true
+			case d.ActivationUpdatedAt == nil && c.ActivationUpdatedAt != nil:
+				// The custom activation was removed. Unlike an asset reference, it
+				// lives in its own table, so the declaration's token is unchanged and
+				// nothing else here would notice; without this the host keeps the old
+				// activation and its predicate forever.
+				needsInstall = true
 			case c.OperationType == "" || c.OperationType == fleet.MDMOperationTypeRemove:
 				needsInstall = true
 			case c.OperationType == fleet.MDMOperationTypeInstall && c.Status == nil:
