@@ -136,6 +136,47 @@ func TestComputeOSUpdatesTarget(t *testing.T) {
 		got := computeOSUpdatesTarget(ctx, logger, []*fleet.AppleSoftwareUpdateHost{host}, map[string][]fleet.AppleSoftwareUpdateAsset{}, latest(map[uint]int{0: 2}, nil, nil))
 		require.Empty(t, got)
 	})
+
+	t.Run("duplicate host UUIDs in a batch are collapsed to the first row", func(t *testing.T) {
+		deadline := macDeadline
+		inTeamWithLatest := &fleet.AppleSoftwareUpdateHost{
+			HostUUID: "dup", Platform: "darwin", TeamID: 0, SoftwareUpdateDeviceID: macDevice,
+		}
+		// same UUID, but this row's team has no "latest" set, so on its own it would clear the
+		// target computed for the row above
+		inTeamWithoutLatest := &fleet.AppleSoftwareUpdateHost{
+			HostUUID: "dup", Platform: "darwin", TeamID: 5, SoftwareUpdateDeviceID: macDevice,
+			TargetOSVersion: "15.1", TargetDeadline: &deadline, ResolvedAt: &deadline,
+		}
+
+		got := computeOSUpdatesTarget(ctx, logger,
+			[]*fleet.AppleSoftwareUpdateHost{inTeamWithLatest, inTeamWithoutLatest},
+			updateAssets, latest(map[uint]int{0: 2}, nil, nil))
+		require.Len(t, got, 1)
+		require.Equal(t, "dup", got[0].HostUUID)
+		require.True(t, got[0].Resend)
+		require.Equal(t, "15.1", got[0].TargetOSVersion)
+		require.True(t, macDeadline.Equal(*got[0].TargetDeadline))
+
+		// order decides the winner, and either way only one row per UUID comes out
+		got = computeOSUpdatesTarget(ctx, logger,
+			[]*fleet.AppleSoftwareUpdateHost{inTeamWithoutLatest, inTeamWithLatest},
+			updateAssets, latest(map[uint]int{0: 2}, nil, nil))
+		require.Len(t, got, 1)
+		require.Equal(t, "dup", got[0].HostUUID)
+		require.False(t, got[0].Resend)
+		require.Empty(t, got[0].TargetOSVersion)
+	})
+
+	t.Run("duplicate host UUIDs are collapsed even when the first row produces nothing", func(t *testing.T) {
+		unsupported := &fleet.AppleSoftwareUpdateHost{HostUUID: "dup2", Platform: "tvos", TeamID: 0, SoftwareUpdateDeviceID: macDevice}
+		supported := &fleet.AppleSoftwareUpdateHost{HostUUID: "dup2", Platform: "darwin", TeamID: 0, SoftwareUpdateDeviceID: macDevice}
+
+		got := computeOSUpdatesTarget(ctx, logger,
+			[]*fleet.AppleSoftwareUpdateHost{unsupported, supported},
+			updateAssets, latest(map[uint]int{0: 2}, nil, nil))
+		require.Empty(t, got)
+	})
 }
 
 // TestHandleAppleMDMOSUpdatesAssetRefresh covers the asset-cache refresh at the top of the OS

@@ -1548,7 +1548,6 @@ func jsonEscapeString(s string) string {
 }
 
 type notReadyYetError struct {
-	error
 	Message string
 }
 

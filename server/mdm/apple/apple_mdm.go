@@ -2610,7 +2610,16 @@ computeOSTargets:
 
 func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*fleet.AppleSoftwareUpdateHost, updateAssets map[string][]fleet.AppleSoftwareUpdateAsset, teamsWithLatest map[string]map[uint]int) []*fleet.ComputedAppleSoftwareUpdateHost {
 	var computedHosts []*fleet.ComputedAppleSoftwareUpdateHost
+
+	// Deduping hosts to avoid gnarly bugs
+	seen := make(map[string]struct{}, len(hosts))
+	var duplicateHosts int
 	for _, host := range hosts {
+		if _, ok := seen[host.HostUUID]; ok {
+			duplicateHosts++
+			continue
+		}
+		seen[host.HostUUID] = struct{}{}
 
 		var updateAssetsPlatform string
 		if host.Platform == "darwin" {
@@ -2693,5 +2702,11 @@ func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*f
 			Resend:                  true,
 		})
 	}
+
+	if duplicateHosts > 0 {
+		logger.WarnContext(ctx, "os updates reconcile: skipped rows for host UUIDs already seen in this batch; likely duplicate host rows sharing a UUID",
+			"skipped", duplicateHosts)
+	}
+
 	return computedHosts
 }
