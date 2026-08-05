@@ -87,6 +87,7 @@
           "host_batch_size": 0,
           "policy_ids": null
         },
+        "host_activities_webhook": null,
         "host_status_webhook": null
       }
     },
@@ -175,6 +176,7 @@
           "host_batch_size": 0,
           "policy_ids": null
         },
+        "host_activities_webhook": null,
         "host_status_webhook": null
       }
     }
@@ -284,6 +286,7 @@
           "host_batch_size": 0,
           "policy_ids": null
         },
+        "host_activities_webhook": null,
         "host_status_webhook": null
       }
     },
@@ -387,6 +390,7 @@
           "host_batch_size": 0,
           "policy_ids": null
         },
+        "host_activities_webhook": null,
         "host_status_webhook": null
       }
     }
