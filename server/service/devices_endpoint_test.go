@@ -58,6 +58,15 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 		return nil
 	}
 	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{
+			PushToken: []byte("sensitive-push-token"),
+			ServiceSubscriptions: []fleet.MDMAppleServiceSubscription{
+				{Slot: "CTSubscriptionSlotOne", PhoneNumber: new("+15555550100")},
+			},
+			AccessibilitySettings: &fleet.MDMAppleAccessibilitySettings{
+				VoiceOverEnabled: new(true),
+			},
+		}
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -129,6 +138,9 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	assert.Nil(t, deviceResp.Host.TeamName)
 	assert.Nil(t, deviceResp.Host.MDM.Profiles)
 	assert.Nil(t, deviceResp.Host.Labels)
+	// Verify the new iOS/iPadOS device vitals (#49984) are scrubbed too, not
+	// just the fields that existed when this scrub block was first written.
+	assert.Equal(t, fleet.HostMDMAppleDeviceVitals{}, deviceResp.Host.HostMDMAppleDeviceVitals)
 
 	// Verify scrubbed fields in License
 	assert.Empty(t, deviceResp.License.Organization)

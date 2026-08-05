@@ -191,6 +191,16 @@ func (ds *Datastore) SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, ho
 	})
 }
 
+func deleteHostMDMAppleDeviceVitalsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_device_vitals WHERE host_uuid = ?`, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host mdm apple device vitals")
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_service_subscriptions WHERE host_uuid = ?`, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host mdm apple service subscriptions")
+	}
+	return nil
+}
+
 // replaceHostMDMAppleServiceSubscriptions replaces the host's service
 // subscription rows to match subscriptions: rows for slots no longer
 // present are deleted, current slots are upserted. Modeled on
