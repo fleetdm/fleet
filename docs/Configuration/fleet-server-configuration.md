@@ -2777,7 +2777,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 ## S3
 
-> If you're hosting Fleet on Render (or any service that doesn't offer S3-compatible storage) or building Fleet locally, use the `FLEET_SOFTWARE_INSTALLER_STORE_DIR` environment variable (no YAML or flag equivalent) to store software installers and bootstrap packages on local disk instead. If you're hosting Fleet in AWS use S3 (below) because local storage won't work for multi-container deployments.
+> If you're hosting Fleet on Render (or any service that doesn't offer S3-compatible storage) or building Fleet locally, use the `FLEET_SOFTWARE_INSTALLER_STORE_DIR` environment variable (no YAML or flag equivalent) to store software installers and bootstrap packages on local disk instead. If you're hosting Fleet in AWS, use S3 (below) because local storage won't work for multi-container deployments.
 
 ### s3_software_installers_bucket
 
