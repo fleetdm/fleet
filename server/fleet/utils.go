@@ -1,10 +1,8 @@
 package fleet
 
 import (
-	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -108,26 +106,4 @@ func VersionToSemverVersion(version string) (*semver.Version, error) {
 		return nil, err
 	}
 	return ver, nil
-}
-
-// JSONStringArray is a []string that scans from a JSON-encoded MySQL column.
-type JSONStringArray []string
-
-func (j *JSONStringArray) Scan(val any) error {
-	if val == nil {
-		*j = nil
-		return nil
-	}
-	b, ok := val.([]byte)
-	if !ok {
-		return fmt.Errorf("JSONStringArray.Scan: expected []byte, got %T", val)
-	}
-	return json.Unmarshal(b, j)
-}
-
-func (j JSONStringArray) Value() (driver.Value, error) {
-	if j == nil {
-		return nil, nil
-	}
-	return json.Marshal(j)
 }

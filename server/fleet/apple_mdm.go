@@ -1846,12 +1846,13 @@ type OSUpdateAsset struct {
 }
 
 type AppleSoftwareUpdateAsset struct {
-	ProductVersion   string          `db:"product_version"`
-	Build            string          `db:"build"`
-	PostingDate      time.Time       `db:"posting_date"`
-	ExpirationDate   time.Time       `db:"expiration_date"`
-	SupportedDevices JSONStringArray `db:"supported_devices"`
-	FirstSeenAt      time.Time       `db:"first_seen_at"`
+	ProductVersion   string      `db:"product_version"`
+	Build            string      `db:"build"`
+	PostingDate      time.Time   `db:"posting_date"`
+	ExpirationDate   time.Time   `db:"expiration_date"`
+	SupportedDevices SliceString `db:"supported_devices"`
+	FirstSeenAt      time.Time   `db:"first_seen_at"`
+	UpdatedAt        time.Time   `db:"updated_at"`
 }
 
 type AppleSoftwareUpdateHost struct {

@@ -2026,7 +2026,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 // getOSUpdateForHostDetails returns the minimum OS version and deadline for a host.
 // If OS updates is not configured it returns nil
-// if OS updates enforces latest we return the target version and deadline from the host's os_update_host record and "TBD" if the target version is not calculated
+// if OS updates enforces latest we return the target version and deadline from the host's os_update_host record and "Pending" if the target version is not calculated
 // if OS updates does not enforce latest we return the minimum version and deadline from the config which is constants
 func getOSUpdateForHostDetails(svc *Service, ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) (*string, *string, error) {
 	// Only Apple platforms have OS update settings here, so skip the (possibly
@@ -2076,7 +2076,9 @@ func getOSUpdateForHostDetails(svc *Service, ctx context.Context, host *fleet.Ho
 			return osUpdateMinVersion, osUpdateDeadline, nil
 		}
 
-		return nil, nil, nil
+		// The host has not yet been computed it's target deadline and version.
+		pending := "Pending"
+		return &pending, &pending, nil
 	}
 
 	// Extract from target and deadline from config.

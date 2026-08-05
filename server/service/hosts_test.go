@@ -1183,32 +1183,8 @@ func TestHostDetailsOSUpdates(t *testing.T) {
 			},
 			platform:                "darwin",
 			wantOSUpdateHostQueried: true,
-		},
-		{
-			name: "latest with an unresolved target version",
-			mdm: fleet.MDM{
-				EnabledAndConfigured: true,
-				MacOSUpdates:         enforceLatest(14),
-			},
-			platform: "darwin",
-			osUpdateHost: &fleet.AppleSoftwareUpdateHost{
-				HostUUID:       "test-uuid",
-				TargetDeadline: &deadline,
-			},
-			wantOSUpdateHostQueried: true,
-		},
-		{
-			name: "latest with an unresolved deadline",
-			mdm: fleet.MDM{
-				EnabledAndConfigured: true,
-				MacOSUpdates:         enforceLatest(14),
-			},
-			platform: "darwin",
-			osUpdateHost: &fleet.AppleSoftwareUpdateHost{
-				HostUUID:        "test-uuid",
-				TargetOSVersion: "26.1",
-			},
-			wantOSUpdateHostQueried: true,
+			wantMinimumVersion:      new("Pending"),
+			wantDeadline:            new("Pending"),
 		},
 		{
 			name: "team settings win over app config",

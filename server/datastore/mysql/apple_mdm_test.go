@@ -14129,7 +14129,7 @@ func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
 		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(map[uint]int{0: 2}, nil, nil))
 		require.NoError(t, err)
 		require.Equal(t, []string{hMacNoTeam.UUID}, uuidsOf(got))
-		require.Equal(t, 0, got[0].TeamID)
+		require.Equal(t, uint(0), got[0].TeamID)
 	})
 
 	t.Run("ListForReconcile returns hosts with an existing target even without a latest team", func(t *testing.T) {
@@ -14252,8 +14252,22 @@ func testAppleOSUpdateAssets(t *testing.T, ds *Datastore) {
 		require.Equal(t, []string{"17.7.1", "18.1"}, versionsOf(got["ios"]))
 		require.Equal(t, "2024-10-28", got["macos"][0].PostingDate.Format(time.DateOnly))
 		require.Equal(t, "2025-10-28", got["macos"][0].ExpirationDate.Format(time.DateOnly))
-		require.Equal(t, fleet.JSONStringArray{"Mac14,2"}, got["macos"][0].SupportedDevices)
+		require.Equal(t, fleet.SliceString{"Mac14,2"}, got["macos"][0].SupportedDevices)
 		require.False(t, got["macos"][0].FirstSeenAt.IsZero())
+
+		// upserting without any changes, still updates updated_at
+		prev := got
+		require.NoError(t, ds.UpsertAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {asset("15.1", "24B83"), asset("14.7.1", "23H222"), asset("13.7.1", "22H221")},
+			"ios":   {asset("18.1", "22B83"), asset("17.7.1", "21H221")},
+		}))
+		// check that updated_at was updated
+		got = listed()
+		for class, assets := range got {
+			for i, a := range assets {
+				require.True(t, a.UpdatedAt.After(prev[class][i].UpdatedAt), "updated_at should be updated on upsert even if no changes")
+			}
+		}
 	})
 
 	t.Run("DeleteStale removes the assets missing from the new set", func(t *testing.T) {

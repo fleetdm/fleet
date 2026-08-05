@@ -8678,7 +8678,8 @@ func (ds *Datastore) UpsertAppleOSUpdates(ctx context.Context, updates map[strin
 			ON DUPLICATE KEY UPDATE
 				posting_date = VALUES(posting_date),
 				expiration_date = VALUES(expiration_date),
-				supported_devices = VALUES(supported_devices)
+				supported_devices = VALUES(supported_devices),
+				updated_at = NOW(6)
 	`
 
 	args := []any{}
@@ -8755,7 +8756,7 @@ func (ds *Datastore) ListAppleOSUpdateAssets(ctx context.Context) (map[string][]
 	for _, class := range classes {
 		var assets []fleet.AppleSoftwareUpdateAsset
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &assets, `
-			SELECT product_version, build, posting_date, expiration_date, supported_devices, first_seen_at
+			SELECT product_version, build, posting_date, expiration_date, supported_devices, first_seen_at, updated_at
 			FROM apple_software_update_assets
 			WHERE class = ?
 		`, class); err != nil {
