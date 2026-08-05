@@ -162,6 +162,48 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 		require.Equal(t, hostID, recordedHostID)
 	})
 
+	t.Run("brand-new ENROLLMENT records dedup state without re-reading the host", func(t *testing.T) {
+		// enrollHost returns the host ID it resolved, so recording dedup state no longer
+		// depends on a post-enrollment lookup succeeding. A lookup that failed there would
+		// leave the delivery acked with no dedup state, and the redelivery would re-queue
+		// the setup experience. AndroidHostLite stays not-found for the whole call to prove
+		// no such lookup happens after enrollHost.
+		const newHostID = uint(77)
+		svc, mockDS := createAndroidService(t)
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+		}
+		var hostLiteCalls int
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			hostLiteCalls++
+			return nil, common_mysql.NotFound("android host lite")
+		}
+		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			return &fleet.EnrollSecret{}, nil
+		}
+		mockDS.NewAndroidHostFunc = func(ctx context.Context, h *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: newHostID, UUID: hostUUID}, Device: h.Device}, nil
+		}
+		var recordedHostID uint
+		var recordedID string
+		mockDS.SetAndroidPubSubDedupStateFunc = func(ctx context.Context, id uint, messageID string, eventTime *time.Time) error {
+			recordedHostID = id
+			recordedID = messageID
+			return nil
+		}
+
+		msg := makeEnrollmentEnvelope(t, "msg-brand-new", "2026-07-22T10:00:00Z")
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), dedupToken, msg))
+
+		require.True(t, mockDS.NewAndroidHostFuncInvoked, "a brand-new device must be inserted")
+		require.False(t, mockDS.GetAndroidPubSubDedupStateFuncInvoked, "a device new to Fleet has no dedup state to check")
+		require.True(t, mockDS.SetAndroidPubSubDedupStateFuncInvoked, "new enrollment must record dedup state")
+		require.Equal(t, newHostID, recordedHostID, "dedup state must be recorded against the newly inserted host")
+		require.Equal(t, "msg-brand-new", recordedID)
+		// One lookup for the dedup pre-check, one inside enrollHost. None afterwards.
+		require.Equal(t, 2, hostLiteCalls, "dedup state must not require a post-enrollment host lookup")
+	})
+
 	t.Run("ENROLLMENT DELETED on an already-unenrolled host emits no activity", func(t *testing.T) {
 		// The STATUS_REPORT DELETED branch already skips the activity when the state flip
 		// was a no-op; the ENROLLMENT DELETED branch must match, or a DELETED that arrives
