@@ -2388,6 +2388,10 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		}
 	}))
 	s.runDEPSchedule()
+	// The OS updates cron only pulls fresh assets from GDMF when the cached ones are missing or
+	// older than 24h, so any assets seeded by an earlier test in this suite would make it skip the
+	// fetch and leave us without the test data this test relies on.
+	mysqltest.TruncateTables(t, s.ds, "apple_software_update_assets")
 	s.runAppleOSUpdatesSchedule()
 
 	// confirm that the devices were created

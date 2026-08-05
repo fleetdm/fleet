@@ -2539,6 +2539,11 @@ func (s *integrationMDMTestSuite) TestAppleDDMOSUpdatesTargetVariables() {
 			SupportedDevices: []string{deviceID},
 		}},
 	}))
+	// Drop these synthetic assets afterwards; their recent updated_at would otherwise short-circuit
+	// the GDMF fetch for later tests in this suite that need the real asset set.
+	t.Cleanup(func() {
+		mysqltest.TruncateTables(t, s.ds, "apple_software_update_assets")
+	})
 
 	require.NoError(t, apple_mdm.HandleAppleMDMOSUpdates(ctx, s.ds, slog.New(slog.NewTextHandler(io.Discard, nil))))
 
