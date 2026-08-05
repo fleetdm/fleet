@@ -602,13 +602,37 @@ func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
 // every read without destroying it, and a later escrow revives the row.
 func testManagedLocalAccountSoftDeleteOnReenrollment(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	hostUUID := "win-softdelete-host"
+
+	// A real host row and a due auto_rotate_at are both required for the cron assertion below to mean anything:
+	// GetManagedLocalAccountsForAutoRotation joins hosts, and MarkManagedLocalAccountPasswordViewed sets the
+	// deadline in the future. Without these the row could never be picked up and the assertion would pass vacuously.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "managed-account-softdelete-host",
+		OsqueryHostID:   new("managed-account-osquery-softdelete"),
+		NodeKey:         new("managed-account-node-softdelete"),
+		UUID:            "win-softdelete-host",
+		Platform:        "windows",
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
+	hostUUID := host.UUID
 
 	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "BEFORE-REENROLL"))
 	// A rotation staged against the old enrollment can never be acknowledged, so it must be cleared too.
 	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, hostUUID, "account-uuid-softdelete"))
-	_, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
+	_, err = ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
 	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, hostUUID)
+	require.NoError(t, err)
+
+	// Prove the row IS cron-eligible before the soft delete, so the post-delete assertion is meaningful.
+	due, err := ds.GetManagedLocalAccountsForAutoRotation(ctx)
+	require.NoError(t, err)
+	require.Contains(t, hostUUIDsOf(due), hostUUID, "row must be rotation-eligible before the soft delete")
 
 	softDelete := func() {
 		require.NoError(t, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -626,11 +650,22 @@ func testManagedLocalAccountSoftDeleteOnReenrollment(t *testing.T, ds *Datastore
 	require.True(t, fleet.IsNotFound(err), "account uuid read: got %v", err)
 
 	// The cron must not pick up a retired row even though it was due for rotation before the soft delete.
-	due, err := ds.GetManagedLocalAccountsForAutoRotation(ctx)
+	due, err = ds.GetManagedLocalAccountsForAutoRotation(ctx)
 	require.NoError(t, err)
-	for _, h := range due {
-		require.NotEqual(t, hostUUID, h.HostUUID, "a soft-deleted row must never be auto-rotated")
-	}
+	require.NotContains(t, hostUUIDsOf(due), hostUUID, "a soft-deleted row must never be auto-rotated")
+
+	// The soft delete clears auto_rotate_at, which alone would exclude the row above. Re-arm it directly so the
+	// cron's own deleted filter is what has to hold, otherwise this would pass even if that filter were dropped.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, hostUUID)
+	require.NoError(t, err)
+	due, err = ds.GetManagedLocalAccountsForAutoRotation(ctx)
+	require.NoError(t, err)
+	require.NotContains(t, hostUUIDsOf(due), hostUUID, "the cron must exclude soft-deleted rows on its own")
+
+	// Rotation must report the row as absent, not as present-but-ineligible.
+	err = ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "ROTATE-PASS", "cmd-softdelete-rotate")
+	require.True(t, fleet.IsNotFound(err), "rotation of a soft-deleted row: got %v", err)
 
 	// The password itself is retained, not destroyed: the row is still there, just hidden.
 	var row struct {
@@ -648,10 +683,25 @@ func testManagedLocalAccountSoftDeleteOnReenrollment(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 	require.Equal(t, "AFTER-REENROLL", got.Password)
 
-	// A device-reported failure must also revive the row, or the error would be invisible.
+	// A device-reported failure must revive the row, or the error would be invisible and the host would just look
+	// unresponsive. The retained password is kept, which is the point of soft-deleting rather than deleting, and it
+	// stays unreadable through the API because a failed status makes PasswordAvailable false.
 	softDelete()
 	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "policy rejected"))
 	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
 	require.NoError(t, err)
 	require.Equal(t, "policy rejected", status.Detail)
+	require.False(t, status.PasswordAvailable, "a failed row must not offer its password")
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &row,
+		`SELECT deleted, encrypted_password FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID))
+	require.NotEmpty(t, row.Password, "the escrowed password must still be recoverable from the database")
+}
+
+func hostUUIDsOf(rows []fleet.HostManagedLocalAccountAutoRotationInfo) []string {
+	uuids := make([]string, 0, len(rows))
+	for _, r := range rows {
+		uuids = append(uuids, r.HostUUID)
+	}
+	return uuids
 }

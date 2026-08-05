@@ -27,6 +27,9 @@ func (ds *Datastore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID, 
 			command_uuid = VALUES(command_uuid),
 			status = NULL,
 			account_uuid = NULL,
+			-- A new password supersedes whatever went wrong last time; leaving it would surface a stale reason as the
+			-- detail of a freshly pending account. Matches SaveHostManagedLocalAccountFromEscrow.
+			client_error = '',
 			deleted = 0
 	`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, encrypted, commandUUID); err != nil {
@@ -73,6 +76,10 @@ func (ds *Datastore) ReportManagedLocalAccountEscrowError(ctx context.Context, h
 		ON DUPLICATE KEY UPDATE
 			status = VALUES(status),
 			client_error = VALUES(client_error),
+			-- Revive a soft-deleted row so the failure is visible instead of the host merely looking unresponsive.
+			-- The retained password is deliberately NOT cleared: soft delete exists to keep it recoverable. It stays
+			-- unreadable through the API because status is now 'failed', and PasswordAvailable is
+			-- (encrypted_password IS NOT NULL AND status <> 'failed'), which both password endpoints gate on.
 			deleted = 0
 	`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, fleet.MDMDeliveryFailed, clientError); err != nil {
@@ -355,6 +362,7 @@ func (ds *Datastore) InitiateManagedLocalAccountRotation(ctx context.Context, ho
 			status
 		FROM host_managed_local_account_passwords
 		WHERE host_uuid = ?
+		  AND deleted = 0
 	`
 	if err := sqlx.GetContext(ctx, ds.writer(ctx), &dest, checkStmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
