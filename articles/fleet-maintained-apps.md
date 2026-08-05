@@ -109,7 +109,7 @@ SELECT 1 WHERE NOT EXISTS (
 
 ## Keep apps up to date with patch policies
 
-You can create a **patch policy** for a Fleet-maintained app to automatically detect hosts running outdated versions. The patch policy query automatically updates to include the latest version hourly or when your GitOps specs are applied.
+You can create a **patch policy** for a Fleet-maintained app to automatically detect hosts running outdated versions. The patch policy query automatically updates to include the latest version hourly or when your [GitOps](https://fleetdm.com/docs/configuration/yaml-files#patch-policy) specs are applied.
 
 To add a patch policy, open the app's details page under **Software**, then select **Actions > Deploy** and enable **Patch**.
 
