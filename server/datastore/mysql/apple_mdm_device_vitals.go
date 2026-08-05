@@ -165,7 +165,11 @@ func deviceVitalsChanged(ctx context.Context, tx sqlx.ExtContext, hostUUID strin
 // points as unchanged, since it otherwise drifts on nearly every refetch and
 // would defeat the point of skipping no-op writes.
 func batteryLevelPtrEqual(a, b *float64) bool {
-	const batteryLevelTolerance = 0.05
+	// Subtracting a tiny epsilon from the boundary keeps an exact 5-point
+	// delta (e.g. 0.40 vs 0.45) from being misclassified as "unchanged" due
+	// to binary floating-point rounding (0.45-0.40 evaluates to slightly
+	// under 0.05).
+	const batteryLevelTolerance = 0.05 - 1e-9
 	if a == nil || b == nil {
 		return a == b
 	}

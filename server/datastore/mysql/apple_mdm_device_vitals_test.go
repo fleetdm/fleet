@@ -386,6 +386,12 @@ func TestBatteryLevelPtrEqual(t *testing.T) {
 	atTolerance := 0.55
 	require.False(t, batteryLevelPtrEqual(&a, &atTolerance), "a delta of exactly 5 points must not be equal")
 
+	// 0.45-0.40 is a binary floating-point value just under 0.05 (not exactly
+	// 0.05), so this regresses a naive `diff < 0.05` comparison misreading an
+	// exact 5-point delta as unchanged.
+	lower, upper := 0.40, 0.45
+	require.False(t, batteryLevelPtrEqual(&lower, &upper), "a 0.40 vs 0.45 delta must not be equal despite float rounding")
+
 	different := 0.1
 	require.False(t, batteryLevelPtrEqual(&a, &different))
 
