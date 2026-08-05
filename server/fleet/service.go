@@ -933,7 +933,7 @@ type Service interface {
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
 	// activation is an optional custom activation declaration to attach to the
-	// declaration; nil or empty means Fleet generates the activation as before.
+	// declaration; nil or empty means Fleet generates the activation.
 	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple

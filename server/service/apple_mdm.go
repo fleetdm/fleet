@@ -965,19 +965,18 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 }
 
 // Returns nil when no activation was supplied, leaving Fleet to generate one.
-func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier, declarationType string) (*fleet.MDMAppleCustomActivation, error) {
+func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier, configurationType string) (*fleet.MDMAppleCustomActivation, error) {
 	if len(activation) == 0 {
 		return nil, nil
 	}
 
 	// Management declarations are never activated.
-	if strings.HasPrefix(declarationType, fleet.MDMAppleManagementTypePrefix) {
+	if strings.HasPrefix(configurationType, fleet.MDMAppleManagementTypePrefix) {
 		return nil, ctxerr.Wrap(ctx,
 			fleet.NewInvalidArgumentError("activation", ActivationUnsupportedManagementErrorMsg),
 			"activation supplied for a management declaration")
 	}
 
-	// Declarations are free when unassigned and unlabeled; activations never are.
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
 		return nil, ctxerr.Wrap(ctx,
@@ -1055,12 +1054,12 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, err
 	}
 
-	rawAct, err := svc.validateActivation(ctx, activation, d.Identifier, d.Type)
+	customActivation, err := svc.validateActivation(ctx, activation, d.Identifier, d.Type)
 	if err != nil {
 		return nil, err
 	}
-	if rawAct != nil {
-		d.Activation = rawAct
+	if customActivation != nil {
+		d.Activation = customActivation
 	}
 
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
@@ -1313,12 +1312,12 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		}
 		decl.Type = rawDecl.Type
 	}
-	rawAct, err := svc.validateActivation(ctx, activation, decl.Identifier, decl.Type)
+	customActivation, err := svc.validateActivation(ctx, activation, decl.Identifier, decl.Type)
 	if err != nil {
 		return err
 	}
-	if rawAct != nil {
-		decl.Activation = rawAct
+	if customActivation != nil {
+		decl.Activation = customActivation
 	}
 
 	if _, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, varNames); err != nil {

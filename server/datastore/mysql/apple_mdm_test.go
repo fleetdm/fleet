@@ -14010,9 +14010,11 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 		},
 	}, nil)
 	require.Error(t, err)
-	var existsErr interface{ IsExists() bool }
-	require.ErrorAs(t, err, &existsErr, "expected an already-exists error, got %v", err)
-	require.True(t, existsErr.IsExists())
+	// A conflict rather than an exists error, so callers don't report it as a
+	// clash on the configuration profile's identifier.
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr, "expected a conflict error, got %v", err)
+	require.Contains(t, conflictErr.Error(), "An activation with this identifier already exists.")
 
 	// the first declaration's activation is untouched
 	var stillOwned string

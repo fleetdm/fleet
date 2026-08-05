@@ -2088,7 +2088,10 @@ func (svc *Service) checkLabelsOnlyProfileUpdate(ctx context.Context, labelsIncl
 func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error {
 	// The edit path resolves the profile type here rather than in the endpoint.
 	if len(activation) > 0 && !isAppleDeclarationUUID(profileUUID) {
-		if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
+		// Basic check only, as in the type-specific update methods: the profile's
+		// team isn't known yet, and authorizing an empty MDMConfigProfileAuthz
+		// needs a global role, so team admins would get forbidden instead of this.
+		if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}
 		return fleet.NewInvalidArgumentError("activation", ActivationUnsupportedProfileErrorMsg)

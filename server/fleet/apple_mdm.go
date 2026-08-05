@@ -1101,12 +1101,10 @@ func GetRawActivationValues(raw []byte) (*MDMAppleRawActivation, error) {
 	return &rawAct, nil
 }
 
-// Deliberately not reusing MDMAppleRawDeclaration.ValidateUserProvided, which
-// only admits com.apple.configuration.* and would reject every activation.
 func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier string) error {
 	invalid := &InvalidArgumentError{}
 
-	if r.Type == "" {
+	if strings.TrimSpace(r.Type) == "" {
 		invalid.Append("Type", "Activation must include a Type.")
 	} else if !strings.HasPrefix(r.Type, MDMAppleActivationTypePrefix) {
 		invalid.Append("Type", fmt.Sprintf("Only activation declarations (%s) are supported.", MDMAppleActivationTypePrefix))

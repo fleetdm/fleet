@@ -654,8 +654,9 @@ type MDMConfigProfilePayload struct {
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
 	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
-	// Base64-encoded activation for declaration (DDM) profiles.
-	Activation []byte `json:"activation,omitempty" db:"-"`
+	// Base64-encoded activation for declaration (DDM) profiles, null for any
+	// other profile type and for declarations without a custom activation.
+	Activation []byte `json:"activation" db:"-"`
 }
 
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when

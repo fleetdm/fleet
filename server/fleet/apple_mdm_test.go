@@ -1155,6 +1155,12 @@ func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
 			errContains: "Activation must include a Type.",
 		},
 		{
+			name:        "whitespace type",
+			activation:  rawActivation("      ", "com.fleet.act.passcode", configIdentifier),
+			wantErr:     true,
+			errContains: "Activation must include a Type.",
+		},
+		{
 			name: "configuration type is not an activation",
 			activation: rawActivation("com.apple.configuration.passcode.settings", "com.fleet.act.passcode",
 				configIdentifier),

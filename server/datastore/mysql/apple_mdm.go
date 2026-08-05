@@ -5346,10 +5346,10 @@ WHERE team_id = ? AND identifier = ? AND declaration_uuid != ?`
 	var conflict bool
 	switch err := sqlx.GetContext(ctx, tx, &conflict, conflictStmt, tmID, act.Identifier, declUUID); {
 	case err == nil:
-		return ctxerr.Wrap(ctx, &existsError{
-			ResourceType: "MDMAppleCustomActivation.Identifier",
-			Identifier:   act.Identifier,
-			TeamID:       &tmID,
+		// Not an existsError: the callers turn those into a message about the
+		// configuration profile's identifier, which isn't the one that clashed.
+		return ctxerr.Wrap(ctx, &fleet.ConflictError{
+			Message: "An activation with this identifier already exists.",
 		}, "conflicting activation identifier")
 	case !errors.Is(err, sql.ErrNoRows):
 		return ctxerr.Wrap(ctx, err, "checking for conflicting activation identifier")
