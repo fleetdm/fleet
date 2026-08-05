@@ -1708,7 +1708,7 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 			if fleet.FleetVarName(fleetVar) == fleet.FleetVarHostTargetOSVersion {
 				value = osHost.TargetOSVersion
 			} else {
-				value = fmt.Sprintf("%sT12:00:00", osHost.TargetDeadline.Format(time.DateOnly))
+				value = osHost.TargetDeadline.Format(time.DateOnly)
 			}
 		default:
 			return "", fmt.Errorf("Fleet variable $FLEET_VAR_%s is not supported in DDM declarations.", fleetVar)
