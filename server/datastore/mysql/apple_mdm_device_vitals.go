@@ -112,11 +112,96 @@ func newDeviceVitalsRow(ctx context.Context, hostUUID string, vitals fleet.MDMAp
 	return row, nil
 }
 
+// deviceVitalsChanged reports whether row differs from what's stored for
+// hostUUID, so SetOrUpdateHostMDMAppleDeviceVitals can skip a no-op write.
+// battery_level tolerates small deltas (see batteryLevelPtrEqual); the JSON
+// columns compare decoded values since MySQL's JSON type reorders keys on
+// storage, so a fresh marshal of unchanged data won't byte-match.
+func deviceVitalsChanged(ctx context.Context, tx sqlx.ExtContext, hostUUID string, row *deviceVitalsRow) (bool, error) {
+	var existing deviceVitalsRow
+	err := sqlx.GetContext(ctx, tx, &existing, deviceVitalsSelectStmt, hostUUID)
+	switch err {
+	case nil:
+	case sql.ErrNoRows:
+		return true, nil
+	default:
+		return false, ctxerr.Wrap(ctx, err, "select existing host mdm apple device vitals")
+	}
+
+	if !batteryLevelPtrEqual(existing.BatteryLevel, row.BatteryLevel) {
+		return true, nil
+	}
+	if !timePtrEqual(existing.LastCloudBackupDate, row.LastCloudBackupDate) {
+		return true, nil
+	}
+
+	for _, cols := range []struct {
+		name              string
+		existing, current []byte
+	}{
+		{"accessibility settings", existing.AccessibilitySettings, row.AccessibilitySettings},
+		{"organization info", existing.OrganizationInfo, row.OrganizationInfo},
+		{"mdm options", existing.MDMOptions, row.MDMOptions},
+		{"device properties attestation", existing.DevicePropertiesAttestation, row.DevicePropertiesAttestation},
+	} {
+		equal, err := jsonColumnsEqual(cols.existing, cols.current)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "compare existing "+cols.name)
+		}
+		if !equal {
+			return true, nil
+		}
+	}
+
+	existing.BatteryLevel, existing.LastCloudBackupDate = nil, nil
+	existing.AccessibilitySettings, existing.OrganizationInfo, existing.MDMOptions, existing.DevicePropertiesAttestation = nil, nil, nil, nil
+	rowCopy := *row
+	rowCopy.BatteryLevel, rowCopy.LastCloudBackupDate = nil, nil
+	rowCopy.AccessibilitySettings, rowCopy.OrganizationInfo, rowCopy.MDMOptions, rowCopy.DevicePropertiesAttestation = nil, nil, nil, nil
+	return !reflect.DeepEqual(existing, rowCopy), nil
+}
+
+// batteryLevelPtrEqual treats a battery level change under 5 percentage
+// points as unchanged, since it otherwise drifts on nearly every refetch and
+// would defeat the point of skipping no-op writes.
+func batteryLevelPtrEqual(a, b *float64) bool {
+	const batteryLevelTolerance = 0.05
+	if a == nil || b == nil {
+		return a == b
+	}
+	diff := *a - *b
+	if diff < 0 {
+		diff = -diff
+	}
+	return diff < batteryLevelTolerance
+}
+
+func timePtrEqual(a, b *time.Time) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Equal(*b)
+}
+
+func jsonColumnsEqual(a, b []byte) (bool, error) {
+	if a == nil || b == nil {
+		return a == nil && b == nil, nil
+	}
+	var av, bv any
+	if err := json.Unmarshal(a, &av); err != nil {
+		return false, err
+	}
+	if err := json.Unmarshal(b, &bv); err != nil {
+		return false, err
+	}
+	return reflect.DeepEqual(av, bv), nil
+}
+
 // SetOrUpdateHostMDMAppleDeviceVitals persists the iOS/iPadOS vitals parsed
 // from a DeviceInformation command ack: an update-then-insert-on-no-match of
-// host_mdm_apple_device_vitals (most refetches are updates after the first),
-// plus a replace of the host's host_mdm_apple_service_subscriptions rows, in
-// a single transaction.
+// host_mdm_apple_device_vitals, skipped when nothing changed since the last
+// refetch, plus a replace of host_mdm_apple_service_subscriptions, in a
+// single transaction.
 func (ds *Datastore) SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, hostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 	const updateStmt = `
 		UPDATE host_mdm_apple_device_vitals SET
@@ -177,13 +262,19 @@ func (ds *Datastore) SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, ho
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		result, err := sqlx.NamedExecContext(ctx, tx, updateStmt, row)
+		changed, err := deviceVitalsChanged(ctx, tx, hostUUID, row)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update host mdm apple device vitals")
+			return err
 		}
-		if affected, _ := result.RowsAffected(); affected == 0 {
-			if _, err := sqlx.NamedExecContext(ctx, tx, insertStmt, row); err != nil {
-				return ctxerr.Wrap(ctx, err, "insert host mdm apple device vitals")
+		if changed {
+			result, err := sqlx.NamedExecContext(ctx, tx, updateStmt, row)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update host mdm apple device vitals")
+			}
+			if affected, _ := result.RowsAffected(); affected == 0 {
+				if _, err := sqlx.NamedExecContext(ctx, tx, insertStmt, row); err != nil {
+					return ctxerr.Wrap(ctx, err, "insert host mdm apple device vitals")
+				}
 			}
 		}
 
@@ -192,15 +283,18 @@ func (ds *Datastore) SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, ho
 }
 
 // replaceHostMDMAppleServiceSubscriptions replaces the host's service
-// subscription rows to match subscriptions: rows for slots no longer
-// present are deleted, current slots are upserted. Modeled on
-// ReplaceHostBatteries — the number of subscriptions per host is small
-// (dual-SIM at most), so a full diff-and-replace per call is cheap.
+// subscription rows to match subscriptions: stale slots are deleted, current
+// slots are upserted, skipping the write for a slot whose data is unchanged.
+// Modeled on ReplaceHostBatteries — the number of subscriptions per host is
+// small (dual-SIM at most), so a full diff-and-replace per call is cheap.
 func replaceHostMDMAppleServiceSubscriptions(ctx context.Context, tx sqlx.ExtContext, hostUUID string, subscriptions []fleet.MDMAppleServiceSubscription) error {
-	var existingSlots []string
-	if err := sqlx.SelectContext(ctx, tx, &existingSlots,
-		`SELECT slot FROM host_mdm_apple_service_subscriptions WHERE host_uuid = ?`, hostUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "select existing host service subscription slots")
+	var existing []fleet.MDMAppleServiceSubscription
+	if err := sqlx.SelectContext(ctx, tx, &existing, serviceSubscriptionsSelectStmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "select existing host service subscriptions")
+	}
+	existingBySlot := make(map[string]fleet.MDMAppleServiceSubscription, len(existing))
+	for _, e := range existing {
+		existingBySlot[e.Slot] = e
 	}
 
 	currentSlots := make(map[string]struct{}, len(subscriptions))
@@ -209,7 +303,7 @@ func replaceHostMDMAppleServiceSubscriptions(ctx context.Context, tx sqlx.ExtCon
 	}
 
 	var staleSlots []string
-	for _, slot := range existingSlots {
+	for slot := range existingBySlot {
 		if _, ok := currentSlots[slot]; !ok {
 			staleSlots = append(staleSlots, slot)
 		}
@@ -257,9 +351,13 @@ func replaceHostMDMAppleServiceSubscriptions(ctx context.Context, tx sqlx.ExtCon
 		)`
 
 	// Update-then-insert-on-no-match per slot: the row count per host is tiny
-	// (dual-SIM at most), and most refetches update an existing slot.
+	// (dual-SIM at most), and most refetches update an existing slot. A slot
+	// whose data matches what's already stored skips the write entirely.
 	for _, s := range subscriptions {
 		s.HostUUID = hostUUID
+		if existingRow, ok := existingBySlot[s.Slot]; ok && reflect.DeepEqual(existingRow, s) {
+			continue
+		}
 		result, err := sqlx.NamedExecContext(ctx, tx, updateStmt, s)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update host service subscription")
