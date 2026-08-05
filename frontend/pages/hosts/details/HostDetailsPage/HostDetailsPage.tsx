@@ -362,7 +362,7 @@ const HostDetailsPage = ({
         page: certificatePage,
         per_page: DEFAULT_CERTIFICATES_PAGE_SIZE,
         order_key: sortCerts.order_key,
-        order_direction: sortCerts.order_direction === "asc" ? "desc" : "asc",
+        order_direction: sortCerts.order_direction,
       },
     ],
     ({ queryKey }) => hostAPI.getHostCertificates(queryKey[0]),

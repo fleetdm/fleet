@@ -94,7 +94,7 @@ const DiskSpaceIndicator = ({
       </>
     ) : null;
 
-  const copyText = <>{gigsDiskSpaceAvailable}&nbsp;&nbsp;MB</>;
+  const copyText = <>&nbsp;&nbsp;&nbsp;&nbsp;{gigsDiskSpaceAvailable} KB</>;
 
   return (
     <span className={baseClass}>

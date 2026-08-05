@@ -537,7 +537,7 @@ const BYTES_PER_GIGABYTE = 1074000000;
 const NANOSECONDS_PER_MILLISECOND = 1000000;
 
 const inGigaBytes = (bytes: number): string => {
-  return (bytes / BYTES_PER_GIGABYTE).toFixed(3);
+  return (bytes / BYTES_PER_GIGABYTE).toFixed(1);
 };
 
 export const inMilliseconds = (nanoseconds: number): number => {
@@ -562,7 +562,7 @@ export const humanHostEnrolled = (enrolled: string): string => {
 };
 
 export const humanHostMemory = (bytes: number): string => {
-  return `${inGigaBytes(bytes)} MB`;
+  return `${inGigaBytes(bytes)} KB`;
 };
 
 export const humanHostDetailUpdated = (detailUpdated?: string): string => {
