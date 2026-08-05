@@ -52,9 +52,6 @@ const getEnabledManagedLocalAccount = (
   };
 };
 
-/** The Windows managed local account lives outside setup_experience, under
- * mdm.windows_settings, because it is not part of the Apple Setup Assistant
- * flow that endpoint models. */
 const getEnabledManagedLocalAccountWindows = (
   currentTeamId: number,
   globalConfig?: IConfig,

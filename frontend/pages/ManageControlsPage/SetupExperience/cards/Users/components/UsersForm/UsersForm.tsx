@@ -139,12 +139,8 @@ const UsersForm = ({
         }),
       });
 
-      // The Windows toggle isn't part of the Apple Setup Assistant flow that
-      // /setup_experience models, so it saves through the MDM config instead.
-      // Skipped entirely when Windows MDM is off, matching how the Apple fields
-      // above are omitted: the tab is hidden then, so there is nothing the user
-      // could have changed. Within the gate it is sent on every save, since the
-      // server only records an activity when the value actually changes.
+      // The Windows toggle isn't part of the Apple Setup Assistant flow that /setup_experience models, so it saves
+      // through the MDM config instead. Skipped entirely when Windows MDM is off.
       if (isWindowsMdmEnabledAndConfigured) {
         const mdmUpdate = {
           windows_settings: {
@@ -153,8 +149,6 @@ const UsersForm = ({
             },
           },
         };
-        // teamsAPI.update only types the *_updates keys, so arbitrary MDM
-        // settings go through updateConfig (same as the Passwords card).
         if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
           await configAPI.update({ mdm: mdmUpdate });
         } else {
@@ -193,8 +187,6 @@ const UsersForm = ({
               <Tab>
                 <TabText>macOS</TabText>
               </Tab>
-              {/* Windows MDM has to be on for the toggle to do anything, so the
-              tab is only offered when it is configured. */}
               {isWindowsMdmEnabledAndConfigured && (
                 <Tab>
                   <TabText>Windows</TabText>

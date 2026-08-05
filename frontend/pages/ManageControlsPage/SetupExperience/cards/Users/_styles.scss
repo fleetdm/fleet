@@ -5,8 +5,8 @@
     margin: 0;
   }
 
-  // The card is wider than this copy needs; the design wraps it to two lines
-  // rather than letting it run the full width of the content column.
+  // The content column is wider than this copy needs. The Figma design wraps it to two lines rather than letting it run
+  // the full width. https://www.figma.com/design/erfntW52sKZC5JMbzX4Iy4/-43488-Windows--Create-a-local-admin-account
   &__page-description {
     max-width: px-to-rem(650);
   }
