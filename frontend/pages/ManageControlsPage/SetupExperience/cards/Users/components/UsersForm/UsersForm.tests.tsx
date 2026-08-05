@@ -170,8 +170,7 @@ describe("UsersForm", () => {
       expect(screen.getByRole("tab", { name: "Windows" })).toBeInTheDocument();
     });
 
-    // Which section each tab renders. The sections' own contents are their
-    // components' concern, so this only pins the wiring.
+    // Which section each tab renders. The sections' own contents are their components' concern, so this only pins the wiring.
     it("swaps the macOS section for the Windows one", async () => {
       const { user } = renderWithWindowsMdmEnabled(
         <UsersForm {...defaultProps} />
@@ -187,8 +186,6 @@ describe("UsersForm", () => {
   });
 
   describe("windows managed account save", () => {
-    // jest config sets clearMocks (which resets calls) but not restoreMocks, so
-    // spies would keep their mock implementation and leak into later tests.
     afterEach(() => {
       jest.restoreAllMocks();
     });
@@ -207,9 +204,8 @@ describe("UsersForm", () => {
       team: jest.spyOn(teamsAPI, "updateConfig").mockResolvedValue({} as never),
     });
 
-    // No team saves through the config API, a fleet through the team API. The
-    // untouched-toggle row also pins that the value is sent on every save, not
-    // only when it changed.
+    // No team saves through the config API, a fleet through the team API. The untouched-toggle row also pins that the
+    // value is sent on every save, not only when it changed.
     it.each([
       { target: "no team", currentTeamId: 0, turnOn: false, enabled: false },
       { target: "no team", currentTeamId: 0, turnOn: true, enabled: true },
@@ -230,8 +226,7 @@ describe("UsersForm", () => {
         await user.click(screen.getByRole("button", { name: "Save" }));
 
         expect(spies.setup).toHaveBeenCalled();
-        // Asserting the unused API was NOT called is what keeps the two
-        // branches honest; without it a save that hit both would still pass.
+        // Asserting the unused API was NOT called
         if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
           expect(spies.config).toHaveBeenCalledWith(windowsPayload(enabled));
           expect(spies.team).not.toHaveBeenCalled();
@@ -245,9 +240,8 @@ describe("UsersForm", () => {
       }
     );
 
-    // Windows MDM off means the tab is never rendered, so there is nothing the
-    // user could have changed. Both branches are covered because each would
-    // otherwise send through a different API.
+    // Windows MDM off means the tab is never rendered, so there is nothing the user could have changed. Both branches
+    // are covered because each would otherwise send through a different API.
     it.each([
       { target: "no team", currentTeamId: 0 },
       { target: "a fleet", currentTeamId: 7 },
