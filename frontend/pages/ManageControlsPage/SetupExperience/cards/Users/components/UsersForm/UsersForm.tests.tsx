@@ -1,4 +1,5 @@
 import React from "react";
+import { QueryClient } from "react-query";
 import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
@@ -258,6 +259,34 @@ describe("UsersForm", () => {
         expect(spies.setup).toHaveBeenCalled();
         expect(spies.config).not.toHaveBeenCalled();
         expect(spies.team).not.toHaveBeenCalled();
+      }
+    );
+
+    // Several other cards read the app config and the fleet from these same cache keys, so a save has to drop them.
+    // The fleet key is only invalidated when there is a fleet: no-team has no such query to begin with.
+    it.each([
+      { target: "no team", currentTeamId: 0, expectsTeamKey: false },
+      { target: "a fleet", currentTeamId: 7, expectsTeamKey: true },
+    ])(
+      "invalidates the cached config for $target after saving",
+      async ({ currentTeamId, expectsTeamKey }) => {
+        spyOnSaveCalls();
+        const invalidate = jest.spyOn(
+          QueryClient.prototype,
+          "invalidateQueries"
+        );
+
+        const { user } = renderWithWindowsMdmEnabled(
+          <UsersForm {...defaultProps} currentTeamId={currentTeamId} />
+        );
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        expect(invalidate).toHaveBeenCalledWith(["config"]);
+        if (expectsTeamKey) {
+          expect(invalidate).toHaveBeenCalledWith(["team", currentTeamId]);
+        } else {
+          expect(invalidate).not.toHaveBeenCalledWith(["team", currentTeamId]);
+        }
       }
     );
   });

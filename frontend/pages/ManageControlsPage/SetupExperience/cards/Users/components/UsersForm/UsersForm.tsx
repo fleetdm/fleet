@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useQueryClient } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import configAPI from "services/entities/config";
@@ -57,6 +58,7 @@ const UsersForm = ({
     isWindowsMdmEnabledAndConfigured,
   } = useContext(AppContext);
   const gitOpsModeEnabled = !!config?.gitops.gitops_mode_enabled;
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<IUsersFormData>({
     endUserAuthEnabled: defaultIsEndUserAuthEnabled,
@@ -156,6 +158,13 @@ const UsersForm = ({
         }
       }
 
+      // Both calls above write into the app config and the fleet, which several other cards read
+      // from the same cache keys, so drop them.
+      await queryClient.invalidateQueries(["config"]);
+      if (currentTeamId !== APP_CONTEXT_NO_TEAM_ID) {
+        await queryClient.invalidateQueries(["team", currentTeamId]);
+      }
+
       notify.success("Successfully updated.");
     } catch (err) {
       notify.error("Couldn't update settings. Please try again.", {
@@ -211,9 +220,6 @@ const UsersForm = ({
                   }
                   onEnableManagedLocalAccountChange={
                     onEnableManagedLocalAccountWindowsChange
-                  }
-                  isWindowsMdmEnabledAndConfigured={
-                    !!isWindowsMdmEnabledAndConfigured
                   }
                 />
               </TabPanel>

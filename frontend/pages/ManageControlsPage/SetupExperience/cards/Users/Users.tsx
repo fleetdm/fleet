@@ -4,7 +4,7 @@ import { useQuery } from "react-query";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { IConfig, IMdmConfig } from "interfaces/config";
-import { ITeamConfig } from "interfaces/team";
+import { APP_CONTEXT_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
@@ -57,7 +57,7 @@ const getEnabledManagedLocalAccountWindows = (
   globalConfig?: IConfig,
   teamConfig?: ITeamConfig
 ): boolean => {
-  if (currentTeamId === 0) {
+  if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
     return (
       globalConfig?.mdm?.windows_settings?.managed_local_account_settings
         ?.enabled ?? false

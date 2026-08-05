@@ -2,13 +2,13 @@ import React from "react";
 
 import PATHS from "router/paths";
 
-import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import Radio from "components/forms/fields/Radio";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { EndUserLocalAccountType } from "interfaces/mdm";
 
+import ManagedAccountCheckbox from "../ManagedAccountCheckbox";
 import { IUsersFormData } from "../../UsersForm";
 
 const baseClass = "local-account-section";
@@ -107,8 +107,7 @@ const LocalAccountSection = ({
                 </fieldset>
 
                 <h3 className={`${baseClass}__sub-header`}>Managed account</h3>
-                <Checkbox
-                  className={`${baseClass}__managed-local-account`}
+                <ManagedAccountCheckbox
                   disabled={
                     gitopsEnabled ||
                     !isMacMdmEnabledAndConfigured ||
@@ -123,20 +122,7 @@ const LocalAccountSection = ({
                   }
                   value={effectiveEnableManagedLocalAccount(formData)}
                   onChange={onEnableManagedLocalAccountChange}
-                  helpText="A hidden local admin for remote troubleshooting."
-                >
-                  <TooltipWrapper
-                    tipContent={
-                      <>
-                        Fleet creates a user (_fleetadmin) and unique password
-                        for each host, accessible in{" "}
-                        <b>Host details &gt; Show managed account</b>.
-                      </>
-                    }
-                  >
-                    Create hidden admin
-                  </TooltipWrapper>
-                </Checkbox>
+                />
               </div>
             );
           }}
