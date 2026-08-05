@@ -616,9 +616,13 @@ func (ds *Datastore) SetAndroidPubSubDedupState(ctx context.Context, hostID uint
 	result, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE android_devices
 	SET last_pubsub_message_id = IF(? = '', last_pubsub_message_id, ?),
-		last_pubsub_event_time = COALESCE(?, last_pubsub_event_time)
+		last_pubsub_event_time = CASE
+			WHEN ? IS NULL THEN last_pubsub_event_time
+			WHEN last_pubsub_event_time IS NULL OR ? > last_pubsub_event_time THEN ?
+			ELSE last_pubsub_event_time
+		END
 	WHERE host_id = ?`,
-		messageID, messageID, eventTime, hostID)
+		messageID, messageID, eventTime, eventTime, eventTime, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set android pubsub dedup state")
 	}
