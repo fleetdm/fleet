@@ -4801,7 +4801,13 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 		return false, ctxerr.Wrap(ctx, err, "update declaration asset associations")
 	}
 
-	return deletedDeclarations || insertedOrUpdatedDeclarations || updatedLabels || updatedVars || updatedAssets, nil
+	updatedActivations, err := batchSetDeclarationActivationsDB(ctx, tx, incomingDeclarations, teamIDOrZero)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update declaration activations")
+	}
+
+	return deletedDeclarations || insertedOrUpdatedDeclarations || updatedLabels || updatedVars || updatedAssets ||
+		updatedActivations, nil
 }
 
 // updateDeclarationsAssetAssociations reconciles mdm_apple_declaration_asset_references
@@ -5263,7 +5269,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			return ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
 		}
 
-		if err := setMDMAppleDDMActivationDB(ctx, tx, declUUID, tmID, declaration); err != nil {
+		if _, err := setMDMAppleDDMActivationDB(ctx, tx, declUUID, tmID, declaration); err != nil {
 			return err
 		}
 
@@ -5328,17 +5334,67 @@ func setMDMAppleDeclarationAssetReferencesDB(ctx context.Context, tx sqlx.ExtCon
 	return updatedDB, nil
 }
 
+// batchSetDeclarationActivationsDB matches declarations by name because the
+// batch upsert keys on it, so an incoming declaration's UUID isn't necessarily
+// the stored one. A declaration with no activation has any stored one removed,
+// which is how dropping the activation key from GitOps YAML clears it.
+func batchSetDeclarationActivationsDB(ctx context.Context, tx sqlx.ExtContext,
+	incomingDeclarations []*fleet.MDMAppleDeclaration, teamID uint,
+) (updatedDB bool, err error) {
+	if len(incomingDeclarations) == 0 {
+		return false, nil
+	}
+
+	names := make([]string, 0, len(incomingDeclarations))
+	for _, d := range incomingDeclarations {
+		names = append(names, d.Name)
+	}
+
+	const uuidsStmt = `SELECT name, declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND name IN (?)`
+	stmt, args, err := sqlx.In(uuidsStmt, teamID, names)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "sqlx.In resolve declaration uuids")
+	}
+	var rows []struct {
+		Name            string `db:"name"`
+		DeclarationUUID string `db:"declaration_uuid"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "resolve declaration uuids")
+	}
+	uuidByName := make(map[string]string, len(rows))
+	for _, r := range rows {
+		uuidByName[r.Name] = r.DeclarationUUID
+	}
+
+	for _, d := range incomingDeclarations {
+		declUUID, ok := uuidByName[d.Name]
+		if !ok {
+			return false, ctxerr.Errorf(ctx, "declaration %q not found after upsert", d.Name)
+		}
+		updated, err := setMDMAppleDDMActivationDB(ctx, tx, declUUID, teamID, d)
+		if err != nil {
+			return false, err
+		}
+		updatedDB = updatedDB || updated
+	}
+
+	return updatedDB, nil
+}
+
 // Keyed on declaration_uuid rather than inserted fresh, so an edit keeps the
 // same activation_uuid and its variable associations survive.
 func setMDMAppleDDMActivationDB(ctx context.Context, tx sqlx.ExtContext, declUUID string, tmID uint,
 	declaration *fleet.MDMAppleDeclaration,
-) error {
+) (updatedDB bool, err error) {
 	if declaration.Activation == nil {
 		const deleteStmt = `DELETE FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
-		if _, err := tx.ExecContext(ctx, deleteStmt, declUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting declaration activation")
+		res, err := tx.ExecContext(ctx, deleteStmt, declUUID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "deleting declaration activation")
 		}
-		return nil
+		deleted, _ := res.RowsAffected()
+		return deleted > 0, nil
 	}
 
 	act := declaration.Activation
@@ -5355,11 +5411,11 @@ WHERE team_id = ? AND identifier = ? AND declaration_uuid != ?`
 	case err == nil:
 		// Not an existsError: the callers turn those into a message about the
 		// configuration profile's identifier, which isn't the one that clashed.
-		return ctxerr.Wrap(ctx, &fleet.ConflictError{
+		return false, ctxerr.Wrap(ctx, &fleet.ConflictError{
 			Message: "An activation with this identifier already exists.",
 		}, "conflicting activation identifier")
 	case !errors.Is(err, sql.ErrNoRows):
-		return ctxerr.Wrap(ctx, err, "checking for conflicting activation identifier")
+		return false, ctxerr.Wrap(ctx, err, "checking for conflicting activation identifier")
 	}
 
 	const upsertStmt = `
@@ -5384,6 +5440,15 @@ ON DUPLICATE KEY UPDATE
 	secrets_updated_at = VALUES(secrets_updated_at)
 `
 
+	// insertOnDuplicateDidInsertOrUpdate needs a LAST_INSERT_ID this table has no
+	// AUTO_INCREMENT to supply, and CLIENT_FOUND_ROWS makes RowsAffected report 1
+	// for unchanged rows. uploaded_at only advances when the content changes.
+	var prevUploadedAt sql.NullTime
+	const prevStmt = `SELECT uploaded_at FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
+	if err := sqlx.GetContext(ctx, tx, &prevUploadedAt, prevStmt, declUUID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, "reading current activation")
+	}
+
 	if _, err := tx.ExecContext(ctx, upsertStmt,
 		uuid.NewString(),
 		tmID,
@@ -5393,23 +5458,29 @@ ON DUPLICATE KEY UPDATE
 		declaration.Identifier,
 		act.SecretsUpdatedAt,
 	); err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting declaration activation")
+		return false, ctxerr.Wrap(ctx, err, "inserting declaration activation")
 	}
 
 	// On an edit the upsert keeps the existing row, so the generated UUID is unused.
-	var activationUUID string
-	const reloadStmt = `SELECT activation_uuid FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
-	if err := sqlx.GetContext(ctx, tx, &activationUUID, reloadStmt, declUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "reload declaration activation")
+	var reloaded struct {
+		ActivationUUID string    `db:"activation_uuid"`
+		UploadedAt     time.Time `db:"uploaded_at"`
 	}
+	const reloadStmt = `SELECT activation_uuid, uploaded_at FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
+	if err := sqlx.GetContext(ctx, tx, &reloaded, reloadStmt, declUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "reload declaration activation")
+	}
+	activationUUID := reloaded.ActivationUUID
+	updatedDB = !prevUploadedAt.Valid || !prevUploadedAt.Time.Equal(reloaded.UploadedAt)
 
-	if _, err := setVariableAssociationsForColumnDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+	updatedVars, err := setVariableAssociationsForColumnDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
 		{ProfileUUID: activationUUID, FleetVariables: act.FleetVariables},
-	}, "apple_ddm_activation_uuid"); err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting activation variable associations")
+	}, "apple_ddm_activation_uuid")
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "inserting activation variable associations")
 	}
 
-	return nil
+	return updatedDB || updatedVars, nil
 }
 
 func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext,
