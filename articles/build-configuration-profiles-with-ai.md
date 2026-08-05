@@ -9,7 +9,7 @@ Every one of those pickers is a GUI over a published schema. Apple's payload key
 - Fleet, with your configuration in a Git repository. An agent needs that reviewable, schema-legible structure to act against, something a GUI can't give it (see [why AI-powered device management requires GitOps](https://fleetdm.com/articles/why-ai-powered-device-management-requires-gitops)). Start with the [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files), which documents every key you can manage as code. To scaffold a new repo, run `fleetctl new`. To convert an existing Fleet instance, follow [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl).
 - An AI coding agent that can run shell commands. Claude Code, Codex, Cursor, and GitHub Copilot all work.
 - [Fleet Premium](https://fleetdm.com/pricing) if you plan to scope profiles to labels.
-- For the Apple workflow, a macOS host, since [contour](https://github.com/macadmins/contour) ships as a signed macOS package. The Windows workflow has no host requirement and runs anywhere, including in CI.
+- For the Apple workflow, a machine running macOS or Linux, since [contour](https://github.com/macadmins/contour) ships builds for those two. There's no Windows build, so author from WSL if that's your desktop, or let CI do the validating. The Windows workflow has no host requirement at all.
 
 ## Step 1: Put the schema where the agent can read it
 
@@ -43,7 +43,7 @@ This installs a Claude Code skill at `.claude/skills/contour/SKILL.md` and appen
 
 ### Windows
 
-Both Apple and Microsoft publish machine-readable schemas. The difference is packaging: contour wraps Apple's into a CLI that also generates and validates files, while Microsoft's ships as XML you read directly. Those are the DDF files, and they're the same source Intune's settings catalog and the Microsoft CSP reference pages are generated from.
+Microsoft publishes the CSP schema as XML, in the DDF files. These are the same source Intune's settings catalog and the Microsoft CSP reference pages are generated from, so they describe every setting those tools expose.
 
 There's nothing to install. Microsoft publishes a DDF page per CSP, so the agent can read the schema for the CSP it needs on demand:
 
@@ -168,21 +168,26 @@ Instructions make the agent likely to validate. CI makes it impossible to skip. 
 
 ### Apple
 
-For `.mobileconfig` profiles:
+Contour publishes a Linux build, so this runs on a standard `ubuntu-latest` runner. The schema is embedded in the binary, so validation needs no network access and no Apple credentials:
 
-```bash
-contour profile validate ./platforms/macos/configuration-profiles -r --strict
+```yaml
+- name: Validate Apple profiles
+  run: |
+    curl -fsSL -o contour.tar.gz \
+      https://github.com/macadmins/contour/releases/download/v0.4.0-beta.4/contour-0.4.0-beta.4-x86_64-unknown-linux-gnu.tar.gz
+    tar -xzf contour.tar.gz
+    ./contour profile validate ./platforms/macos/configuration-profiles -r --strict
 ```
 
-This fails on an invented payload key with exit code `1`.
+This fails on an invented payload key with exit code `1`. Pin the version in the URL rather than tracking the latest release, since contour is in preview.
 
 > **Warning:** The `--strict` flag is not the default and it is the one that matters. A typo'd key is the most likely failure mode for an agent-authored profile, it's the failure the GUI made impossible, and without `--strict` you get no signal at all.
 
-For DDM declarations, run both the schema check and the cross-reference check:
+For DDM declarations, run both the schema check and the cross-reference check in the same step, so they reuse the binary you just extracted:
 
 ```bash
-contour profile ddm validate ./platforms/macos/declaration-profiles -r
-contour profile ddm verify ./platforms/macos/declaration-profiles -r
+./contour profile ddm validate ./platforms/macos/declaration-profiles -r
+./contour profile ddm verify ./platforms/macos/declaration-profiles -r
 ```
 
 `ddm validate` catches the same class of problem as `profile validate` does for `.mobileconfig`: missing required keys, wrong types, and unknown fields, checked against the DDM JSON schemas instead of payload schemas.
@@ -227,7 +232,7 @@ missing=$(find platforms/windows/configuration-profiles -name '*.xml' \
 
 This matches on node name rather than full path, so it catches an invented or misspelled node but not a real node addressed under the wrong parent.
 
-Everything else the DDF declares, the allowed values, the format, the dependencies, and the applicability, stays a review-time check. Have the agent cite the DDF node it used in the pull request description, then read the citation against the schema in the repo. That citation is doing the same work `--strict` does on the Apple side, with you as the gate instead of an exit code.
+Everything else the DDF declares, the allowed values, the format, the dependencies, and the applicability, stays a review-time check. Have the agent cite the DDF node it used in the pull request description, then read the citation against the schema. Checking one citation is a few seconds of review, and it's what catches the value that was in range but wrong.
 
 ## Step 6: Review, then deploy
 
