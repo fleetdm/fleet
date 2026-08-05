@@ -6,11 +6,15 @@ import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import mdmAbmAPI from "services/entities/mdm_apple_bm";
 import { notify } from "components/ToastNotification";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import getErrorMessage from "./helpers";
 
 type SimpleHost = {
   id: number;
   display_name: string;
+  enrollment_status: MdmEnrollmentStatus | null;
 };
 
 export interface IReleaseFromABModalProps {
@@ -93,9 +97,19 @@ const ReleaseFromABModal = ({
       <div>
         <p>
           This removes <b>{host.display_name}</b> from your Apple Business and
-          can&apos;t be added back automatically.
+          can&apos;t be added back automatically.{" "}
+          <CustomLink
+            text="Learn More"
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/release-devices`}
+          />
         </p>
-        <p>This won&apos;t unenroll the host from Fleet.</p>
+        {host.enrollment_status === "Pending" ? (
+          <p>This will also remove the host from Fleet.</p>
+        ) : (
+          <p>This won&apos;t unenroll the host from Fleet.</p>
+        )}
+
         <div>
           <p>
             <b>Please check to confirm:</b>
