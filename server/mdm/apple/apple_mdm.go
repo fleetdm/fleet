@@ -2686,7 +2686,7 @@ func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*f
 
 		host.TargetOSVersion = latestAsset.ProductVersion
 		host.TargetDeadline = &targetDeadline
-		host.ResolvedAt = new(time.Now())
+		host.ResolvedAt = new(time.Now().UTC())
 
 		computedHosts = append(computedHosts, &fleet.ComputedAppleSoftwareUpdateHost{
 			AppleSoftwareUpdateHost: *host,

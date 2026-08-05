@@ -2388,6 +2388,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		}
 	}))
 	s.runDEPSchedule()
+	s.runAppleOSUpdatesSchedule()
 
 	// confirm that the devices were created
 	listHostsRes := listHostsResponse{}

@@ -8759,6 +8759,7 @@ func (ds *Datastore) ListAppleOSUpdateAssets(ctx context.Context) (map[string][]
 			SELECT product_version, build, posting_date, expiration_date, supported_devices, first_seen_at, updated_at
 			FROM apple_software_update_assets
 			WHERE class = ?
+			ORDER BY posting_date DESC
 		`, class); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "listing apple os update assets")
 		}

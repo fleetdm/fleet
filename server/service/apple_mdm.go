@@ -1553,10 +1553,7 @@ type notReadyYetError struct {
 }
 
 func (e notReadyYetError) Error() string {
-	if e.Message != "" {
-		return e.Message
-	}
-	return e.error.Error()
+	return e.Message
 }
 
 // replaceDeclarationFleetVariables replaces $FLEET_VAR_* placeholders in a
