@@ -5243,23 +5243,14 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			}
 		}
 
-		if assetReferences := declaration.AssetReferenceUUIDs; len(assetReferences) > 0 {
-			assetRefStmt := `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid)
-			VALUES ` + strings.Repeat("(?, ?),", len(assetReferences)-1) + "(?, ?) " + `
-			ON DUPLICATE KEY UPDATE asset_uuid = VALUES(asset_uuid)`
-
-			assetRefArgs := make([]any, 0, len(assetReferences)*2)
-			for _, assetRef := range assetReferences {
-				assetRefArgs = append(assetRefArgs, declUUID, assetRef)
-			}
-
-			if _, err := tx.ExecContext(ctx, assetRefStmt, assetRefArgs...); err != nil {
-				return ctxerr.Wrap(ctx, err, "inserting apple mdm declaration asset references")
-			}
-		}
-
+		// An upsert keeps the existing row's UUID, so everything keyed on the
+		// declaration must use the reloaded UUID, not the one generated above.
 		if err := sqlx.GetContext(ctx, tx, &declUUID, reloadStmt, declaration.Name, tmID); err != nil {
 			return ctxerr.Wrap(ctx, err, "reload apple mdm declaration")
+		}
+
+		if err := setMDMAppleDeclarationAssetReferencesDB(ctx, tx, declUUID, declaration.AssetReferenceUUIDs); err != nil {
+			return err
 		}
 
 		labels := make([]fleet.ConfigurationProfileLabel, 0,
@@ -5319,6 +5310,42 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 	declaration.DeclarationUUID = declUUID
 	return declaration, nil
+}
+
+// setMDMAppleDeclarationAssetReferencesDB reconciles the asset references of a
+// single declaration against the incoming set, so an edit that drops an asset
+// doesn't leave the old reference behind. The declaration UUID must be the one
+// stored in mdm_apple_declarations (an upsert keeps the pre-existing UUID).
+func setMDMAppleDeclarationAssetReferencesDB(ctx context.Context, tx sqlx.ExtContext, declUUID string, assetRefs []string) error {
+	delStmt := `DELETE FROM mdm_apple_declaration_asset_references WHERE declaration_uuid = ?`
+	delArgs := []any{declUUID}
+	if len(assetRefs) > 0 {
+		var err error
+		delStmt, delArgs, err = sqlx.In(`DELETE FROM mdm_apple_declaration_asset_references
+			WHERE declaration_uuid = ? AND asset_uuid NOT IN (?)`, declUUID, assetRefs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building delete stale apple mdm declaration asset references query")
+		}
+	}
+	if _, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting stale apple mdm declaration asset references")
+	}
+
+	if len(assetRefs) == 0 {
+		return nil
+	}
+
+	insStmt := `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid) VALUES ` +
+		strings.Repeat("(?, ?),", len(assetRefs)-1) + "(?, ?) ON DUPLICATE KEY UPDATE asset_uuid = VALUES(asset_uuid)"
+	insArgs := make([]any, 0, len(assetRefs)*2)
+	for _, ref := range assetRefs {
+		insArgs = append(insArgs, declUUID, ref)
+	}
+	if _, err := tx.ExecContext(ctx, insStmt, insArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting apple mdm declaration asset references")
+	}
+
+	return nil
 }
 
 // Keyed on declaration_uuid rather than inserted fresh, so an edit keeps the
