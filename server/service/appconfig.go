@@ -30,6 +30,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"golang.org/x/text/unicode/norm"
 )
@@ -281,6 +282,23 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	// consumes the result of AppConfigObfuscated — they all re-fetch via
 	// svc.ds.AppConfig directly.
 	ac.OrgInfo.AbsolutizeLogoURLs(ac.ServerSettings.ServerURL)
+
+	// The Windows enrollment default fleet's source of truth is GetWindowsEnrollmentDefaultFleet (also cached), so hydrate the
+	// response from it when it disagrees with the name stored in the app config JSON.
+	winDefaultTeamID, winDefaultFleetName, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
+	}
+	winStoredName := ""
+	if ac.MDM.WindowsEnrollment.Set && ac.MDM.WindowsEnrollment.Valid {
+		winStoredName = ac.MDM.WindowsEnrollment.Value.DefaultFleet
+	}
+	if winDefaultTeamID != nil || winStoredName != winDefaultFleetName {
+		ac.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
+			Set: true, Valid: true,
+			Value: fleet.WindowsEnrollment{DefaultFleet: winDefaultFleetName},
+		}
+	}
 
 	ac.Obfuscate()
 
@@ -1021,8 +1039,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	windowsEnrollmentDefined, windowsEnrollmentTeamID, windowsEnrollmentFleetName, err := svc.validateWindowsEnrollment(ctx, &newAppConfig.MDM, invalid, lic)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating windows enrollment default fleet")
+	}
+
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// Normalize the stored JSON to the canonical fleet name when one was resolved.
+	if windowsEnrollmentDefined && windowsEnrollmentFleetName != "" {
+		appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
+			Set: true, Valid: true,
+			Value: fleet.WindowsEnrollment{DefaultFleet: windowsEnrollmentFleetName},
+		}
+	} else if appConfig.MDM.WindowsEnrollment.Set && !appConfig.MDM.WindowsEnrollment.Valid {
+		// A null windows_enrollment keeps the persisted setting (validateWindowsEnrollment treated it as omitted), so restore the stored value.
+		appConfig.MDM.WindowsEnrollment = oldAppConfig.MDM.WindowsEnrollment
 	}
 
 	// ignore MDM.EnabledAndConfigured MDM.AppleBMTermsExpired, and MDM.AppleBMEnabledAndConfigured
@@ -1298,6 +1332,30 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Persist the Windows enrollment default fleet to its config row and log the change.
+	if windowsEnrollmentDefined {
+		oldWindowsEnrollmentTeamID, _, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get current windows enrollment default fleet")
+		}
+		if !ptr.Equal(oldWindowsEnrollmentTeamID, windowsEnrollmentTeamID) {
+			if err := svc.ds.SetWindowsEnrollmentDefaultFleet(ctx, windowsEnrollmentTeamID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving windows enrollment default fleet")
+			}
+			var fleetName *string
+			if windowsEnrollmentTeamID != nil {
+				fleetName = &windowsEnrollmentFleetName
+			}
+			act := fleet.ActivityTypeEditedWindowsEnrollmentDefaultFleet{
+				FleetID:   windowsEnrollmentTeamID,
+				FleetName: fleetName,
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for edited windows enrollment default fleet")
+			}
+		}
+	}
+
 	// only create activities when config change has been persisted
 
 	switch {
@@ -1416,11 +1474,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	obfuscatedAppConfig.Obfuscate()
 
-	// if the agent options changed, create the corresponding activity
 	newAgentOptions := ""
 	if obfuscatedAppConfig.AgentOptions != nil {
 		newAgentOptions = string(*obfuscatedAppConfig.AgentOptions)
 	}
+
+	if err := svc.processSavedAppConfigChanges(ctx, oldAppConfig, appConfig, lic, oldAgentOptions, newAgentOptions,
+		conditionalAccessNoTeamUpdated); err != nil {
+		return nil, err
+	}
+
+	return obfuscatedAppConfig, nil
+}
+
+// processSavedAppConfigChanges runs the side effects of a completed app config change: it creates the activities for the settings
+// that were modified and reconciles the downstream state that depends on them (OS updates, disk encryption, DEP profiles, host
+// name templates, Windows MDM profile cleanup). It runs after SaveAppConfig has committed, so returning an error here leaves the
+// new configuration persisted.
+func (svc *Service) processSavedAppConfigChanges(
+	ctx context.Context,
+	oldAppConfig, appConfig *fleet.AppConfig,
+	lic *fleet.LicenseInfo,
+	oldAgentOptions, newAgentOptions string,
+	conditionalAccessNoTeamUpdated bool,
+) error {
+	// if the agent options changed, create the corresponding activity
 	if oldAgentOptions != newAgentOptions {
 		if err := svc.NewActivity(
 			ctx,
@@ -1429,7 +1507,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				Global: true,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config agent options modification")
+			return ctxerr.Wrap(ctx, err, "create activity for app config agent options modification")
 		}
 	}
 
@@ -1440,24 +1518,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		oldAppConfig.MDM.MacOSUpdates,
 		appConfig.MDM.MacOSUpdates,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "process macOS OS updates config change")
+		return ctxerr.Wrap(ctx, err, "process macOS OS updates config change")
 	}
 	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.IOS,
 		oldAppConfig.MDM.IOSUpdates,
 		appConfig.MDM.IOSUpdates,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "process iOS OS updates config change")
+		return ctxerr.Wrap(ctx, err, "process iOS OS updates config change")
 	}
 	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.IPadOS,
 		oldAppConfig.MDM.IPadOSUpdates,
 		appConfig.MDM.IPadOSUpdates,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "process iPadOS OS updates config change")
+		return ctxerr.Wrap(ctx, err, "process iPadOS OS updates config change")
 	}
 
 	if appConfig.YaraRules != nil {
 		if err := svc.ds.ApplyYaraRules(ctx, appConfig.YaraRules); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "save yara rules for app config")
+			return ctxerr.Wrap(ctx, err, "save yara rules for app config")
 		}
 	}
 
@@ -1474,10 +1552,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 		if deadline != nil {
 			if err := svc.EnterpriseOverrides.MDMWindowsEnableOSUpdates(ctx, nil, appConfig.MDM.WindowsUpdates); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "enable no-team windows OS updates")
+				return ctxerr.Wrap(ctx, err, "enable no-team windows OS updates")
 			}
 		} else if err := svc.EnterpriseOverrides.MDMWindowsDisableOSUpdates(ctx, nil); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "disable no-team windows OS updates")
+			return ctxerr.Wrap(ctx, err, "disable no-team windows OS updates")
 		}
 
 		if err := svc.NewActivity(
@@ -1488,7 +1566,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				GracePeriodDays: grace,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
+			return ctxerr.Wrap(ctx, err, "create activity for app config windows updates modification")
 		}
 	}
 
@@ -1498,16 +1576,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			if appConfig.MDM.EnableDiskEncryption.Value {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
 				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
+					return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
 				}
 			} else {
 				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
 				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
+					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
+				return ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
 		}
 	}
@@ -1520,7 +1598,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// inert because the enforcement cron skips an empty template.
 	if lic.IsPremium() && oldAppConfig.MDM.HostNameTemplate.Value != appConfig.MDM.HostNameTemplate.Value {
 		if err := svc.EnterpriseOverrides.ApplyHostNameTemplateChange(ctx, nil, appConfig.MDM.HostNameTemplate.Value); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "reconcile no-team host name template")
+			return ctxerr.Wrap(ctx, err, "reconcile no-team host name template")
 		}
 	}
 
@@ -1534,7 +1612,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				act = fleet.ActivityTypeDisabledRecoveryLockPasswords{}
 			}
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for app config recovery lock password")
+				return ctxerr.Wrap(ctx, err, "create activity for app config recovery lock password")
 			}
 		}
 	}
@@ -1548,7 +1626,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
+			return ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
 		}
 	}
 
@@ -1560,7 +1638,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "darwin"}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+			return ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
 		}
 	}
 
@@ -1572,7 +1650,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "windows"}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for windows enable managed local account change")
+			return ctxerr.Wrap(ctx, err, "create activity for windows enable managed local account change")
 		}
 	}
 
@@ -1584,25 +1662,25 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if appleMDMUrlChanged && appConfig.MDM.AppleServerURL != "" {
 		parsedURL, err := url.Parse(appConfig.MDM.AppleServerURL)
 		if err != nil {
-			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must be a valid URL")
+			return fleet.NewInvalidArgumentError("mdmAppleServerURL", "must be a valid URL")
 		}
 		scheme := strings.ToLower(parsedURL.Scheme)
 		if scheme == "" {
-			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a URL scheme (e.g. https://)")
+			return fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a URL scheme (e.g. https://)")
 		}
 
 		if scheme != "http" && scheme != "https" {
-			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "URL scheme must be http or https")
+			return fleet.NewInvalidArgumentError("mdmAppleServerURL", "URL scheme must be http or https")
 		}
 
 		if parsedURL.Hostname() == "" {
-			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a host")
+			return fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a host")
 		}
 	}
 
 	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && lic.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
+			return ctxerr.Wrap(ctx, err, "sync DEP profiles")
 		}
 	}
 
@@ -1616,11 +1694,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 			// Clean up all pending Windows MDM profile rows since hosts can no longer receive MDM commands.
 			if err := svc.ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows"); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles")
+				return ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles")
 			}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+			return ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
 	}
 
@@ -1632,7 +1710,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			act = fleet.ActivityTypeDisabledWindowsMDMMigration{}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+			return ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
 	}
 
@@ -1647,7 +1725,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 					TeamName: "",
 				},
 			); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
+				return ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
 			}
 		} else {
 			if err := svc.NewActivity(
@@ -1658,7 +1736,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 					TeamName: "",
 				},
 			); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for disabling conditional access")
+				return ctxerr.Wrap(ctx, err, "create activity for disabling conditional access")
 			}
 		}
 	}
@@ -1688,7 +1766,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeAddedConditionalAccessOkta{},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for adding/editing Okta conditional access")
+			return ctxerr.Wrap(ctx, err, "create activity for adding/editing Okta conditional access")
 		}
 	} else if oldOktaConfigured && !newOktaConfigured {
 		// Okta configuration was deleted
@@ -1697,13 +1775,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedConditionalAccessOkta{},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for deleting Okta conditional access")
+			return ctxerr.Wrap(ctx, err, "create activity for deleting Okta conditional access")
 		}
 	}
 
 	if oktaBypassChanged {
 		if err := svc.ds.ConditionalAccessClearBypasses(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "clearing existing conditional access bypasses")
+			return ctxerr.Wrap(ctx, err, "clearing existing conditional access bypasses")
 		}
 
 		if err := svc.NewActivity(
@@ -1713,11 +1791,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				BypassDisabled: appConfig.ConditionalAccess.BypassDisabled.Value,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for updating conditional access bypass")
+			return ctxerr.Wrap(ctx, err, "create activity for updating conditional access bypass")
 		}
 	}
 
-	return obfuscatedAppConfig, nil
+	return nil
 }
 
 func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.LicenseInfo) *fleet.InvalidArgumentError {
@@ -2275,6 +2353,52 @@ func (svc *Service) validateMDM(
 	}
 
 	return nil
+}
+
+// validateWindowsEnrollment validates the mdm.windows_enrollment section of a config modify payload and resolves its default
+// fleet name to a team id. Returns defined=false when the section was omitted (no-op). When defined, teamID is the resolved team
+// id (nil to clear) and fleetName is the canonical team name (empty when clearing).
+func (svc *Service) validateWindowsEnrollment(
+	ctx context.Context,
+	newMDM *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+	lic *fleet.LicenseInfo,
+) (defined bool, teamID *uint, fleetName string, err error) {
+	if !newMDM.WindowsEnrollment.Set || !newMDM.WindowsEnrollment.Valid {
+		// Omitted key or explicit null: keep the persisted setting (same convention as
+		// enable_disk_encryption). Only an object clears or changes it.
+		return false, nil, "", nil
+	}
+
+	name := newMDM.WindowsEnrollment.Value.DefaultFleet
+	if name == "" {
+		// Explicitly clearing the default; allowed on any tier.
+		return true, nil, "", nil
+	}
+
+	if lic == nil || !lic.IsPremium() {
+		// Tolerate an unchanged value re-sent without Premium (e.g. gitops re-applying exported config after a license downgrade); only
+		// reject attempts to change it.
+		curTeamID, curName, dsErr := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
+		if dsErr != nil {
+			return true, nil, "", ctxerr.Wrap(ctx, dsErr, "get current windows enrollment default fleet")
+		}
+		if name == curName {
+			return true, curTeamID, curName, nil
+		}
+		invalid.Append("mdm.windows_enrollment.default_fleet", ErrMissingLicense.Error())
+		return true, nil, "", nil
+	}
+
+	tm, err := svc.ds.TeamByName(ctx, name)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			invalid.Append("mdm.windows_enrollment.default_fleet", fmt.Sprintf("fleet %q doesn't exist", name))
+			return true, nil, "", nil
+		}
+		return true, nil, "", ctxerr.Wrap(ctx, err, "get team by name for windows enrollment default fleet")
+	}
+	return true, &tm.ID, tm.Name, nil
 }
 
 func (svc *Service) validateABMAssignments(

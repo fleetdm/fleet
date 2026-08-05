@@ -1045,7 +1045,7 @@ func (h *Host) IsLUKSSupported() bool {
 	return h.Platform == "ubuntu" || h.Platform == "zorin" ||
 		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
 		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm" ||
-		h.Platform == "cachyos"
+		h.Platform == "cachyos" || h.Platform == "omarchy"
 }
 
 // IsAppleSilicon returns true if the host is a macOS device with an ARM CPU (Apple Silicon).
@@ -1268,6 +1268,7 @@ var HostLinuxOSs = []string{
 	"flatcar",
 	"coreos",
 	"cachyos",
+	"omarchy",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1283,6 +1284,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"flatcar":     {},
 	"coreos":      {},
 	"cachyos":     {},
+	"omarchy":     {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
@@ -1328,6 +1330,10 @@ func IsAppleMobilePlatform(hostPlatform string) bool {
 
 func IsAndroidPlatform(hostPlatform string) bool {
 	return hostPlatform == "android"
+}
+
+func IsWindowsPlatform(hostPlatform string) bool {
+	return hostPlatform == "windows"
 }
 
 func IsUnixLike(hostPlatform string) bool {
@@ -1816,6 +1822,7 @@ type HostLite struct {
 	UUID                string    `db:"uuid"`
 	HardwareModel       string    `db:"hardware_model"`
 	HardwareSerial      string    `db:"hardware_serial"`
+	CreatedAt           time.Time `db:"created_at"`
 	SeenTime            time.Time `db:"seen_time"`
 	DistributedInterval uint      `db:"distributed_interval"`
 	ConfigTLSRefresh    uint      `db:"config_tls_refresh"`
@@ -1989,6 +1996,9 @@ type DeletedHostDetails struct {
 // HostMDMManagedLocalAccount represents the managed local account status for a host.
 type HostMDMManagedLocalAccount struct {
 	Status *string `json:"status" db:"-" csv:"-"` // nil (no record), "pending", "verified", "failed"
+	// Detail carries the device-reported reason the account could not be created, for accounts created by fleetd
+	// (Windows). Empty for macOS accounts, which are configured by an MDM command instead.
+	Detail string `json:"detail" db:"-" csv:"-"`
 	// PasswordAvailable is true whenever the row holds a usable password — i.e.
 	// encrypted_password IS NOT NULL AND status != 'failed'. This decouples
 	// availability from the rotation lifecycle ("pending" is also viewable).

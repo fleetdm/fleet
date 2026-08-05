@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "9.00.8031.500",
+      "version": "9.10.8166.500",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'CodeMeter Runtime Kit %' AND publisher = 'WIBU-SYSTEMS AG';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CodeMeter Runtime Kit %' AND publisher = 'WIBU-SYSTEMS AG' AND version_compare(version, '9.00.8031.500') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CodeMeter Runtime Kit %' AND publisher = 'WIBU-SYSTEMS AG' AND version_compare(version, '9.10.8166.500') < 0);"
       },
-      "installer_url": "https://www.wibu.com/support/user/user-software/file/download/17494.html?tx_wibudownloads_downloadlist[directDownload]=directDownload&cHash=8dba7ab094dec6267346f04fce2a2bcd",
+      "installer_url": "https://www.wibu.com/support/user/user-software/file/download/17996.html?tx_wibudownloads_downloadlist[directDownload]=directDownload&cHash=8dba7ab094dec6267346f04fce2a2bcd",
       "install_script_ref": "38648522",
       "uninstall_script_ref": "a7d5d2cd",
-      "sha256": "7c917247a0de81bbfa5b4c155467a884d3b7a6c672315a0f33f5d4f8a93a3030",
+      "sha256": "6361058b5399018db54fdb5cc15d993f2bc2cdd0f1e366fe1252fd93e236ce7d",
       "default_categories": [
         "Utilities"
       ]

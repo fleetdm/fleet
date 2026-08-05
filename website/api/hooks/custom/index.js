@@ -402,6 +402,7 @@ will be disabled and/or hidden in the UI.
                       eventType: 'Website page view',
                       websiteVisitReason: websiteVisitReason,
                       relatedCampaign: recordDetails.mostRecentCampaign,
+                      eventSource: 'Website - Sign up',
                     }).intercept((err)=>{
                       return new Error(`Could not create new Fleet website page view record. Error: ${err}`);
                     });

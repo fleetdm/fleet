@@ -744,6 +744,10 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		verified := string(fleet.MDMDeliveryVerified)
+		return &fleet.HostMDMManagedLocalAccount{Status: &verified, PasswordAvailable: true}, nil
+	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
@@ -779,6 +783,12 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 	require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionVerified, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
+
+	// The Windows host-detail path surfaces the managed local account status.
+	require.True(t, ds.GetHostManagedLocalAccountStatusFuncInvoked)
+	require.NotNil(t, hostDetail.MDM.OSSettings.ManagedLocalAccount.Status)
+	require.Equal(t, string(fleet.MDMDeliveryVerified), *hostDetail.MDM.OSSettings.ManagedLocalAccount.Status)
+	require.True(t, hostDetail.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
 }
 
 func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {

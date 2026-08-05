@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.38",
+      "version": "1.38.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apphousekitchen.aldente-pro';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apphousekitchen.aldente-pro' AND version_compare(bundle_short_version, '1.38') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apphousekitchen.aldente-pro' AND version_compare(bundle_short_version, '1.38.1') < 0);"
       },
-      "installer_url": "https://apphousekitchen.com/aldente/AlDente1.38.dmg",
+      "installer_url": "https://apphousekitchen.com/aldente/AlDente1.38.1.dmg",
       "install_script_ref": "cb72fdf2",
       "uninstall_script_ref": "c2d64a5f",
-      "sha256": "5e079f1ce5614a76cf4fab6cc7d1b40cc95dc63e5ab217a777602bf2d5cce9e7",
+      "sha256": "1ac545c21bb001d0efaa135add62a881b8320cffac3ce9e86911176bf30498d2",
       "default_categories": [
         "Utilities"
       ]

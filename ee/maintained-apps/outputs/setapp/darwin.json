@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.54.0",
+      "version": "3.54.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent' AND version_compare(bundle_short_version, '3.54.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent' AND version_compare(bundle_short_version, '3.54.1') < 0);"
       },
-      "installer_url": "https://dl.devmate.com/com.setapp.DesktopClient/153/1784621405/Setapp-153.zip",
+      "installer_url": "https://dl.devmate.com/com.setapp.DesktopClient/154/1785484295/Setapp-154.zip",
       "install_script_ref": "eb0dc2d0",
       "uninstall_script_ref": "9ef05eb6",
-      "sha256": "3b8579b2ccc7f0a3bab102fca3417dfca9f243d1ac5dbc08fb60e85b3796f124",
+      "sha256": "356afe716fd432db41809dfaa9fb52b5d81666d1aeeb9fa061953860d952504c",
       "default_categories": [
         "Productivity"
       ]

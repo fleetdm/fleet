@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.3.3",
+      "version": "2.3.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dot.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dot.app' AND version_compare(bundle_short_version, '2.3.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dot.app' AND version_compare(bundle_short_version, '2.3.4') < 0);"
       },
-      "installer_url": "https://github.com/prateekkeshari/dot-releases/releases/download/v2.3.3/Dot-2.3.3.dmg",
+      "installer_url": "https://github.com/prateekkeshari/dot-releases/releases/download/v2.3.4/Dot-2.3.4.dmg",
       "install_script_ref": "d7062e7b",
       "uninstall_script_ref": "daceba70",
-      "sha256": "4ce5fd781b447c33982548aac2a936f40de405b495204f49e605e335211ed475",
+      "sha256": "f969a9714f051b659f52de42d4cb6b8cf9a7bac016f75d1108866972e718e047",
       "default_categories": [
         "Communication"
       ]

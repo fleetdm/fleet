@@ -22,6 +22,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -731,6 +732,30 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
+
+	// Omarchy reports its own platform and a versioned BUILD_ID. Unlike the OS
+	// inventory row, the host keeps the distro name and its real version.
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "omarchy-host",
+    "arch": "x86_64",
+    "build": "4.0.0",
+    "codename": "",
+    "major": "4",
+    "minor": "0",
+    "name": "Omarchy",
+    "patch": "0",
+    "platform": "omarchy",
+    "platform_like": "arch",
+    "version": "4.0.0"
+}]`),
+		&rows,
+	))
+
+	require.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
+	require.Equal(t, "Omarchy 4.0.0", host.OSVersion)
+	require.Equal(t, "omarchy", host.Platform)
+	require.Equal(t, "arch", host.PlatformLike)
 
 	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
@@ -1774,6 +1799,29 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				KernelVersion: "6.16.3-2-cachyos",
 			},
 		},
+		{
+			// Omarchy is an Arch-based rolling-release distribution. Unlike CachyOS it
+			// reports a versioned BUILD_ID rather than "rolling", so it should still
+			// aggregate onto the "Arch Linux" row with a "rolling" version.
+			data: []map[string]string{
+				{
+					"name":           "Omarchy",
+					"version":        "4.0.0",
+					"major":          "4",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "4.0.0",
+					"arch":           "x86_64",
+					"kernel_version": "6.16.3-arch1-1",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "rolling",
+				Arch:          "x86_64",
+				KernelVersion: "6.16.3-arch1-1",
+			},
+		},
 	} {
 		t.Run(tc.expected.Name, func(t *testing.T) {
 			ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
@@ -2736,6 +2784,9 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	}
 	ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
 		return nil
+	}
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		return nil, "", nil
 	}
 
 	baseEnrolledDeviceToReturn := fleet.MDMWindowsEnrolledDevice{
@@ -4533,5 +4584,90 @@ func TestRpmLastOpenedAt(t *testing.T) {
 		if software["name"] == "zlib" {
 			assert.Equal(t, "", software["last_opened_at"])
 		}
+	}
+}
+
+func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	defaultTeamID := uint(7)
+	enrollmentCreatedAt := time.Now().UTC()
+
+	userDrivenDevice := &fleet.MDMWindowsEnrolledDevice{
+		ID:              1,
+		MDMDeviceID:     "device-1",
+		MDMEnrollUserID: "user@example.com",
+		CreatedAt:       enrollmentCreatedAt,
+	}
+
+	testCases := []struct {
+		name           string
+		defaultTeamID  *uint
+		hostTeamID     *uint
+		hostCreatedAt  time.Time
+		expectTransfer bool
+	}{
+		{
+			name:           "no default fleet configured",
+			defaultTeamID:  nil,
+			hostCreatedAt:  enrollmentCreatedAt.Add(2 * time.Minute),
+			expectTransfer: false,
+		},
+		{
+			name:           "new host gets the default fleet",
+			defaultTeamID:  &defaultTeamID,
+			hostCreatedAt:  enrollmentCreatedAt.Add(2 * time.Minute),
+			expectTransfer: true,
+		},
+		{
+			name:           "host created at the same time as the enrollment gets the default fleet",
+			defaultTeamID:  &defaultTeamID,
+			hostCreatedAt:  enrollmentCreatedAt,
+			expectTransfer: true,
+		},
+		{
+			name:           "host created before the enrollment (incl. parked Unassigned) stays put",
+			defaultTeamID:  &defaultTeamID,
+			hostCreatedAt:  enrollmentCreatedAt.Add(-time.Minute),
+			expectTransfer: false,
+		},
+		{
+			name:           "host already on a fleet stays put",
+			defaultTeamID:  &defaultTeamID,
+			hostTeamID:     new(uint(3)),
+			hostCreatedAt:  enrollmentCreatedAt.Add(2 * time.Minute),
+			expectTransfer: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return tc.defaultTeamID, "Workstations", nil
+			}
+			ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+				require.True(t, ctxdb.IsPrimaryRequired(ctx), "host read must hit the primary (read-after-write with orbit enroll)")
+				return &fleet.HostLite{ID: id, TeamID: tc.hostTeamID, CreatedAt: tc.hostCreatedAt}, nil
+			}
+			ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+				require.NotNil(t, params.TeamID)
+				require.Equal(t, defaultTeamID, *params.TeamID)
+				require.Equal(t, []uint{42}, params.HostIDs)
+				return nil
+			}
+			ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
+				require.Equal(t, []uint{42}, hostIDs)
+				return fleet.MDMProfilesUpdates{}, nil
+			}
+
+			err := maybeAssignWindowsEnrollmentDefaultFleet(ctx, logger, ds, 42, userDrivenDevice)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectTransfer, ds.AddHostsToTeamFuncInvoked)
+			require.Equal(t, tc.expectTransfer, ds.BulkSetPendingMDMHostProfilesFuncInvoked)
+			if tc.defaultTeamID == nil {
+				require.False(t, ds.HostLiteByIDFuncInvoked, "no host lookup needed when no default is configured")
+			}
+		})
 	}
 }
