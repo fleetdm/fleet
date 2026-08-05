@@ -130,6 +130,33 @@ describe("TableContainer - server-side empty page", () => {
     expect(requestedPageIndexes).not.toContain(0);
   });
 
+  // Regression: refetching from a previously empty state (e.g. typing another
+  // character into a search that already returned zero results, with
+  // keepPreviousData holding the empty result) must show a spinner rather
+  // than fall through to the headers-only DataTable stretched by the no-rows
+  // min-height. #49442
+  it("shows a spinner (not the empty component or a stretched DataTable) while refetching an empty result set", async () => {
+    render(
+      <TableContainer
+        columnConfigs={COLUMN_CONFIGS}
+        data={[]}
+        isLoading
+        emptyComponent={EmptyComponent}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        pageIndex={0}
+        totalCount={0}
+        defaultSortHeader="name"
+      />
+    );
+
+    // Spinner has a 250ms visibility delay to avoid flashes; wait for it.
+    expect(await screen.findByTestId("spinner")).toBeInTheDocument();
+    expect(screen.queryByText("No items found")).not.toBeInTheDocument();
+    // No DataTable — so no column headers rendered either.
+    expect(screen.queryByText("Name")).not.toBeInTheDocument();
+  });
+
   // Regression: entering an out-of-range page via the URL must settle on the
   // last page with data without looping.
   it("settles on the last page with data when entered on an out-of-range page", async () => {

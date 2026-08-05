@@ -1,0 +1,1 @@
+* Fixed the software table on the My device page showing headers-only stretched cells (instead of an empty state) while a follow-up search refetched from an already-empty result set.
