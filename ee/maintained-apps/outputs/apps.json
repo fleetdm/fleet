@@ -8430,6 +8430,13 @@
       "description": "TeaCode is a text expanding app for developers."
     },
     {
+      "name": "TeamViewer Host",
+      "slug": "teamviewer-host/windows",
+      "platform": "windows",
+      "unique_identifier": "TeamViewer Host",
+      "description": "TeamViewer Host is a remote access agent for unattended 24/7 access to a device, for uses such as remote device monitoring and server maintenance."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
