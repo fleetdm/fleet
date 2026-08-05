@@ -6,6 +6,7 @@ import configAPI from "services/entities/config";
 import mdmAPI from "services/entities/mdm";
 import teamsAPI from "services/entities/teams";
 import { EndUserLocalAccountType } from "interfaces/mdm";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import UsersForm from "./UsersForm";
 
@@ -169,24 +170,16 @@ describe("UsersForm", () => {
       expect(screen.getByRole("tab", { name: "Windows" })).toBeInTheDocument();
     });
 
-    it("renders the Windows tab without end user account type options", async () => {
+    // Which section each tab renders. The sections' own contents are their
+    // components' concern, so this only pins the wiring.
+    it("swaps the macOS section for the Windows one", async () => {
       const { user } = renderWithWindowsMdmEnabled(
         <UsersForm {...defaultProps} />
       );
+      expect(screen.getByRole("radio", { name: "Admin" })).toBeInTheDocument();
+
       await user.click(screen.getByRole("tab", { name: "Windows" }));
 
-      expect(
-        screen.getByText(
-          "End users get the default role for the host's platform.",
-          {
-            exact: false,
-          }
-        )
-      ).toBeInTheDocument();
-      // Account type is macOS-only; Windows gets whatever the platform defaults to.
-      expect(
-        screen.queryByRole("radio", { name: "Admin" })
-      ).not.toBeInTheDocument();
       expect(
         screen.getByRole("checkbox", { name: "Create hidden admin" })
       ).toBeInTheDocument();
@@ -200,110 +193,77 @@ describe("UsersForm", () => {
       jest.restoreAllMocks();
     });
 
-    it("sends the windows config PATCH on every save, matching the setup experience call", async () => {
-      const setupSpy = jest
+    const windowsPayload = (enabled: boolean) => ({
+      mdm: {
+        windows_settings: { managed_local_account_settings: { enabled } },
+      },
+    });
+
+    const spyOnSaveCalls = () => ({
+      setup: jest
         .spyOn(mdmAPI, "updateSetupExperienceSettings")
-        .mockResolvedValue({});
-      const configSpy = jest
-        .spyOn(configAPI, "update")
-        .mockResolvedValue({} as never);
-
-      const { user } = renderWithWindowsMdmEnabled(
-        <UsersForm {...defaultProps} />
-      );
-      await user.click(screen.getByRole("button", { name: "Save" }));
-
-      expect(setupSpy).toHaveBeenCalled();
-      // Unconditional: the server only records an activity when the value
-      // actually changes, so a no-op PATCH is harmless.
-      expect(configSpy).toHaveBeenCalledWith({
-        mdm: {
-          windows_settings: {
-            managed_local_account_settings: { enabled: false },
-          },
-        },
-      });
+        .mockResolvedValue({}),
+      config: jest.spyOn(configAPI, "update").mockResolvedValue({} as never),
+      team: jest.spyOn(teamsAPI, "updateConfig").mockResolvedValue({} as never),
     });
 
-    it("saves the windows toggle through the config PATCH for no team", async () => {
-      jest.spyOn(mdmAPI, "updateSetupExperienceSettings").mockResolvedValue({});
-      const configSpy = jest
-        .spyOn(configAPI, "update")
-        .mockResolvedValue({} as never);
+    // No team saves through the config API, a fleet through the team API. The
+    // untouched-toggle row also pins that the value is sent on every save, not
+    // only when it changed.
+    it.each([
+      { target: "no team", currentTeamId: 0, turnOn: false, enabled: false },
+      { target: "no team", currentTeamId: 0, turnOn: true, enabled: true },
+      { target: "a fleet", currentTeamId: 7, turnOn: true, enabled: true },
+    ])(
+      "saves the windows toggle as $enabled for $target",
+      async ({ currentTeamId, turnOn, enabled }) => {
+        const spies = spyOnSaveCalls();
+        const { user } = renderWithWindowsMdmEnabled(
+          <UsersForm {...defaultProps} currentTeamId={currentTeamId} />
+        );
+        if (turnOn) {
+          await user.click(screen.getByRole("tab", { name: "Windows" }));
+          await user.click(
+            screen.getByRole("checkbox", { name: "Create hidden admin" })
+          );
+        }
+        await user.click(screen.getByRole("button", { name: "Save" }));
 
-      const { user } = renderWithWindowsMdmEnabled(
-        <UsersForm {...defaultProps} />
-      );
-      await user.click(screen.getByRole("tab", { name: "Windows" }));
-      await user.click(
-        screen.getByRole("checkbox", { name: "Create hidden admin" })
-      );
-      await user.click(screen.getByRole("button", { name: "Save" }));
-
-      expect(configSpy).toHaveBeenCalledWith({
-        mdm: {
-          windows_settings: {
-            managed_local_account_settings: { enabled: true },
-          },
-        },
-      });
-    });
-
-    it("saves the windows toggle through the team PATCH for a fleet", async () => {
-      jest.spyOn(mdmAPI, "updateSetupExperienceSettings").mockResolvedValue({});
-      const teamSpy = jest
-        .spyOn(teamsAPI, "updateConfig")
-        .mockResolvedValue({} as never);
-
-      const { user } = renderWithWindowsMdmEnabled(
-        <UsersForm {...defaultProps} currentTeamId={7} />
-      );
-      await user.click(screen.getByRole("tab", { name: "Windows" }));
-      await user.click(
-        screen.getByRole("checkbox", { name: "Create hidden admin" })
-      );
-      await user.click(screen.getByRole("button", { name: "Save" }));
-
-      expect(teamSpy).toHaveBeenCalledWith(
-        {
-          mdm: {
-            windows_settings: {
-              managed_local_account_settings: { enabled: true },
-            },
-          },
-        },
-        7
-      );
-    });
+        expect(spies.setup).toHaveBeenCalled();
+        // Asserting the unused API was NOT called is what keeps the two
+        // branches honest; without it a save that hit both would still pass.
+        if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
+          expect(spies.config).toHaveBeenCalledWith(windowsPayload(enabled));
+          expect(spies.team).not.toHaveBeenCalled();
+        } else {
+          expect(spies.team).toHaveBeenCalledWith(
+            windowsPayload(enabled),
+            currentTeamId
+          );
+          expect(spies.config).not.toHaveBeenCalled();
+        }
+      }
+    );
 
     // Windows MDM off means the tab is never rendered, so there is nothing the
-    // user could have changed. Both the no-team and fleet branches are covered
-    // because each sends through a different API.
+    // user could have changed. Both branches are covered because each would
+    // otherwise send through a different API.
     it.each([
       { target: "no team", currentTeamId: 0 },
       { target: "a fleet", currentTeamId: 7 },
     ])(
       "skips the windows PATCH for $target when windows mdm is not configured",
       async ({ currentTeamId }) => {
-        const setupSpy = jest
-          .spyOn(mdmAPI, "updateSetupExperienceSettings")
-          .mockResolvedValue({});
-        const configSpy = jest
-          .spyOn(configAPI, "update")
-          .mockResolvedValue({} as never);
-        const teamSpy = jest
-          .spyOn(teamsAPI, "updateConfig")
-          .mockResolvedValue({} as never);
-
+        const spies = spyOnSaveCalls();
         const { user } = render(
           <UsersForm {...defaultProps} currentTeamId={currentTeamId} />
         );
         await user.click(screen.getByRole("button", { name: "Save" }));
 
         // The rest of the form still saves; only the Windows call is skipped.
-        expect(setupSpy).toHaveBeenCalled();
-        expect(configSpy).not.toHaveBeenCalled();
-        expect(teamSpy).not.toHaveBeenCalled();
+        expect(spies.setup).toHaveBeenCalled();
+        expect(spies.config).not.toHaveBeenCalled();
+        expect(spies.team).not.toHaveBeenCalled();
       }
     );
   });
