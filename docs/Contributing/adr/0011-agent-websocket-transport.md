@@ -325,7 +325,37 @@ The exact instance count and sizing should be determined by load testing with We
 
 ## Alternatives Considered
 
-_TODO_
+### Long polling
+
+Each agent holds an open HTTP request to the server. The server responds only when there is work, or after a timeout (e.g. 2 minutes), at which point the agent immediately opens a new request.
+
+- **Pros:** Simpler than WebSockets. No upgrade handshake, no new protocol. Works through any HTTP proxy.
+- **Cons:** One parked request per channel. Cannot multiplex: adding config, Desktop, and orbit notifications would require separate long-poll connections per agent. Each timeout-and-reconnect cycle creates a new TLS connection (vs. WebSocket which holds one). At 50k hosts with a 2-minute timeout, that is 25k new TLS connections/minute just from timeouts.
+- **Why not chosen:** WebSockets support multiplexing multiple notification types on a single connection, which is critical for future phases. Long polling forfeits this and adds connection churn.
+
+### Server-Sent Events (SSE)
+
+The server pushes events to the agent over a long-lived HTTP response using the `text/event-stream` content type. The agent opens one GET request and the server streams events as they occur.
+
+- **Pros:** Simpler than WebSockets. Built on standard HTTP, works through most proxies. Native reconnection with `Last-Event-ID`. One connection can carry multiple event types.
+- **Cons:** Unidirectional (server to agent only). The agent cannot send data back over the same connection, so all agent-to-server communication still requires separate HTTP calls (which is also true of our WebSocket design). More critically, SSE requires HTTP/1.1 chunked transfer or HTTP/2. ALB-to-target communication in Fleet's topology is HTTP/1.1, which limits concurrent SSE streams per browser/client. Enterprise middleboxes (TLS-inspecting proxies) often buffer chunked responses, breaking the real-time delivery that SSE depends on.
+- **Why not chosen:** The middlebox buffering problem is the same class of issue that led Kolide to add an HTTP fallback for gRPC. WebSockets have a cleaner upgrade mechanism that middleboxes handle better in practice. Fleet already runs WebSockets in production (live query results in the UI), so operational experience exists.
+
+### gRPC streaming
+
+Replace the HTTP API with gRPC bidirectional streaming. The agent holds a persistent gRPC stream to the server.
+
+- **Pros:** Strong typing via protobuf. Bidirectional streaming. Efficient binary protocol.
+- **Cons:** Requires HTTP/2 end-to-end. Fleet's ALB terminates TLS and forwards HTTP/1.1 to backend tasks, making gRPC unreachable without infrastructure changes (h2c or network load balancer). Enterprise middleboxes break HTTP/2 far more often than plain HTTPS. Kolide launcher shipped gRPC first and had to add a plain-HTTPS fallback for exactly this reason.
+- **Why not chosen:** Blocked by Fleet's deployed ALB topology and unreliable through enterprise network gear.
+
+### ETag / conditional requests (ADR-0012)
+
+Reduce response size by having agents send an ETag with each request. The server returns a minimal "not modified" response when the config hasn't changed. See [ADR-0012](0012-osquery-config-conditional-requests.md).
+
+- **Pros:** Small, self-contained change. Benefits every deployment including self-hosted without WebSockets. No infrastructure changes needed.
+- **Cons:** Does not eliminate the requests themselves, only shrinks responses. The agent still polls on a fixed timer. Requires an upstream osquery change.
+- **Why not chosen (as a replacement):** The two are complementary, not exclusive. ETag makes the polling fallback path cheap. WebSockets eliminate the polling entirely. Together they cover both managed cloud (WebSocket-enabled) and self-hosted (polling with ETag) deployments.
 
 ---
 
