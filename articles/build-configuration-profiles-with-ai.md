@@ -6,7 +6,7 @@ Every one of those pickers is a GUI over a published schema. Apple's payload key
 
 ## Prerequisites
 
-- Fleet, with your configuration in a Git repository. Start with the [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files), which documents every key you can manage as code. To scaffold a new repo, run `fleetctl new`. To convert an existing Fleet instance, follow [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl).
+- Fleet, with your configuration in a Git repository. An agent needs that reviewable, schema-legible structure to act against, something a GUI can't give it (see [why AI-powered device management requires GitOps](https://fleetdm.com/articles/why-ai-powered-device-management-requires-gitops)). Start with the [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files), which documents every key you can manage as code. To scaffold a new repo, run `fleetctl new`. To convert an existing Fleet instance, follow [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl).
 - An AI coding agent that can run shell commands. Claude Code, Codex, Cursor, and GitHub Copilot all work.
 - [Fleet Premium](https://fleetdm.com/pricing) if you plan to scope profiles to labels.
 - For the Apple workflow, a macOS host, since [contour](https://github.com/macadmins/contour) ships as a signed macOS package. The Windows workflow has no host requirement and runs anywhere, including in CI.
@@ -43,23 +43,21 @@ This installs a Claude Code skill at `.claude/skills/contour/SKILL.md` and appen
 
 ### Windows
 
-Windows has no CLI wrapper like contour, and it doesn't need one, because Microsoft publishes the schema directly as a set of XML files you can put in your repo. These are the DDF files, and they're the same source Intune's settings catalog and the Microsoft CSP reference pages are generated from.
+Both Apple and Microsoft publish machine-readable schemas. The difference is packaging: contour wraps Apple's into a CLI that also generates and validates files, while Microsoft's ships as XML you read directly. Those are the DDF files, and they're the same source Intune's settings catalog and the Microsoft CSP reference pages are generated from.
 
-1. Download the current [DDF v2 files](https://learn.microsoft.com/en-us/windows/client-management/mdm/configuration-service-provider-ddf) and unpack them into your repo.
+There's nothing to install. Microsoft publishes a DDF page per CSP, so the agent can read the schema for the CSP it needs on demand:
 
-```bash
-curl -L -o ddf.zip "https://download.microsoft.com/download/015bd9f5-9cca-4821-8a85-a4c5f9a5d0f2/DDFv2Feb2026.zip"
-unzip -q ddf.zip -d platforms/windows/schema/
+```
+https://learn.microsoft.com/en-us/windows/client-management/mdm/<csp>-ddf-file
 ```
 
-The February 2026 drop is 313 XML files and about 8 MB, covering roughly 5,900 CSP nodes. Commit it. Lookups are then offline, free, and pinned to a version, which is the same property that makes contour's embedded schema reliable.
-
-2. Tell the agent the directory exists and what's in it. Add this to `AGENTS.md` or `CLAUDE.md`:
+Point the agent at that pattern in `AGENTS.md` or `CLAUDE.md` at the root of your repo:
 
 ```markdown
-Windows CSP schema lives in `platforms/windows/schema/`. Before writing any SyncML,
-grep it for the node you intend to set and read its `<DFProperties>`. Never write a
-LocURI that you have not found in these files.
+Windows CSP schema comes from Microsoft's per-CSP DDF pages at
+https://learn.microsoft.com/en-us/windows/client-management/mdm/<csp>-ddf-file.
+Fetch the page for the CSP you're targeting and read the node's `<DFProperties>`
+before writing SyncML. Never write a LocURI you haven't confirmed in a DDF.
 ```
 
 For each node, the DDF declares what a GUI's picker would have enforced for you:
@@ -74,21 +72,25 @@ For each node, the DDF declares what a GUI's picker would have enforced for you:
 | `MSFT:GpMapping` | The Group Policy name the setting corresponds to |
 | `MSFT:AdmxBacked` | The `.admx` file, area path, and policy name backing the node |
 
-About 4,500 of those nodes declare `AllowedValues`, so most of what you'll set is machine-checkable before it ever reaches a device.
+Roughly three quarters of CSP nodes declare `AllowedValues`, so most of what you'll set is machine-checkable before it ever reaches a device.
+
+> **Note:** Per-CSP pages are convenient for authoring, but each one is dated independently and some lag the bulk release. If you want a pinned, offline copy you can grep across every CSP at once, and the CI check in step 5, download the [DDF v2 files](https://learn.microsoft.com/en-us/windows/client-management/mdm/configuration-service-provider-ddf) into `platforms/windows/schema/` and commit them. The February 2026 drop is 313 files and about 8 MB, covering roughly 5,900 nodes.
 
 ## Step 2: Write down the rules the agent can't infer
 
 Step 1 gave the agent the schema. What the schema can't cover is your environment, and that's the gap you fill.
 
-An agent can read your repo and infer the directory layout, the naming, and the YAML style. It can't infer the decisions behind them. The categories worth writing down:
+These go in `AGENTS.md` or `CLAUDE.md` at the root of your repo, the same files step 1 wrote to. Anything true of every profile you'll ever ship belongs here. Anything specific to one profile, like which fleet it targets or which setting you want, belongs in the prompt instead. The test is whether you'd repeat it next time.
 
-- **Which delivery method you want.** Many Apple settings can ship as either a `.mobileconfig` or a DDM declaration. Say which one you want for those cases and why, because otherwise the agent picks for you, and not always the same way twice. Asking it to run `contour profile ddm map <payload_type>` first tells you whether a declarative equivalent exists at all.
+An agent can read your repo and infer the directory layout, the naming, and the YAML style. It can't infer the standing decisions behind them:
+
+- **Which delivery method you prefer.** Many Apple settings can ship as either a `.mobileconfig` or a DDM declaration. Say which one you want for those cases and why, because otherwise the agent picks for you, and not always the same way twice. Asking it to run `contour profile ddm map <payload_type>` first tells you whether a declarative equivalent exists at all.
 - **Which Windows CSP you prefer when several would work.** A setting is often reachable through both the Policy CSP and a dedicated CSP, and ADMX-backed nodes are reachable through `ADMXInstall` as well. Pick one and say so, or you'll accumulate three ways of doing the same thing.
-- **How a profile reaches a host.** A file committed outside a directory covered by a `paths:` glob sits in the repo until it has an explicit `path:` entry in each fleet's YAML that should receive it. State which fleets a new profile is for.
-- **How you confirm a setting applied.** On macOS, the `managed_policies` osquery table reflects only legacy `.mobileconfig` profiles, so checking a DDM-delivered setting against it returns misleading results. On Windows, the registry value behind a CSP is the ground truth, and the [Fleet schema](https://fleetdm.com/tables) documents the `registry` table you'd query for it.
-- **The traps you've already hit.** Both platforms have defaults that turn a wrong input into a passing result, covered in step 4. Once you've been bitten, write the rule down so you don't get bitten twice.
+- **How a profile gets wired in.** A file committed outside a directory covered by a `paths:` glob does nothing until it has an explicit `path:` entry in the YAML for each fleet that should receive it. Write down which mechanism your repo uses, and the agent will wire new profiles the same way every time. The target fleet itself goes in the prompt, since it changes per profile.
+- **The conventions behind your layout.** Which directory each delivery method lives in, how files are named, and which identifier prefix you use. Contour's config covers this for Apple, so this is mostly a Windows note.
+- **Anything the agent got wrong once.** Both platforms have a few behaviors where a wrong input still produces a passing result, covered in step 4. Noting them here is the same habit as documenting a gotcha for a new teammate, and it's what keeps the second occurrence from happening.
 
-Write these as sentences with reasoning rather than nested bullets, since a rule with a stated reason is one the agent can apply to a case you didn't anticipate. Add a line every time you catch the agent getting something wrong, and the file pays for itself the next time.
+Write these as sentences with reasoning rather than nested bullets, since a rule with a stated reason is one the agent can apply to a case you didn't anticipate.
 
 ## Step 3: Ground the agent in real references
 
@@ -116,7 +118,7 @@ Setup is done. From here the workflow is a sentence.
 
 Open your agent in the repo and state the intent, including the scope:
 
-> Require a 12-character passcode with no simple passcodes on all workstations. Open a pull request.
+> Require a 12-character passcode with no simple passcodes on all devices in the workstations fleet. Open a pull request.
 
 The agent finds the setting in the schema, writes the profile into the right directory, validates it, wires it into the workstations fleet, and opens a pull request. You didn't name a payload type, a LocURI, a file path, or a flag. That's the same sentence whether the target is macOS or Windows, and if your workstations fleet has both, the agent produces one profile for each.
 
@@ -162,7 +164,7 @@ Fleet validates what it can on upload. It checks XML well-formedness, requires a
 
 ## Step 5: Enforce validation in CI
 
-Instructions make the agent likely to validate. CI makes it impossible to skip. Add checks to your pull request workflow, one per delivery method.
+Instructions make the agent likely to validate. CI makes it impossible to skip. These go in the GitHub Actions workflow that already runs `fleetctl gitops` for your repo, usually `.github/workflows/gitops.yml`, as steps that run on pull requests. Add one per delivery method you use.
 
 ### Apple
 
@@ -191,7 +193,14 @@ contour profile ddm verify ./platforms/macos/declaration-profiles -r
 
 Add `--json` to any of these commands for machine-readable output.
 
-Neither check catches the identifier collision from step 4. Two declarations sharing `com.acme.settings` verify clean and exit `0`, because a reference graph can't see that one identifier was supposed to be two. That one stays a review-time check.
+Neither check catches the identifier collision from step 4. Two declarations sharing `com.acme.settings` verify clean and exit `0`, because a reference graph can't see that one identifier was supposed to be two. Add it as its own step, since a duplicate is just a duplicate:
+
+```bash
+dupes=$(jq -r '.Identifier' platforms/macos/declaration-profiles/*.json | sort | uniq -d)
+[ -z "$dupes" ] || { printf 'duplicate declaration identifiers:\n%s\n' "$dupes"; exit 1; }
+```
+
+A recipe has no key for setting the identifier directly, so the fix is to change the `Identifier` in the generated declaration. Note that in `AGENTS.md` too, since regenerating the file would otherwise undo it.
 
 ### Windows
 
@@ -205,7 +214,7 @@ That covers XML well-formedness, the presence of a supported top-level element, 
 
 > **Warning:** Dry run skips any profile that references a `$FLEET_SECRET_` variable, because the secret may not resolve in CI. Those profiles are validated when you apply them for real, so a clean dry run doesn't mean every profile was checked.
 
-What a dry run can't do is tell you whether a `LocURI` names a CSP node that exists, and that's what the DDF files are for. A name lookup against the schema you committed in step 1 catches the common case:
+What a dry run can't do is tell you whether a `LocURI` names a CSP node that exists, and that's what the DDF files are for. If you committed the corpus in step 1, a name lookup against it catches the common case:
 
 ```bash
 missing=$(find platforms/windows/configuration-profiles -name '*.xml' \
@@ -235,7 +244,7 @@ Read the diff for the things validation can't check:
 
 Merge, and CI runs `fleetctl gitops` to apply the change. Scope with fleets and labels the way you would for any other profile. See [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) for the full delivery behavior.
 
-> **Note:** You can also upload a generated file under **Controls > OS settings > Custom settings** in the Fleet UI. You lose the review step, which is the part doing the most work here.
+> **Note:** Turn on [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) so the repo stays the only way in. It makes the matching UI controls read-only, which means nobody can upload a profile under **Controls > OS settings** that the next `fleetctl gitops` run would overwrite, and the review step can't be bypassed by accident.
 
 ## Verify
 
@@ -254,6 +263,7 @@ WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\dev
 
 ## Related resources
 
+- [Why AI-powered device management requires GitOps](https://fleetdm.com/articles/why-ai-powered-device-management-requires-gitops): the case for the prerequisite above.
 - [Custom OS settings](https://fleetdm.com/guides/custom-os-settings): how Fleet delivers and verifies profiles, declarations, and CSPs.
 - [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files): every key you can manage as code.
 - [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl): convert an existing Fleet instance to a repo.
