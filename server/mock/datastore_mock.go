@@ -2274,9 +2274,11 @@ type GetLastAppleOSUpdatesUpdateFunc func(ctx context.Context) (*time.Time, erro
 
 type UpsertAppleOSUpdatesFunc func(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) error
 
+type DeleteStaleAppleOSUpdatesFunc func(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) (int64, error)
+
 type ListAppleOSUpdateAssetsFunc func(ctx context.Context) (map[string][]fleet.AppleSoftwareUpdateAsset, error)
 
-type ListAppleOSUpdateHostsForReconcileFunc func(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]uint) ([]*fleet.AppleSoftwareUpdateHost, error)
+type ListAppleOSUpdateHostsForReconcileFunc func(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*fleet.AppleSoftwareUpdateHost, error)
 
 type SetAppleOSUpdateTargetsAndResendFunc func(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error
 
@@ -5657,6 +5659,9 @@ type DataStore struct {
 
 	UpsertAppleOSUpdatesFunc        UpsertAppleOSUpdatesFunc
 	UpsertAppleOSUpdatesFuncInvoked bool
+
+	DeleteStaleAppleOSUpdatesFunc        DeleteStaleAppleOSUpdatesFunc
+	DeleteStaleAppleOSUpdatesFuncInvoked bool
 
 	ListAppleOSUpdateAssetsFunc        ListAppleOSUpdateAssetsFunc
 	ListAppleOSUpdateAssetsFuncInvoked bool
@@ -13548,6 +13553,13 @@ func (s *DataStore) UpsertAppleOSUpdates(ctx context.Context, updates map[string
 	return s.UpsertAppleOSUpdatesFunc(ctx, updates)
 }
 
+func (s *DataStore) DeleteStaleAppleOSUpdates(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) (int64, error) {
+	s.mu.Lock()
+	s.DeleteStaleAppleOSUpdatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteStaleAppleOSUpdatesFunc(ctx, updates)
+}
+
 func (s *DataStore) ListAppleOSUpdateAssets(ctx context.Context) (map[string][]fleet.AppleSoftwareUpdateAsset, error) {
 	s.mu.Lock()
 	s.ListAppleOSUpdateAssetsFuncInvoked = true
@@ -13555,7 +13567,7 @@ func (s *DataStore) ListAppleOSUpdateAssets(ctx context.Context) (map[string][]f
 	return s.ListAppleOSUpdateAssetsFunc(ctx)
 }
 
-func (s *DataStore) ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]uint) ([]*fleet.AppleSoftwareUpdateHost, error) {
+func (s *DataStore) ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*fleet.AppleSoftwareUpdateHost, error) {
 	s.mu.Lock()
 	s.ListAppleOSUpdateHostsForReconcileFuncInvoked = true
 	s.mu.Unlock()

@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
+	common_mdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -2466,84 +2466,60 @@ func (s *integrationMDMTestSuite) TestAppleDDMOSUpdatesTargetVariables() {
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{host.ID}}, http.StatusOK)
 
-	// Set the team's macOS updates to "latest" so the cron computes a per-host
-	// target. Written straight to the datastore to keep this test focused on the
-	// DDM sync piece rather than the settings endpoint's validation surface.
-	team.Config.MDM.MacOSUpdates = fleet.AppleOSUpdateSettings{
-		MinimumVersion: optjson.SetString("latest"),
-		Deadline:       optjson.SetString(""),
+	var modifyTeamRes teamResponse
+	teamPayload := &fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("latest"),
+				DeadlineDays:   optjson.SetInt(2),
+			},
+		},
 	}
-	_, err := s.ds.SaveTeam(ctx, team)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), teamPayload, http.StatusOK, &modifyTeamRes)
+
+	// Fleet's macOS OS-updates declaration is scoped to the built-in "macOS 14+"
+	// dynamic label, so the host has to be a member of it for the reconciler to
+	// assign the declaration.
+	lblIDs, err := s.ds.LabelIDsByName(ctx, []string{fleet.BuiltinLabelMacOS14Plus}, fleet.TeamFilter{})
 	require.NoError(t, err)
+	require.Contains(t, lblIDs, fleet.BuiltinLabelMacOS14Plus)
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, host,
+		map[uint]*bool{lblIDs[fleet.BuiltinLabelMacOS14Plus]: new(true)}, time.Now(), false))
 
-	const (
-		deviceID       = "Mac14,2"
-		declIdentifier = "com.fleetdm.fleet.mdm.os-updates.macos"
-	)
-	rawDecl := []byte(fmt.Sprintf(`{
-	"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
-	"Identifier": "%s",
-	"Payload": {
-		"TargetOSVersion": "$FLEET_VAR_HOST_TARGET_OS_VERSION",
-		"TargetLocalDateTime": "$FLEET_VAR_HOST_TARGET_OS_DEADLINE"
-	}
-}`, declIdentifier))
+	// The reconcile cron assigns the declaration to the host.
+	s.awaitTriggerProfileSchedule(t)
 
-	decl, err := s.ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		DeclarationUUID: uuid.NewString(),
-		TeamID:          &team.ID,
-		Name:            fleetmdm.FleetMacOSUpdatesProfileName,
-		Identifier:      declIdentifier,
-		RawJSON:         rawDecl,
-		Scope:           fleet.PayloadScopeSystem,
-	}, []fleet.FleetVarName{fleet.FleetVarHostTargetOSVersion, fleet.FleetVarHostTargetOSDeadline})
-	require.NoError(t, err)
-
-	// Assign the declaration to the host the way the reconciler would:
-	// variables_updated_at set (so the sync path attempts resolution), status NULL.
-	initialVarsUpdated := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var token string
-		if err := sqlx.GetContext(ctx, q, &token,
-			"SELECT HEX(token) FROM mdm_apple_declarations WHERE declaration_uuid = ?", decl.DeclarationUUID); err != nil {
-			return err
-		}
-		_, err := q.ExecContext(ctx, `
-			INSERT INTO host_mdm_apple_declarations
-				(host_uuid, declaration_uuid, status, operation_type, token, declaration_identifier, declaration_name, scope, variables_updated_at)
-			VALUES (?, ?, NULL, 'install', UNHEX(?), ?, ?, 'System', ?)`,
-			host.UUID, decl.DeclarationUUID, token, declIdentifier, fleetmdm.FleetMacOSUpdatesProfileName, initialVarsUpdated)
-		return err
-	})
+	const deviceID = "Mac14,2"
 
 	// The host's software-update device id is captured, but no target computed yet.
 	require.NoError(t, s.ds.InsertAppleSoftwareUpdateDeviceID(ctx, host.UUID, deviceID))
 
-	readDecl := func() (status *string, detail string, varsUpdatedAt *time.Time) {
+	readDecl := func() (status *string, detail string, varsUpdatedAt *time.Time, identifier string) {
 		var row struct {
 			Status      *string    `db:"status"`
 			Detail      string     `db:"detail"`
 			VariablesAt *time.Time `db:"variables_updated_at"`
+			Identifier  string     `db:"declaration_identifier"`
 		}
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &row,
-				`SELECT status, COALESCE(detail, '') AS detail, variables_updated_at
-				 FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_uuid = ?`,
-				host.UUID, decl.DeclarationUUID)
+				`SELECT status, COALESCE(detail, '') AS detail, variables_updated_at, declaration_identifier
+				 FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_name = ?`,
+				host.UUID, common_mdm.FleetMacOSUpdatesProfileName)
 		})
-		return row.Status, row.Detail, row.VariablesAt
+		return row.Status, row.Detail, row.VariablesAt, row.Identifier
 	}
 
 	// === Phase 1: host syncs, target not ready -> pending with detail ===
-
-	resp, err := mdmDevice.DeclarativeManagement("declaration/configuration/" + declIdentifier)
+	_, _, initialVarsUpdated, identifier := readDecl()
+	resp, err := mdmDevice.DeclarativeManagement("declaration/configuration/" + identifier)
 	require.NoError(t, err)
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
 	require.Empty(t, bytes.TrimSpace(body), "an unresolvable declaration is served as an empty 200")
 
-	status, detail, _ := readDecl()
+	status, detail, _, _ := readDecl()
 	require.NotNil(t, status)
 	require.Equal(t, string(fleet.MDMDeliveryPending), *status)
 	require.Contains(t, detail, "not yet available")
@@ -2574,14 +2550,14 @@ func (s *integrationMDMTestSuite) TestAppleDDMOSUpdatesTargetVariables() {
 	require.NotNil(t, osHost.ResolvedAt)
 
 	// The declaration was bumped for resend: status cleared, variables_updated_at advanced.
-	status, _, bumped := readDecl()
+	status, _, bumped, _ := readDecl()
 	require.Nil(t, status, "resend clears status to NULL")
 	require.NotNil(t, bumped)
-	require.True(t, bumped.After(initialVarsUpdated), "variables_updated_at should be advanced for resend")
+	require.True(t, bumped.After(*initialVarsUpdated), "variables_updated_at should be advanced for resend")
 
 	// === Phase 3: host re-syncs and receives the resolved declaration ===
 
-	resp, err = mdmDevice.DeclarativeManagement("declaration/configuration/" + declIdentifier)
+	resp, err = mdmDevice.DeclarativeManagement("declaration/configuration/" + identifier)
 	require.NoError(t, err)
 	body, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
@@ -2597,7 +2573,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMOSUpdatesTargetVariables() {
 		ServerToken string
 	}
 	require.NoError(t, json.Unmarshal(body, &served))
-	require.Equal(t, declIdentifier, served.Identifier)
+	require.Equal(t, identifier, served.Identifier)
 	require.Equal(t, "15.1", served.Payload.TargetOSVersion)
 	require.NotEmpty(t, served.ServerToken)
 	gotDeadline, err := time.Parse("2006-01-02T15:04:05", served.Payload.TargetLocalDateTime)

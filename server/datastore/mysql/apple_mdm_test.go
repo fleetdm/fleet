@@ -109,6 +109,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"ReconcileAppleProfilesDuplicateHostUUID", testReconcileAppleProfilesDuplicateHostUUID},
 		{"AppleOSUpdatesReconcile", testAppleOSUpdatesReconcile},
+		{"AppleOSUpdateAssets", testAppleOSUpdateAssets},
 		{"GetEnrollmentIDsWithPendingMDMAppleCommands", testGetEnrollmentIDsWithPendingMDMAppleCommands},
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
@@ -14105,8 +14106,8 @@ func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
 	hIOSNoTeam := newHost("ccc-ios-noteam", "ios", "iPhone15,2")
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hMacTeam.ID})))
 
-	latest := func(darwin, ios, ipados map[uint]uint) map[string]map[uint]uint {
-		return map[string]map[uint]uint{"darwin": darwin, "ios": ios, "ipados": ipados}
+	latest := func(darwin, ios, ipados map[uint]int) map[string]map[uint]int {
+		return map[string]map[uint]int{"darwin": darwin, "ios": ios, "ipados": ipados}
 	}
 	uuidsOf := func(hosts []*fleet.AppleSoftwareUpdateHost) []string {
 		out := make([]string, len(hosts))
@@ -14117,7 +14118,7 @@ func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("ListForReconcile filters by team and platform", func(t *testing.T) {
-		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(map[uint]uint{team.ID: 2}, nil, nil))
+		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(map[uint]int{team.ID: 2}, nil, nil))
 		require.NoError(t, err)
 		require.Equal(t, []string{hMacTeam.UUID}, uuidsOf(got))
 		require.Equal(t, "darwin", got[0].Platform)
@@ -14125,7 +14126,7 @@ func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("ListForReconcile matches no-team hosts via team_id 0", func(t *testing.T) {
-		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(map[uint]uint{0: 2}, nil, nil))
+		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(map[uint]int{0: 2}, nil, nil))
 		require.NoError(t, err)
 		require.Equal(t, []string{hMacNoTeam.UUID}, uuidsOf(got))
 		require.EqualValues(t, 0, got[0].TeamID)
@@ -14147,7 +14148,7 @@ func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("ListForReconcile paginates by host_uuid cursor", func(t *testing.T) {
-		all := latest(map[uint]uint{team.ID: 2, 0: 2}, map[uint]uint{0: 2}, nil)
+		all := latest(map[uint]int{team.ID: 2, 0: 2}, map[uint]int{0: 2}, nil)
 		page1, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 2, all)
 		require.NoError(t, err)
 		require.Equal(t, []string{hMacTeam.UUID, hMacNoTeam.UUID}, uuidsOf(page1))
@@ -14211,5 +14212,103 @@ func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
 		require.Nil(t, byName[fleetmdm.FleetMacOSUpdatesProfileName], "OS-update declaration status should be reset to NULL for resend")
 		require.Contains(t, byName, "Some Other Profile")
 		require.NotNil(t, byName["Some Other Profile"], "unrelated declaration should be untouched")
+	})
+}
+
+func testAppleOSUpdateAssets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	asset := func(version, build string) fleet.OSUpdateAsset {
+		return fleet.OSUpdateAsset{
+			ProductVersion:   version,
+			Build:            build,
+			PostingDate:      "2024-10-28",
+			ExpirationDate:   "2025-10-28",
+			SupportedDevices: []string{"Mac14,2"},
+		}
+	}
+	versionsOf := func(assets []fleet.AppleSoftwareUpdateAsset) []string {
+		out := make([]string, len(assets))
+		for i, a := range assets {
+			out[i] = a.ProductVersion
+		}
+		sort.Strings(out)
+		return out
+	}
+	listed := func() map[string][]fleet.AppleSoftwareUpdateAsset {
+		got, err := ds.ListAppleOSUpdateAssets(ctx)
+		require.NoError(t, err)
+		return got
+	}
+
+	require.NoError(t, ds.UpsertAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+		"macos": {asset("15.1", "24B83"), asset("14.7.1", "23H222"), asset("13.7.1", "22H221")},
+		"ios":   {asset("18.1", "22B83"), asset("17.7.1", "21H221")},
+	}))
+
+	t.Run("List returns the upserted assets per class", func(t *testing.T) {
+		got := listed()
+		require.Equal(t, []string{"13.7.1", "14.7.1", "15.1"}, versionsOf(got["macos"]))
+		require.Equal(t, []string{"17.7.1", "18.1"}, versionsOf(got["ios"]))
+		require.Equal(t, "2024-10-28", got["macos"][0].PostingDate.Format(time.DateOnly))
+		require.Equal(t, "2025-10-28", got["macos"][0].ExpirationDate.Format(time.DateOnly))
+		require.Equal(t, fleet.JSONStringArray{"Mac14,2"}, got["macos"][0].SupportedDevices)
+		require.False(t, got["macos"][0].FirstSeenAt.IsZero())
+	})
+
+	t.Run("DeleteStale removes the assets missing from the new set", func(t *testing.T) {
+		// 13.7.1 expired out of the macOS set and 17.7.1 out of the iOS set
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {asset("15.1", "24B83"), asset("14.7.1", "23H222")},
+			"ios":   {asset("18.1", "22B83")},
+		})
+		require.NoError(t, err)
+		require.EqualValues(t, 2, deleted)
+
+		got := listed()
+		require.Equal(t, []string{"14.7.1", "15.1"}, versionsOf(got["macos"]))
+		require.Equal(t, []string{"18.1"}, versionsOf(got["ios"]))
+	})
+
+	t.Run("DeleteStale matches on build so a rebuilt version is replaced", func(t *testing.T) {
+		require.NoError(t, ds.UpsertAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {asset("15.1", "24B2083")},
+		}))
+		require.Len(t, listed()["macos"], 3)
+
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {asset("15.1", "24B2083"), asset("14.7.1", "23H222")},
+		})
+		require.NoError(t, err)
+		require.EqualValues(t, 1, deleted, "the 15.1 asset with the superseded build is deleted")
+
+		var builds []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &builds,
+				`SELECT build FROM apple_software_update_assets WHERE class = 'macos' AND product_version = '15.1'`)
+		})
+		require.Equal(t, []string{"24B2083"}, builds)
+	})
+
+	t.Run("DeleteStale keeps the cached assets of a class with no reported assets", func(t *testing.T) {
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {},
+			"ios":   nil,
+		})
+		require.NoError(t, err)
+		require.EqualValues(t, 0, deleted)
+
+		got := listed()
+		require.Len(t, got["macos"], 2)
+		require.Len(t, got["ios"], 1)
+	})
+
+	t.Run("DeleteStale leaves the classes missing from the set untouched", func(t *testing.T) {
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {asset("15.1", "24B2083"), asset("14.7.1", "23H222")},
+		})
+		require.NoError(t, err)
+		require.EqualValues(t, 0, deleted)
+		require.Len(t, listed()["ios"], 1)
 	})
 }

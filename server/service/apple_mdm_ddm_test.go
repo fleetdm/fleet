@@ -573,7 +573,7 @@ const osUpdatesDeclContents = `{
 	"Identifier": "com.fleetdm.fleet.mdm.os-updates.macos",
 	"Payload": {
 		"TargetOSVersion": "$FLEET_VAR_HOST_TARGET_OS_VERSION",
-		"TargetLocalDateTime": "$FLEET_VAR_HOST_TARGET_OS_DEADLINE"
+		"TargetLocalDateTime": "${FLEET_VAR_HOST_TARGET_OS_DEADLINE}T12:00:00"
 	}
 }`
 

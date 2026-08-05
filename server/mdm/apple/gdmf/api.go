@@ -87,24 +87,19 @@ func (a AssetMetadata) IsSupportedIOSVersion(version string, devicePrefix string
 }
 
 // GetLatestOSVersion returns the latest OS version for the given device. The device is matched
-// against the Apple Software Update Lookup Service[1][2] to find the latest version in the
-// PublicAssetSets. If no matching asset is found, an error is returned.
+// against the Apple Software Update Lookup Service[1][2] that is locally cached in the apple_software_update_assets table to find the latest version in the
+// updateAssets. If no matching asset is found, an error is returned.
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*fleet.OSUpdateAsset, error) {
-	am, err := GetAssetMetadata()
-	if err != nil {
-		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
-	}
-
-	assetSet := am.PublicAssetSets.MacOS // default to public asset set; note that if the device is not macOS, iPhone, iPad, or iPod we'll fail to match the supported device and return an error below
+func GetLatestOSVersion(device fleet.MDMAppleMachineInfo, updateAssets map[string][]fleet.AppleSoftwareUpdateAsset) (*fleet.AppleSoftwareUpdateAsset, error) {
+	assetSet := updateAssets["macos"] // default to public asset set; note that if the device is not macOS, iPhone, iPad, or iPod we'll fail to match the supported device and return an error below
 	if strings.HasPrefix(device.Product, "iPhone") ||
 		strings.HasPrefix(device.Product, "iPod") ||
 		strings.HasPrefix(device.Product, "iPad") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPhone") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPod") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPad") {
-		assetSet = am.PublicAssetSets.IOS
+		assetSet = updateAssets["ios"]
 	}
 	latestIdx := -1
 	for i, s := range assetSet {

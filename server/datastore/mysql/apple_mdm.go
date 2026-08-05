@@ -8668,6 +8668,10 @@ func (ds *Datastore) GetLastAppleOSUpdatesUpdate(ctx context.Context) (*time.Tim
 }
 
 func (ds *Datastore) UpsertAppleOSUpdates(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
 	stmt := `
 		INSERT INTO apple_software_update_assets (class, product_version, build, posting_date, expiration_date, supported_devices)
 			VALUES %s
@@ -8708,6 +8712,41 @@ func (ds *Datastore) UpsertAppleOSUpdates(ctx context.Context, updates map[strin
 	return nil
 }
 
+func (ds *Datastore) DeleteStaleAppleOSUpdates(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) (int64, error) {
+	var deleted int64
+	for class, assets := range updates {
+		if len(assets) == 0 {
+			// Apple didn't report any asset for this class; assume the response was incomplete
+			// rather than deleting every cached asset for the class.
+			continue
+		}
+
+		// delete the cached assets for this class that are not in the set Apple currently reports
+		args := []any{class}
+		placeholders := make([]string, 0, len(assets))
+		for _, asset := range assets {
+			args = append(args, asset.ProductVersion, asset.Build)
+			placeholders = append(placeholders, "(?, ?)")
+		}
+		stmt := fmt.Sprintf(`
+			DELETE FROM apple_software_update_assets
+			WHERE class = ? AND (product_version, build) NOT IN (%s)
+		`, strings.Join(placeholders, ","))
+
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return deleted, ctxerr.Wrapf(ctx, err, "deleting stale apple os updates for class %s", class)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return deleted, ctxerr.Wrapf(ctx, err, "counting deleted apple os updates for class %s", class)
+		}
+		deleted += n
+	}
+
+	return deleted, nil
+}
+
 func (ds *Datastore) ListAppleOSUpdateAssets(ctx context.Context) (map[string][]fleet.AppleSoftwareUpdateAsset, error) {
 	// we do N selects, one for each class of OS updates
 	classes := []string{"macos", "ios"}
@@ -8728,7 +8767,7 @@ func (ds *Datastore) ListAppleOSUpdateAssets(ctx context.Context) (map[string][]
 	return results, nil
 }
 
-func (ds *Datastore) ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]uint) ([]*fleet.AppleSoftwareUpdateHost, error) {
+func (ds *Datastore) ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*fleet.AppleSoftwareUpdateHost, error) {
 	stmt := `
 		SELECT 
 			hmaou.host_uuid,
@@ -8839,7 +8878,7 @@ func (ds *Datastore) SetAppleOSUpdateTargetsAndResend(ctx context.Context, targe
 		}
 
 		var sb strings.Builder
-		sb.WriteString("UPDATE host_mdm_apple_declarations SET status=NULL, variables_updated_at = CASE host_uuid ")
+		sb.WriteString("UPDATE host_mdm_apple_declarations SET status=NULL, detail='', variables_updated_at = CASE host_uuid ")
 		args := make([]any, 0, len(targetsToResend)*2+len(targetsToResend))
 		for _, hu := range targetsToResend {
 			sb.WriteString("WHEN ? THEN ? ")

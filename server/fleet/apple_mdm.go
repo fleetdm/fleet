@@ -1848,8 +1848,8 @@ type OSUpdateAsset struct {
 type AppleSoftwareUpdateAsset struct {
 	ProductVersion   string          `db:"product_version"`
 	Build            string          `db:"build"`
-	PostingDate      string          `db:"posting_date"`
-	ExpirationDate   string          `db:"expiration_date"`
+	PostingDate      time.Time       `db:"posting_date"`
+	ExpirationDate   time.Time       `db:"expiration_date"`
 	SupportedDevices JSONStringArray `db:"supported_devices"`
 	FirstSeenAt      time.Time       `db:"first_seen_at"`
 }

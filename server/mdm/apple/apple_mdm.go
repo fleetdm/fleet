@@ -2501,20 +2501,42 @@ func HandleAppleMDMOSUpdates(ctx context.Context, ds fleet.Datastore, logger *sl
 
 		assetMetadata, err := gdmf.GetAssetMetadata()
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting asset metadata from GDMF")
+			logger.ErrorContext(ctx, "error getting asset metadata from GDMF", "error", err)
+			goto computeOSTargets
 		}
 
-		err = ds.UpsertAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
-			"macos": assetMetadata.AssetSets.MacOS,
-			"ios":   assetMetadata.AssetSets.IOS,
-		})
+		updates := map[string][]fleet.OSUpdateAsset{
+			"macos": assetMetadata.PublicAssetSets.MacOS,
+			"ios":   assetMetadata.PublicAssetSets.IOS,
+		}
+
+		err = ds.UpsertAppleOSUpdates(ctx, updates)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "upserting apple os updates")
+			logger.ErrorContext(ctx, "error upserting apple os updates", "error", err)
+			goto computeOSTargets
+		}
+
+		// Apple stops reporting versions once they expire, so drop the cached assets that are no
+		// longer in the set we just fetched. This only runs when the fetch succeeded, otherwise we
+		// would delete assets based on an incomplete view of what Apple currently publishes.
+		for class, assets := range updates {
+			if len(assets) == 0 {
+				logger.WarnContext(ctx, "gdmf returned no os updates for class, keeping cached assets", "class", class)
+			}
+		}
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, updates)
+		if err != nil {
+			logger.ErrorContext(ctx, "error deleting stale apple os updates", "error", err)
+			goto computeOSTargets
+		}
+		if deleted > 0 {
+			logger.InfoContext(ctx, "deleted apple os updates no longer reported by gdmf", "count", deleted)
 		}
 	} else {
 		logger.InfoContext(ctx, "apple os updates are less than 24 hours old, not pulling new os updates", "last_updated_at", *lastUpdatedAt)
 	}
 
+computeOSTargets:
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -2530,32 +2552,32 @@ func HandleAppleMDMOSUpdates(ctx context.Context, ds fleet.Datastore, logger *sl
 	}
 
 	// platform -> map of team_id -> deadline_days
-	teamsWithLatest := map[string]map[uint]uint{}
-	teamsWithLatest["darwin"] = map[uint]uint{}
-	teamsWithLatest["ios"] = map[uint]uint{}
-	teamsWithLatest["ipados"] = map[uint]uint{}
+	teamsWithLatest := map[string]map[uint]int{}
+	teamsWithLatest["darwin"] = map[uint]int{}
+	teamsWithLatest["ios"] = map[uint]int{}
+	teamsWithLatest["ipados"] = map[uint]int{}
 
 	for _, team := range teams {
 		if team.Config.MDM.MacOSUpdates.MinimumVersion.Value == "latest" {
-			teamsWithLatest["darwin"][team.ID] = 2 // TODO: team.Config.MDM.MacOSUpdates.DeadlineDays
+			teamsWithLatest["darwin"][team.ID] = team.Config.MDM.MacOSUpdates.DeadlineDays.Value
 		}
 		if team.Config.MDM.IOSUpdates.MinimumVersion.Value == "latest" {
-			teamsWithLatest["ios"][team.ID] = 2 // TODO: team.Config.MDM.IOSUpdates.DeadlineDays
+			teamsWithLatest["ios"][team.ID] = team.Config.MDM.IOSUpdates.DeadlineDays.Value
 		}
 		if team.Config.MDM.IPadOSUpdates.MinimumVersion.Value == "latest" {
-			teamsWithLatest["ipados"][team.ID] = 2 // TODO: team.Config.MDM.IPadOSUpdates.DeadlineDays
+			teamsWithLatest["ipados"][team.ID] = team.Config.MDM.IPadOSUpdates.DeadlineDays.Value
 		}
 	}
 
 	// We will replace 0 with NULL check when looking up hosts to reconcile and checking the team_id column
 	if appCfg.MDM.MacOSUpdates.MinimumVersion.Value == "latest" {
-		teamsWithLatest["darwin"][0] = 2 // TODO: appCfg.MDM.MacOSUpdates.DeadlineDays
+		teamsWithLatest["darwin"][0] = appCfg.MDM.MacOSUpdates.DeadlineDays.Value
 	}
 	if appCfg.MDM.IOSUpdates.MinimumVersion.Value == "latest" {
-		teamsWithLatest["ios"][0] = 2 // TODO: appCfg.MDM.IOSUpdates.DeadlineDays
+		teamsWithLatest["ios"][0] = appCfg.MDM.IOSUpdates.DeadlineDays.Value
 	}
 	if appCfg.MDM.IPadOSUpdates.MinimumVersion.Value == "latest" {
-		teamsWithLatest["ipados"][0] = 2 // TODO: appCfg.MDM.IPadOSUpdates.DeadlineDays
+		teamsWithLatest["ipados"][0] = appCfg.MDM.IPadOSUpdates.DeadlineDays.Value
 	}
 
 	updateAssets, err := ds.ListAppleOSUpdateAssets(ctx)
@@ -2586,7 +2608,7 @@ func HandleAppleMDMOSUpdates(ctx context.Context, ds fleet.Datastore, logger *sl
 	return nil
 }
 
-func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*fleet.AppleSoftwareUpdateHost, updateAssets map[string][]fleet.AppleSoftwareUpdateAsset, teamsWithLatest map[string]map[uint]uint) []*fleet.ComputedAppleSoftwareUpdateHost {
+func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*fleet.AppleSoftwareUpdateHost, updateAssets map[string][]fleet.AppleSoftwareUpdateAsset, teamsWithLatest map[string]map[uint]int) []*fleet.ComputedAppleSoftwareUpdateHost {
 	var computedHosts []*fleet.ComputedAppleSoftwareUpdateHost
 	for _, host := range hosts {
 
@@ -2627,19 +2649,21 @@ func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*f
 		}
 
 		var latestAsset *fleet.AppleSoftwareUpdateAsset
-		for _, asset := range assets {
+		for i := range assets {
+			asset := &assets[i]
 			if !slices.Contains(asset.SupportedDevices, host.SoftwareUpdateDeviceID) {
 				continue
 			}
 
 			if latestAsset == nil {
-				latestAsset = &asset
-			} else {
-				// Current latest is less than this asset, so update latestAsset to this one
-				if less, _ := IsLessThanVersion(latestAsset.ProductVersion, asset.ProductVersion); less {
-					latestAsset = &asset
-				}
+				latestAsset = asset
+				continue
 			}
+			// Current latest is less than this asset, so update latestAsset to this one
+			if less, _ := IsLessThanVersion(latestAsset.ProductVersion, asset.ProductVersion); less {
+				latestAsset = asset
+			}
+
 		}
 
 		if latestAsset == nil {
@@ -2647,7 +2671,7 @@ func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*f
 			continue
 		}
 
-		startDate, _ := time.Parse(time.DateOnly, latestAsset.PostingDate)
+		startDate := latestAsset.PostingDate
 		if latestAsset.FirstSeenAt.After(startDate) {
 			startDate = latestAsset.FirstSeenAt
 		}

@@ -1552,6 +1552,13 @@ type notReadyYetError struct {
 	Message string
 }
 
+func (e notReadyYetError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
+	return e.error.Error()
+}
+
 // replaceDeclarationFleetVariables replaces $FLEET_VAR_* placeholders in a
 // DDM declaration with host-specific values. Values are JSON-string-escaped
 // so they are safe inside JSON string fields.
@@ -3045,7 +3052,7 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 
 	// if the device should update based on appconfig settings, we also need to check what versions
 	// are actually available for the device from Apple
-	sur, err := svc.getAppleSoftwareUpdateRequiredForDEPEnrollment(*m)
+	sur, err := svc.getAppleSoftwareUpdateRequiredForDEPEnrollment(ctx, *m)
 	if err != nil {
 		// log for debugging but allow enrollment to proceed
 		svc.logger.InfoContext(ctx, "getting apple software update required", "serial", m.Serial, "err", err)
@@ -3118,8 +3125,12 @@ func (svc *Service) shouldOSUpdateForDEPEnrollment(ctx context.Context, m fleet.
 	return needsUpdate, nil
 }
 
-func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(m fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
-	latest, err := gdmf.GetLatestOSVersion(m)
+func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(ctx context.Context, m fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
+	updateAssets, err := svc.ds.ListAppleOSUpdateAssets(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing apple os update assets")
+	}
+	latest, err := gdmf.GetLatestOSVersion(m, updateAssets)
 	if err != nil {
 		return nil, err
 	}
