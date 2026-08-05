@@ -17,6 +17,7 @@ import { Ace } from "ace-builds";
  * capture phase so it runs before Ace processes the scroll, and it lives on
  * editor.container, which is removed when the editor unmounts.
  */
+// eslint-disable-next-line import/prefer-default-export
 export const releaseStuckSelectionOnScroll = (editor: Ace.Editor): void => {
   // $mouseHandler is not part of Ace's public typings.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
