@@ -1107,6 +1107,9 @@ const HostDetailsPage = ({
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
         }
+        managedAccountDetail={
+          host.mdm.os_settings?.managed_local_account?.detail
+        }
         managedAccountPasswordAvailable={
           host.mdm.os_settings?.managed_local_account?.password_available ??
           false

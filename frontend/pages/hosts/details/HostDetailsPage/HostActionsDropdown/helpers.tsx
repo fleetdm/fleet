@@ -124,6 +124,7 @@ interface IHostActionConfigOptions {
   recoveryLockPasswordAvailable: boolean;
   isManagedLocalAccountEnabled: boolean;
   managedAccountStatus: string | null | undefined;
+  managedAccountDetail: string | undefined;
   managedAccountPasswordAvailable: boolean;
   /**
    * BYOD permission gates (issue #23242). Undefined when the host's stored
@@ -701,6 +702,7 @@ const modifyOptions = (
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
     managedAccountStatus,
+    managedAccountDetail,
     managedAccountPasswordAvailable,
     wipeAllowed,
     lockAllowed,
@@ -854,7 +856,8 @@ const modifyOptions = (
           </>
         );
       } else if (managedAccountStatus === "failed") {
-        managedAccountOption.tooltipContent = (
+        // The reason the host reported is the actionable part, so prefer it over generic copy.
+        managedAccountOption.tooltipContent = managedAccountDetail || (
           <>
             The managed account failed to be
             <br />
