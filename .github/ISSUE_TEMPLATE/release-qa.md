@@ -331,7 +331,7 @@ Reference: https://fleetdm.com/pricing
 
 **Full configuration**
 
-1. Configure a team's setup experience: a configuration profile, OS updates, disk encryption (BitLocker), software (FMA, Custom pkg), and end user authentication.
+1. Configure a fleet's setup experience: a configuration profile, OS updates, disk encryption (BitLocker), software (FMA, Custom pkg), and end user authentication.
 2. Enroll an Auto-Pilot host via OOBE and verify the ESP completes and all configured items apply.
 
 **Blank enrollment**
