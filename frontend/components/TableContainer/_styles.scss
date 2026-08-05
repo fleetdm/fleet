@@ -76,16 +76,6 @@
     display: none;
   }
 
-  // Spinner shown in place of the empty-state / DataTable when a refetch is
-  // in flight against an already-empty result set. Matches the DataTable's
-  // no-rows min-height so the swap doesn't shift page height. #49442
-  &__empty-loading {
-    min-height: 272px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
   &__header {
     display: flex;
     width: 100%;

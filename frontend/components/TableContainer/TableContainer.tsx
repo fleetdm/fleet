@@ -8,7 +8,6 @@ import SearchField from "components/forms/fields/SearchField";
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
-import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import DataTable from "./DataTable/DataTable";
@@ -561,27 +560,19 @@ const TableContainer = <T,>({
     wideSearch,
   ]);
 
-  const isEmptyResult = data.length === 0 && !isMultiColumnFilter;
-
   return (
     <div className={wrapperClasses}>
       {renderFilters()}
       <TableLayoutContext.Provider value={{ insideTable: true }}>
         <div className={`${baseClass}__data-table-block`}>
-          {/* Empty result. Refetching from an already-empty previous state
-          (e.g. typing another character after a zero-result search, with
-          keepPreviousData holding the empty result) shows a spinner instead
-          of falling through to a headers-only DataTable stretched by the
-          `data-table__no-rows` min-height. #49442 */}
-          {isEmptyResult && isLoading && (
-            <div className={`${baseClass}__empty-loading`}>
-              <Spinner />
-            </div>
-          )}
-          {isEmptyResult && !isLoading && (
+          {/* No entities for this result. */}
+          {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
+          (searchQuery.length &&
+            data.length === 0 &&
+            !isMultiColumnFilter &&
+            !isLoading) ? (
             <EmptyComponent pageIndex={currentPageIndex} />
-          )}
-          {!isEmptyResult && (
+          ) : (
             <>
               {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but
             no longer accesses rows.length because DataTable is not rendered */}
