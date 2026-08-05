@@ -25,7 +25,7 @@ When a resource has an exception, three things happen:
 
 Exceptions apply to `fleetctl gitops` whether or not GitOps mode is turned on.
 
-Fleet enables the enroll secrets exception by default. Fleet instances upgraded to Fleet 4.84.0 also have the labels exception enabled, so the first GitOps run after the upgrade doesn't delete labels that aren't in git.
+Fleet enables the enroll secrets exception by default.
 
 ## Still available
 
