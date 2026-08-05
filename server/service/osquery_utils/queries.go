@@ -952,6 +952,12 @@ var mdmQueries = map[string]DetailQuery{
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestMDMDeviceIDWindows,
 	},
+	"mdm_macos_software_update_id": {
+		Query:            `SELECT key, value FROM ioreg WHERE c = 'IOPlatformExpertDevice' AND key IN ('compatible', 'bridge-model', 'board-id');`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestMDMMacOSSoftwareUpdateID,
+		Discovery:        discoveryTable("ioreg"),
+	},
 }
 
 // discoveryTable returns a query to determine whether a table exists or not.
@@ -3294,6 +3300,50 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
 		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
 	return nil
+}
+
+func directIngestMDMMacOSSoftwareUpdateID(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	// Use bridge-model (T2), board-id (Intel), or compatible (Apple Silicon) depending on what's present.
+	var boardID, bridgeModel, compatible string
+	for _, row := range rows {
+		if val, ok := row["key"]; ok && val == "board-id" {
+			// board-id identifies Intel-based Macs.
+			boardID = row["value"]
+		} else if val, ok := row["key"]; ok && val == "bridge-model" {
+			// bridge-model identifies Intel Macs with a T2 chip; takes priority over board-id.
+			bridgeModel = row["value"]
+		} else if val, ok := row["key"]; ok && val == "compatible" {
+			// compatible identifies Apple Silicon Macs. On Intel Macs it may also
+			// be present, but board-id or bridge-model will take precedence below.
+			v := row["value"]
+			compatible = strings.Split(v, "\x00")[0] // take the first element of the null-separated list. While queries checked does not return multiple, the HEX value does (indicating truncation happens indirectly elsewhere upstream.)
+		}
+	}
+
+	var deviceID string
+	if compatible != "" {
+		deviceID = compatible
+	}
+
+	// Always take boardID over compatible.
+	if boardID != "" {
+		deviceID = boardID
+	}
+
+	// Always take bridge-model over boardID
+	if bridgeModel != "" {
+		deviceID = bridgeModel
+	}
+
+	if deviceID == "" {
+		return ctxerr.Errorf(ctx, "directIngestMDMMacOSSoftwareUpdateID empty software update device ID")
+	}
+
+	return ds.InsertAppleSoftwareUpdateDeviceID(ctx, host.UUID, deviceID)
 }
 
 var luksVerifyQuery = DetailQuery{

@@ -1015,6 +1015,86 @@ func TestValidateNoSecretsInProfileName(t *testing.T) {
 	}
 }
 
+func TestIsMacIdentifier(t *testing.T) {
+	cases := []struct {
+		product string
+		want    bool
+		wantErr bool
+	}{
+		// --- MacBookPro ---
+		{product: "MacBookPro16,1", want: true},
+		{product: "MacBookPro16,4", want: true},
+		{product: "MacBookPro17,1", want: true},
+		{product: "MacBookPro18,3", want: true},
+		{product: "MacBookPro18,4", want: true},
+
+		// --- MacBookAir ---
+		{product: "MacBookAir9,1", want: true},
+		{product: "MacBookAir10,1", want: true},
+		{product: "MacBookAir14,2", want: true},
+
+		// --- Macmini ---
+		{product: "Macmini8,1", want: true},
+		{product: "Macmini9,1", want: true},
+		{product: "Macmini9,2", want: true},
+
+		// --- iMac ---
+		{product: "iMac20,1", want: true},
+		{product: "iMac20,2", want: true},
+		{product: "iMac21,1", want: true},
+		{product: "iMac21,2", want: true},
+
+		// --- MacBook (no suffix) — all x86, line discontinued before Apple Silicon ---
+		{product: "MacBook10,1", want: true},
+		{product: "MacBook9,1", want: true},
+
+		// --- iMacPro — all x86, discontinued before Apple Silicon ---
+		{product: "iMacPro1,1", want: true},
+
+		// --- MacPro — old numbering, all x86 ---
+		{product: "MacPro7,1", want: true},
+		{product: "MacPro6,1", want: true},
+
+		// --- Mac (bare prefix) — unified Apple Silicon naming ---
+		{product: "Mac13,1", want: true},
+		{product: "Mac13,2", want: true},
+		{product: "Mac14,8", want: true},
+		{product: "Mac16,10", want: true},
+
+		// --- Non-Mac Apple devices — return false without error ---
+		{product: "iPhone15,2", want: false},
+		{product: "iPhone14,3", want: false},
+		{product: "iPad13,18", want: false},
+		{product: "iPodTouch9,1", want: false},
+
+		// --- Virtual Mac machines ---
+		{product: "VirtualMac2,1", want: true},
+
+		// --- Error cases ---
+		// Empty string
+		{product: "", wantErr: true},
+		// No comma separator
+		{product: "MacBookPro18", wantErr: true},
+		// Garbage input
+		{product: "not-a-model", wantErr: true},
+		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
+		{product: "AppleTV6,2", wantErr: true},
+		{product: "AppleTV14,1", wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.product, func(t *testing.T) {
+			got, _, _, err := IsMacIdentifier(tc.product)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.want, got)
+			}
+		})
+	}
+}
+
 func TestIsMacAppleSilicon(t *testing.T) {
 	cases := []struct {
 		product string
@@ -1089,6 +1169,7 @@ func TestIsMacAppleSilicon(t *testing.T) {
 		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
 		{product: "AppleTV6,2", wantErr: true},
 		{product: "AppleTV14,1", wantErr: true},
+		{product: "VirtualMac2,1", wantErr: true},
 	}
 
 	for _, tc := range cases {

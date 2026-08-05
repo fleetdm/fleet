@@ -8631,3 +8631,24 @@ func (ds *Datastore) GetHostDEPAssignmentsByHostIDs(ctx context.Context, hostIDs
 	}
 	return res, nil
 }
+
+func (ds *Datastore) InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error {
+	if hostUUID == "" {
+		return ctxerr.New(ctx, "host UUID is required")
+	}
+
+	if updateDeviceID == "" {
+		return ctxerr.New(ctx, "update device ID is required")
+	}
+
+	const stmt = `
+		INSERT INTO host_mdm_apple_os_updates (host_uuid, software_update_device_id) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE software_update_device_id = VALUES(software_update_device_id)
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, updateDeviceID); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting Apple software update device ID")
+	}
+
+	return nil
+}
