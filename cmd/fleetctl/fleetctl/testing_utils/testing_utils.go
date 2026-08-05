@@ -100,6 +100,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
 	}
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		return nil, "", nil
+	}
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{
 			PolicyData: fleet.PolicyData{
@@ -514,6 +517,23 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 			}
 		}
 		return nil, &notFoundError{}
+	}
+	// Stateful default for the Windows enrollment default fleet config row. Tests can override.
+	var windowsEnrollmentDefaultTeamID *uint
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		if windowsEnrollmentDefaultTeamID == nil {
+			return nil, "", nil
+		}
+		for _, tm := range savedTeams {
+			if (*tm).ID == *windowsEnrollmentDefaultTeamID {
+				return windowsEnrollmentDefaultTeamID, (*tm).Name, nil
+			}
+		}
+		return nil, "", nil
+	}
+	ds.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, teamID *uint) error {
+		windowsEnrollmentDefaultTeamID = teamID
+		return nil
 	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		for _, tm := range savedTeams {

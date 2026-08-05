@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.39.0",
-    "@modelcontextprotocol/sdk": "1.27.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@octokit/rest": "21.1.1",
     "@slack/bolt": "4.7.2",
     "diff": "8.0.3",

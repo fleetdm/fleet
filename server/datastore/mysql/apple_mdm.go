@@ -627,7 +627,43 @@ WHERE
 		}
 	}
 
+	// Callers that write the declaration back must carry this forward; one
+	// written without an activation has its stored activation deleted.
+	activation, err := ds.getCustomActivationForDeclaration(ctx, res.DeclarationUUID)
+	if err != nil {
+		return nil, err
+	}
+	res.Activation = activation
+
 	return &res, nil
+}
+
+// Returns nil when the declaration has none, which is a normal state.
+func (ds *Datastore) getCustomActivationForDeclaration(ctx context.Context, declUUID string) (*fleet.MDMAppleCustomActivation, error) {
+	const stmt = `
+SELECT
+	activation_uuid,
+	team_id,
+	identifier,
+	raw_json,
+	declaration_uuid,
+	configuration_identifier,
+	secrets_updated_at,
+	created_at,
+	uploaded_at
+FROM
+	mdm_apple_ddm_activations
+WHERE
+	declaration_uuid = ?`
+
+	var act fleet.MDMAppleCustomActivation
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &act, stmt, declUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get declaration custom activation")
+	}
+	return &act, nil
 }
 
 func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
@@ -5260,6 +5296,10 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			return ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
 		}
 
+		if err := setMDMAppleDDMActivationDB(ctx, tx, declUUID, tmID, declaration); err != nil {
+			return err
+		}
+
 		if isSoftwareUpdate {
 			if err := trackAppleUpdateConfigProfileDB(ctx, tx, tmID, declUUID); err != nil {
 				return err
@@ -5279,6 +5319,90 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 	declaration.DeclarationUUID = declUUID
 	return declaration, nil
+}
+
+// Keyed on declaration_uuid rather than inserted fresh, so an edit keeps the
+// same activation_uuid and its variable associations survive.
+func setMDMAppleDDMActivationDB(ctx context.Context, tx sqlx.ExtContext, declUUID string, tmID uint,
+	declaration *fleet.MDMAppleDeclaration,
+) error {
+	if declaration.Activation == nil {
+		const deleteStmt = `DELETE FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
+		if _, err := tx.ExecContext(ctx, deleteStmt, declUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting declaration activation")
+		}
+		return nil
+	}
+
+	act := declaration.Activation
+
+	// The upsert fires on any unique key, so an identifier held by a different
+	// declaration's activation would overwrite that row. (team_id,
+	// configuration_identifier) needs no guard: it's always the same declaration.
+	const conflictStmt = `
+SELECT 1 FROM mdm_apple_ddm_activations
+WHERE team_id = ? AND identifier = ? AND declaration_uuid != ?`
+
+	var conflict bool
+	switch err := sqlx.GetContext(ctx, tx, &conflict, conflictStmt, tmID, act.Identifier, declUUID); {
+	case err == nil:
+		// Not an existsError: the callers turn those into a message about the
+		// configuration profile's identifier, which isn't the one that clashed.
+		return ctxerr.Wrap(ctx, &fleet.ConflictError{
+			Message: "An activation with this identifier already exists.",
+		}, "conflicting activation identifier")
+	case !errors.Is(err, sql.ErrNoRows):
+		return ctxerr.Wrap(ctx, err, "checking for conflicting activation identifier")
+	}
+
+	const upsertStmt = `
+INSERT INTO mdm_apple_ddm_activations (
+	activation_uuid,
+	team_id,
+	identifier,
+	raw_json,
+	declaration_uuid,
+	configuration_identifier,
+	secrets_updated_at,
+	uploaded_at
+)
+VALUES (?,?,?,?,?,?,?,NOW(6))
+ON DUPLICATE KEY UPDATE
+	uploaded_at = IF(raw_json = VALUES(raw_json)
+		AND identifier = VALUES(identifier)
+		AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
+	identifier = VALUES(identifier),
+	raw_json = VALUES(raw_json),
+	configuration_identifier = VALUES(configuration_identifier),
+	secrets_updated_at = VALUES(secrets_updated_at)
+`
+
+	if _, err := tx.ExecContext(ctx, upsertStmt,
+		uuid.NewString(),
+		tmID,
+		act.Identifier,
+		act.RawJSON,
+		declUUID,
+		declaration.Identifier,
+		act.SecretsUpdatedAt,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting declaration activation")
+	}
+
+	// On an edit the upsert keeps the existing row, so the generated UUID is unused.
+	var activationUUID string
+	const reloadStmt = `SELECT activation_uuid FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
+	if err := sqlx.GetContext(ctx, tx, &activationUUID, reloadStmt, declUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reload declaration activation")
+	}
+
+	if _, err := setVariableAssociationsForColumnDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+		{ProfileUUID: activationUUID, FleetVariables: act.FleetVariables},
+	}, "apple_ddm_activation_uuid"); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting activation variable associations")
+	}
+
+	return nil
 }
 
 func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext,
@@ -8506,4 +8630,25 @@ func (ds *Datastore) GetHostDEPAssignmentsByHostIDs(ctx context.Context, hostIDs
 		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments by host IDs")
 	}
 	return res, nil
+}
+
+func (ds *Datastore) InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error {
+	if hostUUID == "" {
+		return ctxerr.New(ctx, "host UUID is required")
+	}
+
+	if updateDeviceID == "" {
+		return ctxerr.New(ctx, "update device ID is required")
+	}
+
+	const stmt = `
+		INSERT INTO host_mdm_apple_os_updates (host_uuid, software_update_device_id) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE software_update_device_id = VALUES(software_update_device_id)
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, updateDeviceID); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting Apple software update device ID")
+	}
+
+	return nil
 }

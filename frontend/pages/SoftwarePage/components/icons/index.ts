@@ -241,6 +241,7 @@ import CriblEdge from "./CriblEdge";
 import Crisisgo from "./Crisisgo";
 import Crossover from "./Crossover";
 import Cryptomator from "./Cryptomator";
+import Crystaldiskmark from "./Crystaldiskmark";
 import Crystalfetch from "./Crystalfetch";
 import CubeBrowser from "./CubeBrowser";
 import Cursor from "./Cursor";
@@ -251,6 +252,7 @@ import Cyberduck from "./Cyberduck";
 import CyberduckCli from "./CyberduckCli";
 import Daisydisk from "./Daisydisk";
 import Dangerzone from "./Dangerzone";
+import DanteController from "./DanteController";
 import Darkmodebuddy from "./Darkmodebuddy";
 import Darktable from "./Darktable";
 import Dash from "./Dash";
@@ -373,7 +375,6 @@ import Fastscripts from "./Fastscripts";
 import Fellow from "./Fellow";
 import Ferdium from "./Ferdium";
 import FetchApp from "./FetchApp";
-import Fig from "./Fig";
 import Figma from "./Figma";
 import Filebeat from "./Filebeat";
 import FileJuicer from "./FileJuicer";
@@ -416,8 +417,6 @@ import Freefilesync from "./Freefilesync";
 import Front from "./Front";
 import Fsmonitor from "./Fsmonitor";
 import Funter from "./Funter";
-import GadwinPrintscreen from "./GadwinPrintscreen";
-import GadwinPrintscreenPro from "./GadwinPrintscreenPro";
 import GalaxyModeler from "./GalaxyModeler";
 import GarminBasecamp from "./GarminBasecamp";
 import GarminExpress from "./GarminExpress";
@@ -571,6 +570,7 @@ import LastWindowQuits from "./LastWindowQuits";
 import Latest from "./Latest";
 import Launchbar from "./Launchbar";
 import LenovoDockManager from "./LenovoDockManager";
+import LenovoSystemUpdate from "./LenovoSystemUpdate";
 import Lens from "./Lens";
 import LibreOffice from "./LibreOffice";
 import Lightburn from "./Lightburn";
@@ -642,6 +642,8 @@ import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
 import MicrosoftAzureStorageExplorer from "./MicrosoftAzureStorageExplorer";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftEdge from "./MicrosoftEdge";
+import MicrosoftOdbcDriver17 from "./MicrosoftOdbcDriver17";
+import MicrosoftOdbcDriver18 from "./MicrosoftOdbcDriver18";
 import MicrosoftOffice from "./MicrosoftOffice";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
@@ -712,6 +714,7 @@ import Novabench from "./Novabench";
 import Nucleo from "./Nucleo";
 import Nudge from "./Nudge";
 import Numi from "./Numi";
+import Nvda from "./Nvda";
 import NvidiaGeforceNow from "./NvidiaGeforceNow";
 import Obs from "./Obs";
 import Obsidian from "./Obsidian";
@@ -750,6 +753,7 @@ import OrigamiStudio from "./OrigamiStudio";
 import P4V from "./P4V";
 import Pacifist from "./Pacifist";
 import Package from "./Package";
+import PaintDotNet from "./PaintDotNet";
 import PaleMoon from "./PaleMoon";
 import Paletro from "./Paletro";
 import ParallelsDesktop from "./ParallelsDesktop";
@@ -823,6 +827,7 @@ import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
 import Python313 from "./Python313";
 import Python314 from "./Python314";
+import Qemu from "./Qemu";
 import Qlab from "./Qlab";
 import Qlmarkdown from "./Qlmarkdown";
 import QspacePro from "./QspacePro";
@@ -884,6 +889,7 @@ import Screenflick from "./Screenflick";
 import Screenflow from "./Screenflow";
 import Screenfocus from "./Screenfocus";
 import ScreenStudio from "./ScreenStudio";
+import Scribe from "./Scribe";
 import Scribus from "./Scribus";
 import Scrivener from "./Scrivener";
 import Secretive from "./Secretive";
@@ -1390,6 +1396,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   crisisgo: Crisisgo,
   crossover: Crossover,
   cryptomator: Cryptomator,
+  crystaldiskmark: Crystaldiskmark,
   crystalfetch: Crystalfetch,
   "cube browser": CubeBrowser,
   cursor: Cursor,
@@ -1400,6 +1407,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cyberduck cli": CyberduckCli,
   daisydisk: Daisydisk,
   dangerzone: Dangerzone,
+  "dante controller": DanteController,
   darkmodebuddy: Darkmodebuddy,
   darktable: Darktable,
   dash: Dash,
@@ -1528,7 +1536,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   fellow: Fellow,
   ferdium: Ferdium,
   fetch: FetchApp,
-  fig: Fig,
   figma: Figma,
   "file juicer": FileJuicer,
   filebeat: Filebeat,
@@ -1564,8 +1571,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   front: Front,
   fsmonitor: Fsmonitor,
   funter: Funter,
-  "gadwin printscreen": GadwinPrintscreen,
-  "gadwin printscreen pro": GadwinPrintscreenPro,
   "galaxy modeler": GalaxyModeler,
   "garmin basecamp": GarminBasecamp,
   "garmin express": GarminExpress,
@@ -1723,6 +1728,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   latest: Latest,
   launchbar: Launchbar,
   "lenovo dock manager": LenovoDockManager,
+  "lenovo system update": LenovoSystemUpdate,
   lens: Lens,
   libreoffice: LibreOffice,
   lightburn: Lightburn,
@@ -1786,6 +1792,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "menubar stats": MenubarStats,
   menubarx: Menubarx,
   "merlin project": MerlinProject,
+  "microsoft .net desktop runtime": MicrosoftDotnetRuntime,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft auto update": MicrosoftAutoUpdate,
@@ -1793,6 +1800,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft azure storage explorer": MicrosoftAzureStorageExplorer,
   "microsoft edge": Edge,
   "microsoft excel": Excel,
+  "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
+  "microsoft odbc driver 18 for sql server": MicrosoftOdbcDriver18,
   "microsoft office": MicrosoftOffice,
   "microsoft onenote": MicrosoftOneNote,
   "microsoft outlook": MicrosoftOutlook,
@@ -1873,6 +1882,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nucleo: Nucleo,
   nudge: Nudge,
   numi: Numi,
+  nvda: Nvda,
   "nvidia geforce now": NvidiaGeforceNow,
   obs: Obs,
   obsidian: Obsidian,
@@ -1911,6 +1921,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   p4v: P4V,
   pacifist: Pacifist,
   package: Package,
+  "paint.net": PaintDotNet,
   "pale moon": PaleMoon,
   paletro: Paletro,
   "parallels desktop": ParallelsDesktop,
@@ -1984,6 +1995,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pycharm ce": PyCharmCe,
   "python 3.13": Python313,
   "python 3.14": Python314,
+  qemu: Qemu,
   qlab: Qlab,
   "qspace pro": QspacePro,
   quip: Quip,
@@ -2047,6 +2059,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   screenflick: Screenflick,
   screenflow: Screenflow,
   screenfocus: Screenfocus,
+  scribe: Scribe,
   scribus: Scribus,
   scrivener: Scrivener,
   secretive: Secretive,

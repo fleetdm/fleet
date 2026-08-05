@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.9.2",
+      "version": "1.9.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.netsoft.Hubstaff';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.netsoft.Hubstaff' AND version_compare(bundle_short_version, '1.9.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.netsoft.Hubstaff' AND version_compare(bundle_short_version, '1.9.6') < 0);"
       },
-      "installer_url": "https://app.hubstaff.com/download/12156-standard-mac-os-x-1-9-2-release/dmg?architecture=arm64",
+      "installer_url": "https://app.hubstaff.com/download/12322-standard-mac-os-x-1-9-6-release/dmg?architecture=arm64",
       "install_script_ref": "1c60a3b3",
       "uninstall_script_ref": "f0b8a143",
-      "sha256": "c47c1fd6250770844cf9a85437861a5e17967a279e90de21f5c5bdb9085c0c8e",
+      "sha256": "f795e01fb8962bd2d2ff967ced823ec06757e32a1f8b2b308e1e890ac298320c",
       "default_categories": [
         "Productivity"
       ]

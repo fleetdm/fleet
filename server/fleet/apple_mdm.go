@@ -420,6 +420,12 @@ func (p *MDMAppleProfilePayload) FailedInstallOnHost() bool {
 	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
 }
 
+func (p *MDMAppleProfilePayload) FailedVerificationOnHost() bool {
+	return p.FailedInstallOnHost() &&
+		(p.Detail == string(HostMDMProfileDetailFailedWasVerifying) ||
+			p.Detail == string(HostMDMProfileDetailFailedWasVerified))
+}
+
 // PendingInstallOnHost indicates whether this profile is pending to install on the host.
 // The profile in Pending status could be on the host, but Fleet has not received an Acknowledged status yet.
 func (p *MDMAppleProfilePayload) PendingInstallOnHost() bool {
@@ -913,6 +919,10 @@ type MDMAppleDeclaration struct {
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
 
+	// Not persisted; carried so callers can tell a configuration from a
+	// management declaration without re-parsing RawJSON.
+	Type string `db:"-" json:"-"`
+
 	// Name corresponds to the file name of the associated JSON declaration payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
@@ -938,6 +948,9 @@ type MDMAppleDeclaration struct {
 	// declaration, resolved from the declaration's asset references. Used to
 	// populate mdm_apple_declaration_asset_references in the batch-set path.
 	AssetReferenceUUIDs []string `db:"-" json:"-"`
+
+	// Nil removes any stored activation on write, which is how one is cleared.
+	Activation *MDMAppleCustomActivation `db:"-" json:"-"`
 
 	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
 	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
@@ -1004,7 +1017,18 @@ func (r *MDMAppleRawDeclaration) ValidateScope() error {
 var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.watch.enrollment": {},
 	"com.apple.configuration.account.google":   {},
+	"com.apple.management.server-capabilities": {},
 }
+
+const (
+	MDMAppleConfigurationTypePrefix = "com.apple.configuration."
+	MDMAppleManagementTypePrefix    = "com.apple.management."
+
+	// Apple's DeclarationBase caps Identifier at 64 octets. A longer one is
+	// stored fine but rejected by the device at delivery.
+	// https://developer.apple.com/documentation/devicemanagement/declarationbase
+	MDMAppleDeclarationIdentifierMaxLen = 64
+)
 
 func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 	var err error
@@ -1021,8 +1045,13 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include software management types. To manage software, please use the Software tab.")
 	}
 
-	if !strings.HasPrefix(r.Type, "com.apple.configuration.") {
-		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) are supported.")
+	if !strings.HasPrefix(r.Type, MDMAppleConfigurationTypePrefix) && !strings.HasPrefix(r.Type, MDMAppleManagementTypePrefix) {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported.")
+	}
+
+	if len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen {
+		return NewInvalidArgumentError("Identifier", fmt.Sprintf(
+			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
 	}
 
 	return err
@@ -1035,6 +1064,82 @@ func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
 	}
 
 	return &rawDecl, nil
+}
+
+// Any type under this prefix is accepted, not just com.apple.activation.simple,
+// so new Apple activation types don't need a Fleet change.
+const MDMAppleActivationTypePrefix = "com.apple.activation."
+
+// A custom activation stored against the configuration declaration it
+// activates. Not to be confused with MDMAppleDDMActivation, Apple's wire format.
+type MDMAppleCustomActivation struct {
+	ActivationUUID          string          `db:"activation_uuid"`
+	TeamID                  uint            `db:"team_id"`
+	Identifier              string          `db:"identifier"`
+	RawJSON                 json.RawMessage `db:"raw_json"`
+	DeclarationUUID         string          `db:"declaration_uuid"`
+	ConfigurationIdentifier string          `db:"configuration_identifier"`
+	SecretsUpdatedAt        *time.Time      `db:"secrets_updated_at"`
+	CreatedAt               time.Time       `db:"created_at"`
+	UploadedAt              time.Time       `db:"uploaded_at"`
+
+	FleetVariables []FleetVarName `db:"-"`
+}
+
+// The fields of an activation declaration used for validation. Everything
+// else, Payload.Predicate included, is stored and served verbatim.
+type MDMAppleRawActivation struct {
+	Type       string `json:"Type"`
+	Identifier string `json:"Identifier"`
+	Payload    struct {
+		// Apple allows several; Fleet allows exactly the configuration the
+		// activation is uploaded with.
+		StandardConfigurations []string `json:"StandardConfigurations"`
+	} `json:"Payload"`
+}
+
+func GetRawActivationValues(raw []byte) (*MDMAppleRawActivation, error) {
+	var rawAct MDMAppleRawActivation
+	if err := json.Unmarshal(raw, &rawAct); err != nil {
+		return nil, NewInvalidArgumentError("activation", fmt.Sprintf("Couldn't add. The activation should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
+	}
+
+	return &rawAct, nil
+}
+
+func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier string) error {
+	invalid := &InvalidArgumentError{}
+
+	if strings.TrimSpace(r.Type) == "" {
+		invalid.Append("Type", "Activation must include a Type.")
+	} else if !strings.HasPrefix(r.Type, MDMAppleActivationTypePrefix) {
+		invalid.Append("Type", fmt.Sprintf("Only activation declarations (%s) are supported.", MDMAppleActivationTypePrefix))
+	}
+
+	switch {
+	case strings.TrimSpace(r.Identifier) == "":
+		invalid.Append("Identifier", "Activation must include an Identifier.")
+	case len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen:
+		invalid.Append("Identifier", fmt.Sprintf(
+			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
+	}
+
+	switch configs := r.Payload.StandardConfigurations; {
+	case len(configs) == 0:
+		invalid.Append("StandardConfigurations", "Activation must reference the configuration profile it's uploaded with.")
+	case len(configs) > 1:
+		invalid.Append("StandardConfigurations", "Activation can only reference one configuration profile.")
+	case configs[0] != configurationIdentifier:
+		invalid.Append("StandardConfigurations", fmt.Sprintf(
+			"Activation must reference the configuration profile it's uploaded with. Expected %q, got %q.",
+			configurationIdentifier, configs[0]))
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+
+	return nil
 }
 
 // MDMAppleHostDeclaration represents the state of a declaration on a host
@@ -1110,6 +1215,7 @@ func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ide
 
 	decl.Identifier = ident
 	decl.Name = name
+	decl.Type = declType
 	decl.RawJSON = raw
 	decl.TeamID = teamID
 
@@ -1357,25 +1463,49 @@ var appleSiliconMajorThreshold = map[string]int{
 	"iMac": 21,
 }
 
-// IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
-// starts with iPhone, iPod, or iPad, it returns false with no error; however, other non-Mac Apple
-// devices like AppleTV will return an error.
-func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
+func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 	if strings.HasPrefix(modelIdentifier, "iPhone") ||
 		strings.HasPrefix(modelIdentifier, "iPod") ||
 		strings.HasPrefix(modelIdentifier, "iPad") {
 		// If the model identifier starts with iPhone, iPod, or iPad, we'll return false with no
 		// error; however, other non-Mac Apple devices like AppleTV will return an error
-		return false, nil
+		return false, "", 0, nil
 	}
 
 	matches := macProductRe.FindStringSubmatch(modelIdentifier)
 	if matches == nil {
-		return false, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
+		return false, "", 0, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
 	}
 
 	family := matches[1]
 	major, _ := strconv.Atoi(matches[2])
+
+	if family == "Mac" ||
+		family == "VirtualMac" ||
+		family == "MacBook" ||
+		family == "MacBookAir" ||
+		family == "MacBookPro" ||
+		family == "Macmini" ||
+		family == "iMac" ||
+		family == "iMacPro" ||
+		family == "MacPro" {
+		return true, family, major, nil
+	}
+
+	return false, "", 0, fmt.Errorf("failed to detect if model identifier (%q) was mac", modelIdentifier)
+}
+
+// IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
+// starts with iPhone, iPod, or iPad, it returns false with no error; however, other non-Mac Apple
+// devices like AppleTV will return an error.
+func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
+	isMac, family, major, err := IsMacIdentifier(modelIdentifier)
+	if err != nil {
+		return false, err
+	}
+	if !isMac {
+		return false, nil
+	}
 
 	// Model identifiers starting with "Mac" immediately followed by a digit (e.g. "Mac13,1")
 	// represent the unified naming scheme Apple adopted for Apple Silicon products such as the
@@ -1508,11 +1638,6 @@ const (
 	AccountConfigurationCmdName = "AccountConfiguration"
 	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
 )
-
-// ManagedLocalAccountUsername is the short name Fleet provisions on macOS hosts
-// via the AccountConfiguration MDM command when the managed local account
-// feature is enabled.
-const ManagedLocalAccountUsername = "_fleetadmin"
 
 // PrimaryAccountType represents the type of the primary account for MacOS going through setup experience.
 // Documented at https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary
