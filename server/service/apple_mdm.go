@@ -7458,7 +7458,7 @@ func (svc *MDMAppleDDMService) serveCustomActivation(ctx context.Context, act *f
 		return nil, nil
 	}
 
-	var tempd map[string]any
+	tempd := make(map[string]any)
 	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored activation")
 	}
