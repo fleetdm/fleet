@@ -94,5 +94,5 @@ Replace polling entirely: the server holds a persistent WebSocket per agent and 
 - [#50157: Reduce `/api/v1/osquery/config` traffic with ETag / HTTP 304-style conditional requests](https://github.com/fleetdm/fleet/issues/50157)
 - Originating Slack thread: https://fleetdm.slack.com/archives/C019WG4GH0A/p1785337387703489
 - `Service.GetClientConfig` and `getPackConfig`: `server/service/osquery.go`
-- ADR-0011: Agent webSocket transport.
+- [ADR-0011: Agent WebSocket Transport](0011-agent-websocket-transport.md)
 - osquery TLS config plugin: https://osquery.readthedocs.io/en/stable/deployment/remote/
