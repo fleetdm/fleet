@@ -20,7 +20,8 @@ import (
 // handlers' dynamic-label unknown-membership rule. hostLabels is the set of label IDs the host is a member of.
 //
 // entityOnHost reports whether the entity is currently on the host: an install-operation row exists for it in the platform's
-// host_mdm_*_profiles table, whatever its status (including failed — Fleet still intends the entity to be there). No row, or a
+// per-entity host_mdm_* table (host_mdm_apple_profiles, host_mdm_apple_declarations, host_mdm_windows_profiles,
+// host_mdm_android_profiles), whatever its status (including failed — Fleet still intends the entity to be there). No row, or a
 // remove-operation row, means not on host. It drives the unknown-membership rules so that a dynamic label the host hasn't
 // evaluated yet preserves the entity's current state instead of forcing a removal.
 func EntityAppliesToHost(
