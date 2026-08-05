@@ -7536,11 +7536,19 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 	}
 
 	// Management declarations report under their own section but are tracked in
-	// the same host_mdm_apple_declarations rows as configurations.
-	configurationReports := append(
-		append([]fleet.MDMAppleDDMStatusDeclaration{}, statusReport.StatusItems.Management.Declarations.Configurations...),
-		statusReport.StatusItems.Management.Declarations.Management...,
-	)
+	// the same host_mdm_apple_declarations rows as configurations. Which section
+	// a report came from has to survive the merge, because the two are graded
+	// differently -- see the isManagement case below.
+	configurationReports := make([]reportedDeclaration, 0,
+		len(statusReport.StatusItems.Management.Declarations.Configurations)+
+			len(statusReport.StatusItems.Management.Declarations.Management))
+	for _, c := range statusReport.StatusItems.Management.Declarations.Configurations {
+		configurationReports = append(configurationReports, reportedDeclaration{MDMAppleDDMStatusDeclaration: c})
+	}
+	for _, m := range statusReport.StatusItems.Management.Declarations.Management {
+		configurationReports = append(configurationReports,
+			reportedDeclaration{MDMAppleDDMStatusDeclaration: m, isManagement: true})
+	}
 	// A configuration whose activation didn't activate reports
 	// Error.ActivationFailed, which looks like a failure but isn't one when the
 	// cause is a predicate that simply evaluated false. Apple reports that as
@@ -7556,7 +7564,21 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 	for i, r := range configurationReports {
 		var status fleet.MDMDeliveryStatus
 		var detail string
-		switch activationFailed := declarationReasonCode(r, fleet.MDMAppleDDMReasonActivationFailed); {
+		switch activationFailed := declarationReasonCode(r.MDMAppleDDMStatusDeclaration, fleet.MDMAppleDDMReasonActivationFailed); {
+		case r.isManagement:
+			// Apple: "A management declaration has an active state which is always
+			// false and not part of the activation process." Grading it on Active
+			// like a configuration would leave every one of them stuck verifying.
+			switch r.Valid {
+			case fleet.MDMAppleDeclarationValid:
+				status = fleet.MDMDeliveryVerified
+			case fleet.MDMAppleDeclarationInvalid:
+				status = fleet.MDMDeliveryFailed
+				detail = apple_mdm.FmtDDMError(r.Reasons)
+			default:
+				// Unknown: the device hasn't checked it yet.
+				status = fleet.MDMDeliveryVerifying
+			}
 		case activationFailed != nil && predicateNotApplied(activationFailed, predicateByActivation) != nil:
 			// Not applied because the predicate excluded this host. Fleet
 			// delivered it correctly, so this is verified, not failed.
@@ -7569,7 +7591,7 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 			detail = apple_mdm.FmtDDMError(r.Reasons)
 		case r.Active && r.Valid == fleet.MDMAppleDeclarationValid:
 			status = fleet.MDMDeliveryVerified
-		case r.Valid == fleet.MDMAppleDeclarationInvalid || isUnknownDeclarationType(r):
+		case r.Valid == fleet.MDMAppleDeclarationInvalid || isUnknownDeclarationType(r.MDMAppleDDMStatusDeclaration):
 			status = fleet.MDMDeliveryFailed
 			detail = apple_mdm.FmtDDMError(r.Reasons)
 		case r.Valid == fleet.MDMAppleDeclarationValid:
@@ -7627,6 +7649,13 @@ func predicateNotApplied(activationFailed *fleet.MDMAppleDDMStatusErrorReason, b
 		return nil
 	}
 	return byActivation[id]
+}
+
+// reportedDeclaration keeps track of which section of the status report a
+// declaration came from, which decides how its status is graded.
+type reportedDeclaration struct {
+	fleet.MDMAppleDDMStatusDeclaration
+	isManagement bool
 }
 
 func declarationReasonCode(r fleet.MDMAppleDDMStatusDeclaration, code string) *fleet.MDMAppleDDMStatusErrorReason {

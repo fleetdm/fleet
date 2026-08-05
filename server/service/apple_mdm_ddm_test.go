@@ -669,12 +669,52 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 			return r
 		}
 
+		// Apple: "A management declaration has an active state which is always
+		// false and not part of the activation process", so these report
+		// Active:false even when fully applied. Grading them like configurations
+		// left every one of them stuck on verifying.
+		management := func(ident, token string, valid fleet.MDMAppleDeclarationValidity) fleet.MDMAppleDDMStatusReport {
+			var r fleet.MDMAppleDDMStatusReport
+			r.StatusItems.Management.Declarations.Management = []fleet.MDMAppleDDMStatusDeclaration{{
+				Identifier:  ident,
+				Active:      false,
+				Valid:       valid,
+				ServerToken: token,
+			}}
+			return r
+		}
+
 		cases := []struct {
-			name       string
-			report     func(configIdent, activationIdent, token string) fleet.MDMAppleDDMStatusReport
-			wantStatus fleet.MDMDeliveryStatus
-			wantDetail string
+			name        string
+			report      func(configIdent, activationIdent, token string) fleet.MDMAppleDDMStatusReport
+			declRawJSON string
+			wantStatus  fleet.MDMDeliveryStatus
+			wantDetail  string
 		}{
+			{
+				name: "valid management declaration is verified despite being inactive",
+				report: func(ident, _ string, token string) fleet.MDMAppleDDMStatusReport {
+					return management(ident, token, fleet.MDMAppleDeclarationValid)
+				},
+				declRawJSON: `{"Type":"com.apple.management.organization-info","Identifier":"%s","Payload":{"Name":"Fleet"}}`,
+				wantStatus:  fleet.MDMDeliveryVerified,
+			},
+			{
+				name: "invalid management declaration is failed",
+				report: func(ident, _ string, token string) fleet.MDMAppleDDMStatusReport {
+					return management(ident, token, fleet.MDMAppleDeclarationInvalid)
+				},
+				declRawJSON: `{"Type":"com.apple.management.organization-info","Identifier":"%s","Payload":{"Name":"Fleet"}}`,
+				wantStatus:  fleet.MDMDeliveryFailed,
+			},
+			{
+				name: "unchecked management declaration stays verifying",
+				report: func(ident, _ string, token string) fleet.MDMAppleDDMStatusReport {
+					return management(ident, token, fleet.MDMAppleDeclarationUnknown)
+				},
+				declRawJSON: `{"Type":"com.apple.management.organization-info","Identifier":"%s","Payload":{"Name":"Fleet"}}`,
+				wantStatus:  fleet.MDMDeliveryVerifying,
+			},
 			{
 				name:       "predicate excluded the host is verified, not failed",
 				report:     predicateFalse,
@@ -705,10 +745,14 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 
 				configIdent := "com.example.pred." + suffix
 				activationIdent := configIdent + ".custom"
+				rawJSON := `{"Type":"com.apple.configuration.test","Identifier":"` + configIdent + `","Payload":{"Enabled":true}}`
+				if c.declRawJSON != "" {
+					rawJSON = fmt.Sprintf(c.declRawJSON, configIdent)
+				}
 				decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 					Name:       "PredDecl-" + suffix,
 					Identifier: configIdent,
-					RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"` + configIdent + `","Payload":{"Enabled":true}}`),
+					RawJSON:    []byte(rawJSON),
 					Scope:      fleet.PayloadScopeSystem,
 				}, nil)
 				require.NoError(t, err)
