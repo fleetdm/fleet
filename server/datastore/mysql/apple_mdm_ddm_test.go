@@ -33,6 +33,7 @@ func TestMDMDDMApple(t *testing.T) {
 		{"GetAppleDDMAssetForDelivery", testGetAppleDDMAssetForDelivery},
 		{"GetAppleDDMAssetsReferencedByDeclarations", testGetAppleDDMAssetsReferencedByDeclarations},
 		{"AssetsUpdatedAtRoundTripAndToken", testDDMAssetsUpdatedAtRoundTripAndToken},
+		{"UpsertDeclarationAssetReferences", testUpsertDeclarationAssetReferences},
 	}
 
 	for _, c := range cases {
@@ -900,6 +901,61 @@ func testGetAppleDDMAssetsReferencedByDeclarations(t *testing.T, ds *Datastore) 
 		require.Len(t, got, 1)
 		require.Equal(t, asset1UUID, got[0].AssetUUID)
 	})
+}
+
+func testUpsertDeclarationAssetReferences(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	asset1UUID, err := ds.CreateAppleDDMAsset(ctx, "upsert-asset-one", "com.example.upsert.one", []byte(`{"a":1}`), nil)
+	require.NoError(t, err)
+	asset2UUID, err := ds.CreateAppleDDMAsset(ctx, "upsert-asset-two", "com.example.upsert.two", []byte(`{"a":2}`), nil)
+	require.NoError(t, err)
+
+	newDecl := func(refs []string) *fleet.MDMAppleDeclaration {
+		return &fleet.MDMAppleDeclaration{
+			Name:                "UpsertDecl",
+			Identifier:          "com.example.upsertDecl",
+			RawJSON:             []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.upsertDecl"}`),
+			Scope:               fleet.PayloadScopeSystem,
+			AssetReferenceUUIDs: refs,
+		}
+	}
+
+	refsFor := func(declUUID string) []string {
+		var got []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &got,
+				`SELECT asset_uuid FROM mdm_apple_declaration_asset_references WHERE declaration_uuid = ?`, declUUID)
+		})
+		return got
+	}
+
+	created, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset1UUID}), nil)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{asset1UUID}, refsFor(created.DeclarationUUID))
+
+	// Re-sending identical contents keeps the existing declaration UUID; the
+	// references must be written against that UUID, not a freshly generated one.
+	updated, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset1UUID}), nil)
+	require.NoError(t, err)
+	require.Equal(t, created.DeclarationUUID, updated.DeclarationUUID)
+	require.ElementsMatch(t, []string{asset1UUID}, refsFor(created.DeclarationUUID))
+
+	// Adding a reference on an edit.
+	updated, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset1UUID, asset2UUID}), nil)
+	require.NoError(t, err)
+	require.Equal(t, created.DeclarationUUID, updated.DeclarationUUID)
+	require.ElementsMatch(t, []string{asset1UUID, asset2UUID}, refsFor(created.DeclarationUUID))
+
+	// Dropping a reference on an edit removes the stale row.
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset2UUID}), nil)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{asset2UUID}, refsFor(created.DeclarationUUID))
+
+	// Dropping all references clears them.
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil)
+	require.NoError(t, err)
+	require.Empty(t, refsFor(created.DeclarationUUID))
 }
 
 func testDDMAssetsUpdatedAtRoundTripAndToken(t *testing.T, ds *Datastore) {
