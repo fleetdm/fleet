@@ -41,9 +41,11 @@ You need two identifiers, and they are not the same thing.
 These are the only two winget commands involved. Everything in Step 3 exists to get them running in the right place.
 
 ```powershell
-winget install --id 9WZDNCRFJ3PZ --source msstore --accept-package-agreements --accept-source-agreements
-winget uninstall --id 9WZDNCRFJ3PZ
+winget install --id 9WZDNCRFJ3PZ --source msstore --accept-package-agreements --accept-source-agreements --disable-interactivity
+winget uninstall --id 9WZDNCRFJ3PZ --accept-source-agreements --disable-interactivity
 ```
+
+> **Warning:** Keep the agreement flags on the uninstall too. winget [prompts for msstore source agreements even on uninstall](https://github.com/microsoft/winget-cli/issues/1736), and in an unattended script that prompt hangs forever. `--disable-interactivity` turns any remaining prompt into a failure instead.
 
 ## Step 3: Write the install script
 
@@ -53,14 +55,14 @@ Save this as `install-company-portal.ps1`.
 
 ```powershell
 $StoreId = "9WZDNCRFJ3PZ"
-$WingetArgs = "install --id $StoreId --source msstore --accept-package-agreements --accept-source-agreements"
+$WingetArgs = "install --id $StoreId --source msstore --accept-package-agreements --accept-source-agreements --disable-interactivity"
 
 $exitCode = 0
 $taskName = "fleet-store-$StoreId"
 
 try {
     $userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' |
-        Invoke-CimMethod -MethodName GetOwner).User
+        Invoke-CimMethod -MethodName GetOwner | Select-Object -First 1).User
     if (-not $userName) { throw "No logged-on user, so there is no session to install into." }
 
     $action = New-ScheduledTaskAction -Execute "winget.exe" -Argument $WingetArgs
@@ -98,7 +100,7 @@ Only the first two lines are app-specific. Inside the user's session, plain `win
 Copy the install script and change one line. Save it as `uninstall-company-portal.ps1`.
 
 ```powershell
-$WingetArgs = "uninstall --id $StoreId"
+$WingetArgs = "uninstall --id $StoreId --accept-source-agreements --disable-interactivity"
 ```
 
 > **Note:** If winget cannot match the installed package on uninstall, remove it directly with `Remove-AppxPackage` inside the same scheduled task, using the package family name from Step 1.
@@ -178,7 +180,7 @@ $exitCode = 0
 $taskName = "fleet-store-$StoreId"
 try {
     $userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' |
-        Invoke-CimMethod -MethodName GetOwner).User
+        Invoke-CimMethod -MethodName GetOwner | Select-Object -First 1).User
     if (-not $userName) { throw "No logged-on user, so there is no session to install into." }
     $action = New-ScheduledTaskAction -Execute "winget.exe" -Argument $WingetArgs
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
@@ -205,13 +207,13 @@ exit $exitCode
 
 @"
 `$StoreId = "$StoreId"
-`$WingetArgs = "install --id `$StoreId --source msstore --accept-package-agreements --accept-source-agreements"
+`$WingetArgs = "install --id `$StoreId --source msstore --accept-package-agreements --accept-source-agreements --disable-interactivity"
 $body
 "@ | Set-Content "$dir/install-$slug.ps1" -Encoding UTF8
 
 @"
 `$StoreId = "$StoreId"
-`$WingetArgs = "uninstall --id `$StoreId"
+`$WingetArgs = "uninstall --id `$StoreId --accept-source-agreements --disable-interactivity"
 $body
 "@ | Set-Content "$dir/uninstall-$slug.ps1" -Encoding UTF8
 

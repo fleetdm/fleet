@@ -28,11 +28,11 @@ winget search --source msstore "company portal"
 Given the ID, the two commands you need are these:
 
 ```powershell
-winget install --id 9WZDNCRFJ3PZ --source msstore --accept-package-agreements --accept-source-agreements
-winget uninstall --id 9WZDNCRFJ3PZ
+winget install --id 9WZDNCRFJ3PZ --source msstore --accept-package-agreements --accept-source-agreements --disable-interactivity
+winget uninstall --id 9WZDNCRFJ3PZ --accept-source-agreements --disable-interactivity
 ```
 
-Pin to the ID rather than the name. A name match can resolve to the wrong package, and nobody is watching the output when Fleet runs this. Everything from here on exists to get those two commands executed in a place where they work.
+Pin to the ID rather than the name. A name match can resolve to the wrong package, and nobody is watching the output when Fleet runs this. The flags matter as much as the ID: winget [prompts for msstore source agreements even on uninstall](https://github.com/microsoft/winget-cli/issues/1736), and in an unattended script that prompt is a permanent hang. `--disable-interactivity` turns any prompt these flags miss into a failure instead. Everything from here on exists to get those two commands executed in a place where they work.
 
 ## Why the one-liner fails as SYSTEM
 
@@ -51,14 +51,14 @@ The way through is to let SYSTEM do what SYSTEM is good at, which is creating a 
 ```powershell
 # install-company-portal.ps1
 $StoreId = "9WZDNCRFJ3PZ"
-$WingetArgs = "install --id $StoreId --source msstore --accept-package-agreements --accept-source-agreements"
+$WingetArgs = "install --id $StoreId --source msstore --accept-package-agreements --accept-source-agreements --disable-interactivity"
 
 $exitCode = 0
 $taskName = "fleet-store-$StoreId"
 
 try {
     $userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' |
-        Invoke-CimMethod -MethodName GetOwner).User
+        Invoke-CimMethod -MethodName GetOwner | Select-Object -First 1).User
     if (-not $userName) { throw "No logged-on user, so there is no session to install into." }
 
     $action = New-ScheduledTaskAction -Execute "winget.exe" -Argument $WingetArgs
@@ -92,7 +92,7 @@ Only the first two lines change per app. Everything below them is the same in ev
 Because the task runs inside the user's session, plain `winget.exe` resolves through the app execution alias and the Store gets the user context it wants. The uninstall is the identical file with one line different:
 
 ```powershell
-$WingetArgs = "uninstall --id $StoreId"
+$WingetArgs = "uninstall --id $StoreId --accept-source-agreements --disable-interactivity"
 ```
 
 Two honest limits come with this approach. It needs somebody logged in, which is reasonable for self-service, since a user is clicking the tile. And the scheduled task's exit code doesn't come back to your script, so the script reports success as long as the task ran, whether or not winget did anything. That second one is why the next section isn't optional.
@@ -194,7 +194,7 @@ $exitCode = 0
 $taskName = "fleet-store-$StoreId"
 try {
     $userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' |
-        Invoke-CimMethod -MethodName GetOwner).User
+        Invoke-CimMethod -MethodName GetOwner | Select-Object -First 1).User
     if (-not $userName) { throw "No logged-on user, so there is no session to install into." }
     $action = New-ScheduledTaskAction -Execute "winget.exe" -Argument $WingetArgs
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
@@ -221,13 +221,13 @@ exit $exitCode
 
 @"
 `$StoreId = "$StoreId"
-`$WingetArgs = "install --id `$StoreId --source msstore --accept-package-agreements --accept-source-agreements"
+`$WingetArgs = "install --id `$StoreId --source msstore --accept-package-agreements --accept-source-agreements --disable-interactivity"
 $body
 "@ | Set-Content "$dir/install-$slug.ps1" -Encoding UTF8
 
 @"
 `$StoreId = "$StoreId"
-`$WingetArgs = "uninstall --id `$StoreId"
+`$WingetArgs = "uninstall --id `$StoreId --accept-source-agreements --disable-interactivity"
 $body
 "@ | Set-Content "$dir/uninstall-$slug.ps1" -Encoding UTF8
 
