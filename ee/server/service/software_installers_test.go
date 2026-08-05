@@ -360,6 +360,179 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
 }
 
+// TestUninstallSoftwareTitleSelfServiceScope covers the My Device uninstall path
+// resolving its package the same way the self-service install path does, while
+// callers acting with a role keep the unscoped lookup.
+func TestUninstallSoftwareTitleSelfServiceScope(t *testing.T) {
+	t.Parallel()
+
+	const (
+		selfServiceInstallerID    = uint(1)
+		notSelfServiceInstallerID = uint(2)
+	)
+
+	deviceContext := func() context.Context {
+		authzCtx := &authz_ctx.AuthorizationContext{}
+		authzCtx.SetAuthnMethod(authz_ctx.AuthnDeviceToken)
+		return authz_ctx.NewContext(context.Background(), authzCtx)
+	}
+	adminContext := func() context.Context {
+		return viewer.NewContext(context.Background(), viewer.Viewer{
+			User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+		})
+	}
+	pkg := func(id uint, selfService bool) *fleet.SoftwareInstaller {
+		return &fleet.SoftwareInstaller{
+			InstallerID: id,
+			Name:        "installer.pkg",
+			Platform:    "darwin",
+			TeamID:      new(uint(1)),
+			SelfService: selfService,
+		}
+	}
+
+	testCases := []struct {
+		name string
+		// packages of the title, first-added first.
+		packages []*fleet.SoftwareInstaller
+		// inScope reports label scoping per installer ID; missing means in scope.
+		outOfScope map[uint]bool
+		asAdmin    bool
+
+		wantErrContains string
+		wantInstallerID uint
+	}{
+		{
+			name:            "device, self-service and in scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(selfServiceInstallerID, true)},
+			wantInstallerID: selfServiceInstallerID,
+		},
+		{
+			name:            "device, not self-service",
+			packages:        []*fleet.SoftwareInstaller{pkg(notSelfServiceInstallerID, false)},
+			wantErrContains: "not available through self-service",
+		},
+		{
+			name:            "device, self-service but out of label scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(selfServiceInstallerID, true)},
+			outOfScope:      map[uint]bool{selfServiceInstallerID: true},
+			wantErrContains: "isn't member of the labels",
+		},
+		{
+			name:            "device, not self-service and out of label scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(notSelfServiceInstallerID, false)},
+			outOfScope:      map[uint]bool{notSelfServiceInstallerID: true},
+			wantErrContains: "isn't member of the labels",
+		},
+		{
+			name:            "device, title has no packages",
+			packages:        []*fleet.SoftwareInstaller{},
+			wantErrContains: "not available for uninstall",
+		},
+		{
+			// First-added wins on the install path, so it has to win here too.
+			name: "device, several eligible packages",
+			packages: []*fleet.SoftwareInstaller{
+				pkg(selfServiceInstallerID, true),
+				pkg(notSelfServiceInstallerID+1, true),
+			},
+			wantInstallerID: selfServiceInstallerID,
+		},
+		{
+			// The first-added package is ineligible, so the next one is used.
+			name: "device, first-added package not self-service",
+			packages: []*fleet.SoftwareInstaller{
+				pkg(notSelfServiceInstallerID, false),
+				pkg(notSelfServiceInstallerID+1, true),
+			},
+			wantInstallerID: notSelfServiceInstallerID + 1,
+		},
+		{
+			name: "device, first-added package out of scope",
+			packages: []*fleet.SoftwareInstaller{
+				pkg(selfServiceInstallerID, true),
+				pkg(notSelfServiceInstallerID+1, true),
+			},
+			outOfScope:      map[uint]bool{selfServiceInstallerID: true},
+			wantInstallerID: notSelfServiceInstallerID + 1,
+		},
+		{
+			// A role-bearing caller can still remove ineligible software.
+			name:            "admin, not self-service and out of label scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(notSelfServiceInstallerID, false)},
+			outOfScope:      map[uint]bool{notSelfServiceInstallerID: true},
+			asAdmin:         true,
+			wantInstallerID: notSelfServiceInstallerID,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{}, nil
+			}
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:           id,
+					OrbitNodeKey: new("orbit_key"),
+					Platform:     "darwin",
+					TeamID:       new(uint(1)),
+				}, nil
+			}
+			ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+				return tt.packages, nil
+			}
+			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint,
+				withScriptContents bool,
+			) (*fleet.SoftwareInstaller, error) {
+				if len(tt.packages) == 0 {
+					return nil, &notFoundError{}
+				}
+				return tt.packages[0], nil
+			}
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+				return !tt.outOfScope[installerID], nil
+			}
+			ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+				return nil, nil
+			}
+			ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return []byte("script"), nil
+			}
+			var gotInstallerID uint
+			var gotSelfService bool
+			ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint,
+				selfService bool,
+			) error {
+				gotInstallerID = softwareInstallerID
+				gotSelfService = selfService
+				return nil
+			}
+
+			ctx := deviceContext()
+			if tt.asAdmin {
+				ctx = adminContext()
+			}
+
+			err := svc.UninstallSoftwareTitle(ctx, 1, 10)
+			if tt.wantErrContains != "" {
+				require.ErrorContains(t, err, tt.wantErrContains)
+				require.False(t, ds.InsertSoftwareUninstallRequestFuncInvoked)
+				return
+			}
+
+			require.NoError(t, err)
+			require.True(t, ds.InsertSoftwareUninstallRequestFuncInvoked)
+			require.Equal(t, tt.wantInstallerID, gotInstallerID)
+			require.Equal(t, !tt.asAdmin, gotSelfService)
+		})
+	}
+}
+
 func TestInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)

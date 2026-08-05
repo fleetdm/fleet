@@ -181,7 +181,15 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get license")
 	}
-	if license.IsPremium() {
+	// A nil teamID resolves to "no team" below, a scope the check above skips.
+	// Omit the installer data rather than failing, so a title's existence stays
+	// unguessable from the status code.
+	includeInstallers := license.IsPremium()
+	if includeInstallers && teamID == nil {
+		includeInstallers = svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead) == nil
+	}
+
+	if includeInstallers {
 		// add software installer data if needed
 		if software.SoftwareInstallersCount > 0 {
 			pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, id)
@@ -323,7 +331,41 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		}
 	}
 
+	svc.filterInstallerDetailsForUser(ctx, teamID, software)
+
 	return software, nil
+}
+
+// filterInstallerDetailsForUser clears the installer fields governed by
+// installable_entity read. This response embeds the full installer, so without
+// it a caller holding only software_inventory read would see script bodies and
+// managed app configuration that every other installer route withholds.
+func (svc *Service) filterInstallerDetailsForUser(ctx context.Context, teamID *uint, title *fleet.SoftwareTitle) {
+	if title == nil {
+		return
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err == nil {
+		return
+	}
+
+	filterInstaller := func(installer *fleet.SoftwareInstaller) {
+		installer.InstallScript = ""
+		installer.UninstallScript = ""
+		installer.PostInstallScript = ""
+		installer.PreInstallQuery = ""
+		installer.Configuration = nil
+	}
+
+	// Packages holds copies while SoftwarePackage is a pointer, so filter both.
+	for i := range title.Packages {
+		filterInstaller(&title.Packages[i])
+	}
+	if title.SoftwarePackage != nil {
+		filterInstaller(title.SoftwarePackage)
+	}
+	if title.AppStoreApp != nil {
+		title.AppStoreApp.Configuration = nil
+	}
 }
 
 func (svc *Service) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error) {
