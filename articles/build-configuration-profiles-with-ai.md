@@ -2,12 +2,13 @@
 
 Most admins build configuration profiles in a GUI. In Intune you pick a setting out of the settings catalog. In Workspace ONE you pick a profile payload. On Apple you open iMazing Profile Editor or ProfileCreator and pick from a payload list. In every case the picker constrains you to settings that exist, with values the platform accepts, and that constraint is the real value of the tool. Everything else about it, the clicking, the exporting, the copying into a repo, is transcription.
 
-Every one of those pickers is a GUI over a published schema. Apple's payload keys come from apple/device-management and ProfileManifests. Intune's settings catalog is generated from Microsoft's CSP Device Description Framework (DDF) files. This guide points an AI agent at those same schemas, so you describe the setting you want in a sentence and get a validated profile, scoped and wired into your repo, as a pull request you review. You do the setup once, per platform you manage. After that the unit of work is intent, not XML.
+Every one of those pickers is a GUI over a published schema. Apple's payload keys come from apple/device-management and ProfileManifests. Intune's settings catalog is generated from Microsoft's CSP Device Description Framework (DDF) files. Android's settings are the fields of the Android Management API `Policy` object, which Google publishes as a discovery document. This guide points an AI agent at those same schemas, so you describe the setting you want in a sentence and get a validated profile, scoped and wired into your repo, as a pull request you review. You do the setup once, per platform you manage. After that the unit of work is intent, not XML.
 
 ## Prerequisites
 
 - Fleet, with your configuration in a Git repository. An agent needs that reviewable, schema-legible structure to act against, something a GUI can't give it (see [why AI-powered device management requires GitOps](https://fleetdm.com/articles/why-ai-powered-device-management-requires-gitops)). Start with the [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files), which documents every key you can manage as code. To scaffold a new repo, run `fleetctl new`. To convert an existing Fleet instance, follow [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl).
 - An AI coding agent that can run shell commands. Claude Code, Codex, Cursor, and GitHub Copilot all work.
+- MDM turned on for each platform you manage. See [Apple](https://fleetdm.com/guides/apple-mdm-setup), [Windows](https://fleetdm.com/guides/windows-mdm-setup), and [Android](https://fleetdm.com/guides/android-mdm-setup) setup.
 - [Fleet Premium](https://fleetdm.com/pricing) if you plan to scope profiles to labels.
 - For the Apple workflow, a machine running macOS or Linux, since [contour](https://github.com/macadmins/contour) ships builds for those two. There's no Windows build, so author from WSL if that's your desktop, or let CI do the validating. The Windows workflow has no host requirement at all.
 
@@ -76,6 +77,24 @@ Roughly three quarters of CSP nodes declare `AllowedValues`, so most of what you
 
 > **Note:** Per-CSP pages are convenient for authoring, but each one is dated independently and some lag the bulk release. If you want a pinned, offline copy you can grep across every CSP at once, and the CI check in step 5, download the [DDF v2 files](https://learn.microsoft.com/en-us/windows/client-management/mdm/configuration-service-provider-ddf) into `platforms/windows/schema/` and commit them. The February 2026 drop is 313 files and about 8 MB, covering roughly 5,900 nodes.
 
+### Android
+
+Google publishes the schema as a machine-readable discovery document, so there's nothing to install and nothing to commit. One URL covers every setting:
+
+```
+https://androidmanagement.googleapis.com/$discovery/rest?version=v1
+```
+
+The `Policy` object in that document is the entire surface: every field an Android configuration profile can set, its type, the shape of every nested object, and for enum fields the exact allowed values with a description of each. Point the agent at it in `AGENTS.md` or `CLAUDE.md`:
+
+```markdown
+Android profiles are Android Management API Policy JSON. Read the Policy schema from
+https://androidmanagement.googleapis.com/$discovery/rest?version=v1 before writing one.
+Copy enum values from the schema exactly, including case.
+```
+
+Fleet reserves the Policy fields it manages elsewhere or doesn't support yet, covering software management, kiosk mode, disk encryption, setup experience, and status reporting. It rejects those by name with the reason, so you don't need the list up front. Add a field to your instructions file the first time you see it rejected.
+
 ## Step 2: Write down the rules the agent can't infer
 
 Step 1 gave the agent the schema. What the schema can't cover is your environment, and that's the gap you fill.
@@ -103,7 +122,7 @@ Fleet maintains a [`fleet-gitops` skill](https://github.com/fleetdm/fleet/blob/m
 | Third-party Apple payloads (`.mobileconfig`) | [ProfileManifests](https://github.com/ProfileManifests/ProfileManifests) |
 | Windows CSPs (`.xml`) | The DDF files from step 1, plus the [Microsoft CSP reference](https://learn.microsoft.com/en-us/windows/client-management/mdm/configuration-service-provider-reference) for prose descriptions |
 | Windows ADMX-backed policies | The `.admx` files at `C:\Windows\PolicyDefinitions\` on any Windows host |
-| Android profiles (`.json`) | [Android Management API policies](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies) |
+| Android profiles (`.json`) | The [Policy discovery document](https://androidmanagement.googleapis.com/$discovery/rest?version=v1) for types and enum values, plus the [Android Management API reference](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies) for prose descriptions |
 | osquery tables in reports and policies | [Fleet schema](https://fleetdm.com/tables) |
 
 ProfileManifests is the same community manifest repo that powers ProfileCreator and iMazing Profile Editor, and the DDF files are what Intune's settings catalog is built from. Pointing your agent at both gives you the setting coverage those GUIs have, from the same source they use.
@@ -129,6 +148,8 @@ The same pattern covers the other delivery methods:
 > Block removable storage on Windows workstations. Cite the DDF node and its allowed values in the pull request description.
 
 > Turn on PowerShell script block logging on Windows. It's ADMX-backed, so read the area path out of the DDF and the element values out of the `.admx`.
+
+> Disable the camera on the Android devices in the field-techs fleet, and quote the enum value you used from the Policy schema.
 
 > Normalize every profile under `platforms/macos/configuration-profiles/` to our org identifier and validate them, then summarize what changed.
 
@@ -161,6 +182,15 @@ For ADMX-backed nodes, the DDF gives you the `.admx` filename, the area path, an
 Fleet validates what it can on upload. It checks XML well-formedness, requires a supported top-level element, rejects `LocURI` formats that real Windows hosts refuse, and blocks LocURIs that conflict with settings Fleet already manages, such as disk encryption.
 
 > **Note:** Migrating an existing Intune baseline rather than writing new profiles? [Migrating Intune policies to Fleet with the CSP converter](https://fleetdm.com/guides/migrating-intune-policies-to-fleet-csp-converter) covers the bulk path, and the validation in step 5 applies to its output too.
+
+### Android traps
+
+Fleet catches more here than on the other two platforms, because it validates against Google's own `Policy` type rather than a format spec. An unknown top-level key, a value of the wrong type, a field Fleet reserves, and a Premium-only field all fail with a message naming the field. What gets through:
+
+- **Enum values aren't checked locally.** `cameraAccess` is typed as a string, so `"camera_access_disabled"` in the wrong case and an entirely invented value both pass and then fail when Google receives the policy. This is why the instructions in step 1 tell the agent to copy enum values out of the schema rather than infer them.
+- **Unknown keys nested inside an object are dropped, not rejected.** A typo at the top level fails by name. The same typo one level down, inside something like `advancedSecurityOverrides`, is silently discarded, so the profile deploys and the setting you wanted just isn't there.
+
+Both are cases where the profile looks right and does nothing, so ask the agent to quote the schema for each field it set. That quote is what you check.
 
 ## Step 5: Enforce validation in CI
 
@@ -234,6 +264,16 @@ This matches on node name rather than full path, so it catches an invented or mi
 
 Everything else the DDF declares, the allowed values, the format, the dependencies, and the applicability, stays a review-time check. Have the agent cite the DDF node it used in the pull request description, then read the citation against the schema. Checking one citation is a few seconds of review, and it's what catches the value that was in range but wrong.
 
+### Android
+
+There's nothing to add. Fleet validates Android profiles against Google's `Policy` type, so the same dry run is the whole gate:
+
+```bash
+fleetctl gitops --dry-run -f ./path/to/fleet.yml
+```
+
+An unknown top-level key fails and names the key, a value of the wrong type fails and names the field, and a field Fleet reserves or gates behind Premium fails with the reason. The two gaps from step 4, enum values and keys nested inside an object, are the review-time part.
+
 ## Step 6: Review, then deploy
 
 The agent proposes and a human merges. The agent can't merge, can't deploy, and can't touch a device, and that boundary is the whole safety model. Keep it even when the change is small and the agent is right.
@@ -283,4 +323,4 @@ WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\dev
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-08-03">
-<meta name="description" value="Describe a configuration profile in a sentence and let an AI agent generate, validate, and ship it through Fleet GitOps, on Apple and Windows alike.">
+<meta name="description" value="Describe a profile in a sentence and let an AI agent generate, validate, and ship it through Fleet GitOps on Apple, Windows, and Android.">
