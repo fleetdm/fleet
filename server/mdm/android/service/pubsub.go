@@ -680,7 +680,8 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 				return ctxerr.Wrap(ctx, err, "clear byo wipe-ref on DELETED state (ENROLLMENT)")
 			}
 
-			if _, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
+			didUnenroll, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
 			}
 
@@ -700,6 +701,14 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 			}
 
 			svc.recordPubSubProcessed(ctx, host.Host.ID, messageID, eventTime)
+
+			if !didUnenroll {
+				// Already unenrolled (e.g. a DELETED delivered under STATUS_REPORT beat this one,
+				// or a redelivery that messageId dedup did not catch). Skip the activity so the
+				// feed does not gain a duplicate mdm_unenrolled row — same rule as the
+				// STATUS_REPORT DELETED branch.
+				return nil
+			}
 
 			var displayName, serial string
 			if hosts, herr := svc.fleetDS.ListHostsLiteByIDs(ctx, []uint{host.Host.ID}); herr == nil && len(hosts) == 1 && hosts[0] != nil {

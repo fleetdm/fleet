@@ -162,6 +162,47 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 		require.Equal(t, hostID, recordedHostID)
 	})
 
+	t.Run("ENROLLMENT DELETED on an already-unenrolled host emits no activity", func(t *testing.T) {
+		// The STATUS_REPORT DELETED branch already skips the activity when the state flip
+		// was a no-op; the ENROLLMENT DELETED branch must match, or a DELETED that arrives
+		// under both notification types adds a duplicate mdm_unenrolled row.
+		svc, mockDS := createAndroidService(t)
+		wireDedupHost(t, mockDS, hostID, hostUUID)
+		mockDS.GetAndroidPubSubDedupStateFunc = func(ctx context.Context, id uint) (string, *time.Time, error) {
+			return "", nil, nil // not a duplicate, not stale
+		}
+		mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) {
+			return false, nil // already unenrolled by an earlier delivery
+		}
+		mockDS.SetAndroidPubSubDedupStateFunc = func(ctx context.Context, id uint, messageID string, eventTime *time.Time) error {
+			return nil
+		}
+
+		msg := makeEnrollmentEnvelope(t, "msg-deleted-enrollment", "2026-07-22T10:00:00Z")
+		device := androidmanagement.Device{
+			Name:                createAndroidDeviceId("dedup"),
+			EnrollmentTokenData: `{"enroll_secret":"global"}`,
+			AppliedState:        string(android.DeviceStateDeleted),
+			HardwareInfo: &androidmanagement.HardwareInfo{
+				EnterpriseSpecificId: hostUUID,
+				Brand:                "TestBrand",
+				Model:                "TestModel",
+			},
+			SoftwareInfo: &androidmanagement.SoftwareInfo{AndroidBuildNumber: "test-build", AndroidVersion: "1"},
+			MemoryInfo:   &androidmanagement.MemoryInfo{TotalRam: 1024},
+		}
+		data, err := json.Marshal(device)
+		require.NoError(t, err)
+		msg.Data = base64.StdEncoding.EncodeToString(data)
+
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), dedupToken, msg))
+
+		require.True(t, mockDS.SetAndroidHostUnenrolledFuncInvoked, "the unenroll must still be attempted")
+		require.True(t, mockDS.SetAndroidPubSubDedupStateFuncInvoked, "dedup state must still be recorded")
+		require.False(t, mockDS.ListHostsLiteByIDsFuncInvoked,
+			"no display-name lookup means no duplicate mdm_unenrolled activity was emitted")
+	})
+
 	t.Run("duplicate STATUS_REPORT messageId is a no-op", func(t *testing.T) {
 		svc, mockDS := createAndroidService(t)
 		wireDedupHost(t, mockDS, hostID, hostUUID)
