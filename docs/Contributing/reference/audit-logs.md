@@ -2411,7 +2411,7 @@ Generated when a failing-policy webhook automation batch is accepted by the dest
 
 This activity contains the following fields:
 - "policy_id": ID of the failing policy.
-- "host_ids": IDs of the hosts in the batch.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
 - "status_code": (Optional) HTTP status code returned by the destination.
 
 #### Example
@@ -2430,7 +2430,7 @@ Generated when a failing-policy webhook automation batch is rejected by the dest
 
 This activity contains the following fields:
 - "policy_id": ID of the failing policy.
-- "host_ids": IDs of the hosts in the batch.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
 - "status_code": (Optional) HTTP status code returned by the destination.
 - "error_response": Error returned by the destination.
 
@@ -2451,7 +2451,7 @@ Generated when a failing-policy ticket automation (Jira or Zendesk) creates a ti
 
 This activity contains the following fields:
 - "policy_id": ID of the failing policy.
-- "host_ids": IDs of the hosts in the batch.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
 - "type": Ticket destination ("jira" or "zendesk").
 - "ticket_key": (Optional) Key of the created ticket.
 - "ticket_id": (Optional) ID of the created ticket.
@@ -2473,7 +2473,7 @@ Generated when a failing-policy ticket automation (Jira or Zendesk) fails to cre
 
 This activity contains the following fields:
 - "policy_id": ID of the failing policy.
-- "host_ids": IDs of the hosts in the batch.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
 - "type": Ticket destination ("jira" or "zendesk").
 - "error_response": Error returned by the destination.
 
@@ -2494,7 +2494,7 @@ Generated when a failing calendar policy results in a calendar event. The activi
 
 This activity contains the following fields:
 - "policy_id": ID of the failing policy.
-- "host_ids": IDs of the affected hosts.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
 
 #### Example
 
@@ -2511,7 +2511,7 @@ Generated when a failing-calendar-policy automation fails. The activity is assoc
 
 This activity contains the following fields:
 - "policy_id": ID of the failing policy.
-- "host_ids": IDs of the affected hosts.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
 - "status_code": (Optional) HTTP status code returned by the calendar provider.
 - "error_response": Error details.
 
@@ -2531,7 +2531,7 @@ Generated when a failing-policy conditional access automation pushes a host's co
 
 This activity contains the following fields:
 - "policy_id": ID of the failing policy.
-- "host_ids": IDs of the affected hosts.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
 
 #### Example
 
@@ -2548,7 +2548,7 @@ Generated when a failing-policy conditional access automation fails to push a ho
 
 This activity contains the following fields:
 - "policy_id": ID of the failing policy.
-- "host_ids": IDs of the affected hosts.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
 - "status_code": (Optional) HTTP status code returned by the provider.
 - "error_response": Error returned by the provider.
 
