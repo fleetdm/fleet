@@ -27,8 +27,6 @@ func (ds *Datastore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID, 
 			command_uuid = VALUES(command_uuid),
 			status = NULL,
 			account_uuid = NULL,
-			-- A new password supersedes whatever went wrong last time; leaving it would surface a stale reason as the
-			-- detail of a freshly pending account. Matches SaveHostManagedLocalAccountFromEscrow.
 			client_error = '',
 			deleted = 0
 	`
@@ -77,9 +75,7 @@ func (ds *Datastore) ReportManagedLocalAccountEscrowError(ctx context.Context, h
 			status = VALUES(status),
 			client_error = VALUES(client_error),
 			-- Revive a soft-deleted row so the failure is visible instead of the host merely looking unresponsive.
-			-- The retained password is deliberately NOT cleared: soft delete exists to keep it recoverable. It stays
-			-- unreadable through the API because status is now 'failed', and PasswordAvailable is
-			-- (encrypted_password IS NOT NULL AND status <> 'failed'), which both password endpoints gate on.
+			-- The retained password is deliberately NOT cleared: soft delete exists to keep it recoverable.
 			deleted = 0
 	`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, fleet.MDMDeliveryFailed, clientError); err != nil {
@@ -88,11 +84,7 @@ func (ds *Datastore) ReportManagedLocalAccountEscrowError(ctx context.Context, h
 	return nil
 }
 
-// softDeleteManagedLocalAccountPasswordDB retires the escrowed password for a host without destroying it, mirroring
-// softDeleteHostRecoveryLockPassword. Callers use this on an MDM lifecycle event that invalidates the escrow, notably
-// re-enrollment: the device may have been re-imaged, so the password may no longer open any account, and every read
-// filters deleted = 0 so Fleet stops reporting it. Pending rotation state is cleared too, since a rotation staged
-// against the previous enrollment can never be acknowledged. A later successful escrow sets deleted back to 0.
+// softDeleteManagedLocalAccountPasswordDB retires the escrowed password for a host without destroying it
 func softDeleteManagedLocalAccountPasswordDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
 	const stmt = `
 		UPDATE host_managed_local_account_passwords

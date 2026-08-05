@@ -4673,11 +4673,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 				return err
 			}
 
-			// Same reasoning for the managed local account password, which shares the escrow model: reaching
-			// here means an unenroll/re-enroll or wipe/restore, and an ADE re-enrollment normally follows an
-			// erase, so the account the password opens is usually gone. Note the deliberate difference from
-			// recovery lock: we do NOT soft-delete on MDM turn-off, because a local admin account survives
-			// profile removal and its password stays valid, whereas Apple wipes the device-side recovery lock.
+			// Same reasoning for the managed local account password, as recovery lock password, which shares the escrow model
 			if err := softDeleteManagedLocalAccountPasswordDB(ctx, tx, hostUUID); err != nil {
 				return err
 			}
