@@ -8236,10 +8236,10 @@ This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command                   | string | json  | A Base64 encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries), [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4), or [Android's documentation](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand). Supported formats are standard and raw (unpadded). You can paste your Base64 code to the [online decoder](https://devpal.co/base64-decode/) to check if you're using the valid format. |
+| command                   | string | json  | A Base64 encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) and [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). You can pass in a JSON for Android commands (see [Android's documentation](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand)) but this is required to be Base64 encoded as well. Supported formats are standard and raw (unpadded). You can paste your Base64 code to the [online decoder](https://devpal.co/base64-decode/) to check if you're using the valid format. |
 | host_uuids                | array  | json  | An array of host UUIDs enrolled in Fleet on which the command should run. |
 
-Note that the `EraseDevice`, `DeviceLock`, `LOCK`, and `RESET_PASSWORD` commands are _available in Fleet Premium_ only.
+_Available in Fleet Premium only:_ `EraseDevice` and `DeviceLock` for Apple, `LOCK`, and `RESET_PASSWORD` for Android.
 
 #### Example
 
