@@ -3899,15 +3899,19 @@ var adobePluginsColumns = []string{
 }
 
 // selectedColumns returns the output column names of a single-table SELECT query: the
-// alias when the item has one, the column name otherwise.
+// alias when an item has one, the column name otherwise. It splits the SELECT list on
+// commas rather than on newlines, so reformatting the query doesn't change the result.
 func selectedColumns(t *testing.T, query string) []string {
 	t.Helper()
+	_, selectList, ok := strings.Cut(query, "SELECT")
+	require.True(t, ok, "query has no SELECT")
+	selectList, _, ok = strings.Cut(selectList, "FROM")
+	require.True(t, ok, "query has no FROM")
+
 	var columns []string
-	for line := range strings.SplitSeq(query, "\n") {
-		item := strings.TrimSuffix(strings.TrimSpace(line), ",")
-		if item == "" || strings.EqualFold(item, "SELECT") || strings.HasPrefix(strings.ToUpper(item), "FROM ") {
-			continue
-		}
+	for item := range strings.SplitSeq(selectList, ",") {
+		item = strings.TrimSpace(item)
+		require.NotEmpty(t, item, "empty item in SELECT list")
 		if _, alias, ok := strings.Cut(item, " AS "); ok {
 			item = alias
 		}

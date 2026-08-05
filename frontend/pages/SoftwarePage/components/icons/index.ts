@@ -2379,6 +2379,15 @@ const matchStrictNameSourceToIcon = ({
 };
 
 /**
+ * Sources whose own icon wins over a name match, because their names collide with the
+ * application they extend. An Adobe plugin named "Adobe Creative Cloud Libraries" is a
+ * plugin, not Creative Cloud, so showing the host application's icon would misrepresent
+ * the row. Other extension sources keep matching on name first, so e.g. a VSCode
+ * extension named "Docker" still gets the Docker icon.
+ */
+const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins"];
+
+/**
  * This returns the icon component for a given software name and source. If a strict match is found,
  * it will be returned, otherwise it will fall back to loose matching on name and source prefixes.
  * If no match is found, the default package icon will be returned.
@@ -2394,6 +2403,20 @@ export const getMatchedSoftwareIcon = ({
     name,
     source,
   });
+
+  // for a few sources, the source icon wins over a name match
+  if (
+    !Icon &&
+    SOURCE_ICON_OVERRIDES_NAME.includes(source.trim().toLowerCase())
+  ) {
+    const overriddenSource = matchLoosePrefixToKey(
+      SOFTWARE_SOURCE_TO_ICON_MAP,
+      source
+    );
+    if (overriddenSource) {
+      Icon = SOFTWARE_SOURCE_TO_ICON_MAP[overriddenSource];
+    }
+  }
 
   // if no match, try loose matching on name prefixes
   if (!Icon) {

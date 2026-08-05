@@ -4122,6 +4122,12 @@ func main() {
 	if *uniqueAdobePluginsSoftwareCount < 0 {
 		log.Fatalf("Argument unique_adobe_plugins_software_count cannot be negative, got %d", *uniqueAdobePluginsSoftwareCount)
 	}
+	if *commonAdobePluginsSoftwareUninstallCount > *commonAdobePluginsSoftwareCount {
+		log.Fatalf("Argument common_adobe_plugins_software_uninstall_count cannot be bigger than common_adobe_plugins_software_count")
+	}
+	if *uniqueAdobePluginsSoftwareUninstallCount > *uniqueAdobePluginsSoftwareCount {
+		log.Fatalf("Argument unique_adobe_plugins_software_uninstall_count cannot be bigger than unique_adobe_plugins_software_count")
+	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
 	}

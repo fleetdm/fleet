@@ -4421,7 +4421,11 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 		{
-			name: "software query works, but adobe_plugins table doesn't exist",
+			// A host without the adobe_plugins table doesn't run the query at all
+			// (discovery filters it out), so it reports no status — that path is covered
+			// by the "status and results are not returned" case below. Here the query ran
+			// and failed, which must leave the main software results untouched.
+			name: "software query works, but the adobe_plugins query fails",
 
 			statusesIn: map[string]fleet.OsqueryStatus{
 				hostDetailQueryPrefix + "software_macos":         fleet.StatusOK,

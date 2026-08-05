@@ -1207,6 +1207,8 @@ SELECT
 FROM adobe_plugins`,
 	Platforms: []string{"darwin", "windows"},
 	Discovery: discoveryTable("adobe_plugins"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
 }
 
 var scheduledQueryStats = DetailQuery{
