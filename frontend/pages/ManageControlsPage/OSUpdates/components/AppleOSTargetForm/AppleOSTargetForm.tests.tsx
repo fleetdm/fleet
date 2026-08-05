@@ -767,4 +767,54 @@ describe("AppleOSTargetForm", () => {
       expect(requestBody?.mdm?.ipados_updates?.deadline).toBe("2026-12-31");
     });
   });
+
+  // A rejected save must not refetch. The refetch feeds the stored config back
+  // in as props and resets the form, which would discard the very input the user
+  // needs to correct — e.g. a version Apple doesn't support.
+  it("keeps the entered version when the server rejects the save", async () => {
+    let rejected = false;
+    mockServer.use(
+      http.patch(baseUrl("/fleets/1"), () => {
+        rejected = true;
+        return HttpResponse.json(
+          {
+            message: "Validation Failed",
+            errors: [
+              {
+                name: "macos_updates",
+                reason: "The minimum version isn't supported by Apple.",
+              },
+            ],
+          },
+          { status: 422 }
+        );
+      })
+    );
+
+    const refetchTeamConfig = jest.fn();
+    const { user } = renderWithBackend(
+      <AppleOSTargetForm
+        currentTeamId={1}
+        applePlatform="darwin"
+        defaultMinOsVersion="11.0"
+        defaultDeadline="2024-12-31"
+        defaultDeadlineDays=""
+        defaultUpdateNewHosts
+        refetchAppConfig={jest.fn()}
+        refetchTeamConfig={refetchTeamConfig}
+      />
+    );
+
+    const minVersionInput = screen.getByLabelText(/Minimum version/i);
+    await user.clear(minVersionInput);
+    await user.type(minVersionInput, "15.1");
+    await user.click(screen.getByRole("button", { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(rejected).toBe(true);
+    });
+
+    expect((minVersionInput as HTMLInputElement).value).toBe("15.1");
+    expect(refetchTeamConfig).not.toHaveBeenCalled();
+  });
 });

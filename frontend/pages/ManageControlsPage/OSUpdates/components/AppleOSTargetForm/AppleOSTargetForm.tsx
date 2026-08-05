@@ -246,14 +246,17 @@ const AppleOSTargetForm = ({
           ? await configAPI.update(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
         notify.success("Successfully updated.");
+        // Only refetch on success: the refetch feeds the stored config back in as
+        // props, which resets the form. After a rejected save nothing changed on
+        // the server, so resetting would just discard what the user needs to fix.
+        currentTeamId === APP_CONTEXT_NO_TEAM_ID
+          ? refetchAppConfig()
+          : refetchTeamConfig();
       } catch (err) {
         notify.error(getErrorMessage(err as AxiosResponse<IApiError>), {
           response: err,
         });
       } finally {
-        currentTeamId === APP_CONTEXT_NO_TEAM_ID
-          ? refetchAppConfig()
-          : refetchTeamConfig();
         setIsSaving(false);
       }
     }
