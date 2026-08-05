@@ -56,6 +56,7 @@ var (
 	SoftwareLabelsPackageLevelOnlyMessage        = "Couldn't add software (%q). Labels can be specified only in the package-level file when adding multiple packages of the same software."
 	SoftwareLabelsConflictMessage                = "Couldn't add software (%q). Labels can be specified either in the fleet-level file or in the package YAML file."
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
+	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP

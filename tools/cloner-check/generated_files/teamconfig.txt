@@ -40,13 +40,14 @@ github.com/fleetdm/fleet/v4/pkg/optjson/String	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Value	string
 github.com/fleetdm/fleet/v4/server/fleet/AppleOSUpdateSettings	Deadline	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/AppleOSUpdateSettings	DeadlineDays	optjson.Int
+github.com/fleetdm/fleet/v4/pkg/optjson/Int	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Int	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Int	Value	int
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	IOSUpdates	fleet.AppleOSUpdateSettings
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	IPadOSUpdates	fleet.AppleOSUpdateSettings
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	WindowsUpdates	fleet.WindowsUpdates
 github.com/fleetdm/fleet/v4/server/fleet/WindowsUpdates	DeadlineDays	optjson.Int
-github.com/fleetdm/fleet/v4/pkg/optjson/Int	Set	bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Int	Valid	bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Int	Value	int
 github.com/fleetdm/fleet/v4/server/fleet/WindowsUpdates	GracePeriodDays	optjson.Int
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSSettings	fleet.MacOSSettings
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]fleet.MDMProfileSpec

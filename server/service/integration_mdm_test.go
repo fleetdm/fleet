@@ -6098,6 +6098,24 @@ func generateMultipartRequest(t *testing.T,
 	uploadFileField, fileName string, fileContent []byte, token string,
 	extraFields map[string][]string,
 ) (*bytes.Buffer, map[string]string) {
+	return generateMultipartRequestWithFiles(t, uploadFileField, fileName, fileContent, token, extraFields, nil)
+}
+
+// multipartFile is an additional file part for endpoints that accept more than
+// one, such as a configuration profile uploaded together with its custom DDM
+// activation.
+type multipartFile struct {
+	fileName string
+	content  []byte
+}
+
+// generateMultipartRequestWithFiles builds a multipart body with a primary file
+// part plus any number of additional file parts, keyed by form field name.
+// generateMultipartRequest delegates here so single-file callers are unchanged.
+func generateMultipartRequestWithFiles(t *testing.T,
+	uploadFileField, fileName string, fileContent []byte, token string,
+	extraFields map[string][]string, extraFiles map[string]multipartFile,
+) (*bytes.Buffer, map[string]string) {
 	var body bytes.Buffer
 
 	writer := multipart.NewWriter(&body)
@@ -6107,6 +6125,14 @@ func generateMultipartRequest(t *testing.T,
 		ff, err := writer.CreateFormFile(uploadFileField, fileName)
 		require.NoError(t, err)
 		_, err = io.Copy(ff, bytes.NewReader(fileContent))
+		require.NoError(t, err)
+	}
+
+	// add any additional file parts
+	for field, f := range extraFiles {
+		ff, err := writer.CreateFormFile(field, f.fileName)
+		require.NoError(t, err)
+		_, err = io.Copy(ff, bytes.NewReader(f.content))
 		require.NoError(t, err)
 	}
 

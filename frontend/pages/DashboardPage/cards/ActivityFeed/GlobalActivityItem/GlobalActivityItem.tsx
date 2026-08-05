@@ -1095,6 +1095,15 @@ const TAGGED_TEMPLATES = {
     const exception = activity.details?.exception ?? "";
     return `disabled the ${exception} exception for GitOps.`;
   },
+  editedWindowsEnrollmentDefaultFleet: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        edited the default fleet for Windows hosts to{" "}
+        <b>{activity.details?.fleet_name || "Unassigned"}</b>.
+      </>
+    );
+  },
   enabledWindowsMdmMigration: () => {
     return (
       <>
@@ -2523,6 +2532,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
+    }
+    case ActivityType.EditedWindowsEnrollmentDefaultFleet: {
+      return TAGGED_TEMPLATES.editedWindowsEnrollmentDefaultFleet(activity);
     }
     case ActivityType.RanCustomMdmCommand: {
       return TAGGED_TEMPLATES.ranCustomMdmCommand(activity);
