@@ -623,7 +623,7 @@ software:
   - Category names support emojis and can be up to 255 characters long. The uniqueness checks ignore emojis, so `"🌎 Browsers"` and `"🔍 Browsers"` are treated as the same name.
   - For Fleet-maintained apps, if `categories` is omitted, apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `categories` is empty, default categories are removed. If custom categories are specified, apps don't get their default categories unless they're specified explicitly. 
 - `setup_experience` installs the software when hosts enroll (default: `false`). On Windows and Linux hosts, if the software has associated policies, Fleet checks them first and skips the install when the host passes all of them. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
-- `setup_experience_platform` specifies which platform to target for the `.sh` script-only packages in setup experience. Choices for `platform` are `darwin` and `linux`. If not specified and `setup_experience` is `true`, Linux is the default platform.
+- `setup_experience_platform` specifies which platform to target for the `.sh` script-only packages and `.ipa` packages in setup experience. Choices for `platform` are `darwin` and `linux` for `.sh` and `ios` and `ipados` for `.ipa`. If not specified and `setup_experience` is `true`, Linux is the default platform for `.sh` and `ios` is the default for `.ipa`.
 
 ### packages
 
