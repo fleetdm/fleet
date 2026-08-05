@@ -25,7 +25,9 @@ Only one of `query`, `hosts`, or `criteria` can be specified. If none are specif
 
 The `hostname` host identifier is deprecated. Please use a host's `id`, `hardware_serial`, or `uuid` instead.
 
-> `labels` is an optional key: if included in `default.yml`, existing global labels not listed will be deleted. If included in `fleets/fleet-name.yml`, the fleet's existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
+> `labels` is an optional key: if included in `default.yml`, existing global labels not listed will be deleted. If included in `fleets/fleet-name.yml`, the fleet's existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact.
+>
+> When [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) is enabled, the Fleet UI prevents creating and editing labels. To manage labels in the UI instead of git, enable the labels exception in **Settings** > **Integrations** > **Change management**. Learn more in the [GitOps mode guide](https://fleetdm.com/guides/gitops-mode).
 >
 > Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [reports](https://fleetdm.com/docs/configuration/yaml-files#reports) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
 
@@ -790,6 +792,8 @@ The `gitops` section allows configuring [GitOps mode](https://fleetdm.com/learn-
 - `repository_url` (default: `""`) — the URL of the GitOps repository that manages this Fleet. Must be a valid `http://` or `https://` URL. Required when `gitops_mode_enabled: true`.
 
 Can only be configured for "All fleets" (`org_settings`).
+
+> GitOps mode exceptions for labels, software, and enroll secrets can't be set in YAML. Configure them in the Fleet UI under **Settings** > **Integrations** > **Change management**. Learn more in the [GitOps mode guide](https://fleetdm.com/guides/gitops-mode).
 
 > If `gitops:` is not provided in your YAML file, any existing GitOps mode settings will be preserved.
 

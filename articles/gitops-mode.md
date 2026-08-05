@@ -14,13 +14,23 @@ To turn GitOps mode on or off, navigate to **Settings** > **Integrations** > **C
 
 ![](../website/assets/images/articles/enabling-gitops-mode-960x594@2x.gif)
 
+## Exceptions
+
+Exceptions let you opt a resource out of GitOps mode, so you can manage that resource in the Fleet UI while everything else stays in git. Under **Settings** > **Integrations** > **Change management**, you can add an exception for labels, software, or enroll secrets.
+
+When a resource has an exception, two things happen:
+- The Fleet UI stays editable for that resource, even with GitOps mode on.
+- `fleetctl gitops` fails if your YAML includes that resource's key. The error tells you to remove the key or disable the exception. This keeps the UI and git from overwriting each other.
+
+Fleet enables the enroll secrets exception by default. Fleet instances upgraded to Fleet 4.84.0 also have the labels exception enabled, so the first GitOps run after the upgrade doesn't delete labels that aren't in git.
+
 ## Still available
 
 GitOps mode prevents the UI user from editing [GitOps-configurable features](https://fleetdm.com/docs/configuration/yaml-files). They will still be able to, for example:
 - Read any data presented in the UI
 - Add and edit users
-- Add and edit labels
 - Run live queries
+- Add and edit labels, software, or enroll secrets, if that resource has an [exception](#exceptions)
 
 ## More
 <!-- TODO - update to link to Allen's article, uncomment -->
