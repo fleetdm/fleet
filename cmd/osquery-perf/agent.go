@@ -914,7 +914,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		a.stats.IncrementMDMEnrollments()
 
 		if rand.Float64() < a.mdmUserProb {
-			mdmEnrollWithRetry("macOS user channel", a.stats.IncrementMDMUserErrors, a.macMDMClient.UserEnroll)
+			a.macMDMClient.GenerateUserIdentity()
+			mdmEnrollWithRetry("macOS user channel", a.stats.IncrementMDMUserErrors, a.macMDMClient.UserTokenUpdate)
 			a.setMDMUserEnrolled()
 			a.stats.IncrementMDMUserEnrollments()
 		}
