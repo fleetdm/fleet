@@ -2379,11 +2379,12 @@ const matchStrictNameSourceToIcon = ({
 };
 
 /**
- * Sources whose own icon wins over a name match, because their names collide with the
- * application they extend. An Adobe plugin named "Adobe Creative Cloud Libraries" is a
- * plugin, not Creative Cloud, so showing the host application's icon would misrepresent
- * the row. Other extension sources keep matching on name first, so e.g. a VSCode
- * extension named "Docker" still gets the Docker icon.
+ * Sources whose own icon wins over any name match, strict or loose, because their names
+ * collide with the application they extend. An Adobe plugin named "Adobe Creative Cloud
+ * Libraries" is a plugin, not Creative Cloud, and one named "Zoom" is a plugin, not Zoom,
+ * so showing the other application's icon would misrepresent the row. Other extension
+ * sources keep matching on name first, so e.g. a VSCode extension named "Docker" still
+ * gets the Docker icon.
  */
 const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins"];
 
@@ -2398,25 +2399,21 @@ export const getMatchedSoftwareIcon = ({
 }: Pick<ISoftware, "name" | "source">) => {
   // Strip non-ascii, and non-printable characters
   name = name.replace(/[^\x20-\x7E]/g, "");
-  // first, try strict matching on name and source
-  let Icon = matchStrictNameSourceToIcon({
-    name,
-    source,
-  });
 
-  // for a few sources, the source icon wins over a name match
-  if (
-    !Icon &&
-    SOURCE_ICON_OVERRIDES_NAME.includes(source.trim().toLowerCase())
-  ) {
-    const overriddenSource = matchLoosePrefixToKey(
-      SOFTWARE_SOURCE_TO_ICON_MAP,
-      source
-    );
-    if (overriddenSource) {
-      Icon = SOFTWARE_SOURCE_TO_ICON_MAP[overriddenSource];
-    }
-  }
+  // for a few sources, the source icon wins over every name match below
+  const overriddenSource = SOURCE_ICON_OVERRIDES_NAME.includes(
+    source.trim().toLowerCase()
+  )
+    ? matchLoosePrefixToKey(SOFTWARE_SOURCE_TO_ICON_MAP, source)
+    : undefined;
+
+  // otherwise, try strict matching on name and source
+  let Icon = overriddenSource
+    ? SOFTWARE_SOURCE_TO_ICON_MAP[overriddenSource]
+    : matchStrictNameSourceToIcon({
+        name,
+        source,
+      });
 
   // if no match, try loose matching on name prefixes
   if (!Icon) {

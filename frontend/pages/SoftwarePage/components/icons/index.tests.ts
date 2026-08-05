@@ -24,6 +24,12 @@ describe("getMatchedSoftwareIcon", () => {
         })
       ).toBe(AdobePlugin);
     });
+
+    it("uses the Adobe plugin icon for a plugin whose name matches a strict rule", () => {
+      expect(
+        getMatchedSoftwareIcon({ name: "zoom", source: "adobe_plugins" })
+      ).toBe(AdobePlugin);
+    });
   });
 
   describe("other sources keep matching on name first", () => {
