@@ -23,7 +23,7 @@ export const getAutomationRunDisplayName = (
       // deferred because the app was open — not a failure. Label it distinctly,
       // matching the activity feed and install-details treatment.
       if (details?.install_skipped_when_app_open) {
-        return withName("Software skipped", details?.software_title);
+        return withName("Patch skipped", details?.software_title);
       }
       return withName(
         failed ? "Software failed" : "Software installed",

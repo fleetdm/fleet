@@ -82,7 +82,7 @@ describe("getAutomationRunDisplayName", () => {
           },
         })
       )
-    ).toBe("Software skipped (1Password)");
+    ).toBe("Patch skipped (1Password)");
   });
 
   it("treats App Store (VPP) apps as software", () => {
