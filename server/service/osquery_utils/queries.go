@@ -1192,6 +1192,16 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 // The default (standard) scan level is used, which covers CEP and UXP extensions. The
 // deep scan level additionally reports native plug-ins, which have no manifest and thus
 // no version.
+//
+// extension_for is intentionally left empty rather than carrying the table's
+// host_application. That column lists the Adobe applications from the plugin's manifest, so
+// it changes when a plugin gains or drops support for an application, while the plugin keeps
+// its bundle identifier. extension_for is part of a software title's identity, but
+// software_titles also has a unique key on (bundle_identifier, additional_identifier) that
+// ignores it, so a changed value cannot get a title of its own: the INSERT IGNORE is dropped
+// and the software row ends up with no title at all. The Type column shows a flat
+// "Plugin (Adobe)" and never displays the host application, so nothing is lost by not
+// storing it.
 var softwareAdobePlugins = DetailQuery{
 	Query: `
 SELECT
@@ -1199,7 +1209,7 @@ SELECT
   version,
   bundle_id AS bundle_identifier,
   '' AS extension_id,
-  host_application AS extension_for,
+  '' AS extension_for,
   'adobe_plugins' AS source,
   vendor,
   '' AS last_opened_at,

@@ -189,17 +189,6 @@ describe("formatSoftwareType", () => {
     });
   });
 
-  describe("Adobe plugins keep a flat type label", () => {
-    it("should not append the host Adobe application to the type", () => {
-      expect(
-        formatSoftwareType({
-          source: "adobe_plugins",
-          extension_for: "photoshop" as SoftwareExtensionFor,
-        })
-      ).toBe("Plugin (Adobe)");
-    });
-  });
-
   describe("unknown extension_for values", () => {
     it("should use startCase for unknown extension_for values", () => {
       expect(

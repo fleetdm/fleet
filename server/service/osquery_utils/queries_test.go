@@ -3944,21 +3944,31 @@ func TestSoftwareAdobePlugins(t *testing.T) {
 	require.NotContains(t, strings.ToUpper(softwareAdobePlugins.Query), "JOIN")
 	// No scan_level constraint, so the table's default (standard) scan level is used.
 	require.NotContains(t, softwareAdobePlugins.Query, "scan_level")
+
+	// extension_for stays empty. host_application lists the Adobe applications from the
+	// plugin's manifest, so it changes when the plugin gains or drops support for one, and a
+	// changed extension_for under an unchanged bundle identifier can't get its own software
+	// title: software_titles has a unique key on (bundle_identifier, additional_identifier)
+	// that ignores extension_for, so the title insert is dropped and the software row is left
+	// without a title. The Type column never shows the host application either way.
+	require.Contains(t, softwareAdobePlugins.Query, "'' AS extension_for")
+	require.NotContains(t, softwareAdobePlugins.Query, "host_application")
 }
 
 func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
 	ds := new(mock.Store)
 	host := fleet.Host{ID: 1, Platform: "darwin"}
 
-	// Rows as the adobe_plugins table reports them: one plugin with a manifest, and one
-	// whose manifest is missing or unparseable, for which fleetd falls back to the
-	// extension's directory name and leaves the other fields empty.
+	// Rows as the software_adobe_plugins query reports them: one plugin with a manifest, and
+	// one whose manifest is missing or unparseable, for which fleetd falls back to the
+	// extension's directory name and leaves the other fields empty. extension_for is empty for
+	// every row, because the query doesn't select the table's host_application.
 	withManifest := map[string]string{
 		"name":              "Artisan Pro X",
 		"version":           "1.3.3",
 		"bundle_identifier": "com.vendorx.artisanprox",
 		"extension_id":      "",
-		"extension_for":     "Photoshop",
+		"extension_for":     "",
 		"source":            "adobe_plugins",
 		"vendor":            "VendorX",
 		"last_opened_at":    "",
@@ -4000,7 +4010,6 @@ func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
 			Source:           "adobe_plugins",
 			Vendor:           "VendorX",
 			BundleIdentifier: "com.vendorx.artisanprox",
-			ExtensionFor:     "Photoshop",
 		},
 		{
 			Name:   "com.vendory.colorizer",

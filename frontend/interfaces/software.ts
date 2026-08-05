@@ -316,7 +316,7 @@ export const SOURCE_TYPE_CONVERSION = {
   py_packages: "Script-only package (macOS & Linux)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   go_binaries: "Binary (Go)",
-  adobe_plugins: "Plugin (Adobe)", // adobe_plugins carry the host Adobe application in `extension_for`, but the type label stays flat — see formatSoftwareType below.
+  adobe_plugins: "Plugin (Adobe)", // the type label is flat: Fleet doesn't store a host Adobe application for adobe_plugins, so `extension_for` is always empty for this source (see softwareAdobePlugins in server/service/osquery_utils/queries.go).
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
@@ -429,9 +429,7 @@ export const formatSoftwareType = ({
   extension_for?: SoftwareExtensionFor;
 }) => {
   let type: string = SOURCE_TYPE_CONVERSION[source] || "Unknown";
-  // Adobe plugins keep a flat label: `extension_for` carries the host Adobe
-  // application, which is intentionally not shown in the Type column.
-  if (extension_for && source !== "adobe_plugins") {
+  if (extension_for) {
     type += ` (${
       EXTENSION_FOR_TYPE_CONVERSION[extension_for] || startCase(extension_for)
     })`;

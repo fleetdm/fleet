@@ -2655,13 +2655,14 @@ func (a *agent) adobePluginsExtensionsDir() string {
 
 // adobePlugin returns one plugin with a readable manifest, with the columns of the
 // software_adobe_plugins detail query. dirName is the extension's directory name.
-func (a *agent) adobePlugin(name, dirName, baseVersion, alternateVersion, hostApplication string) map[string]string {
+// extension_for is always empty, as the detail query reports it.
+func (a *agent) adobePlugin(name, dirName, baseVersion, alternateVersion string) map[string]string {
 	return map[string]string{
 		"name":              name,
 		"version":           a.selectSoftwareVersion(name, baseVersion, alternateVersion),
 		"bundle_identifier": dirName,
 		"extension_id":      "",
-		"extension_for":     hostApplication,
+		"extension_for":     "",
 		"source":            "adobe_plugins",
 		"vendor":            "Fleet Test Vendor",
 		"last_opened_at":    "",
@@ -2672,24 +2673,19 @@ func (a *agent) adobePlugin(name, dirName, baseVersion, alternateVersion, hostAp
 // softwareAdobePlugins generates the Adobe plugins reported by fleetd's adobe_plugins
 // table.
 func (a *agent) softwareAdobePlugins() []map[string]string {
-	hostApplications := []string{"Photoshop", "Illustrator", "Premiere Pro", "After Effects", "InDesign"}
-
 	commonPlugins := make([]map[string]string, a.softwareAdobePluginsCount.common)
 	for i := range commonPlugins {
 		dirName := fmt.Sprintf("com.fleetdm.osquery-perf.adobe_plugin_%d", i)
-		commonPlugins[i] = a.adobePlugin(fmt.Sprintf("Common Adobe Plugin %d", i), dirName, "0.0.1", "0.0.2",
-			hostApplications[i%len(hostApplications)])
+		commonPlugins[i] = a.adobePlugin(fmt.Sprintf("Common Adobe Plugin %d", i), dirName, "0.0.1", "0.0.2")
 
 		// Hosts also report plugins whose manifest is missing or unparseable: fleetd falls
-		// back to the extension's directory name and reports no version, vendor, bundle ID
-		// or host application. Report the last common plugin that way so inventory covers
-		// those rows too.
+		// back to the extension's directory name and reports no version, vendor or bundle ID.
+		// Report the last common plugin that way so inventory covers those rows too.
 		if len(commonPlugins) > 1 && i == len(commonPlugins)-1 {
 			commonPlugins[i]["name"] = dirName
 			commonPlugins[i]["version"] = ""
 			commonPlugins[i]["vendor"] = ""
 			commonPlugins[i]["bundle_identifier"] = ""
-			commonPlugins[i]["extension_for"] = ""
 		}
 	}
 	if a.softwareAdobePluginsCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareAdobePluginsCount.commonSoftwareUninstallProb {
@@ -2702,8 +2698,7 @@ func (a *agent) softwareAdobePlugins() []map[string]string {
 	uniquePlugins := make([]map[string]string, a.softwareAdobePluginsCount.unique)
 	for i := range uniquePlugins {
 		dirName := fmt.Sprintf("com.fleetdm.osquery-perf.adobe_plugin_%s_%d", a.CachedString("hostname"), i)
-		uniquePlugins[i] = a.adobePlugin(fmt.Sprintf("Unique Adobe Plugin %s %d", a.CachedString("hostname"), i), dirName, "1.1.1", "1.1.2",
-			hostApplications[i%len(hostApplications)])
+		uniquePlugins[i] = a.adobePlugin(fmt.Sprintf("Unique Adobe Plugin %s %d", a.CachedString("hostname"), i), dirName, "1.1.1", "1.1.2")
 	}
 	if a.softwareAdobePluginsCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareAdobePluginsCount.uniqueSoftwareUninstallProb {
 		rand.Shuffle(len(uniquePlugins), func(i, j int) {

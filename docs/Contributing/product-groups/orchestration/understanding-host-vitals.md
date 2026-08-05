@@ -689,7 +689,7 @@ SELECT
   version,
   bundle_id AS bundle_identifier,
   '' AS extension_id,
-  host_application AS extension_for,
+  '' AS extension_for,
   'adobe_plugins' AS source,
   vendor,
   '' AS last_opened_at,
