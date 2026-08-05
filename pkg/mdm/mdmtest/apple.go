@@ -1242,7 +1242,7 @@ func deviceVitalsQueryResponses(udid string) map[string]any {
 	// Spread the derived values across independent bits of the hash so they don't
 	// all flip together between two adjacent udids.
 	bit := func(n uint) bool { return seed>>(n%64)&1 == 1 }
-	octet := func(n uint) byte { return byte(seed >> n) }
+	octet := func(n uint) byte { return byte(seed >> n) } //nolint:gosec // dismiss G115
 
 	return map[string]any{
 		"AccessibilitySettings": map[string]any{
@@ -1251,7 +1251,7 @@ func deviceVitalsQueryResponses(udid string) map[string]any {
 			"IncreaseContrastEnabled":    bit(2),
 			"ReduceMotionEnabled":        bit(3),
 			"ReduceTransparencyEnabled":  bit(4),
-			"TextSize":                   uint64(seed % 12),
+			"TextSize":                   seed % 12,
 			"TouchAccommodationsEnabled": bit(5),
 			"VoiceOverEnabled":           bit(6),
 			"ZoomEnabled":                bit(7),
@@ -1261,7 +1261,7 @@ func deviceVitalsQueryResponses(udid string) map[string]any {
 		"BatteryLevel":          float64(seed%101) / 100,
 		"BluetoothMAC": fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
 			octet(0), octet(8), octet(16), octet(24), octet(32), octet(40)),
-		"CellularTechnology":            uint64(seed % 4),
+		"CellularTechnology":            seed % 4,
 		"DataRoamingEnabled":            bit(9),
 		"DevicePropertiesAttestation":   syntheticAttestationChain(seed),
 		"DiagnosticSubmissionEnabled":   bit(10),
@@ -1309,10 +1309,10 @@ func syntheticAttestationChain(seed uint64) [][]byte {
 	for i := range chain {
 		// mathrand2 (not this file's crypto/rand) since the bytes only need to be
 		// deterministic per seed, not random in any meaningful sense.
-		rng := mathrand2.New(mathrand2.NewPCG(seed, uint64(i)))
+		rng := mathrand2.New(mathrand2.NewPCG(seed, uint64(i))) // nolint:gosec,G404 // load testing, not security-sensitive
 		der := make([]byte, 1024)
 		for j := range der {
-			der[j] = byte(rng.Uint64())
+			der[j] = byte(rng.Uint64()) //nolint:gosec // dismiss G115
 		}
 		chain[i] = der
 	}
