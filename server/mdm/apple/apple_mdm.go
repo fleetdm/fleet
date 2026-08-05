@@ -2558,25 +2558,25 @@ computeOSTargets:
 	teamsWithLatest["ipados"] = map[uint]int{}
 
 	for _, team := range teams {
-		if team.Config.MDM.MacOSUpdates.MinimumVersion.Value == "latest" {
+		if team.Config.MDM.MacOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
 			teamsWithLatest["darwin"][team.ID] = team.Config.MDM.MacOSUpdates.DeadlineDays.Value
 		}
-		if team.Config.MDM.IOSUpdates.MinimumVersion.Value == "latest" {
+		if team.Config.MDM.IOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
 			teamsWithLatest["ios"][team.ID] = team.Config.MDM.IOSUpdates.DeadlineDays.Value
 		}
-		if team.Config.MDM.IPadOSUpdates.MinimumVersion.Value == "latest" {
+		if team.Config.MDM.IPadOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
 			teamsWithLatest["ipados"][team.ID] = team.Config.MDM.IPadOSUpdates.DeadlineDays.Value
 		}
 	}
 
 	// We will replace 0 with NULL check when looking up hosts to reconcile and checking the team_id column
-	if appCfg.MDM.MacOSUpdates.MinimumVersion.Value == "latest" {
+	if appCfg.MDM.MacOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
 		teamsWithLatest["darwin"][0] = appCfg.MDM.MacOSUpdates.DeadlineDays.Value
 	}
-	if appCfg.MDM.IOSUpdates.MinimumVersion.Value == "latest" {
+	if appCfg.MDM.IOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
 		teamsWithLatest["ios"][0] = appCfg.MDM.IOSUpdates.DeadlineDays.Value
 	}
-	if appCfg.MDM.IPadOSUpdates.MinimumVersion.Value == "latest" {
+	if appCfg.MDM.IPadOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
 		teamsWithLatest["ipados"][0] = appCfg.MDM.IPadOSUpdates.DeadlineDays.Value
 	}
 
