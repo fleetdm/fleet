@@ -494,6 +494,8 @@ func TestNewActivityHostWebhook(t *testing.T) {
 		assert.False(t, providers.hostWebhooksCalled)
 	})
 
+	// e.g. mdm_enrolled/mdm_unenrolled return nil HostIDs when the host record
+	// is unknown (Azure automatic enrollments) or already deleted.
 	t.Run("host activity with no host IDs does not look up fleet webhooks", func(t *testing.T) {
 		ds := &newActivityMockDatastore{}
 		providers := &newActivityMockProviders{
