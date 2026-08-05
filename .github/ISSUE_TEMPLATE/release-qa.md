@@ -301,8 +301,8 @@ Reference: https://fleetdm.com/pricing
 ### Power to PC
 
 **Progress**
-- [ ] MDM enrollment flow
-- [ ] Setup experience (Autopilot enrollment)
+- [ ] Manual enrollment flow
+- [ ] Autopilot enrollment
 - [ ] MDM migration flow
 - [ ] OS settings
 - [ ] Disk encryption
@@ -318,20 +318,20 @@ Reference: https://fleetdm.com/pricing
 <td>Verify MDM enrollments, run MDM commands.</td>
 <td>
 
-1. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
+1. With Windows MDM turned on and the Setup experience configured (end user authentication and software installs), enroll a Windows host and verify MDM is turned on and the configured software installs.
 2. Verify able to run MDM commands on Windows hosts from the CLI.
 
 </td>
 </tr>
 
 <tr>
-<td>Setup experience (Autopilot enrollment)</td>
-<td>Verify Windows Setup experience via Autopilot/Entra OOBE enrollment, both fully configured and with nothing configured.</td>
+<td>Autopilot enrollment</td>
+<td>Verify Windows enrollment via Autopilot/Entra OOBE enrollment, both fully configured and with nothing configured.</td>
 <td>
 
 **Full configuration**
 
-1. Configure a fleet's setup experience: a configuration profile, OS updates, disk encryption (BitLocker), software (FMA, Custom pkg), and end user authentication.
+1. Configure a fleet with setup experience items (enable EUA, add FMA & Custom package software), add a configuration profile, enable OS updates, and disk encryption (BitLocker).
 2. Enroll an Auto-Pilot host via OOBE and verify the ESP completes and all configured items apply.
 
 **Blank enrollment**
