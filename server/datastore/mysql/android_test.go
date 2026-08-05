@@ -3234,12 +3234,28 @@ func testAndroidPubSubDedupState(t *testing.T, ds *Datastore) {
 	require.Equal(t, "msg-2", messageID)
 	require.WithinDuration(t, t2, *eventTime, time.Millisecond)
 
-	// A nil event time is allowed (column left NULL).
+	// A nil event time records the messageId but preserves the timestamp baseline. Clearing
+	// it to NULL would disable staleness protection for the host until some later message
+	// happened to carry a parseable timestamp.
 	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-3", nil))
 	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
 	require.NoError(t, err)
 	require.Equal(t, "msg-3", messageID)
-	require.Nil(t, eventTime)
+	require.NotNil(t, eventTime, "a nil event time must not clear the recorded baseline")
+	require.WithinDuration(t, t2, *eventTime, time.Millisecond)
+
+	// An empty messageId advances only the timestamp — this is how ReconcileAndroidDevices
+	// records an out-of-band unenroll, which has no Pub/Sub message of its own.
+	t3 := t2.Add(time.Hour)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "", &t3))
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-3", messageID, "an empty messageId must not clear the recorded messageId")
+	require.WithinDuration(t, t3, *eventTime, time.Millisecond)
+
+	// Writing the same values again still reports the row as found (clientFoundRows), so it
+	// must not be mistaken for a missing android_devices row.
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-3", &t3))
 
 	// Unknown host -> NotFound (both get and set).
 	_, _, err = ds.GetAndroidPubSubDedupState(testCtx(), 999999)

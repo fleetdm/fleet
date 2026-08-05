@@ -601,14 +601,24 @@ func (ds *Datastore) GetAndroidPubSubDedupState(ctx context.Context, hostID uint
 
 // SetAndroidPubSubDedupState records the last-processed Google Pub/Sub messageId
 // and AMAPI event timestamp for the host after a notification is handled
-// successfully. eventTime may be nil when the notification carried no usable
-// timestamp; the column is left NULL in that case. Returns a NotFound error when
-// no android_devices row matches hostID, so a missing row surfaces (via the
-// caller's log) instead of silently dropping dedup state.
+// successfully. Returns a NotFound error when no android_devices row matches
+// hostID, so a missing row surfaces (via the caller's log) instead of silently
+// dropping dedup state.
+//
+// An empty messageID or nil eventTime leaves that column at its previous value
+// rather than clearing it. A notification that carries no usable timestamp says
+// nothing about ordering, so overwriting the recorded baseline with NULL would
+// disable staleness protection for the host until some later message happened to
+// carry a parseable timestamp. The columns only ever move forward.
 func (ds *Datastore) SetAndroidPubSubDedupState(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error {
-	result, err := ds.writer(ctx).ExecContext(ctx,
-		`UPDATE android_devices SET last_pubsub_message_id = ?, last_pubsub_event_time = ? WHERE host_id = ?`,
-		messageID, eventTime, hostID)
+	// clientFoundRows is set on the DSN, so RowsAffected below counts matched rows, not
+	// changed rows — a write that preserves both columns still reports 1 for an existing row.
+	result, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE android_devices
+	SET last_pubsub_message_id = IF(? = '', last_pubsub_message_id, ?),
+		last_pubsub_event_time = COALESCE(?, last_pubsub_event_time)
+	WHERE host_id = ?`,
+		messageID, messageID, eventTime, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set android pubsub dedup state")
 	}
