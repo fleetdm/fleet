@@ -70,15 +70,15 @@
 
   // Suppress browser focus/click outlines on the chart wrapper, SVG surface,
   // and individual bar rectangles. Recharts wraps each bar in a focusable
-  // <rect> and the chart surface itself is focusable when interactive. The
-  // clickable platform labels are excluded so their keyboard focus ring (above)
-  // survives — they are the one element in the chart meant to be tab-focusable.
+  // <rect> and the chart surface itself is focusable when interactive. Mouse
+  // focus (`:focus:not(:focus-visible)`) is also suppressed on the clickable
+  // ticks so click-and-hold doesn't flash the browser's default blue ring;
+  // keyboard focus keeps the Fleet ring from the `:focus-visible` rule above.
   .recharts-wrapper,
   .recharts-surface,
   .recharts-bar-rectangle,
   .recharts-rectangle,
-  .recharts-wrapper *:focus:not(.hosts-enrolled-card__tick--clickable),
-  .recharts-wrapper *:focus-visible:not(.hosts-enrolled-card__tick--clickable) {
+  .recharts-wrapper *:focus:not(:focus-visible) {
     outline: none !important;
   }
 }
