@@ -98,9 +98,6 @@ const ManagedAccountModal = ({
               value={managedAccountData?.password ?? ""}
               name="Password"
             />
-            {/* Rotation banners are tied to the same capability as the rotate
-            button: where rotation isn't offered (Windows), a banner promising a
-            rotation the user can't trigger would be misleading. */}
             {canRotatePassword &&
               (showPendingRotationBanner ? (
                 <InfoBanner color="yellow">

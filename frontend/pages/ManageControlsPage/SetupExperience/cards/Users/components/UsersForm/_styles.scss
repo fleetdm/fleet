@@ -1,6 +1,4 @@
 .users-form {
-  // Lock end user info sits at the same left edge as Require IdP authentication,
-  // not indented under it, so the two checkboxes read as one group.
   &__advanced-options {
     margin-bottom: $pad-small;
   }

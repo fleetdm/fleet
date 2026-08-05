@@ -16,9 +16,7 @@ interface IWindowsAccountSectionProps {
   isWindowsMdmEnabledAndConfigured: boolean;
 }
 
-/** Windows tab of the Users card. Windows has no end user account type to choose
- * from, so that part of the section is helper text only; the managed account
- * checkbox mirrors the macOS tab. */
+/** Windows tab of the Users card. Windows has no end user account type to choose from, so that part of the section is helper text only; the managed account checkbox mirrors the macOS tab. */
 const WindowsAccountSection = ({
   enableManagedLocalAccount,
   onEnableManagedLocalAccountChange,

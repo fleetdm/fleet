@@ -2299,8 +2299,7 @@ describe("Host Actions Dropdown", () => {
       ).not.toBeInTheDocument();
     });
 
-    // Windows hosts get a managed account from fleetd after any MDM enrollment,
-    // so the action is offered without the Apple automatic-enrollment check.
+    // Windows hosts get a managed account from fleetd after any MDM enrollment.
     it("shows the action for a Windows host that is not automatically enrolled", async () => {
       const render = createCustomRenderer({
         context: {

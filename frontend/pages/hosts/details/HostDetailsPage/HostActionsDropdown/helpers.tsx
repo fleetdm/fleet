@@ -402,9 +402,8 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   if (!isPremiumTier) return false;
   if (hostPlatform !== "darwin" && hostPlatform !== "windows") return false;
   if (!isConnectedToFleetMdm) return false;
-  // Automatic device enrollment is an Apple ADE concept. On Windows the account
-  // is created by fleetd after any MDM enrollment, so the managedAccountStatus
-  // fallback below is what tells us a row exists for this host.
+  // Automatic device enrollment is an Apple ADE concept. On Windows the account is created by fleetd after any MDM
+  // enrollment, so the managedAccountStatus fallback below is what tells us a row exists for this host.
   if (
     hostPlatform === "darwin" &&
     !isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)
@@ -846,8 +845,7 @@ const modifyOptions = (
     if (managedAccountOption) {
       managedAccountOption.disabled = true;
       if (managedAccountStatus === "pending") {
-        // No password yet. On macOS the AccountConfiguration command hasn't been
-        // acked; on Windows fleetd hasn't escrowed a password yet.
+        // No password yet. On macOS the AccountConfiguration command hasn't been acked; on Windows fleetd hasn't escrowed a password yet.
         managedAccountOption.tooltipContent = (
           <>
             The managed account is still being
@@ -864,9 +862,7 @@ const modifyOptions = (
           </>
         );
       } else if (hostPlatform === "windows") {
-        // status is null/undefined and no record exists. Unlike macOS, the
-        // Windows setting is declarative: fleetd provisions already-enrolled
-        // hosts too, so this is a "not yet" rather than a "never".
+        // Unlike macOS, the Windows setting is declarative: fleetd provisions already-enrolled hosts too, so this is a "not yet" rather than a "never".
         managedAccountOption.tooltipContent = (
           <>
             The managed account hasn&apos;t been

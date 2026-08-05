@@ -1099,9 +1099,6 @@ const HostDetailsPage = ({
           false
         }
         isManagedLocalAccountEnabled={
-          // The setting lives in a different place per platform: Windows under
-          // windows_settings, macOS under macos_setup. Reading the wrong one
-          // reports the account as disabled and hides the action.
           host.platform === "windows"
             ? mdmConfig?.windows_settings?.managed_local_account_settings
                 ?.enabled ?? false
@@ -1829,8 +1826,7 @@ const HostDetailsPage = ({
             <ManagedAccountModal
               hostId={host.id}
               canRotatePassword={
-                // Rotation is macOS-only for now, so Windows hosts get neither
-                // the rotate button nor the auto-rotate banner.
+                // Rotation is macOS-only for now, so Windows hosts get neither the rotate button nor the auto-rotate banner.
                 host.platform === "darwin" &&
                 (isGlobalAdmin ||
                   isGlobalMaintainer ||
