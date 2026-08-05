@@ -1763,9 +1763,22 @@ const HostDetailsPage = ({
           )}
           {!!host && showReleaseFromABModal && (
             <ReleaseFromABModal
-              host={{ display_name: host.display_name, id: host.id }}
+              host={{
+                display_name: host.display_name,
+                id: host.id,
+                enrollment_status: host.mdm.enrollment_status,
+              }}
               onExit={() => setShowReleaseFromABModal(false)}
               onRelease={() => {
+                if (host.mdm.enrollment_status === "Pending") {
+                  router.push(
+                    filteredHostsPath ||
+                      getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                        fleet_id: location.query.fleet_id,
+                      })
+                  );
+                  return;
+                }
                 refetchHostDetails();
                 refetchPastActivities();
               }}
