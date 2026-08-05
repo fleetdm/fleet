@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26183.1901.4874.5228",
+      "version": "26198.202.4929.7171",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2' AND version_compare(bundle_short_version, '26183.1901.4874.5228') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2' AND version_compare(bundle_short_version, '26198.202.4929.7171') < 0);"
       },
-      "installer_url": "https://statics.teams.cdn.office.net/production-osx/26183.1901.4874.5228/MicrosoftTeams.pkg",
+      "installer_url": "https://statics.teams.cdn.office.net/production-osx/26198.202.4929.7171/MicrosoftTeams.pkg",
       "install_script_ref": "9f201b2c",
       "uninstall_script_ref": "02c344fa",
-      "sha256": "bbbd24cce58e508e879cabe13694dd06d1177e2a4de865ac0a152e17ba253f88",
+      "sha256": "dd5fab62b2003993a49ac86ecdc653500e970e29efd8c8b100f17d0adb30987e",
       "default_categories": [
         "Communication"
       ]

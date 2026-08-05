@@ -587,6 +587,8 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	<string>%s</string>
 	<key>VERSION</key>
 	<string>22A5316k</string>
+	<key>SOFTWARE_UPDATE_DEVICE_ID</key>
+	<string>bogus-OTA-update-id</string>
 </dict>
 </plist>`, c.Model, c.SerialNumber, c.UUID))
 
