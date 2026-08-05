@@ -1,149 +1,67 @@
-# Build your own Windows self-service with winget
+# Put Microsoft Store apps in Windows self-service with winget
 
-_The same Fleet 4.89.0 additions that turned `apt-get install` into a Linux self-service catalog work on Windows with `.ps1` packages. Windows has one problem Linux doesn't: Microsoft says winget isn't supported in the SYSTEM context._
+_Installing a Store app with winget is one command. Getting that one command to run from Fleet is the interesting part, because Fleet runs scripts as SYSTEM and the Microsoft Store does not._
 
 ## Key takeaways
 
-- **A `.ps1` script-only package is a full install lifecycle.** As of Fleet 4.89.0, a PowerShell script-only package can carry an uninstall script, a pre-install query, and a post-install script, which is everything you need to put a package manager behind a self-service tile.
-- **Fleet runs your script as SYSTEM, and winget does not officially run there.** App Installer ships as an MSIX package that can be registered for any user except `NT AUTHORITY\SYSTEM`, so `winget` is not on the PATH your script inherits. You resolve the executable yourself.
-- **Machine-scope apps from the `winget` source work well; Microsoft Store apps do not.** The community `winget` source installs machine-wide cleanly. The `msstore` source refuses device-wide installs outright, so a "Store app" tile needs a different approach.
-- **For per-user apps, hand the install to the logged-on user.** A short-lived scheduled task running as the console user is the same pattern Fleet uses for its own per-user Windows apps, and it's what makes user-scope winget installs possible at all.
-- **PowerShell won't fail the install for you.** Unlike `set -euo pipefail` in bash, PowerShell ignores a native command's non-zero exit code, so you have to propagate it yourself. And winget's "already installed" code isn't a failure.
-- **The per-app work is mechanical enough to generate.** Given a winget package ID, a generator emits the install script, the uninstall script, and the YAML block, so adding an app is one command and a pull request.
+- **The per-app work is genuinely one line.** A Store app is identified by its Store ID, and the install is `winget install --id <StoreId> --source msstore`. Everything else in the script is boilerplate you write once.
+- **That one line fails as SYSTEM, and no flag fixes it.** Fleet hands Windows scripts to PowerShell running as SYSTEM. The `msstore` source refuses device-wide installs outright, because Store packages are per-user by design.
+- **The fix is to run winget in the user's session, not to run it harder.** A short-lived scheduled task owned by the console user puts winget where the Store expects it, and `winget` resolves normally there with no path hunting.
+- **Verification has to read the MSIX world, not the registry.** Store apps never appear in the uninstall registry keys, so `Get-AppxPackage -AllUsers` is the check that tells you the truth.
+- **Machine-wide Store deployment exists, but it's a different tool.** Downloading the package and provisioning it with `Add-AppxProvisionedPackage` works as SYSTEM, at the cost of Entra ID licensing rights and a file to host.
+- **A Store ID is enough to generate the whole tile.** Given an ID, a generator emits the install script, the uninstall script, and the YAML, so onboarding an app is one command and a pull request.
 
 <a purpose="cta-button" href="https://fleetdm.com/infrastructure-as-code">See it managed as code</a>
 
-[Fleet 4.89.0](https://fleetdm.com/releases/fleet-4.89.0) added an uninstall script, a pre-install query, and a post-install script to script-only packages. On Linux, that was enough to [build a self-service catalog on top of apt and dnf](https://fleetdm.com/articles/build-your-own-linux-self-service-with-script-only-packages) with no `.deb` files to host. Windows gets the same three additions for `.ps1` files, and Windows has a package manager of its own in winget.
+[Fleet 4.89.0](https://fleetdm.com/releases/fleet-4.89.0) added an uninstall script, a pre-install query, and a post-install script to script-only packages. On Linux, that was enough to [build a self-service catalog on top of apt and dnf](https://fleetdm.com/articles/build-your-own-linux-self-service-with-script-only-packages). Windows gets the same three additions for `.ps1` files, and Windows already ships a package manager that can reach the Microsoft Store.
 
-The recipe does not port over unchanged, though. On Linux, Fleet hands your script to a root shell and `apt-get` is right there on the PATH. On Windows, Fleet hands your script to PowerShell running as SYSTEM, and that is precisely the one account winget cannot be registered for. Everything interesting about building this on Windows follows from that one fact.
+So the obvious move is a two-line script: `winget install` on the way in, `winget uninstall` on the way out. Those are the right commands. They won't run where Fleet puts them, though, and understanding why is what turns a broken tile into a working one.
 
-## The building block: script-only packages on Windows
+## What the install and uninstall actually are
 
-A script-only package is a `.sh` file (Linux) or a `.ps1` file (Windows) that you add to Fleet as software. There is no installer binary and no metadata extraction. The file's contents are the install script, and Fleet runs them on the host when someone installs the "package."
-
-Since 4.89.0, a script-only package can also carry a pre-install query that must return at least one row before the install runs, a post-install script whose non-zero exit fails the install and triggers the uninstall, and an uninstall script that runs when an admin or end user removes the software. What it still cannot do is take an `install_script` key, because the file's contents already are the install script, or install automatically through a policy. Drive these through self-service.
-
-That's the shape of a package manager front end: put an app on, take it off, check your work.
-
-## Where the Linux recipe breaks: winget and the SYSTEM context
-
-Fleet's agent executes Windows scripts as `powershell -MTA -ExecutionPolicy Bypass -File <script>`, running as SYSTEM. Microsoft's own [winget troubleshooting documentation](https://learn.microsoft.com/en-us/windows/package-manager/winget/troubleshooting) is unambiguous about what that means: because winget is delivered through App Installer as a packaged MSIX application, and MSIX packages can be registered for any user except `NT AUTHORITY\SYSTEM`, the winget CLI is not supported in the system context.
-
-In practice that produces two separate problems, and they need separate answers.
-
-The first is cosmetic but fatal: the `winget` app execution alias lives in a per-user path, so SYSTEM has no `winget` command. The binary is still on disk inside the App Installer package directory, and calling it there works for machine-scope installs. This is the workaround the Windows admin community has converged on, and it's the one used below. Microsoft also notes that the `Microsoft.WinGet.Client` PowerShell module can be used in the system context for applications installed machine-wide, which is the supported path if you're willing to get that module onto every host first.
-
-The second problem is structural, and it's the one that matters if you came here wanting Microsoft Store apps. Store packages are inherently per-user, and winget's `msstore` source rejects device-wide installs with "Device wide install for msstore type is not supported under admin context." No amount of path resolution fixes that, because it isn't a path problem. If the app you want exists in the community `winget` source, use that source and read the next section. If it only exists in the Store, skip ahead to running the install as the logged-on user, and expect Store licensing and Entra ID authentication to complicate it further.
-
-## The install script: machine-scope apps
-
-Start by finding the executable. The App Installer directory name embeds the version, so sort on the parsed version rather than the string. A plain descending sort puts `1.9` above `1.24`.
+Start with the destination, because it's short. Every Store app has a Store ID, a twelve-character string like `9WZDNCRFJ3PZ` for Company Portal. Find it with a search:
 
 ```powershell
-# install-7zip.ps1
-$PackageId = "7zip.7zip"
-
-$winget = Resolve-Path "$env:ProgramFiles\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue |
-    Sort-Object { [version](($_.Path -split '_')[1]) } |
-    Select-Object -Last 1 -ExpandProperty Path
-
-if (-not $winget) {
-    Write-Host "App Installer (winget) was not found on this host."
-    exit 1
-}
-
-Write-Host "Installing $PackageId with $winget"
-& $winget install --id $PackageId --exact --source winget `
-    --scope machine --silent `
-    --accept-package-agreements --accept-source-agreements `
-    --disable-interactivity
-$code = $LASTEXITCODE
-
-# 0 = installed. -1978335135 (0x8A150061) = already installed, which is not a failure.
-if ($code -eq 0 -or $code -eq -1978335135) {
-    Write-Host "$PackageId is installed."
-    exit 0
-}
-
-Write-Host "winget exited with $code"
-exit 1
+winget search --source msstore "company portal"
 ```
 
-Three details in there are doing real work.
-
-`--exact` with `--id` stops winget from resolving a fuzzy name match to the wrong package, which is a genuine risk when nobody is watching the output. `--silent`, `--accept-package-agreements`, `--accept-source-agreements`, and `--disable-interactivity` together are the Windows equivalent of `DEBIAN_FRONTEND=noninteractive`: without them a prompt waits forever for a user who isn't there.
-
-The explicit exit code handling is the part with no Linux counterpart. In bash, `set -euo pipefail` makes the script die the moment a command fails. PowerShell does not work that way. `$ErrorActionPreference` governs PowerShell errors, not native process exit codes, so a failed `winget install` leaves your script running happily and exiting 0. Fleet reads that 0 and marks the install successful. You have to check `$LASTEXITCODE` and propagate it, and while you're there, treat `-1978335135` as success, because a host that already has the app is not a failed install.
-
-One honest caveat on `--scope machine`: Microsoft [documents](https://learn.microsoft.com/en-us/windows/package-manager/winget/troubleshooting) that scope is reliable for MSI and MSIX packages but not deterministic for EXE-based installers, where the arguments to specify scope may not exist at all. Verify per app rather than assuming.
-
-## Add the uninstall
-
-The mirror image, with the same path resolution and the same care about exit codes. Removing something that was already absent is a successful no-op, so `-1978335212` (no packages found) exits 0.
+Given the ID, the two commands you need are these:
 
 ```powershell
-# uninstall-7zip.ps1
-$PackageId = "7zip.7zip"
-
-$winget = Resolve-Path "$env:ProgramFiles\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue |
-    Sort-Object { [version](($_.Path -split '_')[1]) } |
-    Select-Object -Last 1 -ExpandProperty Path
-
-if (-not $winget) {
-    Write-Host "App Installer (winget) was not found on this host."
-    exit 1
-}
-
-& $winget uninstall --id $PackageId --exact --silent `
-    --accept-source-agreements --disable-interactivity
-$code = $LASTEXITCODE
-
-# -1978335212 (0x8A150014) = no packages found, so there is nothing to remove.
-if ($code -eq 0 -or $code -eq -1978335212) {
-    Write-Host "$PackageId is not installed."
-    exit 0
-}
-
-Write-Host "winget exited with $code"
-exit 1
+winget install --id 9WZDNCRFJ3PZ --source msstore --accept-package-agreements --accept-source-agreements
+winget uninstall --id 9WZDNCRFJ3PZ
 ```
 
-Save both under `lib/windows/scripts/` in your GitOps repo, then register the package in the fleet where you want it available. Software is defined per fleet, so this goes in `fleets/<name>.yml` or `fleets/unassigned.yml`:
+Pin to the ID rather than the name. A name match can resolve to the wrong package, and nobody is watching the output when Fleet runs this. Everything from here on exists to get those two commands executed in a place where they work.
 
-```yaml
-software:
-  packages:
-    - path: ../lib/windows/scripts/install-7zip.ps1
-      display_name: 7-Zip
-      self_service: true
-      categories:
-        - "💻 Productivity"
-      uninstall_script:
-        path: ../lib/windows/scripts/uninstall-7zip.ps1
-```
+## Why the one-liner fails as SYSTEM
 
-With `self_service: true`, the app appears on the end user's self-service page, reachable from the Fleet icon in the Windows system tray. When they click install, Fleet's agent runs the install script as SYSTEM. When they remove it, the uninstall script runs.
+Fleet's agent executes Windows scripts as `powershell -MTA -ExecutionPolicy Bypass -File <script>`, running as SYSTEM. That collides with the Store in two separate ways.
 
-## Per-user apps: hand the install to the logged-on user
+The first is that winget itself isn't there. Microsoft's [winget troubleshooting documentation](https://learn.microsoft.com/en-us/windows/package-manager/winget/troubleshooting) states it plainly: winget ships through App Installer as a packaged MSIX application, MSIX packages can be registered for any user except `NT AUTHORITY\SYSTEM`, and so the winget CLI is not supported in the system context. The `winget` command simply doesn't resolve.
 
-Some apps refuse to install machine-wide at all. Squirrel-based Electron apps, anything from the Store, and a long tail of `--scope user` packages all fall in this bucket, and no SYSTEM-context trick makes them work, because the install genuinely needs a user profile to land in.
+The second is the one that matters here, and it survives every workaround. Even with the binary located, the `msstore` source rejects a device-wide install with "Device wide install for msstore type is not supported under admin context." Store packages are per-user by design, and there is [no supported way](https://github.com/microsoft/winget-cli/issues/3553) to install a user-scoped package as SYSTEM on behalf of a specific user. Asking for `--scope machine` doesn't help either: [it installs the package for the SYSTEM account](https://github.com/microsoft/winget-cli/issues/4748) instead of provisioning it, which is worse than failing, because it looks like it worked.
 
-The answer is to stop fighting it and run winget as the user. Fleet uses exactly this pattern for its own per-user Windows [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps): create a short-lived scheduled task that runs as the owner of the `explorer.exe` process, start it, wait for it to finish, then unregister it.
+Running winget in the system context in the first place remains [an open feature request](https://github.com/microsoft/winget-pkgs/issues/346975), not a solved problem you can flag your way around. So stop trying to install as SYSTEM.
+
+## Run winget in the user's session
+
+The way through is to let SYSTEM do what SYSTEM is good at, which is creating a scheduled task, and let the logged-on user do the install. Register a task owned by the owner of the `explorer.exe` process, start it, wait for it to finish, then remove it. Fleet uses this same pattern for its own per-user Windows [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps).
 
 ```powershell
-# install-figma-user-scope.ps1
-$PackageId = "Figma.Figma"
+# install-company-portal.ps1
+$StoreId = "9WZDNCRFJ3PZ"
+$WingetArgs = "install --id $StoreId --source msstore --accept-package-agreements --accept-source-agreements"
+
 $exitCode = 0
-$taskName = "fleet-install-$PackageId"
+$taskName = "fleet-store-$StoreId"
 
 try {
     $userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' |
         Invoke-CimMethod -MethodName GetOwner).User
-    if (-not $userName) { throw "No logged-on user found; cannot install a user-scope app." }
+    if (-not $userName) { throw "No logged-on user, so there is no session to install into." }
 
-    $args = "install --id $PackageId --exact --source winget --scope user --silent " +
-            "--accept-package-agreements --accept-source-agreements --disable-interactivity"
-    $action = New-ScheduledTaskAction -Execute "winget.exe" -Argument $args
+    $action = New-ScheduledTaskAction -Execute "winget.exe" -Argument $WingetArgs
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
     $task = New-ScheduledTask -Action $action -Settings $settings
 
@@ -156,7 +74,7 @@ try {
         $state = (Get-ScheduledTask -TaskName $taskName).State
         Write-Host "Scheduled task is '$state'."
         if ((New-TimeSpan -Start $startDate -End (Get-Date)).TotalSeconds -gt 600) {
-            throw "Timed out waiting for the install to finish."
+            throw "Timed out waiting for winget to finish."
         }
     } while ($state -eq "Running" -or $state -eq "Queued")
 } catch {
@@ -169,15 +87,79 @@ try {
 exit $exitCode
 ```
 
-Because the task runs in the user's session, plain `winget.exe` resolves normally through the app execution alias and no path hunting is needed. The trade-off is real, though: this only works when someone is logged in, the scheduled task's own exit code doesn't come back to you, and you learn nothing about whether winget actually succeeded. That makes the verification step in the next section mandatory here rather than merely advisable.
+Only the first two lines change per app. Everything below them is the same in every script, which is what makes this generatable later.
 
-The same pattern also cleanly covers the uninstall, swapping `install` for `uninstall`. Sweep every user profile if the app may have been installed by more than one person.
+Because the task runs inside the user's session, plain `winget.exe` resolves through the app execution alias and the Store gets the user context it wants. The uninstall is the identical file with one line different:
 
-## Guardrails: targeting and verification
+```powershell
+$WingetArgs = "uninstall --id $StoreId"
+```
 
-### Target the right hosts with labels
+Two honest limits come with this approach. It needs somebody logged in, which is reasonable for self-service, since a user is clicking the tile. And the scheduled task's exit code doesn't come back to your script, so the script reports success as long as the task ran, whether or not winget did anything. That second one is why the next section isn't optional.
 
-Define a dynamic label and reference it on the package so only the intended hosts see the tile:
+## Verify against the MSIX world, not the registry
+
+If you have built self-service tiles for ordinary Windows installers before, the instinct is to check `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`. That is the wrong place for a Store app. MSIX packages don't register there at all, so a registry check fails on a perfectly good install.
+
+Ask the MSIX subsystem instead. Fleet runs the post-install script as SYSTEM, and SYSTEM is elevated, so `-AllUsers` is available and will see a package installed in a user's profile:
+
+```powershell
+# verify-company-portal.ps1
+$PackageName = "Microsoft.CompanyPortal"
+
+$pkg = Get-AppxPackage -AllUsers -Name $PackageName -ErrorAction SilentlyContinue
+if (-not $pkg) {
+    Write-Host "$PackageName is not installed for any user."
+    exit 1
+}
+
+Write-Host "Found $($pkg[0].Name) $($pkg[0].Version)."
+exit 0
+```
+
+The `Name` here is the MSIX package name, which is not the Store ID. Get it after a manual install with `Get-AppxPackage | Select-Object Name, PackageFamilyName`, or by matching on a wildcard the first time through.
+
+A non-zero exit from the post-install script fails the install and triggers your uninstall script, so this check is what converts "the scheduled task ran" into "the app is actually there."
+
+## If you need it machine-wide
+
+Sometimes per-user isn't acceptable and the app has to be on the image for everybody. Store apps can be deployed that way, but not through `winget install`. The route is to download the package once and provision it.
+
+On an admin workstation, download the package and its license:
+
+```powershell
+winget download --id 9WZDNCRFJ3PZ --source msstore --download-directory C:\staging
+```
+
+Then provision it on the host, which does work as SYSTEM:
+
+```powershell
+Add-AppxProvisionedPackage -Online -PackagePath .\app.msixbundle -LicensePath .\9WZDNCRFJ3PZ_License.xml
+```
+
+Two costs come with this. Downloading a Store package's license file [requires Entra ID authentication](https://learn.microsoft.com/en-us/windows/package-manager/winget/download) by an account holding Global Administrator, User Administrator, or License Administrator. And you now have a file to get onto the host, which means a Fleet custom package rather than a script-only one, and the "nothing to host" property of this whole approach is gone. Worth it for a handful of apps everyone needs, not for a self-service catalog.
+
+## Wire it into GitOps
+
+Register the package in the fleet where you want it available, in `fleets/<name>.yml` or `fleets/unassigned.yml`:
+
+```yaml
+software:
+  packages:
+    - path: ../lib/windows/scripts/install-company-portal.ps1
+      display_name: Company Portal
+      self_service: true
+      categories:
+        - "💻 Productivity"
+      labels_include_any:
+        - Windows
+      uninstall_script:
+        path: ../lib/windows/scripts/uninstall-company-portal.ps1
+      post_install_script:
+        path: ../lib/windows/scripts/verify-company-portal.ps1
+```
+
+The label keeps the tile off hosts that can't use it, and it has to be defined in the `labels` section first:
 
 ```yaml
 labels:
@@ -186,115 +168,76 @@ labels:
     label_membership_type: dynamic
 ```
 
-```yaml
-software:
-  packages:
-    - path: ../lib/windows/scripts/install-7zip.ps1
-      display_name: 7-Zip
-      self_service: true
-      labels_include_any:
-        - Windows
-      uninstall_script:
-        path: ../lib/windows/scripts/uninstall-7zip.ps1
-```
+With `self_service: true`, the app appears on the end user's self-service page, reachable from the Fleet icon in the Windows system tray. Every app is three files and a YAML block, so adding or removing one is a pull request. Reviewers see exactly what will run, and the catalog is auditable and reversible. [Turn on GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) to make the Fleet UI reflect that these are code-managed.
 
-Any label you reference on a package has to be defined in the `labels` section first, and you can use only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` per package. Labels also give you somewhere to put the hosts winget can't help: Windows Server and LTSC images often ship without App Installer at all, and excluding them is kinder than letting the script fail on every attempt.
+Script-only packages don't support automatic install through a policy, and they don't take an `install_script` key, because the file's contents already are the install script. Self-service is the delivery mechanism here, which suits Store apps anyway.
 
-### Verify the install actually landed
+## Generate the whole tile from a Store ID
 
-A post-install script runs after the install, and a non-zero exit fails the install and triggers your uninstall script. Check the state of the machine rather than asking winget again, so a broken winget can't vouch for itself:
+Since only two lines differ between apps, the rest can be emitted. Fleet script-only packages are single files with no shared helper to import, so the boilerplate has to be inlined into each one, which is exactly the kind of work worth handing to a generator.
 
 ```powershell
-# verify-7zip.ps1
-$DisplayNamePattern = "7-Zip*"
-
-$paths = @(
-    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
-    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
-)
-
-$found = Get-ItemProperty -Path $paths -ErrorAction SilentlyContinue |
-    Where-Object { $_.DisplayName -like $DisplayNamePattern }
-
-if (-not $found) {
-    Write-Host "$DisplayNamePattern was not found in the uninstall registry."
-    exit 1
-}
-
-Write-Host "Found $($found[0].DisplayName) $($found[0].DisplayVersion)."
-exit 0
-```
-
-```yaml
-      post_install_script:
-        path: ../lib/windows/scripts/verify-7zip.ps1
-```
-
-For a user-scope install, `HKLM` is the wrong place to look. Those entries land under the user's own hive, so enumerate `HKEY_USERS` from SYSTEM instead of `HKCU`, which as SYSTEM points at the wrong profile entirely.
-
-A pre-install query can gate the install as well, proceeding only if the query returns a row. Labels are the better tool for platform targeting, so save the query for a genuine precondition.
-
-## Wire it into GitOps
-
-Every self-service app is a set of files in your repository:
-
-```
-lib/
-  windows/
-    scripts/
-      install-7zip.ps1
-      uninstall-7zip.ps1
-      verify-7zip.ps1
-fleets/
-  workstations.yml   # references the scripts under software.packages
-```
-
-Adding, changing, or removing an app is a pull request. Reviewers see the exact commands that will run as SYSTEM on every targeted host, the change ships through CI when it merges, and the catalog is auditable and reversible by design. [Turn on GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) to make the Fleet UI reflect that these are code-managed. Fleet manages its own software this way, and the [it-and-security configuration](https://github.com/fleetdm/fleet/tree/main/it-and-security/fleets) is public if you want a real-world layout to borrow from.
-
-## Automate it: from a winget ID to a self-service tile
-
-Once the pattern settles, the only real input is the package ID. This generator writes both scripts and prints the YAML block:
-
-```powershell
-# New-SelfServiceApp.ps1 -PackageId 7zip.7zip -DisplayName "7-Zip"
+# New-StoreAppTile.ps1 -StoreId 9WZDNCRFJ3PZ -DisplayName "Company Portal" -PackageName Microsoft.CompanyPortal
 param(
-    [Parameter(Mandatory)][string]$PackageId,
-    [string]$DisplayName = $PackageId,
+    [Parameter(Mandatory)][string]$StoreId,
+    [Parameter(Mandatory)][string]$DisplayName,
+    [Parameter(Mandatory)][string]$PackageName,
     [string]$Category = "💻 Productivity"
 )
 
 $dir = "lib/windows/scripts"
 New-Item -ItemType Directory -Path $dir -Force | Out-Null
-$slug = $PackageId.ToLower().Replace(".", "-")
+$slug = $DisplayName.ToLower() -replace '[^a-z0-9]+', '-'
 
-$resolve = @'
-$winget = Resolve-Path "$env:ProgramFiles\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue |
-    Sort-Object { [version](($_.Path -split '_')[1]) } |
-    Select-Object -Last 1 -ExpandProperty Path
-if (-not $winget) { Write-Host "App Installer (winget) was not found."; exit 1 }
+$body = @'
+$exitCode = 0
+$taskName = "fleet-store-$StoreId"
+try {
+    $userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' |
+        Invoke-CimMethod -MethodName GetOwner).User
+    if (-not $userName) { throw "No logged-on user, so there is no session to install into." }
+    $action = New-ScheduledTaskAction -Execute "winget.exe" -Argument $WingetArgs
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
+    $task = New-ScheduledTask -Action $action -Settings $settings
+    Register-ScheduledTask $taskName -InputObject $task -User $userName | Out-Null
+    Start-ScheduledTask -TaskName $taskName -TaskPath "\"
+    $startDate = Get-Date
+    do {
+        Start-Sleep -Seconds 5
+        $state = (Get-ScheduledTask -TaskName $taskName).State
+        Write-Host "Scheduled task is '$state'."
+        if ((New-TimeSpan -Start $startDate -End (Get-Date)).TotalSeconds -gt 600) {
+            throw "Timed out waiting for winget to finish."
+        }
+    } while ($state -eq "Running" -or $state -eq "Queued")
+} catch {
+    Write-Host "Error: $_"
+    $exitCode = 1
+} finally {
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+}
+exit $exitCode
 '@
 
 @"
-`$PackageId = "$PackageId"
-$resolve
-& `$winget install --id `$PackageId --exact --source winget --scope machine --silent ``
-    --accept-package-agreements --accept-source-agreements --disable-interactivity
-`$code = `$LASTEXITCODE
-if (`$code -eq 0 -or `$code -eq -1978335135) { exit 0 }
-Write-Host "winget exited with `$code"
-exit 1
+`$StoreId = "$StoreId"
+`$WingetArgs = "install --id `$StoreId --source msstore --accept-package-agreements --accept-source-agreements"
+$body
 "@ | Set-Content "$dir/install-$slug.ps1" -Encoding UTF8
 
 @"
-`$PackageId = "$PackageId"
-$resolve
-& `$winget uninstall --id `$PackageId --exact --silent ``
-    --accept-source-agreements --disable-interactivity
-`$code = `$LASTEXITCODE
-if (`$code -eq 0 -or `$code -eq -1978335212) { exit 0 }
-Write-Host "winget exited with `$code"
-exit 1
+`$StoreId = "$StoreId"
+`$WingetArgs = "uninstall --id `$StoreId"
+$body
 "@ | Set-Content "$dir/uninstall-$slug.ps1" -Encoding UTF8
+
+@"
+`$PackageName = "$PackageName"
+`$pkg = Get-AppxPackage -AllUsers -Name `$PackageName -ErrorAction SilentlyContinue
+if (-not `$pkg) { Write-Host "`$PackageName is not installed for any user."; exit 1 }
+Write-Host "Found `$(`$pkg[0].Name) `$(`$pkg[0].Version)."
+exit 0
+"@ | Set-Content "$dir/verify-$slug.ps1" -Encoding UTF8
 
 @"
 
@@ -304,31 +247,35 @@ exit 1
       self_service: true
       categories:
         - "$Category"
+      labels_include_any:
+        - Windows
       uninstall_script:
         path: ../$dir/uninstall-$slug.ps1
+      post_install_script:
+        path: ../$dir/verify-$slug.ps1
 "@
 ```
 
-Onboarding an app becomes: find the ID with `winget search`, run `./New-SelfServiceApp.ps1 -PackageId 7zip.7zip -DisplayName "7-Zip"`, paste the printed block into your fleet file, and open a pull request. Write the verification script by hand, because the display name in the registry rarely matches the winget ID closely enough to generate.
+Onboarding an app becomes three lookups and a command: get the Store ID from `winget search --source msstore`, get the MSIX package name from `Get-AppxPackage` after installing it once by hand, then run the generator and paste the printed block into your fleet file.
 
 ## The point
 
-Fleet didn't ship a Windows software store in 4.89.0. It shipped three small additions to script-only packages, and those are enough to build one on top of the package manager Microsoft already ships, with no installers to host and no per-app UI work.
+A Store app install is one winget command, and the reason this piece isn't one paragraph long is that Fleet runs as SYSTEM and the Microsoft Store only deals in users. That gap is a real architectural constraint, not an oversight waiting on a flag, so the honest answer is a wrapper that hands the work to the session where it belongs.
 
-Windows makes you earn it in a way Linux doesn't. The SYSTEM context is a real constraint, not a bug you can wait out, and it forces a decision per app: machine scope through the resolved binary, or user scope through the logged-on user. Make that decision once, encode it in a script, and the rest is a naming convention in Git.
+Write that wrapper once, verify against `Get-AppxPackage` instead of the registry, and the marginal cost of the next Store app is a twelve-character ID in a pull request.
 
 ## See it live
 
-- Follow the [step-by-step guide](https://fleetdm.com/guides/build-your-own-windows-self-service-with-winget-and-script-only-packages-guide) to build your first app end to end.
+- Follow the [step-by-step guide](https://fleetdm.com/guides/build-your-own-windows-self-service-with-winget-and-script-only-packages-guide) to build your first Store app tile end to end.
 - Read the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages) for the full detail on script-only packages, pre-install queries, and uninstall scripts.
 - Get a demo: [fleetdm.com/contact](https://fleetdm.com/contact).
 - Join a free GitOps workshop: [fleetdm.com/workshops](https://fleetdm.com/workshops).
 
 _Managing devices as code, one pull request at a time. Start with the [GitOps reference](https://fleetdm.com/docs/configuration/yaml-files) or [talk to us](https://fleetdm.com/contact)._
 
-<meta name="articleTitle" value="Build your own Windows self-service with winget">
+<meta name="articleTitle" value="Put Microsoft Store apps in Windows self-service with winget">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-08-05">
-<meta name="description" value="Use Fleet script-only .ps1 packages to put winget behind a Windows self-service tile, including the SYSTEM context workaround.">
+<meta name="description" value="Use Fleet script-only .ps1 packages and winget to put Microsoft Store apps in Windows self-service, despite the SYSTEM context limit.">
