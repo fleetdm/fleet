@@ -41,6 +41,8 @@ module.exports = {
         'Attended a call with Fleet',
         'Event',
         'Event - 2026-07 PSU MacAdmins',
+        'Event - Webinar',
+        'Event - Workshop - GitOps',
         'GitHub - Contributed to fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',
         'GitHub - Stared fleetdm/fleet',
@@ -53,14 +55,14 @@ module.exports = {
         'Prospecting - Specialist',
         'Website - Chat',
         'Website - Contact forms',
-        'Website - Contact forms - Demo - ICP',
         'Website - Contact forms - Demo',
-        'Website - Workshop request',
+        'Website - Contact forms - Demo - ICP',
+        'Website - Gated document',
+        'Website - Gated video',
         'Website - Newsletter',
         'Website - Sign up',
         'Website - Swag request',
-        'Website - Gated document',
-        'Website - Gated video',
+        'Website - Workshop request'
       ],
     },
     getStartedResponses: {
@@ -208,8 +210,8 @@ module.exports = {
       'Website - Contact forms - Demo - ICP',
       'Website - Contact forms - Demo',
       'Website - Workshop request',
-      'Webinar',
       'Website - Gated document',
+      'Website - Gated video',
     ];
     if(contactSource && formBasedContactSources.includes(contactSource)) {
       contactValuesToSet.Most_recent_campaign_member_status__c = 'Registered';// eslint-disable-line camelcase

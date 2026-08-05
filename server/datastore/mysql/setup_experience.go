@@ -143,7 +143,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 					WHERE (h.osquery_host_id = ? OR h.uuid = ?)
 					  AND h.platform = 'windows'
 					  AND h.computer_name <> ''
-					  AND (mwe.host_uuid = h.uuid OR mwe.host_uuid IS NULL OR mwe.host_uuid = '')
+					  AND (mwe.host_uuid = h.uuid OR mwe.host_uuid = '')
 					ORDER BY mwe.created_at DESC, mwe.id DESC
 					LIMIT 1
 					`

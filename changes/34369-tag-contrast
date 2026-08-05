@@ -1,0 +1,1 @@
+- Fixed low color contrast on the "Inherited" tag and unified the styling of tags (e.g. "Inherited," "API," "Patch," host filter chips, and host label pills) across the UI to match the design system.
