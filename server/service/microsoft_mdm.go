@@ -1234,8 +1234,40 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 	return resSyncMLmsg, nil
 }
 
+// allowedWindowsTOSRedirectSchemes is the set of URL schemes permitted for the Windows MDM enrollment Terms of Use
+// redirect_uri. Per Microsoft's "Terms of Use protocol semantics", the Windows enrollment client (not Fleet) chooses
+// this redirect_uri and Fleet only reflects it into a window.location assignment in the TOS page. We restrict it to the
+// two schemes that protocol uses:
+//   - ms-appx-web: the scheme in Microsoft's documented example, redirect_uri=ms-appx-web://<app>/ToUResponse, used by
+//     the native broker-hosted flows (Entra join from Settings > "Access work or school", and BYOD work-account add).
+//     https://learn.microsoft.com/en-us/windows/client-management/azure-active-directory-integration-with-mdm
+//   - https: the browser-based federated flow.
+var allowedWindowsTOSRedirectSchemes = map[string]struct{}{
+	"https":       {},
+	"ms-appx-web": {},
+}
+
+// windowsTOSRedirectURIAllowed reports whether redirectURI is safe to reflect into the Windows MDM TOS page.
+func windowsTOSRedirectURIAllowed(redirectURI string) bool {
+	parsed, err := url.Parse(redirectURI)
+	if err != nil {
+		return false
+	}
+	_, ok := allowedWindowsTOSRedirectSchemes[strings.ToLower(parsed.Scheme)]
+	return ok
+}
+
 // GetMDMWindowsTOSContent returns valid TOC content
 func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
+	// skipauth: This endpoint does not use authentication
+	svc.authz.SkipAuthorization(ctx)
+
+	// redirectUri is reflected into a window.location assignment in the TOS page template, so validate its scheme to
+	// prevent reflected XSS via javascript:/data:/vbscript: URLs.
+	if !windowsTOSRedirectURIAllowed(redirectUri) {
+		return "", &fleet.BadRequestError{Message: "invalid redirect_uri"}
+	}
+
 	tmpl, err := server.GetTemplate("frontend/templates/windowsTOS.html", "windows-tos")
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
@@ -1246,9 +1278,6 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "executing TOS template content")
 	}
-
-	// skipauth: This endpoint does not use authentication
-	svc.authz.SkipAuthorization(ctx)
 
 	return htmlBuf.String(), nil
 }
@@ -1683,8 +1712,16 @@ scan:
 		if !fleet.IsNotFound(err) {
 			svc.logger.ErrorContext(ctx, "windows mdm: host lookup by serial failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
 			ctxerr.Handle(ctx, err)
+			return false
 		}
 		// NotFound means the host hasn't enrolled in osquery yet (hosts row not created yet); we'll retry next session.
+		// Persist the serial on the unlinked enrollment row so the orbit enrollment path can reverse-link it (and
+		// apply the Windows enrollment default fleet) the moment the host record is created, before orbit's one-shot
+		// setup-experience init reads the host's fleet. Best-effort: on failure the Get is reinjected next session.
+		if saveErr := svc.ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, enrolledDevice.MDMDeviceID, serial); saveErr != nil {
+			svc.logger.WarnContext(ctx, "windows mdm: failed to persist serial on unlinked enrollment",
+				"err", saveErr, "device_id", enrolledDevice.MDMDeviceID)
+		}
 		return false
 	}
 	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID)
@@ -3675,7 +3712,7 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 // processed per-host at delivery time — i.e. it references any FLEET_VAR_ variable
 // or any $FLEET_HOST_VITAL_<id> custom host vital.
 func windowsProfileNeedsPerHostProcessing(syncML []byte) bool {
-	return variables.ContainsBytes(syncML) || len(fleet.ContainsCustomHostVitalIDs(string(syncML))) > 0
+	return variables.ContainsBytes(syncML) || len(fleet.FindCustomHostVitalIDs(string(syncML))) > 0
 }
 
 // ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.

@@ -345,3 +345,144 @@ func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
 	escapedURL := `https://example.cloudfront.net/software-installers/storage_id?Expires=1766462733&amp;Signature=some_signature&amp;Key-Pair-Id=ABC123XYZ`
 	require.Contains(t, string(manifest), escapedURL)
 }
+
+func (s *integrationInstallTestSuite) TestSoftwareInstallerFleetVariables() {
+	t := s.T()
+	ctx := context.Background()
+
+	s.softwareInstallStore.ExistsFunc = func(ctx context.Context, installerID string) (bool, error) {
+		return true, nil
+	}
+	s.softwareInstallStore.PutFunc = func(ctx context.Context, installerID string, content io.ReadSeeker) error {
+		return nil
+	}
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
+		return "https://example.com/signed", nil
+	}
+
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	const unsupportedVarErrMsg = "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts."
+
+	// upload validation: unsupported and CA variables are rejected, naming the script
+	uploadCases := []struct {
+		payload *fleet.UploadSoftwareInstallerPayload
+		errMsg  string
+	}{
+		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", InstallScript: "echo $FLEET_VAR_NONEXISTENT"}, unsupportedVarErrMsg},
+		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", PostInstallScript: "echo ${FLEET_VAR_NONEXISTENT}"}, unsupportedVarErrMsg},
+		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", UninstallScript: "echo $FLEET_VAR_NDES_SCEP_CHALLENGE"}, "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in scripts."},
+	}
+	for _, c := range uploadCases {
+		s.uploadSoftwareInstaller(t, c.payload, http.StatusUnprocessableEntity, c.errMsg)
+	}
+
+	// supported variables in all three scripts are accepted and stored unexpanded
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		TeamID:            &teamID,
+		Filename:          "ruby.deb",
+		InstallScript:     "install $FLEET_VAR_HOST_HARDWARE_SERIAL",
+		PostInstallScript: "post ${FLEET_VAR_HOST_UUID}",
+		UninstallScript:   "uninstall $FLEET_VAR_HOST_PLATFORM",
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, teamID, payload.Filename)
+	})
+	meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
+	require.NoError(t, err)
+	titleID := *meta.TitleID
+
+	host := createOrbitEnrolledHost(t, "ubuntu", "installer-vars", s.ds)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&teamID, []uint{host.ID})))
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{},
+		http.StatusAccepted)
+	installUUID := getLatestSoftwareInstallExecID(t, s.ds, host.ID)
+
+	// stored contents are unexpanded; the orbit details fetch resolves them for the host
+	stored, err := s.ds.GetSoftwareInstallDetails(ctx, installUUID)
+	require.NoError(t, err)
+	require.Equal(t, "install $FLEET_VAR_HOST_HARDWARE_SERIAL", stored.InstallScript)
+
+	var detailsResp fleet.OrbitGetSoftwareInstallResponse
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
+		InstallUUID:  installUUID,
+		OrbitNodeKey: *host.OrbitNodeKey,
+	}, http.StatusOK, &detailsResp)
+	require.Equal(t, "install "+host.HardwareSerial, detailsResp.InstallScript)
+	require.Equal(t, "post "+host.UUID, detailsResp.PostInstallScript)
+	require.Equal(t, "uninstall ubuntu", detailsResp.UninstallScript)
+
+	// the host completes the install so the queue is free for the failure case
+	s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+		OrbitNodeKey: *host.OrbitNodeKey,
+		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+			HostID:                host.ID,
+			InstallUUID:           installUUID,
+			InstallScriptExitCode: new(0),
+			InstallScriptOutput:   new("ok"),
+		},
+	}, http.StatusNoContent)
+
+	// update validation: unsupported variable is rejected
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		TeamID:        &teamID,
+		InstallScript: new("echo $FLEET_VAR_NONEXISTENT"),
+	}, http.StatusUnprocessableEntity, unsupportedVarErrMsg)
+
+	// update to an IdP variable the host can't resolve
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		TeamID:        &teamID,
+		InstallScript: new("install $FLEET_VAR_HOST_END_USER_IDP_USERNAME"),
+	}, http.StatusOK, "")
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{},
+		http.StatusAccepted)
+	failUUID := getLatestSoftwareInstallExecID(t, s.ds, host.ID)
+
+	// the details fetch records the failure server-side and returns not found
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
+		InstallUUID:  failUUID,
+		OrbitNodeKey: *host.OrbitNodeKey,
+	}, http.StatusNotFound, &detailsResp)
+
+	results, err := s.ds.GetSoftwareInstallResults(ctx, failUUID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallFailed, results.Status)
+	require.NotNil(t, results.Output)
+	require.Contains(t, *results.Output, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
+
+	// the user-facing results endpoint renders the reason, not a generic error
+	var installResultsResp getSoftwareInstallResultsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/%s/results", failUUID), nil, http.StatusOK, &installResultsResp)
+	require.NotNil(t, installResultsResp.Results.Output)
+	require.Contains(t, *installResultsResp.Results.Output, "Fleet couldn't resolve variables in this software's scripts.")
+	require.Contains(t, *installResultsResp.Results.Output, "There is no IdP username for this host.")
+
+	// a repeated fetch of the failed install stays not-found and does not
+	// record a second result
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
+		InstallUUID:  failUUID,
+		OrbitNodeKey: *host.OrbitNodeKey,
+	}, http.StatusNotFound, &detailsResp)
+	resultsAgain, err := s.ds.GetSoftwareInstallResults(ctx, failUUID)
+	require.NoError(t, err)
+	require.Equal(t, results.UpdatedAt, resultsAgain.UpdatedAt)
+
+	// the failed execution left the host's upcoming queue; a retry of the
+	// install may be queued under a new execution id
+	var upcomingResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &upcomingResp)
+	for _, act := range upcomingResp.Activities {
+		require.NotContains(t, string(*act.Details), failUUID)
+	}
+
+}

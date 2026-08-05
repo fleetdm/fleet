@@ -228,12 +228,12 @@ const LibraryItemAccordion = ({
     if (onBadgeClick) {
       return (
         <Button
-          variant="inverse"
+          variant="subdued"
           size="small"
           onClick={handleBadgeClick(onBadgeClick)}
           className={`${baseClass}__badge-button`}
+          icon={iconName}
         >
-          <Icon name={iconName} color="ui-fleet-black-75" />
           <span>{label}</span>
         </Button>
       );
@@ -242,7 +242,7 @@ const LibraryItemAccordion = ({
       <span
         className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
       >
-        <Icon name={iconName} color="ui-fleet-black-75" />
+        <Icon name={iconName} />
         <span>{label}</span>
       </span>
     );
@@ -276,15 +276,14 @@ const LibraryItemAccordion = ({
     >
       {onClick && canClick ? (
         <Button
-          variant="inverse"
+          variant="subdued"
           onClick={handleBadgeClick(onClick)}
           className={`${baseClass}__icon-button`}
           ariaLabel={ariaLabel}
-        >
-          <Icon name={iconName} color="ui-fleet-black-75" />
-        </Button>
+          icon={iconName}
+        />
       ) : (
-        <Icon name={iconName} color="ui-fleet-black-75" />
+        <Icon name={iconName} />
       )}
     </TooltipWrapper>
   );
@@ -350,19 +349,19 @@ const LibraryItemAccordion = ({
           >
             {canEditSoftware ? (
               <Button
-                variant="inverse"
+                variant="subdued"
                 size="small"
                 onClick={handleBadgeClick(onLabelCountClick)}
                 className={`${baseClass}__badge-button`}
+                icon="tag"
               >
-                <Icon name="tag" color="ui-fleet-black-75" />
                 <span>{labelCount}</span>
               </Button>
             ) : (
               <span
                 className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
               >
-                <Icon name="tag" color="ui-fleet-black-75" />
+                <Icon name="tag" />
                 <span>{labelCount}</span>
               </span>
             )}
@@ -371,19 +370,19 @@ const LibraryItemAccordion = ({
         {showAllHostsBadge &&
           (canEditSoftware ? (
             <Button
-              variant="inverse"
+              variant="subdued"
               size="small"
               onClick={handleBadgeClick(onLabelCountClick)}
               className={`${baseClass}__badge-button`}
+              icon="tag"
             >
-              <Icon name="tag" color="ui-fleet-black-75" />
               <span>{ALL_HOSTS_LABEL}</span>
             </Button>
           ) : (
             <span
               className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
             >
-              <Icon name="tag" color="ui-fleet-black-75" />
+              <Icon name="tag" />
               <span>{ALL_HOSTS_LABEL}</span>
             </span>
           ))}
@@ -564,6 +563,7 @@ const LibraryItemAccordion = ({
           />
           <CopyButton
             copyText={hashSha256}
+            variant="subdued"
             ariaLabel="Copy hash to clipboard"
           />
         </div>
@@ -573,14 +573,13 @@ const LibraryItemAccordion = ({
 
   const renderTrashButtonBody = (disabled: boolean) => (
     <Button
-      variant="icon"
+      variant="subdued"
       disabled={disabled}
       onClick={onTrashClick}
       ariaLabel="Delete this version"
       className={`${baseClass}__trash-button`}
-    >
-      <Icon name="trash" />
-    </Button>
+      icon="trash"
+    />
   );
 
   // GitOps-lock the trash button for installer types whose mutations should
@@ -728,13 +727,12 @@ const LibraryItemAccordion = ({
           <div className={`${baseClass}__actions-column`}>
             {canDownload && (
               <Button
-                variant="icon"
+                variant="subdued"
                 onClick={onDownloadClick}
                 ariaLabel="Download installer"
                 className={`${baseClass}__download-button`}
-              >
-                <Icon name="download" />
-              </Button>
+                icon="download"
+              />
             )}
             {canEditSoftware && renderTrashButton()}
           </div>

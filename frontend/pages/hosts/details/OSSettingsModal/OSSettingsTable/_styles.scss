@@ -37,7 +37,10 @@
     transition: opacity 250ms;
   }
 
-  tr:hover {
+  // Reveal on row hover or when the button receives keyboard focus, so
+  // keyboard users can see the button they've tabbed to.
+  tr:hover,
+  tr:focus-within {
     .resend-link:not(.os-settings-resend-cell__resending) {
       opacity: 1;
     }
@@ -49,7 +52,8 @@
     transition: opacity 250ms;
   }
 
-  tr:hover {
+  tr:hover,
+  tr:focus-within {
     .rotate-link:not(.os-settings-resend-cell__rotating) {
       opacity: 1;
     }

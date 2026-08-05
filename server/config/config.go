@@ -142,6 +142,7 @@ type ServerConfig struct {
 	GzipResponses                    bool          `yaml:"gzip_responses"`
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
+	BypassNetworkBlocking            bool          `yaml:"bypass_network_blocking"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -818,6 +819,7 @@ type FleetConfig struct {
 	Prometheus                 PrometheusConfig
 	MDM                        MDMConfig
 	Calendar                   CalendarConfig
+	GoogleWorkspace            GoogleWorkspaceConfig `yaml:"google_workspace"`
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
 	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
@@ -948,6 +950,14 @@ type MDMConfig struct {
 	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
 	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
 
+	// AllowOrbitEndUserAuthBypass controls whether an Orbit/fleetd host that does
+	// not complete end user authentication is allowed to enroll into a team that
+	// requires it. Defaults to true so that agents predating end user
+	// authentication (and installers built with `fleetctl package
+	// --bypass-end-user-auth`) can still enroll. Set to false to strictly enforce
+	// end user authentication for all Orbit enrollments.
+	AllowOrbitEndUserAuthBypass bool `yaml:"allow_orbit_end_user_auth_bypass"`
+
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
@@ -1000,6 +1010,53 @@ func (c *CalendarConfig) AlwaysReloadEvent() bool {
 
 func (c *CalendarConfig) SetAlwaysReloadEvent(value bool) {
 	c.alwaysReloadEvent = value
+}
+
+// Defaults for the Google Workspace directory sync limits. They are safety rails
+// against runaway pagination and unbounded memory growth, sized above what any real
+// tenant is expected to have, not tuning knobs:
+//
+//   - Users: Google publishes no per-account cap; 500,000 (1,000 pages of 500) is
+//     far above the largest directory Fleet expects to sync.
+//   - Groups: also uncapped by Google. 100,000 also bounds the per-group member
+//     fan-out, since members are fetched one group at a time (it does not bound how
+//     long a pass takes: 100,000 sequential member listings is already a long sync).
+//   - Members per group: Google itself enforces a hard limit of 50,000 direct
+//     members per group, so 60,000 sits just above a ceiling Google won't exceed.
+//   - Total memberships: every group's members are held until the pull is
+//     reconciled, so the sum is the dominant memory term.
+const (
+	DefaultGoogleWorkspaceMaxUsers            = 500_000
+	DefaultGoogleWorkspaceMaxGroups           = 100_000
+	DefaultGoogleWorkspaceMaxGroupMembers     = 60_000
+	DefaultGoogleWorkspaceMaxGroupMemberships = 5_000_000
+)
+
+// GoogleWorkspaceConfig holds the limits applied to one directory sync pass. These
+// are hidden settings: they exist so an operator with a directory larger than the
+// defaults can be unblocked without waiting for a Fleet release. A value of 0
+// disables the corresponding limit.
+type GoogleWorkspaceConfig struct {
+	MaxUsers            int `yaml:"max_users"`
+	MaxGroups           int `yaml:"max_groups"`
+	MaxGroupMembers     int `yaml:"max_group_members"`
+	MaxGroupMemberships int `yaml:"max_group_memberships"`
+}
+
+// Validate checks that the sync limits are non-negative, so a typo can't silently
+// disable a safety rail.
+func (g GoogleWorkspaceConfig) Validate(initFatal func(err error, msg string)) {
+	for setting, value := range map[string]int{
+		"google_workspace.max_users":             g.MaxUsers,
+		"google_workspace.max_groups":            g.MaxGroups,
+		"google_workspace.max_group_members":     g.MaxGroupMembers,
+		"google_workspace.max_group_memberships": g.MaxGroupMemberships,
+	} {
+		if value < 0 {
+			initFatal(fmt.Errorf("%s must be non-negative (0 = no limit), got %d", setting, value),
+				"Google Workspace configuration")
+		}
+	}
 }
 
 type x509KeyPairConfig struct {
@@ -1411,6 +1468,7 @@ func (man Manager) addConfigs() {
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
 	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
+	man.addConfigBool("server.bypass_network_blocking", false, "Disable all outbound network blocking protections for integration HTTP requests (loopback, cloud metadata, and private network addresses). Only intended for environments where egress is already constrained by external infrastructure (e.g. an egress proxy or firewall) that Fleet's own checks would otherwise conflict with. This is an infrastructure-level setting and cannot be changed at runtime.")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
@@ -1804,6 +1862,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
+	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
@@ -1816,6 +1875,20 @@ func (man Manager) addConfigs() {
 		"calendar.periodicity", 0,
 		"How much time to wait between processing calendar integration.",
 	)
+
+	// Google Workspace directory sync limits (hidden; safety rails, not tuning knobs)
+	man.addConfigInt("google_workspace.max_users", DefaultGoogleWorkspaceMaxUsers,
+		"Maximum users pulled from a Google Workspace directory in one sync (0 = no limit)")
+	man.addConfigInt("google_workspace.max_groups", DefaultGoogleWorkspaceMaxGroups,
+		"Maximum groups pulled from a Google Workspace directory in one sync (0 = no limit)")
+	man.addConfigInt("google_workspace.max_group_members", DefaultGoogleWorkspaceMaxGroupMembers,
+		"Maximum members pulled for a single Google Workspace group (0 = no limit)")
+	man.addConfigInt("google_workspace.max_group_memberships", DefaultGoogleWorkspaceMaxGroupMemberships,
+		"Maximum total group memberships pulled from a Google Workspace directory in one sync (0 = no limit)")
+	man.hideConfig("google_workspace.max_users")
+	man.hideConfig("google_workspace.max_groups")
+	man.hideConfig("google_workspace.max_group_members")
+	man.hideConfig("google_workspace.max_group_memberships")
 
 	// Partnerships
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
@@ -1925,6 +1998,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
+			BypassNetworkBlocking:            man.getConfigBool("server.bypass_network_blocking"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -2149,6 +2223,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
 			EnableCustomDiskEncryption:        man.getConfigBool("mdm.enable_custom_disk_encryption"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
+			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
@@ -2157,6 +2232,12 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
+		},
+		GoogleWorkspace: GoogleWorkspaceConfig{
+			MaxUsers:            man.getConfigInt("google_workspace.max_users"),
+			MaxGroups:           man.getConfigInt("google_workspace.max_groups"),
+			MaxGroupMembers:     man.getConfigInt("google_workspace.max_group_members"),
+			MaxGroupMemberships: man.getConfigInt("google_workspace.max_group_memberships"),
 		},
 		Partnerships: PartnershipsConfig{
 			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
@@ -2565,6 +2646,9 @@ func TestConfig() FleetConfig {
 		},
 		Vulnerabilities: VulnerabilitiesConfig{
 			OSVForVulnerabilities: true,
+		},
+		MDM: MDMConfig{
+			AllowOrbitEndUserAuthBypass: true,
 		},
 	}
 }

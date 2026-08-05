@@ -1,0 +1,1 @@
+- Fixed an issue where the Apple reconciler would queue profiles for deleted hosts, that was pending in Fleet via Apple Business.

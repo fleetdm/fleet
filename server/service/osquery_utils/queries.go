@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -1967,13 +1968,34 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
 	name := rows[0]["name"]
+	// forceRollingVersion is set for Arch-based distributions that report their
+	// own release number but must still be recorded as "rolling". See the
+	// Omarchy case below for why the version cannot be derived in that case.
+	var forceRollingVersion bool
 	switch {
 	case strings.HasPrefix(name, "Arch Linux"):
 		name = strings.TrimSuffix(name, " ARM")
 	case name == "CachyOS Linux":
 		// CachyOS is an Arch-based rolling-release distribution; aggregate it
-		// onto the "Arch Linux" operating system row in the OS inventory.
+		// onto the "Arch Linux" operating system row in the OS inventory. It
+		// reports BUILD_ID=rolling, so parseOSVersion already derives "rolling".
 		name = "Arch Linux"
+	case name == "Omarchy":
+		// Omarchy is also an Arch-based rolling-release distribution, but unlike
+		// CachyOS it reports a real release number in both VERSION_ID and
+		// BUILD_ID (e.g. "4.0.0"). parseOSVersion would therefore derive
+		// "4.0.0" and produce an "Arch Linux 4.0.0" row, a version that does not
+		// exist upstream and that does not merge with the "Arch Linux rolling"
+		// row these hosts occupied before Omarchy started shipping its own
+		// os-release ID.
+		//
+		// Pin the version explicitly rather than rewriting the ingested build
+		// value, so parseOSVersion still sees exactly what the host reported.
+		// Note this only affects the OS inventory: the separate os_version
+		// detail query keeps recording the true build on the host, which
+		// continues to display as "Omarchy 4.0.0" on the host details page.
+		name = "Arch Linux"
+		forceRollingVersion = true
 	}
 	version := rows[0]["version"]
 	major := rows[0]["major"]
@@ -1987,6 +2009,9 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 
 	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
 	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build, extra)
+	if forceRollingVersion {
+		hostOS.Version = "rolling"
+	}
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSUnixLike update host operating system")
@@ -2940,6 +2965,22 @@ func directIngestDiskEncryptionKeyFileDarwin(
 		return nil
 	}
 
+	// Only archive the key if the host is connected to Fleet's MDM. Without Fleet
+	// MDM, Fleet never installed the FileVault escrow profile, so a key found on
+	// disk (e.g. left over from a previous MDM) can't be decrypted or used.
+	// Escrowing it would record a misleading activity and store an unusable key.
+	connected, err := ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking Fleet MDM connection before disk encryption key archival")
+	}
+	if !connected {
+		logger.DebugContext(ctx, "skipping key archival, host not connected to Fleet MDM",
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileDarwin",
+			"host", host.Hostname)
+		return nil
+	}
+
 	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 	if err != nil {
 		return err
@@ -3003,6 +3044,22 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
 	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
 		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host team/globally",
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
+			"host", host.Hostname)
+		return nil
+	}
+
+	// Only archive the key if the host is connected to Fleet's MDM. Without Fleet
+	// MDM, Fleet never installed the FileVault escrow profile, so a key found on
+	// disk (e.g. left over from a previous MDM) can't be decrypted or used.
+	// Escrowing it would record a misleading activity and store an unusable key.
+	connected, err := ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking Fleet MDM connection before disk encryption key archival")
+	}
+	if !connected {
+		logger.DebugContext(ctx, "skipping key archival, host not connected to Fleet MDM",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
 			"host", host.Hostname)
@@ -3158,6 +3215,12 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		return updated, nil
 	}
 	device.HostUUID = hostUUID // in case the read was stale due to replication lag
+	// Newly created hosts from user-driven enrollments are assigned the configured default fleet.
+	if err := maybeAssignWindowsEnrollmentDefaultFleet(ctx, logger, ds, hostID, device); err != nil {
+		// Best-effort. In the unlikely event of a failure, the host remains in Unassigned fleet.
+		logger.ErrorContext(ctx, "failed to assign windows enrollment default fleet", "err", err, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+	}
 	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
 	// reflect this state.
 	if device.MDMNotInOOBE {
@@ -3193,6 +3256,44 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		}
 	}
 	return updated, nil
+}
+
+// maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment default fleet iff all of: the linked
+// enrollment is user-driven, a default fleet is configured, the host has no fleet, and the host record was created at or after
+// the enrollment row (MDM-first ordering, as in Autopilot, where Fleet installs fleetd after MDM enrollment). Hosts that enrolled
+// fleetd first keep the fleet their enroll secret chose. Pre-existing hosts are never moved, including hosts deliberately parked
+// in Unassigned, matching macOS ABM re-enrollment behavior.
+func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, device *fleet.MDMWindowsEnrolledDevice) error {
+	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
+	}
+	if teamID == nil {
+		return nil
+	}
+	// replica lag could permanently lose the assignment by a NotFound on a hosts row that orbit enroll inserted seconds ago.
+	ctxPrimary := ctxdb.RequirePrimary(ctx, true)
+	host, err := ds.HostLiteByID(ctxPrimary, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host for windows enrollment default fleet assignment")
+	}
+	if host.TeamID != nil {
+		return nil
+	}
+	if host.CreatedAt.Before(device.CreatedAt) {
+		// The host existed before this MDM enrollment: keep its fleet (Unassigned included).
+		return nil
+	}
+	if err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{hostID})); err != nil {
+		return ctxerr.Wrap(ctx, err, "assign windows enrollment default fleet")
+	}
+	// Same side effect as a manual transfer so the new fleet's profiles reconcile immediately
+	if _, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{hostID}, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending profiles after windows enrollment default fleet assignment")
+	}
+	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
+		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
+	return nil
 }
 
 var luksVerifyQuery = DetailQuery{

@@ -1,3 +1,15 @@
+## Fleet 4.89.2 (Jul 24, 2026)
+
+### Bug fixes
+
+- Fixed a bug where a failed software install was reported as successfully installed when the install script exited with an error but a post-install script exited successfully.
+- Fixed Windows Autopilot enrollments intermittently hanging on the Enrollment Status Page at "Account setup".
+- Fixed an issue where devices given a mandatory update during ADE enrollment might display a failure or fail to display the update
+- Fixed a bug where adding Windows software via GitOps could create a duplicate software title when a host had already reported the same program.
+- Fixed a bug where Apple MDM devices re-enrolling manually with a pending SCEP renewal would not be treated as a new renewal and might skip apps, profiles, etc
+- Fixed a bug where a Fleet-maintained app install could run a stale, previously-cached version after the app was auto-updated; installs (including automatic retries) now target the version Fleet currently displays.
+- Fixed a bug where pinning a Fleet-maintained app to a different version didn't update the patch policy for it.
+
 ## Fleet 4.89.1 (Jul 16, 2026)
 
 ### Bug fixes
@@ -49,7 +61,7 @@
 - Restricted authorization for conditional access Okta IdP asset endpoints so that observer and observer+ roles can no longer read them.
 - Improved session handling during password reset flows.
 - Cleared the SSO authentication cookie after successful authentication for fully-managed Android enrollment.
-- Added private network IP blocking to Fleet's HTTP client. Loopback and cloud metadata addresses (127.0.0.0/8, 169.254.0.0/16) are always blocked. RFC 1918 and other private ranges are blocked by default; use `--allow_private_network_integrations` to allow them for environments with on-prem integrations (e.g. EJBCA, Jira, SCEP servers on private networks).
+- Added private network IP blocking to Fleet's HTTP client. Loopback and cloud metadata addresses (127.0.0.0/8, 169.254.0.0/16) are always blocked. RFC 1918 and other private ranges are blocked by default, affecting any outbound connection to a private address (e.g. SSO/IdP on a private network, EJBCA, Jira, SCEP servers, or `HTTP_PROXY`/`HTTPS_PROXY` pointed at a loopback or internal proxy). Use `--server_allow_private_network_integrations` to allow these.
 - Added the `s3.carves_cleanup_disabled` server setting to skip S3 file carve reconciliation for deployments that rely solely on the bucket's lifecycle policy to remove carve objects.
 - Added the `s3.carves_cleanup_max_per_run` and `s3.carves_cleanup_concurrency` server settings to tune how many carves the S3 cleanup reconciles per run and how many concurrent S3 requests it makes.
 - Updated the SigNoz OTEL dashboards under `tools/signoz/` to template and filter on the `deployment.environment` resource attribute, with the environment variable defaulting to `default`, so multiple Fleet environments reporting to the same SigNoz backend can be scoped per environment.
@@ -121,7 +133,7 @@
 - Fixed an issue where the macOS "Update new hosts to latest" OS update setting could stay enabled in GitOps after `minimum_version` and `deadline` were cleared; when `update_new_hosts` isn't explicitly set, it now defaults to enabled only while a minimum version and deadline are configured.
 - Fixed an issue where more than 8 entries for OS versions would not be paginated.
 
-## Fleet 4.88.1 (Jul 10, 2026)
+## Fleet 4.88.1 (Jul 09, 2026)
 
 ### Bug fixes
 

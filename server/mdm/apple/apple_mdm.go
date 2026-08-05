@@ -1039,7 +1039,8 @@ func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
 // NewDEPClient creates an Apple DEP API HTTP client based on the provided
 // storage that will flag the ABM token's terms expired field and the
 // AppConfig's AppleBMTermsExpired field whenever the status of the terms
-// changes.
+// changes, and flag the ABM token's token_invalid field whenever Apple
+// rejects the token or reports its signature as invalid.
 func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger *slog.Logger) *godep.Client {
 	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
 		// to check for ABM terms expired, we must have an ABM token organization
@@ -1050,6 +1051,36 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 		orgName := depclient.GetName(ctx)
 		if _, rawTokenPresent := ctxabm.FromContext(ctx); rawTokenPresent || orgName == "" {
 			return reqErr
+		}
+
+		// if the request failed due to the token being rejected or its
+		// signature being invalid, flag the ABM token's token_invalid. If it
+		// succeeded, or failed with a different *definitive* signal that the
+		// token itself was accepted (e.g. terms not signed -- Apple only
+		// evaluates terms after authenticating the token), clear the flag.
+		// Any other failure (e.g. a transient network or server error) is
+		// inconclusive and leaves the flag untouched. This must happen before
+		// the terms-expired handling below, as that block can return early
+		// from this after-hook once its own bookkeeping is done.
+		tokenInvalid := reqErr != nil && (godep.IsTokenRejected(reqErr) || godep.IsSignatureInvalid(reqErr))
+		tokenAccepted := reqErr == nil || godep.IsTermsNotSigned(reqErr)
+		if tokenAccepted || tokenInvalid {
+			// Check the current value via a read replica first, so the common
+			// case (the flag already has the desired value, which is most DEP
+			// API calls) doesn't hit the writer. If the read fails, fall back to
+			// always writing, since that's no worse than before this check
+			// existed.
+			needsUpdate := true
+			if currentlyInvalid, err := updater.IsABMTokenInvalidForOrgName(ctx, orgName); err != nil {
+				logger.ErrorContext(ctx, "Apple DEP client: failed to get token invalid status of ABM token", "err", err)
+			} else {
+				needsUpdate = currentlyInvalid != tokenInvalid
+			}
+			if needsUpdate {
+				if _, err := updater.SetABMTokenInvalidForOrgName(ctx, orgName, tokenInvalid); err != nil {
+					logger.ErrorContext(ctx, "Apple DEP client: failed to update token invalid status of ABM token", "err", err)
+				}
+			}
 		}
 
 		// if the request failed due to terms not signed, or if it succeeded,
@@ -1113,8 +1144,27 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 					"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 			}
 		}
+
 		return reqErr
 	}))
+}
+
+// ClassifyDEPDeviceError classifies an error returned by a DEP device-details
+// style call (e.g. godep.Client.GetDeviceDetails) into a DEPDeviceErrorType
+// for API consumers, or "" if err is nil.
+func ClassifyDEPDeviceError(err error) fleet.DEPDeviceErrorType {
+	switch {
+	case err == nil:
+		return ""
+	case godep.IsTokenRejected(err) || godep.IsSignatureInvalid(err):
+		return fleet.DEPDeviceErrorTokenInvalid
+	case godep.IsTermsNotSigned(err):
+		return fleet.DEPDeviceErrorTermsExpired
+	case godep.IsServerError(err):
+		return fleet.DEPDeviceErrorServerError
+	default:
+		return fleet.DEPDeviceErrorUnavailable
+	}
 }
 
 var funcMap = map[string]any{
@@ -1851,7 +1901,15 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		return nil, errors.New("invalid settings type")
 	}
 
-	if macOSUpdates.MinimumVersion.Value == "" && iOSUpdates.MinimumVersion.Value == "" && iPadOSUpdates.MinimumVersion.Value == "" {
+	// "latest" is a sentinel, not a version: the concrete target is resolved per
+	// host from Apple's published versions later on, so there is nothing to look
+	// up here.
+	needsVersionCheck := func(s fleet.AppleOSUpdateSettings) bool {
+		return s.MinimumVersion.Value != "" && !s.EnforcesLatestVersion()
+	}
+
+	if !needsVersionCheck(macOSUpdates) && !needsVersionCheck(iOSUpdates) && !needsVersionCheck(iPadOSUpdates) {
+		// nothing to validate, so don't pay for the round trip to Apple.
 		return nil, nil
 	}
 
@@ -1864,12 +1922,12 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 	}
 
 	invalid := make(map[string]string, 3)
-	if macOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(macOSUpdates) {
 		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
 			invalid["macos"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
-	if iOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(iOSUpdates) {
 		// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
 		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
 		// and we want to avoid breaking workflows for users in that event
@@ -1877,7 +1935,7 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 			invalid["ios"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
-	if iPadOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(iPadOSUpdates) {
 		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
 			invalid["ipados"] = fleet.AppleOSVersionUnsupportedMessage
 		}
@@ -2248,7 +2306,7 @@ func EnqueueManagedLocalAccountRotation(
 	commander ManagedLocalAccountRotationCommander,
 	hostUUID, accountUUID string,
 ) (cmdUUID string, err error, rollbackErr error) {
-	newPassword := GenerateManagedAccountPassword()
+	newPassword := fleet.GenerateManagedLocalAccountPassword(false)
 	hashPlist, hashErr := GenerateSaltedSHA512PBKDF2Hash(newPassword)
 	if hashErr != nil {
 		return "", hashErr, nil

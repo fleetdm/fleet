@@ -370,7 +370,7 @@ const RunScriptBatchModal = ({
             </TooltipWrapper>
             <Button
               disabled={isUpdating}
-              variant="inverse"
+              variant="secondary"
               onClick={() => {
                 setSelectedScript(undefined);
               }}
@@ -398,7 +398,7 @@ const RunScriptBatchModal = ({
               </Button>
               <Button
                 onClick={() => setScriptForDetails(undefined)}
-                variant="inverse"
+                variant="subdued"
               >
                 Go back
               </Button>

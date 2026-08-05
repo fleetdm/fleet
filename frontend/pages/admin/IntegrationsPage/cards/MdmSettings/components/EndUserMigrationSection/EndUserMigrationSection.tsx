@@ -241,7 +241,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         </div>
         <Button
           className={`${baseClass}__preview-button`}
-          variant="inverse"
+          variant="secondary"
           onClick={toggleExamplePayloadModal}
         >
           Example payload

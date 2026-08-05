@@ -70,7 +70,7 @@ go.mod @fleetdm/go
 /docs/solutions                                         @ddribeiro
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
-/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor # software ingestion is security & compliance
+/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor @lucasmrod
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
 /docs/Contributing/reference                            @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas

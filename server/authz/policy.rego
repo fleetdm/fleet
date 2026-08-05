@@ -1006,6 +1006,22 @@ allow {
   action == [read, write, list][_]
 }
 
+# Global admins can write/modify AB release devices
+allow {
+  object.type == "mdm_ab_release"
+  subject.global_role == admin
+  action == write
+}
+
+# Team admins can write/modify AB release devices on their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_ab_release"
+  object.team_id != 0
+  team_role(subject, object.team_id) == admin
+  action == write
+}
+
 # Global admins can read and write Apple MDM enrollments.
 allow {
   object.type == "mdm_apple_enrollment_profile"

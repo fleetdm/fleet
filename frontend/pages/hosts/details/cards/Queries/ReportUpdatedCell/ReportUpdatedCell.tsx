@@ -115,7 +115,7 @@ const ReportUpdatedCell = ({
       {should_link_to_hqr && hostId && queryId && (
         // parent row has same onClick functionality but link here is required for keyboard accessibility
         <Button
-          variant="inverse"
+          variant="subdued"
           className={`${baseClass}__view-report`}
           onClick={onClick}
           size="small"

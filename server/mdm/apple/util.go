@@ -190,10 +190,6 @@ func IsLessThanVersion(current string, target string) (bool, error) {
 }
 
 const (
-	// ManagedAccountPasswordGroupCount is the number of character groups in a managed account password.
-	ManagedAccountPasswordGroupCount = 6
-	// ManagedAccountPasswordGroupLen is the number of characters per group.
-	ManagedAccountPasswordGroupLen = 4
 	// pbkdf2Iterations is the number of PBKDF2 iterations for the managed account password hash.
 	pbkdf2Iterations = 40000
 	// pbkdf2KeyLen is the derived key length in bytes (128 bytes as required by Apple).
@@ -201,26 +197,6 @@ const (
 	// pbkdf2SaltLen is the salt length in bytes.
 	pbkdf2SaltLen = 32
 )
-
-// GenerateManagedAccountPassword generates a cryptographically random password
-// in the same format as recovery lock passwords (e.g., "5ADZ-HTZ8-LJJ4-B2F8-JWH3-YPBT").
-func GenerateManagedAccountPassword() string {
-	groups := make([]string, ManagedAccountPasswordGroupCount)
-	charsetLen := len(RecoveryLockPasswordCharset)
-
-	for i := range ManagedAccountPasswordGroupCount {
-		randBytes := make([]byte, ManagedAccountPasswordGroupLen)
-		_, _ = rand.Read(randBytes) // rand.Read never returns an error; it panics on failure
-
-		group := make([]byte, ManagedAccountPasswordGroupLen)
-		for j := range ManagedAccountPasswordGroupLen {
-			group[j] = RecoveryLockPasswordCharset[int(randBytes[j])%charsetLen]
-		}
-		groups[i] = string(group)
-	}
-
-	return strings.Join(groups, "-")
-}
 
 // saltedSHA512PBKDF2 is the plist structure expected by Apple's AutoSetupAdminAccountItem.passwordHash.
 type saltedSHA512PBKDF2 struct {

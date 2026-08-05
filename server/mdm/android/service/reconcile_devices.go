@@ -7,6 +7,18 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+)
+
+const (
+	// androidReconcileMaxPages bounds the AMAPI device pagination loop so a malformed
+	// or cycling NextPageToken can't spin it forever. AMAPI returns 100 devices/page,
+	// so this permits up to ~1,000,000 devices — a safety net well above any realistic
+	// enterprise size, not a functional limit.
+	androidReconcileMaxPages = 10000
+	// androidReconcilePageLogInterval controls how often pagination progress is logged
+	// so a slow or stuck reconcile can be diagnosed.
+	androidReconcilePageLogInterval = 100
 )
 
 // ReconcileAndroidDevices polls AMAPI for devices that Fleet still considers enrolled
@@ -45,22 +57,9 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger *sl
 	}
 
 	// Make a list of all devices in Google
-	deviceNameMap := make(map[string]struct{})
-	pageToken := ""
-	for {
-		// We use the partial call here, to avoid getting all data for a device when we only need a subset (name).
-		// should help with request speeds, and also cost for website in terms of network egress.
-		resp, err := client.EnterprisesDevicesListPartial(ctx, enterprise.Name(), pageToken)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "listing android devices from AMAPI")
-		}
-		for _, dev := range resp.Devices {
-			deviceNameMap[dev.Name] = struct{}{}
-		}
-		if resp.NextPageToken == "" {
-			break
-		}
-		pageToken = resp.NextPageToken
+	deviceNameMap, err := listAllAndroidDeviceNames(ctx, client, logger, enterprise.Name())
+	if err != nil {
+		return err
 	}
 
 	checked := 0
@@ -111,4 +110,38 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger *sl
 
 	logger.DebugContext(ctx, "android reconcile complete", "checked", checked, "unenrolled", unenrolled)
 	return nil
+}
+
+// listAllAndroidDeviceNames pages through AMAPI and returns the set of device resource names
+// Google reports for the enterprise. The pagination loop is bounded by androidReconcileMaxPages
+// so a malformed or cycling NextPageToken can't spin it forever; hitting the bound returns an
+// error rather than a partial set, because a partial set would make present devices look missing
+// and wrongly flip them to unenrolled.
+func listAllAndroidDeviceNames(ctx context.Context, client androidmgmt.Client, logger *slog.Logger, enterpriseName string) (map[string]struct{}, error) {
+	deviceNameMap := make(map[string]struct{})
+	pageToken := ""
+	for page := 1; ; page++ {
+		// We use the partial call here, to avoid getting all data for a device when we only need a subset (name).
+		// should help with request speeds, and also cost for website in terms of network egress.
+		resp, err := client.EnterprisesDevicesListPartial(ctx, enterpriseName, pageToken)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "listing android devices from AMAPI")
+		}
+		for _, dev := range resp.Devices {
+			deviceNameMap[dev.Name] = struct{}{}
+		}
+		if resp.NextPageToken == "" {
+			return deviceNameMap, nil
+		}
+		if page >= androidReconcileMaxPages {
+			logger.ErrorContext(ctx, "android reconcile pagination exceeded max pages; aborting to avoid unbounded loop",
+				"enterprise", enterpriseName, "max_pages", androidReconcileMaxPages, "page", page,
+				"page_token", pageToken, "next_page_token", resp.NextPageToken, "devices_seen", len(deviceNameMap))
+			return nil, ctxerr.Errorf(ctx, "android reconcile pagination exceeded max pages (%d)", androidReconcileMaxPages)
+		}
+		if page%androidReconcilePageLogInterval == 0 {
+			logger.InfoContext(ctx, "android reconcile pagination progress", "pages", page, "devices_seen", len(deviceNameMap))
+		}
+		pageToken = resp.NextPageToken
+	}
 }

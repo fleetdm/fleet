@@ -12,22 +12,27 @@
     }
   }
 
+  // Wraps the <Select> control when disabledTooltipContent is provided; the wrapper must fill the form field's width
+  // like the bare control does.
+  &__disabled-tooltip {
+    &.component__tooltip-wrapper {
+      display: block;
+    }
+
+    .component__tooltip-wrapper__element {
+      // The element is otherwise a max-content flex item, which collapses the percentage-width <Select> inside it to
+      // its text width.
+      width: 100%;
+      white-space: normal;
+    }
+  }
+
   // Table dropdowns have height 40px
   &__table-filter {
     height: 36px;
 
     .react-select__control {
       height: 36px;
-    }
-  }
-
-  // Button-variant: background while focused so keyboard tabbing is
-  // visible. Mirrors the menuIsOpen background applied via emotion in
-  // DropdownWrapper.tsx. Inputs always match :focus-visible, so this
-  // also applies on click — that's fine since it matches the open state.
-  &__button {
-    .react-select__control:has(input:focus-visible) {
-      background-color: $ui-fleet-black-5;
     }
   }
 }

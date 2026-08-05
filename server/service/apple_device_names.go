@@ -141,6 +141,25 @@ func ReconcileHostDeviceNames(
 			expandedTmpl = exp.value
 		}
 
+		// Expand any custom host vital ($FLEET_HOST_VITAL_<id>) references with this
+		// host's stored value. Unlike secrets, vital values are per-host, so this
+		// can't be memoized across hosts sharing a template.
+		if len(fleet.FindCustomHostVitalIDs(expandedTmpl)) > 0 {
+			withVitals, vitalErr := ds.ExpandCustomHostVitals(ctx, host.HostID, expandedTmpl)
+			if vitalErr != nil {
+				if _, ok := errors.AsType[*fleet.MissingCustomHostVitalValueError](vitalErr); !ok {
+					return ctxerr.Wrap(ctx, vitalErr, "expand host name template custom host vitals")
+				}
+				// A referenced vital exists but has no value set for this host.
+				if err := ds.SetHostDeviceNameStatus(ctx, host.HostUUID, fleet.MDMDeliveryFailed, nil, "",
+					vitalErr.Error()); err != nil {
+					logger.ErrorContext(ctx, "mark device name row failed for missing custom host vital value", "host_uuid", host.HostUUID, "err", err)
+				}
+				continue
+			}
+			expandedTmpl = withVitals
+		}
+
 		resolved := fleet.ResolveHostNameTemplate(expandedTmpl, &fleet.Host{
 			UUID:           host.HostUUID,
 			HardwareSerial: host.HardwareSerial,
