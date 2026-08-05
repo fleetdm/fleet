@@ -98,6 +98,40 @@ Policies support `path:` (single file) and `paths:` (glob pattern) references. S
 
 For available options, see the parameters for the [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) and [Create team policy](https://fleetdm.com/docs/rest-api/rest-api#create-team-policy) API endpoints.
 
+#### Fleet-managed macOS OS-currency policies
+
+Set `fleet_managed_key` so Fleet owns the policy query and refreshes version floors hourly from Apple's software update catalog (GDMF).
+
+Supported values:
+
+- `macos_os_up_to_date` — require the latest macOS for each of the two newest major tracks (`grace_days = 0`).
+- `macos_os_acceptable` — allow the previous point release for up to 30 days after Apple publishes a newer release.
+
+Requirements:
+
+- `platform` must be `darwin`.
+- `type` must be dynamic (omit `type`, or set `type: dynamic`).
+- At most one policy per fleet (including global / unassigned) may use each key.
+- Omit `fleet_managed_key` (or leave it empty) to make the policy user-owned again. Fleet will stop rewriting its query.
+
+Example:
+
+```yaml
+policies:
+  - name: Operating system up to date (macOS)
+    fleet_managed_key: macos_os_up_to_date
+    platform: darwin
+    query: "SELECT 1 FROM os_version WHERE major = 26;" # Fleet overwrites this from GDMF
+    description: Checks that the Mac is on the latest macOS for its major track.
+    resolution: Open System Settings > General > Software Update.
+  - name: Operating system version is acceptable (macOS)
+    fleet_managed_key: macos_os_acceptable
+    platform: darwin
+    query: "SELECT 1 FROM os_version WHERE major = 26;"
+    description: Checks that the Mac is on an acceptable macOS version (30-day grace).
+    resolution: Open System Settings > General > Software Update.
+```
+
 #### Patch policy
 
 _Available in Fleet Premium_

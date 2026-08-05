@@ -1727,6 +1727,9 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
 			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
 		}
+		if policy.FleetManagedKey != nil && *policy.FleetManagedKey != "" {
+			policySpec[jsonFieldName(t, "FleetManagedKey")] = *policy.FleetManagedKey
+		}
 
 		if policy.Type == fleet.PolicyTypeDynamic {
 			policySpec[jsonFieldName(t, "Query")] = policy.Query

@@ -3475,6 +3475,13 @@
             "null"
           ]
         },
+        "fleet_managed_key": {
+          "description": "FleetManagedKey marks policies whose query Fleet owns and may rewrite\n(for example macOS OS-currency policies driven by Apple's GDMF catalog).\nEmpty means user-owned and clears any previously set key on apply.\nOwnership is never inferred from the policy name; GitOps/API must set\nthis field explicitly to one of the known Fleet-managed keys.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "install_software": {
           "anyOf": [
             {

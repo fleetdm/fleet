@@ -1,6 +1,7 @@
 package gdmf
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -175,19 +176,28 @@ func createClient() *http.Client {
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 func GetAssetMetadata() (*AssetMetadata, error) {
+	return GetAssetMetadataWithContext(context.Background())
+}
+
+// GetAssetMetadataWithContext is like GetAssetMetadata but honors ctx for
+// cancellation and deadlines on the outbound request (and retry waits).
+func GetAssetMetadataWithContext(ctx context.Context) (*AssetMetadata, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	baseURL := getBaseURL()
 	reqURL, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parsing base URL: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request to Apple endpoint: %w", err)
 	}
 	req.Header.Set("User-Agent", "fleet-device-management")
 
-	resp, err := doWithRetry(req)
+	resp, err := doWithRetry(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
 	}
@@ -204,7 +214,7 @@ func GetAssetMetadata() (*AssetMetadata, error) {
 	return &dest, nil
 }
 
-func doWithRetry(req *http.Request) (*http.Response, error) {
+func doWithRetry(ctx context.Context, req *http.Request) (*http.Response, error) {
 	const (
 		maxRetries           = 3
 		retryBackoff         = 1 * time.Second
@@ -213,8 +223,14 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 	op := func() error {
+		if err := ctx.Err(); err != nil {
+			return backoff.Permanent(err)
+		}
 		resp, err = client.Do(req)
 		if err != nil {
+			if ctx.Err() != nil {
+				return backoff.Permanent(ctx.Err())
+			}
 			return err
 		}
 
@@ -233,7 +249,13 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 			if err == nil && (time.Duration(afterSecs)*time.Second) < maxWaitForRetryAfter {
 				// the retry-after duration is reasonable, wait for it and return a
 				// retryable error so that we try again.
-				time.Sleep(time.Duration(afterSecs) * time.Second)
+				timer := time.NewTimer(time.Duration(afterSecs) * time.Second)
+				defer timer.Stop()
+				select {
+				case <-ctx.Done():
+					return backoff.Permanent(ctx.Err())
+				case <-timer.C:
+				}
 				return errors.New("retry after requested delay")
 			}
 		}
@@ -244,7 +266,11 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 		return nil
 	}
 
-	if err := backoff.Retry(op, backoff.WithMaxRetries(backoff.NewConstantBackOff(retryBackoff), uint64(maxRetries))); err != nil {
+	retryPolicy := backoff.WithMaxRetries(backoff.NewConstantBackOff(retryBackoff), uint64(maxRetries))
+	if err := backoff.Retry(op, backoff.WithContext(retryPolicy, ctx)); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, err
 	}
 

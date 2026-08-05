@@ -1260,6 +1260,205 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 	}
 }
 
+func TestPolicyIDsToDelete(t *testing.T) {
+	tests := []struct {
+		name    string
+		current []*fleet.Policy
+		desired []*spec.GitOpsPolicySpec
+		want    []uint
+	}{
+		{
+			name: "renamed managed policy is retained by nonempty managed key",
+			current: []*fleet.Policy{{
+				PolicyData: fleet.PolicyData{ID: 1, Name: "old managed name", FleetManagedKey: new("macos-managed-policy")},
+			}},
+			desired: []*spec.GitOpsPolicySpec{{
+				PolicySpec: fleet.PolicySpec{Name: "new managed name", FleetManagedKey: "macos-managed-policy"},
+			}},
+			want: nil,
+		},
+		{
+			name: "differently named user-owned policy is deleted",
+			current: []*fleet.Policy{{
+				PolicyData: fleet.PolicyData{ID: 2, Name: "old user policy"},
+			}},
+			desired: []*spec.GitOpsPolicySpec{{
+				PolicySpec: fleet.PolicySpec{Name: "new user policy"},
+			}},
+			want: []uint{2},
+		},
+		{
+			name: "legacy same-name and patch-policy matches are retained",
+			current: []*fleet.Policy{
+				{PolicyData: fleet.PolicyData{ID: 3, Name: "same name"}},
+				{
+					PolicyData:    fleet.PolicyData{ID: 4, Name: "old patch name"},
+					PatchSoftware: &fleet.PolicySoftwareTitle{SoftwareTitleID: 42},
+				},
+			},
+			desired: []*spec.GitOpsPolicySpec{
+				{PolicySpec: fleet.PolicySpec{Name: "same name"}},
+				{PolicySpec: fleet.PolicySpec{Name: "new patch name", Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: 42}},
+			},
+			want: nil,
+		},
+		{
+			name: "empty managed keys never identify differently named policies",
+			current: []*fleet.Policy{{
+				PolicyData: fleet.PolicyData{ID: 5, Name: "old empty-key name", FleetManagedKey: new("")},
+			}},
+			desired: []*spec.GitOpsPolicySpec{{
+				PolicySpec: fleet.PolicySpec{Name: "new empty-key name", FleetManagedKey: ""},
+			}},
+			want: []uint{5},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, policyIDsToDelete(tt.current, tt.desired))
+		})
+	}
+
+	t.Run("renamed managed policy beyond the first 100 desired specs is retained", func(t *testing.T) {
+		desired := make([]*spec.GitOpsPolicySpec, 101)
+		for i := range 100 {
+			desired[i] = &spec.GitOpsPolicySpec{PolicySpec: fleet.PolicySpec{Name: fmt.Sprintf("policy %03d", i)}}
+		}
+		desired[100] = &spec.GitOpsPolicySpec{
+			PolicySpec: fleet.PolicySpec{Name: "renamed managed policy", FleetManagedKey: "macos-managed-policy"},
+		}
+
+		current := []*fleet.Policy{{
+			PolicyData: fleet.PolicyData{ID: 6, Name: "original managed policy", FleetManagedKey: new("macos-managed-policy")},
+		}}
+
+		require.Len(t, desired, 101)
+		assert.Empty(t, policyIDsToDelete(current, desired))
+	})
+}
+
+func TestDoGitOpsPoliciesManagedKeyBatching(t *testing.T) {
+	type applyCapture struct {
+		batches [][]*fleet.PolicySpec
+	}
+
+	newClient := func(t *testing.T, current []*fleet.Policy, rejectDuplicateKeys bool) (*Client, *applyCapture) {
+		t.Helper()
+		capture := &applyCapture{}
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch {
+			case r.Method == http.MethodGet && r.URL.Path == "/api/latest/fleet/policies":
+				assert.NoError(t, json.NewEncoder(w).Encode(fleet.ListGlobalPoliciesResponse{Policies: current}))
+			case r.Method == http.MethodPost && r.URL.Path == "/api/latest/fleet/spec/policies":
+				var req fleet.ApplyPolicySpecsRequest
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+				capture.batches = append(capture.batches, req.Specs)
+				if rejectDuplicateKeys && fleet.FirstDuplicatePolicySpecFleetManagedKey(req.Specs) != "" {
+					http.Error(w, `{"message":"duplicate fleet_managed_key"}`, http.StatusBadRequest)
+					return
+				}
+				assert.NoError(t, json.NewEncoder(w).Encode(fleet.ApplyPolicySpecsResponse{}))
+			default:
+				http.Error(w, `{"message":"unexpected request"}`, http.StatusNotFound)
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		client, err := NewClient(srv.URL, true, "", "")
+		require.NoError(t, err)
+		client.SetToken("test-token")
+		return client, capture
+	}
+
+	policy := func(name, key string) *spec.GitOpsPolicySpec {
+		return &spec.GitOpsPolicySpec{PolicySpec: fleet.PolicySpec{
+			Name:            name,
+			Query:           "SELECT 1;",
+			Platform:        "darwin",
+			Type:            fleet.PolicyTypeDynamic,
+			FleetManagedKey: key,
+		}}
+	}
+	policiesWithBoundaryItems := func(first, last *spec.GitOpsPolicySpec) []*spec.GitOpsPolicySpec {
+		policies := make([]*spec.GitOpsPolicySpec, 101)
+		policies[0] = first
+		for i := 1; i < 100; i++ {
+			policies[i] = policy(fmt.Sprintf("ordinary policy %03d", i), "")
+		}
+		policies[100] = last
+		return policies
+	}
+	batchContainsNames := func(batch []*fleet.PolicySpec, names ...string) bool {
+		found := make(map[string]bool, len(names))
+		for _, spec := range batch {
+			for _, name := range names {
+				if spec.Name == name {
+					found[name] = true
+				}
+			}
+		}
+		return len(found) == len(names)
+	}
+
+	for _, tt := range []struct {
+		name     string
+		policies []*spec.GitOpsPolicySpec
+	}{
+		{
+			name: "claimant before releaser",
+			policies: policiesWithBoundaryItems(
+				policy("claimant", fleet.FleetManagedKeyMacOSUpToDate),
+				policy("owner", ""),
+			),
+		},
+		{
+			name: "releaser before claimant",
+			policies: policiesWithBoundaryItems(
+				policy("owner", ""),
+				policy("claimant", fleet.FleetManagedKeyMacOSUpToDate),
+			),
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			current := []*fleet.Policy{{PolicyData: fleet.PolicyData{
+				ID:              1,
+				Name:            "owner",
+				Query:           "SELECT 1;",
+				Platform:        "darwin",
+				Type:            fleet.PolicyTypeDynamic,
+				FleetManagedKey: new(fleet.FleetManagedKeyMacOSUpToDate),
+			}}}
+			client, capture := newClient(t, current, false)
+			err := client.doGitOpsPolicies(
+				&spec.GitOps{Policies: tt.policies}, nil, nil, nil, func(string, ...any) {}, false,
+			)
+			require.NoError(t, err)
+
+			var foundAtomicTransfer bool
+			for _, batch := range capture.batches {
+				foundAtomicTransfer = foundAtomicTransfer || batchContainsNames(batch, "owner", "claimant")
+			}
+			require.True(t, foundAtomicTransfer, "managed owner release and claim must share one apply request")
+		})
+	}
+
+	t.Run("duplicate keys across the batch boundary conflict before ordinary applies", func(t *testing.T) {
+		policies := policiesWithBoundaryItems(
+			policy("first claimant", fleet.FleetManagedKeyMacOSAcceptable),
+			policy("second claimant", fleet.FleetManagedKeyMacOSAcceptable),
+		)
+		client, capture := newClient(t, nil, true)
+		err := client.doGitOpsPolicies(
+			&spec.GitOps{Policies: policies}, nil, nil, nil, func(string, ...any) {}, false,
+		)
+		require.ErrorContains(t, err, "error applying policies")
+		require.Len(t, capture.batches, 1, "duplicate managed keys must fail before any ordinary batch is applied")
+		require.True(t, batchContainsNames(capture.batches[0], "first claimant", "second claimant"))
+	})
+}
+
 func TestEnsureHistoricalDataDefaults(t *testing.T) {
 	cases := []struct {
 		name      string

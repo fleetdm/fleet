@@ -528,6 +528,11 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			Message: "duplicate policy names not allowed",
 		})
 	}
+	if key := fleet.FirstDuplicatePolicySpecFleetManagedKey(policies); key != "" {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("duplicate \"fleet_managed_key\" values are not allowed in the same fleet: %q", key),
+		})
+	}
 
 	if !license.IsPremium(ctx) {
 		for i := range policies {

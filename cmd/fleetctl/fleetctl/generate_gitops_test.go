@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -2390,6 +2391,54 @@ func TestGeneratePolicies(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedPolicies, generatedPolicies)
+}
+
+type mockClientWithFleetManagedPolicy struct {
+	MockClient
+}
+
+func (mockClientWithFleetManagedPolicy) GetPolicies(*uint) ([]*fleet.Policy, error) {
+	managedKey := fleet.FleetManagedKeyMacOSUpToDate
+	return []*fleet.Policy{
+		{
+			PolicyData: fleet.PolicyData{
+				Name:            "Managed macOS policy",
+				Query:           "SELECT 1;",
+				Platform:        "darwin",
+				Type:            fleet.PolicyTypeDynamic,
+				FleetManagedKey: &managedKey,
+			},
+		},
+		{
+			PolicyData: fleet.PolicyData{
+				Name:     "User-owned macOS policy",
+				Query:    "SELECT 1;",
+				Platform: "darwin",
+				Type:     fleet.PolicyTypeDynamic,
+			},
+		},
+	}, nil
+}
+
+func TestGeneratePoliciesFleetManagedKey(t *testing.T) {
+	cmd := &GenerateGitopsCommand{
+		Client: &mockClientWithFleetManagedPolicy{},
+	}
+
+	generatedPolicies, err := cmd.generatePolicies(nil, "default.yml", nil)
+	require.NoError(t, err)
+	require.Len(t, generatedPolicies, 2)
+	require.Equal(t, fleet.FleetManagedKeyMacOSUpToDate, generatedPolicies[0]["fleet_managed_key"])
+	require.NotContains(t, generatedPolicies[1], "fleet_managed_key")
+
+	generatedYAML, err := yaml.Marshal(generatedPolicies)
+	require.NoError(t, err)
+
+	var roundTrippedPolicies []*spec.GitOpsPolicySpec
+	require.NoError(t, yaml.Unmarshal(generatedYAML, &roundTrippedPolicies))
+	require.Len(t, roundTrippedPolicies, 2)
+	require.Equal(t, fleet.FleetManagedKeyMacOSUpToDate, roundTrippedPolicies[0].FleetManagedKey)
+	require.Empty(t, roundTrippedPolicies[1].FleetManagedKey)
 }
 
 func TestGenerateQueries(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -40,7 +41,7 @@ const policyCols = `
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
 	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type,
-	p.patch_software_title_id, p.continuous_automations_enabled
+	p.patch_software_title_id, p.continuous_automations_enabled, p.fleet_managed_key
 `
 
 const (
@@ -76,6 +77,20 @@ type policyCleanupArgs struct {
 	platform                         string
 	shouldRemoveAllPolicyMemberships bool
 	removePolicyStats                bool
+}
+
+// applyPolicyRecord holds the stored policy fields needed to reconcile a
+// policy spec and decide which post-commit cleanup is required.
+type applyPolicyRecord struct {
+	ID                         uint    `db:"id"`
+	Name                       string  `db:"name"`
+	Query                      string  `db:"query"`
+	Platforms                  string  `db:"platforms"`
+	SoftwareInstallerID        *uint   `db:"software_installer_id"`
+	VPPAppsTeamsID             *uint   `db:"vpp_apps_teams_id"`
+	ScriptID                   *uint   `db:"script_id"`
+	NeedsFullMembershipCleanup bool    `db:"needs_full_membership_cleanup"`
+	FleetManagedKey            *string `db:"fleet_managed_key"`
 }
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -397,7 +412,102 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	return nil
 }
 
+// UpdateFleetManagedPolicyQueries updates the query for every policy with the
+// given fleet_managed_key when it differs. Membership/stats cleanup runs after
+// commit (same pattern as ApplyPolicySpecs) so large policy_membership deletes
+// do not hold locks for the duration of the update transaction. The
+// needs_full_membership_cleanup flag covers the gap if cleanup is interrupted.
+func (ds *Datastore) UpdateFleetManagedPolicyQueries(ctx context.Context, fleetManagedKey string, query string) ([]uint, error) {
+	if fleetManagedKey == "" {
+		return nil, ctxerr.New(ctx, "fleet_managed_key is required")
+	}
+
+	var ids []uint
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		ids = nil
+		// Lock matching rows so a concurrent GitOps unclaim cannot clear
+		// fleet_managed_key between select and update.
+		if err := sqlx.SelectContext(ctx, tx, &ids, `
+SELECT id FROM policies WHERE fleet_managed_key = ? AND query <> ? FOR UPDATE
+`, fleetManagedKey, query); err != nil {
+			return ctxerr.Wrap(ctx, err, "select Fleet-managed policies for query update")
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		stmt, args, err := sqlx.In(`
+UPDATE policies
+SET query = ?,
+    checksum = `+policiesChecksumComputedColumn()+`,
+    needs_full_membership_cleanup = 1
+WHERE id IN (?) AND fleet_managed_key = ?
+`, query, ids, fleetManagedKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build update Fleet-managed policy queries")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "update Fleet-managed policy queries")
+		}
+		// Only clean policies that still carry the key and received the new query
+		// (skips any row unclaimed between FOR UPDATE and UPDATE in edge cases).
+		confirmedStmt, confirmedArgs, err := sqlx.In(`
+SELECT id FROM policies WHERE id IN (?) AND fleet_managed_key = ? AND query = ?
+`, ids, fleetManagedKey, query)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build confirm Fleet-managed policy query updates")
+		}
+		ids = nil
+		if err := sqlx.SelectContext(ctx, tx, &ids, confirmedStmt, confirmedArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "confirm Fleet-managed policy query updates")
+		}
+		for _, id := range ids {
+			if err := resetPolicyAutomationAttempts(ctx, tx, id); err != nil {
+				return ctxerr.Wrap(ctx, err, "reset policy automation attempts after GDMF query update")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	dbCtx := ds.writer(ctx)
+	for _, id := range ids {
+		if err := cleanupPolicy(ctx, dbCtx, dbCtx, id, "", true, true, ds.logger); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reset policy memberships after GDMF query update")
+		}
+		if _, err := dbCtx.ExecContext(ctx,
+			`UPDATE policies SET needs_full_membership_cleanup = 0 WHERE id = ?`, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clearing needs_full_membership_cleanup after GDMF query update")
+		}
+	}
+	return ids, nil
+}
+
 func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
+	var storedOwnership struct {
+		FleetManagedKey *string `db:"fleet_managed_key"`
+		Type            string  `db:"type"`
+	}
+	if err := sqlx.GetContext(ctx, db, &storedOwnership,
+		`SELECT fleet_managed_key, type FROM policies WHERE id = ? FOR UPDATE`, p.ID,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
+		}
+		return ctxerr.Wrap(ctx, err, "get policy ownership before save")
+	}
+	finalPolicy := fleet.PolicyData{
+		Platform:        p.Platform,
+		Type:            storedOwnership.Type,
+		FleetManagedKey: storedOwnership.FleetManagedKey,
+	}
+	if err := finalPolicy.VerifyFleetManagedKey(); err != nil {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("db-layer policy ownership verification: %s", err),
+		})
+	}
+
 	if p.TeamID == nil && p.SoftwareInstallerID != nil {
 		return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "save policy")
 	}
@@ -1550,6 +1660,95 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 	return policyDB(ctx, ds.reader(ctx), policyID, &teamID)
 }
 
+func fleetManagedKeyConflictError(key string) error {
+	return &fleet.ConflictError{
+		Message: fmt.Sprintf(
+			"Couldn't apply. Another policy already uses fleet_managed_key %q in this fleet.",
+			key,
+		),
+	}
+}
+
+// fleetManagedTeamKey mirrors the generated policies.fleet_managed_team_key
+// column so locking reads can hit idx_policies_fleet_managed_team_key.
+func fleetManagedTeamKey(teamID *uint, key string) string {
+	if teamID == nil {
+		return "global:" + key
+	}
+	return fmt.Sprintf("%d:%s", *teamID, key)
+}
+
+// renameFleetManagedKeyOwners renames stored key owners to their desired spec
+// names. Call after any same-apply releases so explicit key transfers can
+// continue to release the old owner before the new policy claims the key.
+func renameFleetManagedKeyOwners(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	teamIDToPolicies map[*uint][]*fleet.PolicySpec,
+	teamIDToPoliciesByName map[*uint]map[string]applyPolicyRecord,
+) error {
+	if teamIDToPoliciesByName == nil {
+		return ctxerr.New(ctx, "missing policy name index for fleet_managed_key rename")
+	}
+	for teamID, teamPolicySpecs := range teamIDToPolicies {
+		for _, spec := range teamPolicySpecs {
+			if spec.FleetManagedKey == "" {
+				continue
+			}
+			// Query the generated unique key directly so FOR UPDATE locks only
+			// the owner row (or gap), not every policy in the team/global scope.
+			var owner applyPolicyRecord
+			err := sqlx.GetContext(ctx, tx, &owner, `
+				SELECT id, name, query, platforms, software_installer_id,
+					vpp_apps_teams_id, script_id, needs_full_membership_cleanup,
+					fleet_managed_key
+				FROM policies
+				WHERE fleet_managed_team_key = ?
+				FOR UPDATE`, fleetManagedTeamKey(teamID, spec.FleetManagedKey))
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check fleet_managed_key owner")
+			}
+			if owner.Name == spec.Name {
+				continue
+			}
+			byName := teamIDToPoliciesByName[teamID]
+			if byName == nil {
+				byName = make(map[string]applyPolicyRecord)
+				teamIDToPoliciesByName[teamID] = byName
+			}
+			if destination, ok := byName[spec.Name]; ok && destination.ID != owner.ID {
+				return fleetManagedKeyConflictError(spec.FleetManagedKey)
+			}
+
+			res, err := tx.ExecContext(ctx, `
+				UPDATE policies
+				SET name = ?, checksum = `+policiesChecksumComputedColumn()+`
+				WHERE id = ? AND fleet_managed_key = ?`,
+				spec.Name, owner.ID, spec.FleetManagedKey)
+			if err != nil {
+				if IsDuplicate(err) {
+					return fleetManagedKeyConflictError(spec.FleetManagedKey)
+				}
+				return ctxerr.Wrap(ctx, err, "rename fleet_managed_key owner")
+			}
+			rowsAffected, err := res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get renamed fleet_managed_key owner count")
+			}
+			if rowsAffected != 1 {
+				return fleetManagedKeyConflictError(spec.FleetManagedKey)
+			}
+
+			owner.Name = spec.Name
+			byName[spec.Name] = owner
+		}
+	}
+	return nil
+}
+
 // ApplyPolicySpecs applies the given policy specs, creating new policies and updating the ones that
 // already exist (a policy is identified by its name).
 //
@@ -1663,18 +1862,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	}
 
 	// Get the query and platforms of the current policies so that we can check if the query or platform changed later, if needed
-	type policyLite struct {
-		Name                       string `db:"name"`
-		Query                      string `db:"query"`
-		Platforms                  string `db:"platforms"`
-		SoftwareInstallerID        *uint  `db:"software_installer_id"`
-		VPPAppsTeamsID             *uint  `db:"vpp_apps_teams_id"`
-		ScriptID                   *uint  `db:"script_id"`
-		NeedsFullMembershipCleanup bool   `db:"needs_full_membership_cleanup"`
-	}
-	teamIDToPoliciesByName := make(map[*uint]map[string]policyLite, len(teamIDToPolicies))
+	teamIDToPoliciesByName := make(map[*uint]map[string]applyPolicyRecord, len(teamIDToPolicies))
 	for teamID, teamPolicySpecs := range teamIDToPolicies {
-		teamIDToPoliciesByName[teamID] = make(map[string]policyLite, len(teamPolicySpecs))
+		teamIDToPoliciesByName[teamID] = make(map[string]applyPolicyRecord, len(teamPolicySpecs))
 		policyNames := make([]string, 0, len(teamPolicySpecs))
 		for _, spec := range teamPolicySpecs {
 			policyNames = append(policyNames, spec.Name)
@@ -1684,16 +1874,16 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		var args []interface{}
 		var err error
 		if teamID == nil {
-			query, args, err = sqlx.In("SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id, needs_full_membership_cleanup FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
+			query, args, err = sqlx.In("SELECT id, name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id, needs_full_membership_cleanup, fleet_managed_key FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
 		} else {
 			query, args, err = sqlx.In(
-				"SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id, needs_full_membership_cleanup FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
+				"SELECT id, name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id, needs_full_membership_cleanup, fleet_managed_key FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
 			)
 		}
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building query to get policies by name")
 		}
-		policies := make([]policyLite, 0, len(teamPolicySpecs))
+		policies := make([]applyPolicyRecord, 0, len(teamPolicySpecs))
 		err = sqlx.SelectContext(ctx, queryerContext, &policies, query, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting policies by name")
@@ -1707,6 +1897,49 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Reset on retry so we don't accumulate duplicate cleanup entries.
 		pendingCleanups = pendingCleanups[:0]
+		// Key-owner renames add entries to this map. Clone the preloaded state on
+		// every attempt so a rolled-back deadlock attempt cannot affect the next
+		// reconciliation pass.
+		attemptPoliciesByName := make(map[*uint]map[string]applyPolicyRecord, len(teamIDToPoliciesByName))
+		for teamID, policiesByName := range teamIDToPoliciesByName {
+			attemptPoliciesByName[teamID] = make(map[string]applyPolicyRecord, len(policiesByName))
+			maps.Copy(attemptPoliciesByName[teamID], policiesByName)
+		}
+
+		// Release fleet_managed_key before upserts when a same-named spec is
+		// clearing or changing it. Without this, a later INSERT that claims the
+		// same key under a different policy name hits ON DUPLICATE KEY UPDATE on
+		// idx_policies_fleet_managed_team_key (not the name unique key), mutates
+		// the existing owner, and never surfaces a duplicate-key error.
+		for teamID, teamPolicySpecs := range teamIDToPolicies {
+			for _, spec := range teamPolicySpecs {
+				prev, ok := attemptPoliciesByName[teamID][spec.Name]
+				if !ok || prev.FleetManagedKey == nil || *prev.FleetManagedKey == "" {
+					continue
+				}
+				if spec.FleetManagedKey == *prev.FleetManagedKey {
+					continue
+				}
+				var err error
+				if teamID == nil {
+					_, err = tx.ExecContext(ctx, `
+						UPDATE policies SET fleet_managed_key = NULL
+						WHERE team_id IS NULL AND name = ? AND fleet_managed_key = ?`,
+						spec.Name, *prev.FleetManagedKey)
+				} else {
+					_, err = tx.ExecContext(ctx, `
+						UPDATE policies SET fleet_managed_key = NULL
+						WHERE team_id = ? AND name = ? AND fleet_managed_key = ?`,
+						*teamID, spec.Name, *prev.FleetManagedKey)
+				}
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "release fleet_managed_key before apply")
+				}
+			}
+		}
+		if err := renameFleetManagedKeyOwners(ctx, tx, teamIDToPolicies, attemptPoliciesByName); err != nil {
+			return err
+		}
 
 		query := fmt.Sprintf(
 			`
@@ -1727,8 +1960,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			checksum,
 			type,
 			patch_software_title_id,
-			continuous_automations_enabled
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?)
+			continuous_automations_enabled,
+			fleet_managed_key
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1743,7 +1977,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			conditional_access_enabled = VALUES(conditional_access_enabled),
 			type = VALUES(type),
 			patch_software_title_id = VALUES(patch_software_title_id),
-			continuous_automations_enabled = VALUES(continuous_automations_enabled)
+			continuous_automations_enabled = VALUES(continuous_automations_enabled),
+			fleet_managed_key = VALUES(fleet_managed_key)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1767,6 +2002,13 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				if spec.Type == "" {
 					spec.Type = fleet.PolicyTypeDynamic
+				}
+
+				// Ownership is opt-in via explicit fleet_managed_key only — never
+				// inferred from the user-editable policy name.
+				var fleetManagedKeyArg *string
+				if spec.FleetManagedKey != "" {
+					fleetManagedKeyArg = &spec.FleetManagedKey
 				}
 
 				// generate new up-to-date patch policy
@@ -1809,9 +2051,15 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
-					spec.Type, patchSoftwareTitleIDArg, spec.ContinuousAutomationsEnabled,
+					spec.Type, patchSoftwareTitleIDArg, spec.ContinuousAutomationsEnabled, fleetManagedKeyArg,
 				)
 				if err != nil {
+					if IsDuplicate(err) && fleetManagedKeyArg != nil &&
+						strings.Contains(err.Error(), "idx_policies_fleet_managed_team_key") {
+						// Safety net for races; the preflight above covers the
+						// normal stored-owner path that ON DUPLICATE KEY UPDATE swallows.
+						return fleetManagedKeyConflictError(*fleetManagedKeyArg)
+					}
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 				}
 
@@ -1827,7 +2075,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				)
 				if insertOnDuplicateDidInsertOrUpdate(res) {
 					// Figure out if the query, platform, software installer, VPP app, or script changed.
-					if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
+					if prev, ok := attemptPoliciesByName[teamID][spec.Name]; ok {
 						switch {
 						case prev.Query != spec.Query:
 							shouldRemoveAllPolicyMemberships = true
@@ -1859,7 +2107,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 						// so that it doesn't get deleted later.
 						if spec.Type == fleet.PolicyTypePatch {
 							err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE patch_software_title_id = ? AND team_id = ?", fmaTitleID, teamID)
-							if _, ok := teamIDToPoliciesByName[teamID][spec.Name]; !ok {
+							if _, ok := attemptPoliciesByName[teamID][spec.Name]; !ok {
 								shouldUpdatePatchPolicyName = true
 							}
 						} else {
@@ -1875,8 +2123,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// If a previous cleanup was interrupted (e.g. server crash between
 				// transaction commit and cleanup completion), re-trigger cleanup on any GitOps retry,
 				// even if the policy itself didn't change this run.
-				if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok && prev.NeedsFullMembershipCleanup {
+				if prev, ok := attemptPoliciesByName[teamID][spec.Name]; ok && prev.NeedsFullMembershipCleanup {
 					shouldRemoveAllPolicyMemberships = true
+					removePolicyStats = true
 				}
 
 				err = updatePolicyLabelsTx(ctx, tx, &fleet.Policy{
@@ -2373,7 +2622,8 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 		return ctxerr.Wrap(ctx, err, "select policies needing full membership cleanup")
 	}
 	for _, polID := range fullCleanupPolIDs {
-		if err := cleanupPolicyMembershipForPolicy(ctx, ds.reader(ctx), ds.writer(ctx), polID); err != nil {
+		dbCtx := ds.writer(ctx)
+		if err := cleanupPolicy(ctx, dbCtx, dbCtx, polID, "", true, true, ds.logger); err != nil {
 			return ctxerr.Wrapf(ctx, err, "full membership cleanup for policy %d", polID)
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx,

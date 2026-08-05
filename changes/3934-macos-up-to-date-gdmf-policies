@@ -1,0 +1,1 @@
+* Added Fleet-maintained macOS OS-currency policies that stay current from Apple's software update catalog (GDMF): "Operating system up to date (macOS)" and "Operating system version is acceptable (macOS)" (30-day grace). Fleet refreshes matching policy queries hourly.

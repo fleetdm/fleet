@@ -155,6 +155,32 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	}
 }
 
+func TestModifyGlobalPolicyRejectsInvalidManagedPolicyPlatform(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		return &fleet.Policy{PolicyData: fleet.PolicyData{
+			ID:              id,
+			Name:            "managed global policy",
+			Query:           "SELECT 1;",
+			Platform:        "darwin",
+			Type:            fleet.PolicyTypeDynamic,
+			FleetManagedKey: new(fleet.FleetManagedKeyMacOSUpToDate),
+		}}, nil
+	}
+	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, shouldDeleteAll bool, removePolicyStats bool) error {
+		t.Fatal("invalid managed policy must be rejected before SavePolicy")
+		return nil
+	}
+
+	platform := "windows"
+	_, err := svc.ModifyGlobalPolicy(ctx, 1, fleet.ModifyPolicyPayload{Platform: &platform})
+	require.ErrorContains(t, err, `"fleet_managed_key" requires platform "darwin"`)
+	require.False(t, ds.SavePolicyFuncInvoked)
+}
+
 // TestGetPolicyByIDCrossTeamAuth verifies that the global "get policy
 // by ID" endpoint refuses to return a team policy to a user who has no role
 // on that team. This guards against the regression described in the
@@ -459,6 +485,36 @@ func TestApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs(t *testing.T)
 	badRequestError := &fleet.BadRequestError{}
 	require.ErrorAs(t, err, &badRequestError)
 	require.Equal(t, "duplicate policy names not allowed", badRequestError.Message)
+}
+
+func TestApplyPolicySpecsReturnsErrorOnDuplicateFleetManagedKey(t *testing.T) {
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	user := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	err := svc.ApplyPolicySpecs(ctx, []*fleet.PolicySpec{
+		{
+			Name:            "up to date a",
+			Query:           "select 1;",
+			Platform:        "darwin",
+			FleetManagedKey: fleet.FleetManagedKeyMacOSUpToDate,
+		},
+		{
+			Name:            "up to date b",
+			Query:           "select 1;",
+			Platform:        "darwin",
+			FleetManagedKey: fleet.FleetManagedKeyMacOSUpToDate,
+		},
+	})
+	badRequestError := &fleet.BadRequestError{}
+	require.ErrorAs(t, err, &badRequestError)
+	require.Contains(t, badRequestError.Message, "duplicate \"fleet_managed_key\"")
+	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
 }
 
 func TestApplyPolicySpecsLabelsValidation(t *testing.T) {

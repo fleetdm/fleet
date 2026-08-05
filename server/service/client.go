@@ -3376,6 +3376,91 @@ func resolvePolicySoftwareTitleID(
 	return 0, false
 }
 
+func policyIDsToDelete(current []*fleet.Policy, desired []*spec.GitOpsPolicySpec) []uint {
+	var policyIDs []uint
+	for _, oldItem := range current {
+		found := false
+		for _, newItem := range desired {
+			if oldItem.FleetManagedKey != nil && *oldItem.FleetManagedKey != "" && *oldItem.FleetManagedKey == newItem.FleetManagedKey {
+				found = true
+				break
+			}
+			// patch policies are unique by patch_software_title_id so matching by name doesn't always work
+			if newItem.Type == fleet.PolicyTypePatch && oldItem.PatchSoftware != nil {
+				if oldItem.PatchSoftware.SoftwareTitleID == newItem.PatchSoftwareTitleID {
+					found = true
+					break
+				}
+			}
+			if oldItem.Name == newItem.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			policyIDs = append(policyIDs, oldItem.ID)
+		}
+	}
+	return policyIDs
+}
+
+// gitOpsPolicyApplyBatches keeps every Fleet-managed ownership interaction in
+// one request when a desired policy set exceeds the ordinary API batch size.
+// A keyed desired policy is a claimant/owner; a same-name desired policy for a
+// currently keyed policy is a releaser even when its desired key is empty.
+// Sending that batch first also lets duplicate-key validation fail before any
+// unrelated policy batches are applied.
+func gitOpsPolicyApplyBatches(current []*fleet.Policy, desired []*spec.GitOpsPolicySpec) [][]*fleet.PolicySpec {
+	toPolicySpecs := func(policies []*spec.GitOpsPolicySpec) []*fleet.PolicySpec {
+		result := make([]*fleet.PolicySpec, len(policies))
+		for i := range policies {
+			result[i] = &policies[i].PolicySpec
+		}
+		return result
+	}
+	batch := func(batches *[][]*fleet.PolicySpec, policies []*spec.GitOpsPolicySpec) {
+		for i := 0; i < len(policies); i += batchSize {
+			end := min(i+batchSize, len(policies))
+			*batches = append(*batches, toPolicySpecs(policies[i:end]))
+		}
+	}
+
+	if len(desired) == 0 {
+		return nil
+	}
+	if len(desired) <= batchSize {
+		return [][]*fleet.PolicySpec{toPolicySpecs(desired)}
+	}
+
+	currentManagedNames := make(map[string]struct{})
+	for _, policy := range current {
+		if policy.FleetManagedKey != nil && *policy.FleetManagedKey != "" {
+			currentManagedNames[policy.Name] = struct{}{}
+		}
+	}
+
+	managed := make([]*spec.GitOpsPolicySpec, 0)
+	ordinary := make([]*spec.GitOpsPolicySpec, 0, len(desired))
+	for _, policy := range desired {
+		_, releasesCurrentKey := currentManagedNames[policy.Name]
+		if policy.FleetManagedKey != "" || releasesCurrentKey {
+			managed = append(managed, policy)
+			continue
+		}
+		ordinary = append(ordinary, policy)
+	}
+
+	batches := make([][]*fleet.PolicySpec, 0, 1+(len(ordinary)+batchSize-1)/batchSize)
+	if len(managed) > 0 {
+		// Managed ownership interactions stay in one request and are not split by
+		// batchSize. In practice this is bounded by the small set of known
+		// fleet_managed_key values (plus same-name releasers for currently keyed rows).
+		batches = append(batches, toPolicySpecs(managed))
+	}
+	batch(&batches, ordinary)
+	return batches
+}
+
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
 	// Collect policy names that have webhooks_and_tickets_enabled set.
 	var policyNamesWithWebhooks []string
@@ -3540,18 +3625,9 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 
 		if !dryRun {
 			totalApplied := 0
-			for i := 0; i < len(config.Policies); i += batchSize {
-				end := i + batchSize
-				if end > len(config.Policies) {
-					end = len(config.Policies)
-				}
-				totalApplied += end - i
+			for _, policiesSpec := range gitOpsPolicyApplyBatches(policies, config.Policies) {
+				totalApplied += len(policiesSpec)
 				// Note: We are reusing the spec flow here for adding/updating policies, instead of creating a new flow for GitOps.
-				policiesToApply := config.Policies[i:end]
-				policiesSpec := make([]*fleet.PolicySpec, len(policiesToApply))
-				for i := range policiesToApply {
-					policiesSpec[i] = &policiesToApply[i].PolicySpec
-				}
 				if err := c.ApplyPolicies(policiesSpec); err != nil {
 					return fmt.Errorf("error applying policies: %w", err)
 				}
@@ -3560,29 +3636,19 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 	}
 
-	var policiesToDelete []uint
+	policiesToDelete := policyIDsToDelete(policies, config.Policies)
+	policyIDsToDeleteSet := make(map[uint]struct{}, len(policiesToDelete))
+	for _, id := range policiesToDelete {
+		policyIDsToDeleteSet[id] = struct{}{}
+	}
 	for _, oldItem := range policies {
-		found := false
-		for _, newItem := range config.Policies {
-			if oldItem.Name == newItem.Name {
-				found = true
-				break
-			}
-			// patch policies are unique by patch_software_title_id so matching by name doesn't always work
-			if newItem.Type == fleet.PolicyTypePatch && oldItem.PatchSoftware != nil {
-				if oldItem.PatchSoftware.SoftwareTitleID == newItem.PatchSoftwareTitleID {
-					found = true
-					break
-				}
-			}
+		if _, ok := policyIDsToDeleteSet[oldItem.ID]; !ok {
+			continue
 		}
-		if !found {
-			policiesToDelete = append(policiesToDelete, oldItem.ID)
-			if !dryRun {
-				logFn("[-] deleting policy %s\n", oldItem.Name)
-			} else {
-				logFn("[-] would've deleted policy %s\n", oldItem.Name)
-			}
+		if !dryRun {
+			logFn("[-] deleting policy %s\n", oldItem.Name)
+		} else {
+			logFn("[-] would've deleted policy %s\n", oldItem.Name)
 		}
 	}
 	if len(policiesToDelete) > 0 {

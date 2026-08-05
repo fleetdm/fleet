@@ -1,16 +1,38 @@
 package gdmf
 
 import (
+	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+type closeSignalBody struct {
+	closed chan struct{}
+	once   sync.Once
+}
+
+func (b *closeSignalBody) Read([]byte) (int, error) { return 0, io.EOF }
+func (b *closeSignalBody) Close() error {
+	b.once.Do(func() { close(b.closed) })
+	return nil
+}
 
 func TestGetLatest(t *testing.T) {
 	// test GetLatestOSVersion using a mock server that returns a known response
@@ -242,4 +264,52 @@ func TestRetries(t *testing.T) {
 	require.ErrorContains(t, err, "calling gdmf endpoint failed with status 400")
 	require.Nil(t, latest)
 	require.Equal(t, 4, retryCount)
+}
+
+func TestDoWithRetryCancellationDuringBackoff(t *testing.T) {
+	originalClient := client
+	t.Cleanup(func() { client = originalClient })
+
+	bodyClosed := make(chan struct{})
+	attempts := 0
+	client = fleethttp.NewClient()
+	client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		attempts++
+		return &http.Response{
+			StatusCode: http.StatusInternalServerError,
+			Header:     make(http.Header),
+			Body:       &closeSignalBody{closed: bodyClosed},
+			Request:    req,
+		}, nil
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://gdmf.invalid/v2/pmv", nil)
+	require.NoError(t, err)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := doWithRetry(ctx, req)
+		result <- err
+	}()
+
+	select {
+	case <-bodyClosed:
+	case <-time.After(time.Second):
+		t.Fatal("first retryable response was not consumed")
+	}
+	canceledAt := time.Now()
+	cancel()
+
+	select {
+	case err := <-result:
+		require.ErrorIs(t, err, context.Canceled)
+		// Bound must stay under retryBackoff (1s) to prove we interrupted the wait,
+		// but loose enough that loaded CI runners don't flake.
+		require.Less(t, time.Since(canceledAt), 750*time.Millisecond)
+		require.Equal(t, 1, attempts)
+	case <-time.After(2 * time.Second):
+		t.Fatal("retry did not stop after context cancellation")
+	}
 }

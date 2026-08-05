@@ -86,6 +86,19 @@ func TestFirstFuplicatePolicySpecName(t *testing.T) {
 	}
 }
 
+func TestFirstDuplicatePolicySpecFleetManagedKey(t *testing.T) {
+	key := FleetManagedKeyMacOSUpToDate
+	require.Empty(t, FirstDuplicatePolicySpecFleetManagedKey(nil))
+	require.Empty(t, FirstDuplicatePolicySpecFleetManagedKey([]*PolicySpec{
+		{Name: "a", Team: "", FleetManagedKey: key},
+		{Name: "b", Team: "Workstations", FleetManagedKey: key},
+	}))
+	require.Equal(t, key, FirstDuplicatePolicySpecFleetManagedKey([]*PolicySpec{
+		{Name: "a", Team: "Workstations", FleetManagedKey: key},
+		{Name: "b", Team: "Workstations", FleetManagedKey: key},
+	}))
+}
+
 func TestPolicySpecVerifyFleetMaintainedAppSlug(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -109,6 +122,38 @@ func TestPolicySpecVerifyFleetMaintainedAppSlug(t *testing.T) {
 		{
 			name: "dynamic policy without slug is allowed",
 			spec: PolicySpec{Name: "Chrome installed", Team: "Workstations", Query: "SELECT 1;", Type: PolicyTypeDynamic},
+		},
+		{
+			name: "darwin dynamic with known fleet_managed_key is allowed",
+			spec: PolicySpec{
+				Name: "macOS up to date", Query: "SELECT 1;", Type: PolicyTypeDynamic,
+				Platform: "darwin", FleetManagedKey: FleetManagedKeyMacOSUpToDate,
+			},
+		},
+		{
+			name: "unknown fleet_managed_key is rejected",
+			spec: PolicySpec{
+				Name: "macOS up to date", Query: "SELECT 1;", Type: PolicyTypeDynamic,
+				Platform: "darwin", FleetManagedKey: "not_a_real_key",
+			},
+			wantErr: errPolicyInvalidFleetManagedKey,
+		},
+		{
+			name: "fleet_managed_key on windows is rejected",
+			spec: PolicySpec{
+				Name: "macOS up to date", Query: "SELECT 1;", Type: PolicyTypeDynamic,
+				Platform: "windows", FleetManagedKey: FleetManagedKeyMacOSUpToDate,
+			},
+			wantErr: errPolicyFleetManagedKeyPlatform,
+		},
+		{
+			name: "fleet_managed_key on patch policy is rejected",
+			spec: PolicySpec{
+				Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch,
+				FleetMaintainedAppSlug: "google-chrome/darwin",
+				FleetManagedKey:        FleetManagedKeyMacOSUpToDate,
+			},
+			wantErr: errPolicyFleetManagedKeyType,
 		},
 	}
 
