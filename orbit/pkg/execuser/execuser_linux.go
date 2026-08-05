@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -22,7 +22,7 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 		return nil, errors.New("missing user")
 	}
 
-	args, env, err := getConfigForCommand(opts.user, path)
+	args, env, err := getConfigForCommand(path, opts)
 	if err != nil {
 		return nil, fmt.Errorf("get args: %w", err)
 	}
@@ -154,7 +154,26 @@ func getDisplayVariableForSession(userID string, displaySessionType userpkg.GuiS
 	return waylandDisplay
 }
 
-func getConfigForCommand(user string, path string) (args []string, env []string, err error) {
+// sudoArgs builds the sudo arguments used to run a command as the login user.
+//
+// Without a login shell, sudo runs the command directly, so nothing from
+// /etc/profile, /etc/profile.d/*, ~/.profile or ~/.bash_logout can write to the
+// command's stdout. That matters for callers that read the output back: shell
+// startup output is indistinguishable from the command's own, and prepending it
+// to, say, a passphrase read from a dialog silently corrupts the value.
+//
+// -H is set either way so HOME points at the target user; sudo's default
+// env_reset already sets USER/LOGNAME/SHELL.
+func sudoArgs(user string, noLoginShell bool) []string {
+	if noLoginShell {
+		return []string{"-n", "-u", user, "-H"}
+	}
+	return []string{"-n", "-i", "-u", user, "-H"}
+}
+
+func getConfigForCommand(path string, opts eopts) (args []string, env []string, err error) {
+	user := opts.user
+
 	// Get user ID
 	userID, err := getUserID(user)
 	if err != nil {
@@ -186,25 +205,28 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 		Str("session_type", userDisplaySession.Type.String()).
 		Msg("running sudo")
 
-	// On openSUSE Leap 16+ we drop -i (login shell). With -i, sudo runs the target
-	// user's shell as a login shell and passes the rest of the command via
+	// On openSUSE Leap 16+ we always drop the login shell. With -i, sudo runs the
+	// target user's shell as a login shell and passes the rest of the command via
 	// `bash --login -c`, which sources /etc/profile and /etc/profile.d/* and
 	// shell-escapes the inline command. On Leap 16 that environment indirection
 	// causes our `env KEY=val ... fleet-desktop` invocation to lose env vars, so
 	// fleet-desktop exits with "missing URL environment ..." and Orbit respawns it
-	// in a tight loop. -H sets HOME to the target user; sudo's default env_reset
-	// already sets USER/LOGNAME/SHELL.
+	// in a tight loop.
 	//
 	// We keep -i on every other supported distribution to preserve the previously
-	// QA'd behavior.
-	if isOpenSUSELeap16Plus() {
-		args = []string{"-n", "-u", user, "-H"}
-	} else {
-		args = []string{"-n", "-i", "-u", user, "-H"}
-	}
+	// QA'd behavior, except when the command's output is read back.
+	//
+	// Whatever the reason for dropping it, the session environment it would have
+	// supplied has to be replaced, so both decisions follow the same condition.
+	noLoginShell := opts.noLoginShell || isOpenSUSELeap16Plus()
+	args = sudoArgs(user, noLoginShell)
 	env = make([]string, 0)
 
+	// The variable identifying the session's display, used below to recognize the
+	// processes that belong to it.
+	displayVar := "DISPLAY"
 	if userDisplaySession.Type == userpkg.GuiSessionTypeWayland {
+		displayVar = "WAYLAND_DISPLAY"
 		env = append(env, "WAYLAND_DISPLAY="+display)
 		// For xdg-open to work on a Wayland session we still need to set the DISPLAY variable.
 		x11Display := ":" + strings.TrimPrefix(display, "wayland-")
@@ -222,6 +244,13 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 		// (because it's already part of the user).
 		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%s/bus", userID),
 	)
+
+	if noLoginShell {
+		// Without a login shell nothing carries the user's session environment
+		// over, and the GUI programs we launch need parts of it, so take those
+		// from the session itself. See sessionEnvPrefixes.
+		env = append(env, sessionEnvForChild(userID, displayVar, display)...)
+	}
 
 	return args, env, nil
 }
@@ -268,9 +297,7 @@ func getUserWaylandDisplay(uid string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("list wayland socket files: %w", err)
 	}
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i] < matches[j]
-	})
+	slices.Sort(matches)
 	for _, match := range matches {
 		if strings.HasSuffix(match, ".lock") {
 			continue
@@ -280,20 +307,150 @@ func getUserWaylandDisplay(uid string) (string, error) {
 	return "", errors.New("wayland socket not found")
 }
 
+// xdgDataDirsDefault is the value from the XDG base directory specification,
+// used when the user's session doesn't expose one.
+const xdgDataDirsDefault = "/usr/local/share:/usr/share"
+
+// sessionEnvPrefixes and sessionEnvNames select the variables carried over from
+// the user's graphical session to a child we launch into it.
+//
+// A login shell would have set these from the user's startup files. Commands
+// whose output we read don't get one (see getConfigForCommand), so we take the
+// session's own values rather than hardcoding them: GTK needs XDG_DATA_DIRS to
+// find its GSettings schemas and icon themes, and the locale and input-method
+// variables decide which characters an entry dialog actually receives.
+//
+// This is an allowlist rather than a denylist so shell bookkeeping (PWD, SHLVL,
+// _), sudo's own SUDO_* variables and the LD_* loader controls are never carried
+// over. DISPLAY, WAYLAND_DISPLAY, DBUS_SESSION_BUS_ADDRESS, HOME and PATH are
+// deliberately absent too: orbit, sudo -H and sudoers secure_path set those, and
+// the session's values must not override them.
+//
+// sessionEnvExcluded carves names back out of the prefixes. GTK_MODULES makes
+// GTK dlopen the modules it names, and we would rather not widen what gets
+// loaded into a process that handles the end user's passphrase. Nothing we
+// launch needs it: a missing module is a warning, not a failure.
+var (
+	sessionEnvPrefixes = []string{"XDG_", "GTK_", "QT_", "GDK_", "LC_"}
+	sessionEnvNames    = []string{"LANG", "LANGUAGE", "XAUTHORITY", "XMODIFIERS"}
+	sessionEnvExcluded = []string{"GTK_MODULES"}
+)
+
+// sessionEnvForChild returns the environment to add for a child launched into
+// the given user's graphical session, as sorted KEY=VALUE entries.
+//
+// displayVar and display identify the session's display, so the environment is
+// taken from a process actually on it.
+func sessionEnvForChild(userID, displayVar, display string) []string {
+	environ, err := getUserSessionEnv(userID, displayVar, display)
+	if err != nil {
+		log.Debug().Err(err).Msg("no graphical session environment found for user, using defaults")
+		return withXDGDataDirs(nil)
+	}
+	return withXDGDataDirs(filterSessionEnv(environ))
+}
+
+// withXDGDataDirs guarantees XDG_DATA_DIRS is present with a value, since the
+// GUI programs we launch do not open without it.
+func withXDGDataDirs(env []string) []string {
+	const prefix = "XDG_DATA_DIRS="
+	for _, kv := range env {
+		if strings.HasPrefix(kv, prefix) && kv != prefix {
+			return env
+		}
+	}
+	return append(env, prefix+xdgDataDirsDefault)
+}
+
+// filterSessionEnv reduces a process environment to the variables a GUI child
+// should inherit from the session, as sorted KEY=VALUE entries.
+//
+// Variables with an empty value are dropped: they carry no information, and an
+// empty XDG_DATA_DIRS would suppress the default.
+func filterSessionEnv(environ map[string]string) []string {
+	var env []string
+	for key, value := range environ {
+		if value == "" || slices.Contains(sessionEnvExcluded, key) {
+			continue
+		}
+		carry := slices.Contains(sessionEnvNames, key) ||
+			slices.ContainsFunc(sessionEnvPrefixes, func(p string) bool {
+				return strings.HasPrefix(key, p)
+			})
+		if carry {
+			env = append(env, key+"="+value)
+		}
+	}
+	slices.Sort(env)
+	return env
+}
+
+// getUserSessionEnv returns the full environment of a process owned by the given
+// user that is running on the given display.
+//
+// Reading a single process keeps the result coherent, and matching on the display
+// keeps unrelated environments out: a user with an `ssh -X` session open has
+// processes carrying a forwarded DISPLAY and an XAUTHORITY for it, which would
+// misconfigure a program we launch on the local session.
+func getUserSessionEnv(userID, displayVar, display string) (map[string]string, error) {
+	pids, err := userProcPIDs(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, pid := range pids {
+		environ, err := readAllEnvFromProcFile(procEnvironPath(pid))
+		if err != nil {
+			continue
+		}
+		if environ[displayVar] != display {
+			continue
+		}
+		log.Debug().Msgf("found graphical session environment in %q", pid)
+		return environ, nil
+	}
+
+	return nil, fmt.Errorf("no process on %s=%s found for user %s", displayVar, display, userID)
+}
+
 // getUserX11Display returns the value to set on DISPLAY for the given user.
-// It scans /proc to find a process owned by the user that has DISPLAY set
-// in its environment.
 func getUserX11Display(userID string) (string, error) {
+	return getUserEnvFromProc(userID, "DISPLAY")
+}
+
+// getUserEnvFromProc scans the given user's processes for one that has envVar
+// set in its environment, and returns its value.
+func getUserEnvFromProc(userID string, envVar string) (string, error) {
+	pids, err := userProcPIDs(userID)
+	if err != nil {
+		return "", err
+	}
+
+	for _, pid := range pids {
+		value, err := readEnvFromProc(pid, envVar)
+		if err != nil || value == "" {
+			continue
+		}
+		log.Debug().Msgf("found %s variable in %q", envVar, pid)
+		return value, nil
+	}
+
+	return "", fmt.Errorf("%s not found in any process for user %s", envVar, userID)
+}
+
+// userProcPIDs returns the PIDs of the processes owned by the given user.
+func userProcPIDs(userID string) ([]string, error) {
 	uid, err := strconv.ParseUint(userID, 10, 32)
 	if err != nil {
-		return "", fmt.Errorf("parse user ID %q: %w", userID, err)
+		return nil, fmt.Errorf("parse user ID %q: %w", userID, err)
 	}
 
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
-		return "", fmt.Errorf("read /proc: %w", err)
+		return nil, fmt.Errorf("read /proc: %w", err)
 	}
 
+	var pids []string
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -302,7 +459,6 @@ func getUserX11Display(userID string) (string, error) {
 		if _, err := strconv.Atoi(entry.Name()); err != nil {
 			continue
 		}
-		// Check if the process belongs to our target user.
 		info, err := entry.Info()
 		if err != nil {
 			continue
@@ -311,37 +467,51 @@ func getUserX11Display(userID string) (string, error) {
 		if !ok || stat.Uid != uint32(uid) {
 			continue
 		}
-
-		// Try to read DISPLAY from this process's environment.
-		display, err := readEnvFromProc(entry.Name(), "DISPLAY")
-		if err != nil || display == "" {
-			continue
-		}
-
-		log.Debug().Msgf("found DISPLAY variable in %q", entry.Name())
-		return display, nil
+		pids = append(pids, entry.Name())
 	}
 
-	return "", fmt.Errorf("DISPLAY not found in any process for user %s", userID)
+	return pids, nil
+}
+
+// procEnvironPath returns the path of a process's environ file.
+func procEnvironPath(pid string) string {
+	return fmt.Sprintf("/proc/%s/environ", pid)
 }
 
 // readEnvFromProc reads a specific environment variable from /proc/<pid>/environ.
 func readEnvFromProc(pid string, envVar string) (string, error) {
-	return readEnvFromProcFile(fmt.Sprintf("/proc/%s/environ", pid), envVar)
+	return readEnvFromProcFile(procEnvironPath(pid), envVar)
 }
 
-// readEnvFromProcFile reads a specific environment variable from a /proc environ file.
-// The file contains null-byte separated KEY=VALUE entries.
-func readEnvFromProcFile(path string, envVar string) (string, error) {
+// readAllEnvFromProcFile reads every environment variable from a /proc environ
+// file. The file contains null-byte separated KEY=VALUE entries.
+//
+// The first occurrence of a name wins, matching getenv, so a duplicated name
+// resolves the same way it does for the process itself.
+func readAllEnvFromProcFile(path string) (map[string]string, error) {
 	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	environ := make(map[string]string)
+	for entry := range bytes.SplitSeq(data, []byte{0}) {
+		key, value, ok := strings.Cut(string(entry), "=")
+		if !ok {
+			continue
+		}
+		if _, seen := environ[key]; !seen {
+			environ[key] = value
+		}
+	}
+	return environ, nil
+}
+
+// readEnvFromProcFile reads a specific environment variable from a /proc environ
+// file, returning an empty value when it is not set.
+func readEnvFromProcFile(path string, envVar string) (string, error) {
+	environ, err := readAllEnvFromProcFile(path)
 	if err != nil {
 		return "", err
 	}
-	prefix := envVar + "="
-	for entry := range bytes.SplitSeq(data, []byte{0}) {
-		if s := string(entry); strings.HasPrefix(s, prefix) {
-			return s[len(prefix):], nil
-		}
-	}
-	return "", nil
+	return environ[envVar], nil
 }

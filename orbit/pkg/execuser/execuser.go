@@ -7,11 +7,12 @@ import (
 )
 
 type eopts struct {
-	env        [][2]string
-	args       [][2]string
-	stderrPath string //nolint:structcheck,unused
-	timeout    time.Duration
-	user       string
+	env          [][2]string
+	args         [][2]string
+	stderrPath   string //nolint:structcheck,unused
+	timeout      time.Duration
+	user         string
+	noLoginShell bool
 }
 
 // Option allows configuring the application.
@@ -67,5 +68,13 @@ func RunWithOutput(path string, opts ...Option) (output []byte, exitCode int, er
 	for _, fn := range opts {
 		fn(&o)
 	}
+
+	// The caller reads the application's output, so the application must not run
+	// under the login user's shell: a login shell sources the user's startup
+	// files, and anything they print lands on the same stdout as the
+	// application's own output with no way to tell the two apart. Callers that
+	// don't read output keep the login shell, see run.
+	o.noLoginShell = true
+
 	return runWithOutput(path, o)
 }
