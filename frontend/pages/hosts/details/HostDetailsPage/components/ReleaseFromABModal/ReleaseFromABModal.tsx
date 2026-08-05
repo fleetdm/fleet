@@ -99,7 +99,7 @@ const ReleaseFromABModal = ({
           This removes <b>{host.display_name}</b> from your Apple Business and
           can&apos;t be added back automatically.{" "}
           <CustomLink
-            text="Learn More"
+            text="Learn more"
             newTab
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/release-devices`}
           />
