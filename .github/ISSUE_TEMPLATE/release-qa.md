@@ -314,7 +314,7 @@ Reference: https://fleetdm.com/pricing
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
-<td>Manual enrollment flow</td>
+<td>Manual enrollment</td>
 <td>Verify MDM enrollment, run MDM commands.</td>
 <td>
 
@@ -326,7 +326,7 @@ Reference: https://fleetdm.com/pricing
 
 <tr>
 <td>Autopilot enrollment</td>
-<td>Verify Windows enrollment via Autopilot/Entra OOBE enrollment, both fully configured and with nothing configured.</td>
+<td>Verify Windows Autopilot/Entra OOBE enrollment, both fully configured and with nothing configured.</td>
 <td>
 
 **Full configuration**
@@ -336,7 +336,7 @@ Reference: https://fleetdm.com/pricing
 
 **Blank enrollment**
 
-3. Enroll an Auto-Pilot host into "No fleet" with nothing configured and verify the ESP completes.
+3. Enroll an Auto-Pilot host into the "Unassigned" fleet with nothing configured and verify the ESP completes.
 
 </td>
 </tr>
