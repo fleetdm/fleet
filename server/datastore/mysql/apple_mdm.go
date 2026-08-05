@@ -1493,6 +1493,28 @@ func updateMDMAppleHostDB(
 ) error {
 	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
 
+	// A host transitioning from company-owned to personal (BYOD) must not
+	// keep vitals collected under the prior, non-personal enrollment. Both
+	// reads below must happen before the UPDATE further down, which can
+	// change hosts.uuid (matchHostDuringEnrollment may match an existing
+	// host by hardware serial even when the incoming UUID differs) -- the
+	// stale vitals are keyed by the host's *previous* UUID, not the new one.
+	transitioningToPersonal := false
+	var previousUUID string
+	if fromPersonalEnrollment {
+		var previouslyPersonal bool
+		err := sqlx.GetContext(ctx, tx, &previouslyPersonal, `SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`, hostID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "get host mdm enrollment type")
+		}
+		transitioningToPersonal = err == nil && !previouslyPersonal
+		if transitioningToPersonal {
+			if err := sqlx.GetContext(ctx, tx, &previousUUID, `SELECT uuid FROM hosts WHERE id = ?`, hostID); err != nil {
+				return ctxerr.Wrap(ctx, err, "load host uuid before update")
+			}
+		}
+	}
+
 	args := []interface{}{
 		mdmHost.HardwareSerial,
 		mdmHost.UUID,
@@ -1540,19 +1562,8 @@ func updateMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "error clearing mdm apple host_mdm_actions")
 	}
 
-	// A host transitioning from company-owned to personal (BYOD) must not
-	// keep vitals collected under the prior, non-personal enrollment.
-	transitioningToPersonal := false
-	if fromPersonalEnrollment {
-		var previouslyPersonal bool
-		err := sqlx.GetContext(ctx, tx, &previouslyPersonal, `SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`, hostID)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return ctxerr.Wrap(ctx, err, "get host mdm enrollment type")
-		}
-		transitioningToPersonal = err == nil && !previouslyPersonal
-	}
 	if transitioningToPersonal {
-		if err := deleteHostMDMAppleDeviceVitalsDB(ctx, tx, mdmHost.UUID); err != nil {
+		if err := deleteHostMDMAppleDeviceVitalsDB(ctx, tx, previousUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear stale device vitals on enrollment type change")
 		}
 	}

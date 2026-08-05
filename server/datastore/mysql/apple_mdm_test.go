@@ -105,6 +105,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
+		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"ReconcileAppleProfilesDuplicateHostUUID", testReconcileAppleProfilesDuplicateHostUUID},
@@ -8245,6 +8246,66 @@ func testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals(t *testing.T, ds 
 	upsert(true)
 	require.Equal(t, 1, countRows("host_mdm_apple_device_vitals"),
 		"re-enrolling as BYOD again with no classification change must not clear existing vitals")
+}
+
+// testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange is a
+// regression test for a variant of the above: matchHostDuringEnrollment can
+// match an existing host by hardware serial even when the incoming UUID
+// differs from what's currently stored (e.g. a device re-enrolling with a
+// new UDID). updateMDMAppleHostDB's UPDATE hosts SET ... uuid = ? changes
+// hosts.uuid to the new value -- the BYOD cleanup must delete rows keyed by
+// the host's *previous* UUID (which is what the stale vitals are actually
+// stored under), not the new one the checkin reports.
+func testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	const (
+		serial  = "serial-uuid-change"
+		oldUUID = "old-uuid-company-owned"
+		newUUID = "new-uuid-byod"
+	)
+
+	countRows := func(table, uuid string) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE host_uuid = ?`, table), uuid) //nolint:gosec // table is a fixed literal at each call site, not user input
+		})
+		return n
+	}
+
+	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           oldUUID,
+		HardwareSerial: serial,
+		HardwareModel:  "iPad13,1",
+		Platform:       "ipados",
+	}, false)
+	require.NoError(t, err)
+
+	// Simulate a company-owned refetch populating PII that must not survive
+	// a switch to BYOD.
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, oldUUID, fleet.MDMAppleDeviceVitals{
+		ServiceSubscriptions: []fleet.MDMAppleServiceSubscription{
+			{Slot: "CTSubscriptionSlotOne", PhoneNumber: new("+15555550100")},
+		},
+	}))
+	require.Equal(t, 1, countRows("host_mdm_apple_device_vitals", oldUUID))
+	require.Equal(t, 1, countRows("host_mdm_apple_service_subscriptions", oldUUID))
+
+	// Re-enroll the same hardware serial as BYOD, but with a different
+	// incoming UUID -- matched via hardware_serial, not uuid.
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           newUUID,
+		HardwareSerial: serial,
+		HardwareModel:  "iPad13,1",
+		Platform:       "ipados",
+	}, true)
+	require.NoError(t, err)
+
+	require.Equal(t, 0, countRows("host_mdm_apple_device_vitals", oldUUID),
+		"vitals keyed by the host's previous UUID must be cleared on transition to BYOD")
+	require.Equal(t, 0, countRows("host_mdm_apple_service_subscriptions", oldUUID),
+		"service subscriptions keyed by the host's previous UUID must be cleared on transition to BYOD")
 }
 
 func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) {
