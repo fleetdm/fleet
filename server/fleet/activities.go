@@ -421,9 +421,11 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 type ActivityTypeMDMEnrolled struct {
-	// HostID is omitted when zero so Windows enrollments (which don't set it;
-	// see #47874) keep their existing activity payload. It is always set for
-	// Apple enrollments.
+	// HostID is omitted when zero. It is always set for Apple enrollments and
+	// for Windows enrollments where the host is known at enrollment time;
+	// Windows Azure automatic enrollments are linked to their host later (via
+	// the serial reported on the first management session), so their
+	// enrollment activity has no host_id (see #47874).
 	HostID           uint    `json:"host_id,omitempty"`
 	HostSerial       *string `json:"host_serial"`
 	HostDisplayName  string  `json:"host_display_name"`
@@ -1181,6 +1183,7 @@ type ActivityTypeResentConfigurationProfile struct {
 	HostID          *uint   `json:"host_id"`
 	HostDisplayName *string `json:"host_display_name"`
 	ProfileName     string  `json:"profile_name"`
+	ProfileUUID     string  `json:"profile_uuid"`
 }
 
 func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
@@ -1189,6 +1192,7 @@ func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
 
 type ActivityTypeResentConfigurationProfileBatch struct {
 	ProfileName string `json:"profile_name"`
+	ProfileUUID string `json:"profile_uuid"`
 	HostCount   int64  `json:"host_count"`
 }
 
@@ -2259,7 +2263,7 @@ func (a ActivityTypeDeletedSelfServiceCategory) ActivityName() string {
 // for Zendesk, TicketID holds the numeric ticket ID.
 type ActivityTypeRanAutomationTicket struct {
 	PolicyID   uint   `json:"policy_id"`
-	HostIDList []uint `json:"-"`
+	HostIDList []uint `json:"host_ids"`
 	Type       string `json:"type"`
 	TicketKey  string `json:"ticket_key,omitempty"`
 	TicketID   int64  `json:"ticket_id,omitempty"`
@@ -2283,7 +2287,7 @@ func (a ActivityTypeRanAutomationTicket) WasFromAutomation() bool {
 // failing-policy job targeted. The Type field is "jira" or "zendesk".
 type ActivityTypeFailedAutomationTicket struct {
 	PolicyID      uint   `json:"policy_id"`
-	HostIDList    []uint `json:"-"`
+	HostIDList    []uint `json:"host_ids"`
 	Type          string `json:"type"`
 	ErrorResponse string `json:"error_response"`
 }
@@ -2306,7 +2310,7 @@ func (a ActivityTypeFailedAutomationTicket) WasFromAutomation() bool {
 // failing calendar policy the host belongs to, associated with that host.
 type ActivityTypeFailedAutomationCalendarEvent struct {
 	PolicyID      uint   `json:"policy_id"`
-	HostIDList    []uint `json:"-"`
+	HostIDList    []uint `json:"host_ids"`
 	StatusCode    int    `json:"status_code,omitempty"`
 	ErrorResponse string `json:"error_response"`
 }
@@ -2330,7 +2334,7 @@ func (a ActivityTypeFailedAutomationCalendarEvent) WasFromAutomation() bool {
 // associated with that host.
 type ActivityTypeRanAutomationCalendarEvent struct {
 	PolicyID   uint   `json:"policy_id"`
-	HostIDList []uint `json:"-"`
+	HostIDList []uint `json:"host_ids"`
 }
 
 func (a ActivityTypeRanAutomationCalendarEvent) ActivityName() string {
@@ -2351,7 +2355,7 @@ func (a ActivityTypeRanAutomationCalendarEvent) WasFromAutomation() bool {
 // batch.
 type ActivityTypeFailedAutomationWebhook struct {
 	PolicyID      uint   `json:"policy_id"`
-	HostIDList    []uint `json:"-"`
+	HostIDList    []uint `json:"host_ids"`
 	StatusCode    int    `json:"status_code,omitempty"`
 	ErrorResponse string `json:"error_response"`
 }
@@ -2374,7 +2378,7 @@ func (a ActivityTypeFailedAutomationWebhook) WasFromAutomation() bool {
 // that batch. The activity name is "ran_automation_webhook".
 type ActivityTypeRanAutomationWebhook struct {
 	PolicyID   uint   `json:"policy_id"`
-	HostIDList []uint `json:"-"`
+	HostIDList []uint `json:"host_ids"`
 	StatusCode int    `json:"status_code,omitempty"`
 }
 
@@ -2397,7 +2401,7 @@ func (a ActivityTypeRanAutomationWebhook) WasFromAutomation() bool {
 // that host.
 type ActivityTypeFailedAutomationConditionalAccess struct {
 	PolicyID      uint   `json:"policy_id"`
-	HostIDList    []uint `json:"-"`
+	HostIDList    []uint `json:"host_ids"`
 	StatusCode    int    `json:"status_code,omitempty"`
 	ErrorResponse string `json:"error_response"`
 }
@@ -2421,7 +2425,7 @@ func (a ActivityTypeFailedAutomationConditionalAccess) WasFromAutomation() bool 
 // failing, associated with that host.
 type ActivityTypeRanAutomationConditionalAccess struct {
 	PolicyID   uint   `json:"policy_id"`
-	HostIDList []uint `json:"-"`
+	HostIDList []uint `json:"host_ids"`
 }
 
 func (a ActivityTypeRanAutomationConditionalAccess) ActivityName() string {
