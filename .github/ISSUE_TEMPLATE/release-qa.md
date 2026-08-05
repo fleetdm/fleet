@@ -336,7 +336,7 @@ Reference: https://fleetdm.com/pricing
 
 **Blank enrollment**
 
-3. Enroll an Auto-Pilot host into "No team" with nothing configured and verify the ESP completes.
+3. Enroll an Auto-Pilot host into "No fleet" with nothing configured and verify the ESP completes.
 
 </td>
 </tr>
