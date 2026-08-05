@@ -1123,6 +1123,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		http.StatusOK,
 		&titleResp,
 	)
+	s.Equal(titleID, titleResp.SoftwareTitle.ID)
 	s.Nil(titleResp.SoftwareTitle.SoftwarePackage)
 	s.Empty(titleResp.SoftwareTitle.Packages)
 }
