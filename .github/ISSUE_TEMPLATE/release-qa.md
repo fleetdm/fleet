@@ -302,11 +302,11 @@ Reference: https://fleetdm.com/pricing
 
 **Progress**
 - [ ] MDM enrollment flow
+- [ ] Setup experience (Autopilot enrollment)
 - [ ] MDM migration flow
 - [ ] OS settings
 - [ ] Disk encryption
 - [ ] OS updates
-- [ ] Setup experience (Autopilot enrollment)
 - [ ] Android
 - [ ] Fleet Free
 
@@ -319,8 +319,33 @@ Reference: https://fleetdm.com/pricing
 <td>
 
 1. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
-2. Erase an Auto-Pilot enabled Windows host and complete automated enrollment flow.
-3. Verify able to run MDM commands on Windows hosts from the CLI.
+2. Verify able to run MDM commands on Windows hosts from the CLI.
+
+</td>
+</tr>
+
+<tr>
+<td>Setup experience (Autopilot enrollment)</td>
+<td>Verify Windows Setup experience via Autopilot/Entra OOBE enrollment, both fully configured and with nothing configured.</td>
+<td>
+
+**Full configuration**
+
+1. Create a team and configure the setup experience so the enrollment exercises every setup-related item:
+   - End user authentication.
+   - A configuration profile.
+   - OS updates (Windows).
+   - Disk encryption (BitLocker).
+   - Software to install during setup (FMA, Custom pkg).
+2. Erase an Auto-Pilot-enabled Windows host and complete OOBE enrollment into the configured team.
+3. Verify the Enrollment Status Page (ESP) advances through Device preparation and Account setup and reaches the desktop.
+4. Verify the configuration profile, OS updates, disk encryption, and software are all applied.
+
+**Blank enrollment** (regression for [#49134](https://github.com/fleetdm/fleet/issues/49134))
+
+5. Erase an Auto-Pilot-enabled Windows host and enroll into "No team" with nothing configured (no config profiles, software, OS updates, or disk encryption).
+6. Repeat the blank enrollment 2-3 times — the original failure was an intermittent race, so a single pass does not prove correctness.
+7. Verify on every run that the ESP completes and the host reaches the desktop — it must not hang on "Account setup".
 
 </td>
 </tr>
@@ -363,30 +388,6 @@ Reference: https://fleetdm.com/pricing
 <td>
 
 1. Configure OS updates (Windows).
-
-</td>
-</tr>
-
-<tr>
-<td>Setup experience (Autopilot enrollment)</td>
-<td>Verify Windows Setup experience via Autopilot/Entra OOBE enrollment, both fully configured and with nothing configured.</td>
-<td>
-
-**Full configuration**
-1. Create a team and configure the setup experience so the enrollment exercises every setup-related item:
-   - End user authentication.
-   - A configuration profile.
-   - OS updates (Windows).
-   - Disk encryption (BitLocker).
-   - Software to install during setup (FMA, Custom pkg).
-2. Erase an Auto-Pilot-enabled Windows host and complete OOBE enrollment into the configured team.
-3. Verify the Enrollment Status Page (ESP) advances through Device preparation and Account setup and reaches the desktop.
-4. Verify the configuration profile, OS updates, disk encryption, and software are all applied.
-
-**Blank enrollment** (regression for [#49134](https://github.com/fleetdm/fleet/issues/49134))
-5. Erase an Auto-Pilot-enabled Windows host and enroll into "No team" with nothing configured (no config profiles, software, OS updates, or disk encryption).
-6. Repeat the blank enrollment 2-3 times — the original failure was an intermittent race, so a single pass does not prove correctness.
-7. Verify on every run that the ESP completes and the host reaches the desktop — it must not hang on "Account setup".
 
 </td>
 </tr>
