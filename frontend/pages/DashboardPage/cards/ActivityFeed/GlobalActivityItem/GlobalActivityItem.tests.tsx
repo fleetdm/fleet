@@ -294,6 +294,41 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders a user_mfa_requested type activity globally", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserMFARequested,
+      details: { email: "foo@example.com", public_ip: "192.168.0.1" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "submitted valid credentials for an MFA-enabled account and was sent a verification email from public IP 192.168.0.1.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("foo@example.com", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a user_mfa_requested without an email", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserMFARequested,
+      details: { email: "", public_ip: "192.168.0.1" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("Somebody submitted valid credentials", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("from public IP 192.168.0.1.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
   // // // // // // // // // // // //
   // created_user tests
   // // // // // //// // // // // //
@@ -682,6 +717,30 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alex's Macbook Air")).toBeInTheDocument();
+  });
+
+  it("renders an 'enabled_managed_local_account' activity with the platform, defaulting to macOS", () => {
+    const windowsActivity = createMockActivity({
+      type: ActivityType.EnabledManagedLocalAccount,
+      details: { team_name: "Workstations", platform: "windows" },
+    });
+    const { unmount } = render(
+      <GlobalActivityItem activity={windowsActivity} isPremiumTier />
+    );
+    expect(
+      screen.getByText("Windows hosts assigned to the", { exact: false })
+    ).toBeInTheDocument();
+    unmount();
+
+    // activities created before the platform detail existed omit it, which means macOS
+    const legacyActivity = createMockActivity({
+      type: ActivityType.DisabledManagedLocalAccount,
+      details: {},
+    });
+    render(<GlobalActivityItem activity={legacyActivity} isPremiumTier />);
+    expect(
+      screen.getByText("unassigned macOS hosts.", { exact: false })
+    ).toBeInTheDocument();
   });
 
   it("renders a 'rotated_managed_local_account_password' type activity", () => {
@@ -2201,6 +2260,38 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Bears/i)).toBeInTheDocument();
     expect(screen.getByText(/fleet/i)).toBeInTheDocument();
+  });
+  it("renders a createdSetupExperienceScript type activity for a fleet", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CreatedSetupExperienceScript,
+      details: {
+        script_name: "set-timezones.sh",
+        fleet_name: "Bears",
+        fleet_id: 1,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/added setup experience script/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/set-timezones.sh/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bears/i)).toBeInTheDocument();
+  });
+  it("renders a deletedSetupExperienceScript type activity for unassigned hosts", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedSetupExperienceScript,
+      details: {
+        script_name: "set-timezones.sh",
+        fleet_name: null,
+        fleet_id: null,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/deleted setup experience script/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/set-timezones.sh/i)).toBeInTheDocument();
+    expect(screen.getByText(/unassigned/i)).toBeInTheDocument();
   });
   it("renders an enabledMacosUpdateNewHosts activity for a team", () => {
     const activity = createMockActivity({

@@ -7,7 +7,6 @@ import { IConfig } from "interfaces/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import RevealButton from "components/buttons/RevealButton";
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -198,12 +197,13 @@ const PlatformWrapper = ({
                 </>
               )}
               <Button
-                variant="inverse"
+                variant="secondary"
                 className={`${baseClass}__fleet-certificate-download`}
                 onClick={onDownloadCertificate}
+                icon="download"
+                iconPosition="right"
               >
                 Download
-                <Icon name="download" size="small" />
               </Button>
             </p>
           ) : (
@@ -393,13 +393,13 @@ const PlatformWrapper = ({
                   Osquery uses an enroll secret to authenticate with the Fleet
                   server.
                   <br />
-                  <Button variant="inverse" onClick={onDownloadEnrollSecret}>
+                  <Button
+                    variant="secondary"
+                    onClick={onDownloadEnrollSecret}
+                    icon="download"
+                    iconPosition="right"
+                  >
                     Download
-                    <Icon
-                      name="download"
-                      color="ui-fleet-black-75"
-                      size="small"
-                    />
                   </Button>
                 </p>
               </div>
@@ -418,9 +418,13 @@ const PlatformWrapper = ({
                       {fetchCertificateError}
                     </span>
                   ) : (
-                    <Button variant="inverse" onClick={onDownloadFlagfile}>
+                    <Button
+                      variant="secondary"
+                      onClick={onDownloadFlagfile}
+                      icon="download"
+                      iconPosition="right"
+                    >
                       Download
-                      <Icon name="download" size="small" />
                     </Button>
                   )}
                 </p>

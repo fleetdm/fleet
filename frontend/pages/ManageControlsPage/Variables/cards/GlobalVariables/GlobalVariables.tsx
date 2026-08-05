@@ -22,11 +22,9 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import PageDescription from "components/PageDescription";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
 
 import generateTableHeaders from "./GlobalVariablesTableConfig";
 import AddCustomVariableModal from "../../components/AddCustomVariableModal";
@@ -116,11 +114,6 @@ const GlobalVariables = ({ router, location }: IGlobalVariablesProps) => {
     [canEdit, onClickDeleteVariable]
   );
 
-  const renderCount = useCallback(
-    () => <TableCount name="variables" count={count} />,
-    [count]
-  );
-
   const isEmpty = !isLoading && count === 0;
 
   const renderContent = () => {
@@ -170,7 +163,6 @@ const GlobalVariables = ({ router, location }: IGlobalVariablesProps) => {
         emptyComponent={() => <EmptyState header="No custom variables" />}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        renderCount={renderCount}
         onQueryChange={onQueryChange}
         pageIndex={pageNumber}
         pageSize={VARIABLES_PAGE_SIZE}
@@ -181,31 +173,29 @@ const GlobalVariables = ({ router, location }: IGlobalVariablesProps) => {
 
   return (
     <div className={baseClass}>
-      <SectionHeader
-        title="Global variables"
-        alignLeftHeaderVertically
-        details={
-          canEdit ? (
-            <GitOpsModeTooltipWrapper
-              renderChildren={(disableChildren) => (
-                <Button
-                  variant="inverse"
-                  size="small"
-                  onClick={onClickAddVariable}
-                  disabled={disableChildren}
-                >
-                  <Icon name="plus" />
-                  <span>Add variable</span>
-                </Button>
-              )}
-            />
-          ) : undefined
-        }
-      />
-      <PageDescription
-        variant="tab-panel"
-        content="Manage one-off variables that reference the same value across all hosts."
-      />
+      <SectionHeader title="Global variables" alignLeftHeaderVertically />
+      <div className={`${baseClass}__tab-header`}>
+        <PageDescription
+          variant="tab-panel"
+          content="Manage one-off variables that reference the same value across all hosts."
+        />
+        {canEdit && (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={onClickAddVariable}
+                disabled={disableChildren}
+                icon="plus"
+              >
+                Add variable
+              </Button>
+            )}
+          />
+        )}
+      </div>
       {renderContent()}
       {showAddModal && (
         <AddCustomVariableModal

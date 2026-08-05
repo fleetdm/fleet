@@ -462,6 +462,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
 	config.MDM.ValidateAndroidBatchSize(initFatal)
+	config.GoogleWorkspace.Validate(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
 		logger,
@@ -1116,8 +1117,10 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
 	chartSvc.RegisterDataset(&chart.CVEDataset{})
 	// Create auth middleware for chart bounded context
+	// Makes sure that api_only users are subject to endpoint
+	// restrictions on chart routes.
 	chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return auth.AuthenticatedUser(svc, next)
+		return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
 	}
 	chartRoutes := chartRoutesFn(chartAuthMiddleware)
 	return chartSvc, chartRoutes

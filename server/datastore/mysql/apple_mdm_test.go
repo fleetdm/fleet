@@ -94,6 +94,7 @@ func TestMDMApple(t *testing.T) {
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
 		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
+		{"MDMAppleCustomActivations", testMDMAppleCustomActivations},
 		{"NewMDMAppleDeclarationSoftwareUpdateTracking", testNewMDMAppleDeclarationSoftwareUpdateTracking},
 		{"SetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking", testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking},
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
@@ -111,6 +112,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
+		{"ABMTokensTokenInvalid", testMDMAppleABMTokensTokenInvalid},
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 		{"HostMDMCommands", testHostMDMCommands},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
@@ -5923,16 +5925,18 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 
 func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	createBuiltinLabels(t, ds)
 
-	newHost := func(uuidSuffix string) *fleet.Host {
+	newHost := func(uuidSuffix, platform string) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "reset-host-" + uuidSuffix,
 			OsqueryHostID: ptr.String("reset-osq-" + uuidSuffix),
 			NodeKey:       ptr.String("reset-key-" + uuidSuffix),
 			UUID:          "reset-uuid-" + uuidSuffix,
-			Platform:      "darwin",
+			Platform:      platform,
 		})
 		require.NoError(t, err)
+		require.NoError(t, upsertMDMAppleHostLabelMembershipDB(ctx, ds.writer(ctx), ds.logger, *h))
 		return h
 	}
 
@@ -5943,7 +5947,7 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 	seedHostData := func(t *testing.T, h *fleet.Host) {
 		// label_membership (host_id ref - covered by appleHostRefsForMDMReset)
 		_, err := ds.writer(ctx).ExecContext(ctx,
-			`INSERT INTO labels (name, query) VALUES (?, ?)`,
+			`INSERT INTO labels (name, description, query, platform) VALUES (?, '', ?, '')`,
 			"label-"+h.UUID, "select 1")
 		require.NoError(t, err)
 		var labelID uint
@@ -5991,11 +5995,20 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 			`SELECT COUNT(*) FROM mdm_apple_psso_keys WHERE host_uuid = ?`, h.UUID))
 		return c
 	}
-	seeded := counts{label: 1, upcoming: 1, pssoDevice: 1, pssoKey: 1}
+	labelNames := func(t *testing.T, h *fleet.Host) []string {
+		labels, err := ds.ListLabelsForHost(ctx, h.ID)
+		require.NoError(t, err)
+		names := make([]string, 0, len(labels))
+		for _, label := range labels {
+			names = append(names, label.Name)
+		}
+		return names
+	}
+	seeded := counts{label: 3, upcoming: 1, pssoDevice: 1, pssoKey: 1}
 
 	t.Run("clears expected tables and leaves other hosts untouched", func(t *testing.T) {
-		hostA := newHost("clear-A")
-		hostB := newHost("clear-B")
+		hostA := newHost("clear-A", "ipados")
+		hostB := newHost("clear-B", "darwin")
 		seedHostData(t, hostA)
 		seedHostData(t, hostB)
 
@@ -6005,15 +6018,17 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 
 		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
 
-		// host A: everything cleared
-		assert.Equal(t, counts{}, countRows(t, hostA))
+		// Host A keeps only its built-in memberships.
+		assert.Equal(t, counts{label: 2}, countRows(t, hostA))
+		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelIPadOS}, labelNames(t, hostA))
 
-		// host B: untouched (control - proves the reset is host-scoped)
+		// Host B is untouched, including its custom membership.
 		assert.Equal(t, seeded, countRows(t, hostB))
+		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameMacOS, "label-" + hostB.UUID}, labelNames(t, hostB))
 	})
 
 	t.Run("returns error and changes nothing when host UUID does not exist", func(t *testing.T) {
-		hostA := newHost("err-A")
+		hostA := newHost("err-A", "ipados")
 		seedHostData(t, hostA)
 
 		err := ds.MDMAppleResetOnReenrollment(ctx, "nonexistent-uuid-xyz", true)
@@ -6093,8 +6108,8 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("preserveHostActivities flag controls past activity history", func(t *testing.T) {
-		hostA := newHost("preserve-A")
-		hostB := newHost("preserve-B")
+		hostA := newHost("preserve-A", "ipados")
+		hostB := newHost("preserve-B", "ipados")
 		seedHostActivityData(t, hostA)
 		seedHostActivityData(t, hostB)
 
@@ -9022,6 +9037,85 @@ func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
 	count, err = ds.CountABMTokensWithTermsExpired(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, count)
+}
+
+func testMDMAppleABMTokensTokenInvalid(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// create a couple of tokens
+	encTok1 := uuid.NewString()
+	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm1", EncryptedToken: []byte(encTok1), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t1.ID)
+	encTok2 := uuid.NewString()
+	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm2", EncryptedToken: []byte(encTok2), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t2.ID)
+
+	// neither token is invalid yet
+	got, err := ds.GetABMTokenByOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, got.TokenInvalid)
+
+	invalid, err := ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
+	// set t1 invalid
+	was, err := ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, true)
+	require.NoError(t, err)
+	require.False(t, was) // previous value was false
+
+	got, err = ds.GetABMTokenByOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.True(t, got.TokenInvalid)
+
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.True(t, invalid)
+
+	// t2 is unaffected
+	got, err = ds.GetABMTokenByOrgName(ctx, t2.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, got.TokenInvalid)
+
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t2.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
+	// setting t1 invalid again is a no-op, previous value was already true
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, true)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// clear t1
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, false)
+	require.NoError(t, err)
+	require.True(t, was) // previous value was true
+
+	got, err = ds.GetABMTokenByOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, got.TokenInvalid)
+
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
+	// setting the invalid flag of a non-existing token always returns as if it
+	// did not update (which is fine, it will only be called after a DEP API
+	// call that used this token, so if the token does not exist it would fail
+	// the call).
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, "no-such-token", false)
+	require.NoError(t, err)
+	require.False(t, was)
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, "no-such-token", true)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// reading the invalid flag of a non-existing token is a not-found error
+	_, err = ds.IsABMTokenInvalidForOrgName(ctx, "no-such-token")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
@@ -13796,4 +13890,187 @@ func testGetABMOrganizationNamesAssociatedByDefaultTeams(t *testing.T, ds *Datas
 
 	_, err := ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, nil)
 	require.Error(t, err)
+}
+
+func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	declRaw := []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.act-test","Payload":{"Echo":"foo"}}`)
+	actRaw := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act-test.custom","Payload":{"StandardConfigurations":["com.fleet.act-test"],"Predicate":"@status(os.version.major) >= 15"}}`)
+
+	newDecl := func(activation *fleet.MDMAppleCustomActivation) *fleet.MDMAppleDeclaration {
+		return &fleet.MDMAppleDeclaration{
+			Identifier: "com.fleet.act-test",
+			Name:       "act-test",
+			RawJSON:    declRaw,
+			Activation: activation,
+		}
+	}
+
+	// A declaration uploaded with an activation stores it, linked by UUID.
+	decl, err := ds.NewMDMAppleDeclaration(ctx, newDecl(&fleet.MDMAppleCustomActivation{
+		Identifier:              "com.fleet.act-test.custom",
+		RawJSON:                 actRaw,
+		ConfigurationIdentifier: "com.fleet.act-test",
+	}), nil)
+	require.NoError(t, err)
+
+	var stored struct {
+		ActivationUUID          string `db:"activation_uuid"`
+		Identifier              string `db:"identifier"`
+		RawJSON                 []byte `db:"raw_json"`
+		DeclarationUUID         string `db:"declaration_uuid"`
+		ConfigurationIdentifier string `db:"configuration_identifier"`
+	}
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stored,
+		`SELECT activation_uuid, identifier, raw_json, declaration_uuid, configuration_identifier
+		 FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.Equal(t, "com.fleet.act-test.custom", stored.Identifier)
+	require.JSONEq(t, string(actRaw), string(stored.RawJSON))
+	require.Equal(t, decl.DeclarationUUID, stored.DeclarationUUID)
+	require.Equal(t, "com.fleet.act-test", stored.ConfigurationIdentifier)
+	require.NotEmpty(t, stored.ActivationUUID)
+
+	// It comes back on the list endpoint, base64 is applied at the JSON layer.
+	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	var found bool
+	for _, p := range profs {
+		if p.ProfileUUID == decl.DeclarationUUID {
+			found = true
+			require.JSONEq(t, string(actRaw), string(p.Activation))
+		}
+	}
+	require.True(t, found, "declaration missing from list")
+
+	// Editing the activation keeps the same row rather than creating a second.
+	editedAct := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act-test.custom","Payload":{"StandardConfigurations":["com.fleet.act-test"],"Predicate":"@status(os.version.major) >= 26"}}`)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(&fleet.MDMAppleCustomActivation{
+		Identifier:              "com.fleet.act-test.custom",
+		RawJSON:                 editedAct,
+		ConfigurationIdentifier: "com.fleet.act-test",
+	}), nil)
+	require.NoError(t, err)
+
+	var count int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.Equal(t, 1, count)
+
+	var rawAfterEdit []byte
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &rawAfterEdit,
+		`SELECT raw_json FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.JSONEq(t, string(editedAct), string(rawAfterEdit))
+
+	// The single-profile read returns it too.
+	fetched, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+	require.NotNil(t, fetched.Activation)
+	require.JSONEq(t, string(editedAct), string(fetched.Activation.RawJSON))
+	require.Equal(t, "com.fleet.act-test.custom", fetched.Activation.Identifier)
+
+	// Fleet variables in the activation are associated with it, not with the
+	// declaration, and satisfy the exactly-one-owner check constraint.
+	varAct := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act-test.custom","Payload":{"StandardConfigurations":["com.fleet.act-test"],"Predicate":"$FLEET_VAR_HOST_UUID"}}`)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(&fleet.MDMAppleCustomActivation{
+		Identifier:              "com.fleet.act-test.custom",
+		RawJSON:                 varAct,
+		ConfigurationIdentifier: "com.fleet.act-test",
+		FleetVariables:          []fleet.FleetVarName{fleet.FleetVarHostUUID},
+	}), nil)
+	require.NoError(t, err)
+
+	var activationUUID string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &activationUUID,
+		`SELECT activation_uuid FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+
+	var varCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
+		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
+	require.Equal(t, 1, varCount)
+
+	// An identifier already used by another declaration's activation is
+	// rejected rather than silently overwriting that declaration's row.
+	_, err = ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.act-test.other",
+		Name:       "act-test-other",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.act-test.other","Payload":{"Echo":"bar"}}`),
+	}, nil)
+	require.NoError(t, err)
+
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.act-test.other",
+		Name:       "act-test-other",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.act-test.other","Payload":{"Echo":"bar"}}`),
+		Activation: &fleet.MDMAppleCustomActivation{
+			// same identifier as the first declaration's activation
+			Identifier:              "com.fleet.act-test.custom",
+			RawJSON:                 actRaw,
+			ConfigurationIdentifier: "com.fleet.act-test.other",
+		},
+	}, nil)
+	require.Error(t, err)
+	// A conflict rather than an exists error, so callers don't report it as a
+	// clash on the configuration profile's identifier.
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr, "expected a conflict error, got %v", err)
+	require.ErrorContains(t, err, "An activation with this identifier already exists.")
+
+	// the first declaration's activation is untouched
+	var stillOwned string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stillOwned,
+		`SELECT declaration_uuid FROM mdm_apple_ddm_activations WHERE identifier = 'com.fleet.act-test.custom'`))
+	require.Equal(t, decl.DeclarationUUID, stillOwned)
+
+	// Deleting a declaration through the datastore removes its activation.
+	// The migration test proves the FK cascade with raw SQL; this proves the
+	// path the delete endpoint actually takes.
+	otherActDecl, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.act-test.other",
+		Name:       "act-test-other",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.act-test.other","Payload":{"Echo":"bar"}}`),
+		Activation: &fleet.MDMAppleCustomActivation{
+			Identifier:              "com.fleet.act-test.other.custom",
+			RawJSON:                 []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act-test.other.custom","Payload":{"StandardConfigurations":["com.fleet.act-test.other"]}}`),
+			ConfigurationIdentifier: "com.fleet.act-test.other",
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.DeleteMDMAppleDeclaration(ctx, otherActDecl.DeclarationUUID))
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, otherActDecl.DeclarationUUID))
+	require.Zero(t, count, "deleting a declaration must remove its activation")
+
+	// A write that carries the activation forward without restating its
+	// variables must not drop the associations. This is the shape a
+	// labels-only edit produces, since the service reuses the activation
+	// returned by GetMDMAppleDeclaration, which doesn't load them.
+	carried, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+	require.NotNil(t, carried.Activation)
+	require.Empty(t, carried.Activation.FleetVariables, "loaded activation carries no variables")
+
+	carriedAct := *carried.Activation
+	carriedAct.FleetVariables = []fleet.FleetVarName{fleet.FleetVarHostUUID}
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(&carriedAct), nil)
+	require.NoError(t, err)
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
+		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
+	require.Equal(t, 1, varCount)
+
+	// Re-uploading the declaration without an activation removes it, and the
+	// FK cascade takes the variable association with it.
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil)
+	require.NoError(t, err)
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.Zero(t, count)
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
+		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
+	require.Zero(t, varCount)
 }

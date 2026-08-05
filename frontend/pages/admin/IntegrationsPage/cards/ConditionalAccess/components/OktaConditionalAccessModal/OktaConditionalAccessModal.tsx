@@ -11,7 +11,6 @@ import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { getErrorReason } from "interfaces/errors";
@@ -303,12 +302,14 @@ const OktaConditionalAccessModal = ({
           </TooltipWrapper>
           <br />
           <Button
-            variant="inverse"
+            variant="secondary"
             onClick={onDownloadSigningCert}
             isLoading={isDownloadingCert}
             disabled={isDownloadingCert}
+            icon="download"
+            iconPosition="right"
           >
-            Download certificate <Icon name="download" />
+            <span>Download certificate</span>
           </Button>
         </div>
 
@@ -366,7 +367,7 @@ const OktaConditionalAccessModal = ({
           }
           internalError={formErrors[OKTA_CERTIFICATE]}
           onFileUpload={onSelectFile}
-          buttonType="brand-inverse-icon"
+          buttonType="secondary"
           buttonMessage="Upload"
           accept=".pem,.crt,.cer,.cert"
           fileDetails={certFile ? { name: certFile.name } : undefined}
@@ -380,7 +381,7 @@ const OktaConditionalAccessModal = ({
           >
             Save
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

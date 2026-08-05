@@ -10,7 +10,6 @@ import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { monthDayTimeFormat } from "utilities/date_format";
@@ -115,12 +114,12 @@ const ManagedAccountModal = ({
               <Button onClick={onCancel}>Close</Button>
               {canRotatePassword && (
                 <Button
-                  variant="inverse"
+                  variant="secondary"
                   onClick={onRotatePassword}
                   disabled={isRotating}
                   className={`${baseClass}__rotate-button`}
+                  icon="refresh"
                 >
-                  <Icon name="refresh" />
                   {isRotating ? "Rotating..." : "Rotate password"}
                 </Button>
               )}

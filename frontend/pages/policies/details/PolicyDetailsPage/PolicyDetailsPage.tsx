@@ -413,14 +413,14 @@ const PolicyDetailsPage = ({
                 <Button
                   className={`${baseClass}__show-query-btn`}
                   onClick={() => setShowQueryModal(true)}
-                  variant="inverse"
+                  variant="secondary"
                 >
                   Show query
                 </Button>
                 {canRunPolicy && (
                   <Button
                     className={`${baseClass}__run`}
-                    variant="inverse"
+                    variant="secondary"
                     onClick={() => {
                       policyId &&
                         router.push(
@@ -430,8 +430,10 @@ const PolicyDetailsPage = ({
                         );
                     }}
                     disabled={!!disabledLiveQuery}
+                    icon="run"
+                    iconPosition="right"
                   >
-                    Run policy <Icon name="run" />
+                    Run policy
                   </Button>
                 )}
                 {canEditPolicy && (

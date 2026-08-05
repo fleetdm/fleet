@@ -1,0 +1,1 @@
+- Improved software ingestion performance at scale: batched `host_software_installed_paths` deletes (previously unbounded single statements) and eliminated `software_titles` INSERT lock convoys during concurrent ingestion by moving title inserts outside the main transaction with singleflight deduplication.

@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2.4",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'HP Prime Virtual Calculator';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'HP Prime Virtual Calculator' AND version_compare(version, '2.4') < 0);"
+      },
+      "installer_url": "https://updates.moravia-consulting.com/HP_Prime_Virtual_Calculator_x64_2025_09_15.exe",
+      "install_script_ref": "198b4efd",
+      "uninstall_script_ref": "489cd493",
+      "sha256": "de9a063ef839eea85e75d78c77a688d2bd9d373542514864a87db8dd4ba9ca58",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "198b4efd": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# HP Prime Virtual Calculator ships as a WiX Burn bundle; /quiet /norestart\n# installs it silently machine-wide.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" -ArgumentList \"/quiet /norestart\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "489cd493": "# Uninstalls HP Prime Virtual Calculator (WiX Burn bundle). Runs the cached\n# bundle's QuietUninstallString (/uninstall /quiet).\n\n$softwareName = \"HP Prime Virtual Calculator\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys | Where-Object { $_.DisplayName -eq $softwareName } | Select-Object -First 1\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\n$raw = if ($selected.QuietUninstallString) { $selected.QuietUninstallString } else { $selected.UninstallString }\nif ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} else {\n    $exe = $raw; $exeArgs = \"\"\n}\nif ($exeArgs -notmatch '(?i)(^|\\s)/uninstall(\\s|$)') { $exeArgs = \"/uninstall $exeArgs\".Trim() }\nif ($exeArgs -notmatch '(?i)(^|\\s)/quiet(\\s|$)') { $exeArgs = \"$exeArgs /quiet\".Trim() }\nif ($exeArgs -notmatch '(?i)/norestart') { $exeArgs = \"$exeArgs /norestart\".Trim() }\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $exeArgs\"\n$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n"
+  }
+}
