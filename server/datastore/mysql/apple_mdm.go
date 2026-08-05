@@ -4827,39 +4827,12 @@ func (ds *Datastore) updateDeclarationsAssetAssociations(ctx context.Context, tx
 		if incoming == nil {
 			continue
 		}
-		refs := incoming.AssetReferenceUUIDs
 
-		// Remove references that are no longer present, keeping only the incoming set.
-		delStmt := `DELETE FROM mdm_apple_declaration_asset_references WHERE declaration_uuid = ?`
-		delArgs := []any{decl.DeclarationUUID}
-		if len(refs) > 0 {
-			delStmt, delArgs, err = sqlx.In(`DELETE FROM mdm_apple_declaration_asset_references
-				WHERE declaration_uuid = ? AND asset_uuid NOT IN (?)`, decl.DeclarationUUID, refs)
-			if err != nil {
-				return false, ctxerr.Wrap(ctx, err, "building delete stale asset references query")
-			}
+		updated, err := setMDMAppleDeclarationAssetReferencesDB(ctx, tx, decl.DeclarationUUID, incoming.AssetReferenceUUIDs)
+		if err != nil {
+			return false, err
 		}
-		if res, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "deleting stale declaration asset references")
-		} else if aff, _ := res.RowsAffected(); aff > 0 {
-			updatedDB = true
-		}
-
-		if len(refs) == 0 {
-			continue
-		}
-
-		insStmt := `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid) VALUES ` +
-			strings.Repeat("(?, ?),", len(refs)-1) + "(?, ?) ON DUPLICATE KEY UPDATE asset_uuid = VALUES(asset_uuid)"
-		insArgs := make([]any, 0, len(refs)*2)
-		for _, ref := range refs {
-			insArgs = append(insArgs, decl.DeclarationUUID, ref)
-		}
-		if res, err := tx.ExecContext(ctx, insStmt, insArgs...); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "inserting declaration asset references")
-		} else if aff, _ := res.RowsAffected(); aff > 0 {
-			updatedDB = true
-		}
+		updatedDB = updatedDB || updated
 	}
 
 	return updatedDB, nil
@@ -5249,7 +5222,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			return ctxerr.Wrap(ctx, err, "reload apple mdm declaration")
 		}
 
-		if err := setMDMAppleDeclarationAssetReferencesDB(ctx, tx, declUUID, declaration.AssetReferenceUUIDs); err != nil {
+		if _, err := setMDMAppleDeclarationAssetReferencesDB(ctx, tx, declUUID, declaration.AssetReferenceUUIDs); err != nil {
 			return err
 		}
 
@@ -5316,23 +5289,25 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 // single declaration against the incoming set, so an edit that drops an asset
 // doesn't leave the old reference behind. The declaration UUID must be the one
 // stored in mdm_apple_declarations (an upsert keeps the pre-existing UUID).
-func setMDMAppleDeclarationAssetReferencesDB(ctx context.Context, tx sqlx.ExtContext, declUUID string, assetRefs []string) error {
+func setMDMAppleDeclarationAssetReferencesDB(ctx context.Context, tx sqlx.ExtContext, declUUID string, assetRefs []string) (updatedDB bool, err error) {
+	// Remove references that are no longer present, keeping only the incoming set.
 	delStmt := `DELETE FROM mdm_apple_declaration_asset_references WHERE declaration_uuid = ?`
 	delArgs := []any{declUUID}
 	if len(assetRefs) > 0 {
-		var err error
 		delStmt, delArgs, err = sqlx.In(`DELETE FROM mdm_apple_declaration_asset_references
 			WHERE declaration_uuid = ? AND asset_uuid NOT IN (?)`, declUUID, assetRefs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete stale apple mdm declaration asset references query")
+			return false, ctxerr.Wrap(ctx, err, "building delete stale declaration asset references query")
 		}
 	}
-	if _, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting stale apple mdm declaration asset references")
+	if res, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "deleting stale declaration asset references")
+	} else if aff, _ := res.RowsAffected(); aff > 0 {
+		updatedDB = true
 	}
 
 	if len(assetRefs) == 0 {
-		return nil
+		return updatedDB, nil
 	}
 
 	insStmt := `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid) VALUES ` +
@@ -5341,11 +5316,13 @@ func setMDMAppleDeclarationAssetReferencesDB(ctx context.Context, tx sqlx.ExtCon
 	for _, ref := range assetRefs {
 		insArgs = append(insArgs, declUUID, ref)
 	}
-	if _, err := tx.ExecContext(ctx, insStmt, insArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting apple mdm declaration asset references")
+	if res, err := tx.ExecContext(ctx, insStmt, insArgs...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "inserting declaration asset references")
+	} else if aff, _ := res.RowsAffected(); aff > 0 {
+		updatedDB = true
 	}
 
-	return nil
+	return updatedDB, nil
 }
 
 // Keyed on declaration_uuid rather than inserted fresh, so an edit keeps the
