@@ -2512,6 +2512,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMOSUpdatesTargetVariables() {
 
 	// === Phase 1: host syncs, target not ready -> pending with detail ===
 	_, _, initialVarsUpdated, identifier := readDecl()
+	require.NotNil(t, initialVarsUpdated)
 	resp, err := mdmDevice.DeclarativeManagement("declaration/configuration/" + identifier)
 	require.NoError(t, err)
 	body, err := io.ReadAll(resp.Body)

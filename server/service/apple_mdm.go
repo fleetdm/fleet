@@ -7225,9 +7225,8 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 		if d.VariablesUpdatedAt != nil {
 			if d.RawJSON != nil {
 				if _, err := svc.replaceDeclarationFleetVariables(ctx, string(*d.RawJSON), hostUUID); err != nil {
-					var notReadyYetErr notReadyYetError
-					if errors.As(err, &notReadyYetErr) {
-						if err := svc.markDeclarationPending(ctx, hostUUID, d.DeclarationUUID, notReadyYetErr.Message); err != nil {
+					if nryErr, ok := errors.AsType[notReadyYetError](err); ok {
+						if err := svc.markDeclarationPending(ctx, hostUUID, d.DeclarationUUID, nryErr.Message); err != nil {
 							return nil, ctxerr.Wrap(ctx, err, "mark declaration as pending")
 						}
 						continue
@@ -7442,9 +7441,8 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 	// Replace Fleet variables with host-specific values
 	expanded, err = svc.replaceDeclarationFleetVariables(ctx, expanded, hostUUID)
 	if err != nil {
-		var notReadyYetErr notReadyYetError
-		if errors.As(err, &notReadyYetErr) {
-			if err := svc.markDeclarationPending(ctx, hostUUID, d.DeclarationUUID, notReadyYetErr.Message); err != nil {
+		if nryErr, ok := errors.AsType[notReadyYetError](err); ok {
+			if err := svc.markDeclarationPending(ctx, hostUUID, d.DeclarationUUID, nryErr.Message); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "mark declaration as pending")
 			}
 			return nil, nil

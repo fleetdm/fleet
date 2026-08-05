@@ -14089,8 +14089,8 @@ func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(hostUUID),
-			NodeKey:         ptr.String(hostUUID),
+			OsqueryHostID:   new(hostUUID),
+			NodeKey:         new(hostUUID),
 			UUID:            hostUUID,
 			Hostname:        hostUUID,
 			Platform:        platform,
@@ -14122,14 +14122,14 @@ func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, []string{hMacTeam.UUID}, uuidsOf(got))
 		require.Equal(t, "darwin", got[0].Platform)
-		require.EqualValues(t, team.ID, got[0].TeamID)
+		require.Equal(t, team.ID, got[0].TeamID)
 	})
 
 	t.Run("ListForReconcile matches no-team hosts via team_id 0", func(t *testing.T) {
 		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(map[uint]int{0: 2}, nil, nil))
 		require.NoError(t, err)
 		require.Equal(t, []string{hMacNoTeam.UUID}, uuidsOf(got))
-		require.EqualValues(t, 0, got[0].TeamID)
+		require.Equal(t, 0, got[0].TeamID)
 	})
 
 	t.Run("ListForReconcile returns hosts with an existing target even without a latest team", func(t *testing.T) {
