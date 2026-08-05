@@ -49,6 +49,7 @@
 | `install_script_path`    | string        | Filepath to a custom install script (`.sh`). Overrides the generated install script. Script must be placed in `inputs/homebrew/scripts/`.                                                                                                      |
 | `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.sh`). Overrides the generated uninstall script. Cannot be used together with `pre_uninstall_scripts` or `post_uninstall_scripts`. Script must be placed in `inputs/homebrew/scripts/`.                 |
 | `cask_path`              | string        | Path (relative to the repo root) to a local file containing the cask JSON in the same schema as `https://formulae.brew.sh/api/cask/<token>.json`. Used to commit cask metadata for third-party taps directly into this repo under [`inputs/homebrew/custom-tap/`](inputs/homebrew/custom-tap/). See [Ingesting apps from a custom tap](#ingesting-apps-from-a-custom-tap) below. |
+| `signature`              | object        | Pinned signing identity for the app's installer; see [Installer verification and signature pinning](#installer-verification-and-signature-pinning). For macOS: `{"apple_team_id": "<10-char Team ID>", "notarized": true}`, or `{"unsigned": true, "justification": "..."}` for the rare unsigned installer. |
 
 ### Ingesting apps from a custom tap
 
@@ -124,6 +125,7 @@ go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 | `install_script_path`    | string        | Filepath to a custom install script (`.ps1`). Overrides the generated install script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates install scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide PowerShell scripts that run the installer file directly. Fleet stores the installer and sends it to the host at install time; your script must execute it using the `INSTALLER_PATH` environment variable.                                                                                                |
 | `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.ps1`). Overrides the generated uninstall script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates uninstall scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide a script to uninstall the app. Scripts for `.exe` apps are vendor-specific. Use the vendor’s documented silent uninstall switch or the registered UninstallString (if available), ensuring the script runs silently and returns the installer’s exit code.                  |
 | `fuzzy_match_name`       | boolean       | If the `unique_identifier` doesn't match the `DisplayName`, use `fuzzy_match_name` to specify that Fleet uses "fuzzy matching" to match the Fleet-maintained app and the inventoried software. For example, for Pritunl, the `unique_identifier` is "Pritunl" and the inventories software's `DisplayName` is "Pritunl Client". With `fuzzy_match_name` set to true, Pritunl app will be matched to the inventories software.  |
+| `signature`              | object        | Pinned signing identity for the app's installer; see [Installer verification and signature pinning](#installer-verification-and-signature-pinning). For Windows: `{"subject_cns": ["<Authenticode subject CN>"]}` (an array because vendors sometimes sign with more than one certificate), or `{"unsigned": true, "justification": "..."}` for the rare unsigned installer. |
 
 #### Windows troubleshooting
 
@@ -138,6 +140,53 @@ The instructions below are meant to be run on a Windows host. But, you can run m
 - You can author Windows inputs and run the generator on macOS. The ingester is Go code that fetches data from winget/GitHub and works cross‑platform.
 - To find the PackageName and Publisher, you can look in the locale and installer yaml files in the winget-pkgs repo.
 - Validation and testing still require a Windows host (to verify programs.name and to run install/uninstall).
+
+## Installer verification and signature pinning
+
+The FMA pipeline independently verifies installers instead of trusting upstream metadata alone
+(design: [FMA supply-chain integrity](../../docs/Contributing/research/software/fma-supply-chain-integrity.md)):
+
+- **Hash provenance (ingest + PR check):** `cmd/maintained-apps/verify` downloads each changed
+  installer and recomputes its SHA256 against the hash the manifest claims. It runs in the ingest
+  workflow (its report lands in the automated update PR's body) and as the
+  `verify-fma-installers` PR check on any `outputs/**` change — which also covers hand-edited
+  manifests for frozen apps. Apps with `"sha256": "no_check"` (unversioned URLs re-released in
+  place) can't be hash-pinned; for those, the signature pin is the primary integrity control.
+- **Signature pinning (ingest + validator):** each input JSON can carry a `signature` block
+  pinning the publisher's signing identity — the Apple Developer ID **Team ID** on macOS, the
+  Authenticode **subject CN** on Windows. Pin the identity, not the certificate: certificates
+  rotate every 1–3 years, but the subject identity survives renewal. If the identity ever changes
+  (vendor rebrand, certificate transfer — or a compromised upstream), verification fails and a
+  human has to update the pin in a reviewed PR. The validator re-checks the pin on a real
+  macOS/Windows runner before the install script runs (`pkgutil`/`codesign`/`spctl` with
+  notarization assessment on macOS; `Get-AuthenticodeSignature` with full chain and revocation on
+  Windows). At ingest, Windows signatures are checked with `osslsigncode`, which verifies chains
+  against the host's TLS CA bundle — that bundle lacks many Windows-only roots (Microsoft's Azure
+  Trusted Signing roots among them), so an untrusted *chain* at ingest only warns and defers to
+  the validator's authoritative Windows check. The ingest-stage hard failures are the signals
+  that don't depend on the local trust store: a signed digest that doesn't match the file's
+  bytes, or an observed identity that contradicts the pin.
+- **Malware scanning (validator):** Windows installers get a Microsoft Defender on-demand scan
+  before installation. On macOS, the enforced notarization assessment *is* the malware layer —
+  notarization means Apple's automated malware analysis ran on those exact bytes, and `spctl`
+  consults XProtect and Apple's revocation service at assessment time.
+
+To record a pin for a new or existing app, run the verification tool on the matching OS and let it
+write what it observes (verify the identity against vendor documentation before committing):
+
+```bash
+go run ./cmd/maintained-apps/verify -all -slug "<slug>" -record-pins
+```
+
+`{"unsigned": true, "justification": "..."}` is the escape hatch for vendors that ship unsigned
+installers (the backfill surfaced 7-Zip's unsigned MSI, for example). An unsigned app whose hash
+is also `no_check` has **no** integrity control — treat it as a candidate for removal from the
+catalog.
+
+Rollout: all checks currently run in **report-only** mode (failures warn in logs, PR bodies, and
+job summaries). Setting `FMA_VERIFY_ENFORCE=1` (signature/notarization, Phase 1) and
+`FMA_SCAN_ENFORCE=1` (Defender detections, Phase 2) in the validator workflows — and adding
+`--enforce` to the verify workflows — turns them into hard failures.
 
 ## Updating existing Fleet-maintained apps
 

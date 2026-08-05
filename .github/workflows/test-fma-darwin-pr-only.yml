@@ -6,6 +6,8 @@ on:
     paths:
       - ee/maintained-apps/inputs/**
       - ee/maintained-apps/outputs/**
+      - ee/maintained-apps/sigverify/**
+      - ee/maintained-apps/signature.go
       - cmd/maintained-apps/validate/**
       - .github/workflows/test-fma-darwin-pr-only.yml
       - .github/workflows/test-fma-darwin-validate.yml

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/ee/maintained-apps/sigverify"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -166,7 +167,7 @@ func run(cfg *Config) error {
 			continue
 		}
 
-		installerTFR, _, err := DownloadMaintainedApp(cfg, maintainedApp)
+		installerTFR, installerPath, err := DownloadMaintainedApp(cfg, maintainedApp)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error downloading maintained app: %v", err))
 			appWithError = append(appWithError, ac.Name)
@@ -203,6 +204,40 @@ func run(cfg *Config) error {
 			continue
 		}
 
+		// Layer 2: verify the publisher's signing identity against the pin in
+		// the app's input JSON before anything from the installer runs (see
+		// docs/Contributing/research/software/fma-supply-chain-integrity.md).
+		// Report-only unless FMA_VERIFY_ENFORCE is set (rollout Phase 1).
+		pin, err := maintained_apps.SignaturePinForSlug(".", ac.Slug)
+		if err != nil {
+			appLogger.WarnContext(ctx, fmt.Sprintf("Error loading signature pin: %v", err))
+			warnApp()
+		}
+		if sigErr := verifyInstallerSignature(ctx, appLogger, installerPath, pin); sigErr != nil {
+			if signatureEnforced() {
+				appLogger.ErrorContext(ctx, fmt.Sprintf("Installer signature verification failed: %v", sigErr))
+				appWithError = append(appWithError, ac.Name)
+				cleanupTmpDir()
+				continue
+			}
+			appLogger.WarnContext(ctx, fmt.Sprintf("Installer signature verification failed (report-only): %v", sigErr))
+			warnApp()
+		}
+
+		// Layer 3: malware scan of the installer bytes (Microsoft Defender on
+		// Windows; on macOS the notarization enforcement above is the malware
+		// layer). Report-only unless FMA_SCAN_ENFORCE is set (rollout Phase 2).
+		if scanErr := scanInstallerForMalware(ctx, appLogger, installerPath); scanErr != nil {
+			if scanEnforced() {
+				appLogger.ErrorContext(ctx, fmt.Sprintf("Malware scan failed: %v", scanErr))
+				appWithError = append(appWithError, ac.Name)
+				cleanupTmpDir()
+				continue
+			}
+			appLogger.WarnContext(ctx, fmt.Sprintf("Malware scan failed (report-only): %v", scanErr))
+			warnApp()
+		}
+
 		// If application is already installed, attempt to uninstall it
 		if slices.Contains(preInstalled, ac.Slug) {
 			ac.uninstallPreInstalled(ctx)
@@ -231,6 +266,21 @@ func run(cfg *Config) error {
 		}
 		ac.AppPath = appPath
 		if ac.AppPath == "" {
+			warnApp()
+		}
+
+		// Layer 2 (dmg/zip installers): the signature lives on the installed
+		// .app bundle, so verify it here — before postApplicationInstall adds
+		// a Gatekeeper exception and strips quarantine. This turns the old
+		// log-then-bypass spctl behavior into a gate.
+		if sigErr := verifyInstalledApp(ctx, appLogger, ac.AppPath, installerPath, pin); sigErr != nil {
+			if signatureEnforced() {
+				appLogger.ErrorContext(ctx, fmt.Sprintf("Installed app signature verification failed: %v", sigErr))
+				appWithError = append(appWithError, ac.Name)
+				cleanupTmpDir()
+				continue
+			}
+			appLogger.WarnContext(ctx, fmt.Sprintf("Installed app signature verification failed (report-only): %v", sigErr))
 			warnApp()
 		}
 
@@ -412,11 +462,11 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 		return nil, "", fmt.Errorf("downloading installer: %w", err)
 	}
 
-	cleanFilename := filepath.Base(filename)
-	if cleanFilename == "." || cleanFilename == ".." {
-		cleanFilename = fmt.Sprintf("installer_%d", time.Now().UnixNano())
-	}
-	filePath := filepath.Join(cfg.tmpDir, cleanFilename)
+	// Save under a fixed local name with a whitelisted extension:
+	// verifyInstallerSignature dispatches on the extension, and the remote
+	// filename (Content-Disposition/URL) is attacker-influenced — a crafted
+	// name must not be able to steer verification or path construction.
+	filePath := filepath.Join(cfg.tmpDir, sigverify.InstallerFilename(filename))
 	out, err := os.Create(filePath)
 	if err != nil {
 		installerTFR.Close()
@@ -492,4 +542,24 @@ func validateSqlInput(input string) error {
 	}
 
 	return nil
+}
+
+// signatureEnforced reports whether signature verification failures fail
+// validation (rollout Phase 1) instead of warning (Phase 0, report-only).
+func signatureEnforced() bool {
+	return isEnvTruthy("FMA_VERIFY_ENFORCE")
+}
+
+// scanEnforced reports whether malware scan detections fail validation
+// (rollout Phase 2) instead of warning.
+func scanEnforced() bool {
+	return isEnvTruthy("FMA_SCAN_ENFORCE")
+}
+
+func isEnvTruthy(name string) bool {
+	switch strings.ToLower(os.Getenv(name)) {
+	case "1", "true", "yes":
+		return true
+	}
+	return false
 }

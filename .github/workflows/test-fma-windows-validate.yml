@@ -104,6 +104,27 @@ jobs:
           echo $osqueryPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         shell: pwsh
 
+      # The validator scans each downloaded installer with Microsoft Defender
+      # (MpCmdRun -Scan) before running its install script. Runner images ship
+      # with Defender in passive mode and stale definitions; refresh them here
+      # so the scan uses current signatures. Best effort by design: if the
+      # update fails, the validator still scans with the shipped definitions.
+      - name: Update Microsoft Defender definitions (best effort)
+        continue-on-error: true
+        run: |
+          $mpCmdRun = Join-Path $env:ProgramFiles "Windows Defender\MpCmdRun.exe"
+          if (-not (Test-Path $mpCmdRun)) {
+            Write-Host "Microsoft Defender not found at $mpCmdRun; skipping definition update"
+            exit 0
+          }
+          Write-Host "Updating Microsoft Defender definitions..."
+          & $mpCmdRun -SignatureUpdate
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Warning: Defender definition update failed with exit code $LASTEXITCODE; the validator will scan with shipped definitions"
+          }
+          exit 0
+        shell: powershell
+
       - name: Remove pre-installed google chrome
         if: steps.check-windows-apps.outputs.has_google_chrome == 'true'
         run: |
