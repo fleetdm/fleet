@@ -182,8 +182,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, ctxerr.Wrap(ctx, err, "get license")
 	}
 	// A nil teamID resolves to "no team" below, a scope the check above skips.
-	// Omit the installer data rather than failing, so a title's existence stays
-	// unguessable from the status code.
+	// Omit the installer data rather than failing, so this path doesn't turn the
+	// status code into a signal about titles the caller can't otherwise reach.
 	includeInstallers := license.IsPremium()
 	if includeInstallers && teamID == nil {
 		includeInstallers = svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead) == nil
