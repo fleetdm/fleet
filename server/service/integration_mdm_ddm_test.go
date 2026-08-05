@@ -2320,13 +2320,14 @@ func (s *integrationMDMTestSuite) TestAppleDDMCustomActivations() {
 			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK, &delResp)
 		})
 
-		// absent entirely, not null or empty
+		// present but null, so the field is explicit rather than missing
 		getRes := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK)
 		rawBody, err := io.ReadAll(getRes.Body)
 		require.NoError(t, err)
 		var asMap map[string]any
 		require.NoError(t, json.Unmarshal(rawBody, &asMap))
-		require.NotContains(t, asMap, "activation")
+		require.Contains(t, asMap, "activation")
+		require.Nil(t, asMap["activation"])
 	})
 
 	t.Run("two management declarations can be uploaded", func(t *testing.T) {
