@@ -137,6 +137,8 @@ describe("fileUtils", () => {
       { bytes: 1500000000, expectedSize: "1.5GB" },
       { bytes: 10737418240, expectedSize: "10GiB" },
       { bytes: 5497558138880, expectedSize: "5TiB" },
+      { bytes: 1000000000000000, expectedSize: "1PB" },
+      { bytes: 1125899906842624, expectedSize: "1PiB" },
     ];
 
     testCases.forEach(({ bytes, expectedSize }) => {

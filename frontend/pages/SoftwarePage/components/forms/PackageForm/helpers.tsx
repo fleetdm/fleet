@@ -1,7 +1,9 @@
 import React from "react";
 
 import { validateQuery } from "components/forms/validators/validate_query";
+import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
+import { encodeScriptBase64 } from "utilities/scripts_encoding";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 
@@ -234,6 +236,45 @@ export const createTooltipContent = (
       ))}
     </>
   );
+};
+
+/** Calculates the size of the payload, because the server limits the whole
+ * request and not just the installer file. Not all fields are accounted for
+ * in this calculation so if the final payload sent is over the size limit,
+ * the server will reject it.
+ */
+export const estimateUploadSize = (formData: IPackageFormData) => {
+  const scripts = [
+    formData.installScript,
+    formData.uninstallScript,
+    formData.preInstallQuery,
+    formData.postInstallScript,
+  ];
+
+  // The scripts are base64 encoded on the way out, so encode them to get the
+  // length that actually goes over the wire.
+  let scriptsSize = 0;
+  scripts.forEach((script) => {
+    scriptsSize += encodeScriptBase64(script)?.length || 0;
+  });
+
+  // The two flags are sent as "true" or "false".
+  let fieldsSize =
+    String(formData.selfService).length +
+    String(formData.automaticInstall).length;
+
+  formData.categories.forEach((category) => {
+    fieldsSize += category.length;
+  });
+
+  // Labels are only sent when the target is Custom, and only the selected ones.
+  if (formData.targetType === "Custom") {
+    listNamesFromSelectedLabels(formData.labelTargets).forEach((label) => {
+      fieldsSize += label.length;
+    });
+  }
+
+  return (formData.software?.size || 0) + scriptsSize + fieldsSize;
 };
 
 export default generateFormValidation;

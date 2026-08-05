@@ -1059,7 +1059,7 @@ type enrichedAppConfigFields struct {
 	License                *LicenseInfo           `json:"license,omitempty"`
 	Logging                *Logging               `json:"logging,omitempty"`
 	Email                  *EmailConfig           `json:"email,omitempty"`
-	MaxSoftwarePackageSize int64                  `json:"max_software_package_size,omitempty"`
+	MaxSoftwarePackageSize int64                  `json:"max_software_package_size"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize

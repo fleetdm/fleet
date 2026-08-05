@@ -41,7 +41,11 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
-import { createTooltipContent, generateFormValidation } from "./helpers";
+import {
+  createTooltipContent,
+  estimateUploadSize,
+  generateFormValidation,
+} from "./helpers";
 import SoftwareDeploySlider from "../SoftwareDeploySelector";
 
 export const baseClass = "package-form";
@@ -215,20 +219,27 @@ const PackageForm = ({
     software: { isValid: false },
   });
 
+  const notifyTooLarge = () => {
+    const errorPrefix = isEditingSoftware
+      ? EDIT_SOFTWARE_ERROR_PREFIX
+      : ADD_SOFTWARE_ERROR_PREFIX;
+    notify.error(
+      `${errorPrefix} The maximum file size is ${formatFileSize(
+        maxSoftwarePackageSize || 0
+      )}.`
+    );
+  };
+
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
 
       // Reject before uploading if file size is too big
-      if (maxSoftwarePackageSize && file.size > maxSoftwarePackageSize) {
-        const errorPrefix = isEditingSoftware
-          ? EDIT_SOFTWARE_ERROR_PREFIX
-          : ADD_SOFTWARE_ERROR_PREFIX;
-        notify.error(
-          `${errorPrefix} The maximum file size is ${formatFileSize(
-            maxSoftwarePackageSize
-          )}.`
-        );
+      if (
+        maxSoftwarePackageSize !== undefined &&
+        file.size > maxSoftwarePackageSize
+      ) {
+        notifyTooLarge();
         return;
       }
 
@@ -269,6 +280,16 @@ const PackageForm = ({
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    // The server caps the whole request body, and not just the file.
+    if (
+      maxSoftwarePackageSize !== undefined &&
+      estimateUploadSize(formData) > maxSoftwarePackageSize
+    ) {
+      notifyTooLarge();
+      return;
+    }
+
     onSubmit(formData);
   };
 

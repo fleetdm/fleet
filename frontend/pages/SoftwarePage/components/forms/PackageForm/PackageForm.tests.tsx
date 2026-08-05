@@ -102,6 +102,19 @@ describe("PackageForm", () => {
       expect(screen.queryByLabelText("All hosts")).not.toBeInTheDocument();
     });
 
+    it("rejects any package when the limit is zero", async () => {
+      // A zero limit is a real setting, not a missing one, and the server
+      // refuses every upload under it.
+      const errorSpy = jest.spyOn(notify, "error");
+      const { container } = renderForm({}, { max_software_package_size: 0 });
+
+      await selectFileOfSize(container, 1);
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Couldn't add. The maximum file size is 0B."
+      );
+    });
+
     it("accepts a package at the configured maximum", async () => {
       const errorSpy = jest.spyOn(notify, "error");
       const { container } = renderForm(

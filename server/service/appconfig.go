@@ -59,7 +59,7 @@ type appConfigResponseFields struct {
 	Err            error               `json:"error,omitempty"`
 	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
 	// Maximum software package size is loaded from the service.
-	MaxSoftwarePackageSize int64 `json:"max_software_package_size,omitempty"`
+	MaxSoftwarePackageSize int64 `json:"max_software_package_size"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -334,8 +334,9 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	response := appConfigResponse{
 		AppConfig: *appConfig,
 		appConfigResponseFields: appConfigResponseFields{
-			License: lic,
-			Logging: loggingConfig,
+			License:                lic,
+			Logging:                loggingConfig,
+			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
 		},
 	}
 

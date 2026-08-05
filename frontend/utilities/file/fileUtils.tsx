@@ -103,8 +103,30 @@ export interface IFileDetails {
   description?: React.ReactNode;
 }
 
-const DECIMAL_ABBREVIATIONS = ["B", "kB", "MB", "GB", "TB"];
-const BINARY_ABBREVIATIONS = ["B", "KiB", "MiB", "GiB", "TiB"];
+// Both tables match the ones go-units gives the server, so the two agree at
+// every magnitude rather than only up to terabytes.
+const DECIMAL_ABBREVIATIONS = [
+  "B",
+  "kB",
+  "MB",
+  "GB",
+  "TB",
+  "PB",
+  "EB",
+  "ZB",
+  "YB",
+];
+const BINARY_ABBREVIATIONS = [
+  "B",
+  "KiB",
+  "MiB",
+  "GiB",
+  "TiB",
+  "PiB",
+  "EiB",
+  "ZiB",
+  "YiB",
+];
 
 const formatWithBase = (
   bytes: number,
