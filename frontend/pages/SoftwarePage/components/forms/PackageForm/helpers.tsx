@@ -263,14 +263,18 @@ export const estimateUploadSize = (formData: IPackageFormData) => {
     String(formData.selfService).length +
     String(formData.automaticInstall).length;
 
+  // Names are user written, so count bytes. Anything outside ASCII takes more
+  // than one.
+  const encoder = new TextEncoder();
+
   formData.categories.forEach((category) => {
-    fieldsSize += category.length;
+    fieldsSize += encoder.encode(category).length;
   });
 
   // Labels are only sent when the target is Custom, and only the selected ones.
   if (formData.targetType === "Custom") {
     listNamesFromSelectedLabels(formData.labelTargets).forEach((label) => {
-      fieldsSize += label.length;
+      fieldsSize += encoder.encode(label).length;
     });
   }
 
