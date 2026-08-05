@@ -1771,7 +1771,12 @@ const HostDetailsPage = ({
               onExit={() => setShowReleaseFromABModal(false)}
               onRelease={() => {
                 if (host.mdm.enrollment_status === "Pending") {
-                  router.push(PATHS.MANAGE_HOSTS);
+                  router.push(
+                    filteredHostsPath ||
+                      getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                        fleet_id: location.query.fleet_id,
+                      })
+                  );
                   return;
                 }
                 refetchHostDetails();
