@@ -663,6 +663,9 @@ type MDMConfigProfilePayload struct {
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
 	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
+	// Base64-encoded activation for declaration (DDM) profiles, null for any
+	// other profile type and for declarations without a custom activation.
+	Activation []byte `json:"activation" db:"-"`
 }
 
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
@@ -734,7 +737,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 	if decl.TeamID != nil && *decl.TeamID > 0 {
 		tid = decl.TeamID
 	}
-	return &MDMConfigProfilePayload{
+	payload := &MDMConfigProfilePayload{
 		ProfileUUID:      decl.DeclarationUUID,
 		TeamID:           tid,
 		Name:             decl.Name,
@@ -747,6 +750,10 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		LabelsIncludeAny: decl.LabelsIncludeAny,
 		LabelsExcludeAny: decl.LabelsExcludeAny,
 	}
+	if decl.Activation != nil {
+		payload.Activation = decl.Activation.RawJSON
+	}
+	return payload
 }
 
 func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConfigProfilePayload {
