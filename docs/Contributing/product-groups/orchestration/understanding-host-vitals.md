@@ -673,6 +673,30 @@ SELECT *,
 			FROM osquery_schedule
 ```
 
+## software_adobe_plugins
+
+- Platforms: darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'adobe_plugins'
+```
+
+- Query:
+```sql
+SELECT
+  name,
+  version,
+  bundle_id AS bundle_identifier,
+  '' AS extension_id,
+  host_application AS extension_for,
+  'adobe_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM adobe_plugins
+```
+
 ## software_chrome
 
 - Platforms: chrome
