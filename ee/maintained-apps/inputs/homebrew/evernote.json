@@ -4,6 +4,5 @@
   "token": "evernote",
   "installer_format": "dmg",
   "slug": "evernote/darwin",
-  "default_categories": ["Productivity"],
-  "frozen": true
+  "default_categories": ["Productivity"]
 }
