@@ -94,7 +94,7 @@ Take the time to make [yourself](https://fleetdm.com/handbook/company/communica
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
 - **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
 - **Public by default.** Get comfortable making decisions, being wrong, and being right in front of others. Redact [non-public info](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) carefully.
-- **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).  Then commit to the decision, even if you still disagree. 
+- **Speak freely.** Interrupt and be interrupted.  Give pointed, respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way) and commit to the [DRI's](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) decision.
 
 <!--
 ### 🪩 Dumb luck
