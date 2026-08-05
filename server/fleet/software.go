@@ -286,16 +286,16 @@ type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
 	if tv, ok := v.([]byte); ok {
-		return json.Unmarshal(tv, &c)
+		return json.Unmarshal(tv, c)
 	}
 	return errors.New("unsupported type")
 }
 
-func (j SliceString) Value() (driver.Value, error) {
-	if j == nil {
+func (c SliceString) Value() (driver.Value, error) {
+	if c == nil {
 		return nil, nil
 	}
-	return json.Marshal(j)
+	return json.Marshal(c)
 }
 
 // SoftwareVersion is an abstraction over the `software` table to support the

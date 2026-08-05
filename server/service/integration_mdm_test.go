@@ -11143,15 +11143,19 @@ func (s *integrationMDMTestSuite) runAppleOSUpdatesSchedule() {
 	)
 	for range 10 {
 		_, didTrigger, err = s.appleOSUpdatesSchedule.Trigger(s.T().Context())
-		require.NoError(s.T(), err)
+		s.Require().NoError(err)
 		if didTrigger {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	require.True(s.T(), didTrigger, "apple os updates schedule did not trigger after 1 second of retries")
+	s.Require().True(didTrigger, "apple os updates schedule did not trigger after 1 second of retries")
 
-	<-ch
+	select {
+	case <-ch:
+	case <-time.After(30 * time.Second):
+		s.T().Fatal("apple os updates schedule did not complete")
+	}
 }
 
 func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
