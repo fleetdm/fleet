@@ -1045,6 +1045,28 @@ func validateFailingPoliciesWebhook(fpwMap map[string]any, keyPath string) error
 	return nil
 }
 
+func validateHostActivitiesWebhook(hawMap map[string]any, keyPath string) error {
+	for key, value := range hawMap {
+		switch key {
+		case "enable_host_activities_webhook":
+			if value != nil {
+				if _, ok := value.(bool); !ok {
+					return fmt.Errorf("'%s.enable_host_activities_webhook' must be a boolean, got %T", keyPath, value)
+				}
+			}
+		case "destination_url":
+			if value != nil {
+				if _, ok := value.(string); !ok {
+					return fmt.Errorf("'%s.destination_url' must be a string, got %T", keyPath, value)
+				}
+			}
+		default:
+			return fmt.Errorf("unsupported option '%s' in %s - only 'enable_host_activities_webhook' and 'destination_url' are allowed", key, keyPath)
+		}
+	}
+	return nil
+}
+
 // parseNoTeamSettings parses settings for "No Team" files, but only processes webhook_settings
 func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, multiError *multierror.Error) *multierror.Error {
 	// Parse the raw JSON into a map to extract only webhook_settings
@@ -1080,9 +1102,9 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 				return multierror.Append(multiError, errors.New("'settings.webhook_settings' must be an object or null"))
 			}
 			for key := range webhookMap {
-				if key != "failing_policies_webhook" {
+				if key != "failing_policies_webhook" && key != "host_activities_webhook" {
 					multiError = multierror.Append(multiError,
-						fmt.Errorf("unsupported webhook_settings option '%s' in %s - only 'failing_policies_webhook' is allowed", key, filepath.Base(filePath)))
+						fmt.Errorf("unsupported webhook_settings option '%s' in %s - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed", key, filepath.Base(filePath)))
 				}
 			}
 			// If present, ensure failing_policies_webhook is an object or null
@@ -1093,6 +1115,16 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 				} else {
 					// Validate failing_policies_webhook structure
 					if err := validateFailingPoliciesWebhook(fpwMap, "settings.webhook_settings.failing_policies_webhook"); err != nil {
+						multiError = multierror.Append(multiError, err)
+					}
+				}
+			}
+			if haw, ok := webhookMap["host_activities_webhook"]; ok && haw != nil {
+				hawMap, ok := haw.(map[string]any)
+				if !ok {
+					multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.host_activities_webhook' must be an object or null"))
+				} else {
+					if err := validateHostActivitiesWebhook(hawMap, "settings.webhook_settings.host_activities_webhook"); err != nil {
 						multiError = multierror.Append(multiError, err)
 					}
 				}

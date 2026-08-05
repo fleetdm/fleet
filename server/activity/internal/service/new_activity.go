@@ -53,6 +53,22 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 		s.fireActivityWebhook(ctx, user, activity, detailsBytes, timestamp, webhookConfig.DestinationURL)
 	}
 
+	// Fire the per-fleet host activities webhooks if the activity is linked to
+	// hosts and any of those hosts' fleets has the webhook enabled.
+	if ah, ok := activity.(types.ActivityHosts); ok {
+		if hostIDs := ah.HostIDs(); len(hostIDs) > 0 {
+			hooks, err := s.providers.GetHostActivitiesWebhooks(ctx, hostIDs)
+			if err != nil {
+				// transient failure here must not fail the surrounding operation recording the activity.
+				s.logger.ErrorContext(ctx, "get host activities webhooks",
+					slog.String("activity", activity.ActivityName()), slog.String("err", err.Error()))
+			}
+			for _, hook := range hooks {
+				s.fireActivityWebhook(ctx, user, activity, detailsBytes, timestamp, hook.DestinationURL)
+			}
+		}
+	}
+
 	// Activate the next upcoming activity if requested by the activity type.
 	// This is done before storing to avoid holding a DB transaction open during
 	// potentially slow operations.
