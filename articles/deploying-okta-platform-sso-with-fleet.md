@@ -51,8 +51,8 @@ The recommended approach is to use Fleet as a SCEP proxy with Okta's dynamic cha
 #### Step 1: Generate your Okta SCEP credentials
 
 1. In the Okta Admin Console, go to **Security** → **Device integrations**
-2. Click the **Device Access** tab (not Endpoint management)
-3. Click **Add SCEP configuration**
+2. Click the **Endpoint management** tab
+3. Click **Add platform**
 4. Select **Desktop (Windows and macOS only)**, then click **Next**
 5. On the Add device management platform page, select:
    - **Certificate authority:** Use Okta as certificate authority
@@ -150,8 +150,8 @@ If you prefer to use a static challenge without Fleet acting as a SCEP proxy, fo
 #### Step 1: Generate SCEP URL and secret key
 
 1. In the Okta Admin Console, go to **Security** → **Device integrations**
-2. Click the **Device Access** tab (not Endpoint management)
-3. Click **Add SCEP configuration**
+2. Click the **Endpoint management** tab
+3. Click **Add platform**
 4. Select **Desktop (Windows and macOS only)**, then click **Next**
 5. On the Add device management platform page, select:
    - **Certificate authority:** Use Okta as certificate authority
@@ -247,6 +247,9 @@ Create a new profile and add an **Extensible Single Sign-On** payload.
 Same as above, but also add these Platform SSO settings:
 - **Platform SSO Authentication Method:** Password
 - **Use Shared Device Keys:** Checked
+- **Token To User Mapping:** Maps `AccountName` to `macOSAccountUsername` and `FullName` to `macOSAccountFullName` (see note below)
+
+> If Platform SSO is creating the local user account (rather than the account already existing before registration), Okta ignores the username and full name Fleet would otherwise populate during [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication). Instead, the account is locked to whatever value Okta puts in the PSSO token (usually the user's full email) for both the username and full name. Add a `TokenToUserMapping` dictionary (shown below) to map these correctly. See [Okta's JIT provisioning documentation](https://help.okta.com/oie/en-us/content/topics/oda/macos-pw-sync/jit-provisioning-oda.htm) for the corresponding Okta-side attribute configuration.
 
 Example configuration for macOS 14:
 
@@ -259,6 +262,13 @@ Example configuration for macOS 14:
     <string>Password</string>
     <key>UseSharedDeviceKeys</key>
     <true/>
+    <key>TokenToUserMapping</key>
+    <dict>
+        <key>AccountName</key>
+        <string>macOSAccountUsername</string>
+        <key>FullName</key>
+        <string>macOSAccountFullName</string>
+    </dict>
 </dict>
 <key>ExtensionIdentifier</key>
 <string>com.okta.mobile.auth-service-extension</string>

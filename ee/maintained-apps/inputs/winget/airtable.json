@@ -1,0 +1,12 @@
+{
+  "name": "Airtable",
+  "slug": "airtable/windows",
+  "package_identifier": "Formagrid.Airtable",
+  "unique_identifier": "Airtable",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/airtable_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/airtable_uninstall.ps1",
+  "installer_arch": "neutral",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Developer tools"]
+}

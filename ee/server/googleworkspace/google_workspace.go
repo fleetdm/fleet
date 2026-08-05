@@ -27,6 +27,21 @@ const (
 	membersPageSize = 200
 )
 
+// Field projections limiting each listing to what Fleet reads, so the API doesn't
+// serialize and Fleet doesn't parse the rest of the resource (a user carries
+// thumbnails, custom schemas, phones, addresses, aliases, SSH keys and more).
+//
+// nextPageToken must be present or Pages() cannot advance. name, organizations, and
+// emails are requested whole rather than sub-selected: the Admin SDK types the latter
+// two as `any`, and a sub-selection that doesn't match the response shape would
+// silently yield empty departments or emails instead of failing. Keep in sync with
+// mapUser, groupDisplayName, and the member filter in Directory.ListGroups.
+const (
+	usersFields   = "nextPageToken,users(id,primaryEmail,suspended,archived,name,organizations,emails)"
+	groupsFields  = "nextPageToken,groups(id,name,email)"
+	membersFields = "nextPageToken,members(id,type)"
+)
+
 // tokenURIKey is the key holding the OAuth2 token endpoint in a service-account
 // JSON. Real Google service-account JSON always includes it; we honor it so a
 // QA/load-test fake can route the token exchange to a stub endpoint.
@@ -46,10 +61,68 @@ var directoryScopes = []string{
 	directory.AdminDirectoryGroupMemberReadonlyScope,
 }
 
+// defaultMaxPagesPerListing bounds page iteration for every listing, regardless of
+// the configured Limits. It catches what a record limit cannot: a malformed response
+// or a proxy that keeps returning a next-page token with empty (or barely filled)
+// pages never grows the result set, so only a page count stops it. It is deliberately
+// far above what a real listing needs — the default user limit is reached in 1,000
+// pages — so it never fails a sync that would otherwise complete.
+const defaultMaxPagesPerListing = 10_000
+
+// Limits bound how much of a directory a single sync pass pulls, guarding against
+// holding an unbounded directory in memory. They are safety rails, not tuning knobs:
+// no real Google Workspace tenant is expected to reach them. Defaults and their
+// rationale live with the configuration in server/config. A limit of 0 is disabled
+// (server config validation rejects negatives); the page cap always applies.
+//
+// Exceeding a limit fails the sync rather than truncating the pull: reconciliation
+// treats the pull as authoritative and deletes any scim user/group missing from it,
+// so a truncated directory would destroy IdP data.
+type Limits struct {
+	// MaxUsers bounds users returned by one users.list pass.
+	MaxUsers int
+	// MaxGroups bounds groups returned by one groups.list pass.
+	MaxGroups int
+	// MaxGroupMembers bounds members returned for a single group.
+	MaxGroupMembers int
+	// MaxGroupMemberships bounds the total memberships kept across all groups in
+	// one pass, which is the dominant memory term for a large directory.
+	MaxGroupMemberships int
+	// maxPages replaces defaultMaxPagesPerListing when set. Unexported: it is not an
+	// operator setting, only a way for tests to reach the page cap cheaply without
+	// mutating package state.
+	maxPages int
+}
+
+// pageCap is the page-iteration cap in force for a listing.
+func (l Limits) pageCap() int {
+	if l.maxPages > 0 {
+		return l.maxPages
+	}
+	return defaultMaxPagesPerListing
+}
+
+// Config keys the limits come from, named in the errors so an operator hitting a
+// limit knows what to raise.
+const (
+	maxUsersSetting            = "google_workspace.max_users"
+	maxGroupsSetting           = "google_workspace.max_groups"
+	maxGroupMembersSetting     = "google_workspace.max_group_members"
+	maxGroupMembershipsSetting = "google_workspace.max_group_memberships"
+)
+
 // lowLevelAPI is the minimal Admin SDK Directory API surface the Directory needs.
 // It exists so tests can supply a fake implementation without hitting Google.
+//
+// ListUsers hands over one page at a time so the caller can map each page and let it
+// go: a raw *directory.User costs around 2 KB, mostly map[string]any overhead for the
+// fields the Admin SDK types as `any`, which is four times what Fleet's mapped
+// ScimUser costs. Accumulating them all was the largest term in a sync's memory use.
+// Groups and members are returned whole — their raw objects are a tenth the size, and
+// streaming groups would mean issuing a members.list for every group in the middle of
+// an in-flight groups.list pagination.
 type lowLevelAPI interface {
-	ListUsers(ctx context.Context, domain string) ([]*directory.User, error)
+	ListUsers(ctx context.Context, domain string, forEachPage func(users []*directory.User) error) error
 	ListGroups(ctx context.Context, domain string) ([]*directory.Group, error)
 	ListGroupMembers(ctx context.Context, groupKey string) ([]*directory.Member, error)
 }
@@ -59,16 +132,25 @@ type Directory struct {
 	api    lowLevelAPI
 	domain string
 	logger *slog.Logger
+	limits Limits
 }
 
 // NewDirectory builds a Directory that talks to the real Admin SDK Directory API
 // using the integration's service account and impersonated admin user.
-func NewDirectory(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, logger *slog.Logger) (fleet.GoogleWorkspaceDirectory, error) {
-	api, err := newGoogleAPI(ctx, intg, logger)
+func NewDirectory(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, logger *slog.Logger, limits Limits) (fleet.GoogleWorkspaceDirectory, error) {
+	api, err := newGoogleAPI(ctx, intg, logger, limits)
 	if err != nil {
 		return nil, err
 	}
-	return &Directory{api: api, domain: intg.Domain, logger: logger}, nil
+	return &Directory{api: api, domain: intg.Domain, logger: logger, limits: limits}, nil
+}
+
+// NewDirectoryFactory returns a NewDirectory bound to limits, for injecting into
+// the sync cron (it matches cron.GoogleWorkspaceDirectoryFactory).
+func NewDirectoryFactory(limits Limits) func(context.Context, *fleet.GoogleWorkspaceIntegration, *slog.Logger) (fleet.GoogleWorkspaceDirectory, error) {
+	return func(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, logger *slog.Logger) (fleet.GoogleWorkspaceDirectory, error) {
+		return NewDirectory(ctx, intg, logger, limits)
+	}
 }
 
 func (d *Directory) log() *slog.Logger {
@@ -78,33 +160,38 @@ func (d *Directory) log() *slog.Logger {
 	return d.logger
 }
 
-// ListUsers returns every user in the configured domain mapped to a ScimUser.
+// ListUsers returns every user in the configured domain mapped to a ScimUser. Each
+// page is mapped as it arrives so the raw Directory objects can be collected.
 func (d *Directory) ListUsers(ctx context.Context) ([]*fleet.ScimUser, error) {
-	users, err := d.api.ListUsers(ctx, d.domain)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list google workspace users")
-	}
 	logger := d.log()
-	out := make([]*fleet.ScimUser, 0, len(users))
-	for _, u := range users {
-		// A user with no ID or primary email cannot be linked to a host, so skip it.
-		if u.Id == "" || u.PrimaryEmail == "" {
-			logger.DebugContext(ctx, "skipping google workspace user with missing id or primary email",
-				"id", u.Id, "primary_email", u.PrimaryEmail)
-			continue
+	var out []*fleet.ScimUser
+	err := d.api.ListUsers(ctx, d.domain, func(users []*directory.User) error {
+		for _, u := range users {
+			// A user with no ID or primary email cannot be linked to a host, so skip it.
+			if u.Id == "" || u.PrimaryEmail == "" {
+				logger.DebugContext(ctx, "skipping google workspace user with missing id or primary email",
+					"id", u.Id, "primary_email", u.PrimaryEmail)
+				continue
+			}
+			su := mapUser(u)
+			logger.DebugContext(ctx, "ingested google workspace user",
+				"external_id", u.Id,
+				"user_name", su.UserName,
+				"active", derefBool(su.Active),
+				"department", derefString(su.Department),
+				"num_emails", len(su.Emails),
+				// Raw organizations as returned by the Directory API, to diagnose
+				// missing department values (empty/absent means the API returned none).
+				"raw_organizations", rawJSON(u.Organizations),
+			)
+			out = append(out, su)
 		}
-		su := mapUser(u)
-		logger.DebugContext(ctx, "ingested google workspace user",
-			"external_id", u.Id,
-			"user_name", su.UserName,
-			"active", derefBool(su.Active),
-			"department", derefString(su.Department),
-			"num_emails", len(su.Emails),
-			// Raw organizations as returned by the Directory API, to diagnose
-			// missing department values (empty/absent means the API returned none).
-			"raw_organizations", rawJSON(u.Organizations),
-		)
-		out = append(out, su)
+		return nil
+	})
+	if err != nil {
+		// Never return what was mapped before the failure: the sync deletes every
+		// scim user missing from the pull.
+		return nil, ctxerr.Wrap(ctx, err, "list google workspace users")
 	}
 	return out, nil
 }
@@ -117,6 +204,7 @@ func (d *Directory) ListGroups(ctx context.Context) ([]*fleet.GoogleWorkspaceGro
 		return nil, ctxerr.Wrap(ctx, err, "list google workspace groups")
 	}
 	out := make([]*fleet.GoogleWorkspaceGroup, 0, len(groups))
+	memberships := 0
 	for _, g := range groups {
 		if g.Id == "" {
 			continue
@@ -135,6 +223,13 @@ func (d *Directory) ListGroups(ctx context.Context) ([]*fleet.GoogleWorkspaceGro
 				continue
 			}
 			memberIDs = append(memberIDs, m.Id)
+		}
+		// Every group's members are held until the whole pull is reconciled, so cap
+		// the running total, not just each group.
+		memberships += len(memberIDs)
+		if d.limits.MaxGroupMemberships > 0 && memberships > d.limits.MaxGroupMemberships {
+			return nil, ctxerr.Errorf(ctx, "exceeded the limit of %d total group memberships; raise %s to sync this domain",
+				d.limits.MaxGroupMemberships, maxGroupMembershipsSetting)
 		}
 		d.log().DebugContext(ctx, "ingested google workspace group",
 			"external_id", g.Id,
@@ -209,8 +304,8 @@ func groupDisplayName(g *directory.Group) string {
 // (case-insensitive) and guaranteeing the primary email is present and flagged
 // primary — the host↔user linking matches on the primary email.
 func mapEmails(primaryEmail string, raw []directoryEmail) []fleet.ScimUserEmail {
-	seen := make(map[string]int, len(raw)+1)
-	out := make([]fleet.ScimUserEmail, 0, len(raw)+1)
+	seen := make(map[string]int, len(raw))
+	out := make([]fleet.ScimUserEmail, 0, len(raw))
 	for _, e := range raw {
 		addr := strings.TrimSpace(e.Address)
 		if addr == "" {
@@ -299,9 +394,10 @@ func jsonRoundTrip(raw any, dst any) {
 // googleAPI is the production lowLevelAPI backed by the Admin SDK Directory API.
 type googleAPI struct {
 	service *directory.Service
+	limits  Limits
 }
 
-func newGoogleAPI(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, logger *slog.Logger) (*googleAPI, error) {
+func newGoogleAPI(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, logger *slog.Logger, limits Limits) (*googleAPI, error) {
 	// Honor token_uri from the service-account JSON (real GSA JSON always carries
 	// it). Falls back to Google's endpoint when absent.
 	tokenURL := google.JWTTokenURL
@@ -331,24 +427,61 @@ func newGoogleAPI(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, l
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create google workspace directory service")
 	}
-	return &googleAPI{service: service}, nil
+	return &googleAPI{service: service, limits: limits}, nil
 }
 
-func (a *googleAPI) ListUsers(ctx context.Context, domain string) ([]*directory.User, error) {
-	var users []*directory.User
-	err := a.service.Users.List().Domain(domain).MaxResults(usersPageSize).Pages(ctx, func(page *directory.Users) error {
-		users = append(users, page.Users...)
-		return nil
+// checkListLimits aborts pagination once a listing has reached more than recordLimit
+// records, or has served its last allowed page with more still to come. Returning an
+// error from a Pages callback stops iteration and surfaces the error to the caller,
+// which fails the sync — the alternative, a truncated pull, would make reconciliation
+// delete every record past the limit.
+//
+// records counts the page just received, before it is retained, so a breach doesn't
+// hold a page past the limit. hasMore reports whether the response carried a
+// next-page token, so a listing that ends exactly on the last allowed page succeeds
+// and no request is spent past the cap.
+//
+// The messages stay terse because they end up in the 255-character sync status
+// column, and the setting name is the part an operator needs; the caller's error
+// wrapping already says this is Google Workspace.
+func (a *googleAPI) checkListLimits(ctx context.Context, records, pages int, hasMore bool, recordLimit int, resource, setting string) error {
+	if recordLimit > 0 && records > recordLimit {
+		return ctxerr.Errorf(ctx, "exceeded the limit of %d %s; raise %s to sync this domain",
+			recordLimit, resource, setting)
+	}
+	if pageLimit := a.limits.pageCap(); hasMore && pages >= pageLimit {
+		return ctxerr.Errorf(ctx, "%s listing exceeded the limit of %d pages; the API kept returning next-page tokens",
+			resource, pageLimit)
+	}
+	return nil
+}
+
+func (a *googleAPI) ListUsers(ctx context.Context, domain string, forEachPage func(users []*directory.User) error) error {
+	pages, records := 0, 0
+	err := a.service.Users.List().Domain(domain).MaxResults(usersPageSize).Fields(usersFields).Pages(ctx, func(page *directory.Users) error {
+		pages++
+		records += len(page.Users)
+		// Check before handing the page over, so an over-limit page isn't mapped.
+		if err := a.checkListLimits(ctx, records, pages, page.NextPageToken != "", a.limits.MaxUsers, "users", maxUsersSetting); err != nil {
+			return err
+		}
+		return forEachPage(page.Users)
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "google workspace users.list")
+		return ctxerr.Wrap(ctx, err, "google workspace users.list")
 	}
-	return users, nil
+	return nil
 }
 
 func (a *googleAPI) ListGroups(ctx context.Context, domain string) ([]*directory.Group, error) {
 	var groups []*directory.Group
-	err := a.service.Groups.List().Domain(domain).MaxResults(groupsPageSize).Pages(ctx, func(page *directory.Groups) error {
+	pages := 0
+	err := a.service.Groups.List().Domain(domain).MaxResults(groupsPageSize).Fields(groupsFields).Pages(ctx, func(page *directory.Groups) error {
+		pages++
+		// Check before retaining the page, so a breach doesn't hold groups past the limit.
+		if err := a.checkListLimits(ctx, len(groups)+len(page.Groups), pages, page.NextPageToken != "", a.limits.MaxGroups, "groups", maxGroupsSetting); err != nil {
+			return err
+		}
 		groups = append(groups, page.Groups...)
 		return nil
 	})
@@ -360,7 +493,14 @@ func (a *googleAPI) ListGroups(ctx context.Context, domain string) ([]*directory
 
 func (a *googleAPI) ListGroupMembers(ctx context.Context, groupKey string) ([]*directory.Member, error) {
 	var members []*directory.Member
-	err := a.service.Members.List(groupKey).MaxResults(membersPageSize).Pages(ctx, func(page *directory.Members) error {
+	pages := 0
+	// The group is named by the caller's error wrapping, and the sync status column
+	// this error lands in is only 255 characters, so don't repeat it here.
+	err := a.service.Members.List(groupKey).MaxResults(membersPageSize).Fields(membersFields).Pages(ctx, func(page *directory.Members) error {
+		pages++
+		if err := a.checkListLimits(ctx, len(members)+len(page.Members), pages, page.NextPageToken != "", a.limits.MaxGroupMembers, "group members", maxGroupMembersSetting); err != nil {
+			return err
+		}
 		members = append(members, page.Members...)
 		return nil
 	})

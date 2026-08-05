@@ -64,28 +64,17 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
 
     // List android devices from an enterprises using the passed parameters
     return await sails.helpers.flow.build(async ()=>{
       let { google } = require('googleapis');
-      let androidmanagement = google.androidmanagement('v1');
-
-      let googleAuth = new google.auth.GoogleAuth({
-        scopes: [
-          'https://www.googleapis.com/auth/androidmanagement'
-        ],
-        credentials: {
-          client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-          private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-        },
-      });
-
-      // Acquire the google auth client
-      let authClient = await googleAuth.getClient();
-      google.options({auth: authClient});
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
 
       // Get the Android devices list from Google
-      let devicesResponse = await androidmanagement.enterprises.devices.list({
+      let devicesResponse = await androidManagementConnection.enterprises.devices.list({
         parent: `enterprises/${thisAndroidEnterprise.androidEnterpriseId}`,
         pageSize: pageSize,
         pageToken: pageToken,

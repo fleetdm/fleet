@@ -124,10 +124,10 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
       <div className={baseClass}>
         <EmptyState
           header="Additional configuration required"
-          info="MDM must be turned on to change settings on your hosts."
+          info="Apple or Windows MDM must be turned on to change settings on your hosts."
           primaryButton={
             <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
-              Turn on
+              Go to MDM settings
             </Button>
           }
         />

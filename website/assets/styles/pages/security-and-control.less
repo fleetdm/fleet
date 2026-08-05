@@ -226,12 +226,6 @@
             height: 23px;
           }
         }
-        &.mozilla {
-          padding: 25px 31.451px 26px 32px;
-          img {
-            height: 25px;
-          }
-        }
         &.calendly {
           padding: 26px 34.551px 26px 34px;
           img {
@@ -243,7 +237,13 @@
 
     }
   }
-
+  [purpose='section-buttons'] {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    align-items: center;
+    white-space: nowrap;
+  }
   [purpose='section-button'] {
     .cta-button();
     width: fit-content;
@@ -385,6 +385,12 @@
     [purpose='page-section'] {
       gap: 80px;
     }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+    }
     [purpose='quote-and-logos'] {
       display: flex;
       flex-direction: row;
@@ -438,12 +444,6 @@
               height: 18px;
             }
           }
-          &.mozilla {
-            padding: 0 24.239px 0 25.455px;
-            img {
-              height: 20px;
-            }
-          }
           &.calendly {
             padding: 0 25.172px 0 25.287px;
             img {
@@ -473,6 +473,12 @@
     }
     [purpose='feature-row'] {
       gap: 48px;
+    }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: row;
+      gap: 24px;
+      align-items: center;
     }
     [purpose='quote-and-logos'] {
       display: flex;
@@ -533,12 +539,6 @@
                 height: 23px;
               }
             }
-            &.mozilla {
-              padding: 25px 31.451px 26px 32px;
-              img {
-                height: 25px;
-              }
-            }
             &.calendly {
               padding: 26px 34.551px 26px 34px;
               img {
@@ -588,6 +588,12 @@
     }
     [purpose='page-container'] {
       padding: 32px 24px;
+    }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
     }
     [parasails-component='scrollable-tweets'] {
       [purpose='tweets'] {
@@ -639,12 +645,6 @@
               padding: unset;
               img {
                 height: 22px;
-              }
-            }
-            &.mozilla {
-              padding: unset;
-              img {
-                height: 25px;
               }
             }
             &.calendly {

@@ -240,7 +240,7 @@ export const generateTableConfig = (
             }
             placeholder="Actions"
             disabled={false}
-            variant="small-button"
+            variant="secondary"
           />
         </div>
       ),

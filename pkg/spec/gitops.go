@@ -742,6 +742,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
 			multiError = validateSSOConfig(result.OrgSettings, multiError)
+			multiError = normalizeMDMSSOConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
@@ -876,6 +877,31 @@ func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error)
 				"When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set",
 			))
 		}
+	}
+	return multiError
+}
+
+// normalizeMDMSSOConfig, normalizes the MDM SSO configuration by trimming whitespaces.
+func normalizeMDMSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	mdm, _ := orgSettings["mdm"].(map[string]any)
+	if mdm == nil {
+		return multiError
+	}
+	eua, _ := mdm["end_user_authentication"].(map[string]any)
+	if eua == nil {
+		return multiError
+	}
+	if v, ok := eua["idp_name"].(string); ok {
+		eua["idp_name"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["entity_id"].(string); ok {
+		eua["entity_id"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["metadata"].(string); ok {
+		eua["metadata"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["metadata_url"].(string); ok {
+		eua["metadata_url"] = strings.TrimSpace(v)
 	}
 	return multiError
 }

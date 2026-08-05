@@ -100,63 +100,53 @@ describe("DropdownWrapper Component", () => {
     expect(screen.getByText(/no results found/i)).toBeInTheDocument();
   });
 
-  test("doesn't render selected value when variant is button", async () => {
-    const buttonText = "Click me";
-    render(
+  test("shows the disabled tooltip on hover when disabled with content provided", async () => {
+    const { container } = render(
       <DropdownWrapper
         options={sampleOptions}
         value="option1"
         onChange={mockOnChange}
         name="test-dropdown"
         label="Test Dropdown"
-        placeholder={buttonText}
-        variant="button"
+        isDisabled
+        disabledTooltipContent="Reason it is disabled"
       />
     );
 
-    // Check if the button text is rendered
-    expect(screen.getByText(buttonText)).toBeInTheDocument();
+    const tooltipAnchor = container.querySelector(
+      ".dropdown-wrapper__disabled-tooltip .component__tooltip-wrapper__element"
+    );
+    expect(tooltipAnchor).toBeInTheDocument();
 
-    // Open the dropdown
-    await userEvent.click(screen.getByText(buttonText));
-
-    // Select Option 2
-    await userEvent.click(screen.getByText(/option 2/i));
-
-    // Check if the button text is still rendered and not replaced by the selected option
-    expect(screen.getByText(buttonText)).toBeInTheDocument();
-    expect(screen.queryByText(/option 2/i)).not.toBeInTheDocument();
+    // react-tooltip only mounts the tip content once the anchor is hovered
+    await userEvent.hover(tooltipAnchor as Element);
+    expect(
+      await screen.findByText(/reason it is disabled/i)
+    ).toBeInTheDocument();
   });
 
-  // Regression test for #45853 — react-select tracks the last click as
-  // selectValue and re-focuses it on reopen, leaving the previously-clicked
-  // option visually highlighted. Button variant overrides this by forcing
-  // value to null.
-  test("button variant does not mark a previously-clicked option as selected on reopen", async () => {
-    const buttonText = "Actions";
-    render(
+  // The tooltip wraps the control only when isDisabled and disabledTooltipContent are both set.
+  // Each case below drops one of those two operands, so neither can be removed from the condition.
+  test.each([
+    {
+      caseName: "enabled",
+      props: { disabledTooltipContent: "Reason it is disabled" },
+    },
+    { caseName: "disabled without content", props: { isDisabled: true } },
+  ])("does not render the disabled tooltip when $caseName", ({ props }) => {
+    const { container } = render(
       <DropdownWrapper
         options={sampleOptions}
+        value="option1"
         onChange={mockOnChange}
         name="test-dropdown"
-        placeholder={buttonText}
-        variant="button"
+        label="Test Dropdown"
+        {...props}
       />
     );
 
-    // Open, click Option 2, then reopen
-    await userEvent.click(screen.getByText(buttonText));
-    await userEvent.click(screen.getByText(/option 2/i));
-    await userEvent.click(screen.getByText(buttonText));
-
-    // On reopen, no menu option should carry the selected state.
-    // react-select adds `--is-selected` to the option matching `value`; the
-    // fix forces value to null for button variant so this class never appears.
-    const options = document.querySelectorAll(".react-select__option");
-    expect(options.length).toBeGreaterThan(0);
-
-    options.forEach((option) =>
-      expect(option.className).not.toMatch(/--is-selected/)
-    );
+    expect(
+      container.querySelector(".dropdown-wrapper__disabled-tooltip")
+    ).not.toBeInTheDocument();
   });
 });

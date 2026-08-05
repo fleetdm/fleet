@@ -91,6 +91,30 @@ func premiumAppConfig() *fleet.EnrichedAppConfig {
 	return ac
 }
 
+func TestNormalizeMDMSSOConfig(t *testing.T) {
+	t.Parallel()
+
+	orgSettings := map[string]any{
+		"mdm": map[string]any{
+			"end_user_authentication": map[string]any{
+				"idp_name":     "  Example IdP\n\r",
+				"entity_id":    "  https://idp.example.com/entity  ",
+				"metadata":     "  <xml>metadata</xml>  ",
+				"metadata_url": "  https://idp.example.com/metadata  ",
+			},
+		},
+	}
+
+	got := normalizeMDMSSOConfig(orgSettings, nil)
+	require.Nil(t, got)
+
+	eua := orgSettings["mdm"].(map[string]any)["end_user_authentication"].(map[string]any)
+	assert.Equal(t, "Example IdP", eua["idp_name"])
+	assert.Equal(t, "https://idp.example.com/entity", eua["entity_id"])
+	assert.Equal(t, "<xml>metadata</xml>", eua["metadata"])
+	assert.Equal(t, "https://idp.example.com/metadata", eua["metadata_url"])
+}
+
 func TestValidGitOpsYaml(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
