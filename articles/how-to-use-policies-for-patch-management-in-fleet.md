@@ -40,11 +40,11 @@ Key benefits:
 3. From the **Actions** dropdown, select **Deploy** and enable **Patch**.
 4. Select an option and click **Save** in the confirmation modal.
 
-- **Patch when app is closed**: will automatically install updates when the policy fails. If the app is currently running on a host, the installation will skip, and Fleet will only retry once the policy runs again. Manual, self-service, and setup experience installs will still force installation whether the app is running or not.
-- **Force patch**: will automatically install updates when the policy fails, whether the app is running or not.
-- **End user initiated (manual)**: will create a patch policy that will fail if the installed app is outdated, but won't install a new version.
+- **Patch when app is closed**: Automatically installs updates when the policy fails. If the app is currently running on a host, the installation skips, and Fleet only retries once the policy runs again. Manual, self-service, and setup experience installs still force installation whether the app is running or not.
+- **Force patch**: Automatically installs updates when the policy fails, whether the app is running or not.
+- **End user initiated (manual)**: Creates a patch policy that fails if the installed app is outdated, without installing a new version.
 
-To change this later, go back to **Actions > Deploy**, or navigate to **Policies > [policy] > Edit policy > Patch** and select a different option for the new patch policy.
+Change this option later at **Actions > Deploy** or by navigating to **Policies > [policy] > Edit policy > Patch**.
 
 ### Via GitOps
 
