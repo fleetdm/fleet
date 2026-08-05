@@ -195,19 +195,30 @@ Neither check catches the identifier collision from step 4. Two declarations sha
 
 ### Windows
 
-There's no published CLI for this, so have the agent write one against the DDF files you committed in step 1. It's a schema lookup per `LocURI`, which is a small script, and it gives you the same gate `--strict` gives you on the Apple side.
+Fleet validates Windows profiles server-side, and `--dry-run` runs that validation without applying anything:
 
-> Write a validator that checks every SyncML file under `platforms/windows/` against the
-> DDF files in `platforms/windows/schema/`. For each `Item`, resolve the `LocURI` to its
-> DDF node and fail if the node doesn't exist, if `AccessType` doesn't permit the verb,
-> if `<Format>` disagrees with `DFFormat`, if the value falls outside `AllowedValues`,
-> or if the node is marked deprecated. Exit non-zero on any failure. Add it to CI.
+```bash
+fleetctl gitops --dry-run -f ./path/to/fleet.yml
+```
 
-Have it fail on purpose before you trust it. Point it at a profile with an invented node name, one with a `chr` format on an `int` node, and one with an out-of-range value, and confirm it exits non-zero on each. A validator that passes everything is worse than no validator, because it reads like a gate in your pull request checks.
+That covers XML well-formedness, the presence of a supported top-level element, the `LocURI` format rules real Windows hosts enforce, collisions with settings Fleet manages itself such as disk encryption, and profile name conflicts across platforms. Use it as the gate on every pull request.
 
-The reference implementation used to verify this guide indexes all 5,900 nodes in the February 2026 DDF drop and catches each of those cases, including `MinDevicePasswordLength` set to `24` against its declared range of `[4-16]`.
+> **Warning:** Dry run skips any profile that references a `$FLEET_SECRET_` variable, because the secret may not resolve in CI. Those profiles are validated when you apply them for real, so a clean dry run doesn't mean every profile was checked.
 
-> **Warning:** Applicability and dependency checks are harder to automate, because whether a build or edition constraint matters depends on the hosts in the target fleet. Keep those as review-time checks, or have the validator report them as warnings rather than failures.
+What a dry run can't do is tell you whether a `LocURI` names a CSP node that exists, and that's what the DDF files are for. A name lookup against the schema you committed in step 1 catches the common case:
+
+```bash
+missing=$(find platforms/windows/configuration-profiles -name '*.xml' \
+  -exec grep -oh '<LocURI>[^<]*</LocURI>' {} + | sed 's|</*LocURI>||g' | sort -u |
+  while read -r uri; do
+    grep -rqs "<NodeName>${uri##*/}</NodeName>" platforms/windows/schema/ || echo "$uri"
+  done)
+[ -z "$missing" ] || { printf 'unknown CSP nodes:\n%s\n' "$missing"; exit 1; }
+```
+
+This matches on node name rather than full path, so it catches an invented or misspelled node but not a real node addressed under the wrong parent.
+
+Everything else the DDF declares, the allowed values, the format, the dependencies, and the applicability, stays a review-time check. Have the agent cite the DDF node it used in the pull request description, then read the citation against the schema in the repo. That citation is doing the same work `--strict` does on the Apple side, with you as the gate instead of an exit code.
 
 ## Step 6: Review, then deploy
 
@@ -232,7 +243,14 @@ Merge, and CI runs `fleetctl gitops` to apply the change. Scope with fleets and 
 2. Open the **OS settings** tab.
 3. Confirm the profile or declaration shows as **Verified**.
 
-On Windows, confirm the setting itself rather than only its delivery. Run a live report against the `registry` table for the value the CSP writes, since a profile can deliver successfully and still no-op on a host that falls outside the node's applicability.
+On Windows, confirm the setting itself rather than only its delivery, since a profile can deliver successfully and still no-op on a host that falls outside the node's applicability. Run a live report against the [`registry`](https://fleetdm.com/tables/registry) table, matching on `path` and reading the value out of `data`:
+
+```sql
+SELECT path, data FROM registry
+WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\device\DeviceLock\%';
+```
+
+> **Note:** `PolicyManager\current\device\<Area>` is where Policy CSP settings land, but the location varies by CSP, and some settings write under `PolicyManager\Providers` instead. Confirm the path for the specific setting you shipped on one pilot host before you build a report or policy around it.
 
 ## Related resources
 
