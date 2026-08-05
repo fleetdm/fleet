@@ -508,6 +508,17 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		userDecl, err := ds.NewMDMAppleDeclaration(ctx, userDeclRaw, nil)
 		require.NoError(t, err)
 
+		// Apple supports management declarations on the user channel too, and
+		// nothing in Fleet scopes by declaration type, so it must ride along.
+		userMgmtDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			DeclarationUUID: "user-scope-user-mgmt",
+			Name:            "UserMgmtDecl",
+			Identifier:      "com.example.userscope.mgmt",
+			RawJSON:         []byte(`{"Type":"com.apple.management.organization-info","Identifier":"com.example.userscope.mgmt","Payload":{"Name":"Fleet"}}`),
+			Scope:           fleet.PayloadScopeUser,
+		}, nil)
+		require.NoError(t, err)
+
 		insertScopedHostDeclaration := func(declUUID, identifier string, scope fleet.PayloadScope) {
 			mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				var token string
@@ -524,6 +535,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		}
 		insertScopedHostDeclaration(deviceDecl.DeclarationUUID, deviceDecl.Identifier, fleet.PayloadScopeSystem)
 		insertScopedHostDeclaration(userDecl.DeclarationUUID, userDecl.Identifier, fleet.PayloadScopeUser)
+		insertScopedHostDeclaration(userMgmtDecl.DeclarationUUID, userMgmtDecl.Identifier, fleet.PayloadScopeUser)
 
 		callChannel := func(enrollID *mdm.EnrollID) fleet.MDMAppleDDMDeclarationItemsResponse {
 			req := mdm.Request{Context: ctx, EnrollID: enrollID}
@@ -543,6 +555,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		deviceResp := callChannel(&mdm.EnrollID{ID: hostUUID})
 		require.Len(t, deviceResp.Declarations.Configurations, 1)
 		require.Equal(t, deviceDecl.Identifier, deviceResp.Declarations.Configurations[0].Identifier)
+		require.Empty(t, deviceResp.Declarations.Management, "the user-scoped management declaration must not leak to the device channel")
 		sysToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeSystem)
 		require.NoError(t, err)
 		require.Equal(t, sysToken.DeclarationsToken, deviceResp.DeclarationsToken)
@@ -552,6 +565,8 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		userResp := callChannel(&mdm.EnrollID{ID: userEnrollmentID, ParentID: hostUUID})
 		require.Len(t, userResp.Declarations.Configurations, 1)
 		require.Equal(t, userDecl.Identifier, userResp.Declarations.Configurations[0].Identifier)
+		require.Len(t, userResp.Declarations.Management, 1)
+		require.Equal(t, userMgmtDecl.Identifier, userResp.Declarations.Management[0].Identifier)
 		userToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeUser)
 		require.NoError(t, err)
 		require.Equal(t, userToken.DeclarationsToken, userResp.DeclarationsToken)
