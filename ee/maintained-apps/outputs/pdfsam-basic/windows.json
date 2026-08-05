@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.0.4.0",
+      "version": "6.0.5.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'PDFsam Basic' AND publisher = 'Sober Lemur S.r.l.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PDFsam Basic' AND publisher = 'Sober Lemur S.r.l.' AND version_compare(version, '6.0.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PDFsam Basic' AND publisher = 'Sober Lemur S.r.l.' AND version_compare(version, '6.0.5.0') < 0);"
       },
-      "installer_url": "https://github.com/torakiki/pdfsam/releases/download/v6.0.4/pdfsam-basic-6.0.4-windows-x64.msi",
+      "installer_url": "https://github.com/torakiki/pdfsam/releases/download/v6.0.5/pdfsam-basic-6.0.5-windows-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "e9918859",
-      "sha256": "eba4b434c3732f103ec7cbfd731a33a502c6ca5c35a9ee200fe1b3abe0d39242",
+      "sha256": "956c37e2bbb1ac8af73f6aa2bc1dc651d457274221522e27e512d725b703f002",
       "default_categories": [
         "Productivity"
       ],
