@@ -27,11 +27,13 @@ module.exports = {
     success: { description: 'The operation for a device of an Android enterprise was successfully retrieved.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
-    notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
-    // Unlike the other android-proxy actions, this one keeps 403 distinct from 404: the Fleet server
-    // treats "this operation is unknown" as evidence a command can never complete, and must not draw
-    // that conclusion from a loss of access to the enterprise.
-    enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', statusCode: 403 },
+    // Unlike the other android-proxy actions, this one reserves 404 for a single meaning: the Android
+    // management API has no record of this operation. The Fleet server treats that as evidence the
+    // command can never complete and eventually marks it failed, so nothing about *this website's*
+    // records may return a 404. A missing AndroidEnterprise row and a loss of access to the enterprise
+    // both mean "we cannot answer for this enterprise" -- a 403, which the Fleet server classifies as
+    // an authorization failure and stops its whole reconciler run on.
+    enterpriseNotAccessible: { description: 'No Android enterprise found for this Fleet server, or Fleet is not authorized to manage it.', statusCode: 403 },
     operationNotFound: { description: 'The specified operation does not exist in this Android enterprise', responseType: 'notFound' },
     // The Fleet server classifies this status code to know it should stop polling and wait for the next
     // reconciler run, so the Android management API's 429 has to survive the trip through this proxy.
@@ -56,9 +58,9 @@ module.exports = {
       androidEnterpriseId: androidEnterpriseId
     });
 
-    // Return a 404 response if no records are found.
+    // Return a 403 (not a 404) if no records are found -- see the note on the exits above.
     if (!thisAndroidEnterprise) {
-      throw 'notFound';
+      throw 'enterpriseNotAccessible';
     }
     // Return an unauthorized response if the provided secret does not match.
     if (thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
@@ -80,9 +82,11 @@ module.exports = {
         name: `enterprises/${androidEnterpriseId}/devices/${deviceId}/operations/${operationId}`,
       });
       return getOperationResult.data;
-    }).intercept({status: 429}, (err)=>{
+    }).intercept({status: 429}, ()=>{
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
-      sails.log.warn(`p1: Android management API rate limit exceeded! When attempting to get a device operation for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
+      // Note: the error object is deliberately left out of this log -- gaxios errors carry the request
+      // config, including the Authorization header used to call Google.
+      sails.log.warn(`p1: Android management API rate limit exceeded! (When getting a device operation for Android enterprise ${androidEnterpriseId}.)`);
       // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so its reconciler
       // can tell rate limiting apart from a generic failure.
       return 'tooManyRequests';

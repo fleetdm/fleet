@@ -123,8 +123,7 @@ func IsNotModifiedError(err error) bool {
 // IsBadRequestError reports whether the AMAPI error indicates that the
 // request was invalid due to a client error.
 func IsBadRequestError(err error) bool {
-	var ae *googleapi.Error
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
 		return ae.Code == http.StatusBadRequest
 	}
 	return false

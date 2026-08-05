@@ -301,8 +301,9 @@ func TestReconcileAndroidCommands(t *testing.T) {
 	})
 
 	t.Run("AMAPI rejecting our credentials stops the run and surfaces an error", func(t *testing.T) {
-		// A missing or stale Fleet server secret, or lost access to the enterprise, rejects every call
-		// identically -- working through the batch would only produce noise.
+		// A missing or stale Fleet server secret, lost access to the enterprise, or (on the proxy path)
+		// fleetdm.com having no record of the enterprise, rejects every call identically -- working
+		// through the batch would only produce noise.
 		for _, statusCode := range []int{http.StatusUnauthorized, http.StatusForbidden} {
 			first := pendingCommandForReconcile("cmd-rejected", string(android.MDMAndroidCommandTypeLock), 48*time.Hour)
 			second := pendingCommandForReconcile("cmd-after-rejected", string(android.MDMAndroidCommandTypeLock), 48*time.Hour)
