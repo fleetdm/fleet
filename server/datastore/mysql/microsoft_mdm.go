@@ -590,6 +590,14 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 				if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
 				}
+				// Retire the escrowed managed local account password. The row is keyed by host_uuid and survives host
+				// deletion on purpose, but it must not survive the enrollment that produced it: a re-enrolling device may
+				// have been re-imaged, in which case the password no longer opens any account and Fleet would keep
+				// reporting it as verified. Soft delete, so the secret is never destroyed by a lifecycle event; the next
+				// successful escrow clears the flag and revives the row.
+				if err := softDeleteManagedLocalAccountPasswordDB(ctx, tx, hostUUID.String); err != nil {
+					return ctxerr.Wrap(ctx, err, "soft delete managed local account password on re-enrollment")
+				}
 			}
 
 		case sql.ErrNoRows:
