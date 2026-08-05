@@ -301,7 +301,7 @@ Reference: https://fleetdm.com/pricing
 ### Power to PC
 
 **Progress**
-- [ ] Manual enrollment flow
+- [ ] Manual enrollment
 - [ ] Autopilot enrollment
 - [ ] MDM migration flow
 - [ ] OS settings
@@ -314,8 +314,8 @@ Reference: https://fleetdm.com/pricing
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
-<td>MDM enrollment flow</td>
-<td>Verify MDM enrollments, run MDM commands.</td>
+<td>Manual enrollment flow</td>
+<td>Verify MDM enrollment, run MDM commands.</td>
 <td>
 
 1. With Windows MDM turned on and the Setup experience configured (end user authentication and software installs), enroll a Windows host and verify MDM is turned on and the configured software installs.
