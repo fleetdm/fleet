@@ -219,7 +219,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		platform_logging.DisableTopic(topic)
 	}
 
-	if dev_mode.IsEnabled && !skipS3TestBuckets() {
+	if dev_mode.IsEnabled && useS3DevConfig() {
 		createTestBuckets(cmd.Context(), &config, logger)
 	}
 
@@ -1389,10 +1389,10 @@ func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, e
 	return nil, nil
 }
 
-// skipS3TestBuckets reports whether FLEET_DEV_SKIP_S3_CONFIG disables the
-// dev-mode creation of local S3 test buckets in runServeCmd.
-func skipS3TestBuckets() bool {
-	return dev_mode.Env("FLEET_DEV_SKIP_S3_CONFIG") == "1"
+// useS3DevConfig determines usage of local S3 test buckets for software and carve storage.
+// By default, they are allowed unless explicitly disabled by setting FLEET_DEV_SKIP_S3_CONFIG to "1".
+func useS3DevConfig() bool {
+	return dev_mode.Env("FLEET_DEV_SKIP_S3_CONFIG") != "1"
 }
 
 func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logger *slog.Logger) {

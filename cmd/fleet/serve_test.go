@@ -1349,7 +1349,8 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 // the semconv version we import. A mismatch (e.g. after a dependabot SDK bump that doesn't
 // update our semconv import) causes a runtime error on server startup.
 func TestOTELResourceCreation(t *testing.T) {
-	res, err := resource.New(t.Context(),
+	res, err := resource.New(
+		t.Context(),
 		resource.WithSchemaURL(semconv.SchemaURL),
 		resource.WithAttributes(
 			semconv.ServiceName("fleet-test"),
@@ -1416,15 +1417,15 @@ func TestArgsToString(t *testing.T) {
 	}
 }
 
-func TestSkipS3TestBuckets(t *testing.T) {
+func TestUseS3DevConfig(t *testing.T) {
 	t.Run("skip flag set", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_SKIP_S3_CONFIG", "1", t)
-		assert.True(t, skipS3TestBuckets())
+		assert.False(t, useS3DevConfig())
 	})
 
 	t.Run("skip flag unset", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_SKIP_S3_CONFIG", "0", t)
-		assert.False(t, skipS3TestBuckets())
+		assert.True(t, useS3DevConfig())
 	})
 }
 

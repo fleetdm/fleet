@@ -10,7 +10,6 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/shellquote"
 	_ "github.com/go-sql-driver/mysql"
@@ -112,8 +111,7 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	// that match our default dev setup.
 	setIfEmpty(&cfg.Mysql.Password, "insecure")
 
-	// use S3 defaults when skip config flag is not present
-	if skipS3Config := dev_mode.Env("FLEET_DEV_SKIP_S3_CONFIG"); skipS3Config != "1" {
+	if useS3DevConfig() {
 		setIfEmpty(&cfg.S3.CarvesBucket, "carves-dev")
 		setIfEmpty(&cfg.S3.CarvesRegion, "localhost")
 		setIfEmpty(&cfg.S3.CarvesPrefix, "dev-prefix")
