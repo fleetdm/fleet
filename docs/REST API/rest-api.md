@@ -16116,7 +16116,7 @@ Removes a custom variable from Fleet.
 - [Create custom host vital](#create-custom-host-vital)
 - [Update custom host vital](#update-custom-host-vital)
 - [Delete custom host vital](#delete-custom-host-vital)
-- [Set a host's custom host vital value](#set-a-hosts-custom-host-vital-value)
+- [Update host's custom host vital value](#update-hosts-custom-host-vital-value)
 - [Replace all custom host vitals](#replace-all-custom-host-vitals)
 
 ### List custom host vitals
@@ -16172,7 +16172,7 @@ Creates a custom host vital.
 
 | Name | Type   | In   | Description                                |
 |:---- |:------ |:---- |:--------------------------------------------|
-| name | string | body | **Required.** The vital's name. Must be unique across all custom host vitals (case-insensitive), and 255 characters or fewer. |
+| name | string | body | **Required.** The vital's name, without the `FLEET_HOST_VITAL_` prefix. Must be unique across all custom host vitals (case-insensitive), and 255 characters or fewer. |
 
 Fails with a `409` if a custom host vital with this name already exists.
 
@@ -16267,7 +16267,7 @@ Fails with a `409` if the vital is still referenced by a script, configuration p
 
 `Status: 200`
 
-### Set a host's custom host vital value
+### Update host's custom host vital value
 
 Sets a host's value for a custom host vital.
 
@@ -16301,8 +16301,6 @@ Sets a host's value for a custom host vital.
 
 Replaces all existing custom host vital definitions with the provided list. Existing vitals not included in the list are deleted, which fails if one of them is still referenced by a script, configuration profile, or Host vitals label.
 
-> Omitting `custom_host_vitals` from the request, or sending an empty list, deletes every existing custom host vital. This is the endpoint `fleetctl gitops` uses to apply the `custom_host_vitals:` key in `default.yml`.
-
 `PUT /api/v1/fleet/spec/custom_host_vitals`
 
 #### Parameters
@@ -16311,6 +16309,8 @@ Replaces all existing custom host vital definitions with the provided list. Exis
 |:------------------ |:------- |:---- |:---------------------------------------------------|
 | custom_host_vitals | array   | body | The full list of custom host vitals. Each item is an object with a `name`. |
 | dry_run            | boolean | body | If `true`, validates the request without applying changes. Default is `false`. |
+
+> Omitting `custom_host_vitals` from the request, or sending an empty list, deletes every existing custom host vital. This is the endpoint `fleetctl gitops` uses to apply the `custom_host_vitals:` key in `default.yml`.
 
 #### Example
 
@@ -16332,9 +16332,6 @@ Replaces all existing custom host vital definitions with the provided list. Exis
 
 `Status: 200`
 
-```json
-{}
-```
 
 ## API errors
 
