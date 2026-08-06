@@ -745,6 +745,7 @@ import Openlens from "./Openlens";
 import Openmtp from "./Openmtp";
 import Openrct2 from "./Openrct2";
 import Openrefine from "./Openrefine";
+import OpenSoundMeter from "./OpenSoundMeter";
 import Opentoonz from "./Opentoonz";
 import OpenvpnConnect from "./OpenvpnConnect";
 import Opera from "./Opera";
@@ -1905,6 +1906,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   onlyoffice: Onlyoffice,
   onlyswitch: OnlySwitch,
   "opal composer": OpalComposer,
+  "open sound meter": OpenSoundMeter,
   openaudible: Openaudible,
   openboard: Openboard,
   "opencloud desktop": Opencloud,
