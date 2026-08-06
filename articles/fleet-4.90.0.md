@@ -38,13 +38,13 @@ GitHub issue: [#38986](https://github.com/fleetdm/fleet/issues/38986)
 
 ### Custom host vitals for every platform
 
-IT Admins can now define custom host vitals, like an asset tag or warranty expiration, for all platforms (macOS, Windows, Linux, iOS/iPadOS, and Android). Custom vitals appear on the **Host details** page and can be used to create labels and as variables in scripts and configuration profiles, so values from another system can drive automation everywhere in your fleet. [Learn more](https://fleetdm.com/guides/articles/custom-host-vitals).
+IT Admins can now define custom host vitals, like an asset tag or warranty expiration, for all platforms (macOS, Windows, Linux, iOS/iPadOS, and Android). Custom vitals appear on the **Host details** page and can be used to create labels and as variables in scripts and configuration profiles, so values from another system can drive automation everywhere in your fleet. [Learn more](https://fleetdm.com/guides/custom-host-vitals).
 
 GitHub issue: [#44954](https://github.com/fleetdm/fleet/issues/44954)
 
 ### Rename macOS, iOS, and iPadOS hosts
 
-IT Admins can now set a host name template on the **Controls** page for a fleet that applies to macOS, iOS, and iPadOS hosts. This gives every Apple host a standard naming convention, often including its serial number, without having to build a custom automation that sends an MDM rename command to each host. [Learn how](https://fleetdm.com/guides/articles/rename-hosts-with-a-naming-template).
+IT Admins can now set a host name template on the **Controls** page for a fleet that applies to macOS, iOS, and iPadOS hosts. This gives every Apple host a standard naming convention, often including its serial number, without having to build a custom automation that sends an MDM rename command to each host. [Learn how](https://fleetdm.com/guides/rename-hosts-with-a-naming-template).
 
 GitHub issue: [#38806](https://github.com/fleetdm/fleet/issues/38806)
 

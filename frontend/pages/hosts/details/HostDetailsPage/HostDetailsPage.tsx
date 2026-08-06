@@ -1099,10 +1099,16 @@ const HostDetailsPage = ({
           false
         }
         isManagedLocalAccountEnabled={
-          mdmConfig?.macos_setup?.enable_managed_local_account ?? false
+          host.platform === "windows"
+            ? mdmConfig?.windows_settings?.managed_local_account_settings
+                ?.enabled ?? false
+            : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
         }
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
+        }
+        managedAccountDetail={
+          host.mdm.os_settings?.managed_local_account?.detail
         }
         managedAccountPasswordAvailable={
           host.mdm.os_settings?.managed_local_account?.password_available ??
@@ -1836,10 +1842,12 @@ const HostDetailsPage = ({
             <ManagedAccountModal
               hostId={host.id}
               canRotatePassword={
-                isGlobalAdmin ||
-                isGlobalMaintainer ||
-                isHostTeamAdmin ||
-                isHostTeamMaintainer
+                // Rotation is macOS-only for now, so Windows hosts get neither the rotate button nor the auto-rotate banner.
+                host.platform === "darwin" &&
+                (isGlobalAdmin ||
+                  isGlobalMaintainer ||
+                  isHostTeamAdmin ||
+                  isHostTeamMaintainer)
               }
               onCancel={() => {
                 setShowManagedAccountModal(false);
