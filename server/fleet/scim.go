@@ -120,6 +120,10 @@ type ScimGroup struct {
 	ExternalID  *string `db:"external_id"`
 	DisplayName string  `db:"display_name"`
 	ScimUsers   []uint
+	// ChildGroups holds the IDs of SCIM groups that are direct (nested) members
+	// of this group. Microsoft Entra ID provisions nested groups by sending
+	// group-type members rather than flattening them into user members.
+	ChildGroups []uint
 }
 
 type ScimLastRequest struct {

@@ -2070,6 +2070,8 @@ type ScimUserByHostIDFunc func(ctx context.Context, hostID uint) (*fleet.ScimUse
 
 type ScimUsersExistFunc func(ctx context.Context, ids []uint) (bool, error)
 
+type ScimGroupsExistFunc func(ctx context.Context, ids []uint) (bool, error)
+
 type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error)
 
 type DeleteScimUserFunc func(ctx context.Context, id uint) ([]fleet.ActivityTypeResentCertificate, error)
@@ -5353,6 +5355,9 @@ type DataStore struct {
 
 	ScimUsersExistFunc        ScimUsersExistFunc
 	ScimUsersExistFuncInvoked bool
+
+	ScimGroupsExistFunc        ScimGroupsExistFunc
+	ScimGroupsExistFuncInvoked bool
 
 	ReplaceScimUserFunc        ReplaceScimUserFunc
 	ReplaceScimUserFuncInvoked bool
@@ -12837,6 +12842,13 @@ func (s *DataStore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error
 	s.ScimUsersExistFuncInvoked = true
 	s.mu.Unlock()
 	return s.ScimUsersExistFunc(ctx, ids)
+}
+
+func (s *DataStore) ScimGroupsExist(ctx context.Context, ids []uint) (bool, error) {
+	s.mu.Lock()
+	s.ScimGroupsExistFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimGroupsExistFunc(ctx, ids)
 }
 
 func (s *DataStore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
