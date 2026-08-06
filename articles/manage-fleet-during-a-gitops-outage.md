@@ -28,9 +28,15 @@ As soon as you can, commit the same change to your GitOps repository. This keeps
 
 > **Note:** If CI is still down, you can commit the change to your repository now and run `fleetctl gitops` manually once you're able to, or wait until CI recovers. Either way, don't turn GitOps mode back on until the repository reflects the change.
 
+## Verify GitOps is applying successfully
+
+Before you turn GitOps mode back on, confirm that a GitOps run has completed successfully with your mirrored change, either through CI or by running `fleetctl gitops` manually. Check the run's output for errors, and confirm the change is still in place in the Fleet UI.
+
+If you turn GitOps mode back on before confirming this, you lock the UI while the pipeline may still be broken, leaving you with no way to make further changes until it's fixed.
+
 ## Turn GitOps mode back on
 
-Once your repository matches the change you made in the UI, go back to **Settings > Integrations > Change management** and turn **GitOps mode** on.
+Once you've confirmed GitOps is applying successfully, go back to **Settings > Integrations > Change management** and turn **GitOps mode** on.
 
 ## Further reading
 
