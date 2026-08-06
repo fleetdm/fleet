@@ -105,7 +105,7 @@ describe("DeployModal", () => {
         patch_software_title_id: 10,
         software_title_id: 10,
         patch_when_closed: false,
-        continuous_automations_enabled: true,
+        continuous_automations_enabled: false,
       })
     );
   });
@@ -180,7 +180,7 @@ describe("DeployModal", () => {
         team_id: 1,
         software_title_id: 10,
         patch_when_closed: false,
-        continuous_automations_enabled: true,
+        continuous_automations_enabled: false,
       })
     );
   });
@@ -216,7 +216,7 @@ describe("DeployModal", () => {
     );
   });
 
-  it("enables continuous automation when saving a migrated Force patch policy", async () => {
+  it("turns continuous automation off when saving a Force patch policy that has it on", async () => {
     const { user } = renderModal({
       softwarePackage: createMockSoftwarePackage({
         fleet_maintained_app_id: 1,
@@ -224,7 +224,7 @@ describe("DeployModal", () => {
           id: 22,
           name: "Firefox up to date",
           patch_when_closed: false,
-          continuous_automations_enabled: false,
+          continuous_automations_enabled: true,
         },
         automatic_install_policies: [
           { id: 22, name: "Firefox up to date", type: "patch" },
@@ -240,7 +240,7 @@ describe("DeployModal", () => {
         team_id: 1,
         software_title_id: 10,
         patch_when_closed: false,
-        continuous_automations_enabled: true,
+        continuous_automations_enabled: false,
       })
     );
   });

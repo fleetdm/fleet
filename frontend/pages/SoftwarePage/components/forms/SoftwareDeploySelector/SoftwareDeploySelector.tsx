@@ -10,7 +10,7 @@ export type PatchOption = "closed" | "force" | "manual";
 
 export const getPatchPolicyFlags = (patchOption: PatchOption) => ({
   patch_when_closed: patchOption === "closed",
-  continuous_automations_enabled: patchOption !== "manual",
+  continuous_automations_enabled: patchOption === "closed",
 });
 
 interface ISoftwareDeploySelectorProps {

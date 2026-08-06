@@ -938,7 +938,7 @@ describe("PolicyForm - component", () => {
             team_id: 1,
             software_title_id: 42,
             patch_when_closed: false,
-            continuous_automations_enabled: true,
+            continuous_automations_enabled: false,
           })
         );
         expect(onUpdate).toHaveBeenCalledTimes(1);

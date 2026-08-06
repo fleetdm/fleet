@@ -88,7 +88,6 @@ interface IPolicyAutomationsFieldsProps {
   fleetName: string;
   /** Present only for patch policies on Premium. */
   patchOption?: PatchOption;
-  onPatchOptionChange?: (patchOption: PatchOption) => void;
   /** Rendered between the automation types and the continuous-automation
    *  checkbox — the edit-policy Patch radios (owned by PolicyForm). */
   patchSlot?: React.ReactNode;
@@ -107,7 +106,6 @@ const PolicyAutomationsFields = forwardRef<
       globalConfig,
       fleetName,
       patchOption,
-      onPatchOptionChange,
       patchSlot,
     },
     ref
@@ -171,7 +169,7 @@ const PolicyAutomationsFields = forwardRef<
       initialConditionalAccess
     );
     const [continuousEnabled, setContinuousEnabled] = useState(
-      initialContinuous
+      initialPatchWhenClosed ? false : initialContinuous
     );
     const patchWhenClosed = patchOption
       ? patchOption === "closed"
@@ -179,8 +177,8 @@ const PolicyAutomationsFields = forwardRef<
     let effectiveContinuousEnabled = continuousEnabled;
     if (patchWhenClosed) {
       effectiveContinuousEnabled = true;
-    } else if (patchOption) {
-      effectiveContinuousEnabled = patchOption === "force";
+    } else if (patchOption === "manual") {
+      effectiveContinuousEnabled = false;
     }
 
     const [softwareTitleId, setSoftwareTitleId] = useState<number | null>(
@@ -272,9 +270,6 @@ const PolicyAutomationsFields = forwardRef<
     };
     const handleToggleContinuous = (next: boolean) => {
       setContinuousEnabled(next);
-      if (patchOption) {
-        onPatchOptionChange?.(next ? "force" : "manual");
-      }
     };
 
     const canFetchTeamScopedLists =
