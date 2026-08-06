@@ -14,9 +14,7 @@
   }
 }
 
-// Dropdown option tooltips are centered by default, which reads poorly for the few sentences fleetd
-// reports when it can't create the managed account. Block-level so the alignment applies to the text
-// rather than to the span itself. The tooltip renders in a portal, so this can't be nested above.
+// Left-align error tooltip.
 .host-actions-dropdown__managed-account-error {
   display: block;
   text-align: left;

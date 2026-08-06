@@ -16,9 +16,7 @@ interface IWindowsAccountSectionProps {
   isWindowsMdmEnabledAndConfigured: boolean;
 }
 
-/** Windows tab of the Users card. Windows has no end user account type to choose from, so that part
- * of the section is helper text only; the managed account checkbox mirrors the macOS tab, including
- * the disabled state that points admins at Windows MDM when it isn't turned on yet. */
+/** Windows tab of the Users card. The managed account checkbox mirrors the macOS tab, including the disabled state that points admins at Windows MDM when it isn't turned on yet. */
 const WindowsAccountSection = ({
   enableManagedLocalAccount,
   onEnableManagedLocalAccountChange,
@@ -28,8 +26,6 @@ const WindowsAccountSection = ({
     <div className={baseClass}>
       <div className={`${baseClass}__field-group`}>
         <h3 className={`${baseClass}__sub-header`}>End user account</h3>
-        {/* Not a <p>: CustomLink's external-link icon renders a <div>, which a paragraph
-        cannot contain, so the parser would close the paragraph early. */}
         <div className={`${baseClass}__end-user-help-text`}>
           End users get the default role for the host&apos;s platform.{" "}
           <CustomLink

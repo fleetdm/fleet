@@ -158,8 +158,6 @@ describe("UsersForm", () => {
   });
 
   describe("platform tabs", () => {
-    // The Windows tab is always offered, matching macOS: hiding it would leave an admin with no way
-    // to discover the setting. Turning Windows MDM on is what unlocks the checkbox.
     it("keeps the Windows tab but disables the checkbox when Windows MDM is not configured", async () => {
       const { user } = renderWithMdmEnabled(<UsersForm {...defaultProps} />);
       expect(screen.getByRole("tab", { name: "macOS" })).toBeInTheDocument();
