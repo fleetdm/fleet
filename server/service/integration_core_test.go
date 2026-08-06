@@ -10168,116 +10168,91 @@ func (s *integrationTestSuite) TestOsqueryConfigETag() {
 
 	hosts := s.createHosts(t)
 	nodeKey := *hosts[0].NodeKey
-	configRequestBody, err := json.Marshal(map[string]string{"node_key": nodeKey})
-	require.NoError(t, err)
 
-	// Helper to make a raw config request and return the response
-	makeConfigReq := func(ifNoneMatch string) *http.Response {
-		headers := map[string]string{}
-		if ifNoneMatch != "" {
-			headers["If-None-Match"] = ifNoneMatch
-		}
-		return s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusOK, headers)
+	// Request bodies for the three etag states of the body-carried protocol:
+	// field absent (legacy), field empty (opted in, no validator yet), and
+	// field carrying an echoed validator.
+	legacyRequestBody, err := json.Marshal(map[string]string{"node_key": nodeKey})
+	require.NoError(t, err)
+	etagRequestBody := func(etag string) []byte {
+		b, err := json.Marshal(map[string]string{"node_key": nodeKey, "etag": etag})
+		require.NoError(t, err)
+		return b
+	}
+	readAll := func(resp *http.Response) []byte {
+		t.Cleanup(func() { resp.Body.Close() })
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		return b
+	}
+	etagOf := func(body []byte) string {
+		var decoded map[string]any
+		require.NoError(t, json.Unmarshal(body, &decoded))
+		etag, _ := decoded["etag"].(string)
+		return etag
 	}
 
-	// 1. First request without If-None-Match returns 200 with ETag
-	resp1 := makeConfigReq("")
-	t.Cleanup(func() { resp1.Body.Close() })
-	require.Equal(t, http.StatusOK, resp1.StatusCode)
-	require.NotEmpty(t, resp1.Header.Get("ETag"))
+	// 1. A legacy agent (no etag field) gets the config with no "etag" key —
+	// byte-for-byte the pre-feature response.
+	legacyBody := readAll(s.DoRaw("POST", "/api/osquery/config", legacyRequestBody, http.StatusOK))
+	require.NotEmpty(t, legacyBody)
+	require.NotContains(t, string(legacyBody), `"etag"`)
 
-	body1, err := io.ReadAll(resp1.Body)
+	// 2. An opted-in agent with no validator (empty etag) gets the full
+	// config with the "etag" key added; the validator covers the etag-less
+	// representation, i.e. the legacy body.
+	optedInBody := readAll(s.DoRaw("POST", "/api/osquery/config", etagRequestBody(""), http.StatusOK))
+	expectedETag := clientConfigETag(legacyBody)
+	require.Equal(t, expectedETag, etagOf(optedInBody))
+	require.NotEqual(t, "ok", etagOf(optedInBody))
+
+	// Stripping the etag key yields exactly the legacy bytes.
+	var optedInConfig map[string]any
+	require.NoError(t, json.Unmarshal(optedInBody, &optedInConfig))
+	delete(optedInConfig, "etag")
+	stripped, err := marshalClientConfig(optedInConfig)
 	require.NoError(t, err)
-	require.NotEmpty(t, body1)
+	require.Equal(t, string(legacyBody), string(stripped))
 
-	// Verify ETag is SHA-256 of the response body
-	expectedETag := clientConfigETag(body1)
-	require.Equal(t, expectedETag, resp1.Header.Get("ETag"))
+	// 3. Echoing the validator gets the constant unchanged body, HTTP 200.
+	unchangedBody := readAll(s.DoRaw("POST", "/api/osquery/config", etagRequestBody(expectedETag), http.StatusOK))
+	require.JSONEq(t, configUnchangedBody, string(unchangedBody))
 
-	// 2. Second request with matching ETag returns 304
-	resp2 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusNotModified, map[string]string{
-		"If-None-Match": expectedETag,
-	})
-	t.Cleanup(func() { resp2.Body.Close() })
-	require.Equal(t, http.StatusNotModified, resp2.StatusCode)
-	body2, err := io.ReadAll(resp2.Body)
-	require.NoError(t, err)
-	require.Empty(t, body2, "304 response must have no body")
-	require.Equal(t, expectedETag, resp2.Header.Get("ETag"))
+	// 4. A stale etag gets the full config again, current validator included.
+	staleBody := readAll(s.DoRaw("POST", "/api/osquery/config", etagRequestBody("wrong-etag"), http.StatusOK))
+	require.Equal(t, expectedETag, etagOf(staleBody))
 
-	// 3. Request with mismatched ETag returns 200
-	resp3 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusOK, map[string]string{
-		"If-None-Match": `"wrong-etag"`,
-	})
-	t.Cleanup(func() { resp3.Body.Close() })
-	require.Equal(t, http.StatusOK, resp3.StatusCode)
-	body3, err := io.ReadAll(resp3.Body)
-	require.NoError(t, err)
-	require.Equal(t, body1, body3, "body should be unchanged")
+	// 5. An empty etag is never answered "unchanged", even with the record
+	// warm from the previous requests.
+	emptyAgainBody := readAll(s.DoRaw("POST", "/api/osquery/config", etagRequestBody(""), http.StatusOK))
+	require.Equal(t, expectedETag, etagOf(emptyAgainBody))
 
-	// 4. Invalid node key never returns 304, even with matching ETag
-	invalidBody, _ := json.Marshal(map[string]string{"node_key": "invalid-key"})
-	resp4 := s.DoRawWithHeaders("POST", "/api/osquery/config", invalidBody, http.StatusUnauthorized, map[string]string{
-		"If-None-Match": expectedETag,
-	})
-	t.Cleanup(func() { resp4.Body.Close() })
-	require.Equal(t, http.StatusUnauthorized, resp4.StatusCode)
-	require.Empty(t, resp4.Header.Get("ETag"), "error responses must not carry ETag")
+	// 6. Invalid node key fails auth regardless of a matching etag.
+	invalidBody, _ := json.Marshal(map[string]string{"node_key": "invalid-key", "etag": expectedETag})
+	resp := s.DoRaw("POST", "/api/osquery/config", invalidBody, http.StatusUnauthorized)
+	readAll(resp)
 
-	// 5. If-None-Match: * returns 304
-	resp5 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusNotModified, map[string]string{
-		"If-None-Match": "*",
-	})
-	t.Cleanup(func() { resp5.Body.Close() })
-	require.Equal(t, http.StatusNotModified, resp5.StatusCode)
+	// 7. The /api/v1/osquery/config alias speaks the same protocol.
+	aliasBody := readAll(s.DoRaw("POST", "/api/v1/osquery/config", etagRequestBody(expectedETag), http.StatusOK))
+	require.JSONEq(t, configUnchangedBody, string(aliasBody))
 
-	// 6. Weak tag does not match, returns 200
-	resp6 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusOK, map[string]string{
-		"If-None-Match": `W/"` + expectedETag[1:len(expectedETag)-1] + `"`,
-	})
-	t.Cleanup(func() { resp6.Body.Close() })
-	require.Equal(t, http.StatusOK, resp6.StatusCode)
-
-	// 7. Comma-separated list containing the ETag returns 304
-	resp7 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusNotModified, map[string]string{
-		"If-None-Match": `"other", ` + expectedETag,
-	})
-	t.Cleanup(func() { resp7.Body.Close() })
-	require.Equal(t, http.StatusNotModified, resp7.StatusCode)
-
-	// 8. Test /api/v1/osquery/config alias
-	resp8 := s.DoRawWithHeaders("POST", "/api/v1/osquery/config", configRequestBody, http.StatusNotModified, map[string]string{
-		"If-None-Match": expectedETag,
-	})
-	t.Cleanup(func() { resp8.Body.Close() })
-	require.Equal(t, http.StatusNotModified, resp8.StatusCode)
-
-	// 9. Config change produces new ETag
-	// Change a global agent option to trigger a config change
+	// 8. A config change produces a new validator: the old etag downloads
+	// the full new config, and the new etag is then answered "unchanged".
 	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"agent_options":{"config":{"options":{"logger_tls_period":10}}}}`), http.StatusOK)
 
-	resp9 := makeConfigReq("")
-	t.Cleanup(func() { resp9.Body.Close() })
-	require.Equal(t, http.StatusOK, resp9.StatusCode)
-	body9, err := io.ReadAll(resp9.Body)
-	require.NoError(t, err)
-	require.NotEqual(t, body1, body9, "config should have changed")
-	require.NotEqual(t, expectedETag, resp9.Header.Get("ETag"), "ETag should have changed")
+	changedBody := readAll(s.DoRaw("POST", "/api/osquery/config", etagRequestBody(expectedETag), http.StatusOK))
+	newETag := etagOf(changedBody)
+	require.NotEmpty(t, newETag)
+	require.NotEqual(t, "ok", newETag)
+	require.NotEqual(t, expectedETag, newETag, "validator should have changed")
 
-	// Old ETag no longer matches
-	resp10 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusOK, map[string]string{
-		"If-None-Match": expectedETag,
-	})
-	t.Cleanup(func() { resp10.Body.Close() })
-	require.Equal(t, http.StatusOK, resp10.StatusCode)
+	unchangedAfterBody := readAll(s.DoRaw("POST", "/api/osquery/config", etagRequestBody(newETag), http.StatusOK))
+	require.JSONEq(t, configUnchangedBody, string(unchangedAfterBody))
 
-	// New ETag matches
-	newETag := resp9.Header.Get("ETag")
-	resp11 := s.DoRawWithHeaders("POST", "/api/osquery/config", configRequestBody, http.StatusNotModified, map[string]string{
-		"If-None-Match": newETag,
-	})
-	t.Cleanup(func() { resp11.Body.Close() })
-	require.Equal(t, http.StatusNotModified, resp11.StatusCode)
+	// 9. Legacy agents see the new config with no "etag" key.
+	newLegacyBody := readAll(s.DoRaw("POST", "/api/osquery/config", legacyRequestBody, http.StatusOK))
+	require.NotContains(t, string(newLegacyBody), `"etag"`)
+	require.Equal(t, newETag, clientConfigETag(newLegacyBody))
 }
 
 func (s *integrationTestSuite) TestEnrollOsquery() {

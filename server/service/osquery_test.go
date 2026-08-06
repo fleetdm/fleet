@@ -1461,7 +1461,7 @@ func TestHostDetailQueries(t *testing.T) {
 
 		Platform:        "darwin",
 		DetailUpdatedAt: mockClock.Now(),
-		NodeKey:         ptr.String("test_key"),
+		NodeKey:         new("test_key"),
 		Hostname:        "test_hostname",
 		UUID:            "test_uuid",
 	}
@@ -1625,7 +1625,7 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 	host := fleet.Host{
 		ID:       1,
 		Platform: "darwin",
-		NodeKey:  ptr.String("test_key"),
+		NodeKey:  new("test_key"),
 		Hostname: "test_hostname",
 		UUID:     "test_uuid",
 		TeamID:   nil,
@@ -1984,7 +1984,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	host := &fleet.Host{
 		ID:            1,
 		Platform:      "windows",
-		OsqueryHostID: ptr.String("very_random"),
+		OsqueryHostID: new("very_random"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -2187,7 +2187,7 @@ func TestDetailQueries(t *testing.T) {
 		ID:             1,
 		Platform:       "linux",
 		HardwareSerial: "HW_SRL",
-		OsqueryHostID:  ptr.String("foobar"),
+		OsqueryHostID:  new("foobar"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -2630,7 +2630,7 @@ func TestMDMQueries(t *testing.T) {
 	host := fleet.Host{
 		ID:       1,
 		Platform: "darwin",
-		NodeKey:  ptr.String("test_key"),
+		NodeKey:  new("test_key"),
 		Hostname: "test_hostname",
 		UUID:     "test_uuid",
 		TeamID:   nil,
@@ -2767,7 +2767,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	host := &fleet.Host{
 		ID:            1,
 		Platform:      "windows",
-		OsqueryHostID: ptr.String("other_random_value"),
+		OsqueryHostID: new("other_random_value"),
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
@@ -3266,7 +3266,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := hostctx.NewContext(ctx, &fleet.Host{
 				ID:                  1,
-				NodeKey:             ptr.String("123456"),
+				NodeKey:             new("123456"),
 				DistributedInterval: tt.initIntervals.DistributedInterval,
 				ConfigTLSRefresh:    tt.initIntervals.ConfigTLSRefresh,
 				LoggerTLSPeriod:     tt.initIntervals.LoggerTLSPeriod,
@@ -6232,49 +6232,43 @@ func TestClientConfigMarshalDeterministic(t *testing.T) {
 	assert.Equal(t, clientConfigETag(body1), clientConfigETag(body2))
 }
 
-// TestClientConfigETag verifies the ETag format.
+// TestClientConfigETag verifies the validator format.
 func TestClientConfigETag(t *testing.T) {
 	body := []byte(`{"test": true}`)
 	etag := clientConfigETag(body)
 
-	// Should be quoted
-	assert.True(t, strings.HasPrefix(etag, `"`))
-	assert.True(t, strings.HasSuffix(etag, `"`))
-
-	// Should be lowercase hex SHA-256 (64 hex chars inside quotes)
-	inner := etag[1 : len(etag)-1]
-	assert.Len(t, inner, 64)
+	// Bare lowercase hex SHA-256: the validator travels in JSON bodies, not
+	// HTTP headers, so there is no quoting. Hex also can never collide with
+	// the reserved "ok" value.
+	assert.Len(t, etag, 64)
 	sum := sha256.Sum256(body)
-	assert.Equal(t, hex.EncodeToString(sum[:]), inner)
+	assert.Equal(t, hex.EncodeToString(sum[:]), etag)
+	assert.NotEqual(t, "ok", etag)
 }
 
-// TestClientConfigETagMatches tests the If-None-Match parsing logic.
+// TestClientConfigETagMatches tests the body-carried etag comparison: a nil
+// etag (agent did not opt in) and an empty etag (opted in, no validator yet)
+// can never match, so an agent without history is never answered "unchanged".
 func TestClientConfigETagMatches(t *testing.T) {
-	etag := `"abc123"`
+	etag := "abc123"
 
 	tests := []struct {
-		name        string
-		ifNoneMatch string
-		wantMatch   bool
+		name       string
+		clientETag *string
+		wantMatch  bool
 	}{
-		{"empty header", "", false},
-		{"whitespace only", "   ", false},
-		{"exact match", `"abc123"`, true},
-		{"exact match with whitespace", `  "abc123"  `, true},
-		{"wildcard", "*", true},
-		{"wildcard with whitespace", " * ", true},
-		{"mismatch", `"xyz789"`, false},
-		{"comma list containing match", `"other", "abc123"`, true},
-		{"comma list without match", `"other", "xyz"`, false},
-		{"weak tag", `W/"abc123"`, false},
-		{"weak tag in list", `W/"abc123", "other"`, false},
-		{"malformed token", `abc123`, false},
-		{"mixed weak and strong match", `W/"other", "abc123"`, true},
+		{"field absent", nil, false},
+		{"empty etag", new(""), false},
+		{"exact match", new("abc123"), true},
+		{"mismatch", new("xyz789"), false},
+		{"whitespace is not trimmed", new(" abc123 "), false},
+		{"no wildcard semantics", new("*"), false},
+		{"reserved ok never matches a real etag", new("ok"), false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := clientConfigETagMatches(tt.ifNoneMatch, etag)
+			got := clientConfigETagMatches(tt.clientETag, etag)
 			assert.Equal(t, tt.wantMatch, got)
 		})
 	}
@@ -6284,36 +6278,37 @@ func TestClientConfigETagMatches(t *testing.T) {
 func TestGetClientConfigResponse_HijackRender(t *testing.T) {
 	ctx := context.Background()
 	body := []byte("{\n  \"options\": {}\n}\n")
-	etag := `"expected"`
 
-	t.Run("200 success", func(t *testing.T) {
+	t.Run("full config", func(t *testing.T) {
 		rr := httptest.NewRecorder()
 		resp := getClientConfigResponse{
 			body:        body,
-			etag:        etag,
 			notModified: false,
 		}
 		resp.HijackRender(ctx, rr)
 
 		assert.Equal(t, http.StatusOK, rr.Code)
 		assert.Equal(t, body, rr.Body.Bytes())
-		assert.Equal(t, etag, rr.Header().Get("ETag"))
+		assert.Empty(t, rr.Header().Get("ETag"))
 		assert.Equal(t, "private, no-cache", rr.Header().Get("Cache-Control"))
 		assert.Equal(t, "application/json; charset=utf-8", rr.Header().Get("Content-Type"))
 	})
 
-	t.Run("304 not modified", func(t *testing.T) {
+	t.Run("not modified", func(t *testing.T) {
 		rr := httptest.NewRecorder()
 		resp := getClientConfigResponse{
 			body:        body,
-			etag:        etag,
 			notModified: true,
 		}
 		resp.HijackRender(ctx, rr)
 
-		assert.Equal(t, http.StatusNotModified, rr.Code)
-		assert.Empty(t, rr.Body.Bytes())
-		assert.Equal(t, etag, rr.Header().Get("ETag"))
+		// The unchanged response is a plain 200 with the constant reserved
+		// body, never a 304 (nonstandard for POST) and never the config.
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.JSONEq(t, configUnchangedBody, rr.Body.String())
+		assert.Len(t, rr.Body.Bytes(), len(configUnchangedBody),
+			"the unchanged body is the exact constant, byte for byte")
+		assert.Empty(t, rr.Header().Get("ETag"))
 	})
 
 	t.Run("error response never reaches HijackRender", func(t *testing.T) {
@@ -6359,11 +6354,49 @@ func TestGetClientConfigResponse_JSON(t *testing.T) {
 	})
 }
 
-// TestGetClientConfigRequest_DecodeRequest tests the custom decoder.
+// TestGetClientConfigRequest_DecodeRequest tests the custom decoder,
+// including the three etag states the body protocol distinguishes.
 func TestGetClientConfigRequest_DecodeRequest(t *testing.T) {
 	decoder := getClientConfigRequest{}
 
-	t.Run("captures If-None-Match header", func(t *testing.T) {
+	t.Run("etag field with a value", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key", "etag": "abc123"}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+
+		result, err := decoder.DecodeRequest(context.Background(), r)
+		require.NoError(t, err)
+
+		req := result.(*getClientConfigRequest)
+		assert.Equal(t, "test-key", req.NodeKey)
+		require.NotNil(t, req.ETag)
+		assert.Equal(t, "abc123", *req.ETag)
+	})
+
+	t.Run("empty etag field is opted in", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key", "etag": ""}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+
+		result, err := decoder.DecodeRequest(context.Background(), r)
+		require.NoError(t, err)
+
+		req := result.(*getClientConfigRequest)
+		require.NotNil(t, req.ETag)
+		assert.Empty(t, *req.ETag)
+	})
+
+	t.Run("absent etag field is not opted in", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key"}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+
+		result, err := decoder.DecodeRequest(context.Background(), r)
+		require.NoError(t, err)
+
+		req := result.(*getClientConfigRequest)
+		assert.Equal(t, "test-key", req.NodeKey)
+		assert.Nil(t, req.ETag)
+	})
+
+	t.Run("If-None-Match header is ignored", func(t *testing.T) {
 		body := []byte(`{"node_key": "test-key"}`)
 		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
 		r.Header.Set("If-None-Match", `"abc123"`)
@@ -6372,20 +6405,7 @@ func TestGetClientConfigRequest_DecodeRequest(t *testing.T) {
 		require.NoError(t, err)
 
 		req := result.(*getClientConfigRequest)
-		assert.Equal(t, "test-key", req.NodeKey)
-		assert.Equal(t, `"abc123"`, req.IfNoneMatch)
-	})
-
-	t.Run("no If-None-Match header", func(t *testing.T) {
-		body := []byte(`{"node_key": "test-key"}`)
-		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
-
-		result, err := decoder.DecodeRequest(context.Background(), r)
-		require.NoError(t, err)
-
-		req := result.(*getClientConfigRequest)
-		assert.Equal(t, "test-key", req.NodeKey)
-		assert.Empty(t, req.IfNoneMatch)
+		assert.Nil(t, req.ETag)
 	})
 
 	t.Run("malformed JSON returns error", func(t *testing.T) {

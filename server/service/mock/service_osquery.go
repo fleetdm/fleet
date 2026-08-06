@@ -18,7 +18,7 @@ type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (host *fleet
 
 type GetClientConfigFunc func(ctx context.Context) (config map[string]interface{}, err error)
 
-type GetClientConfigWithETagFunc func(ctx context.Context, ifNoneMatch string) (*fleet.ClientConfigResult, error)
+type GetClientConfigWithETagFunc func(ctx context.Context, clientETag *string) (*fleet.ClientConfigResult, error)
 
 type GetDistributedQueriesFunc func(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error)
 
@@ -82,11 +82,11 @@ func (s *TLSService) GetClientConfig(ctx context.Context) (config map[string]int
 	return s.GetClientConfigFunc(ctx)
 }
 
-func (s *TLSService) GetClientConfigWithETag(ctx context.Context, ifNoneMatch string) (*fleet.ClientConfigResult, error) {
+func (s *TLSService) GetClientConfigWithETag(ctx context.Context, clientETag *string) (*fleet.ClientConfigResult, error) {
 	s.mu.Lock()
 	s.GetClientConfigWithETagFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetClientConfigWithETagFunc(ctx, ifNoneMatch)
+	return s.GetClientConfigWithETagFunc(ctx, clientETag)
 }
 
 func (s *TLSService) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {

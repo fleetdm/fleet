@@ -146,7 +146,7 @@ func newETagTestDS() *mock.Store {
 }
 
 // TestConfigETagSharedShortCircuitHit is THE shared-mode short circuit test:
-// a valid stored ETag matching the client validator must produce a 304 with
+// a valid stored ETag matching the client validator must produce a not-modified result with
 // ZERO datastore reads and no ETag write.
 func TestConfigETagSharedShortCircuitHit(t *testing.T) {
 	ds := newETagTestDS()
@@ -155,11 +155,11 @@ func TestConfigETagSharedShortCircuitHit(t *testing.T) {
 	svc.SetConfigETagStore(store)
 
 	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
-	result, err := svc.GetClientConfigWithETag(ctx, `"stored"`)
+	result, err := svc.GetClientConfigWithETag(ctx, new(`"stored"`))
 	require.NoError(t, err)
 
 	assert.True(t, result.NotModified)
-	assert.Nil(t, result.Body, "304 must carry no body")
+	assert.Nil(t, result.Body, "a not-modified result must carry no body")
 	assert.Equal(t, `"stored"`, result.ETag)
 	assert.Equal(t, "redis_not_modified", result.CacheStatus)
 	assert.Equal(t, "shared", result.Mode)
@@ -175,7 +175,7 @@ func TestConfigETagSharedShortCircuitHit(t *testing.T) {
 
 // TestConfigETagPerHostShortCircuitHit is THE per-host-mode short circuit
 // test: with label-scoped reports in scope, a valid stored per-host ETag
-// must produce a 304 with ZERO datastore reads, and the shared record must
+// must produce a not-modified result with ZERO datastore reads, and the shared record must
 // never be consulted.
 func TestConfigETagPerHostShortCircuitHit(t *testing.T) {
 	ds := newETagTestDS()
@@ -188,7 +188,7 @@ func TestConfigETagPerHostShortCircuitHit(t *testing.T) {
 	svc.SetConfigETagStore(store)
 
 	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
-	result, err := svc.GetClientConfigWithETag(ctx, `"host-etag"`)
+	result, err := svc.GetClientConfigWithETag(ctx, new(`"host-etag"`))
 	require.NoError(t, err)
 
 	assert.True(t, result.NotModified)
@@ -276,7 +276,7 @@ func TestConfigETagModeSelection(t *testing.T) {
 			svc.SetConfigETagStore(tc.store)
 
 			ctx = hostctx.NewContext(ctx, tc.host)
-			result, err := svc.GetClientConfigWithETag(ctx, `"whatever"`)
+			result, err := svc.GetClientConfigWithETag(ctx, new(`"whatever"`))
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantMode, result.Mode)
 
@@ -311,7 +311,7 @@ func TestConfigETagMissBuildsAndPersists(t *testing.T) {
 				svc.SetConfigETagStore(store)
 
 				ctx = hostctx.NewContext(ctx, tc.host)
-				result, err := svc.GetClientConfigWithETag(ctx, `"whatever-stale"`)
+				result, err := svc.GetClientConfigWithETag(ctx, new(`"whatever-stale"`))
 				require.NoError(t, err)
 
 				assert.False(t, result.NotModified)
@@ -339,7 +339,7 @@ func TestConfigETagMissBuildsAndPersists(t *testing.T) {
 
 		host := &fleet.Host{ID: 42, Platform: "linux", TeamID: new(uint(7))}
 		ctx = hostctx.NewContext(ctx, host)
-		result, err := svc.GetClientConfigWithETag(ctx, `"whatever-stale"`)
+		result, err := svc.GetClientConfigWithETag(ctx, new(`"whatever-stale"`))
 		require.NoError(t, err)
 
 		assert.False(t, result.NotModified)
@@ -380,7 +380,7 @@ func TestConfigETagPerHostBypassesTeamPackCache(t *testing.T) {
 	ctx := hostctx.NewContext(baseCtx, host)
 
 	// 1. Shared-mode request populates the team pack cache with v1.
-	first, err := svc.GetClientConfigWithETag(ctx, "")
+	first, err := svc.GetClientConfigWithETag(ctx, new(""))
 	require.NoError(t, err)
 	assert.Contains(t, string(first.Body), "report-v1")
 
@@ -397,7 +397,7 @@ func TestConfigETagPerHostBypassesTeamPackCache(t *testing.T) {
 
 	// 3. A per-host-mode build must bypass the cached v1 render and reflect
 	// v2 immediately.
-	second, err := svc.GetClientConfigWithETag(ctx, "")
+	second, err := svc.GetClientConfigWithETag(ctx, new(""))
 	require.NoError(t, err)
 	assert.Equal(t, "host", second.Mode)
 	assert.Contains(t, string(second.Body), "report-v2",
@@ -408,7 +408,7 @@ func TestConfigETagPerHostBypassesTeamPackCache(t *testing.T) {
 	// render is what a shared build serves — proving step 3 really did
 	// bypass the cache rather than the cache having expired.
 	store.scopes = fleet.ConfigETagLabelScopes{}
-	third, err := svc.GetClientConfigWithETag(ctx, "")
+	third, err := svc.GetClientConfigWithETag(ctx, new(""))
 	require.NoError(t, err)
 	assert.Equal(t, "shared", third.Mode)
 	assert.Contains(t, string(third.Body), "report-v1",
@@ -449,7 +449,7 @@ func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
 			ctx := hostctx.NewContext(baseCtx, &fleet.Host{ID: 1, Platform: "darwin"})
 
 			// 1. Shared-mode request warms the team pack cache with v1.
-			first, err := svc.GetClientConfigWithETag(ctx, "")
+			first, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
 			assert.Equal(t, "shared", first.Mode)
 			assert.Contains(t, string(first.Body), "report-v1")
@@ -467,7 +467,7 @@ func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
 			// v1 render — and must not touch Redis records (delta-checked:
 			// step 1's shared-mode publish legitimately counted one set).
 			getBefore, setBefore, hostSetBefore := store.getCalls, store.setCalls, store.hostSetCalls
-			second, err := svc.GetClientConfigWithETag(ctx, "")
+			second, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
 			assert.Equal(t, "bypass", second.Mode)
 			assert.Contains(t, string(second.Body), "report-v2",
@@ -480,7 +480,7 @@ func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
 			// 4. Control: scope state recovers → shared mode serves the
 			// still-warm cached v1 render, proving step 3 truly bypassed.
 			store.scopesErr = nil
-			third, err := svc.GetClientConfigWithETag(ctx, "")
+			third, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
 			assert.Equal(t, "shared", third.Mode)
 			assert.Contains(t, string(third.Body), "report-v1")
@@ -488,10 +488,10 @@ func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
 	}
 }
 
-// TestConfigETagNaive304StillWorks: with a Redis miss (and with no store at
-// all), the pre-existing bandwidth-only 304 — validator vs freshly built
+// TestConfigETagNaiveNotModifiedStillWorks: with a Redis miss (and with no store at
+// all), the pre-existing bandwidth-only not-modified path — validator vs freshly built
 // body — must keep working.
-func TestConfigETagNaive304StillWorks(t *testing.T) {
+func TestConfigETagNaiveNotModifiedStillWorks(t *testing.T) {
 	for _, withStore := range []bool{true, false} {
 		name := "no store (flag off)"
 		if withStore {
@@ -508,7 +508,7 @@ func TestConfigETagNaive304StillWorks(t *testing.T) {
 			ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
 
 			// first fetch: no validator
-			first, err := svc.GetClientConfigWithETag(ctx, "")
+			first, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
 			assert.False(t, first.NotModified)
 			assert.Equal(t, "full_no_validator", first.CacheStatus)
@@ -517,8 +517,8 @@ func TestConfigETagNaive304StillWorks(t *testing.T) {
 				assert.Equal(t, "off", first.Mode)
 			}
 
-			// second fetch presents the etag: full build, then naive 304
-			second, err := svc.GetClientConfigWithETag(ctx, first.ETag)
+			// second fetch presents the etag: full build, then naive not-modified
+			second, err := svc.GetClientConfigWithETag(ctx, new(first.ETag))
 			require.NoError(t, err)
 			assert.True(t, second.NotModified)
 			assert.Nil(t, second.Body)
@@ -531,6 +531,52 @@ func TestConfigETagNaive304StillWorks(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestConfigETagBodyContract pins the two response bodies of the
+// body-carried protocol: an opted-in agent's full response is the config
+// with the validator added under the "etag" key, while an agent that did not
+// send the field gets the canonical body with no "etag" key — and the
+// validator is always computed over the canonical (etag-less) bytes, the
+// representation the agent applies after stripping the key.
+func TestConfigETagBodyContract(t *testing.T) {
+	ds := newETagTestDS()
+	svc, baseCtx := newTestService(t, ds, nil, nil)
+	ctx := hostctx.NewContext(baseCtx, &fleet.Host{ID: 1, Platform: "darwin"})
+
+	// Opted in (empty etag, first request): full config plus the etag key.
+	optedIn, err := svc.GetClientConfigWithETag(ctx, new(""))
+	require.NoError(t, err)
+	assert.False(t, optedIn.NotModified)
+	require.NotNil(t, optedIn.Body)
+	require.NotNil(t, optedIn.BodyWithETag)
+	assert.NotContains(t, string(optedIn.Body), `"etag"`)
+	assert.Equal(t, clientConfigETag(optedIn.Body), optedIn.ETag,
+		"the validator covers the etag-less body")
+
+	var withKey map[string]any
+	require.NoError(t, json.Unmarshal(optedIn.BodyWithETag, &withKey))
+	assert.Equal(t, optedIn.ETag, withKey["etag"])
+
+	// Stripping the etag key from BodyWithETag yields exactly Body.
+	delete(withKey, "etag")
+	stripped, err := marshalClientConfig(withKey)
+	require.NoError(t, err)
+	assert.Equal(t, string(optedIn.Body), string(stripped))
+
+	// Not opted in (nil): the canonical body only, byte-identical legacy.
+	legacy, err := svc.GetClientConfigWithETag(ctx, nil)
+	require.NoError(t, err)
+	assert.False(t, legacy.NotModified)
+	assert.Nil(t, legacy.BodyWithETag, "legacy responses never carry an etag key")
+	assert.Equal(t, string(optedIn.Body), string(legacy.Body))
+
+	// Unchanged: neither body is populated; the endpoint serves the constant.
+	unchanged, err := svc.GetClientConfigWithETag(ctx, new(optedIn.ETag))
+	require.NoError(t, err)
+	assert.True(t, unchanged.NotModified)
+	assert.Nil(t, unchanged.Body)
+	assert.Nil(t, unchanged.BodyWithETag)
 }
 
 // TestConfigETagGateLoaders exercises the real loaders (userPacksExist,
@@ -564,7 +610,7 @@ func TestConfigETagGateLoaders(t *testing.T) {
 			svc.SetConfigETagStore(store)
 
 			ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
-			result, err := svc.GetClientConfigWithETag(ctx, `"anything"`)
+			result, err := svc.GetClientConfigWithETag(ctx, new(`"anything"`))
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.wantMode, result.Mode)
@@ -601,7 +647,7 @@ func TestConfigETagLegacyPackHostNeverPersists(t *testing.T) {
 			svc.SetConfigETagStore(store)
 
 			ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
-			result, err := svc.GetClientConfigWithETag(ctx, `"anything"`)
+			result, err := svc.GetClientConfigWithETag(ctx, new(`"anything"`))
 			require.NoError(t, err)
 
 			assert.False(t, result.NotModified)
@@ -630,7 +676,7 @@ func TestConfigETagFailsOpen(t *testing.T) {
 			svc.SetConfigETagStore(tc.store)
 
 			ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
-			result, err := svc.GetClientConfigWithETag(ctx, `"anything"`)
+			result, err := svc.GetClientConfigWithETag(ctx, new(`"anything"`))
 			require.NoError(t, err, "redis failures must not fail config delivery")
 			assert.False(t, result.NotModified)
 			assert.NotEmpty(t, result.Body)
@@ -654,7 +700,7 @@ func TestConfigETagStateLoggedOncePerContainer(t *testing.T) {
 
 	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
 	for range 5 {
-		_, err := svc.GetClientConfigWithETag(ctx, `"whatever"`)
+		_, err := svc.GetClientConfigWithETag(ctx, new(`"whatever"`))
 		require.NoError(t, err)
 	}
 

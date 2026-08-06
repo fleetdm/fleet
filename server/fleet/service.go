@@ -60,18 +60,25 @@ type OsqueryService interface {
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
 	// GetClientConfigWithETag returns the osquery configuration for the host in
-	// the provided context, along with HTTP conditional-request (ETag) metadata.
+	// the provided context, along with conditional-request (etag) metadata.
+	// The validator travels in the JSON request/response bodies (the config
+	// request is a POST, where HTTP ETag/If-None-Match semantics do not
+	// apply): an agent opts in by sending an "etag" field (clientETag non-nil;
+	// empty string on its first request), and an agent whose etag matches is
+	// answered with the constant body {"etag":"ok"} instead of the config.
+	// Agents that do not send the field (clientETag nil) receive the exact
+	// pre-feature response bytes with no "etag" key.
 	//
 	// ██ SHORT CIRCUIT WARNING ████████████████████████████████████████████████
 	//
 	// When the Redis-backed config ETag store is enabled
 	// (FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true) and the host presents a matching
-	// If-None-Match validator, this method returns NotModified=true WITHOUT
-	// BUILDING THE CONFIG AT ALL — no AppConfig read, no ListPacksForHost, no
-	// agent options, no scheduled queries, and no host-intervals
-	// reconciliation. Any side effect that must run on every config check-in
-	// must NOT live behind this method's full-build path; it will be skipped
-	// for every 304 response.
+	// etag, this method returns NotModified=true WITHOUT BUILDING THE CONFIG
+	// AT ALL — no AppConfig read, no ListPacksForHost, no agent options, no
+	// scheduled queries, and no host-intervals reconciliation. Any side effect
+	// that must run on every config check-in must NOT live behind this
+	// method's full-build path; it will be skipped for every not-modified
+	// response.
 	//
 	// The request runs in one of four cache modes (see ClientConfigResult.Mode):
 	//   - "off": the feature flag is off or Redis is not configured (no
@@ -84,17 +91,19 @@ type OsqueryService interface {
 	//     isolated per-host record, never read by another host, built with
 	//     the team pack cache bypassed.
 	//
-	// The fast path additionally falls back to a full build when no
-	// If-None-Match header was sent, when the stored ETag's generation/scope/
-	// platform is stale or the record is missing/expired, and on any Redis
-	// error (the fast path FAILS OPEN — errors degrade to a full build, never
-	// to a failed request).
+	// The fast path additionally falls back to a full build when the agent
+	// sent no etag (nil) or an empty one, when the stored ETag's generation/
+	// scope/platform is stale or the record is missing/expired, and on any
+	// Redis error (the fast path FAILS OPEN — errors degrade to a full build,
+	// never to a failed request). NotModified is never true for a nil or
+	// empty client etag: an agent without history always receives the full
+	// config.
 	//
 	// █████████████████████████████████████████████████████████████████████████
 	//
 	// GetClientConfig (above) remains the plain, always-full-build variant and
 	// is still used by the launcher (gRPC) service.
-	GetClientConfigWithETag(ctx context.Context, ifNoneMatch string) (*ClientConfigResult, error)
+	GetClientConfigWithETag(ctx context.Context, clientETag *string) (*ClientConfigResult, error)
 	// GetDistributedQueries retrieves the distributed queries to run for the host in
 	// the provided context. These may be (depending on update intervals):
 	//	- detail queries (including additional queries, if any),
@@ -1719,22 +1728,31 @@ type AdvancedKeyValueStore interface {
 // ClientConfigResult is the outcome of an ETag-aware osquery config request
 // (see OsqueryService.GetClientConfigWithETag).
 type ClientConfigResult struct {
-	// Body is the marshaled JSON config to send to the agent. It is nil when
-	// NotModified is true (a 304 response carries no body).
+	// Body is the marshaled JSON config WITHOUT the "etag" key — the
+	// canonical representation the validator is computed over, and the exact
+	// bytes served to agents that did not opt in (byte-identical to the
+	// pre-feature response). It is nil when NotModified is true.
 	Body []byte
-	// ETag is the strong validator for the config representation (quoted
-	// SHA-256 of Body, or the Redis-stored value on a short-circuit hit). It
-	// must be echoed in the ETag response header for both 200 and 304.
+	// BodyWithETag is Body re-marshaled with the validator added under the
+	// "etag" key: the response body for an opted-in agent receiving the full
+	// config. It is nil when the agent did not opt in and when NotModified
+	// is true.
+	BodyWithETag []byte
+	// ETag is the validator for the config representation (SHA-256 hex of
+	// Body, or the Redis-stored value on a short-circuit hit). It is opaque
+	// to agents, which echo it verbatim in the "etag" request field. The
+	// literal value "ok" is reserved for the unchanged response and is never
+	// a real validator (impossible for hex output).
 	ETag string
-	// NotModified reports that the client's If-None-Match validator matched
-	// and the response must be 304 with no body.
+	// NotModified reports that the client's etag matched: the response is
+	// the constant body {"etag":"ok"}.
 	NotModified bool
 	// CacheStatus describes, for observability only, how this result was
 	// produced. See the etag_result values logged by the osquery config
 	// endpoint: "redis_not_modified" (shared mode) and
 	// "redis_host_not_modified" (per-host mode) mean the SHORT CIRCUIT
-	// served a 304 without building the config; every other value means a
-	// full config build happened.
+	// served an "unchanged" response without building the config; every
+	// other value means a full config build happened.
 	CacheStatus string
 	// Mode is the cache mode the request was served under, for
 	// observability only: "off" (no store configured), "bypass" (legacy
@@ -1800,7 +1818,7 @@ var ErrConfigETagGateLoading = errors.New("config etag gate state load in flight
 //     the service-layer pack config cache). While the fence is armed,
 //     SetIfNoFence refuses to persist ETags, because a config built during
 //     that window may have been assembled from stale in-memory cache data.
-//     Persisting such an ETag would poison every host in the team with 304s
+//     Persisting such an ETag would poison every host in the team with "unchanged" responses
 //     against a config that no longer exists ("stale write poisoning").
 //
 // All methods must FAIL OPEN from the caller's perspective: a Redis error
