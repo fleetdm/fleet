@@ -518,7 +518,29 @@ var hostForeignVitalGroups = map[string]HostForeignVitalGroup{
 		// which both leaks cross-team membership and breaks the INSERT into
 		// label_membership (NULL host_id, which is NOT NULL), rolling back the whole
 		// update so the fleet label gets zero hosts. See #46869.
-		Query: `JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
+		// The scim_user_group join is a recursive derived table (aliased back to
+		// scim_user_group so downstream references are unchanged) that expands each
+		// user's DIRECT group memberships into their EFFECTIVE memberships,
+		// including every ancestor group reachable via nested group edges
+		// (scim_group_group). Entra ID provisions nested groups as group-type
+		// members rather than flattening them, so without this expansion a host
+		// whose user only belongs to a child group would not match a label built on
+		// an ancestor group's display name. The anchor is seeded with only the SCIM
+		// users mapped to hosts: the derived table is materialized once per query
+		// (the outer join predicate isn't pushed into a recursive CTE), and rows for
+		// host-less users would be expanded only to be discarded by that join.
+		Query: `JOIN host_scim_user ON (hosts.id = host_scim_user.host_id)
+				JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id)
+				LEFT JOIN (
+					WITH RECURSIVE scim_user_group_expanded AS (
+						SELECT scim_user_id, group_id FROM scim_user_group
+						WHERE scim_user_id IN (SELECT scim_user_id FROM host_scim_user)
+						UNION SELECT e.scim_user_id, gg.parent_group_id AS group_id
+						FROM scim_user_group_expanded e
+						JOIN scim_group_group gg ON gg.child_group_id = e.group_id
+					) SELECT scim_user_id, group_id FROM scim_user_group_expanded
+				) scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id)
+				 LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
 	},
 }
 
@@ -1146,6 +1168,9 @@ type HostDetail struct {
 	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
 
 	ConditionalAccessBypassed bool `json:"conditional_access_bypassed"`
+
+	OSUpdateMinimumVersion *string `json:"os_update_minimum_version"`
+	OSUpdateDeadline       *string `json:"os_update_deadline"`
 }
 
 type HostEndUser struct {

@@ -7,6 +7,7 @@ import createMockHost from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
 
 import { IHost } from "interfaces/host";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import VitalsModal from "./VitalsModal";
 
 const ALL_VITALS_LABELS = [
@@ -137,7 +138,7 @@ describe("VitalsModal component", () => {
       <VitalsModal host={host} vitalsData={host} mdm={host.mdm} onExit={noop} />
     );
 
-    expect(findValueCell(container, "Battery level")?.textContent).toBe("None");
+    expect(findValueCell(container, "Battery level")?.textContent).toBe(DEFAULT_EMPTY_CELL_VALUE);
     expect(screen.queryByText("-100%")).not.toBeInTheDocument();
   });
 
@@ -311,11 +312,11 @@ describe("VitalsModal component", () => {
         )
         ?.querySelector("dd")?.textContent;
 
-      expect(mdmOptionsValue).toBe("None");
+      expect(mdmOptionsValue).toBe(DEFAULT_EMPTY_CELL_VALUE);
     });
   });
 
-  it("renders 'None' for a null field not marked unsupported", () => {
+  it("renders the empty-cell placeholder for a null field not marked unsupported", () => {
     const host = buildFullyPopulatedHost({ model_number: undefined });
 
     const { container } = render(
@@ -328,7 +329,7 @@ describe("VitalsModal component", () => {
       )
       ?.querySelector("dd")?.textContent;
 
-    expect(modelNumberValue).toBe("None");
+    expect(modelNumberValue).toBe(DEFAULT_EMPTY_CELL_VALUE);
   });
 
   it("calls onExit when the Done button is clicked", async () => {

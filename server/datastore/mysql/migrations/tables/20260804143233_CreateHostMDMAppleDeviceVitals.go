@@ -28,7 +28,7 @@ CREATE TABLE host_mdm_apple_device_vitals (
   eas_device_identifier             varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   itunes_store_account_hash         varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   push_token                        blob,
-  battery_level                     float DEFAULT NULL,
+  battery_level                     double DEFAULT NULL,
   cellular_technology               int DEFAULT NULL,
   app_analytics_enabled             tinyint(1) DEFAULT NULL,
   awaiting_configuration            tinyint(1) DEFAULT NULL,

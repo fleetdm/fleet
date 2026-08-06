@@ -1,6 +1,7 @@
 import React from "react";
 
 import { IHost, IHostMdmAppleServiceSubscription } from "interfaces/host";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -18,29 +19,28 @@ import {
 } from "../../cards/Vitals/Vitals";
 
 const baseClass = "vitals-modal";
-const EMPTY_VITAL_VALUE = "None";
 
 const renderBoolean = (value?: boolean | null) => {
   if (value === undefined || value === null) {
-    return EMPTY_VITAL_VALUE;
+    return DEFAULT_EMPTY_CELL_VALUE;
   }
   return value ? "True" : "False";
 };
 
 const renderText = (value?: string | null) =>
-  value ? <TooltipTruncatedText value={value} /> : EMPTY_VITAL_VALUE;
+  value ? <TooltipTruncatedText value={value} /> : DEFAULT_EMPTY_CELL_VALUE;
 
 const renderBatteryLevel = (value?: number | null) =>
   // Apple reports -1 when the device can't determine the level.
   value === undefined || value === null || value < 0
-    ? EMPTY_VITAL_VALUE
+    ? DEFAULT_EMPTY_CELL_VALUE
     : `${Math.round(value * 100)}%`;
 
 const renderLastCloudBackupDate = (value?: string | null) =>
   value ? (
     <HumanTimeDiffWithFleetLaunchCutoff timeString={value} />
   ) : (
-    EMPTY_VITAL_VALUE
+    DEFAULT_EMPTY_CELL_VALUE
   );
 
 /* The nested-dict vitals (accessibility settings, organization info, MDM
@@ -73,7 +73,7 @@ const renderNestedFields = (fields: INestedField[]) => {
   const present = fields.filter((field) => field.value !== undefined);
 
   if (!present.length) {
-    return EMPTY_VITAL_VALUE;
+    return DEFAULT_EMPTY_CELL_VALUE;
   }
 
   return (
@@ -98,7 +98,7 @@ const renderLines = (values?: Array<string | null | undefined>) => {
   );
 
   if (!lines.length) {
-    return EMPTY_VITAL_VALUE;
+    return DEFAULT_EMPTY_CELL_VALUE;
   }
 
   return (
@@ -164,7 +164,7 @@ const renderServiceSubscriptions = (
   subscriptions?: IHostMdmAppleServiceSubscription[]
 ) => {
   if (!subscriptions?.length) {
-    return EMPTY_VITAL_VALUE;
+    return DEFAULT_EMPTY_CELL_VALUE;
   }
 
   return (
