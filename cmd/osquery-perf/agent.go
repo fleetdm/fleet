@@ -585,13 +585,17 @@ type agent struct {
 	entraIDUserPrincipalName string
 	installedAdamIDs         []int
 
-	// configTLSETag enables the native osquery config ETag/304 behavior.
-	// When enabled, the agent sends If-None-Match and handles 304 responses.
+	// configTLSETag enables the native osquery conditional config request
+	// behavior: the agent sends an "etag" field in the config request body
+	// and treats the constant {"etag":"ok"} response as "unchanged".
 	configTLSETag bool
-	// configETag holds the last accepted config ETag (quoted SHA-256 of response body).
+	// configETag holds the etag from the last config response RECEIVED
+	// (matching the real client, which stores the validator on receipt, not
+	// on successful apply). Opaque and server-assigned; echoed verbatim.
 	configETag string
-	// lastConfigBodyBytes is the size of the last successfully accepted full config body.
-	// Used to estimate the body bytes avoided by a subsequent 304 for this host.
+	// lastConfigBodyBytes is the size of the last received full config body.
+	// Used to estimate the body bytes avoided by a subsequent not-modified
+	// response for this host.
 	lastConfigBodyBytes int64
 }
 
@@ -2120,18 +2124,26 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 }
 
 func (a *agent) config() error {
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	// The presence of the "etag" field — even empty — is the opt-in to
+	// conditional responses; its value is the etag from the last config
+	// response received (see the configETag field docs).
+	sentConditional := a.configTLSETag && a.configETag != ""
+	requestBody := []byte(`{"node_key": "` + a.nodeKey + `"}`)
+	if a.configTLSETag {
+		var err error
+		requestBody, err = json.Marshal(map[string]string{
+			"node_key": a.nodeKey,
+			"etag":     a.configETag,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader(requestBody))
 	if err != nil {
 		return err
 	}
 	request.Header.Add("Content-type", "application/json")
-
-	// Add If-None-Match header if ETag support is enabled and we have a stored ETag
-	sentETag := ""
-	if a.configTLSETag && a.configETag != "" {
-		sentETag = a.configETag
-		request.Header.Set("If-None-Match", sentETag)
-	}
 
 	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
@@ -2140,28 +2152,6 @@ func (a *agent) config() error {
 	defer response.Body.Close()
 
 	a.stats.IncrementConfigRequests()
-
-	// Handle 304 Not Modified
-	if response.StatusCode == http.StatusNotModified {
-		body, readErr := io.ReadAll(response.Body)
-		if readErr != nil {
-			a.stats.IncrementConfigErrors()
-			return fmt.Errorf("read 304 config body: %w", readErr)
-		}
-		if sentETag == "" || len(body) != 0 {
-			a.stats.IncrementConfigErrors()
-			return fmt.Errorf("invalid config 304: sent_etag=%t body_bytes=%d", sentETag != "", len(body))
-		}
-		// If the 304 response supplies a new ETag, replace the stored validator.
-		// If it omits ETag, retain the previous validator.
-		if a.configTLSETag {
-			if newETag := response.Header.Get("ETag"); newETag != "" {
-				a.configETag = newETag
-			}
-		}
-		a.stats.RecordConfigNotModified(a.lastConfigBodyBytes)
-		return nil
-	}
 
 	if response.StatusCode != http.StatusOK {
 		a.stats.IncrementConfigErrors()
@@ -2175,13 +2165,45 @@ func (a *agent) config() error {
 		return fmt.Errorf("read config body: %w", err)
 	}
 
-	// Use the server's ETag header as the validator (opaque, stored as-is).
-	// Keep local SHA-256 computation for diagnostics only (track drift).
+	// Extract the body-carried etag, if the server assigned one.
+	var envelope struct {
+		ETag *string `json:"etag"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		a.stats.IncrementConfigErrors()
+		return fmt.Errorf("json parse at config: %w", err)
+	}
+
+	// The reserved value "ok" means the config is unchanged. The server may
+	// only say this to an agent that echoed one of its validators.
+	if envelope.ETag != nil && *envelope.ETag == "ok" {
+		if !sentConditional {
+			a.stats.IncrementConfigErrors()
+			return fmt.Errorf("invalid config unchanged response: sent_etag=%t", sentConditional)
+		}
+		a.stats.RecordConfigNotModified(a.lastConfigBodyBytes)
+		return nil
+	}
+
 	if a.configTLSETag {
-		serverETag := response.Header.Get("ETag")
-		localHash := quotedSHA256(body)
-		if serverETag != "" && serverETag != localHash {
-			a.stats.IncrementConfigETagDrift()
+		if envelope.ETag != nil {
+			serverETag := *envelope.ETag
+			// Drift diagnostic only: the validator should be the SHA-256 of
+			// the canonical config — the body with the etag key stripped.
+			// The server value stays authoritative regardless.
+			if canonical, err := canonicalConfigBody(body); err == nil && serverETag != sha256Hex(canonical) {
+				a.stats.IncrementConfigETagDrift()
+			}
+			// Store on receive, BEFORE processing the config — the real
+			// client echoes the etag of the last config received, not
+			// applied, so a config the agent fails to process is confirmed
+			// unchanged instead of re-downloaded.
+			a.configETag = serverETag
+			a.lastConfigBodyBytes = int64(len(body))
+		} else {
+			// The server assigned no etag (it does not support conditional
+			// requests): hold no validator, keep opting in with an empty one.
+			a.configETag = ""
 		}
 	}
 
@@ -2246,22 +2268,34 @@ func (a *agent) config() error {
 	a.scheduledQueryData = newScheduledQueryData
 	a.scheduledQueryMapMutex.Unlock()
 
-	// Only commit the ETag and body size after successfully parsing and installing the config.
-	// Use the server's ETag header as the authoritative validator.
-	if a.configTLSETag {
-		a.configETag = response.Header.Get("ETag")
-		a.lastConfigBodyBytes = int64(len(body))
-	}
-	a.stats.RecordFullConfigResponse(int64(len(body)), sentETag != "")
+	a.stats.RecordFullConfigResponse(int64(len(body)), sentConditional)
 
 	return nil
 }
 
-// quotedSHA256 returns a quoted lowercase hex SHA-256 digest of the given bytes,
-// matching the ETag format used by the osquery PoC and Fleet server.
-func quotedSHA256(data []byte) string {
+// canonicalConfigBody returns the config body with the top-level "etag" key
+// removed, re-marshaled the way the server marshals configs (two-space
+// indent, trailing newline) — the representation the validator covers.
+func canonicalConfigBody(body []byte) ([]byte, error) {
+	var config map[string]any
+	if err := json.Unmarshal(body, &config); err != nil {
+		return nil, err
+	}
+	delete(config, "etag")
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(config); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// sha256Hex returns the lowercase hex SHA-256 digest of the given bytes,
+// matching the server-assigned validator format.
+func sha256Hex(data []byte) string {
 	sum := sha256.Sum256(data)
-	return `"` + fmt.Sprintf("%x", sum) + `"`
+	return fmt.Sprintf("%x", sum)
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -3967,7 +4001,7 @@ func main() {
 			"Path to software.db (SQLite database with realistic software data). Auto-generates from software.sql if missing.")
 
 		configTLSETag = flag.Bool("config_tls_etag", false,
-			"Enable native osquery config ETag/304 behavior (sends If-None-Match, handles 304 Not Modified). Default false — opt in to measure bandwidth savings.")
+			"Enable native osquery conditional config requests (sends an \"etag\" field in the request body, treats the {\"etag\":\"ok\"} response as unchanged). Default false — opt in to measure bandwidth savings.")
 
 		// Android load testing flags
 		androidPubSubToken       = flag.String("android_pubsub_token", "", "PubSub token for authenticating fake Android device messages to Fleet")
