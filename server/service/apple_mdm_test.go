@@ -1443,7 +1443,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
@@ -1483,7 +1483,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
@@ -1523,8 +1523,9 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
-			updated = d
+		var gotAction fleet.MDMAppleActivationAction
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
+			updated, gotAction = d, activationAction
 			return d, nil
 		}
 
@@ -1535,40 +1536,10 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, updated)
-		require.NotNil(t, updated.Activation, "labels-only edit must not clear the activation")
-		assert.Equal(t, stored.Identifier, updated.Activation.Identifier)
-	})
-
-	t.Run("labels-only update re-derives the activation's Fleet variables", func(t *testing.T) {
-		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
-		// the stored activation is loaded without its variables, exactly as
-		// GetMDMAppleDeclaration returns it
-		existing.Activation = &fleet.MDMAppleCustomActivation{
-			Identifier: "com.fleet.actD1",
-			RawJSON: []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.actD1",` +
-				`"Payload":{"StandardConfigurations":["com.fleet.configD1"],"Predicate":"$FLEET_VAR_HOST_UUID"}}`),
-			ConfigurationIdentifier: "com.fleet.configD1",
-		}
-
-		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
-			return existing, nil
-		}
-		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
-			updated = d
-			return d, nil
-		}
-
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label-1"}, fleet.LabelsIncludeAll, nil, nil, false)
-		require.NoError(t, err)
-
-		// the datastore rewrites an activation's variable associations from
-		// whatever it's handed, so carrying it forward without re-deriving
-		// these would wipe them
-		require.NotNil(t, updated)
-		require.NotNil(t, updated.Activation)
-		assert.Equal(t, []fleet.FleetVarName{fleet.FleetVarHostUUID}, updated.Activation.FleetVariables)
+		// The datastore is told to leave it alone rather than being handed a copy,
+		// so nothing can drop it or its variable associations.
+		assert.Equal(t, fleet.MDMAppleActivationLeave, gotAction,
+			"labels-only edit must not touch the activation")
 	})
 
 	t.Run("new content without mentioning the activation preserves it", func(t *testing.T) {
@@ -1584,8 +1555,9 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
-			updated = d
+		var gotAction fleet.MDMAppleActivationAction
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
+			updated, gotAction = d, activationAction
 			return d, nil
 		}
 
@@ -1594,8 +1566,8 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, updated)
-		require.NotNil(t, updated.Activation, "an edit that doesn't mention the activation must leave it alone")
-		assert.Equal(t, "com.fleet.actD1", updated.Activation.Identifier)
+		assert.Equal(t, fleet.MDMAppleActivationLeave, gotAction,
+			"an edit that doesn't mention the activation must leave it alone")
 	})
 
 	t.Run("an explicitly emptied activation is removed", func(t *testing.T) {
@@ -1611,7 +1583,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
@@ -1633,7 +1605,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
@@ -1672,7 +1644,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		}
 		var capturedVars []fleet.FleetVarName
 		var capturedDecl *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			capturedDecl = d
 			capturedVars = usesFleetVars
 			return d, nil
@@ -1695,7 +1667,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
@@ -1716,7 +1688,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
@@ -1741,7 +1713,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
@@ -1775,7 +1747,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
@@ -1793,7 +1765,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
@@ -1811,7 +1783,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
@@ -1828,7 +1800,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
@@ -1857,7 +1829,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			return nil, existsErrorForTest{}
 		}
 

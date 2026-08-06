@@ -1202,27 +1202,6 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 // mdm_apple_declarations.token is a MySQL generated column derived from
 // raw_json, so the ReconcileAppleDeclarations cron picks up a content change
 // on its own.
-// carryExistingActivation returns the stored activation with its Fleet
-// variables re-derived. It is loaded without them, and the datastore rewrites
-// associations from whatever it is handed, so carrying it forward as-is would
-// drop the associations while the content still uses them.
-func (svc *Service) carryExistingActivation(ctx context.Context, act *fleet.MDMAppleCustomActivation) (*fleet.MDMAppleCustomActivation, error) {
-	if act == nil {
-		return nil, nil
-	}
-	expanded, _, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(act.RawJSON))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expanding secrets for existing activation")
-	}
-	varNames := make([]fleet.FleetVarName, 0, len(act.FleetVariables))
-	for _, v := range variables.Find(expanded) {
-		varNames = append(varNames, fleet.FleetVarName(v))
-	}
-	carried := *act
-	carried.FleetVariables = varNames
-	return &carried, nil
-}
-
 func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte, activationSet bool) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
@@ -1305,34 +1284,30 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		decl.LabelsExcludeAny = excludeLabels
 	}
 
-	// Three states: not mentioned leaves the stored activation alone, mentioned
-	// with content replaces it, mentioned without content removes it.
-	switch {
-	case !activationSet:
-		carried, err := svc.carryExistingActivation(ctx, existing.Activation)
-		if err != nil {
-			return err
-		}
-		decl.Activation = carried
-	case len(activation) == 0:
-		decl.Activation = nil
-	default:
-		if decl.Type == "" {
-			// content is unchanged, so recover Type for the management check
-			rawDecl, err := fleet.GetRawDeclarationValues(decl.RawJSON)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "parsing existing declaration")
+	// Three states: an edit that doesn't mention the activation leaves the stored
+	// one alone, an empty one removes it, and content replaces it. The datastore
+	// write is a full replace, so "leave alone" has to be said explicitly.
+	activationAction := fleet.MDMAppleActivationLeave
+	if activationSet {
+		activationAction = fleet.MDMAppleActivationApply
+		if len(activation) > 0 {
+			if decl.Type == "" {
+				// content is unchanged, so recover Type for the management check
+				rawDecl, err := fleet.GetRawDeclarationValues(decl.RawJSON)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "parsing existing declaration")
+				}
+				decl.Type = rawDecl.Type
 			}
-			decl.Type = rawDecl.Type
+			customActivation, err := svc.validateActivation(ctx, activation, decl.Identifier, decl.Type)
+			if err != nil {
+				return err
+			}
+			decl.Activation = customActivation
 		}
-		customActivation, err := svc.validateActivation(ctx, activation, decl.Identifier, decl.Type)
-		if err != nil {
-			return err
-		}
-		decl.Activation = customActivation
 	}
 
-	if _, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, varNames); err != nil {
+	if _, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, varNames, activationAction); err != nil {
 		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
 			err = fleet.NewInvalidArgumentError("profile", "Couldn't edit. A configuration profile with this identifier already exists.").WithStatus(http.StatusConflict)
 		}

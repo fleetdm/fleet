@@ -1076,6 +1076,20 @@ const MDMAppleActivationTypePrefix = "com.apple.activation."
 
 // A custom activation stored against the configuration declaration it
 // activates. Not to be confused with MDMAppleDDMActivation, Apple's wire format.
+// MDMAppleActivationAction tells SetOrUpdateMDMAppleDeclaration what to do with
+// the declaration's activation. The write is otherwise a full replace, so
+// without this an edit that doesn't mention the activation would delete it.
+type MDMAppleActivationAction int
+
+const (
+	// MDMAppleActivationLeave leaves any stored activation untouched, including
+	// its Fleet variable associations.
+	MDMAppleActivationLeave MDMAppleActivationAction = iota
+	// MDMAppleActivationApply writes declaration.Activation, removing the stored
+	// one when it is nil.
+	MDMAppleActivationApply
+)
+
 type MDMAppleCustomActivation struct {
 	ActivationUUID          string          `db:"activation_uuid"`
 	TeamID                  uint            `db:"team_id"`
