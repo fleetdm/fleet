@@ -1109,3 +1109,73 @@ func TestCachedFMANamesByIdentifier(t *testing.T) {
 	require.Equal(t, "VS Code Updated", names5["com.microsoft.VSCode"])
 	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
 }
+
+func TestCachedMicrosoftGraphCredentials(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithAppConfigExpiration(time.Minute))
+
+	syncErr := "boom"
+	stored := []*fleet.MicrosoftGraphCredential{
+		{TenantID: "tenant-a", ClientID: "client-a", ClientSecret: "secret-a", LastSyncError: &syncErr},
+	}
+	var dbReads int
+	mockedDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+		dbReads++
+		return stored, nil
+	}
+	mockedDS.UpsertMicrosoftGraphCredentialFunc = func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
+		return nil
+	}
+	mockedDS.DeleteMicrosoftGraphCredentialFunc = func(ctx context.Context, tenantID string) error { return nil }
+	mockedDS.SetMicrosoftGraphCredentialInvalidFunc = func(ctx context.Context, tenantID string, invalid bool) (bool, error) {
+		return true, nil
+	}
+	mockedDS.RecordMicrosoftGraphSyncResultFunc = func(ctx context.Context, tenantID string, syncErr *string) error { return nil }
+
+	// The second read is served from cache: every config read hydrates credentials, so this is a hot path.
+	got, err := ds.ListMicrosoftGraphCredentials(t.Context())
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	_, err = ds.ListMicrosoftGraphCredentials(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, 1, dbReads)
+
+	// A cached read is a deep copy, so mutating it cannot corrupt the cache.
+	got[0].TenantID = "mutated"
+	*got[0].LastSyncError = "mutated"
+	fresh, err := ds.ListMicrosoftGraphCredentials(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, "tenant-a", fresh[0].TenantID)
+	require.Equal(t, "boom", *fresh[0].LastSyncError)
+
+	// Every mutating call invalidates. The last two matter for the banner: a sync failure has to become visible
+	// immediately rather than after the cache expires.
+	for _, tc := range []struct {
+		name   string
+		mutate func() error
+	}{
+		{"upsert", func() error {
+			return ds.UpsertMicrosoftGraphCredential(t.Context(), &fleet.MicrosoftGraphCredential{TenantID: "tenant-a"})
+		}},
+		{"delete", func() error { return ds.DeleteMicrosoftGraphCredential(t.Context(), "tenant-a") }},
+		{"set invalid", func() error {
+			_, err := ds.SetMicrosoftGraphCredentialInvalid(t.Context(), "tenant-a", true)
+			return err
+		}},
+		{"record sync result", func() error { return ds.RecordMicrosoftGraphSyncResult(t.Context(), "tenant-a", nil) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ds.ListMicrosoftGraphCredentials(t.Context())
+			require.NoError(t, err)
+			before := dbReads
+
+			require.NoError(t, tc.mutate())
+
+			_, err = ds.ListMicrosoftGraphCredentials(t.Context())
+			require.NoError(t, err)
+			require.Equal(t, before+1, dbReads, "mutation must invalidate the cache")
+		})
+	}
+}

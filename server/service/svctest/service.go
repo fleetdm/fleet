@@ -26,6 +26,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -193,6 +194,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	orgLogoStore, err := filesystem.NewOrgLogoStore(t.TempDir())
 	require.NoError(t, err)
 
+	// Verifying a Microsoft Graph credential on config write calls Entra and Graph, so test servers get a no-op
+	// factory unless a test injects its own. Without this any test applying a credential would hit the real network.
+	msGraphClientFactory := msgraph.ClientFactory(service.NoopMicrosoftGraphClientFactory)
+	if len(opts) > 0 && opts[0].MicrosoftGraphClientFactory != nil {
+		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
+	}
+
 	svc, err := service.NewService(
 		ctx,
 		ds,
@@ -220,6 +228,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore,
 		androidService,
 		orgLogoStore,
+		msGraphClientFactory,
 	)
 	if err != nil {
 		panic(err)

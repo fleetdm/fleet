@@ -2248,6 +2248,39 @@ type Datastore interface {
 	// value.
 	IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error)
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Microsoft Graph credentials and Windows Autopilot devices
+
+	// ListMicrosoftGraphCredentials returns every stored Microsoft Graph credential with its client secret decrypted.
+	// Callers that serialize the result must mask the secret first.
+	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+
+	// GetMicrosoftGraphCredential returns the credential for an Entra tenant, with its client secret decrypted.
+	GetMicrosoftGraphCredential(ctx context.Context, tenantID string) (*MicrosoftGraphCredential, error)
+
+	// UpsertMicrosoftGraphCredential stores a credential keyed on its tenant ID, encrypting the client secret.
+	UpsertMicrosoftGraphCredential(ctx context.Context, cred *MicrosoftGraphCredential) error
+
+	// DeleteMicrosoftGraphCredential removes the credential for an Entra tenant.
+	DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error
+
+	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag that drives the app-wide banner. It reports
+	// whether the flag actually changed.
+	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
+
+	// RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass. A nil syncErr records a success and clears any
+	// previous error.
+	RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error
+
+	// UpsertHostAutopilotDevice stores the Windows Autopilot metadata for a host, clearing any soft deletion.
+	UpsertHostAutopilotDevice(ctx context.Context, dev *HostAutopilotDevice) error
+
+	// ListHostAutopilotDevices returns the live Autopilot records for an Entra tenant.
+	ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*HostAutopilotDevice, error)
+
+	// GetHostAutopilotDevice returns the live Autopilot record for a host, or a not-found error.
+	GetHostAutopilotDevice(ctx context.Context, hostID uint) (*HostAutopilotDevice, error)
+
 	// InsertABMToken inserts a new ABM token into the datastore.
 	InsertABMToken(ctx context.Context, tok *ABMToken) (*ABMToken, error)
 

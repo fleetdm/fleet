@@ -626,6 +626,17 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
+	// Microsoft Graph credentials live in their own table rather than the app config JSON (the client secret has to be
+	// encrypted at rest), so every config read hydrates them. Default to none configured.
+	ds.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+		return nil, nil
+	}
+	ds.UpsertMicrosoftGraphCredentialFunc = func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
+		return nil
+	}
+	ds.DeleteMicrosoftGraphCredentialFunc = func(ctx context.Context, tenantID string) error {
+		return nil
+	}
 	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
 		return nil, &notFoundError{}
 	}

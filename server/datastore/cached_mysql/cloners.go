@@ -22,6 +22,27 @@ func (pl packsList) Clone() (fleet.Cloner, error) {
 	return cloned, nil
 }
 
+// microsoftGraphCredentialsList is the cacheable form of the Graph credential list. Cloning deep-copies each entry,
+// including the LastSyncedAt/LastSyncError pointers, so a caller mutating what it read cannot corrupt the cache.
+type microsoftGraphCredentialsList []*fleet.MicrosoftGraphCredential
+
+func (cl microsoftGraphCredentialsList) Clone() (fleet.Cloner, error) {
+	var cloned microsoftGraphCredentialsList
+	if cl == nil {
+		return cloned, nil
+	}
+
+	cloned = make(microsoftGraphCredentialsList, 0, len(cl))
+	for _, c := range cl {
+		clone, err := c.Clone()
+		if err != nil {
+			return nil, err
+		}
+		cloned = append(cloned, clone.(*fleet.MicrosoftGraphCredential))
+	}
+	return cloned, nil
+}
+
 type rawJSONMessage json.RawMessage
 
 func (r *rawJSONMessage) Clone() (fleet.Cloner, error) {
