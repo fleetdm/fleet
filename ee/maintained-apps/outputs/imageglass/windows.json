@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "9.6.0.801",
+      "version": "9.6.1.807",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ImageGlass' AND publisher = 'Duong Dieu Phap';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ImageGlass' AND publisher = 'Duong Dieu Phap' AND version_compare(version, '9.6.0.801') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ImageGlass' AND publisher = 'Duong Dieu Phap' AND version_compare(version, '9.6.1.807') < 0);"
       },
-      "installer_url": "https://github.com/d2phap/ImageGlass/releases/download/9.6.0.801/ImageGlass_9.6.0.801_x64.msi",
+      "installer_url": "https://github.com/d2phap/ImageGlass/releases/download/9.6.1.807/ImageGlass_9.6.1.807_x64.msi",
       "install_script_ref": "72349997",
       "uninstall_script_ref": "132bf6ab",
-      "sha256": "cd146fcc3aaa31afb5a0ac060b3cf2a5badbccb39dac9ec49ec8d2077ef46c5c",
+      "sha256": "1f08209adb9456860ac2a71a74395456ccdf1bd9fc640f43d44b3b34788ddc0a",
       "default_categories": [
         "Productivity"
       ],
