@@ -62,6 +62,14 @@
   install_software: true
   labels_include_any:
     - x86 Windows hosts with Okta Verify installed
+- name: Windows - Docker Desktop up to date
+  description: The host may have an outdated version of Docker Desktop, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Docker Desktop is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
+  type: patch
+  fleet_maintained_app_slug: docker/windows
+  install_software: true
+  labels_include_any:
+    - x86 Windows hosts with Docker Desktop installed
 - name: Windows - Adobe Acrobat Reader up to date
   description: This device may have an outdated version of Adobe Acrobat Reader, posing a critical security risk. Adobe Reader is a frequent target for exploits and must be kept up to date at all times.
   resolution: "Adobe Acrobat Reader is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."

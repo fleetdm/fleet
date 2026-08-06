@@ -43,3 +43,8 @@
   query: SELECT 1 FROM programs WHERE ((name = 'Adobe Acrobat (64-bit)' AND publisher LIKE 'Adobe%' AND install_location LIKE '%\Reader\%') OR (name LIKE 'Adobe Acrobat Reader%' AND publisher LIKE 'Adobe%')) AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
+- name: x86 Windows hosts with Docker Desktop installed
+  description: x86 Windows hosts with Docker Desktop installed
+  query: SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows

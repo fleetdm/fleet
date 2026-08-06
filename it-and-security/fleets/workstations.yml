@@ -559,6 +559,12 @@ software:
         - "x86 Windows hosts with Visual Studio Code installed"
       categories:
         - Developer tools
+    - slug: docker/windows # Docker Desktop for Windows
+      self_service: true
+      labels_include_any:
+        - x86 Windows hosts with Docker Desktop installed
+      categories:
+        - Developer tools
     - slug: adobe-acrobat-reader/windows # Adobe Acrobat Reader for Windows
       self_service: true
       labels_include_any:
