@@ -7296,6 +7296,13 @@
       "description": "Requestly is an app for intercepting and modifying HTTP requests."
     },
     {
+      "name": "ReSharper",
+      "slug": "resharper/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains ReSharper",
+      "description": "ReSharper is a Visual Studio extension for .NET developers."
+    },
+    {
       "name": "Retcon",
       "slug": "retcon/darwin",
       "platform": "darwin",
