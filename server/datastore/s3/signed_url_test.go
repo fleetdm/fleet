@@ -50,4 +50,15 @@ func TestSignGCSPresignedURL(t *testing.T) {
 		_, err = store.Sign(context.Background(), "abc123", 15*time.Minute)
 		require.True(t, errors.Is(err, fleet.ErrNotConfigured), "expected ErrNotConfigured, got %v", err)
 	})
+
+	t.Run("signed url with gcs iam auth is rejected", func(t *testing.T) {
+		// GCS IAM (bearer) auth is incompatible with SigV4 presigning, so store
+		// initialization must fail rather than hand out unusable signed URLs.
+		cfg := baseCfg()
+		cfg.SoftwareInstallersSignedURL = true
+		cfg.SoftwareInstallersGCSIAMAuth = true
+
+		_, err := NewSoftwareInstallerStore(cfg)
+		require.Error(t, err)
+	})
 }

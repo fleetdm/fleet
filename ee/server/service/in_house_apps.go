@@ -212,7 +212,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tok
 		signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID, fleet.InHouseAppSignedURLExpiry)
 		if err != nil {
 			// We log the error and continue to send the Fleet server URL for the in-house app
-			svc.logger.ErrorContext(ctx, "error signing in-house app URL; check CloudFront configuration", "err", err)
+			svc.logger.ErrorContext(ctx, "error signing in-house app URL; check signed URL configuration", "err", err)
 		} else {
 			downloadURL = signedURL
 		}

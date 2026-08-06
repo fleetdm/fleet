@@ -63,6 +63,15 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 	var opts []func(*aws_config.LoadOptions) error
 	gcsEndpoint := cfg.EndpointURL != "" && isGCS(cfg.EndpointURL)
 
+	// SignedURL presigns with SigV4 HMAC credentials, but GCSIAMAuth swaps those
+	// for placeholder static credentials plus bearer-token middleware that
+	// presigning drops (APIOptions is cleared when presigning). The two together
+	// would produce presigned URLs that can't authenticate, so reject the
+	// combination up front.
+	if cfg.SignedURL && cfg.GCSIAMAuth {
+		return nil, errors.New("software installers signed URL cannot be combined with gcs iam auth; configure HMAC credentials (access key/secret) for presigning")
+	}
+
 	if cfg.GCSIAMAuth {
 		switch {
 		case cfg.EndpointURL == "":
