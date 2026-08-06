@@ -27,6 +27,9 @@ func (ds *Datastore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID, 
 			command_uuid = VALUES(command_uuid),
 			status = NULL,
 			account_uuid = NULL,
+			pending_encrypted_password = NULL,
+			pending_command_uuid = NULL,
+			auto_rotate_at = NULL,
 			client_error = '',
 			deleted = 0
 	`

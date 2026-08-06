@@ -177,6 +177,28 @@ func testManagedLocalAccountUpsertOverwrites(t *testing.T, ds *Datastore) {
 	_, err = ds.GetManagedLocalAccountByCommandUUID(ctx, "cmd-old")
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
+
+	// A re-provision must clear rotation state left over from the previous enrollment: the staged pending password
+	// targets the account that enrollment created, so a later ack must not copy it over the one we just escrowed.
+	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, host.UUID, "account-uuid-upsert"))
+	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, host.UUID, "pending-pass", "cmd-pending-rotate"))
+	// Initiate clears auto_rotate_at, so arm it directly to cover that column too.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, host.UUID)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SaveHostManagedLocalAccount(ctx, host.UUID, "final-pass", "cmd-final"))
+
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.False(t, status.PendingRotation, "re-provision must drop the staged rotation")
+	assert.Nil(t, status.AutoRotateAt, "re-provision must disarm the auto-rotation deadline")
+
+	// The ack for the abandoned rotation must be rejected rather than overwrite the re-provisioned password.
+	require.Error(t, ds.CompleteManagedLocalAccountRotation(ctx, host.UUID, "cmd-pending-rotate"))
+	got, err = ds.GetHostManagedLocalAccountPassword(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, "final-pass", got.Password)
 }
 
 func testManagedLocalAccountNotFound(t *testing.T, ds *Datastore) {
