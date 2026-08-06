@@ -811,6 +811,76 @@ func TestComputeDeclarationDeltasAssets(t *testing.T) {
 	})
 }
 
+func TestComputeDeclarationDeltasActivations(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	declsWithBrokenLabel := map[string]struct{}{}
+
+	activationUpdatedAt := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+
+	// The declaration's own token stays "tokA" throughout: a custom activation
+	// lives in its own table, so adding, editing or removing one never changes
+	// the declaration's content.
+	declWithActivation := &fleet.AppleDeclarationForReconcile{
+		DeclarationUUID: "aDeclAct", DeclarationIdentifier: "com.example.act", DeclarationName: "ActDecl",
+		TeamID: 0, Token: []byte("tokA"), IncludeMode: fleet.AppleProfileIncludeNone,
+		ActivationUpdatedAt: &activationUpdatedAt,
+	}
+	declNoActivation := *declWithActivation
+	declNoActivation.ActivationUpdatedAt = nil
+
+	hostHasActivation := func() map[string][]*fleet.MDMAppleHostDeclaration {
+		return map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID:            "uuid-A",
+				DeclarationUUID:     "aDeclAct",
+				Token:               "tokA",
+				OperationType:       fleet.MDMOperationTypeInstall,
+				Status:              new(fleet.MDMDeliveryVerified),
+				ActivationUpdatedAt: &activationUpdatedAt,
+			}},
+		}
+	}
+
+	t.Run("activation unchanged since last delivery -> no diff", func(t *testing.T) {
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, hostHasActivation(),
+			map[uint][]*fleet.AppleDeclarationForReconcile{0: {declWithActivation}}, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
+		require.Empty(t, rows)
+	})
+
+	t.Run("activation removed pokes and clears the stamp", func(t *testing.T) {
+		// Without this the host keeps serving the deleted custom activation,
+		// predicate included, because nothing else in the delta changes.
+		changedDevice, _, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, hostHasActivation(),
+			map[uint][]*fleet.AppleDeclarationForReconcile{0: {&declNoActivation}}, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.MDMOperationTypeInstall, rows[0].OperationType)
+		require.Equal(t, "tokA", rows[0].Token)
+		require.Nil(t, rows[0].ActivationUpdatedAt, "the stamp must clear so the effective token changes")
+	})
+
+	t.Run("no activation on either side -> no diff", func(t *testing.T) {
+		current := hostHasActivation()
+		current["uuid-A"][0].ActivationUpdatedAt = nil
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current,
+			map[uint][]*fleet.AppleDeclarationForReconcile{0: {&declNoActivation}}, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
+		require.Empty(t, rows)
+	})
+}
+
 func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}
