@@ -1,0 +1,1 @@
+* Fixed data table column headers stretching vertically when the table has no rows (e.g. while refetching from a zero-result search on the My device software page).

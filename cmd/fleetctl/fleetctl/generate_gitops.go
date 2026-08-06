@@ -75,6 +75,7 @@ type generateGitopsClient interface {
 	ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
 	GetProfileContents(profileID string) ([]byte, error)
+	GetProfileActivation(profileID string) ([]byte, error)
 	DownloadDDMAsset(assetUUID string) ([]byte, error)
 	GetEULAMetadata() (*fleet.MDMEULA, error)
 	GetEULAContent(token string) ([]byte, error)
@@ -1605,6 +1606,33 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 
 		profileSpec["path"] = path
+
+		// Only declarations can carry one, and the list endpoint doesn't return
+		// activations, so it takes a second call.
+		var activation []byte
+		if profile.Platform == "darwin" && strings.HasSuffix(generatedFilename, ".json") {
+			activation, err = cmd.Client.GetProfileActivation(profile.ProfileUUID)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting profile activation: %s\n", err)
+				return nil, err
+			}
+		}
+
+		// Written as a sibling file so the generated YAML round-trips through gitops.
+		if len(activation) > 0 {
+			activationFileName := fmt.Sprintf("activations/%s", generatedFilename)
+			if teamId == nil {
+				activationFileName = fmt.Sprintf("lib/%s", activationFileName)
+			} else {
+				activationFileName = fmt.Sprintf("lib/%s/%s", teamName, activationFileName)
+			}
+			cmd.FilesToWrite[activationFileName] = string(activation)
+			if teamId == nil {
+				profileSpec["activation"] = fmt.Sprintf("./%s", activationFileName)
+			} else {
+				profileSpec["activation"] = fmt.Sprintf("../%s", activationFileName)
+			}
+		}
 
 		switch profile.Platform {
 		case "darwin":

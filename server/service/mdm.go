@@ -2614,6 +2614,24 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
 
+	// Activations are validated here rather than in getAppleProfiles, which is
+	// package-level and has no datastore to expand secrets with. appleDecls is
+	// keyed by the incoming profile's index.
+	for i, prof := range profilesWithSecrets {
+		decl := appleDecls[i]
+		if decl == nil {
+			if len(prof.Activation) > 0 {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("activation", ActivationUnsupportedProfileErrorMsg))
+			}
+			continue
+		}
+		act, err := svc.validateActivation(ctx, prof.Activation, decl.Identifier, decl.Type)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "validating declaration activation")
+		}
+		decl.Activation = act
+	}
+
 	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")

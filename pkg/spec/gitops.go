@@ -1381,6 +1381,15 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
 		}
 
+		// An activation names exactly one declaration in its
+		// StandardConfigurations, so it can't be attached to a glob.
+		for _, cs := range macOSSettings.CustomSettings {
+			if cs.Activation != "" && cs.Paths != "" {
+				multiError = multierror.Append(multiError,
+					fmt.Errorf(`profile %q cannot use "activation" with "paths"; use "path" for a single profile`, cs.Paths))
+			}
+		}
+
 		// Expand globs in profile paths.
 		var errs []error
 		macOSSettings.CustomSettings, errs = expandBaseItems(macOSSettings.CustomSettings, controlsDir, "profile", GlobExpandOptions{
@@ -1392,6 +1401,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		for i := range macOSSettings.CustomSettings {
 
 			err := resolveAndUpdateProfilePath(&macOSSettings.CustomSettings[i], result)
+			if err != nil {
+				return multierror.Append(multiError, err)
+			}
+			// expandBaseItems only knows about path/paths, so the activation path
+			// is still relative to the controls file here.
+			err = resolveAndUpdateActivationPath(&macOSSettings.CustomSettings[i], controlsDir, result)
 			if err != nil {
 				return multierror.Append(multiError, err)
 			}
@@ -1633,6 +1648,22 @@ func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, con
 	pathControls.Defined = true
 	result.Controls = pathControls
 	return errs
+}
+
+func resolveAndUpdateActivationPath(profile *fleet.MDMProfileSpec, baseDir string, result *GitOps) error {
+	if profile.Activation == "" {
+		return nil
+	}
+	resolved, err := filepath.Abs(resolveApplyRelativePath(baseDir, profile.Activation))
+	if err != nil {
+		return fmt.Errorf("failed to resolve activation path %s: %v", profile.Activation, err)
+	}
+	profile.Activation = resolved
+	fileBytes, err := os.ReadFile(resolved)
+	if err != nil {
+		return fmt.Errorf("failed to read activation file %s: %v", resolved, err)
+	}
+	return LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
 }
 
 func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps) error {
