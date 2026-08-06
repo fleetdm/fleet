@@ -29,13 +29,15 @@ Fleet will implement ETag/304-style conditional requests for the osquery config 
 
 1. **The server assigns the validator.** The server computes a hash of the marshaled config and returns it in the config response under an `"etag"` key. The full config for a host is a function of its team and platform (agent options are resolved per team/platform; the pack config is per team), so the etag is computed and cached per `(team, platform)`, alongside the existing `packConfigCache` and invalidated by the same events (agent options changes, report changes). Computing and caching this is cheap.
 
-2. **The agent echoes the etag back.** osquery includes an `"etag"` field in the `POST /api/v1/osquery/config` request body containing the etag from the last config response it successfully applied (empty on its first request). The agent never computes anything — it stores the server's opaque value and echoes it. This requires an upstream osquery change to the TLS config plugin; Fleet employs osquery committers, and the change reaches agents through the osquery version bundled in fleetd.
+2. **The agent echoes the etag back.** osquery includes an `"etag"` field in the `POST /api/v1/osquery/config` request body containing the etag from the last config response it received (empty on its first request). The agent never computes anything — it stores the server's opaque value and echoes it. The etag deliberately acknowledges *receipt*, not successful application: if the agent echoed only its last successfully applied config, a config that fails to apply on the host would be retransmitted in full on every refresh — exactly the redundant egress this mechanism eliminates, and at 100k hosts a bad config push would recreate the full load with no benefit. Apply failures are the agent's to track and surface (osquery logs a warning and fails the config refresh on every cycle), so nothing is masked by acknowledging receipt. This requires an upstream osquery change to the TLS config plugin ([osquery/osquery#9033](https://github.com/osquery/osquery/pull/9033)); Fleet employs osquery committers, and the change reaches agents through the osquery version bundled in fleetd.
 
 3. **On a match, the server returns a minimal "not modified" response.** If the agent's etag equals the current etag for its team/platform, the server responds `200 OK` with the constant body `{"etag":"ok"}` — the smallest response that still tells the agent its config is current — and osquery keeps its current config. On a mismatch — or an empty etag — the server returns the full config with the current `"etag"` key included.
 
 4. **Old agents see no change.** An agent that does not send an `"etag"` field in the request has not opted in: the server always returns the full config and omits the `"etag"` key from the response, byte-for-byte identical to today's behavior.
 
 5. **Hosts with legacy packs bypass the optimization.** Legacy packs (`ListPacksForHost`) make the response per-host rather than per-team. These hosts always receive the full config, matching the existing cache bypass in `getPackConfig`.
+
+6. **Both sides are behind a feature flag, enabled by default.** The osquery change ships behind an osquery flag and the server change behind a Fleet server flag, both on by default so the savings apply out of the box. Either side can be switched off independently as an escape hatch: disabling the osquery flag stops the agent from sending the `"etag"` field, and disabling the server flag makes the server ignore incoming etags and always return the full config (without the `"etag"` key). Because the protocol degrades gracefully in both directions, any combination of flag states is safe — the worst case is today's behavior.
 
 Carrying the validator in the JSON bodies instead of using a real `If-None-Match`/`304` exchange was chosen because the request is a `POST` (header-based conditional semantics would be nonstandard), because osquery's config plugin error-handles non-200 responses, and because a body field makes version negotiation trivial: an old agent simply never sends the field and never sees the new response shape. Having the server assign the etag (rather than agents hashing their applied config) keeps the validator opaque — the server can change how it computes the value at any time without coordinating with agents. The literal value `"ok"` is reserved and never used as a real etag.
 
@@ -47,12 +49,13 @@ Carrying the validator in the JSON bodies instead of using a real `If-None-Match
 - The server skips unmarshaling agent options and assembling the response map on the not-modified path, saving CPU per request.
 - Fully backward compatible in both directions: old agents never send an etag and always get today's exact response; new agents against an old server get the full config without an `"etag"` key and simply keep sending an empty etag.
 - The mechanism also serves as the efficient fallback path for deployments that never enable push-based transport (see Alternatives), and remains useful alongside it.
+- The feature flags provide an immediate kill switch on either side: if a stale-etag bug (or any misbehavior) is suspected, disabling the server flag instantly restores full-config responses for every host, with no agent action or upgrade required.
 
 **Negative:**
 
 - Depends on an upstream osquery change; savings only materialize as fleets upgrade to a fleetd/osquery version that sends the etag.
 - A stale-etag bug could leave hosts running an outdated config indefinitely. The etag must cover the complete effective response, and its cache must be invalidated on every mutation path (agent options edits, report add/edit/delete, GitOps batch application). This is the primary correctness risk and the focus of the test plan.
-- `GetClientConfig` currently persists interval changes (`UpdateHostOsqueryIntervals`) when the delivered config alters `distributed_interval`, `logger_tls_period`, or `config_refresh`. The not-modified path skips this bookkeeping; that is safe only because a matching etag implies the host already received and applied exactly this config, at which point the intervals were reconciled. Implementation must keep this invariant.
+- `GetClientConfig` currently persists interval changes (`UpdateHostOsqueryIntervals`) when the delivered config alters `distributed_interval`, `logger_tls_period`, or `config_refresh`. The not-modified path skips this bookkeeping; that is safe only because a matching etag implies the server already delivered exactly this config (received and matching, not necessarily applied), and the intervals were reconciled server-side at that delivery. Implementation must keep this invariant.
 - Load testing is required to validate the win — before/after measurements of egress and CPU are part of the story's acceptance ([#50157](https://github.com/fleetdm/fleet/issues/50157)), and osquery-perf must be updated to simulate etag-sending agents.
 
 ## Alternatives considered
@@ -92,7 +95,7 @@ Replace polling entirely: the server holds a persistent WebSocket per agent and 
 ## References
 
 - [#50157: Reduce `/api/v1/osquery/config` traffic with ETag / HTTP 304-style conditional requests](https://github.com/fleetdm/fleet/issues/50157)
-- Originating Slack thread: https://fleetdm.slack.com/archives/C019WG4GH0A/p1785337387703489
 - `Service.GetClientConfig` and `getPackConfig`: `server/service/osquery.go`
 - [ADR-0011: Agent WebSocket Transport](0011-agent-websocket-transport.md)
+- osquery TLS config plugin change: [osquery/osquery#9033](https://github.com/osquery/osquery/pull/9033)
 - osquery TLS config plugin: https://osquery.readthedocs.io/en/stable/deployment/remote/
