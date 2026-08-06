@@ -108,13 +108,13 @@ Set `label_membership_type` to `host_vitals`, and set `criteria.vital` to `custo
 
 ```yaml
 labels:
-  - name: Asset tag test
-    description: Hosts with an asset tag of "Test"
+  - name: Point of sale terminals
+    description: Hosts whose "Function" custom host vital is set to "Point of sale"
     label_membership_type: host_vitals
     criteria:
       vital: custom_host_vital
-      custom_host_vital_id: 1
-      value: Test
+      custom_host_vital_id: 2
+      value: Point of sale
 ```
 
 See [GitOps labels](https://fleetdm.com/docs/configuration/yaml-files#labels) for the full label schema.
