@@ -19,6 +19,11 @@ const OSSettingsNameCell = ({
   scope,
   managedAccount,
 }: IOSSettingsNameCellProps) => {
+  console.log("OSSettingsNameCell rendered with props:", {
+    profileName,
+    scope,
+    managedAccount,
+  });
   return (
     <div className={baseClass}>
       <TooltipTruncatedTextCell
