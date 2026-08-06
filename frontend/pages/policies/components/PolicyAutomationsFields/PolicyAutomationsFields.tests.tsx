@@ -366,7 +366,7 @@ describe("PolicyAutomationsFields — payload", () => {
     });
   });
 
-  it("maps Force patch to patch_when_closed false and continuous automation true", () => {
+  it("maps Force patch to patch_when_closed false and continuous automation off", () => {
     const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
       current: null,
     };
@@ -381,12 +381,18 @@ describe("PolicyAutomationsFields — payload", () => {
       { patchOption: "force" }
     );
 
+    // Switching a stored Patch when app is closed policy to Force patch clears
+    // continuous automation instead of carrying the stored value over.
+    expect(
+      screen.getByRole("checkbox", { name: "continuous-automations-enabled" })
+    ).toHaveAttribute("aria-checked", "false");
+
     expect(
       handleRef.current?.getAutomationsPayload().policyUpdate
     ).toMatchObject({
       software_title_id: 42,
       patch_when_closed: false,
-      continuous_automations_enabled: true,
+      continuous_automations_enabled: false,
     });
   });
 
@@ -450,22 +456,39 @@ describe("PolicyAutomationsFields — payload", () => {
   });
 
   it("keeps continuous automation editable for Force patch", async () => {
-    const onPatchOptionChange = jest.fn();
     const { user } = renderWithHandle(
       {
         type: "patch",
         patch_when_closed: false,
-        continuous_automations_enabled: true,
+        continuous_automations_enabled: false,
       },
       undefined,
-      { patchOption: "force", onPatchOptionChange }
+      { patchOption: "force" }
     );
 
     const continuous = screen.getByRole("checkbox", {
       name: "continuous-automations-enabled",
     });
     expect(continuous).toHaveAttribute("aria-disabled", "false");
+    expect(continuous).toHaveAttribute("aria-checked", "false");
+
     await user.click(continuous);
-    expect(onPatchOptionChange).toHaveBeenCalledWith("manual");
+    expect(continuous).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("does not clear continuous automation already stored on a Force patch policy", () => {
+    renderWithHandle(
+      {
+        type: "patch",
+        patch_when_closed: false,
+        continuous_automations_enabled: true,
+      },
+      undefined,
+      { patchOption: "force" }
+    );
+
+    expect(
+      screen.getByRole("checkbox", { name: "continuous-automations-enabled" })
+    ).toHaveAttribute("aria-checked", "true");
   });
 });

@@ -767,7 +767,6 @@ const PolicyForm = ({
                 patchOption={
                   isPremiumTier && isPatchPolicy ? patchOption : undefined
                 }
-                onPatchOptionChange={setPatchOption}
                 patchSlot={patchOptions}
               />
             </div>
