@@ -92,17 +92,99 @@ The **server** decides whether WebSocket transport is active, not the agent. Whe
 
 > **The server is always in control.** Disabling the feature flag immediately stops new WebSocket connections on the next config cycle. Every agent falls back to polling. No agent action required, no rollback needed, no downtime.
 
+### What travels over `distributed/read` today
+
+The `distributed/read` endpoint is not just for live queries. Three distinct features share it, each with its own server-side interval:
+
+| Feature | How it gets to the agent | Server includes it when... |
+|---|---|---|
+| **Live queries** | `distributed/read` | A campaign targets the host |
+| **Policies** | `distributed/read` | PolicyUpdateInterval has elapsed (~1 hour) |
+| **Software ingestion** | `distributed/read` (detail queries) | DetailUpdateInterval has elapsed (~1 hour) |
+
+The agent polls `distributed/read` every 10 seconds. The server decides what to include based on these intervals. In steady state, most polls return empty because no live query is active and the hourly intervals have not elapsed.
+
+**Scheduled queries (reports)** use a different channel: they are delivered via `/api/osquery/config` as part of the osquery pack configuration. This is covered by the config endpoint, not `distributed/read`.
+
+### How each feature works today (polling)
+
+> The diagrams below are simplified for illustration.
+
+**Live queries** (the primary target of this ADR):
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Server
+    loop every 10s
+        Agent->>Server: distributed/read
+        Server-->>Agent: empty (no active campaign)
+    end
+    Note over Server: admin runs a live query
+    Agent->>Server: distributed/read (next 10s tick)
+    Server-->>Agent: here is your query
+    Agent->>Server: distributed/write (results)
+```
+
+**Policies** (delivered via distributed/read, but only every ~1 hour):
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Server
+    loop every 10s
+        Agent->>Server: distributed/read
+        Server-->>Agent: empty (policy interval not elapsed)
+    end
+    Note over Server: 1 hour elapses
+    Agent->>Server: distributed/read
+    Server-->>Agent: policy queries
+    Agent->>Server: distributed/write (pass/fail results)
+```
+
+**Software ingestion** (delivered via distributed/read as detail queries, ~1 hour):
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Server
+    loop every 10s
+        Agent->>Server: distributed/read
+        Server-->>Agent: empty (detail interval not elapsed)
+    end
+    Note over Server: 1 hour elapses
+    Agent->>Server: distributed/read
+    Server-->>Agent: software inventory queries
+    Agent->>Server: distributed/write (software list)
+```
+
+**Scheduled queries / reports** (different channel, via config):
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Server
+    loop every 60s
+        Agent->>Server: /api/osquery/config
+        Server-->>Agent: config with pack/schedule (usually unchanged)
+    end
+    Note over Agent: osquery runs scheduled queries locally on their own timers
+    Agent->>Server: /api/osquery/log (result logs)
+```
+
 ### The WebSocket is a notification channel only
 
 The WebSocket does **not** replace any existing functionality. It acts purely as a notification channel: the server sends a short "check now" signal, and the agent then performs the same HTTP calls it always has. No query data, no config payloads, no results travel over the WebSocket. Everything that works today continues to work exactly the same way. The only difference is that the agent no longer asks on a blind timer; it asks when told to.
 
-**Phase 1 (POC):** The notification channel covers `distributed/read` only. This is the biggest offender (38.2% of all traffic, 99.7% empty) and proves the mechanism end to end.
+Because live queries, policies, and software ingestion all share `distributed/read`, a single WebSocket nudge type covers all three. The agent does not need to know which feature triggered the nudge; it just calls `distributed/read` and the server returns whatever is due.
+
+**Phase 1 (POC):** The notification channel covers `distributed/read` only (live queries, policies, software ingestion). This is the biggest offender (38.2% of all traffic, 99.7% empty) and proves the mechanism end to end.
 
 **Future phases:** The same WebSocket carries notifications for additional channels:
 
 | Phase | Channel | Current polling | What the nudge means |
 |---|---|---|---|
-| 1 (POC) | `distributed/read` | every 10s | "there are queries for you" |
+| 1 (POC) | `distributed/read` | every 10s | "there is work for you" (live queries, policies, or software ingestion) |
 | Future | orbit config | every 30s | "your config changed" |
 | Future | Fleet Desktop check-in | every 5m | "there is something to show the user" |
 | Future | osquery config | every 60s | "your osquery config changed" |
