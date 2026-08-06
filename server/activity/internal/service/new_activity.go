@@ -62,6 +62,9 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 				// transient failure here must not fail the surrounding operation recording the activity.
 				s.logger.ErrorContext(ctx, "get host activities webhooks",
 					slog.String("activity", activity.ActivityName()), slog.String("err", err.Error()))
+				// Discard partial results: an incomplete hook list could
+				// deliver to some fleets and silently miss others.
+				hooks = nil
 			}
 			// Per-fleet payloads carry host_ids for activities whose stored
 			// details don't already identify their hosts (batch automation

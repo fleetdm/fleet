@@ -709,7 +709,10 @@ func TestNewActivityHostWebhook(t *testing.T) {
 			mockDataProviders: mockDataProviders{
 				mockUserProvider: &mockUserProvider{},
 				mockHostProvider: &mockHostProvider{},
-				hostWebhooksErr:  errors.New("boom"),
+				hostWebhooks: []activity.HostActivitiesWebhook{
+					{DestinationURL: srv.URL + "/partial", HostIDs: []uint{7}},
+				},
+				hostWebhooksErr: errors.New("boom"),
 			},
 		}
 		svc := newTestServiceWithWebhook(ds, providers)
@@ -717,6 +720,12 @@ func TestNewActivityHostWebhook(t *testing.T) {
 		err := svc.NewActivity(t.Context(), user, hostActivity{simpleActivity: simpleActivity{Name: "err"}, hostIDs: []uint{7}})
 		require.NoError(t, err)
 		assert.True(t, ds.newActivityCalled)
+
+		select {
+		case p := <-received:
+			t.Fatalf("unexpected webhook POST to %s after lookup error", p.path)
+		case <-time.After(200 * time.Millisecond):
+		}
 	})
 
 	t.Run("global and fleet webhooks both fire for a host activity", func(t *testing.T) {

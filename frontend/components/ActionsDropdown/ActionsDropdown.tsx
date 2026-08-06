@@ -210,6 +210,8 @@ const ActionsDropdown = ({
   const isPrimary = variant === "primary";
   const hasIconTrigger = !!triggerIcon;
 
+  const toggleMenu = () => setMenuIsOpen((isOpen) => !isOpen);
+
   // Same Control-replacement approach as the primary variant: the trigger is a
   // real Button so it gets Fleet's button styles — including the square
   // icon-only treatment for a lone Icon child — and focus handling for free.
@@ -217,7 +219,17 @@ const ActionsDropdown = ({
     <Button
       type="button"
       variant="secondary"
-      onClick={() => setMenuIsOpen((v) => !v)}
+      onClick={toggleMenu}
+      // Button also invokes onClick from its own Enter-keydown handler, and
+      // the native <button> fires a click on Enter — a toggle would run twice
+      // and the menu would stay closed. preventDefault suppresses the native
+      // click so Enter toggles exactly once.
+      customOnKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          toggleMenu();
+        }
+      }}
       className={`${baseClass}__icon-trigger`}
       disabled={disabled}
       ariaHasPopup="listbox"

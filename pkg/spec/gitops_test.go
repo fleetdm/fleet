@@ -5559,3 +5559,34 @@ policies:
 		})
 	}
 }
+
+func TestValidateTeamWebhookSettingsHostActivitiesWebhook(t *testing.T) {
+	t.Parallel()
+
+	settings := func(haw any) map[string]any {
+		return map[string]any{"webhook_settings": map[string]any{"host_activities_webhook": haw}}
+	}
+
+	cases := []struct {
+		name    string
+		haw     any
+		wantErr string
+	}{
+		{"valid", map[string]any{"enable_host_activities_webhook": true, "destination_url": "https://example.com/hook"}, ""},
+		{"null is allowed", nil, ""},
+		{"non-object", "bad", "'settings.webhook_settings.host_activities_webhook' must be an object or null"},
+		{"misspelled key", map[string]any{"enable_host_activity_webhook": true}, "unsupported option 'enable_host_activity_webhook' in settings.webhook_settings.host_activities_webhook"},
+		{"string enable flag", map[string]any{"enable_host_activities_webhook": "true"}, "'settings.webhook_settings.host_activities_webhook.enable_host_activities_webhook' must be a boolean"},
+		{"non-string destination_url", map[string]any{"destination_url": 123}, "'settings.webhook_settings.host_activities_webhook.destination_url' must be a string"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := validateTeamWebhookSettings(settings(c.haw), nil).ErrorOrNil()
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+}

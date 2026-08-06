@@ -308,8 +308,7 @@ type HostActivitiesWebhookSettings struct {
 // resolve the host-activities webhooks of the fleets a set of hosts belong to.
 type HostActivitiesWebhookLookup interface {
 	ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*Host, error)
-	DefaultTeamConfig(ctx context.Context) (*TeamConfig, error)
-	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
+	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
 }
 
 // HostActivitiesWebhookDelivery is one fleet's resolved host-activities
@@ -348,29 +347,23 @@ func ResolveHostActivitiesWebhooks(ctx context.Context, ds HostActivitiesWebhook
 		hostsByFleet[fleetKey] = append(hostsByFleet[fleetKey], host.ID)
 	}
 
+	fleets, err := ds.TeamLitesByIDs(ctx, fleetKeys)
+	if err != nil {
+		return nil, err
+	}
+	fleetsByID := make(map[uint]*TeamLite, len(fleets))
+	for _, f := range fleets {
+		fleetsByID[f.ID] = f
+	}
+
 	// Resolve each fleet's webhook into its own delivery.
 	var deliveries []HostActivitiesWebhookDelivery
 	for _, fleetKey := range fleetKeys {
-		var webhook *HostActivitiesWebhookSettings
-		if fleetKey == 0 {
-			config, err := ds.DefaultTeamConfig(ctx)
-			if err != nil {
-				return nil, err
-			}
-			webhook = config.WebhookSettings.HostActivitiesWebhook
-		} else {
-			team, err := ds.TeamLite(ctx, fleetKey)
-			if err != nil {
-				// The host's fleet may have been deleted between the activity and
-				// this lookup; skip rather than fail the activity creation.
-				if IsNotFound(err) {
-					continue
-				}
-				return nil, err
-			}
-			webhook = team.Config.WebhookSettings.HostActivitiesWebhook
+		team, ok := fleetsByID[fleetKey]
+		if !ok { // deleted fleet
+			continue
 		}
-
+		webhook := team.Config.WebhookSettings.HostActivitiesWebhook
 		if webhook == nil || !webhook.Enable || webhook.DestinationURL == "" {
 			continue
 		}

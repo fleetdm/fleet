@@ -1025,6 +1025,16 @@ func validateTeamWebhookSettings(teamSettings map[string]any, multiError *multie
 			}
 		}
 
+		// Validate host_activities_webhook if present
+		if haw, hasHAW := webhookMap["host_activities_webhook"]; hasHAW && haw != nil {
+			hawMap, ok := haw.(map[string]any)
+			if !ok {
+				multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.host_activities_webhook' must be an object or null"))
+			} else if err := validateHostActivitiesWebhook(hawMap, "settings.webhook_settings.host_activities_webhook"); err != nil {
+				multiError = multierror.Append(multiError, err)
+			}
+		}
+
 		// Could add validation for other webhook types here in the future
 		// e.g., host_status_webhook, vulnerabilities_webhook, etc.
 	}

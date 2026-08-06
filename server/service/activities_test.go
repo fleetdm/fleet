@@ -243,18 +243,30 @@ func TestGetHostActivitiesWebhookSettings(t *testing.T) {
 		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
 			return hosts, nil
 		}
-		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
-			webhook, ok := teamWebhooks[tid]
-			if !ok {
-				return nil, &notFoundError{}
+		ds.TeamLitesByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.TeamLite, error) {
+			teams := make([]*fleet.TeamLite, 0, len(ids))
+			for _, tid := range ids {
+				// ID 0 ("Unassigned") is always present, synthesized from the
+				// default team config like the real bulk query.
+				if tid == 0 {
+					teams = append(teams, &fleet.TeamLite{
+						ID:     0,
+						Config: fleet.TeamConfigLite{WebhookSettings: fleet.TeamWebhookSettings{HostActivitiesWebhook: noTeamWebhook}},
+					})
+					continue
+				}
+				// Fleets absent from teamWebhooks are "deleted": omitted from
+				// the result.
+				webhook, ok := teamWebhooks[tid]
+				if !ok {
+					continue
+				}
+				teams = append(teams, &fleet.TeamLite{
+					ID:     tid,
+					Config: fleet.TeamConfigLite{WebhookSettings: fleet.TeamWebhookSettings{HostActivitiesWebhook: webhook}},
+				})
 			}
-			return &fleet.TeamLite{
-				ID:     tid,
-				Config: fleet.TeamConfigLite{WebhookSettings: fleet.TeamWebhookSettings{HostActivitiesWebhook: webhook}},
-			}, nil
-		}
-		ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
-			return &fleet.TeamConfig{WebhookSettings: fleet.TeamWebhookSettings{HostActivitiesWebhook: noTeamWebhook}}, nil
+			return teams, nil
 		}
 		return ds
 	}
@@ -363,7 +375,7 @@ func TestGetHostActivitiesWebhookSettings(t *testing.T) {
 	})
 
 	t.Run("deleted fleet is skipped", func(t *testing.T) {
-		ds := newDS([]*fleet.Host{hostInTeam(1, &teamID1)}, nil, nil) // TeamLite returns not found
+		ds := newDS([]*fleet.Host{hostInTeam(1, &teamID1)}, nil, nil) // fleet absent from the bulk lookup
 		svc := &Service{ds: ds}
 		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1})
 		require.NoError(t, err)

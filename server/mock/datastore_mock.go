@@ -492,6 +492,8 @@ type TeamWithExtrasFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
 type TeamLiteFunc func(ctx context.Context, tid uint) (*fleet.TeamLite, error)
 
+type TeamLitesByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.TeamLite, error)
+
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
@@ -2988,6 +2990,9 @@ type DataStore struct {
 
 	TeamLiteFunc        TeamLiteFunc
 	TeamLiteFuncInvoked bool
+
+	TeamLitesByIDsFunc        TeamLitesByIDsFunc
+	TeamLitesByIDsFuncInvoked bool
 
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
@@ -7319,6 +7324,13 @@ func (s *DataStore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, er
 	s.TeamLiteFuncInvoked = true
 	s.mu.Unlock()
 	return s.TeamLiteFunc(ctx, tid)
+}
+
+func (s *DataStore) TeamLitesByIDs(ctx context.Context, ids []uint) ([]*fleet.TeamLite, error) {
+	s.mu.Lock()
+	s.TeamLitesByIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamLitesByIDsFunc(ctx, ids)
 }
 
 func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
