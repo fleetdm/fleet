@@ -3221,6 +3221,25 @@ This activity contains the following fields:
 }
 ```
 
+## canceled_mdm_command
+
+Generated when a user cancels an upcoming MDM command.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "command_type": The type of MDM command.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "command_type": "lock"
+}
+```
+
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
 <meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">
