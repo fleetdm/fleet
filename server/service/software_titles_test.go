@@ -312,6 +312,15 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 			installersWithoutTeam: true,
 		},
 		{
+			// Technician is the role that separates an installable_entity check
+			// from a hardcoded admin/maintainer list: it reads installers but is
+			// neither.
+			name:                  "global-technician",
+			user:                  &fleet.User{ID: 1, GlobalRole: new(fleet.RoleTechnician)},
+			canReadInstaller:      true,
+			installersWithoutTeam: true,
+		},
+		{
 			name:                  "global-observer",
 			user:                  &fleet.User{ID: 1, GlobalRole: new(fleet.RoleObserver)},
 			canReadInstaller:      false,
@@ -335,6 +344,14 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 			name: "team-maintainer",
 			user: &fleet.User{ID: 1, Teams: []fleet.UserTeam{{
 				Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer,
+			}}},
+			canReadInstaller:      true,
+			installersWithoutTeam: false,
+		},
+		{
+			name: "team-technician",
+			user: &fleet.User{ID: 1, Teams: []fleet.UserTeam{{
+				Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician,
 			}}},
 			canReadInstaller:      true,
 			installersWithoutTeam: false,
