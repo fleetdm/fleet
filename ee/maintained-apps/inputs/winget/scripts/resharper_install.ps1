@@ -8,7 +8,6 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
-# Under production's 1 hour cap; the wait below also gives up early.
 $registryTimeoutSeconds = 3300
 
 $uninstallPaths = @(
@@ -66,10 +65,6 @@ $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 Write-Host "Installer exit code: $exitCode"
 
-# The bootstrapper can outlive its own exit code, so poll for the uninstall
-# registry entry (what osquery reports). The installer process is sampled at both
-# ends of the interval so neither one starting nor one exiting mid-sleep is
-# mistaken for nothing left to wait for.
 $deadline = (Get-Date).AddSeconds($registryTimeoutSeconds)
 $entries = @(Get-ReSharperEntries)
 while ($entries.Count -eq 0 -and (Get-Date) -lt $deadline) {
