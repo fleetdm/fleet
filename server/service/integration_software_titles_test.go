@@ -647,8 +647,11 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	installer1, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), installer1ID)
 	require.NoError(t, err)
 	hash1 := installer1.StorageID
+	// A fleetless lookup resolves against the filter's fleets, so it needs a real
+	// user; an empty filter matches nothing.
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
 	// Get the actual title that was extracted from the package
-	title1, err := s.ds.SoftwareTitleByID(context.Background(), *installer1.TitleID, nil, fleet.TeamFilter{})
+	title1, err := s.ds.SoftwareTitleByID(context.Background(), *installer1.TitleID, nil, adminFilter)
 	require.NoError(t, err)
 	titleName := title1.Name
 
@@ -674,7 +677,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	require.NotZero(t, installer2ID)
 	installer2, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), installer2ID)
 	require.NoError(t, err)
-	title2, err := s.ds.SoftwareTitleByID(context.Background(), *installer2.TitleID, nil, fleet.TeamFilter{})
+	title2, err := s.ds.SoftwareTitleByID(context.Background(), *installer2.TitleID, nil, adminFilter)
 	require.NoError(t, err)
 	title2Name := title2.Name
 
@@ -1031,6 +1034,23 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.Require().NoError(s.ds.SyncHostsSoftware(context.Background(), time.Now()))
 	s.Require().NoError(s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
+	// As an admin, the package comes back with its script contents.
+	listResp = listHostsResponse{}
+	s.DoJSON(
+		"GET",
+		"/api/latest/fleet/hosts",
+		nil,
+		http.StatusOK,
+		&listResp,
+		"team_id",
+		fmt.Sprint(team.ID),
+		"software_title_id",
+		fmt.Sprint(titleID),
+	)
+	s.Require().NotNil(listResp.SoftwareTitle)
+	s.Require().NotNil(listResp.SoftwareTitle.SoftwarePackage)
+	s.Equal("install", listResp.SoftwareTitle.SoftwarePackage.InstallScript)
+
 	currToken := s.token
 	t.Cleanup(func() {
 		s.token = currToken
@@ -1070,6 +1090,45 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.Assert().NotNil(listResp.SoftwareTitle)
 	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
 	s.Assert().Equal("My cool display name", listResp.SoftwareTitle.DisplayName)
+
+	// This endpoint serializes the same title struct as the details endpoint, so
+	// it withholds script contents here too. The rest of the package stays.
+	s.Require().NotNil(listResp.SoftwareTitle.SoftwarePackage)
+	s.Empty(listResp.SoftwareTitle.SoftwarePackage.InstallScript)
+	s.Empty(listResp.SoftwareTitle.SoftwarePackage.UninstallScript)
+	s.Empty(listResp.SoftwareTitle.SoftwarePackage.PostInstallScript)
+	s.Empty(listResp.SoftwareTitle.SoftwarePackage.PreInstallQuery)
+	s.Equal("ruby.deb", listResp.SoftwareTitle.SoftwarePackage.Name)
+
+	// The software title details endpoint agrees.
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON(
+		"GET",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
+		nil,
+		http.StatusOK,
+		&titleResp,
+		"team_id",
+		fmt.Sprint(team.ID),
+	)
+	s.Require().NotNil(titleResp.SoftwareTitle.SoftwarePackage)
+	s.Empty(titleResp.SoftwareTitle.SoftwarePackage.InstallScript)
+	s.Equal("ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
+
+	// Omitting the fleet resolves to "no team", which this observer has no role
+	// in, so no package is attached. It must still succeed, or a title's
+	// existence becomes inferable from the status.
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
+		nil,
+		http.StatusOK,
+		&titleResp,
+	)
+	s.Equal(titleID, titleResp.SoftwareTitle.ID)
+	s.Nil(titleResp.SoftwareTitle.SoftwarePackage)
+	s.Empty(titleResp.SoftwareTitle.Packages)
 }
 
 func (s *integrationMDMTestSuite) TestGitopsInstallableSoftwareRetries() {
