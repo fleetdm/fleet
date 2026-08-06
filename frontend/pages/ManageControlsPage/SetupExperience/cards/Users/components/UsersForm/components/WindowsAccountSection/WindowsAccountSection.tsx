@@ -1,12 +1,11 @@
 import React from "react";
-import PATHS from "router/paths";
 
 import CustomLink from "components/CustomLink";
-import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import ManagedAccountCheckbox from "../ManagedAccountCheckbox";
+import TurnOnMdmTooltipWrapper from "../TurnOnMdmTooltipWrapper";
 
 const baseClass = "windows-account-section";
 
@@ -36,24 +35,9 @@ const WindowsAccountSection = ({
         </div>
 
         <h3 className={`${baseClass}__sub-header`}>Managed account</h3>
-        <TooltipWrapper
-          tipContent={
-            !isWindowsMdmEnabledAndConfigured ? (
-              <span>
-                To enable, first turn on{" "}
-                <CustomLink
-                  url={PATHS.ADMIN_INTEGRATIONS_MDM_WINDOWS}
-                  text="Windows MDM"
-                  variant="tooltip-link"
-                />
-                .
-              </span>
-            ) : undefined
-          }
-          disableTooltip={isWindowsMdmEnabledAndConfigured}
-          underline={false}
-          position="left"
-          showArrow
+        <TurnOnMdmTooltipWrapper
+          platform="windows"
+          isMdmEnabledAndConfigured={isWindowsMdmEnabledAndConfigured}
         >
           <GitOpsModeTooltipWrapper
             position="left"
@@ -67,7 +51,7 @@ const WindowsAccountSection = ({
               />
             )}
           />
-        </TooltipWrapper>
+        </TurnOnMdmTooltipWrapper>
       </div>
     </div>
   );
