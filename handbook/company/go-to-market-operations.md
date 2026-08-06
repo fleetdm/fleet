@@ -47,7 +47,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | DRI                               | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
-## Customer support service level objectives (SLOs)
+## Customer support service level objectives (SLAs)
 
 **Fleet Free:**
 

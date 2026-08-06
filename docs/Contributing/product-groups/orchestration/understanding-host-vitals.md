@@ -357,6 +357,20 @@ WITH
 	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
 ```
 
+## mdm_macos_software_update_id
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ioreg'
+```
+
+- Query:
+```sql
+SELECT key, value FROM ioreg WHERE c = 'IOPlatformExpertDevice' AND key IN ('compatible', 'bridge-model', 'board-id');
+```
+
 ## mdm_windows
 
 - Platforms: windows

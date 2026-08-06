@@ -1,1 +1,0 @@
-- Improved performance of Orbit config endpoint by batching extension label-membership checks into a single database query.

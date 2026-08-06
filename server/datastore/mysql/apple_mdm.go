@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -22,11 +23,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mdm "github.com/fleetdm/fleet/v4/server/mdm"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/go-cmp/cmp"
@@ -4827,39 +4830,12 @@ func (ds *Datastore) updateDeclarationsAssetAssociations(ctx context.Context, tx
 		if incoming == nil {
 			continue
 		}
-		refs := incoming.AssetReferenceUUIDs
 
-		// Remove references that are no longer present, keeping only the incoming set.
-		delStmt := `DELETE FROM mdm_apple_declaration_asset_references WHERE declaration_uuid = ?`
-		delArgs := []any{decl.DeclarationUUID}
-		if len(refs) > 0 {
-			delStmt, delArgs, err = sqlx.In(`DELETE FROM mdm_apple_declaration_asset_references
-				WHERE declaration_uuid = ? AND asset_uuid NOT IN (?)`, decl.DeclarationUUID, refs)
-			if err != nil {
-				return false, ctxerr.Wrap(ctx, err, "building delete stale asset references query")
-			}
+		updated, err := setMDMAppleDeclarationAssetReferencesDB(ctx, tx, decl.DeclarationUUID, incoming.AssetReferenceUUIDs)
+		if err != nil {
+			return false, err
 		}
-		if res, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "deleting stale declaration asset references")
-		} else if aff, _ := res.RowsAffected(); aff > 0 {
-			updatedDB = true
-		}
-
-		if len(refs) == 0 {
-			continue
-		}
-
-		insStmt := `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid) VALUES ` +
-			strings.Repeat("(?, ?),", len(refs)-1) + "(?, ?) ON DUPLICATE KEY UPDATE asset_uuid = VALUES(asset_uuid)"
-		insArgs := make([]any, 0, len(refs)*2)
-		for _, ref := range refs {
-			insArgs = append(insArgs, decl.DeclarationUUID, ref)
-		}
-		if res, err := tx.ExecContext(ctx, insStmt, insArgs...); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "inserting declaration asset references")
-		} else if aff, _ := res.RowsAffected(); aff > 0 {
-			updatedDB = true
-		}
+		updatedDB = updatedDB || updated
 	}
 
 	return updatedDB, nil
@@ -5243,23 +5219,14 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			}
 		}
 
-		if assetReferences := declaration.AssetReferenceUUIDs; len(assetReferences) > 0 {
-			assetRefStmt := `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid)
-			VALUES ` + strings.Repeat("(?, ?),", len(assetReferences)-1) + "(?, ?) " + `
-			ON DUPLICATE KEY UPDATE asset_uuid = VALUES(asset_uuid)`
-
-			assetRefArgs := make([]any, 0, len(assetReferences)*2)
-			for _, assetRef := range assetReferences {
-				assetRefArgs = append(assetRefArgs, declUUID, assetRef)
-			}
-
-			if _, err := tx.ExecContext(ctx, assetRefStmt, assetRefArgs...); err != nil {
-				return ctxerr.Wrap(ctx, err, "inserting apple mdm declaration asset references")
-			}
-		}
-
+		// An upsert keeps the existing row's UUID, so everything keyed on the
+		// declaration must use the reloaded UUID, not the one generated above.
 		if err := sqlx.GetContext(ctx, tx, &declUUID, reloadStmt, declaration.Name, tmID); err != nil {
 			return ctxerr.Wrap(ctx, err, "reload apple mdm declaration")
+		}
+
+		if _, err := setMDMAppleDeclarationAssetReferencesDB(ctx, tx, declUUID, declaration.AssetReferenceUUIDs); err != nil {
+			return err
 		}
 
 		labels := make([]fleet.ConfigurationProfileLabel, 0,
@@ -5319,6 +5286,46 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 	declaration.DeclarationUUID = declUUID
 	return declaration, nil
+}
+
+// setMDMAppleDeclarationAssetReferencesDB reconciles the asset references of a
+// single declaration against the incoming set, so an edit that drops an asset
+// doesn't leave the old reference behind. The declaration UUID must be the one
+// stored in mdm_apple_declarations (an upsert keeps the pre-existing UUID).
+func setMDMAppleDeclarationAssetReferencesDB(ctx context.Context, tx sqlx.ExtContext, declUUID string, assetRefs []string) (updatedDB bool, err error) {
+	// Remove references that are no longer present, keeping only the incoming set.
+	delStmt := `DELETE FROM mdm_apple_declaration_asset_references WHERE declaration_uuid = ?`
+	delArgs := []any{declUUID}
+	if len(assetRefs) > 0 {
+		delStmt, delArgs, err = sqlx.In(`DELETE FROM mdm_apple_declaration_asset_references
+			WHERE declaration_uuid = ? AND asset_uuid NOT IN (?)`, declUUID, assetRefs)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "building delete stale declaration asset references query")
+		}
+	}
+	if res, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "deleting stale declaration asset references")
+	} else if aff, _ := res.RowsAffected(); aff > 0 {
+		updatedDB = true
+	}
+
+	if len(assetRefs) == 0 {
+		return updatedDB, nil
+	}
+
+	insStmt := `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid) VALUES ` +
+		strings.Repeat("(?, ?),", len(assetRefs)-1) + "(?, ?) ON DUPLICATE KEY UPDATE asset_uuid = VALUES(asset_uuid)"
+	insArgs := make([]any, 0, len(assetRefs)*2)
+	for _, ref := range assetRefs {
+		insArgs = append(insArgs, declUUID, ref)
+	}
+	if res, err := tx.ExecContext(ctx, insStmt, insArgs...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "inserting declaration asset references")
+	} else if aff, _ := res.RowsAffected(); aff > 0 {
+		updatedDB = true
+	}
+
+	return updatedDB, nil
 }
 
 // Keyed on declaration_uuid rather than inserted fresh, so an edit keeps the
@@ -8630,4 +8637,300 @@ func (ds *Datastore) GetHostDEPAssignmentsByHostIDs(ctx context.Context, hostIDs
 		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments by host IDs")
 	}
 	return res, nil
+}
+
+func (ds *Datastore) InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error {
+	if hostUUID == "" {
+		return ctxerr.New(ctx, "host UUID is required")
+	}
+
+	if updateDeviceID == "" {
+		return ctxerr.New(ctx, "update device ID is required")
+	}
+
+	const stmt = `
+		INSERT INTO host_mdm_apple_os_updates (host_uuid, software_update_device_id) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE software_update_device_id = VALUES(software_update_device_id)
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, updateDeviceID); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting Apple software update device ID")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetLastAppleOSUpdatesUpdate(ctx context.Context) (*time.Time, error) {
+	const stmt = `SELECT MAX(updated_at) FROM apple_software_update_assets`
+
+	var lastUpdate *time.Time
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastUpdate, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting last apple os updates update")
+	}
+
+	return lastUpdate, nil
+}
+
+func (ds *Datastore) UpsertAppleOSUpdates(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	stmt := `
+		INSERT INTO apple_software_update_assets (class, product_version, build, posting_date, expiration_date, supported_devices)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				posting_date = VALUES(posting_date),
+				expiration_date = VALUES(expiration_date),
+				supported_devices = VALUES(supported_devices),
+				updated_at = NOW(6)
+	`
+
+	args := []any{}
+	for class, assets := range updates {
+		for _, asset := range assets {
+			supportedDevices, err := json.Marshal(asset.SupportedDevices)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "marshaling supported devices")
+			}
+			args = append(args,
+				class,
+				asset.ProductVersion,
+				asset.Build,
+				asset.PostingDate,
+				asset.ExpirationDate,
+				supportedDevices,
+			)
+
+		}
+	}
+
+	valueStrings := []string{}
+	for i := 0; i < len(args); i += 6 {
+		valueStrings = append(valueStrings, "(?, ?, ?, ?, ?, ?)")
+	}
+	stmt = fmt.Sprintf(stmt, strings.Join(valueStrings, ","))
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "upserting apple os updates")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) DeleteStaleAppleOSUpdates(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) (int64, error) {
+	var deleted int64
+	for class, assets := range updates {
+		if len(assets) == 0 {
+			// Apple didn't report any asset for this class; assume the response was incomplete
+			// rather than deleting every cached asset for the class.
+			continue
+		}
+
+		// delete the cached assets for this class that are not in the set Apple currently reports
+		args := []any{class}
+		placeholders := make([]string, 0, len(assets))
+		for _, asset := range assets {
+			args = append(args, asset.ProductVersion, asset.Build)
+			placeholders = append(placeholders, "(?, ?)")
+		}
+		stmt := fmt.Sprintf(`
+			DELETE FROM apple_software_update_assets
+			WHERE class = ? AND (product_version, build) NOT IN (%s)
+		`, strings.Join(placeholders, ","))
+
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return deleted, ctxerr.Wrapf(ctx, err, "deleting stale apple os updates for class %s", class)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return deleted, ctxerr.Wrapf(ctx, err, "counting deleted apple os updates for class %s", class)
+		}
+		deleted += n
+	}
+
+	return deleted, nil
+}
+
+func (ds *Datastore) ListAppleOSUpdateAssets(ctx context.Context) (map[string][]fleet.AppleSoftwareUpdateAsset, error) {
+	// we do N selects, one for each class of OS updates
+	classes := []string{"macos", "ios"}
+
+	results := make(map[string][]fleet.AppleSoftwareUpdateAsset, len(classes))
+	for _, class := range classes {
+		var assets []fleet.AppleSoftwareUpdateAsset
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &assets, `
+			SELECT product_version, build, posting_date, expiration_date, supported_devices, first_seen_at, updated_at
+			FROM apple_software_update_assets
+			WHERE class = ?
+			ORDER BY posting_date DESC
+		`, class); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "listing apple os update assets")
+		}
+		results[class] = assets
+	}
+
+	return results, nil
+}
+
+func (ds *Datastore) ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*fleet.AppleSoftwareUpdateHost, error) {
+	stmt := `
+		SELECT 
+			hmaou.host_uuid,
+			hmaou.software_update_device_id,
+			hmaou.target_os_version,
+			hmaou.target_deadline,
+			hmaou.resolved_at,
+			IFNULL(h.team_id, 0) AS team_id,
+			h.platform
+		FROM host_mdm_apple_os_updates hmaou
+			INNER JOIN hosts h ON h.uuid = hmaou.host_uuid
+		WHERE 
+			hmaou.host_uuid > ? AND (
+				(hmaou.target_os_version != '' OR hmaou.resolved_at IS NOT NULL) -- include hosts not part of a team that already has a target update configured`
+	var args []any
+	args = append(args, cursor)
+	if len(teamsWithLatest["darwin"]) > 0 {
+		teamIds := slices.Collect(maps.Keys(teamsWithLatest["darwin"]))
+		query, inArgs, err := sqlx.In(`
+			OR (h.platform = 'darwin' AND IFNULL(h.team_id, 0) IN (?))`, teamIds)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building team filter for darwin updates")
+		}
+
+		stmt += query
+		args = append(args, inArgs...)
+	}
+	if len(teamsWithLatest["ios"]) > 0 {
+		teamIds := slices.Collect(maps.Keys(teamsWithLatest["ios"]))
+		query, inArgs, err := sqlx.In(`
+			OR (h.platform = 'ios' AND IFNULL(h.team_id, 0) IN (?))`, teamIds)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building team filter for ios updates")
+		}
+
+		stmt += query
+		args = append(args, inArgs...)
+	}
+	if len(teamsWithLatest["ipados"]) > 0 {
+		teamIds := slices.Collect(maps.Keys(teamsWithLatest["ipados"]))
+		query, inArgs, err := sqlx.In(`
+			OR (h.platform = 'ipados' AND IFNULL(h.team_id, 0) IN (?))`, teamIds)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building team filter for ipados updates")
+		}
+
+		stmt += query
+		args = append(args, inArgs...)
+	}
+
+	stmt += `
+	)
+		ORDER BY hmaou.host_uuid
+		LIMIT ?
+	`
+	args = append(args, batchSize)
+	var hosts []*fleet.AppleSoftwareUpdateHost
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing apple os update hosts for reconcile")
+	}
+	return hosts, nil
+}
+
+func (ds *Datastore) SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		targetsToResend := make([]*fleet.ComputedAppleSoftwareUpdateHost, 0, len(targets))
+
+		executeBatch := func(valuePart string, args []any) error {
+			valuePart = strings.TrimPrefix(valuePart, ",")
+			stmt := fmt.Sprintf(`
+		INSERT INTO host_mdm_apple_os_updates (host_uuid, target_os_version, target_deadline, resolved_at)
+		VALUES %s
+			ON DUPLICATE KEY UPDATE
+				target_os_version = VALUES(target_os_version),
+				target_deadline = VALUES(target_deadline),
+				resolved_at = VALUES(resolved_at)
+		`, valuePart)
+
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "upserting apple os update targets")
+			}
+
+			return nil
+		}
+
+		updateGenerateValueArgs := func(target *fleet.ComputedAppleSoftwareUpdateHost) (string, []any) {
+			if target.Resend {
+				targetsToResend = append(targetsToResend, target)
+			}
+			resolvedAt := sql.NullTime{Valid: target.ResolvedAt != nil}
+			if resolvedAt.Valid {
+				resolvedAt.Time = *target.ResolvedAt
+			}
+			return ",(?, ?, ?, ?)", []any{
+				target.HostUUID,
+				target.TargetOSVersion,
+				target.TargetDeadline,
+				resolvedAt,
+			}
+		}
+
+		if err := batchProcessDB(targets, 1000, updateGenerateValueArgs, executeBatch); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch processing apple os update targets")
+		}
+
+		if len(targetsToResend) == 0 {
+			return nil
+		}
+
+		var sb strings.Builder
+		sb.WriteString("UPDATE host_mdm_apple_declarations SET status=NULL, detail='', variables_updated_at = CASE host_uuid ")
+		args := make([]any, 0, len(targetsToResend)*2+len(targetsToResend))
+		for _, hu := range targetsToResend {
+			sb.WriteString("WHEN ? THEN ? ")
+			args = append(args, hu.HostUUID, hu.ResolvedAt)
+		}
+		sb.WriteString("END WHERE host_uuid IN (?)")
+		uuids := make([]string, len(targetsToResend))
+		for i, hu := range targetsToResend {
+			uuids[i] = hu.HostUUID
+		}
+		args = append(args, uuids)
+		stmt, args, err := sqlx.In(sb.String(), args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building sql for updating apple os update hosts to resend")
+		}
+		stmt += ` AND declaration_name IN (?, ?, ?)`
+		args = append(args, common_mdm.FleetMacOSUpdatesProfileName, common_mdm.FleetIOSUpdatesProfileName, common_mdm.FleetIPadOSUpdatesProfileName)
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating apple os update hosts to resend")
+		}
+		return nil
+	})
+}
+
+func (ds *Datastore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error) {
+	const stmt = `
+		SELECT
+			hmaou.host_uuid,
+			hmaou.software_update_device_id,
+			hmaou.target_os_version,
+			hmaou.target_deadline,
+			hmaou.resolved_at,
+			IFNULL(h.team_id, 0) AS team_id,
+			h.platform
+		FROM host_mdm_apple_os_updates hmaou
+			INNER JOIN hosts h ON h.uuid = hmaou.host_uuid
+		WHERE hmaou.host_uuid = ?`
+
+	var host fleet.AppleSoftwareUpdateHost
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// No tracking row for this host yet; let the caller decide how to handle
+			// a missing host (the DDM service treats nil as "not found").
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting apple os update host by uuid")
+	}
+	return &host, nil
 }

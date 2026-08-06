@@ -250,6 +250,18 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "steam" {
+		// Steam.app ships without a CFBundleShortVersionString, so osquery's
+		// bundle_short_version is empty and version_compare('', '<version>') < 0 is
+		// always true — the default patch policy can never pass on a host that has
+		// Steam installed. Compare bundle_version (CFBundleVersion, "6.0", which the
+		// cask version tracks); that's also the value software inventory falls back
+		// to, so patch status and inventory agree.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "firefox@developer-edition" {
 		// The bundle reports only the base version ("153.0") for cask version
 		// "153.0b13", so compare CFBundleVersion (encodes the build date, resolved

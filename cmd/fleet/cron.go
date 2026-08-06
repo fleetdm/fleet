@@ -2693,3 +2693,25 @@ func newCleanupExpiredADUEChallengesSchedule(
 
 	return s, nil
 }
+
+func newAppleMDMOSUpdatesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAppleMDMOSUpdatesSchedule)
+		defaultInterval = 1 * time.Hour
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("apple_mdm_os_updates", func(ctx context.Context) error {
+			return apple_mdm.HandleAppleMDMOSUpdates(ctx, ds, logger)
+		}),
+	)
+
+	return s, nil
+}

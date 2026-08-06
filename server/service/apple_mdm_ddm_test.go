@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
@@ -562,4 +563,271 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		require.Equal(t, "com.example.strip", served["Identifier"])
 		require.Contains(t, served, "ServerToken")
 	})
+}
+
+// osUpdatesDeclContents is a minimal DDM software-update declaration body that
+// references both host-target OS Fleet variables. It is used by the OS-updates
+// DDM sync tests below.
+const osUpdatesDeclContents = `{
+	"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
+	"Identifier": "com.fleetdm.fleet.mdm.os-updates.macos",
+	"Payload": {
+		"TargetOSVersion": "$FLEET_VAR_HOST_TARGET_OS_VERSION",
+		"TargetLocalDateTime": "${FLEET_VAR_HOST_TARGET_OS_DEADLINE}T12:00:00"
+	}
+}`
+
+// TestReplaceDeclarationFleetVariablesOSUpdateTargets covers the variable
+// resolution branch for the OS-update target variables:
+//   - the tracking row exists but the target hasn't been computed yet -> the
+//     declaration is deferred with a notReadyYetError (so the caller marks it
+//     pending, not failed),
+//   - the target is set -> the version and RFC3339 deadline are substituted,
+//   - there is no tracking row at all -> a hard error (marked failed).
+func TestReplaceDeclarationFleetVariablesOSUpdateTargets(t *testing.T) {
+	ctx := t.Context()
+	ds := mysqltest.CreateMySQLDS(t)
+	svc := MDMAppleDDMService{
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	newHost := func(hostUUID string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:            hostUUID,
+			Hostname:        hostUUID,
+			OsqueryHostID:   new(hostUUID),
+			NodeKey:         new(hostUUID),
+			Platform:        "darwin",
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	t.Run("target not yet computed defers with notReadyYetError", func(t *testing.T) {
+		h := newHost("os-var-notready")
+		// A tracking row exists (device id captured) but no target has been set.
+		require.NoError(t, ds.InsertAppleSoftwareUpdateDeviceID(ctx, h.UUID, "Mac14,2"))
+
+		_, err := svc.replaceDeclarationFleetVariables(ctx, osUpdatesDeclContents, h.UUID)
+		var notReady notReadyYetError
+		require.ErrorAs(t, err, &notReady)
+		require.Contains(t, notReady.Message, "not yet available")
+		require.Contains(t, notReady.Message, "resend this profile once available")
+	})
+
+	t.Run("target set substitutes version and DateOnly noon deadline", func(t *testing.T) {
+		h := newHost("os-var-ready")
+		require.NoError(t, ds.InsertAppleSoftwareUpdateDeviceID(ctx, h.UUID, "Mac14,2"))
+
+		deadline, _ := time.Parse(time.DateOnly, time.Now().UTC().Add(48*time.Hour).Format(time.DateOnly))
+		resolvedAt := time.Now().UTC().Truncate(time.Microsecond)
+		require.NoError(t, ds.SetAppleOSUpdateTargetsAndResend(ctx, []*fleet.ComputedAppleSoftwareUpdateHost{{
+			AppleSoftwareUpdateHost: fleet.AppleSoftwareUpdateHost{
+				HostUUID: h.UUID, TargetOSVersion: "15.1", TargetDeadline: &deadline, ResolvedAt: &resolvedAt,
+			},
+		}}))
+
+		out, err := svc.replaceDeclarationFleetVariables(ctx, osUpdatesDeclContents, h.UUID)
+		require.NoError(t, err)
+		require.NotContains(t, out, "$FLEET_VAR")
+
+		deadline = deadline.Add(12 * time.Hour) // noon local time
+
+		var parsed struct {
+			Payload struct {
+				TargetOSVersion     string
+				TargetLocalDateTime string
+			}
+		}
+		require.NoError(t, json.Unmarshal([]byte(out), &parsed))
+		require.Equal(t, "15.1", parsed.Payload.TargetOSVersion)
+		gotDeadline, err := time.Parse("2006-01-02T15:04:05", parsed.Payload.TargetLocalDateTime)
+		require.NoError(t, err)
+		require.True(t, deadline.Equal(gotDeadline), "want %s got %s", deadline, gotDeadline)
+	})
+
+	t.Run("missing tracking row is a hard error, not a defer", func(t *testing.T) {
+		h := newHost("os-var-missing") // no InsertAppleSoftwareUpdateDeviceID -> no tracking row
+
+		_, err := svc.replaceDeclarationFleetVariables(ctx, osUpdatesDeclContents, h.UUID)
+		require.Error(t, err)
+		var notReady notReadyYetError
+		require.NotErrorAs(t, err, &notReady, "a missing tracking row must not defer")
+		require.Contains(t, err.Error(), "not found")
+	})
+}
+
+// TestDeclarativeManagementOSUpdatesPendingThenResolved exercises the full
+// DDM-sync piece end to end at the handler layer: an OS-update declaration whose
+// target variables can't be resolved yet is marked pending (with a user-facing
+// detail) and excluded from the manifest; then, once the cron's datastore write
+// sets the target and bumps the declaration for resend, the same fetches resolve
+// and the declaration is served with concrete values.
+func TestDeclarativeManagementOSUpdatesPendingThenResolved(t *testing.T) {
+	ctx := t.Context()
+	ds := mysqltest.CreateMySQLDS(t)
+	svc := MDMAppleDDMService{
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	const (
+		hostUUID       = "os-updates-ddm-host"
+		deviceID       = "Mac14,2"
+		declIdentifier = "com.fleetdm.fleet.mdm.os-updates.macos"
+	)
+
+	_, err := ds.NewHost(ctx, &fleet.Host{
+		UUID:            hostUUID,
+		Hostname:        hostUUID,
+		OsqueryHostID:   new(hostUUID),
+		NodeKey:         new(hostUUID),
+		Platform:        "darwin",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// Fleet-managed OS-updates DDM declaration referencing the two target vars.
+	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		DeclarationUUID: "os-updates-decl-uuid",
+		Name:            fleetmdm.FleetMacOSUpdatesProfileName,
+		Identifier:      declIdentifier,
+		RawJSON:         []byte(osUpdatesDeclContents),
+		Scope:           fleet.PayloadScopeSystem,
+	}, []fleet.FleetVarName{fleet.FleetVarHostTargetOSVersion, fleet.FleetVarHostTargetOSDeadline})
+	require.NoError(t, err)
+
+	// Assign the declaration to the host. variables_updated_at is set (as the
+	// reconciler would) so the sync path attempts variable resolution; status
+	// starts NULL (freshly assigned, not yet delivered).
+	initialVarsUpdated := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var token string
+		if err := sqlx.GetContext(ctx, q, &token,
+			"SELECT HEX(token) FROM mdm_apple_declarations WHERE declaration_uuid = ?", decl.DeclarationUUID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm_apple_declarations
+				(host_uuid, declaration_uuid, status, operation_type, token, declaration_identifier, declaration_name, scope, variables_updated_at)
+			VALUES (?, ?, NULL, 'install', UNHEX(?), ?, ?, 'System', ?)`,
+			hostUUID, decl.DeclarationUUID, token, declIdentifier, fleetmdm.FleetMacOSUpdatesProfileName, initialVarsUpdated)
+		return err
+	})
+
+	// Tracking row exists (device id captured) but the target isn't computed yet.
+	require.NoError(t, ds.InsertAppleSoftwareUpdateDeviceID(ctx, hostUUID, deviceID))
+
+	readHostDecl := func() (status *string, detail string) {
+		var row struct {
+			Status *string `db:"status"`
+			Detail string  `db:"detail"`
+		}
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT status, COALESCE(detail, '') AS detail FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_uuid = ?`,
+				hostUUID, decl.DeclarationUUID)
+		})
+		return row.Status, row.Detail
+	}
+	readVarsUpdatedAt := func() *time.Time {
+		var vals []time.Time
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &vals,
+				`SELECT variables_updated_at FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_uuid = ? AND variables_updated_at IS NOT NULL`,
+				hostUUID, decl.DeclarationUUID)
+		})
+		if len(vals) == 0 {
+			return nil
+		}
+		return &vals[0]
+	}
+	configItems := func() []fleet.MDMAppleDDMManifest {
+		body, err := svc.handleDeclarationItems(ctx, hostUUID, fleet.PayloadScopeSystem)
+		require.NoError(t, err)
+		var resp fleet.MDMAppleDDMDeclarationItemsResponse
+		require.NoError(t, json.Unmarshal(body, &resp))
+		return resp.Declarations.Configurations
+	}
+
+	configParts := []string{"declaration", "configuration", declIdentifier}
+
+	// === Phase 1: target not ready -> pending with detail, excluded from manifest ===
+
+	body, err := svc.handleConfigurationDeclaration(ctx, configParts, hostUUID, fleet.PayloadScopeSystem)
+	require.NoError(t, err)
+	require.Nil(t, body, "an unresolvable declaration is served as an empty 200")
+
+	status, detail := readHostDecl()
+	require.NotNil(t, status)
+	require.Equal(t, string(fleet.MDMDeliveryPending), *status)
+	require.Contains(t, detail, "not yet available")
+
+	for _, c := range configItems() {
+		require.NotEqual(t, declIdentifier, c.Identifier, "unresolvable declaration must be excluded from the manifest")
+	}
+	// handleDeclarationItems also keeps it pending with the detail.
+	status, detail = readHostDecl()
+	require.NotNil(t, status)
+	require.Equal(t, string(fleet.MDMDeliveryPending), *status)
+	require.Contains(t, detail, "not yet available")
+
+	// === Phase 2: cron computes the target and bumps the declaration for resend ===
+
+	deadline, _ := time.Parse(time.DateOnly, time.Now().UTC().Add(48*time.Hour).Format(time.DateOnly))
+	deadline = deadline.Add(12 * time.Hour) // noon local time
+	resolvedAt := time.Now().UTC().Truncate(time.Microsecond)
+	require.NoError(t, ds.SetAppleOSUpdateTargetsAndResend(ctx, []*fleet.ComputedAppleSoftwareUpdateHost{{
+		AppleSoftwareUpdateHost: fleet.AppleSoftwareUpdateHost{
+			HostUUID: hostUUID, TargetOSVersion: "15.1", TargetDeadline: &deadline, ResolvedAt: &resolvedAt,
+		},
+		Resend: true,
+	}}))
+
+	// The resend signal: status cleared to NULL and variables_updated_at bumped.
+	status, _ = readHostDecl()
+	require.Nil(t, status, "resend resets status to NULL")
+	bumped := readVarsUpdatedAt()
+	require.NotNil(t, bumped)
+	require.True(t, bumped.After(initialVarsUpdated), "variables_updated_at should be bumped forward for resend")
+
+	// === Phase 3: the declaration now resolves and is served with concrete values ===
+
+	body, err = svc.handleConfigurationDeclaration(ctx, configParts, hostUUID, fleet.PayloadScopeSystem)
+	require.NoError(t, err)
+	require.NotNil(t, body)
+	require.NotContains(t, string(body), "$FLEET_VAR")
+
+	var served struct {
+		Identifier string
+		Payload    struct {
+			TargetOSVersion     string
+			TargetLocalDateTime string
+		}
+		ServerToken string
+	}
+	require.NoError(t, json.Unmarshal(body, &served))
+	require.Equal(t, declIdentifier, served.Identifier)
+	require.Equal(t, "15.1", served.Payload.TargetOSVersion)
+	require.NotEmpty(t, served.ServerToken)
+	gotDeadline, err := time.Parse("2006-01-02T15:04:05", served.Payload.TargetLocalDateTime)
+	require.NoError(t, err)
+	require.True(t, deadline.Equal(gotDeadline), "want %s got %s", deadline, gotDeadline)
+
+	// And it is now included in the declaration-items manifest.
+	found := false
+	for _, c := range configItems() {
+		if c.Identifier == declIdentifier {
+			found = true
+		}
+	}
+	require.True(t, found, "resolved OS-updates declaration should be present in declaration-items")
 }

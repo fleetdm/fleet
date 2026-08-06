@@ -1463,25 +1463,49 @@ var appleSiliconMajorThreshold = map[string]int{
 	"iMac": 21,
 }
 
-// IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
-// starts with iPhone, iPod, or iPad, it returns false with no error; however, other non-Mac Apple
-// devices like AppleTV will return an error.
-func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
+func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 	if strings.HasPrefix(modelIdentifier, "iPhone") ||
 		strings.HasPrefix(modelIdentifier, "iPod") ||
 		strings.HasPrefix(modelIdentifier, "iPad") {
 		// If the model identifier starts with iPhone, iPod, or iPad, we'll return false with no
 		// error; however, other non-Mac Apple devices like AppleTV will return an error
-		return false, nil
+		return false, "", 0, nil
 	}
 
 	matches := macProductRe.FindStringSubmatch(modelIdentifier)
 	if matches == nil {
-		return false, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
+		return false, "", 0, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
 	}
 
 	family := matches[1]
 	major, _ := strconv.Atoi(matches[2])
+
+	if family == "Mac" ||
+		family == "VirtualMac" ||
+		family == "MacBook" ||
+		family == "MacBookAir" ||
+		family == "MacBookPro" ||
+		family == "Macmini" ||
+		family == "iMac" ||
+		family == "iMacPro" ||
+		family == "MacPro" {
+		return true, family, major, nil
+	}
+
+	return false, "", 0, fmt.Errorf("failed to detect if model identifier (%q) was mac", modelIdentifier)
+}
+
+// IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
+// starts with iPhone, iPod, or iPad, it returns false with no error; however, other non-Mac Apple
+// devices like AppleTV will return an error.
+func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
+	isMac, family, major, err := IsMacIdentifier(modelIdentifier)
+	if err != nil {
+		return false, err
+	}
+	if !isMac {
+		return false, nil
+	}
 
 	// Model identifiers starting with "Mac" immediately followed by a digit (e.g. "Mac13,1")
 	// represent the unified naming scheme Apple adopted for Apple Silicon products such as the
@@ -1793,4 +1817,55 @@ type ABReleaseDeviceAuthz struct {
 
 func (a ABReleaseDeviceAuthz) AuthzType() string {
 	return "mdm_ab_release"
+}
+
+// OSUpdateAsset represents the metadata for an asset in the Apple Software Lookup Service[1][2].
+// Example:
+//
+//	{
+//	    "ProductVersion": "14.6.1",
+//	    "Build": "23G93",
+//	    "PostingDate": "2024-08-07",
+//	    "ExpirationDate": "2024-11-11",
+//	    "SupportedDevices": [
+//	        "J132AP",
+//	        "VMA2MACOSAP",
+//	        "VMM-x86_64"
+//	    ]
+//	}
+//
+// [1]: http://gdmf.apple.com/v2/pmv
+// [2]:
+// https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
+type OSUpdateAsset struct {
+	ProductVersion   string   `json:"ProductVersion"`
+	Build            string   `json:"Build"`
+	PostingDate      string   `json:"PostingDate"`
+	ExpirationDate   string   `json:"ExpirationDate"`
+	SupportedDevices []string `json:"SupportedDevices"`
+}
+
+type AppleSoftwareUpdateAsset struct {
+	ProductVersion   string      `db:"product_version"`
+	Build            string      `db:"build"`
+	PostingDate      time.Time   `db:"posting_date"`
+	ExpirationDate   time.Time   `db:"expiration_date"`
+	SupportedDevices SliceString `db:"supported_devices"`
+	FirstSeenAt      time.Time   `db:"first_seen_at"`
+	UpdatedAt        time.Time   `db:"updated_at"`
+}
+
+type AppleSoftwareUpdateHost struct {
+	HostUUID               string     `db:"host_uuid"`
+	SoftwareUpdateDeviceID string     `db:"software_update_device_id"`
+	TargetOSVersion        string     `db:"target_os_version"`
+	TargetDeadline         *time.Time `db:"target_deadline"`
+	ResolvedAt             *time.Time `db:"resolved_at"`
+	TeamID                 uint       `db:"team_id"`
+	Platform               string     `db:"platform"`
+}
+
+type ComputedAppleSoftwareUpdateHost struct {
+	AppleSoftwareUpdateHost
+	Resend bool
 }

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.102.1",
+      "version": "1.102.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.' AND version_compare(version, '1.102.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.' AND version_compare(version, '1.102.2') < 0);"
       },
-      "installer_url": "https://pkgs.tailscale.com/stable/tailscale-setup-1.102.1-amd64.msi",
+      "installer_url": "https://pkgs.tailscale.com/stable/tailscale-setup-1.102.2-amd64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "b665a7bd",
-      "sha256": "988a38ab854ad176778955b0c92b27b1af14bf5e0146ea43076d829496d7ac77",
+      "sha256": "d2eb69e103b08a5b77de9d7cb8555541aa99f7dfc6048850b2286a1048c885f9",
       "default_categories": [
         "Productivity"
       ],

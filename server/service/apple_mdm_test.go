@@ -36,10 +36,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
-	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -255,6 +255,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	}
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{{ID: 1}}, nil
+	}
+	ds.InsertAppleSoftwareUpdateDeviceIDFunc = func(ctx context.Context, hostUUID, updateDeviceID string) error {
+		return nil
 	}
 
 	return svc, ctx, ds, opts
@@ -7595,19 +7598,52 @@ func TestShouldOSUpdateForDEPEnrollment(t *testing.T) {
 	}
 }
 
+// testAppleOSUpdateAssets loads the GDMF fixture and converts it to the platform-keyed map of
+// cached assets returned by Datastore.ListAppleOSUpdateAssets. In production the same shape is
+// produced by the OS updates cron: it fetches the public asset sets from GDMF and upserts them
+// into apple_software_update_assets.
+func testAppleOSUpdateAssets(t *testing.T) map[string][]fleet.AppleSoftwareUpdateAsset {
+	t.Helper()
+
+	b, err := os.ReadFile("../mdm/apple/gdmf/testdata/gdmf.json")
+	require.NoError(t, err)
+
+	var am gdmf.AssetMetadata
+	require.NoError(t, json.Unmarshal(b, &am))
+
+	convert := func(assets []fleet.OSUpdateAsset) []fleet.AppleSoftwareUpdateAsset {
+		out := make([]fleet.AppleSoftwareUpdateAsset, 0, len(assets))
+		for _, a := range assets {
+			// the dates are stored in DATE columns, so they come back as time.Time
+			postingDate, err := time.Parse(time.DateOnly, a.PostingDate)
+			require.NoError(t, err)
+			expirationDate, err := time.Parse(time.DateOnly, a.ExpirationDate)
+			require.NoError(t, err)
+			out = append(out, fleet.AppleSoftwareUpdateAsset{
+				ProductVersion:   a.ProductVersion,
+				Build:            a.Build,
+				PostingDate:      postingDate,
+				ExpirationDate:   expirationDate,
+				SupportedDevices: a.SupportedDevices,
+			})
+		}
+		return out
+	}
+
+	return map[string][]fleet.AppleSoftwareUpdateAsset{
+		"macos": convert(am.PublicAssetSets.MacOS),
+		"ios":   convert(am.PublicAssetSets.IOS),
+	}
+}
+
 func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
-	gdmf := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		// load the test data from the file
-		b, err := os.ReadFile("../mdm/apple/gdmf/testdata/gdmf.json")
-		require.NoError(t, err)
-		_, err = w.Write(b)
-		require.NoError(t, err)
-	}))
-	defer gdmf.Close()
-	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", gdmf.URL, t)
+	// the update assets come from the apple_software_update_assets cache, which the OS updates
+	// cron populates from GDMF; here we seed the cache with the GDMF fixture
+	ds.ListAppleOSUpdateAssetsFunc = func(ctx context.Context) (map[string][]fleet.AppleSoftwareUpdateAsset, error) {
+		return testAppleOSUpdateAssets(t), nil
+	}
 
 	latestMacOSVersion := "14.6.1"
 	latestIOSVersion := "17.6.1"
@@ -7977,8 +8013,10 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 		})
 	}
 
-	t.Run("gdmf server is down", func(t *testing.T) {
-		gdmf.Close()
+	t.Run("no cached update assets", func(t *testing.T) {
+		ds.ListAppleOSUpdateAssetsFunc = func(ctx context.Context) (map[string][]fleet.AppleSoftwareUpdateAsset, error) {
+			return nil, nil
+		}
 
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
@@ -7994,7 +8032,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 					require.NoError(t, err)
 				}
 
-				require.Nil(t, sur) // if gdmf server is down, we don't enforce os updates for DEP
+				require.Nil(t, sur) // without cached assets, we don't enforce os updates for DEP
 			})
 		}
 	})
