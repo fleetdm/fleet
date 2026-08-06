@@ -519,6 +519,11 @@ func TestUninstallSoftwareTitleSelfServiceScope(t *testing.T) {
 			}
 
 			err := svc.UninstallSoftwareTitle(ctx, 1, 10)
+
+			// The unscoped lookup ignores self-service and label scope, so a My
+			// Device caller must never reach it, whatever the outcome.
+			require.Equal(t, tt.asAdmin, ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked)
+
 			if tt.wantErrContains != "" {
 				require.ErrorContains(t, err, tt.wantErrContains)
 				require.False(t, ds.InsertSoftwareUninstallRequestFuncInvoked)

@@ -2155,16 +2155,22 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		}
 	}
 
+	const notAvailableMsg = "Couldn't uninstall software. Software title is not available for uninstall. Please add software package to install/uninstall."
+
 	// A My Device caller resolves the package the same way the self-service install
-	// path does. Callers acting with a role keep the unscoped lookup below, so they
-	// can still remove software the host is no longer eligible for.
+	// path does, and never reaches the unscoped lookup. Callers acting with a role
+	// keep that lookup, so they can still remove software the host is no longer
+	// eligible for.
 	var installer *fleet.SoftwareInstaller
 	if fromMyDevicePage {
 		selfServiceInstaller, anyPackages, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, true)
 		if err != nil {
 			return err
 		}
-		if selfServiceInstaller == nil && anyPackages {
+		switch {
+		case selfServiceInstaller != nil:
+			installer = selfServiceInstaller
+		case anyPackages:
 			// Report the same reason the install path would for this state.
 			inScopeInstaller, _, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, false)
 			if err != nil {
@@ -2172,7 +2178,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 			}
 			if inScopeInstaller != nil {
 				return &fleet.BadRequestError{
-					Message: "Software title is not available through self-service",
+					Message: "Couldn't uninstall software. Software title is not available through self-service",
 					InternalErr: ctxerr.NewWithData(
 						ctx, "software title not available through self-service",
 						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
@@ -2182,16 +2188,21 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 			return &fleet.BadRequestError{
 				Message: "Couldn't uninstall software. Host isn't member of the labels defined for this software title.",
 			}
+		default:
+			return &fleet.BadRequestError{
+				Message: notAvailableMsg,
+				InternalErr: ctxerr.NewWithData(
+					ctx, "couldn't find an installer for software title",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				),
+			}
 		}
-		installer = selfServiceInstaller
-	}
-
-	if installer == nil {
+	} else {
 		installer, err = svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				return &fleet.BadRequestError{
-					Message: "Couldn't uninstall software. Software title is not available for uninstall. Please add software package to install/uninstall.",
+					Message: notAvailableMsg,
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "couldn't find an installer for software title",
 						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
