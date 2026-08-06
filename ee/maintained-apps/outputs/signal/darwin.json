@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.21.0",
+      "version": "8.22.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.whispersystems.signal-desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.whispersystems.signal-desktop' AND version_compare(bundle_short_version, '8.21.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.whispersystems.signal-desktop' AND version_compare(bundle_short_version, '8.22.0') < 0);"
       },
-      "installer_url": "https://updates.signal.org/desktop/signal-desktop-mac-arm64-8.21.0.zip",
+      "installer_url": "https://updates.signal.org/desktop/signal-desktop-mac-arm64-8.22.0.zip",
       "install_script_ref": "07386872",
       "uninstall_script_ref": "c0c94e32",
-      "sha256": "8bbac6842bf56193e0b5d6c60c682cda7ff41b47ef05ecade6404c65b7a4f3f0",
+      "sha256": "57da1cf2574619ea32d54441b5f54d145e2bf6fca8cc2afbf6feb4ffdb28319c",
       "default_categories": [
         "Communication"
       ]
