@@ -7,6 +7,8 @@ import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
+import TurnOnMdmTooltipWrapper from "../TurnOnMdmTooltipWrapper";
+
 const baseClass = "users-form";
 
 interface IEndUserAuthSectionProps {
@@ -71,24 +73,9 @@ const EndUserAuthSection = ({
       </TooltipWrapper>
       {endUserAuthEnabled && (
         <div className={`${baseClass}__advanced-options`}>
-          <TooltipWrapper
-            tipContent={
-              !isMacMdmEnabledAndConfigured ? (
-                <span>
-                  To enable, first turn on{" "}
-                  <CustomLink
-                    url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
-                    text="Apple MDM"
-                    variant="tooltip-link"
-                  />
-                  .
-                </span>
-              ) : undefined
-            }
-            disableTooltip={!!isMacMdmEnabledAndConfigured}
-            underline={false}
-            position="left"
-            showArrow
+          <TurnOnMdmTooltipWrapper
+            platform="apple"
+            isMdmEnabledAndConfigured={!!isMacMdmEnabledAndConfigured}
           >
             <Checkbox
               disabled={
@@ -107,7 +94,7 @@ const EndUserAuthSection = ({
             >
               Lock end user info
             </Checkbox>
-          </TooltipWrapper>
+          </TurnOnMdmTooltipWrapper>
         </div>
       )}
     </SettingsSection>
