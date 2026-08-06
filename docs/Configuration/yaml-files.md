@@ -54,13 +54,13 @@ labels:
     criteria:
       vital: end_user_idp_department
       value: Engineering
-  - name: Asset tag test
-    description: Hosts with an asset tag of "Test"
+  - name: Point of sale terminals
+    description: Hosts whose "Function" custom host vital is set to "Point of sale"
     label_membership_type: host_vitals
     criteria:
       vital: custom_host_vital
-      custom_host_vital_id: 1
-      value: Test
+      custom_host_vital_id: 2
+      value: Point of sale
 ```
 
 #### Separate file
