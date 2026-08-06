@@ -303,18 +303,11 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		}
 	}
 
-	// The mdm_microsoft_graph_credentials table is the source of truth for Graph credentials; they are never stored in the
-	// app config JSON because the client secret must be encrypted at rest. Hydrate them here so GET /config reports
-	// what is configured, then let Obfuscate below mask the secrets.
-	graphCreds, err := svc.ds.ListMicrosoftGraphCredentials(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list microsoft graph credentials")
+	// The mdm_microsoft_graph_credentials table is the source of truth for Graph credentials; they are never stored in
+	// the app config JSON because the client secret must be encrypted at rest, so hydrate them before masking.
+	if err := svc.hydrateMicrosoftGraphCredentials(ctx, ac); err != nil {
+		return nil, err
 	}
-	credValues := make([]fleet.MicrosoftGraphCredential, 0, len(graphCreds))
-	for _, cred := range graphCreds {
-		credValues = append(credValues, *cred)
-	}
-	ac.MDM.MicrosoftGraphCredentials = optjson.SetSlice(credValues)
 
 	ac.Obfuscate()
 

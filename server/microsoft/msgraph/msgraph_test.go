@@ -1,6 +1,7 @@
 package msgraph
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -406,4 +408,56 @@ func TestTokenEndpointInvalidClientClassifiesAsAuthError(t *testing.T) {
 	assert.False(t, graphErr.IsTransient())
 	assert.Equal(t, "invalid_client", graphErr.Code)
 	assert.Contains(t, graphErr.Message, "AADSTS7000215")
+}
+
+// Token acquisition must inherit the caller's context. clientcredentials.Config.Client bakes the context into its
+// token source, so a client built once at construction would fetch tokens under a background context and keep waiting
+// after the caller had cancelled.
+func TestTokenAcquisitionHonorsCallerContext(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Hang the token endpoint until the test releases it.
+		<-release
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"t","token_type":"Bearer","expires_in":3599}`))
+	}))
+	t.Cleanup(func() { close(release); srv.Close() })
+
+	c, err := newClientWithHosts(&fleet.MicrosoftGraphCredential{
+		TenantID: testTenantID, ClientID: testClientID, ClientSecret: testSecret,
+	}, srv.URL, srv.URL)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() { _, err := c.ListWindowsAutopilotDevices(ctx); done <- err }()
+
+	cancel()
+
+	select {
+	case err := <-done:
+		require.Error(t, err, "a cancelled caller must abort the pending token fetch")
+	case <-time.After(10 * time.Second):
+		t.Fatal("token acquisition ignored the cancelled caller context and kept waiting")
+	}
+}
+
+// Every page of one listing shares a single access token; a token per page would multiply calls against Entra.
+func TestListMintsOneTokenPerOperation(t *testing.T) {
+	var gs *graphServer
+	gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Query().Get("$skiptoken") {
+		case "":
+			writeDevices(t, w, gs.URL+autopilotDevicesPath+"?$skiptoken=p2", device("id-1", "S1", "A"))
+		case "p2":
+			writeDevices(t, w, gs.URL+autopilotDevicesPath+"?$skiptoken=p3", device("id-2", "S2", "B"))
+		default:
+			writeDevices(t, w, "", device("id-3", "S3", "C"))
+		}
+	})
+
+	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+	require.NoError(t, err)
+	require.Len(t, devices, 3)
+	assert.Equal(t, int32(1), gs.tokenRequests.Load(), "all pages must share one token")
 }

@@ -303,3 +303,24 @@ func TestModifyAppConfigMicrosoftGraphCredentialsResponse(t *testing.T) {
 	// Masked, never the plaintext the caller sent.
 	assert.Equal(t, fleet.MaskedPassword, got.ClientSecret)
 }
+
+// The config read must use the metadata query, which decrypts nothing. Using the secret-bearing list would make a
+// missing or rotated server private key fail the whole of GET /config rather than just this feature.
+func TestAppConfigObfuscatedUsesMetadataRead(t *testing.T) {
+	env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
+	env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
+		TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret",
+	}
+
+	ac, err := env.svc.AppConfigObfuscated(env.ctx)
+	require.NoError(t, err)
+
+	require.Len(t, ac.MDM.MicrosoftGraphCredentials.Value, 1)
+	assert.Equal(t, graphTenantA, ac.MDM.MicrosoftGraphCredentials.Value[0].TenantID)
+	assert.Equal(t, fleet.MaskedPassword, ac.MDM.MicrosoftGraphCredentials.Value[0].ClientSecret)
+
+	assert.True(t, env.ds.ListMicrosoftGraphCredentialMetadataFuncInvoked,
+		"the config read must go through the metadata query")
+	assert.False(t, env.ds.ListMicrosoftGraphCredentialsFuncInvoked,
+		"the config read must not decrypt secrets it is about to mask")
+}

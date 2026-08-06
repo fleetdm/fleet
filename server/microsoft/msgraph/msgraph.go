@@ -60,7 +60,9 @@ type Client interface {
 type ClientFactory func(cred *fleet.MicrosoftGraphCredential) (Client, error)
 
 type client struct {
-	httpClient *http.Client
+	cfg *clientcredentials.Config
+	// baseClient carries Fleet's shared transport settings and is handed to the oauth2 machinery per call.
+	baseClient *http.Client
 	graphHost  string
 }
 
@@ -88,25 +90,36 @@ func newClientWithHosts(cred *fleet.MicrosoftGraphCredential, loginHost, graphHo
 
 	// Drive the oauth2 transport from fleethttp rather than a bare http.Client so Fleet's shared transport settings
 	// apply to both the token request and the Graph calls.
-	base := fleethttp.NewClient(fleethttp.WithTimeout(requestTimeout))
-	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, base)
-
 	return &client{
-		httpClient: cfg.Client(ctx),
+		cfg:        cfg,
+		baseClient: fleethttp.NewClient(fleethttp.WithTimeout(requestTimeout)),
 		graphHost:  strings.TrimSuffix(graphHost, "/"),
 	}, nil
+}
+
+// httpClientFor builds an HTTP client whose token acquisition inherits ctx.
+//
+// clientcredentials.Config.Client bakes the context into its token source, so a client built once at construction time
+// would fetch tokens under a background context and keep waiting after the caller had already cancelled or timed out.
+// Building per operation costs one token mint per operation rather than reusing one for its full hour, which is a
+// single extra round trip per sync; pages within one listing share the client and therefore the token.
+func (c *client) httpClientFor(ctx context.Context) *http.Client {
+	return c.cfg.Client(context.WithValue(ctx, oauth2.HTTPClient, c.baseClient))
 }
 
 func (c *client) VerifyCredential(ctx context.Context) error {
 	// One page is enough: it proves the secret mints a token and that the app has the Autopilot read permission with
 	// admin consent, which are the two things that actually go wrong.
-	if _, _, err := c.getPage(ctx, c.graphHost+autopilotDevicesPath); err != nil {
+	if _, _, err := c.getPage(ctx, c.httpClientFor(ctx), c.graphHost+autopilotDevicesPath); err != nil {
 		return ctxerr.Wrap(ctx, err, "verify microsoft graph credential")
 	}
 	return nil
 }
 
 func (c *client) ListWindowsAutopilotDevices(ctx context.Context) ([]fleet.WindowsAutopilotDevice, error) {
+	// One client for the whole walk, so every page shares a single access token.
+	httpClient := c.httpClientFor(ctx)
+
 	var (
 		devices  []fleet.WindowsAutopilotDevice
 		seen     = make(map[string]struct{})
@@ -131,7 +144,7 @@ func (c *client) ListWindowsAutopilotDevices(ctx context.Context) ([]fleet.Windo
 		}
 		prevPage = nextURL
 
-		page, link, err := c.getPage(ctx, nextURL)
+		page, link, err := c.getPage(ctx, httpClient, nextURL)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "list windows autopilot devices page %d", pageNum)
 		}
@@ -200,14 +213,14 @@ type autopilotDevicesResponse struct {
 }
 
 // getPage performs one Graph GET and returns the devices plus the next link, if any.
-func (c *client) getPage(ctx context.Context, requestURL string) ([]fleet.WindowsAutopilotDevice, string, error) {
+func (c *client) getPage(ctx context.Context, httpClient *http.Client, requestURL string) ([]fleet.WindowsAutopilotDevice, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "build microsoft graph request")
 	}
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		// The oauth2 transport fetches the access token lazily on the first request, so a rejected client secret
 		// surfaces here as a token-endpoint failure rather than as a Graph response. Convert it so callers see an
