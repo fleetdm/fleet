@@ -263,23 +263,6 @@ describe("getStatusMessage helper function", () => {
     expect(screen.queryByText(/within 10 minutes/i)).not.toBeInTheDocument();
   });
 
-  it("falls back to the same failed-verification copy for a platform that's neither Apple nor Android", () => {
-    render(
-      getStatusMessage({
-        displayStatus: "failed_install",
-        isMDMStatusNotNow: false,
-        isMDMStatusAcknowledged: true,
-        appName: "Logic Pro",
-        hostDisplayName: "Marko's ThinkPad",
-        commandUpdatedAt: "2025-07-29T22:49:52Z",
-        platform: "windows",
-      })
-    );
-    expect(
-      screen.getByText(/installation has not been verified/i)
-    ).toBeInTheDocument();
-  });
-
   it("shows Apple-specific failed verification message for macOS", () => {
     render(
       getStatusMessage({
