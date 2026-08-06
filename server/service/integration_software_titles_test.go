@@ -647,8 +647,11 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	installer1, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), installer1ID)
 	require.NoError(t, err)
 	hash1 := installer1.StorageID
+	// A fleetless lookup resolves against the filter's fleets, so it needs a real
+	// user; an empty filter matches nothing.
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
 	// Get the actual title that was extracted from the package
-	title1, err := s.ds.SoftwareTitleByID(context.Background(), *installer1.TitleID, nil, fleet.TeamFilter{})
+	title1, err := s.ds.SoftwareTitleByID(context.Background(), *installer1.TitleID, nil, adminFilter)
 	require.NoError(t, err)
 	titleName := title1.Name
 
@@ -674,7 +677,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	require.NotZero(t, installer2ID)
 	installer2, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), installer2ID)
 	require.NoError(t, err)
-	title2, err := s.ds.SoftwareTitleByID(context.Background(), *installer2.TitleID, nil, fleet.TeamFilter{})
+	title2, err := s.ds.SoftwareTitleByID(context.Background(), *installer2.TitleID, nil, adminFilter)
 	require.NoError(t, err)
 	title2Name := title2.Name
 
