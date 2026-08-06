@@ -1687,6 +1687,58 @@ This activity contains the following fields:
 }
 ```
 
+## notified_end_user_before_patching
+
+Generated when Fleet shows an end user a notification listing apps that a patch policy will update. A separate activity is generated for the reminder shown shortly before the install.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "patch_notification_uuid": ID of the notification. The reminder for the same notification reuses this ID.
+- "software_titles": Names of the software titles included in the notification.
+- "policy_ids": IDs of the patch policies included in the notification.
+- "reminder": Whether this was the reminder shown shortly before the install, rather than the initial notification.
+- "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "patch_notification_uuid": "9f8c1c1e-0b1a-4f2a-9a3e-6c5d4b3a2f10",
+  "software_titles": ["1Password", "Slack"],
+  "policy_ids": [1337, 1338],
+  "reminder": false,
+  "install_at": "2026-08-06T14:00:00Z"
+}
+```
+
+## failed_to_notify_end_user_before_patching
+
+Generated when Fleet couldn't show an end user a notification for a patch policy with `notify_before_patching` enabled. Fleet retries on the next policy run. Nothing is installed until the end user has been notified.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "patch_notification_uuid": ID of the notification Fleet attempted to show.
+- "software_titles": Names of the software titles the notification covers.
+- "policy_ids": IDs of the patch policies the notification covers.
+- "reason": Why the notification couldn't be shown. One of "fleet_desktop_not_installed", "fleet_desktop_outdated", "no_user_logged_in", "screen_locked", "no_display", "page_did_not_load", "another_notification_showing", or "unknown".
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "patch_notification_uuid": "9f8c1c1e-0b1a-4f2a-9a3e-6c5d4b3a2f10",
+  "software_titles": ["1Password", "Slack"],
+  "policy_ids": [1337, 1338],
+  "reason": "screen_locked"
+}
+```
+
 ## uninstalled_software
 
 Generated when a Fleet-maintained app or custom package is uninstalled on a host.
