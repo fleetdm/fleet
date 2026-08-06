@@ -218,7 +218,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tok
 		}
 	}
 
-	// Escape & characters in case of using CloudFront signed URL
+	// Escape & characters in case of using a signed URL (CloudFront or GCS presigned)
 	funcMap := map[string]any{
 		"xml": mobileconfig.XMLEscapeString,
 	}

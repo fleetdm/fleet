@@ -37,6 +37,10 @@ type commonFileStore struct {
 	fileLabel  string // how to call the file in error messages
 }
 
+// isGCS reports whether the endpoint targets Google Cloud Storage. The loose
+// substring match is deliberate: the GCS workarounds it gates must also apply to
+// the local mock servers in the tests. Presigning is separate and validates the
+// hostname strictly in ValidateSoftwareInstallersSignedURL.
 func isGCS(endpointURL string) bool {
 	return strings.Contains(endpointURL, "storage.googleapis.com")
 }
@@ -194,7 +198,7 @@ func (s *commonFileStore) Sign(ctx context.Context, fileID string, expiresIn tim
 	if s.cloudFrontConfig != nil {
 		urlToAccess, err := url.JoinPath(s.cloudFrontConfig.BaseURL, s.keyForFile(fileID))
 		if err != nil {
-			return "", ctxerr.Wrapf(ctx, err, "building URL for %s  with ID %s in S3 store", s.fileLabel, fileID)
+			return "", ctxerr.Wrapf(ctx, err, "building URL for %s with ID %s in S3 store", s.fileLabel, fileID)
 		}
 		signer := sign.NewURLSigner(s.cloudFrontConfig.SigningPublicKeyID, s.cloudFrontConfig.Signer)
 		signedURL, err := signer.Sign(urlToAccess, time.Now().Add(expiresIn))
@@ -204,22 +208,12 @@ func (s *commonFileStore) Sign(ctx context.Context, fileID string, expiresIn tim
 		return signedURL, nil
 	}
 
-	// GCS (or other S3-compatible store): hand out a presigned GET URL generated
-	// with this store's own client/credentials, so clients download directly
-	// from the bucket instead of proxying the bytes through Fleet.
+	// GCS: hand out a presigned GET URL generated with this store's own
+	// client/credentials, so clients download directly from the bucket instead
+	// of proxying the bytes through Fleet.
 	if s.signedURL {
 		key := s.keyForFile(fileID)
-		// Drop the inherited APIOptions for presigning: the GCS request
-		// workarounds (ignoreSigningHeaders/disableTrailingChecksum) insert
-		// middleware relative to the "Signing" step, which doesn't exist in the
-		// presign stack, and they only matter for actual upload/download
-		// requests, not for computing a presigned GET URL.
-		presignClient := s3.NewPresignClient(s.s3Client, func(po *s3.PresignOptions) {
-			po.ClientOptions = append(po.ClientOptions, func(o *s3.Options) {
-				o.APIOptions = nil
-			})
-		})
-		req, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		req, err := s.presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
 			Bucket: &s.bucket,
 			Key:    &key,
 		}, s3.WithPresignExpires(expiresIn))

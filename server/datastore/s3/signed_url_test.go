@@ -2,8 +2,7 @@ package s3
 
 import (
 	"context"
-	"errors"
-	"strings"
+	"net/url"
 	"testing"
 	"time"
 
@@ -36,11 +35,21 @@ func TestSignGCSPresignedURL(t *testing.T) {
 
 		signed, err := store.Sign(context.Background(), "abc123", 15*time.Minute)
 		require.NoError(t, err)
-		require.Contains(t, signed, "storage.googleapis.com")
-		require.Contains(t, signed, "test-bucket")
+
+		u, err := url.Parse(signed)
+		require.NoError(t, err)
+		require.Equal(t, "https", u.Scheme)
+		require.Equal(t, "storage.googleapis.com", u.Host)
+		// Path-style addressing puts the bucket and key in the path.
+		require.Contains(t, u.Path, "test-bucket")
+		require.Contains(t, u.Path, "abc123")
+
+		q := u.Query()
 		require.True(t,
-			strings.Contains(signed, "X-Amz-Signature") || strings.Contains(signed, "X-Goog-Signature"),
+			q.Get("X-Amz-Signature") != "" || q.Get("X-Goog-Signature") != "",
 			"expected a presigned signature query param, got %s", signed)
+		require.NotEmpty(t, q.Get("X-Amz-Algorithm"))
+		require.Equal(t, "900", q.Get("X-Amz-Expires")) // 15 minutes
 	})
 
 	t.Run("signed url disabled and no cloudfront returns ErrNotConfigured", func(t *testing.T) {
@@ -48,7 +57,7 @@ func TestSignGCSPresignedURL(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = store.Sign(context.Background(), "abc123", 15*time.Minute)
-		require.True(t, errors.Is(err, fleet.ErrNotConfigured), "expected ErrNotConfigured, got %v", err)
+		require.ErrorIs(t, err, fleet.ErrNotConfigured)
 	})
 
 	t.Run("signed url with gcs iam auth is rejected", func(t *testing.T) {
@@ -59,6 +68,17 @@ func TestSignGCSPresignedURL(t *testing.T) {
 		cfg.SoftwareInstallersGCSIAMAuth = true
 
 		_, err := NewSoftwareInstallerStore(cfg)
-		require.Error(t, err)
+		require.ErrorContains(t, err, "gcs iam auth")
+	})
+
+	t.Run("signed url with sts assume role is rejected", func(t *testing.T) {
+		// STS assume-role swaps the HMAC credentials presigning needs for
+		// temporary AWS credentials GCS can't verify, so store init must fail.
+		cfg := baseCfg()
+		cfg.SoftwareInstallersSignedURL = true
+		cfg.SoftwareInstallersStsAssumeRoleArn = "arn:aws:iam::123456789012:role/test"
+
+		_, err := NewSoftwareInstallerStore(cfg)
+		require.ErrorContains(t, err, "sts assume role")
 	})
 }

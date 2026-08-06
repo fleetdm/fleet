@@ -555,24 +555,32 @@ func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, 
 	if !s.SoftwareInstallersSignedURL {
 		return
 	}
-	// Validate against the parsed hostname rather than a substring match, so a
-	// URL that merely contains "storage.googleapis.com" elsewhere (e.g. a
-	// look-alike host or a path) is rejected.
-	endpoint := s.SoftwareInstallersEndpointURL
-	if !strings.Contains(endpoint, "://") {
-		// url.Parse needs a scheme to populate Hostname(); the endpoint may be
-		// configured without one (e.g. "storage.googleapis.com").
-		endpoint = "https://" + endpoint
-	}
-	u, err := url.Parse(endpoint)
+	// Presigned URLs point clients straight at the object store, so require an
+	// https scheme (no plaintext, and newS3Store's resolver needs one) and match
+	// the parsed hostname, not a substring, so a look-alike host can't satisfy it.
+	u, err := url.Parse(s.SoftwareInstallersEndpointURL)
 	if err != nil {
 		initFatal(fmt.Errorf("invalid s3_software_installers_endpoint_url: %w", err),
+			"S3 software installers signed URL")
+		return
+	}
+	if u.Scheme != "https" {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to be an https URL (e.g. https://storage.googleapis.com)."),
 			"S3 software installers signed URL")
 		return
 	}
 	host := strings.ToLower(u.Hostname())
 	if host != "storage.googleapis.com" && !strings.HasSuffix(host, ".storage.googleapis.com") {
 		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
+			"S3 software installers signed URL")
+		return
+	}
+	// Presigning needs HMAC credentials. Without them it fails at request time and
+	// Fleet silently proxies every download, which is what this check prevents.
+	// IAM auth doesn't use HMAC creds and is rejected at store init, so skip it then.
+	if !s.SoftwareInstallersGCSIAMAuth &&
+		(s.SoftwareInstallersAccessKeyID == "" || s.SoftwareInstallersSecretAccessKey == "") {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key` for presigning."),
 			"S3 software installers signed URL")
 		return
 	}
