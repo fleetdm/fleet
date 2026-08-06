@@ -171,6 +171,6 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
 export const ANDROID_NO_REFETCH_TOOLTIP_MESSAGE = (
   <>
     For Android hosts, there&apos;s no manual **Refetch** button because 
-    Android hosts sync data automatically when they change.
+    Android hosts sync data automatically when they change. If changes aren't appearing, you can sync manually. [Learn how](TODO).
   </>
 );
