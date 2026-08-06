@@ -211,7 +211,14 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 		errMsg = &message
 	}
 
-	if err := svc.fleetDS.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, newStatus, errCode, errMsg); err != nil {
+	// Store the raw Operation JSON so custom command results can be retrieved via the API.
+	var rawResult *string
+	if resultJSON, err := json.Marshal(op); err == nil {
+		s := string(resultJSON)
+		rawResult = &s
+	}
+
+	if err := svc.fleetDS.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, newStatus, errCode, errMsg, rawResult); err != nil {
 		return ctxerr.Wrap(ctx, err, "update android command status from pub/sub")
 	}
 

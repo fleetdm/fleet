@@ -1960,7 +1960,9 @@ type GetMDMAndroidCommandByUUIDFunc func(ctx context.Context, commandUUID string
 
 type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
 
-type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error
+type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string, rawResult *string) error
+
+type InsertMDMAndroidCommandFunc func(ctx context.Context, cmd *android.MDMAndroidCommand) error
 
 type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
@@ -5167,6 +5169,9 @@ type DataStore struct {
 
 	UpdateMDMAndroidCommandStatusFunc        UpdateMDMAndroidCommandStatusFunc
 	UpdateMDMAndroidCommandStatusFuncInvoked bool
+
+	InsertMDMAndroidCommandFunc        InsertMDMAndroidCommandFunc
+	InsertMDMAndroidCommandFuncInvoked bool
 
 	LockHostViaAndroidMDMFunc        LockHostViaAndroidMDMFunc
 	LockHostViaAndroidMDMFuncInvoked bool
@@ -12394,11 +12399,18 @@ func (s *DataStore) GetMDMAndroidCommandByOperationName(ctx context.Context, ope
 	return s.GetMDMAndroidCommandByOperationNameFunc(ctx, operationName)
 }
 
-func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error {
+func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string, rawResult *string) error {
 	s.mu.Lock()
 	s.UpdateMDMAndroidCommandStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage)
+	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage, rawResult)
+}
+
+func (s *DataStore) InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.InsertMDMAndroidCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMAndroidCommandFunc(ctx, cmd)
 }
 
 func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {

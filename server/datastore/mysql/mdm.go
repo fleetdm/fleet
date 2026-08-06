@@ -2190,8 +2190,9 @@ func getTableAndColumnNameForHostMDMProfileUUID(profUUID string) (table, column 
 
 func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 	var (
-		appleUUIDs []any
-		winUUIDs   []any
+		appleUUIDs   []any
+		winUUIDs     []any
+		androidUUIDs []any
 	)
 
 	res := make(map[string]bool, len(hosts))
@@ -2201,6 +2202,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 			appleUUIDs = append(appleUUIDs, h.UUID)
 		case "windows":
 			winUUIDs = append(winUUIDs, h.UUID)
+		case "android":
+			androidUUIDs = append(androidUUIDs, h.UUID)
 		}
 		res[h.UUID] = false
 	}
@@ -2258,6 +2261,17 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	    AND hm.enrolled = 1
 	`
 	if err := setConnectedUUIDs(winStmt, winUUIDs, res); err != nil {
+		return nil, err
+	}
+
+	const androidStmt = `
+	  SELECT h.uuid
+	  FROM hosts h
+	    JOIN host_mdm hm ON hm.host_id = h.id
+	  WHERE h.uuid IN (?)
+	    AND hm.enrolled = 1
+	`
+	if err := setConnectedUUIDs(androidStmt, androidUUIDs, res); err != nil {
 		return nil, err
 	}
 

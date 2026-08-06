@@ -3885,9 +3885,9 @@ type AndroidDatastore interface {
 	// back to the originating Fleet command.
 	GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
 
-	// UpdateMDMAndroidCommandStatus updates the status (and optional error_code/error_message) of
+	// UpdateMDMAndroidCommandStatus updates the status (and optional error_code/error_message/raw_result) of
 	// a previously-issued command. Called by the Pub/Sub COMMAND handler on ack/error.
-	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error
+	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error
 
 	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the lock_ref on host_mdm_actions in a
 	// single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate cmd.CommandUUID and cmd.OperationName
@@ -3906,6 +3906,10 @@ type AndroidDatastore interface {
 	// HostLockWipeStatus.IsPendingClearPasscode reads to flip device_status to "clearing passcode" while the AMAPI
 	// command is in flight. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
 	ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
+	// InsertMDMAndroidCommand inserts a row into mdm_android_commands without updating host_mdm_actions.
+	// Used for custom commands that have no corresponding UI state (lock/wipe/passcode refs).
+	InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error
 
 	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment so stale
 	// lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the new one.
