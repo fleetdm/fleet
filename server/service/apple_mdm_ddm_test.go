@@ -716,6 +716,21 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 				wantStatus:  fleet.MDMDeliveryVerifying,
 			},
 			{
+				// Unknown means "not checked yet", but reasons mean something already
+				// went wrong -- without this it would wait for a verdict forever.
+				name: "unknown management declaration reporting errors is failed",
+				report: func(ident, _ string, token string) fleet.MDMAppleDDMStatusReport {
+					r := management(ident, token, fleet.MDMAppleDeclarationUnknown)
+					r.StatusItems.Management.Declarations.Management[0].Reasons = []fleet.MDMAppleDDMStatusErrorReason{{
+						Code:        "Error.InvalidPayload",
+						Description: "ManagementPayload (" + ident + ") has an invalid payload.",
+					}}
+					return r
+				},
+				declRawJSON: `{"Type":"com.apple.management.organization-info","Identifier":"%s","Payload":{"Name":"Fleet"}}`,
+				wantStatus:  fleet.MDMDeliveryFailed,
+			},
+			{
 				name:       "predicate excluded the host is verified, not failed",
 				report:     predicateFalse,
 				wantStatus: fleet.MDMDeliveryVerified,
@@ -834,6 +849,49 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		outDM.Endpoint = "declaration/activation/com.example.scoped.act"
 		_, err = ddmService.DeclarativeManagement(&outReq, &outDM)
 		require.Error(t, err, "a host outside the declaration's scope must not resolve its activation")
+	})
+
+	t.Run("CustomActivationCarriesItsOwnToken", func(t *testing.T) {
+		hostUUID, hardwareSerial := "test-host-uuid-acttoken", "ACT-TOKEN"
+		createHost(t, hostUUID, hardwareSerial)
+		setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+
+		teamID := uint(43)
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Name:       "ActTokenDecl",
+			Identifier: "com.example.acttoken",
+			TeamID:     &teamID,
+			RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.acttoken","Payload":{"Enabled":true}}`),
+			Scope:      fleet.PayloadScopeSystem,
+			Activation: &fleet.MDMAppleCustomActivation{
+				Identifier:              "com.example.acttoken.act",
+				RawJSON:                 []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.example.acttoken.act","Payload":{"StandardConfigurations":["com.example.acttoken"]}}`),
+				ConfigurationIdentifier: "com.example.acttoken",
+			},
+		}, nil)
+		require.NoError(t, err)
+		insertHostDeclaration(t, hostUUID, decl.DeclarationUUID, "pending", "install", decl.Identifier)
+
+		manifest := callDeclarativeManagementAndVerify(t, hostUUID, 1, 1)
+		advertised := manifest.Declarations.Activations[0].ServerToken
+
+		// The activation's token is its own, not the declaration's: otherwise
+		// editing the declaration would needlessly re-sync the activation.
+		require.NotEqual(t, manifest.Declarations.Configurations[0].ServerToken, advertised,
+			"a custom activation must not ride on the declaration's token")
+
+		// What the device fetches has to carry exactly what was advertised, or it
+		// re-fetches forever.
+		req := mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: hostUUID}}
+		dm := mdm.DeclarativeManagement{}
+		dm.UDID = hostUUID
+		dm.Endpoint = "declaration/activation/com.example.acttoken.act"
+		served, err := ddmService.DeclarativeManagement(&req, &dm)
+		require.NoError(t, err)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(served, &body))
+		require.Equal(t, advertised, body["ServerToken"],
+			"the served activation token must match the manifest")
 	})
 
 	t.Run("ManagementDeclarationRoutingAndEndpointGuard", func(t *testing.T) {

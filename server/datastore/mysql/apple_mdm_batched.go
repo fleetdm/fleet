@@ -684,6 +684,24 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 			}
 		}
 
+		// Same scan against custom activations: they're expanded at delivery like
+		// the declaration body, so a vital referenced only from the activation
+		// still has to stamp variables_updated_at on the owning declaration.
+		const actVitalsStmt = `SELECT declaration_uuid FROM mdm_apple_ddm_activations WHERE declaration_uuid IN (?) AND INSTR(raw_json, ?) > 0`
+		q, args, err = sqlx.In(actVitalsStmt, declUUIDs, fleet.CustomHostVitalPrefix)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build activation custom host vitals query")
+		}
+		var actWithVitals []string
+		if err := sqlx.SelectContext(ctx, tx, &actWithVitals, q, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select activations with custom host vitals")
+		}
+		for _, u := range actWithVitals {
+			if d, ok := byUUID[u]; ok {
+				d.HasFleetVariables = true
+			}
+		}
+
 		// For declarations that reference DDM assets, load the most recent
 		// uploaded_at across their referenced assets. The reconciler stamps this
 		// onto host_mdm_apple_declarations.assets_updated_at so that editing an
@@ -988,6 +1006,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		batch := rows[i:end]
 
 		valueParts := make([]string, 0, len(batch))
+		// Keep the per-row placeholder count under 60: MySQL caps a prepared
+		// statement at 65535 placeholders, and each batch binds batchSize rows.
 		args := make([]any, 0, len(batch)*12)
 		batchByKey := make(map[string]*fleet.MDMAppleHostDeclaration, len(batch))
 		for _, r := range batch {

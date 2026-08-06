@@ -1237,13 +1237,16 @@ func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ide
 type MDMAppleDDMActivationForDelivery struct {
 	// Nil when the host asked for an activation Fleet synthesizes; the LEFT
 	// JOIN yields NULL there, which json.RawMessage can't scan.
-	RawJSON                 []byte     `db:"raw_json"`
-	ConfigurationIdentifier string     `db:"configuration_identifier"`
-	Token                   string     `db:"token"`
-	VariablesUpdatedAt      *time.Time `db:"variables_updated_at"`
-	AssetsUpdatedAt         *time.Time `db:"assets_updated_at"`
-	ActivationUpdatedAt     *time.Time `db:"activation_updated_at"`
-	DeclarationUUID         string     `db:"declaration_uuid"`
+	RawJSON                 []byte `db:"raw_json"`
+	ConfigurationIdentifier string `db:"configuration_identifier"`
+	Token                   string `db:"token"`
+	// ActivationToken is the custom activation's own token, empty when Fleet
+	// synthesizes the activation. Must match what the manifest advertised.
+	ActivationToken     *string    `db:"activation_token"`
+	VariablesUpdatedAt  *time.Time `db:"variables_updated_at"`
+	AssetsUpdatedAt     *time.Time `db:"assets_updated_at"`
+	ActivationUpdatedAt *time.Time `db:"activation_updated_at"`
+	DeclarationUUID     string     `db:"declaration_uuid"`
 }
 
 // Suffix Fleet appends to a declaration's UUID when synthesizing an activation.
@@ -1315,12 +1318,20 @@ type MDMAppleDDMDeclarationItem struct {
 	// Identifier of the custom activation attached to this declaration; nil
 	// means Fleet synthesizes one.
 	ActivationIdentifier *string `db:"activation_identifier"`
-	DeclarationType      *string `db:"declaration_type"`
+	// ActivationToken is the custom activation's own token, so editing the
+	// declaration or one of its assets doesn't re-sync the activation. Nil
+	// alongside ActivationIdentifier when Fleet synthesizes the activation.
+	ActivationToken *string `db:"activation_token"`
+	DeclarationType *string `db:"declaration_type"`
 	// RawJSON is conditionally loaded only for declarations that use Fleet
 	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
 	// so that handleDeclarationItems can check variable resolution without an
 	// extra query.
 	RawJSON *json.RawMessage `db:"raw_json"`
+	// ActivationRawJSON is the custom activation's body, loaded under the same
+	// condition as RawJSON. Fleet variables in an activation are expanded at
+	// delivery too, so they have to be preflighted alongside the declaration.
+	ActivationRawJSON *json.RawMessage `db:"activation_raw_json"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
@@ -1412,15 +1423,15 @@ type MDMAppleDDMErrors struct {
 	Reasons []MDMAppleDDMStatusErrorReason `json:"Reasons"`
 }
 
-// A status report that contains details about an error.
-//
-// https://developer.apple.com/documentation/devicemanagement/statusreason
 // Reason codes Apple returns for activation predicates.
 const (
 	MDMAppleDDMReasonPredicate        = "Info.Predicate"
 	MDMAppleDDMReasonActivationFailed = "Error.ActivationFailed"
 )
 
+// A status report that contains details about an error.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusreason
 type MDMAppleDDMStatusErrorReason struct {
 	// Code is the error code for this error.
 	Code string `json:"Code"`

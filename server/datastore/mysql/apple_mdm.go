@@ -5600,8 +5600,10 @@ SELECT
 	hmad.assets_updated_at,
 	hmad.activation_updated_at,
 	act.identifier AS activation_identifier,
+	HEX(act.token) AS activation_token,
 	JSON_UNQUOTE(JSON_EXTRACT(mad.raw_json, '$.Type')) AS declaration_type,
-	IF(hmad.variables_updated_at IS NOT NULL AND operation_type = ?, mad.raw_json, NULL) as raw_json
+	IF(hmad.variables_updated_at IS NOT NULL AND operation_type = ?, mad.raw_json, NULL) as raw_json,
+	IF(hmad.variables_updated_at IS NOT NULL AND operation_type = ?, act.raw_json, NULL) as activation_raw_json
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
@@ -5610,7 +5612,8 @@ WHERE
 	hmad.host_uuid = ? AND hmad.scope = ?`
 
 	var res []fleet.MDMAppleDDMDeclarationItem
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, fleet.MDMOperationTypeInstall, hostUUID, scope); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt,
+		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeInstall, hostUUID, scope); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM declaration items")
 	}
 
@@ -5631,6 +5634,7 @@ SELECT
 	act.raw_json,
 	mad.identifier AS configuration_identifier,
 	HEX(mad.token) AS token,
+	HEX(act.token) AS activation_token,
 	hmad.variables_updated_at,
 	hmad.assets_updated_at,
 	hmad.activation_updated_at,
@@ -5823,7 +5827,7 @@ func (ds *Datastore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID 
 
 	updateHostDeclarationsStmt := `
 INSERT INTO host_mdm_apple_declarations
-    (host_uuid, declaration_uuid, status, operation_type, detail, declaration_name, declaration_identifier, token, secrets_updated_at)
+    (host_uuid, declaration_uuid, status, operation_type, detail, declaration_name, declaration_identifier, token, secrets_updated_at, scope)
 VALUES
   %s
 ON DUPLICATE KEY UPDATE
@@ -5853,9 +5857,9 @@ ON DUPLICATE KEY UPDATE
 		// Skip updates for 'remove' operations because it is possible that IT admin removed a profile and then re-added it.
 		// Pending removes are cleaned up after we update status of installs.
 		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt, c.AssetsUpdatedAt, c.ActivationUpdatedAt)]; ok && c.OperationType != fleet.MDMOperationTypeRemove {
-			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?),")
-			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Token,
-				c.SecretsUpdatedAt)
+			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?, ?),")
+			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Name, c.Identifier, c.Token,
+				c.SecretsUpdatedAt, scope)
 		}
 	}
 

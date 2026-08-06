@@ -7200,7 +7200,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	activations := []fleet.MDMAppleDDMManifest{}
 	configurations := []fleet.MDMAppleDDMManifest{}
 	management := []fleet.MDMAppleDDMManifest{}
-	configurationUUIDs := []string{}
+	declarationUUIDs := []string{}
 	var removeDeclarationUUIDsToUpdateToPending []string
 	for _, d := range di {
 		if d.OperationType == nil {
@@ -7219,25 +7219,39 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 		// fetch or apply it. NOTE: the declaration is still included in the token
 		// computation below so that the token matches the SQL-computed
 		// token from handleTokens.
+		// The activation is expanded at delivery too, so an unresolvable variable
+		// there has to drop the declaration here as well -- otherwise the manifest
+		// advertises an activation the host can never fetch.
 		if d.VariablesUpdatedAt != nil {
-			if d.RawJSON != nil {
-				if _, err := svc.replaceDeclarationFleetVariables(ctx, string(*d.RawJSON), hostUUID); err != nil {
-					if nryErr, ok := errors.AsType[notReadyYetError](err); ok {
-						if err := svc.markDeclarationPending(ctx, hostUUID, d.DeclarationUUID, nryErr.Message); err != nil {
-							return nil, ctxerr.Wrap(ctx, err, "mark declaration as pending")
-						}
-						continue
-					}
-
-					if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, err.Error()); err != nil {
-						return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
+			var unresolvable error
+			for _, raw := range []*json.RawMessage{d.RawJSON, d.ActivationRawJSON} {
+				if raw == nil {
+					continue
+				}
+				if _, err := svc.replaceDeclarationFleetVariables(ctx, string(*raw), hostUUID); err != nil {
+					unresolvable = err
+					break
+				}
+			}
+			if unresolvable != nil {
+				if nryErr, ok := errors.AsType[notReadyYetError](unresolvable); ok {
+					if err := svc.markDeclarationPending(ctx, hostUUID, d.DeclarationUUID, nryErr.Message); err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "mark declaration as pending")
 					}
 					continue
 				}
+				if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, unresolvable.Error()); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
+				}
+				continue
 			}
 		}
 
 		effectiveToken := fleet.EffectiveDDMToken(d.ServerToken, d.VariablesUpdatedAt, d.AssetsUpdatedAt, d.ActivationUpdatedAt)
+
+		// Management declarations can reference assets too (organization-info
+		// carries one), so they belong in the asset lookup as well.
+		declarationUUIDs = append(declarationUUIDs, d.DeclarationUUID)
 
 		if d.DeclarationType != nil && strings.HasPrefix(*d.DeclarationType, fleet.MDMAppleManagementTypePrefix) {
 			management = append(management, fleet.MDMAppleDDMManifest{
@@ -7251,19 +7265,26 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 			Identifier:  d.Identifier,
 			ServerToken: effectiveToken,
 		})
-		configurationUUIDs = append(configurationUUIDs, d.DeclarationUUID)
 
+		// A synthesized activation has no content of its own, so it rides on the
+		// declaration's effective token. A custom one is independent content and
+		// carries its own, so editing the declaration or an asset it references
+		// no longer forces the host to re-fetch the activation.
 		activationIdentifier := d.DeclarationUUID + fleet.MDMAppleGeneratedActivationSuffix
+		activationToken := effectiveToken
 		if d.ActivationIdentifier != nil {
 			activationIdentifier = *d.ActivationIdentifier
+			if d.ActivationToken != nil {
+				activationToken = *d.ActivationToken
+			}
 		}
 		activations = append(activations, fleet.MDMAppleDDMManifest{
 			Identifier:  activationIdentifier,
-			ServerToken: effectiveToken,
+			ServerToken: activationToken,
 		})
 	}
 
-	referencedAssets, err := svc.ds.GetAppleDDMAssetsReferencedByDeclarations(ctx, configurationUUIDs)
+	referencedAssets, err := svc.ds.GetAppleDDMAssetsReferencedByDeclarations(ctx, declarationUUIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting referenced assets")
 	}
@@ -7444,6 +7465,9 @@ func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, 
 	return []byte(response), nil
 }
 
+// serveCustomActivation returns the stored activation stamped with its own
+// token, which is what handleDeclarationItems advertised for it. effectiveToken
+// is only the fallback for a row that somehow has no activation token.
 func (svc *MDMAppleDDMService) serveCustomActivation(ctx context.Context, act *fleet.MDMAppleDDMActivationForDelivery, hostUUID, effectiveToken string) ([]byte, error) {
 	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(act.RawJSON))
 	if err != nil {
@@ -7462,7 +7486,11 @@ func (svc *MDMAppleDDMService) serveCustomActivation(ctx context.Context, act *f
 	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored activation")
 	}
-	tempd["ServerToken"] = effectiveToken
+	serverToken := effectiveToken
+	if act.ActivationToken != nil {
+		serverToken = *act.ActivationToken
+	}
+	tempd["ServerToken"] = serverToken
 
 	b, err := json.Marshal(tempd)
 	if err != nil {
@@ -7535,20 +7563,6 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 		return ctxerr.Wrap(ctx, err, "unmarshalling response")
 	}
 
-	// Management declarations report under their own section but are tracked in
-	// the same host_mdm_apple_declarations rows as configurations. Which section
-	// a report came from has to survive the merge, because the two are graded
-	// differently -- see the isManagement case below.
-	configurationReports := make([]reportedDeclaration, 0,
-		len(statusReport.StatusItems.Management.Declarations.Configurations)+
-			len(statusReport.StatusItems.Management.Declarations.Management))
-	for _, c := range statusReport.StatusItems.Management.Declarations.Configurations {
-		configurationReports = append(configurationReports, reportedDeclaration{MDMAppleDDMStatusDeclaration: c})
-	}
-	for _, m := range statusReport.StatusItems.Management.Declarations.Management {
-		configurationReports = append(configurationReports,
-			reportedDeclaration{MDMAppleDDMStatusDeclaration: m, isManagement: true})
-	}
 	// A configuration whose activation didn't activate reports
 	// Error.ActivationFailed, which looks like a failure but isn't one when the
 	// cause is a predicate that simply evaluated false. Apple reports that as
@@ -7560,63 +7574,27 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 		}
 	}
 
-	updates := make([]*fleet.MDMAppleHostDeclaration, len(configurationReports))
-	for i, r := range configurationReports {
-		var status fleet.MDMDeliveryStatus
-		var detail string
-		switch activationFailed := declarationReasonCode(r.MDMAppleDDMStatusDeclaration, fleet.MDMAppleDDMReasonActivationFailed); {
-		case r.isManagement:
-			// Apple: "A management declaration has an active state which is always
-			// false and not part of the activation process." Grading it on Active
-			// like a configuration would leave every one of them stuck verifying.
-			switch r.Valid {
-			case fleet.MDMAppleDeclarationValid:
-				status = fleet.MDMDeliveryVerified
-			case fleet.MDMAppleDeclarationInvalid:
-				status = fleet.MDMDeliveryFailed
-				detail = apple_mdm.FmtDDMError(r.Reasons)
-			default:
-				// Unknown: the device hasn't checked it yet.
-				status = fleet.MDMDeliveryVerifying
-			}
-		case activationFailed != nil && predicateNotApplied(activationFailed, predicateByActivation) != nil:
-			// Not applied because the predicate excluded this host. Fleet
-			// delivered it correctly, so this is verified, not failed.
-			status = fleet.MDMDeliveryVerified
-			detail = fmtDDMPredicateNotApplied(predicateNotApplied(activationFailed, predicateByActivation))
-		case activationFailed != nil:
-			// The activation genuinely failed -- bad predicate syntax, or some
-			// other client-side error.
-			status = fleet.MDMDeliveryFailed
-			detail = apple_mdm.FmtDDMError(r.Reasons)
-		case r.Active && r.Valid == fleet.MDMAppleDeclarationValid:
-			status = fleet.MDMDeliveryVerified
-		case r.Valid == fleet.MDMAppleDeclarationInvalid || isUnknownDeclarationType(r.MDMAppleDDMStatusDeclaration):
-			status = fleet.MDMDeliveryFailed
-			detail = apple_mdm.FmtDDMError(r.Reasons)
-		case r.Valid == fleet.MDMAppleDeclarationValid:
-			// The debug messages here can be used to figure out why a DDM profile is stuck in a certain state on a device.
-			svc.logger.DebugContext(ctx, "valid but inactive declaration status",
-				"status", r.Valid, "active", r.Active, "host", dm.Identifier(), "declaration", r.Identifier)
-			status = fleet.MDMDeliveryVerifying
-		case r.Valid == fleet.MDMAppleDeclarationUnknown: // should be rare
-			svc.logger.DebugContext(ctx, "unknown declaration status",
-				"status", r.Valid, "active", r.Active, "host", dm.Identifier(), "declaration", r.Identifier)
-			status = fleet.MDMDeliveryVerifying
-		default:
-			// This should never happen. If we see this happening, we should handle it.
-			svc.logger.ErrorContext(ctx, "undefined declaration status",
-				"status", r.Valid, "active", r.Active, "host", dm.Identifier(), "declaration", r.Identifier)
-			status = fleet.MDMDeliveryFailed
-			detail = fmt.Sprintf("undefined declaration status: %s; %s", r.Valid, apple_mdm.FmtDDMError(r.Reasons))
-		}
-
-		updates[i] = &fleet.MDMAppleHostDeclaration{
+	// Configurations and management declarations are graded differently, so
+	// each gets its own pass rather than one switch juggling both.
+	decls := statusReport.StatusItems.Management.Declarations
+	updates := make([]*fleet.MDMAppleHostDeclaration, 0, len(decls.Configurations)+len(decls.Management))
+	for _, r := range decls.Configurations {
+		status, detail := svc.configurationDeclarationStatus(ctx, dm, r, predicateByActivation)
+		updates = append(updates, &fleet.MDMAppleHostDeclaration{
 			Status:        &status,
 			OperationType: fleet.MDMOperationTypeInstall,
 			Detail:        detail,
 			Token:         r.ServerToken,
-		}
+		})
+	}
+	for _, r := range decls.Management {
+		status, detail := managementDeclarationStatus(r)
+		updates = append(updates, &fleet.MDMAppleHostDeclaration{
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        detail,
+			Token:         r.ServerToken,
+		})
 	}
 
 	// MDMAppleStoreDDMStatusReport takes care of cleaning ("pending", "remove")
@@ -7651,11 +7629,59 @@ func predicateNotApplied(activationFailed *fleet.MDMAppleDDMStatusErrorReason, b
 	return byActivation[id]
 }
 
-// reportedDeclaration keeps track of which section of the status report a
-// declaration came from, which decides how its status is graded.
-type reportedDeclaration struct {
-	fleet.MDMAppleDDMStatusDeclaration
-	isManagement bool
+// managementDeclarationStatus grades a com.apple.management.* declaration.
+// Apple: "A management declaration has an active state which is always false
+// and not part of the activation process", so validity alone decides.
+func managementDeclarationStatus(r fleet.MDMAppleDDMStatusDeclaration) (fleet.MDMDeliveryStatus, string) {
+	switch {
+	case r.Valid == fleet.MDMAppleDeclarationValid:
+		return fleet.MDMDeliveryVerified, ""
+	case r.Valid == fleet.MDMAppleDeclarationInvalid:
+		return fleet.MDMDeliveryFailed, apple_mdm.FmtDDMError(r.Reasons)
+	case len(r.Reasons) > 0:
+		// Still unknown, but the device reported reasons: something already went
+		// wrong, so surface it instead of waiting forever for a verdict.
+		return fleet.MDMDeliveryFailed, apple_mdm.FmtDDMError(r.Reasons)
+	default:
+		// Unknown with nothing to report: the device hasn't checked it yet.
+		return fleet.MDMDeliveryVerifying, ""
+	}
+}
+
+// configurationDeclarationStatus grades a com.apple.configuration.* declaration,
+// correlating against the activations that gate it.
+func (svc *MDMAppleDDMService) configurationDeclarationStatus(ctx context.Context, dm *mdm.DeclarativeManagement,
+	r fleet.MDMAppleDDMStatusDeclaration, predicateByActivation map[string]*fleet.MDMAppleDDMStatusErrorReason,
+) (fleet.MDMDeliveryStatus, string) {
+	switch activationFailed := declarationReasonCode(r, fleet.MDMAppleDDMReasonActivationFailed); {
+	case activationFailed != nil && predicateNotApplied(activationFailed, predicateByActivation) != nil:
+		// Not applied because the predicate excluded this host. Fleet delivered
+		// it correctly, so this is verified, not failed.
+		return fleet.MDMDeliveryVerified, fmtDDMPredicateNotApplied(predicateNotApplied(activationFailed, predicateByActivation))
+	case activationFailed != nil:
+		// The activation genuinely failed -- bad predicate syntax, or some other
+		// client-side error.
+		return fleet.MDMDeliveryFailed, apple_mdm.FmtDDMError(r.Reasons)
+	case r.Active && r.Valid == fleet.MDMAppleDeclarationValid:
+		return fleet.MDMDeliveryVerified, ""
+	case r.Valid == fleet.MDMAppleDeclarationInvalid || isUnknownDeclarationType(r):
+		return fleet.MDMDeliveryFailed, apple_mdm.FmtDDMError(r.Reasons)
+	case r.Valid == fleet.MDMAppleDeclarationValid:
+		// The debug messages here can be used to figure out why a DDM profile is stuck in a certain state on a device.
+		svc.logger.DebugContext(ctx, "valid but inactive declaration status",
+			"status", r.Valid, "active", r.Active, "host", dm.Identifier(), "declaration", r.Identifier)
+		return fleet.MDMDeliveryVerifying, ""
+	case r.Valid == fleet.MDMAppleDeclarationUnknown: // should be rare
+		svc.logger.DebugContext(ctx, "unknown declaration status",
+			"status", r.Valid, "active", r.Active, "host", dm.Identifier(), "declaration", r.Identifier)
+		return fleet.MDMDeliveryVerifying, ""
+	default:
+		// This should never happen. If we see this happening, we should handle it.
+		svc.logger.ErrorContext(ctx, "undefined declaration status",
+			"status", r.Valid, "active", r.Active, "host", dm.Identifier(), "declaration", r.Identifier)
+		return fleet.MDMDeliveryFailed,
+			fmt.Sprintf("undefined declaration status: %s; %s", r.Valid, apple_mdm.FmtDDMError(r.Reasons))
+	}
 }
 
 func declarationReasonCode(r fleet.MDMAppleDDMStatusDeclaration, code string) *fleet.MDMAppleDDMStatusErrorReason {
