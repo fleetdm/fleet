@@ -10,6 +10,7 @@ import { Ace } from "ace-builds";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import CopyButton from "components/buttons/CopyButton";
+import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
 
 const baseClass = "editor";
 
@@ -107,6 +108,10 @@ const Editor = ({
       },
       readOnly: true,
     });
+
+    // Prevent scrolling from selecting text after a stationary click (#48490).
+    releaseStuckSelectionOnScroll(editor);
+
     onLoadProp?.(editor);
   };
 

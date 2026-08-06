@@ -107,6 +107,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 				return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
 			}
 		}
+		// Config reads hydrate the Windows enrollment default fleet from its config row.
+		if mockDS.GetWindowsEnrollmentDefaultFleetFunc == nil {
+			mockDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return nil, "", nil
+			}
+		}
 	}
 
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}

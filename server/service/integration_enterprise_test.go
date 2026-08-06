@@ -318,16 +318,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.SetBool(true),
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -451,16 +454,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.SetBool(true),
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -492,16 +498,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.SetBool(true),
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -535,16 +544,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.SetBool(true),
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1830,6 +1842,80 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
 	require.Equal(t, priorDisabledActivityID, s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
 	), "no disable historical data activity for ignored patch")
+}
+
+func (s *integrationEnterpriseTestSuite) TestModifyTeamEnableSoftwareInventory() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a fleet — features.enable_software_inventory snapshots the global
+	// config. `features` in the POST payload is ignored (pre-existing
+	// behavior, consistent with historical_data), so send the OPPOSITE of the
+	// global value to make the ignore observable.
+	globalCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	globalEnabled := globalCfg.Features.EnableSoftwareInventory
+	teamName := t.Name() + "softwareInventoryFleet"
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", json.RawMessage(fmt.Sprintf(
+		`{"name": %q, "features": {"enable_software_inventory": %t}}`, teamName, !globalEnabled,
+	)), http.StatusOK, &createResp)
+	require.Equal(t, globalEnabled, createResp.Team.Config.Features.EnableSoftwareInventory,
+		"features is ignored on POST; new fleet snapshots the global config value")
+	teamID := createResp.Team.ID
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(ctx, teamID))
+	})
+
+	// PATCH enable_software_inventory=false.
+	var modResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": false}}`),
+		http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.Features.EnableSoftwareInventory)
+
+	// PATCH other fields without the key — value retained (PATCH-merge semantics).
+	newName := teamName + "renamed"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(fmt.Sprintf(`{"name": %q, "features": {"historical_data": {"uptime": false}}}`, newName)),
+		http.StatusOK, &modResp)
+	require.Equal(t, newName, modResp.Team.Name)
+	require.False(t, modResp.Team.Config.Features.EnableSoftwareInventory,
+		"enable_software_inventory preserved when omitted from PATCH")
+	require.False(t, modResp.Team.Config.Features.HistoricalData.Uptime)
+
+	// Invalid value returns a 4xx error and does not change the setting.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": "yes"}}`),
+		http.StatusBadRequest, &modResp)
+	teamFeatures, err := s.ds.TeamFeatures(ctx, teamID)
+	require.NoError(t, err)
+	require.False(t, teamFeatures.EnableSoftwareInventory,
+		"setting unchanged after invalid value")
+
+	// `null` is treated as omitted — value retained.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": null}}`),
+		http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.Features.EnableSoftwareInventory)
+
+	// Re-enable.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": true}}`),
+		http.StatusOK, &modResp)
+	require.True(t, modResp.Team.Config.Features.EnableSoftwareInventory)
+
+	// PATCH /fleets/0 (Unassigned) ignores `features` (pre-existing behavior,
+	// consistent with historical_data); Unassigned hosts follow the global
+	// config setting, so send the OPPOSITE of the global value and verify it
+	// is unchanged.
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0",
+		json.RawMessage(fmt.Sprintf(`{"features": {"enable_software_inventory": %t}}`, !globalEnabled)),
+		http.StatusOK, &modResp)
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, globalEnabled, appCfg.Features.EnableSoftwareInventory,
+		"global setting unchanged by Unassigned fleet PATCH")
 }
 
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
@@ -3671,16 +3757,19 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true, Valid: false, Value: false},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -5168,7 +5257,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 		// get the appconfig, nothing changed
 		acResp = appConfigResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-		require.Equal(t, fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.SetBool(false)}, acResp.MDM.MacOSUpdates)
+		require.Equal(t, fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}, UpdateNewHosts: optjson.SetBool(false)}, acResp.MDM.MacOSUpdates)
 
 		// no activity got created
 		activitiesResp = listActivitiesResponse{}
@@ -6637,10 +6726,9 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	)
 	osVersionResp = getOSVersionResponse{}
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
 		fmt.Sprintf("%d", tr.Team.ID),
 	)
-	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team0, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
@@ -6686,8 +6774,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	// team1 user does not have access to team0 host
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	assert.Empty(t, osVersionsResp.OSVersions)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
-	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp)
 
 	// Move host from team0 to team1
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
@@ -14669,7 +14756,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
 	message := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.NotEmpty(t, message)
-	require.Contains(t, message, fmt.Sprintf("validation failed: software.url Couldn't edit software. URL (\"%s/not_found.pkg\") returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", srv.URL))
+	expectedNotFoundMessage := fmt.Sprintf("validation failed: software.url URL (\"%s/not_found.pkg\") returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", srv.URL)
+	require.Contains(t, message, expectedNotFoundMessage)
 
 	// do a request with a valid URL
 	rubyURL := srv.URL + "/ruby.deb"
@@ -17382,7 +17470,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
 		Filename:      "no_bundle_identifier.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Unable to extract necessary metadata.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Unable to extract necessary metadata.")
 }
 
 func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
@@ -17397,13 +17485,13 @@ func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 		Filename:      "hello-world-installer.exe",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Uninstall script is required for .exe packages.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Uninstall script is required for .exe packages.")
 
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		Filename: "hello-world-installer.exe",
 		TeamID:   &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Install script is required for .exe packages.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Install script is required for .exe packages.")
 
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "some installer script",
@@ -22333,7 +22421,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT", "1s")
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 3}, http.StatusGatewayTimeout)
 	dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT")
-	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.")
+	require.Contains(t, extractServerErrorText(r.Body), fleet.AddMaintainedAppTimeoutErrMsg)
 
 	// Add a maintained app to no team
 
@@ -23577,7 +23665,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
-	require.Contains(t, errMsg, "Couldn't add. Install script is required for .exe packages.")
+	require.Contains(t, errMsg, "Install script is required for .exe packages.")
 
 	softwareToInstall[1].InstallScript = "echo install"
 	softwareToInstall[1].UninstallScript = "echo uninstall"
@@ -33307,9 +33395,9 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}}))
 
 	// Orbit client capabilities — Linux and Windows orbit builds advertise
-	// CapabilityEndUserAuth. Without this header the EnrollOrbit handler
-	// short-circuits past the EUA gating (with a logged warning) and the bug
-	// would not be exercised.
+	// CapabilityEndUserAuth. The X-Fleet-Capabilities header is an
+	// informational hint only: EUA gating must hold regardless of what
+	// the client advertises.
 	var caps fleet.CapabilityMap
 	caps.PopulateFromString(string(fleet.CapabilityEndUserAuth))
 	capsHeaders := map[string]string{fleet.CapabilitiesHeader: caps.String()}
@@ -35155,6 +35243,79 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageFleetVariables() {
 	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titleID, true)
 	require.NoError(t, err)
 	require.Equal(t, updatedContents, meta.InstallScript)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareBatchDownloadProgressManyPackages() {
+	t := s.T()
+	teamName := "software-batch-download-progress"
+	const packageCount = 100
+
+	// One installer served under many names, instead of building an archive per package.
+	installer, err := os.ReadFile(filepath.Join("testdata", "software-installers", "test.tar.gz"))
+	require.NoError(t, err)
+	payloads := make([]*fleet.SoftwareInstallerPayload, 0, packageCount)
+	names := make([]string, 0, packageCount)
+
+	// Serves an ETag and honors If-None-Match, so a second apply revalidates.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		etag := fmt.Sprintf("%q", name)
+		w.Header().Set("ETag", etag)
+		if r.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = w.Write(installer)
+	}))
+	t.Cleanup(srv.Close)
+
+	for i := 1; i <= packageCount; i++ {
+		name := fmt.Sprintf("tarball-package-%03d.tar.gz", i)
+		names = append(names, name)
+		payloads = append(payloads, &fleet.SoftwareInstallerPayload{
+			URL:             srv.URL + "/" + name,
+			InstallScript:   "echo installing",
+			UninstallScript: "echo uninstalling",
+		})
+	}
+
+	_, err = s.ds.NewTeam(t.Context(), &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: payloads},
+		http.StatusAccepted, &batchResponse, "fleet_name", teamName)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResponse.RequestUUID)
+	require.Len(t, packages, packageCount)
+
+	var batchResult batchSetSoftwareInstallersResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/batch/"+batchResponse.RequestUUID, nil, http.StatusOK,
+		&batchResult, "fleet_name", teamName)
+
+	// Every package reports on its own place in the payload, and none is left mid-download.
+	require.Len(t, batchResult.DownloadProgress, packageCount)
+	for i, progress := range batchResult.DownloadProgress {
+		require.Equal(t, names[i], progress.Name, "package at index %d", i)
+		require.Equal(t, fleet.SoftwarePackageDownloadFinished, progress.Status, "package at index %d", i)
+	}
+
+	// The same packages again: every conditional request gets a 304, so nothing transfers.
+	batchResponse = batchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: payloads},
+		http.StatusAccepted, &batchResponse, "fleet_name", teamName)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResponse.RequestUUID)
+
+	batchResult = batchSetSoftwareInstallersResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/batch/"+batchResponse.RequestUUID, nil, http.StatusOK,
+		&batchResult, "fleet_name", teamName)
+
+	require.Len(t, batchResult.DownloadProgress, packageCount)
+	for i, progress := range batchResult.DownloadProgress {
+		require.Equal(t, names[i], progress.Name, "package at index %d", i)
+		require.Equal(t, fleet.SoftwarePackageDownloadSkipped, progress.Status, "package at index %d", i)
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuildSameVersion() {

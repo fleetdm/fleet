@@ -45,7 +45,7 @@ export const GitOpsCustomPackageBanner = () => (
     adding, copy its SHA-256 hash into your YAML so the next GitOps workflow
     doesn&apos;t delete it.{" "}
     <CustomLink
-      url={`${LEARN_MORE_ABOUT_BASE_LINK}/software-yaml`}
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/yaml-software`}
       text="YAML docs"
       newTab
     />

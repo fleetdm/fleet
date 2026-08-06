@@ -869,20 +869,25 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 		mdm, err := ds.TeamMDMConfig(ctx, team.ID)
 		require.NoError(t, err)
 
+		// The config round-trips through JSON, which always carries
+		// deadline_days, so it reads back set-but-null rather than unset.
 		assert.Equal(t, &fleet.TeamMDM{
 			MacOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("10.15.0"),
 				Deadline:       optjson.SetString("2025-10-01"),
+				DeadlineDays:   optjson.Int{Set: true},
 				UpdateNewHosts: optjson.Bool{Set: true},
 			},
 			IOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("11.11.11"),
 				Deadline:       optjson.SetString("2024-04-04"),
+				DeadlineDays:   optjson.Int{Set: true},
 				UpdateNewHosts: optjson.Bool{Set: true},
 			},
 			IPadOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("12.12.12"),
 				Deadline:       optjson.SetString("2023-03-03"),
+				DeadlineDays:   optjson.Int{Set: true},
 				UpdateNewHosts: optjson.Bool{Set: true},
 			},
 			WindowsUpdates: fleet.WindowsUpdates{

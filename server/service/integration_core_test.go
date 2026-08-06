@@ -1212,6 +1212,100 @@ func (s *integrationTestSuite) TestTranslator() {
 	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{List: []fleet.TranslatePayload{{Type: "notavalidtype", Payload: fleet.StringIdentifierToIDPayload{}}}}, http.StatusBadRequest, &payload)
 }
 
+func (s *integrationTestSuite) TestSoftwareChecksumReconciliation() {
+	t := s.T()
+	ctx := context.Background()
+
+	newHost := func(suffix string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new(t.Name() + suffix),
+			UUID:            t.Name() + suffix,
+			Hostname:        t.Name() + suffix,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	host1, host2, host3 := newHost("1"), newHost("2"), newHost("3")
+
+	// Unique name so the software/versions query isolates this test's rows in the
+	// shared suite database.
+	const name = "giflib-recon-e2e"
+	sw := fleet.Software{Name: name, Version: "5.2.2", Source: "homebrew_packages"}
+
+	// host1 reports the software the normal way => canonical (current-formula) row.
+	_, err := s.ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{sw})
+	require.NoError(t, err)
+
+	var canonical struct {
+		ID      uint  `db:"id"`
+		TitleID *uint `db:"title_id"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &canonical,
+			`SELECT id, title_id FROM software WHERE name = ? AND version = '5.2.2' AND source = 'homebrew_packages'`, name)
+	})
+
+	// Simulate a pre-v4.76.0 duplicate: same identity, a different (legacy) checksum,
+	// referenced by other hosts. host3 is linked to both rows (a collision).
+	var staleID int64
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO software (name, version, source, checksum, title_id) VALUES (?, '5.2.2', 'homebrew_packages', ?, ?)`,
+			name, []byte("recon-e2e-stale!"), canonical.TitleID)
+		if err != nil {
+			return err
+		}
+		staleID, err = res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx,
+			`INSERT INTO host_software (host_id, software_id) VALUES (?, ?), (?, ?), (?, ?)`,
+			host2.ID, staleID, host3.ID, staleID, host3.ID, canonical.ID)
+		return err
+	})
+
+	// Populate host counts so the versions endpoint returns the software.
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+
+	// Before reconciliation the bug is visible through the API: two entries for the
+	// same name/version/source, with split host counts.
+	var versions listSoftwareVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versions, "query", name)
+	require.Len(t, versions.Software, 2)
+
+	// Run the migration (what `fleetctl trigger --name software_checksum_migration` invokes).
+	require.NoError(t, s.ds.ReconcileSoftwareChecksums(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+
+	// Now a single deduplicated entry with the combined host count (host1 + host2 +
+	// host3, with host3's duplicate link resolved).
+	versions = listSoftwareVersionsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versions, "query", name)
+	require.Len(t, versions.Software, 1)
+	require.Equal(t, canonical.ID, versions.Software[0].ID)
+	require.Equal(t, 3, versions.Software[0].HostsCount)
+
+	// The stale row is gone.
+	var staleCount int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &staleCount, `SELECT COUNT(*) FROM software WHERE id = ?`, staleID)
+	})
+	require.Zero(t, staleCount)
+
+	// Idempotent: re-running the migration changes nothing.
+	require.NoError(t, s.ds.ReconcileSoftwareChecksums(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	versions = listSoftwareVersionsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versions, "query", name)
+	require.Len(t, versions.Software, 1)
+	require.Equal(t, 3, versions.Software[0].HostsCount)
+}
+
 func (s *integrationTestSuite) TestVulnerableSoftware() {
 	t := s.T()
 
@@ -4040,6 +4134,28 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 		0,
 	)
 
+	// transferring a mix of real and non-existent host IDs must not record the
+	// fabricated IDs in the activity: only hosts that actually exist are logged.
+	nonExistentHostID := hosts[2].ID + 1000
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &tm1.ID,
+		HostIDs: []uint{hosts[0].ID, nonExistentHostID},
+	}, http.StatusOK, &addResp)
+	mixedActivityID := s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
+			tm1.ID, tm1.Name, tm1.ID, tm1.Name, hosts[0].ID, hosts[0].DisplayName()),
+		0,
+	)
+
+	// transferring only non-existent host IDs must not record any activity: the
+	// latest transferred_hosts activity is still the mixed transfer above.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &tm1.ID,
+		HostIDs: []uint{nonExistentHostID},
+	}, http.StatusOK, &addResp)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), "", mixedActivityID)
+
 	// check that hosts are now part of team 1
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
@@ -5299,11 +5415,27 @@ func (s *integrationTestSuite) TestLabels() {
 			&fleet.LabelPayload{
 				Name:     "amazing label",
 				Query:    "select 1",
-				Platform: "linux",
+				Platform: "bados",
 			},
 			http.StatusUnprocessableEntity,
 			&createResp,
 		)
+
+		// create a label with the generic "linux" platform (matches all Linux distros)
+		s.DoJSON(
+			"POST",
+			"/api/latest/fleet/labels",
+			&fleet.LabelPayload{
+				Name:     "linux label",
+				Query:    "select 1",
+				Platform: "linux",
+			},
+			http.StatusOK,
+			&createResp,
+		)
+		assert.NotZero(t, createResp.Label.ID)
+		assert.Equal(t, "linux", createResp.Label.Platform)
+		linuxLbl := createResp.Label.Label
 
 		// create a valid dynamic label
 		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1"}, http.StatusOK, &createResp)
@@ -5457,7 +5589,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.EqualValues(t, 0, modResp.Label.HostCount)
 
 		// list labels
-		dynamicLabels := []fleet.Label{lbl1}
+		dynamicLabels := []fleet.Label{lbl1, linuxLbl}
 		manualLabels := []fleet.Label{manualLbl1, manualLbl2}
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(100))
 		assert.Len(t, listResp.Labels, builtInsCount+len(dynamicLabels)+len(manualLabels))
@@ -5479,7 +5611,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.NotZero(t, createResp.Label.ID)
 		lbl2 := createResp.Label.Label
 		dynamicLabels = append(dynamicLabels, lbl2)
-		require.Len(t, dynamicLabels, 2) // to make linter happy (dynamicLabels is not used past this point)
+		require.Len(t, dynamicLabels, 3) // to make linter happy (dynamicLabels is not used past this point)
 
 		// add lbl2 hosts to that label
 		for _, h := range lbl2Hosts {
@@ -5651,6 +5783,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// delete a label by id
 		var delIDResp fleet.DeleteLabelByIDResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", linuxLbl.ID), nil, http.StatusOK, &delIDResp)
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl1.ID), nil, http.StatusOK, &delIDResp)
 
 		// delete a non-existing label by id
@@ -5858,7 +5991,11 @@ func (s *integrationTestSuite) TestLabels() {
 			queryValuesJson, err := json.Marshal(queryValues)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+			// Compare whitespace-normalized SQL: the IdP join fragment is a multi-line
+			// raw string whose indentation is irrelevant to the query's meaning.
+			assert.Equal(t,
+				"SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN ( WITH RECURSIVE scim_user_group_expanded AS ( SELECT scim_user_id, group_id FROM scim_user_group WHERE scim_user_id IN (SELECT scim_user_id FROM host_scim_user) UNION SELECT e.scim_user_id, gg.parent_group_id AS group_id FROM scim_user_group_expanded e JOIN scim_group_group gg ON gg.child_group_id = e.group_id ) SELECT scim_user_id, group_id FROM scim_user_group_expanded ) scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id",
+				strings.Join(strings.Fields(query), " "))
 			assert.Equal(t, `["group_good"]`, string(queryValuesJson))
 
 			// Update label membership.
@@ -5915,7 +6052,10 @@ func (s *integrationTestSuite) TestLabels() {
 			queryValuesJson, err := json.Marshal(queryValues)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id", query)
+			// Compare whitespace-normalized SQL (see the IdP Group Label subtest above).
+			assert.Equal(t,
+				"SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN ( WITH RECURSIVE scim_user_group_expanded AS ( SELECT scim_user_id, group_id FROM scim_user_group WHERE scim_user_id IN (SELECT scim_user_id FROM host_scim_user) UNION SELECT e.scim_user_id, gg.parent_group_id AS group_id FROM scim_user_group_expanded e JOIN scim_group_group gg ON gg.child_group_id = e.group_id ) SELECT scim_user_id, group_id FROM scim_user_group_expanded ) scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id",
+				strings.Join(strings.Fields(query), " "))
 			assert.Equal(t, `["department_good"]`, string(queryValuesJson))
 
 			// Update label membership.
@@ -6374,12 +6514,30 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 				{
 					Name:                name,
 					Query:               "select 1",
-					Platform:            "linux",
+					Platform:            "bados",
 					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 				},
 			},
 		},
 		http.StatusUnprocessableEntity,
+		&applyResp,
+	)
+
+	// apply a valid label spec - generic "linux" platform
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/spec/labels",
+		fleet.ApplyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                name + "_linux",
+					Query:               "select 1",
+					Platform:            "linux",
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				},
+			},
+		},
+		http.StatusOK,
 		&applyResp,
 	)
 
@@ -6433,15 +6591,19 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		},
 	}, http.StatusOK, &applyResp)
 
-	// list label specs, has the newly created one
+	// list label specs, has the newly created ones
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listResp)
-	assert.Len(t, listResp.Specs, builtInsCount+1)
+	assert.Len(t, listResp.Specs, builtInsCount+2)
 
 	// get a specific label spec
 	var getResp fleet.GetLabelSpecResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(name)), nil, http.StatusOK, &getResp)
 	assert.Equal(t, name, getResp.Spec.Name)
 	assert.NotEqual(t, 0, getResp.Spec.ID)
+
+	// the generic "linux" platform round-trips through the spec endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(name+"_linux")), nil, http.StatusOK, &getResp)
+	assert.Equal(t, "linux", getResp.Spec.Platform)
 
 	// get a non-existing label spec
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
@@ -8808,6 +8970,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
 	assert.False(t, acResp.GitOpsConfig.GitopsModeEnabled)
 	assert.Zero(t, acResp.GitOpsConfig.RepositoryURL)
+	expectedMaxPackageSize := config.TestConfig().Server.MaxInstallerSizeBytes
+	assert.Equal(t, expectedMaxPackageSize, acResp.MaxSoftwarePackageSize)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -11834,9 +11998,8 @@ func (s *integrationTestSuite) TestOSVersions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
 	assertOSVersion(t, expectedVersion, *osVersionResp.OSVersion)
 
-	// invalid id
-	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusOK, &osVersionResp)
-	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
+	// invalid id returns a not-found error rather than an empty object
+	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
 
 	// name and version filters
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")

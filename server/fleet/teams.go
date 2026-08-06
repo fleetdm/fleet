@@ -66,11 +66,13 @@ type TeamPayload struct {
 // `features` shape so admins can use the same JSON path on both endpoints.
 //
 // Only the sub-fields defined here take effect; the broader Features
-// fields (enable_host_users, enable_software_inventory, additional_queries,
-// detail_query_overrides) remain settable per-fleet only via the
-// `/spec/fleets` GitOps path.
+// fields (enable_host_users, additional_queries, detail_query_overrides)
+// remain settable per-fleet only via the `/spec/fleets` GitOps path.
 type TeamPayloadFeatures struct {
-	HistoricalData *HistoricalDataPayload `json:"historical_data"`
+	// EnableSoftwareInventory uses optjson.Bool so a key omitted from a
+	// PATCH body retains its current stored value (PATCH-merge semantics).
+	EnableSoftwareInventory optjson.Bool           `json:"enable_software_inventory"`
+	HistoricalData          *HistoricalDataPayload `json:"historical_data"`
 }
 
 // HistoricalDataPayload is the per-sub-key partial-PATCH form of

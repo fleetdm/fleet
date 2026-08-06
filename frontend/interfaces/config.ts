@@ -94,6 +94,11 @@ export interface IMdmConfig {
   macos_setup?: {
     enable_managed_local_account?: boolean;
   };
+  windows_settings?: {
+    managed_local_account_settings?: {
+      enabled?: boolean;
+    };
+  };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
     deadline_days: number | null;
@@ -101,7 +106,14 @@ export interface IMdmConfig {
   };
   windows_entra_tenant_ids: string[] | null;
   windows_entra_client_ids: string[] | null;
+  windows_enrollment?: IWindowsEnrollment | null;
   apple_account_provisioning?: IAppleAccountProvisioning;
+}
+
+/** Settings for new user-driven Windows MDM enrollments (Premium only). */
+export interface IWindowsEnrollment {
+  /** Name of the fleet new MDM-enrolled Windows hosts are assigned to; "" means Unassigned. */
+  default_fleet: string;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
@@ -244,6 +256,7 @@ export interface IConfig {
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;
+  max_software_package_size: number;
 }
 
 interface IFleetPartnerships {

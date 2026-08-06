@@ -1,0 +1,1 @@
+- Fixed the policy automations table showing only one host for automation runs that cover multiple hosts.

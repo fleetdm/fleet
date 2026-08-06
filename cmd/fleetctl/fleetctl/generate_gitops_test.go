@@ -739,6 +739,12 @@ func (MockClient) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 		Description:         "Label C description",
 		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
 		HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital": "end_user_idp_group", "value": "some-group"}`)),
+	}, {
+		Name:                "Label D",
+		Description:         "Label D description",
+		Platform:            "linux",
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		Query:               "SELECT 1",
 	}}, nil
 }
 
@@ -1233,6 +1239,20 @@ func TestGenerateOrgSettings(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
+
+	// An unset mdm.windows_enrollment must serialize as null rather than an object with an empty default_fleet.
+	// Applying null is a no-op; an empty default_fleet would clear whatever default the target server has set.
+	appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{}
+	orgSettingsRaw, err = cmd.generateOrgSettings()
+	require.NoError(t, err)
+	b, err = yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
+	mdmSettings, ok := orgSettings["mdm"].(map[string]any)
+	require.True(t, ok)
+	we, present := mdmSettings["windows_enrollment"]
+	require.True(t, present, "windows_enrollment key should still be emitted")
+	require.Nil(t, we, "unset windows_enrollment must serialize as null so applying it is a no-op")
 }
 
 func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {

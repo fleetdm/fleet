@@ -88,16 +88,19 @@
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "ios_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "ipados_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "windows_updates": {
@@ -146,6 +149,7 @@
         "require_all_software_windows": false,
         "software": null
       },
+      "windows_enrollment": null,
       "windows_settings": {
         "custom_settings": null,
         "configuration_profiles": null,
@@ -280,6 +284,7 @@
         }
       }
     },
+    "max_software_package_size": 537919488,
     "gitops": {
       "gitops_mode_enabled": false,
       "repository_url": "",

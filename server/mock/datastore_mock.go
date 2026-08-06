@@ -568,6 +568,8 @@ type CleanupSoftwareTitlesFunc func(ctx context.Context) error
 
 type SyncHostsSoftwareTitlesFunc func(ctx context.Context, updatedAt time.Time) error
 
+type ReconcileSoftwareChecksumsFunc func(ctx context.Context) error
+
 type HostVulnSummariesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error)
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error)
@@ -1182,6 +1184,10 @@ type ReconcileHostDeviceNamesForHostsFunc func(ctx context.Context, hostIDs []ui
 
 type SaveHostManagedLocalAccountFunc func(ctx context.Context, hostUUID string, plaintextPassword string, commandUUID string) error
 
+type SaveHostManagedLocalAccountFromEscrowFunc func(ctx context.Context, hostUUID string, plaintextPassword string) error
+
+type ReportManagedLocalAccountEscrowErrorFunc func(ctx context.Context, hostUUID string, clientError string) error
+
 type GetHostManagedLocalAccountPasswordFunc func(ctx context.Context, hostUUID string) (*fleet.HostManagedLocalAccountPassword, error)
 
 type GetHostManagedLocalAccountStatusFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error)
@@ -1392,11 +1398,21 @@ type MDMWindowsEnqueuePollScheduleCommandFunc func(ctx context.Context, mdmDevic
 
 type SetMDMWindowsEnrollmentFleetdSyncCapableFunc func(ctx context.Context, hostUUID string, capable bool) error
 
+type SetMDMWindowsManagedLocalAccountEscrowedFunc func(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
+
 type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type WindowsHostLiteByHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error)
+
+type MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc func(ctx context.Context, mdmDeviceID string, hardwareSerial string) error
+
+type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error)
+
+type GetWindowsEnrollmentDefaultFleetFunc func(ctx context.Context) (fleetID *uint, fleetName string, err error)
+
+type SetWindowsEnrollmentDefaultFleetFunc func(ctx context.Context, fleetID *uint) error
 
 type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) error
 
@@ -2054,6 +2070,8 @@ type ScimUserByHostIDFunc func(ctx context.Context, hostID uint) (*fleet.ScimUse
 
 type ScimUsersExistFunc func(ctx context.Context, ids []uint) (bool, error)
 
+type ScimGroupsExistFunc func(ctx context.Context, ids []uint) (bool, error)
+
 type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error)
 
 type DeleteScimUserFunc func(ctx context.Context, id uint) ([]fleet.ActivityTypeResentCertificate, error)
@@ -2251,6 +2269,22 @@ type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
 type GetAppleDDMAssetsReferencedByDeclarationsFunc func(ctx context.Context, declarationUUIDs []string) ([]*fleet.DDMAsset, error)
 
 type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) (*fleet.MDMAppleDDMAssetsBatchChanges, error)
+
+type InsertAppleSoftwareUpdateDeviceIDFunc func(ctx context.Context, hostUUID string, updateDeviceID string) error
+
+type GetLastAppleOSUpdatesUpdateFunc func(ctx context.Context) (*time.Time, error)
+
+type UpsertAppleOSUpdatesFunc func(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) error
+
+type DeleteStaleAppleOSUpdatesFunc func(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) (int64, error)
+
+type ListAppleOSUpdateAssetsFunc func(ctx context.Context) (map[string][]fleet.AppleSoftwareUpdateAsset, error)
+
+type ListAppleOSUpdateHostsForReconcileFunc func(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*fleet.AppleSoftwareUpdateHost, error)
+
+type SetAppleOSUpdateTargetsAndResendFunc func(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error
+
+type GetAppleOSUpdateHostByUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error)
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3068,6 +3102,9 @@ type DataStore struct {
 
 	SyncHostsSoftwareTitlesFunc        SyncHostsSoftwareTitlesFunc
 	SyncHostsSoftwareTitlesFuncInvoked bool
+
+	ReconcileSoftwareChecksumsFunc        ReconcileSoftwareChecksumsFunc
+	ReconcileSoftwareChecksumsFuncInvoked bool
 
 	HostVulnSummariesBySoftwareIDsFunc        HostVulnSummariesBySoftwareIDsFunc
 	HostVulnSummariesBySoftwareIDsFuncInvoked bool
@@ -3990,6 +4027,12 @@ type DataStore struct {
 	SaveHostManagedLocalAccountFunc        SaveHostManagedLocalAccountFunc
 	SaveHostManagedLocalAccountFuncInvoked bool
 
+	SaveHostManagedLocalAccountFromEscrowFunc        SaveHostManagedLocalAccountFromEscrowFunc
+	SaveHostManagedLocalAccountFromEscrowFuncInvoked bool
+
+	ReportManagedLocalAccountEscrowErrorFunc        ReportManagedLocalAccountEscrowErrorFunc
+	ReportManagedLocalAccountEscrowErrorFuncInvoked bool
+
 	GetHostManagedLocalAccountPasswordFunc        GetHostManagedLocalAccountPasswordFunc
 	GetHostManagedLocalAccountPasswordFuncInvoked bool
 
@@ -4305,6 +4348,9 @@ type DataStore struct {
 	SetMDMWindowsEnrollmentFleetdSyncCapableFunc        SetMDMWindowsEnrollmentFleetdSyncCapableFunc
 	SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked bool
 
+	SetMDMWindowsManagedLocalAccountEscrowedFunc        SetMDMWindowsManagedLocalAccountEscrowedFunc
+	SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked bool
+
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFunc        MDMWindowsGetEnrolledDeviceWithHostUUIDFunc
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked bool
 
@@ -4313,6 +4359,18 @@ type DataStore struct {
 
 	WindowsHostLiteByHardwareSerialFunc        WindowsHostLiteByHardwareSerialFunc
 	WindowsHostLiteByHardwareSerialFuncInvoked bool
+
+	MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc        MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc
+	MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked bool
+
+	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc
+	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked bool
+
+	GetWindowsEnrollmentDefaultFleetFunc        GetWindowsEnrollmentDefaultFleetFunc
+	GetWindowsEnrollmentDefaultFleetFuncInvoked bool
+
+	SetWindowsEnrollmentDefaultFleetFunc        SetWindowsEnrollmentDefaultFleetFunc
+	SetWindowsEnrollmentDefaultFleetFuncInvoked bool
 
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
@@ -5298,6 +5356,9 @@ type DataStore struct {
 	ScimUsersExistFunc        ScimUsersExistFunc
 	ScimUsersExistFuncInvoked bool
 
+	ScimGroupsExistFunc        ScimGroupsExistFunc
+	ScimGroupsExistFuncInvoked bool
+
 	ReplaceScimUserFunc        ReplaceScimUserFunc
 	ReplaceScimUserFuncInvoked bool
 
@@ -5594,6 +5655,30 @@ type DataStore struct {
 
 	BatchSetAppleDDMAssetsFunc        BatchSetAppleDDMAssetsFunc
 	BatchSetAppleDDMAssetsFuncInvoked bool
+
+	InsertAppleSoftwareUpdateDeviceIDFunc        InsertAppleSoftwareUpdateDeviceIDFunc
+	InsertAppleSoftwareUpdateDeviceIDFuncInvoked bool
+
+	GetLastAppleOSUpdatesUpdateFunc        GetLastAppleOSUpdatesUpdateFunc
+	GetLastAppleOSUpdatesUpdateFuncInvoked bool
+
+	UpsertAppleOSUpdatesFunc        UpsertAppleOSUpdatesFunc
+	UpsertAppleOSUpdatesFuncInvoked bool
+
+	DeleteStaleAppleOSUpdatesFunc        DeleteStaleAppleOSUpdatesFunc
+	DeleteStaleAppleOSUpdatesFuncInvoked bool
+
+	ListAppleOSUpdateAssetsFunc        ListAppleOSUpdateAssetsFunc
+	ListAppleOSUpdateAssetsFuncInvoked bool
+
+	ListAppleOSUpdateHostsForReconcileFunc        ListAppleOSUpdateHostsForReconcileFunc
+	ListAppleOSUpdateHostsForReconcileFuncInvoked bool
+
+	SetAppleOSUpdateTargetsAndResendFunc        SetAppleOSUpdateTargetsAndResendFunc
+	SetAppleOSUpdateTargetsAndResendFuncInvoked bool
+
+	GetAppleOSUpdateHostByUUIDFunc        GetAppleOSUpdateHostByUUIDFunc
+	GetAppleOSUpdateHostByUUIDFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7500,6 +7585,13 @@ func (s *DataStore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.
 	s.SyncHostsSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
 	return s.SyncHostsSoftwareTitlesFunc(ctx, updatedAt)
+}
+
+func (s *DataStore) ReconcileSoftwareChecksums(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileSoftwareChecksumsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileSoftwareChecksumsFunc(ctx)
 }
 
 func (s *DataStore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
@@ -9651,6 +9743,20 @@ func (s *DataStore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID st
 	return s.SaveHostManagedLocalAccountFunc(ctx, hostUUID, plaintextPassword, commandUUID)
 }
 
+func (s *DataStore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID string, plaintextPassword string) error {
+	s.mu.Lock()
+	s.SaveHostManagedLocalAccountFromEscrowFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveHostManagedLocalAccountFromEscrowFunc(ctx, hostUUID, plaintextPassword)
+}
+
+func (s *DataStore) ReportManagedLocalAccountEscrowError(ctx context.Context, hostUUID string, clientError string) error {
+	s.mu.Lock()
+	s.ReportManagedLocalAccountEscrowErrorFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReportManagedLocalAccountEscrowErrorFunc(ctx, hostUUID, clientError)
+}
+
 func (s *DataStore) GetHostManagedLocalAccountPassword(ctx context.Context, hostUUID string) (*fleet.HostManagedLocalAccountPassword, error) {
 	s.mu.Lock()
 	s.GetHostManagedLocalAccountPasswordFuncInvoked = true
@@ -10386,6 +10492,13 @@ func (s *DataStore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context
 	return s.SetMDMWindowsEnrollmentFleetdSyncCapableFunc(ctx, hostUUID, capable)
 }
 
+func (s *DataStore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error) {
+	s.mu.Lock()
+	s.SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsManagedLocalAccountEscrowedFunc(ctx, hostUUID, escrowed)
+}
+
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	s.mu.Lock()
 	s.MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked = true
@@ -10405,6 +10518,34 @@ func (s *DataStore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwar
 	s.WindowsHostLiteByHardwareSerialFuncInvoked = true
 	s.mu.Unlock()
 	return s.WindowsHostLiteByHardwareSerialFunc(ctx, hardwareSerial)
+}
+
+func (s *DataStore) MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error {
+	s.mu.Lock()
+	s.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc(ctx, mdmDeviceID, hardwareSerial)
+}
+
+func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc(ctx, hardwareSerial)
+}
+
+func (s *DataStore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (fleetID *uint, fleetName string, err error) {
+	s.mu.Lock()
+	s.GetWindowsEnrollmentDefaultFleetFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsEnrollmentDefaultFleetFunc(ctx)
+}
+
+func (s *DataStore) SetWindowsEnrollmentDefaultFleet(ctx context.Context, fleetID *uint) error {
+	s.mu.Lock()
+	s.SetWindowsEnrollmentDefaultFleetFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetWindowsEnrollmentDefaultFleetFunc(ctx, fleetID)
 }
 
 func (s *DataStore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {
@@ -12703,6 +12844,13 @@ func (s *DataStore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error
 	return s.ScimUsersExistFunc(ctx, ids)
 }
 
+func (s *DataStore) ScimGroupsExist(ctx context.Context, ids []uint) (bool, error) {
+	s.mu.Lock()
+	s.ScimGroupsExistFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimGroupsExistFunc(ctx, ids)
+}
+
 func (s *DataStore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
 	s.mu.Lock()
 	s.ReplaceScimUserFuncInvoked = true
@@ -13394,4 +13542,60 @@ func (s *DataStore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, as
 	s.BatchSetAppleDDMAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchSetAppleDDMAssetsFunc(ctx, teamID, assets)
+}
+
+func (s *DataStore) InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error {
+	s.mu.Lock()
+	s.InsertAppleSoftwareUpdateDeviceIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertAppleSoftwareUpdateDeviceIDFunc(ctx, hostUUID, updateDeviceID)
+}
+
+func (s *DataStore) GetLastAppleOSUpdatesUpdate(ctx context.Context) (*time.Time, error) {
+	s.mu.Lock()
+	s.GetLastAppleOSUpdatesUpdateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetLastAppleOSUpdatesUpdateFunc(ctx)
+}
+
+func (s *DataStore) UpsertAppleOSUpdates(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) error {
+	s.mu.Lock()
+	s.UpsertAppleOSUpdatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertAppleOSUpdatesFunc(ctx, updates)
+}
+
+func (s *DataStore) DeleteStaleAppleOSUpdates(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) (int64, error) {
+	s.mu.Lock()
+	s.DeleteStaleAppleOSUpdatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteStaleAppleOSUpdatesFunc(ctx, updates)
+}
+
+func (s *DataStore) ListAppleOSUpdateAssets(ctx context.Context) (map[string][]fleet.AppleSoftwareUpdateAsset, error) {
+	s.mu.Lock()
+	s.ListAppleOSUpdateAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAppleOSUpdateAssetsFunc(ctx)
+}
+
+func (s *DataStore) ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*fleet.AppleSoftwareUpdateHost, error) {
+	s.mu.Lock()
+	s.ListAppleOSUpdateHostsForReconcileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAppleOSUpdateHostsForReconcileFunc(ctx, cursor, batchSize, teamsWithLatest)
+}
+
+func (s *DataStore) SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error {
+	s.mu.Lock()
+	s.SetAppleOSUpdateTargetsAndResendFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAppleOSUpdateTargetsAndResendFunc(ctx, targets)
+}
+
+func (s *DataStore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error) {
+	s.mu.Lock()
+	s.GetAppleOSUpdateHostByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleOSUpdateHostByUUIDFunc(ctx, hostUUID)
 }

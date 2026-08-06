@@ -90,7 +90,6 @@ import { strToBool } from "utilities/strings/stringUtils";
 
 import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -1915,11 +1914,9 @@ const ManageHostsPage = ({
               onClick={onExportHostsResults}
               variant="secondary"
               disabled={isTrulyEmpty}
+              icon="download"
             >
-              <>
-                <Icon name="download" size="small" />
-                Export hosts
-              </>
+              Export hosts
             </Button>
           )}
           <Button
@@ -1927,11 +1924,9 @@ const ManageHostsPage = ({
             onClick={toggleEditColumnsModal}
             variant="secondary"
             disabled={isTrulyEmpty}
+            icon="columns"
           >
-            <>
-              <Icon name="columns" color="ui-fleet-black-75" />
-              Edit columns
-            </>
+            Edit columns
           </Button>
         </div>
         <div className={`${baseClass}__filter-dropdowns`}>

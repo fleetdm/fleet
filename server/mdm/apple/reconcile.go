@@ -27,6 +27,10 @@ const HoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
 // platform gate, then delegates the team + include/exclude label gates to
 // the platform-neutral dispatcher in server/mdm/reconcile.
 //
+// entityOnHost reports whether the entity currently has an install-operation
+// row on the host (any status); the shared dispatcher uses it to preserve the
+// host's current state when a dynamic label's membership is still unknown.
+//
 // Both the batched profile and declaration reconcilers — and the per-host
 // enrollment path — route through this function. The shared package is
 // the single source of truth for "does this label-gated MDM entity apply
@@ -36,11 +40,12 @@ func EntityAppliesToHost(
 	e fleet.AppleLabeledEntity,
 	host *fleet.AppleHostReconcileInfo,
 	hostLabels map[uint]struct{},
+	entityOnHost bool,
 ) bool {
 	if !IsEligiblePlatform(host.Platform) {
 		return false
 	}
-	return reconcile.EntityAppliesToHost(e, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabels)
+	return reconcile.EntityAppliesToHost(e, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabels, entityOnHost)
 }
 
 // IsEligiblePlatform reports whether the host's platform is one of the
@@ -65,17 +70,21 @@ func ComputeReconcileDeltas(
 
 		labelsForHost := hostLabels[host.HostID]
 
-		for _, p := range teamProfiles {
-			if !EntityAppliesToHost(p, host, labelsForHost) {
-				continue
-			}
-			desired[p.ProfileUUID] = p
-		}
-
 		current := currentByHost[host.UUID]
 		currentByProfile := make(map[string]*fleet.MDMAppleProfilePayload, len(current))
 		for _, c := range current {
 			currentByProfile[c.ProfileUUID] = c
+		}
+
+		for _, p := range teamProfiles {
+			onHost := false
+			if c, ok := currentByProfile[p.ProfileUUID]; ok {
+				onHost = c.OperationType == fleet.MDMOperationTypeInstall
+			}
+			if !EntityAppliesToHost(p, host, labelsForHost, onHost) {
+				continue
+			}
+			desired[p.ProfileUUID] = p
 		}
 
 		for profUUID, p := range desired {
@@ -97,6 +106,16 @@ func ComputeReconcileDeltas(
 				continue
 			}
 
+			// carry the current command UUID (if the profile already exists on the
+			// host) so the reconciler can cancel the superseded command when it
+			// enqueues the reinstall. A content edit puts the profile in toInstall
+			// only (never toRemove), so this is the sole way the old command UUID
+			// reaches ExecuteReconcileBatch.
+			var prevCommandUUID string
+			if present {
+				prevCommandUUID = c.CommandUUID
+			}
+
 			toInstall = append(toInstall, &fleet.MDMAppleProfilePayload{
 				ProfileUUID:       p.ProfileUUID,
 				ProfileIdentifier: p.ProfileIdentifier,
@@ -107,6 +126,7 @@ func ComputeReconcileDeltas(
 				SecretsUpdatedAt:  p.SecretsUpdatedAt,
 				Scope:             p.Scope,
 				DeviceEnrolledAt:  host.DeviceEnrolledAt,
+				CommandUUID:       prevCommandUUID,
 			})
 		}
 
@@ -202,17 +222,21 @@ func ComputeDeclarationDeltas(
 
 		labelsForHost := hostLabels[host.HostID]
 
-		for _, d := range teamDecls {
-			if !EntityAppliesToHost(d, host, labelsForHost) {
-				continue
-			}
-			desired[d.DeclarationUUID] = d
-		}
-
 		current := currentByHost[host.UUID]
 		currentByDecl := make(map[string]*fleet.MDMAppleHostDeclaration, len(current))
 		for _, c := range current {
 			currentByDecl[c.DeclarationUUID] = c
+		}
+
+		for _, d := range teamDecls {
+			onHost := false
+			if c, ok := currentByDecl[d.DeclarationUUID]; ok {
+				onHost = c.OperationType == fleet.MDMOperationTypeInstall
+			}
+			if !EntityAppliesToHost(d, host, labelsForHost, onHost) {
+				continue
+			}
+			desired[d.DeclarationUUID] = d
 		}
 
 		for declUUID, d := range desired {
@@ -406,6 +430,7 @@ func ExecuteReconcileBatch(
 	var caInstallCount int
 	throttledHostsByProfile := make(map[string][]string)
 	installTargets, removeTargets := make(map[string]*fleet.CmdTarget), make(map[string]*fleet.CmdTarget)
+	supersededCmdToEnrollmentIDs := make(map[string][]string)
 
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok && pp != nil {
@@ -468,12 +493,13 @@ func ExecuteReconcileBatch(
 			installTargets[p.ProfileUUID] = target
 		}
 
+		var enrollmentID string
 		if p.Scope == fleet.PayloadScopeUser {
-			userEnrollmentID, err := getHostUserEnrollmentID(p.HostUUID)
+			enrollmentID, err = getHostUserEnrollmentID(p.HostUUID)
 			if err != nil {
 				return nil, err
 			}
-			if userEnrollmentID == "" {
+			if enrollmentID == "" {
 				var errorDetail string
 				if fleet.IsAppleMobilePlatform(p.HostPlatform) {
 					errorDetail = "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts."
@@ -499,9 +525,15 @@ func ExecuteReconcileBatch(
 				hostProfiles = append(hostProfiles, hp)
 				continue
 			}
-			target.EnrollmentIDs = append(target.EnrollmentIDs, userEnrollmentID)
 		} else {
-			target.EnrollmentIDs = append(target.EnrollmentIDs, p.HostUUID)
+			enrollmentID = p.HostUUID
+		}
+		target.EnrollmentIDs = append(target.EnrollmentIDs, enrollmentID)
+
+		// cancel any previously-queued command this install supersedes (the old
+		// command UUID is carried on the payload by ComputeReconcileDeltas)
+		if p.CommandUUID != "" && p.CommandUUID != target.CmdUUID {
+			supersededCmdToEnrollmentIDs[p.CommandUUID] = append(supersededCmdToEnrollmentIDs[p.CommandUUID], enrollmentID)
 		}
 
 		if isThrottledCA {
@@ -544,8 +576,15 @@ func ExecuteReconcileBatch(
 		}
 
 		if p.FailedInstallOnHost() {
+			if !p.FailedVerificationOnHost() {
+				// protocol/synthesized failure: nothing landed on the device
+				hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+				continue
+			}
+			// device acked this install; pull it off the device, tolerating
+			// "profile not found" if it's gone after all
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
-			continue
+			p.IgnoreError = true
 		}
 		if p.PendingInstallOnHost() {
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
@@ -648,12 +687,30 @@ func ExecuteReconcileBatch(
 	commandUUIDToHostIDsCleanupMap := make(map[string][]string)
 	for _, hp := range hostProfilesToCleanup {
 		if hp.CommandUUID != "" {
+			if hp.Scope == fleet.PayloadScopeUser {
+				// use the correct enrollment ID for user-scoped profiles.
+				userEnrollmentID, err := getHostUserEnrollmentID(hp.HostUUID)
+				if err != nil {
+					return nil, err
+				}
+				if userEnrollmentID == "" {
+					continue
+				}
+				commandUUIDToHostIDsCleanupMap[hp.CommandUUID] = append(commandUUIDToHostIDsCleanupMap[hp.CommandUUID], userEnrollmentID)
+				continue
+			}
+
 			commandUUIDToHostIDsCleanupMap[hp.CommandUUID] = append(commandUUIDToHostIDsCleanupMap[hp.CommandUUID], hp.HostUUID)
 		}
 	}
 	if len(commandUUIDToHostIDsCleanupMap) > 0 {
 		if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "deleting nano commands without results")
+		}
+	}
+	if len(supersededCmdToEnrollmentIDs) > 0 {
+		if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, supersededCmdToEnrollmentIDs); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "deleting superseded install commands")
 		}
 	}
 	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
