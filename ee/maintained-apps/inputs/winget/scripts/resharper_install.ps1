@@ -67,15 +67,17 @@ $exitCode = $process.ExitCode
 Write-Host "Installer exit code: $exitCode"
 
 # The bootstrapper can outlive its own exit code, so poll for the uninstall
-# registry entry (what osquery reports). Sampling the process before the sleep
-# leaves an interval of grace for the entry to be written after it exits.
+# registry entry (what osquery reports). The installer process is sampled at both
+# ends of the interval so neither one starting nor one exiting mid-sleep is
+# mistaken for nothing left to wait for.
 $deadline = (Get-Date).AddSeconds($registryTimeoutSeconds)
 $entries = @(Get-ReSharperEntries)
 while ($entries.Count -eq 0 -and (Get-Date) -lt $deadline) {
   $installerWasRunning = @(Get-Process -Name 'JetBrains.Platform.Installer*' -ErrorAction SilentlyContinue).Count -gt 0
   Start-Sleep -Seconds 10
   $entries = @(Get-ReSharperEntries)
-  if ($entries.Count -eq 0 -and -not $installerWasRunning) { break }
+  $installerIsRunning = @(Get-Process -Name 'JetBrains.Platform.Installer*' -ErrorAction SilentlyContinue).Count -gt 0
+  if ($entries.Count -eq 0 -and -not $installerWasRunning -and -not $installerIsRunning) { break }
 }
 
 if ($entries.Count -eq 0) {
