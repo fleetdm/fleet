@@ -730,6 +730,40 @@ If the fields below are omitted, they default to values specified in [the app's 
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
 - `categories` is an array of categories, see [categories](#self-service-labels-categories-and-setup-experience).
 
+## vulnerability_exceptions
+
+The `vulnerability_exceptions` section creates auditable exceptions for CVEs that your organization has decided not to treat as active in a fleet. Exceptions do not delete detections. They change the CVE's status from **Active** to **Excepted** in the selected fleet while keeping the original detection and affected-host count available in Fleet.
+
+This is different from `settings.features.vulnerability_exposure_historical_reporting.exclude_vulnerabilities`, which changes the default display of the historical **Vulnerability exposure** chart only. A vulnerability exception adds a shared workflow status, rationale, and activity history that are also available in the vulnerabilities table and API.
+
+Vulnerability exceptions can be specified only in `fleets/fleet-name.yml` or `fleets/unassigned.yml`. The file provides the fleet scope, which prevents an exception in one fleet from hiding the same CVE in another fleet. Broad organization-wide CVE exceptions are not supported.
+
+Each exception must include:
+
+- `cve` is the vulnerability identifier in CVE-YYYY-<4 or more digits> format.
+- `reason` is one of `no_fix_available`, `not_exploitable`, `mitigated_by_control`, `risk_accepted`, or `other`. Suspected false positives or other detection errors should be reported to Fleet instead of recorded as an organization exception.
+- `note` records the organization context supporting the decision.
+
+Delete the exception from YAML and run GitOps to return the finding to active results. Fleet records the change in activity history so the original decision and its restoration remain auditable.
+
+If `vulnerability_exceptions` is omitted, existing exceptions stay intact. If the key is included, the declared list becomes the complete set of exceptions for that fleet: exceptions not listed are deleted, and an empty list removes all of them. When [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) is enabled, Fleet makes vulnerability exception controls read-only in the UI. Changes made outside GitOps can be overwritten the next time this configuration is applied.
+
+### Example
+
+`fleets/workstations.yml`
+
+```yaml
+vulnerability_exceptions:
+  - cve: CVE-2023-1234
+    reason: no_fix_available
+    note: The vendor has not released a fix. Review when remediation becomes available.
+  - cve: CVE-2024-56789
+    reason: mitigated_by_control
+    note: Access is restricted to an isolated lab network while the upgrade is tested.
+```
+
+Fleet returns a validation error if the CVE does not currently affect any host in that fleet. The exception applies to current and future affected hosts in that fleet until it is removed. The same CVE remains Active in other fleets unless it has a separate exception there.
+
 ## org_settings and settings
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).

@@ -18,6 +18,7 @@
 - [Scripts](#scripts)
 - [Sessions](#sessions)
 - [Software](#software)
+- [Vulnerabilities](#vulnerabilities)
 - [Targets](#targets)
 - [Fleets](#fleets)
 - [Translator](#translator)
@@ -13421,6 +13422,10 @@ Deletes the specified self-service category. Software assigned to the deleted ca
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
+- [List vulnerability exceptions](#list-vulnerability-exceptions)
+- [Create vulnerability exception](#create-vulnerability-exception)
+- [Update vulnerability exception](#update-vulnerability-exception)
+- [Delete vulnerability exception](#delete-vulnerability-exception)
 
 ### List vulnerabilities
 
@@ -13440,6 +13445,9 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| status | string | query | Filters CVEs by fleet-scoped workflow status. Requires `fleet_id`. Options are `active`, `excepted`, or `all` (default). This filter does not change the meaning of `hosts_count`. |
+
+The `status` and `vulnerability_exception` fields are included only when `fleet_id` is supplied. `vulnerability_exception` is `null` when the status is `active`. The response below shows a fleet-scoped request.
 
 
 ##### Default response
@@ -13453,6 +13461,11 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "cve": "CVE-2022-30190",
       "created_at": "2022-06-01T00:15:00Z",
       "hosts_count": 1234,
+      "status": "excepted",
+      "vulnerability_exception": {
+        "id": 42,
+        "reason": "no_fix_available"
+      },
       "hosts_count_updated_at": "2023-12-20T15:23:57Z",
       "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
       "cvss_score": 7.8,// Available in Fleet Premium
@@ -13489,54 +13502,244 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 
 #### Example
 
-`GET /api/v1/fleet/vulnerabilities/cve-2022-30190`
+`GET /api/v1/fleet/vulnerabilities/cve-2022-30190?fleet_id=2`
 
 ##### Default response
 
 `Status: 200`
 
 ```json
-"vulnerability": {
-  "cve": "CVE-2022-30190",
-  "created_at": "2022-06-01T00:15:00Z",
-  "hosts_count": 1234,
-  "hosts_count_updated_at": "2023-12-20T15:23:57Z",
-  "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
-  "cvss_score": 7.8,// Available in Fleet Premium
-  "epss_probability": 0.9729,// Available in Fleet Premium
-  "cisa_known_exploit": false,// Available in Fleet Premium
-  "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-  "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
-  "os_versions" : [
-    {
-      "os_version_id": 6,
-      "hosts_count": 200,
-      "name": "macOS 14.1.2",
-      "name_only": "macOS",
-      "version": "14.1.2",
-      "resolved_in_version": "14.2",
-      "generated_cpes": [
-        "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
-        "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
-      ]
-    }
-  ],
-  "software": [
-    {
-      "id": 2363,
-      "software_title_id": 124,
-      "name": "Docker Desktop",
-      "version": "4.9.1",
-      "source": "programs",
-      "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
-      "hosts_count": 50,
-      "resolved_in_version": "5.0.0"
-    }
-  ]
+{
+  "vulnerability": {
+    "cve": "CVE-2022-30190",
+    "created_at": "2022-06-01T00:15:00Z",
+    "hosts_count": 1234,
+    "status": "excepted",
+    "vulnerability_exception": {
+      "id": 42,
+      "reason": "no_fix_available",
+      "note": "The vendor has not released a fix. Review when remediation becomes available."
+    },
+    "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+    "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+    "cvss_score": 7.8,// Available in Fleet Premium
+    "epss_probability": 0.9729,// Available in Fleet Premium
+    "cisa_known_exploit": false,// Available in Fleet Premium
+    "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+    "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+    "os_versions" : [
+      {
+        "os_version_id": 6,
+        "hosts_count": 200,
+        "name": "macOS 14.1.2",
+        "name_only": "macOS",
+        "version": "14.1.2",
+        "resolved_in_version": "14.2",
+        "generated_cpes": [
+          "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+          "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+        ]
+      }
+    ],
+    "software": [
+      {
+        "id": 2363,
+        "software_title_id": 124,
+        "name": "Docker Desktop",
+        "version": "4.9.1",
+        "source": "programs",
+        "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+        "hosts_count": 50,
+        "resolved_in_version": "5.0.0"
+      }
+    ]
+  }
 }
 ```
 
 The `extension_for` field is included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
+
+`hosts_count` continues to mean every distinct host with a current detection, including hosts covered by a fleet-scoped exception. When `fleet_id` is supplied, `status` describes the CVE in that fleet: `active` or `excepted`. An exception does not alter the affected software or OS details and does not change the same CVE's status in another fleet.
+
+### List vulnerability exceptions
+
+Retrieves vulnerability exceptions that the requesting user can access. Global and fleet admins, maintainers, and observers can call this endpoint.
+
+`GET /api/v1/fleet/vulnerability_exceptions`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| page | integer | query | Page number of the results to fetch. |
+| per_page | integer | query | Results per page. |
+| fleet_id | integer | query | _Available in Fleet Premium_. Filters results to the specified fleet. Use `0` for "Unassigned" hosts. |
+| cve | string | query | Filters results to one CVE (format must be CVE-YYYY-<4 or more digits>, case-insensitive). |
+
+#### Example
+
+`GET /api/v1/fleet/vulnerability_exceptions?fleet_id=2&cve=CVE-2023-1234`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerability_exceptions": [
+    {
+      "id": 42,
+      "cve": "CVE-2023-1234",
+      "fleet_id": 2,
+      "reason": "no_fix_available",
+      "note": "The vendor has not released a fix. Review when remediation becomes available.",
+      "created_at": "2026-08-03T15:23:57Z",
+      "updated_at": "2026-08-03T15:23:57Z",
+      "created_by": {
+        "id": 7,
+        "name": "Avery Admin",
+        "email": "avery@example.com"
+      }
+    }
+  ],
+  "count": 1,
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+`created_by` is `null` when the exception was created through GitOps.
+
+### Create vulnerability exception
+
+Creates an auditable exception for one CVE in one fleet. Only global and fleet admins and maintainers can call this endpoint.
+
+`fleet_id` is required so that an exception in one fleet cannot hide the same CVE in another fleet. Use `0` for "Unassigned" hosts. The exception applies to current and future affected hosts in the selected fleet until it is deleted.
+
+`POST /api/v1/fleet/vulnerability_exceptions`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| cve | string | body | **Required**. The CVE to except (format must be CVE-YYYY-<4 or more digits>, case-insensitive). |
+| fleet_id | integer | body | **Required**. The fleet whose finding is excepted. Use `0` for "Unassigned" hosts. |
+| reason | string | body | **Required**. One of `no_fix_available`, `not_exploitable`, `mitigated_by_control`, `risk_accepted`, or `other`. Suspected false positives or other detection errors should be reported to Fleet instead of recorded as an organization exception. |
+| note | string | body | **Required**. Organization context supporting the exception. |
+
+#### Example
+
+`POST /api/v1/fleet/vulnerability_exceptions`
+
+##### Request body
+
+```json
+{
+  "cve": "CVE-2023-1234",
+  "fleet_id": 2,
+  "reason": "no_fix_available",
+  "note": "The vendor has not released a fix. Review when remediation becomes available."
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerability_exception": {
+    "id": 42,
+    "cve": "CVE-2023-1234",
+    "fleet_id": 2,
+    "reason": "no_fix_available",
+    "note": "The vendor has not released a fix. Review when remediation becomes available.",
+    "created_at": "2026-08-03T15:23:57Z",
+    "updated_at": "2026-08-03T15:23:57Z",
+    "created_by": {
+      "id": 7,
+      "name": "Avery Admin",
+      "email": "avery@example.com"
+    }
+  }
+}
+```
+
+Fleet returns `409 Conflict` if an exception already exists for the CVE in the specified fleet, and `422 Unprocessable Entity` if the CVE does not currently affect any host there. Creating, updating, and deleting an exception adds an entry to Fleet's activity feed.
+
+### Update vulnerability exception
+
+Changes the reason or note for an existing vulnerability exception. The CVE and fleet are immutable; delete the exception and create a new one to change its scope. Only global and fleet admins and maintainers can call this endpoint.
+
+`PATCH /api/v1/fleet/vulnerability_exceptions/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | **Required**. The vulnerability exception ID. |
+| reason | string | body | One of `no_fix_available`, `not_exploitable`, `mitigated_by_control`, `risk_accepted`, or `other`. |
+| note | string | body | Organization context supporting the exception. |
+
+At least one of `reason` or `note` is required.
+
+#### Example
+
+`PATCH /api/v1/fleet/vulnerability_exceptions/42`
+
+##### Request body
+
+```json
+{
+  "reason": "mitigated_by_control",
+  "note": "Execution is blocked by an allowlist policy."
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerability_exception": {
+    "id": 42,
+    "cve": "CVE-2023-1234",
+    "fleet_id": 2,
+    "reason": "mitigated_by_control",
+    "note": "Execution is blocked by an allowlist policy.",
+    "created_at": "2026-08-03T15:23:57Z",
+    "updated_at": "2026-08-03T16:05:00Z",
+    "created_by": {
+      "id": 7,
+      "name": "Avery Admin",
+      "email": "avery@example.com"
+    }
+  }
+}
+```
+
+### Delete vulnerability exception
+
+Deletes a vulnerability exception. The finding returns to `active` workflow status and appears in active-filtered results the next time those results are requested. Its detected `hosts_count` is unchanged. Only global and fleet admins and maintainers can call this endpoint.
+
+`DELETE /api/v1/fleet/vulnerability_exceptions/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | **Required**. The vulnerability exception ID. |
+
+#### Example
+
+`DELETE /api/v1/fleet/vulnerability_exceptions/42`
+
+##### Default response
+
+`Status: 204`
 
 ---
 
