@@ -1380,7 +1380,7 @@ module.exports.routes = {
   'GET /learn-more-about/security-posture': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#DevicePosture',
   'GET /learn-more-about/software-update-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#SystemUpdateInfo',
   'GET /learn-more-about/removal-behavior': '/guides/custom-os-settings#removal-behavior',
-
+  'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
 
   // Sitemap
   // =============================================================================================================
