@@ -4671,3 +4671,65 @@ func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
 		})
 	}
 }
+
+func TestDirectIngestMDMMacOSSoftwareUpdateID(t *testing.T) {
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+	hostUUID := "test-uuid"
+	host := fleet.Host{ID: 1, UUID: hostUUID}
+	var insertedDeviceID string
+	ds.InsertAppleSoftwareUpdateDeviceIDFunc = func(ctx context.Context, hostUUID, updateDeviceID string) error {
+		insertedDeviceID = updateDeviceID
+		return nil
+	}
+
+	t.Run("no rows returns with no error", func(t *testing.T) {
+		require.NoError(t, directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{}))
+		require.False(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+	})
+
+	t.Run("empty value return error", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"value": ""},
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "empty software update device ID")
+		require.False(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+	})
+
+	t.Run("intel mac takes board-id", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "compatible", "value": "Intel"},
+			{"key": "board-id", "value": "valid-id"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "valid-id", insertedDeviceID)
+
+		ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked = false
+		insertedDeviceID = ""
+	})
+
+	t.Run("intel T2 mac takes bridge-model", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "bridge-model", "value": "valid-bridge-model"},
+			{"key": "compatible", "value": "Intel"},
+			{"key": "board-id", "value": "valid-id"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "valid-bridge-model", insertedDeviceID)
+	})
+
+	t.Run("apple silicon mac takes compatible", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "compatible", "value": "Apple Silicon\x00Mac16,7"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "Apple Silicon", insertedDeviceID)
+
+		ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked = false
+		insertedDeviceID = ""
+	})
+}

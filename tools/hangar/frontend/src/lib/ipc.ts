@@ -1,9 +1,12 @@
-// IPC layer. Originally Tauri's `invoke`; now backed by the Wails-generated
-// service bindings. The exported types are aliases to the Go-generated models
-// (so they can't drift from the backend), and the `api.*` shape is unchanged
-// so the rest of the frontend is untouched. `cast` narrows a binding's
-// $CancellablePromise<Model> to the alias type at the boundary (same runtime
-// JSON).
+// IPC layer: the frontend's single boundary to the Go backend, backed by the
+// Wails-generated service bindings and exposed as the `api.*` surface. The
+// exported types are aliases to the Go-generated models (so they can't drift
+// from the backend). `cast` narrows a binding's $CancellablePromise<Model> to
+// the alias type at the boundary (same runtime JSON).
+//
+// (Historically this was Tauri's `invoke`; the file kept the `api.*` shape
+// across the port to Wails so callers were untouched — hence it long outlived
+// the name `tauri.ts`.)
 import {
   SettingsService,
   ProcessService,
@@ -17,6 +20,9 @@ import {
   DepsService,
   TrayService,
   DialogService,
+  ScepService,
+  MdmAssetsService,
+  TufService,
 } from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services";
 
 import type * as settingsM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/settings/models";
@@ -30,6 +36,9 @@ import type * as perfM from "../../bindings/github.com/fleetdm/fleet/tools/hanga
 import type * as perfconfigM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/perfconfig/models";
 import type * as traymenuM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/traymenu/models";
 import type * as troubleshootM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/troubleshoot/models";
+import type * as scepM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/scep/models";
+import type * as mdmassetsM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/mdmassets/models";
+import type * as tufM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/tuf/models";
 
 // cast narrows a binding's $CancellablePromise<GeneratedModel> to the alias
 // type. Safe: the underlying value is the same JSON.
@@ -42,9 +51,11 @@ function cast<T>(p: unknown): Promise<T> {
 // and avoids enum/literal friction in the Settings UI).
 export type ThemePreference = "system" | "light" | "dark";
 
-// Settings aliases the generated model but keeps theme as the union above.
-export type Settings = Omit<settingsM.Settings, "theme"> & {
+// Settings aliases the generated model but keeps theme as the union above and
+// servers as the FleetServeConfig-aliased ServerProfile.
+export type Settings = Omit<settingsM.Settings, "theme" | "servers"> & {
   theme: ThemePreference;
+  servers: ServerProfile[];
 };
 export type NgrokConfig = settingsM.NgrokConfig;
 export type PythonConfig = settingsM.PythonConfig;
@@ -52,6 +63,7 @@ export type FleetServeConfig = settingsM.FleetServeConfig;
 export type EnvVar = settingsM.EnvVar;
 export type NgrokTunnel = settingsM.NgrokTunnel;
 export type NgrokYamlInfo = settingsM.NgrokYamlInfo;
+export type NgrokRunningTunnel = settingsM.NgrokRunningTunnel;
 export type RepoProbe = settingsM.RepoProbe;
 
 export type GitopsFile = gitopsM.File;
@@ -71,6 +83,15 @@ export type CommitInfo = gitrepoM.CommitInfo;
 export type FileChange = gitrepoM.FileChange;
 export type BranchStatus = gitrepoM.BranchStatus;
 export type Branch = gitrepoM.Branch;
+export type Worktree = gitrepoM.Worktree;
+
+// Multi-server profiles. ServerProfile keeps its generated fleet_serve as the
+// FleetServeConfig alias used elsewhere; ServerPorts is a flat numeric record.
+export type ServerPorts = settingsM.ServerPorts;
+export type ServerProfile = Omit<settingsM.ServerProfile, "fleet_serve"> & {
+  fleet_serve: FleetServeConfig;
+};
+export type ComposeTarget = processesM.ComposeTarget;
 
 export type ProcInfo = processesM.ProcInfo;
 export type LogEntry = processesM.LogEntry;
@@ -89,6 +110,18 @@ export type CapturedRun = fleetctlM.CapturedRun;
 
 export type DetectedProcess = troubleshootM.DetectedProcess;
 export type KillOutcome = troubleshootM.KillOutcome;
+
+export type ScepProfile = settingsM.ScepProfile;
+export type ScepBinaryInfo = scepM.BinaryInfo;
+export type ScepDepotInfo = scepM.DepotInfo;
+export type ScepInitCAParams = scepM.InitCAParams;
+
+export type MdmAssetsConfig = mdmassetsM.Config;
+export type MdmAssetsExportResult = mdmassetsM.ExportResult;
+export type MdmAssetsFile = mdmassetsM.AssetFile;
+
+export type TufConfig = settingsM.TufConfig;
+export type TufServerStatus = tufM.ServerStatus;
 
 export type DepCheck = depsM.DepCheck;
 export type DepReport = depsM.DepReport;
@@ -147,6 +180,8 @@ export const api = {
     ),
   parseNgrokYml: (path?: string | null) =>
     cast<NgrokYamlInfo>(SettingsService.ParseNgrokYml(path ?? "")),
+  ngrokTunnels: () =>
+    cast<NgrokRunningTunnel[]>(SettingsService.NgrokTunnels()),
   readTextFile: (path: string) => SettingsService.ReadTextFile(path),
   writeTextFile: (path: string, contents: string) =>
     SettingsService.WriteTextFile(path, contents),
@@ -154,7 +189,7 @@ export const api = {
     SettingsService.OpenPath(path, reveal ?? false),
   openUrl: (url: string) => SettingsService.OpenURL(url),
 
-  // Native folder/file pickers (replaces @tauri-apps/plugin-dialog).
+  // Native folder/file pickers (via Wails DialogService).
   pickFolder: () => DialogService.PickFolder(),
   pickFile: () => DialogService.PickFile(),
   pickFileWithFilter: (displayName: string, pattern: string) =>
@@ -180,6 +215,62 @@ export const api = {
   gitDiscardAndCheckout: (repo: string, branch: string) =>
     GitService.GitDiscardAndCheckout(repo, branch),
 
+  // Worktrees — back multi-server (each server builds/runs its own tree).
+  gitListWorktrees: (repo: string) =>
+    cast<Worktree[]>(GitService.GitListWorktrees(repo)),
+  gitAddWorktree: (repo: string, path: string, ref: string) =>
+    GitService.GitAddWorktree(repo, path, ref),
+  gitRemoveWorktree: (repo: string, path: string, force: boolean) =>
+    GitService.GitRemoveWorktree(repo, path, force),
+
+  // Server profiles.
+  newServerProfile: () =>
+    cast<ServerProfile>(SettingsService.NewServerProfile()),
+
+  // SCEP servers (one shared in-repo binary, many depot-based profiles).
+  newScepProfile: () =>
+    cast<ScepProfile>(SettingsService.NewScepProfile()),
+  scepBinaryStatus: () =>
+    cast<ScepBinaryInfo>(ScepService.BinaryStatus()),
+  scepEnsureBinary: () => cast<ScepBinaryInfo>(ScepService.EnsureBinary()),
+  scepRebuildBinary: () => cast<ScepBinaryInfo>(ScepService.RebuildBinary()),
+  scepResolveDepot: (profile: ScepProfile) =>
+    cast<string>(ScepService.ResolveDepot(profile as never)),
+  scepDepotInfo: (depotPath: string) =>
+    cast<ScepDepotInfo>(ScepService.DepotInfo(depotPath)),
+  scepProfileDepotInfo: (profile: ScepProfile) =>
+    cast<ScepDepotInfo>(ScepService.ProfileDepotInfo(profile as never)),
+  scepInitCa: (depotPath: string, params: ScepInitCAParams) =>
+    cast<ScepDepotInfo>(ScepService.InitCA(depotPath, params as never)),
+  scepStartProfile: (profile: ScepProfile) =>
+    ScepService.StartProfile(profile as never),
+  scepStopProfile: (profileId: string) =>
+    ScepService.StopProfile(profileId),
+  scepLanIp: () => cast<string>(ScepService.LanIP()),
+
+  // MDM assets export (tools/mdm/assets).
+  mdmAssetsConfigsList: () =>
+    cast<MdmAssetsConfig[]>(MdmAssetsService.MdmAssetsConfigsList()),
+  mdmAssetsConfigSave: (cfg: MdmAssetsConfig) =>
+    cast<MdmAssetsConfig>(MdmAssetsService.MdmAssetsConfigSave(cfg as never)),
+  mdmAssetsConfigDelete: (id: string) =>
+    MdmAssetsService.MdmAssetsConfigDelete(id),
+  mdmAssetsDefaultDir: () =>
+    cast<string>(MdmAssetsService.MdmAssetsDefaultDir()),
+  mdmAssetsExport: (cfg: MdmAssetsConfig) =>
+    cast<MdmAssetsExportResult>(MdmAssetsService.MdmAssetsExport(cfg as never)),
+  mdmAssetsReadFile: (path: string) =>
+    cast<string>(MdmAssetsService.MdmAssetsReadFile(path)),
+
+  // Local TUF server + fleetd package generation (tools/tuf/test).
+  tufServerStatus: () => cast<TufServerStatus>(TufService.TufServerStatus()),
+  tufStartBuild: (cfg: TufConfig) => TufService.TufStartBuild(cfg as never),
+  tufStopBuild: () => TufService.TufStopBuild(),
+  tufStartServer: () => TufService.TufStartServer(),
+  tufKillServer: () => cast<KillOutcome[]>(TufService.TufKillServer()),
+  tufDeleteAssets: () => TufService.TufDeleteAssets(),
+  tufAssetsExist: () => cast<boolean>(TufService.TufAssetsExist()),
+
   listProcesses: () => cast<ProcInfo[]>(ProcessService.ListProcesses()),
   startProcess: (args: {
     id: string;
@@ -203,11 +294,12 @@ export const api = {
   restartProcess: (id: string) => ProcessService.RestartProcess(id),
   forgetProcess: (id: string) => ProcessService.ForgetProcess(id),
 
-  dockerComposeStatus: (cwd: string) =>
-    cast<DockerStatus>(ProcessService.DockerComposeStatus(cwd)),
-  dockerComposeDown: (cwd: string) => ProcessService.DockerComposeDown(cwd),
-  dockerComposeRestart: (cwd: string) =>
-    ProcessService.DockerComposeRestart(cwd),
+  dockerComposeStatus: (cwd: string, project: string) =>
+    cast<DockerStatus>(ProcessService.DockerComposeStatus(cwd, project)),
+  dockerComposeDown: (id: string, cwd: string, project: string) =>
+    ProcessService.DockerComposeDown(id, cwd, project),
+  dockerComposeRestart: (cwd: string, project: string) =>
+    ProcessService.DockerComposeRestart(cwd, project),
 
   serveTcpCheck: (port: number, host?: string) =>
     ProcessService.ServeTCPCheck(host ?? "", port),
@@ -225,6 +317,17 @@ export const api = {
     DBService.DBDeleteBackup(repo, path),
   dbCheckBackupName: (repo: string, rawName: string) =>
     cast<BackupNameCheck>(DBService.DBCheckBackupName(repo, rawName)),
+
+  // Central per-server backups (app-data), addressed by directory.
+  dbServerBackupsDir: (serverId: string) =>
+    DBService.DBServerBackupsDir(serverId),
+  dbEnsureDir: (dir: string) => DBService.DBEnsureDir(dir),
+  dbListBackupsInDir: (dir: string) =>
+    cast<BackupEntry[]>(DBService.DBListBackupsInDir(dir)),
+  dbDeleteBackupInDir: (dir: string, path: string) =>
+    DBService.DBDeleteBackupInDir(dir, path),
+  dbCheckBackupNameInDir: (dir: string, rawName: string) =>
+    cast<BackupNameCheck>(DBService.DBCheckBackupNameInDir(dir, rawName)),
 
   fleetctlResolveBinary: (repo: string | null, settingsPath: string | null) =>
     cast<ResolvedBinary>(
@@ -265,7 +368,8 @@ export const api = {
     ),
 
   readLogWindow: (args: {
-    source: "fleet-serve" | "docker-compose" | "all";
+    // A log channel name (per-server `fleet-serve-<id>`), or "all".
+    source: string;
     since_ms: number;
     levels: string[];
     search?: string | null;
@@ -298,6 +402,6 @@ export const api = {
     cast<GitopsTargetCheck>(GitopsService.GitopsCheckTarget(dir, name)),
 
   updateTray: (state: TrayState) => TrayService.UpdateTray(state as never),
-  shutdownNow: (repoPath: string | null) =>
-    ProcessService.ShutdownNow(repoPath ?? ""),
+  shutdownNow: (targets: ComposeTarget[]) =>
+    ProcessService.ShutdownNow(targets as never),
 };

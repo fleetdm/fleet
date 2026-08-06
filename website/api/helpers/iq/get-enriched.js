@@ -327,7 +327,7 @@ module.exports = {
 
             locationInfo = await sails.helpers.ai.prompt.with({
               prompt: locationPrompt,
-              baseModel: 'gpt-5-nano-2025-08-07',
+              baseModel: 'claude-haiku-4-5',
               expectJson: true,
               systemPrompt: systemPromptForAddressInformation,
             }).tolerate((err)=>{
