@@ -13705,7 +13705,8 @@ Returns information about the specified Fleet-maintained app.
     "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
-    "software_title_id": 3
+    "software_title_id": 3,
+    "automatic_install_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.1password.1password';",
     "categories": ["Productivity"]
   }
 }
