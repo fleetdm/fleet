@@ -1,6 +1,6 @@
 // Package redis_config_etag implements the Redis-backed store for osquery
 // config ETags — the persistence half of the config "SHORT CIRCUIT" that lets
-// Fleet answer a config check-in with 304 Not Modified without building the
+// Fleet answer a config check-in as "unchanged" without building the
 // config (and therefore without any database reads).
 //
 // ██ READ THIS BEFORE CHANGING ANYTHING IN THIS PACKAGE ██████████████████████
@@ -42,7 +42,7 @@
 //     config FROM ITS STILL-STALE IN-MEMORY CACHES, computes the stale ETag,
 //     and writes it to Redis.
 //  4. The in-memory caches expire a minute later, but Redis now holds the
-//     stale ETag indefinitely. Every host presenting it gets 304 forever and
+//     stale ETag indefinitely. Every host presenting it is told "unchanged" forever and
 //     never receives the new config.
 //
 // The staleness originates at cache-FILL time, before the request arrives, so
@@ -479,7 +479,7 @@ func (s *Store) GetValidHost(ctx context.Context, hostID uint, scope, platform s
 
 	// The record is "<generation>|<scope>|<platform>|<etag>", written by
 	// SetHostIfNoFence. The generation is numeric, the scope is "global" or
-	// "team:<id>", and the ETag is a quoted SHA-256 hex string, so none of
+	// "team:<id>", and the ETag is a SHA-256 hex string, so none of
 	// the server-controlled fields can contain the separator. Platform is
 	// HOST-REPORTED data: if it ever contained '|', the SplitN below would
 	// misalign fields — which is SAFE (the scope/platform/gen comparisons
@@ -648,7 +648,7 @@ func (s *Store) gateSet(ctx context.Context, key, val string) error {
 // packs, caching the answer in Redis for gateStateTTL. On any error it
 // returns true — for this gate, "assume present" is the safe direction: it
 // bypasses the fast path (costing only performance), whereas a wrong "false"
-// could let a host 304 past a config change that never fires an invalidation
+// could let a host match past a config change that never fires an invalidation
 // event. Returns fleet.ErrConfigETagGateLoading (with present=true) when
 // another request on this instance is already loading — normal contention,
 // not a fault.
