@@ -1,5 +1,8 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
+import { Column } from "react-table";
+
+import { IHost } from "interfaces/host";
 
 import {
   generateAvailableTableHeaders,
@@ -36,6 +39,15 @@ describe("getPrimaryDeviceUser", () => {
     expect(suffixCount).toBe(3);
   });
 
+  it("treats `idp` and `mdm_idp_accounts` as equivalent primary sources", () => {
+    const { primaryEmail } = getPrimaryDeviceUser([
+      { email: "custom@acmecorp.com", source: "custom" },
+      { email: "chrome@acmecorp.com", source: "google_chrome_profiles" },
+      { email: "idp.user@acmecorp.com", source: "idp" },
+    ]);
+    expect(primaryEmail).toBe("idp.user@acmecorp.com");
+  });
+
   it("falls back to the first chrome profile email when no IdP email is present", () => {
     const { primaryEmail, suffixCount } = getPrimaryDeviceUser([
       { email: "custom1@acmecorp.com", source: "custom" },
@@ -65,7 +77,7 @@ describe("getPrimaryDeviceUser", () => {
     ]);
   });
 
-  it("caps tooltipLines at 5 entries, appending a '+N more' line for the remainder", () => {
+  it("shows the first 5 emails then a '+N more' line when the total exceeds the cap", () => {
     const users = Array.from({ length: 7 }, (_, i) => ({
       email: `user${i}@acmecorp.com`,
       source: "custom",
@@ -91,6 +103,20 @@ describe("getPrimaryDeviceUser", () => {
     expect(tooltipLines).toHaveLength(5);
     expect(tooltipLines.some((line) => line.includes("more"))).toBe(false);
   });
+
+  it("dedupes identical emails that appear under multiple sources", () => {
+    const { primaryEmail, suffixCount, tooltipLines } = getPrimaryDeviceUser([
+      { email: "shared@acmecorp.com", source: "mdm_idp_accounts" },
+      { email: "shared@acmecorp.com", source: "custom" },
+      { email: "chrome@acmecorp.com", source: "google_chrome_profiles" },
+    ]);
+    expect(primaryEmail).toBe("shared@acmecorp.com");
+    expect(suffixCount).toBe(1);
+    expect(tooltipLines).toEqual([
+      "shared@acmecorp.com",
+      "chrome@acmecorp.com",
+    ]);
+  });
 });
 
 describe("HostTableConfig - User email column", () => {
@@ -99,7 +125,9 @@ describe("HostTableConfig - User email column", () => {
       isFreeTier: false,
       isOnlyObserver: false,
     });
-    const column = columns.find((c) => c.id === "device_mapping") as any;
+    const column = columns.find(
+      (c) => (c as Column<IHost>).id === "device_mapping"
+    ) as Column<IHost> | undefined;
     if (!column) throw new Error("device_mapping column not found");
     return column;
   };
@@ -160,7 +188,9 @@ describe("HostTableConfig - Serial number column", () => {
     isOnlyObserver: false,
   });
 
-  const serialColumn = headers.find((h) => h.id === "hardware_serial") as any;
+  const serialColumn = headers.find(
+    (h) => (h as Column<IHost>).id === "hardware_serial"
+  ) as Column<IHost> | undefined;
 
   if (!serialColumn || typeof serialColumn.Cell !== "function") {
     throw new Error("hardware_serial column or Cell not found");

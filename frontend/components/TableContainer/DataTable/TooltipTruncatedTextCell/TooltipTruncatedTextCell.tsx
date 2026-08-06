@@ -50,15 +50,23 @@ const TooltipTruncatedTextCell = ({
   const ref = useRef<HTMLSpanElement>(null);
   const [tooltipDisabled, setTooltipDisabled] = useState(true);
 
+  // Key `prefix`/`suffix` on their presence so JSX callers don't churn the
+  // dep identity on every parent render.
+  const hasPrefix = Boolean(prefix);
+  const hasSuffix = Boolean(suffix);
+
   useLayoutEffect(() => {
     if (ref?.current !== null) {
       const scrollWidth = ref.current.scrollWidth;
       const offsetWidth = ref.current.offsetWidth;
       setTooltipDisabled(scrollWidth <= offsetWidth);
     }
-    // `ref` itself never changes identity, so re-measure whenever a prop
-    // that can affect the rendered text's width changes, not just on mount.
-  }, [value, prefix, suffix, justifySuffixEnd]);
+    // Re-measure whenever a prop that affects the rendered text's width
+    // changes. `value` is `React.ReactNode`, so a caller passing JSX creates
+    // a new reference on every parent render and this effect will re-run;
+    // `setTooltipDisabled` bails when the boolean is unchanged, so this is
+    // an extra layout read per row, not a re-render loop.
+  }, [value, hasPrefix, hasSuffix, justifySuffixEnd]);
   // End
 
   const tooltipId = uniqueId();

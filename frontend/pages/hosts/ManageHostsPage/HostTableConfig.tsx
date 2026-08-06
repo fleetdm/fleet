@@ -58,7 +58,9 @@ type ISelectionCellProps = CellProps<IHost>;
 type IIssuesCellProps = CellProps<IHost, IHost["issues"]>;
 type IDeviceUserCellProps = CellProps<IHost, IHost["device_mapping"]>;
 
-const MAX_USER_EMAILS_IN_TOOLTIP = 5;
+// Max number of individual email lines shown in the tooltip before the
+// remainder collapses into a single "+N more" line.
+const MAX_EMAILS_BEFORE_MORE_LINE = 5;
 
 interface IPrimaryDeviceUser {
   primaryEmail?: string;
@@ -71,10 +73,29 @@ const getPrimaryDeviceUser = (users: IDeviceUser[]): IPrimaryDeviceUser => {
     return { primaryEmail: undefined, suffixCount: 0, tooltipLines: [] };
   }
 
-  const idpUser = users.find((u) => u.source === "mdm_idp_accounts");
-  const chromeUser = users.find((u) => u.source === "google_chrome_profiles");
-  const primary = idpUser ?? chromeUser ?? users[0];
-  const suffixCount = users.length - 1;
+  // Defensive dedupe: the same address can appear under multiple `source`
+  // values (e.g. `mdm_idp_accounts` + `custom` if a user submits their IdP
+  // address via `PUT /hosts/{id}/device_mapping`). Keeping the first
+  // occurrence avoids double-counting in the "+N" badge and repeated lines
+  // in the tooltip.
+  const seen = new Set<string>();
+  const uniqueUsers = users.filter((u) => {
+    if (seen.has(u.email)) return false;
+    seen.add(u.email);
+    return true;
+  });
+
+  // Both `mdm_idp_accounts` (set at MDM enrollment) and `idp` (set via
+  // `PUT /hosts/{id}/device_mapping`) represent IdP-sourced identities and
+  // are treated as equivalent by the backend.
+  const idpUser = uniqueUsers.find(
+    (u) => u.source === "mdm_idp_accounts" || u.source === "idp"
+  );
+  const chromeUser = uniqueUsers.find(
+    (u) => u.source === "google_chrome_profiles"
+  );
+  const primary = idpUser ?? chromeUser ?? uniqueUsers[0];
+  const suffixCount = uniqueUsers.length - 1;
 
   // No other emails to surface in a tooltip, so leave tooltipLines empty.
   if (suffixCount === 0) {
@@ -83,10 +104,10 @@ const getPrimaryDeviceUser = (users: IDeviceUser[]): IPrimaryDeviceUser => {
 
   const orderedEmails = [
     primary.email,
-    ...users.filter((u) => u !== primary).map((u) => u.email),
+    ...uniqueUsers.filter((u) => u !== primary).map((u) => u.email),
   ];
-  const shown = orderedEmails.slice(0, MAX_USER_EMAILS_IN_TOOLTIP);
-  const remainder = orderedEmails.length - MAX_USER_EMAILS_IN_TOOLTIP;
+  const shown = orderedEmails.slice(0, MAX_EMAILS_BEFORE_MORE_LINE);
+  const remainder = orderedEmails.length - MAX_EMAILS_BEFORE_MORE_LINE;
 
   return {
     primaryEmail: primary.email,
