@@ -3945,13 +3945,16 @@ func TestSoftwareAdobePlugins(t *testing.T) {
 	// No scan_level constraint, so the table's default (standard) scan level is used.
 	require.NotContains(t, softwareAdobePlugins.Query, "scan_level")
 
-	// extension_for stays empty. host_application lists the Adobe applications from the
-	// plugin's manifest, so it changes when the plugin gains or drops support for one, and a
-	// changed extension_for under an unchanged bundle identifier can't get its own software
-	// title: software_titles has a unique key on (bundle_identifier, additional_identifier)
-	// that ignores extension_for, so the title insert is dropped and the software row is left
-	// without a title. The Type column never shows the host application either way.
+	// bundle_identifier and extension_for stay empty, and the plugin's bundle id goes in
+	// extension_id, which is not part of a software title's identity. Storing either of the
+	// other two puts plugin titles on keys they can collide with (a macOS app with the same
+	// bundle id, the extension directory name when the manifest can't be read, or a manifest
+	// that changes which applications it supports), and a dropped title leaves the software
+	// row with no title at all.
+	require.Contains(t, softwareAdobePlugins.Query, "'' AS bundle_identifier")
+	require.Contains(t, softwareAdobePlugins.Query, "bundle_id AS extension_id")
 	require.Contains(t, softwareAdobePlugins.Query, "'' AS extension_for")
+	require.NotContains(t, softwareAdobePlugins.Query, "bundle_id AS bundle_identifier")
 	require.NotContains(t, softwareAdobePlugins.Query, "host_application")
 }
 
@@ -3966,8 +3969,8 @@ func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
 	withManifest := map[string]string{
 		"name":              "Artisan Pro X",
 		"version":           "1.3.3",
-		"bundle_identifier": "com.vendorx.artisanprox",
-		"extension_id":      "",
+		"bundle_identifier": "",
+		"extension_id":      "com.vendorx.artisanprox",
 		"extension_for":     "",
 		"source":            "adobe_plugins",
 		"vendor":            "VendorX",
@@ -4005,11 +4008,11 @@ func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
 
 	require.Equal(t, []fleet.Software{
 		{
-			Name:             "Artisan Pro X",
-			Version:          "1.3.3",
-			Source:           "adobe_plugins",
-			Vendor:           "VendorX",
-			BundleIdentifier: "com.vendorx.artisanprox",
+			Name:        "Artisan Pro X",
+			Version:     "1.3.3",
+			Source:      "adobe_plugins",
+			Vendor:      "VendorX",
+			ExtensionID: "com.vendorx.artisanprox",
 		},
 		{
 			Name:   "com.vendory.colorizer",

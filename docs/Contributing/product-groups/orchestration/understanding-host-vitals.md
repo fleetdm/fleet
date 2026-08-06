@@ -687,8 +687,8 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT
   name,
   version,
-  bundle_id AS bundle_identifier,
-  '' AS extension_id,
+  '' AS bundle_identifier,
+  bundle_id AS extension_id,
   '' AS extension_for,
   'adobe_plugins' AS source,
   vendor,

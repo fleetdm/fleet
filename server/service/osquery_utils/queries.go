@@ -1193,22 +1193,32 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 // deep scan level additionally reports native plug-ins, which have no manifest and thus
 // no version.
 //
-// extension_for is intentionally left empty rather than carrying the table's
-// host_application. That column lists the Adobe applications from the plugin's manifest, so
-// it changes when a plugin gains or drops support for an application, while the plugin keeps
-// its bundle identifier. extension_for is part of a software title's identity, but
-// software_titles also has a unique key on (bundle_identifier, additional_identifier) that
-// ignores it, so a changed value cannot get a title of its own: the INSERT IGNORE is dropped
-// and the software row ends up with no title at all. The Type column shows a flat
-// "Plugin (Adobe)" and never displays the host application, so nothing is lost by not
-// storing it.
+// Neither bundle_identifier nor extension_for is stored, following vscode_extensions and
+// jetbrains_plugins: the plugin's bundle id goes in extension_id instead, which is not part of
+// a software title's identity.
+//
+// software_titles keys titles on (unique_identifier, source, extension_for) and on
+// (bundle_identifier, additional_identifier), where unique_identifier falls back to the name
+// and additional_identifier is 0 for every source except ios_apps and ipados_apps. Storing the
+// bundle id or the manifest's host applications therefore puts plugin titles on keys they can
+// collide with:
+//   - a plugin sharing a bundle id with a macOS app, which is keyed the same way;
+//   - a plugin whose extension directory name matches its own bundle id, on a host where the
+//     manifest can't be read and fleetd falls back to the directory name;
+//   - a plugin whose manifest changes which applications it supports, since host_application
+//     changes while the bundle id stays the same.
+//
+// Every one of those drops the title's INSERT IGNORE and leaves the software row with no title
+// at all: invisible on the Software page, and an error logged on every check-in. Nothing
+// user-facing is lost, because the Type column shows a flat "Plugin (Adobe)" and never displays
+// the host application.
 var softwareAdobePlugins = DetailQuery{
 	Query: `
 SELECT
   name,
   version,
-  bundle_id AS bundle_identifier,
-  '' AS extension_id,
+  '' AS bundle_identifier,
+  bundle_id AS extension_id,
   '' AS extension_for,
   'adobe_plugins' AS source,
   vendor,

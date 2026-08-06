@@ -2654,14 +2654,15 @@ func (a *agent) adobePluginsExtensionsDir() string {
 }
 
 // adobePlugin returns one plugin with a readable manifest, with the columns of the
-// software_adobe_plugins detail query. dirName is the extension's directory name.
-// extension_for is always empty, as the detail query reports it.
+// software_adobe_plugins detail query. dirName is the extension's directory name, which is
+// also its bundle id. bundle_identifier and extension_for are always empty, and the bundle id
+// is reported as extension_id, as the detail query reports them.
 func (a *agent) adobePlugin(name, dirName, baseVersion, alternateVersion string) map[string]string {
 	return map[string]string{
 		"name":              name,
 		"version":           a.selectSoftwareVersion(name, baseVersion, alternateVersion),
-		"bundle_identifier": dirName,
-		"extension_id":      "",
+		"bundle_identifier": "",
+		"extension_id":      dirName,
 		"extension_for":     "",
 		"source":            "adobe_plugins",
 		"vendor":            "Fleet Test Vendor",
@@ -2685,7 +2686,7 @@ func (a *agent) softwareAdobePlugins() []map[string]string {
 			commonPlugins[i]["name"] = dirName
 			commonPlugins[i]["version"] = ""
 			commonPlugins[i]["vendor"] = ""
-			commonPlugins[i]["bundle_identifier"] = ""
+			commonPlugins[i]["extension_id"] = ""
 		}
 	}
 	if a.softwareAdobePluginsCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareAdobePluginsCount.commonSoftwareUninstallProb {

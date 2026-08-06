@@ -4216,8 +4216,8 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 	artisanAdobePlugin := map[string]string{
 		"name":              "Artisan Pro X",
 		"version":           "1.3.3",
-		"bundle_identifier": "com.vendorx.artisanprox",
-		"extension_id":      "",
+		"bundle_identifier": "",
+		"extension_id":      "com.vendorx.artisanprox",
 		"extension_for":     "",
 		"source":            "adobe_plugins",
 		"vendor":            "VendorX",
@@ -4227,8 +4227,8 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 	colorizerAdobePlugin := map[string]string{
 		"name":              "Colorizer",
 		"version":           "2.0.1",
-		"bundle_identifier": "com.vendory.colorizer",
-		"extension_id":      "",
+		"bundle_identifier": "",
+		"extension_id":      "com.vendory.colorizer",
 		"extension_for":     "",
 		"source":            "adobe_plugins",
 		"vendor":            "VendorY",
