@@ -156,6 +156,59 @@ func TestGetUserSessionEnvNoMatchingSession(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestPreferLocalDisplay(t *testing.T) {
+	testCases := []struct {
+		name     string
+		displays []string
+		expected string
+	}{
+		{
+			name:     "local only",
+			displays: []string{":0"},
+			expected: ":0",
+		},
+		{
+			// A user with an `ssh -X` session open has processes on a forwarded
+			// display; the desktop session is the one to launch into.
+			name:     "forwarded found before local",
+			displays: []string{"localhost:10.0", ":0"},
+			expected: ":0",
+		},
+		{
+			name:     "local found before forwarded",
+			displays: []string{":0", "localhost:10.0"},
+			expected: ":0",
+		},
+		{
+			name:     "host qualified forwarded display",
+			displays: []string{"myhost.example.com:10.0", ":1"},
+			expected: ":1",
+		},
+		{
+			name:     "local display with a screen",
+			displays: []string{"localhost:10.0", ":0.0"},
+			expected: ":0.0",
+		},
+		{
+			// Fall back to whatever is available, as before.
+			name:     "forwarded only",
+			displays: []string{"localhost:11.0", "localhost:10.0"},
+			expected: "localhost:11.0",
+		},
+		{
+			name:     "none",
+			displays: nil,
+			expected: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, preferLocalDisplay(tc.displays))
+		})
+	}
+}
+
 func TestWithXDGDataDirs(t *testing.T) {
 	testCases := []struct {
 		name     string

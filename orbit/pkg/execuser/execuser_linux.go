@@ -413,29 +413,49 @@ func getUserSessionEnv(userID, displayVar, display string) (map[string]string, e
 	return nil, fmt.Errorf("no process on %s=%s found for user %s", displayVar, display, userID)
 }
 
-// getUserX11Display returns the value to set on DISPLAY for the given user.
+// getUserX11Display returns the value to set on DISPLAY for the given user,
+// collected from the user's processes.
 func getUserX11Display(userID string) (string, error) {
-	return getUserEnvFromProc(userID, "DISPLAY")
-}
-
-// getUserEnvFromProc scans the given user's processes for one that has envVar
-// set in its environment, and returns its value.
-func getUserEnvFromProc(userID string, envVar string) (string, error) {
 	pids, err := userProcPIDs(userID)
 	if err != nil {
 		return "", err
 	}
 
+	var displays []string
 	for _, pid := range pids {
-		value, err := readEnvFromProc(pid, envVar)
-		if err != nil || value == "" {
+		display, err := readEnvFromProc(pid, "DISPLAY")
+		if err != nil || display == "" {
 			continue
 		}
-		log.Debug().Msgf("found %s variable in %q", envVar, pid)
-		return value, nil
+		log.Debug().Msgf("found DISPLAY variable %q in %q", display, pid)
+		displays = append(displays, display)
 	}
 
-	return "", fmt.Errorf("%s not found in any process for user %s", envVar, userID)
+	if display := preferLocalDisplay(displays); display != "" {
+		return display, nil
+	}
+
+	return "", fmt.Errorf("DISPLAY not found in any process for user %s", userID)
+}
+
+// preferLocalDisplay picks which DISPLAY to use out of the values found across
+// the user's processes.
+//
+// A user can have processes on more than one display: an `ssh -X` session sets a
+// forwarded one such as "localhost:10.0", which is not the desktop session we
+// want to launch into. Local displays omit the host part (":0"), so they are
+// preferred. A forwarded value is still returned when it is the only one, which
+// preserves the previous behavior of using whatever was available.
+func preferLocalDisplay(displays []string) string {
+	for _, display := range displays {
+		if strings.HasPrefix(display, ":") {
+			return display
+		}
+	}
+	if len(displays) > 0 {
+		return displays[0]
+	}
+	return ""
 }
 
 // userProcPIDs returns the PIDs of the processes owned by the given user.
