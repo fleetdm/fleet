@@ -7301,7 +7301,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 
 		activations = append(activations, fleet.MDMAppleDDMManifest{
 			Identifier:  act.Identifier,
-			ServerToken: act.Token,
+			ServerToken: fleet.EffectiveDDMToken(act.Token, in.item.VariablesUpdatedAt, nil, nil),
 		})
 	}
 
@@ -7529,9 +7529,10 @@ func (svc *MDMAppleDDMService) serveCustomActivation(ctx context.Context, act *f
 	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored activation")
 	}
+	// Must match what handleDeclarationItems advertised for this activation.
 	serverToken := effectiveToken
 	if act.ActivationToken != nil {
-		serverToken = *act.ActivationToken
+		serverToken = fleet.EffectiveDDMToken(*act.ActivationToken, act.VariablesUpdatedAt, nil, nil)
 	}
 	tempd["ServerToken"] = serverToken
 

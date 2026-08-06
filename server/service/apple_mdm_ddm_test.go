@@ -894,6 +894,54 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 			"the served activation token must match the manifest")
 	})
 
+	t.Run("ActivationTokenFoldsInVariablesUpdatedAt", func(t *testing.T) {
+		hostUUID, hardwareSerial := "test-host-uuid-acttok2", "ACT-TOK2"
+		createHost(t, hostUUID, hardwareSerial)
+		setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+
+		teamID := uint(45)
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Name:       "ActTokDecl",
+			Identifier: "com.example.acttok",
+			TeamID:     &teamID,
+			RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.acttok","Payload":{"Enabled":true}}`),
+			Scope:      fleet.PayloadScopeSystem,
+			Activation: &fleet.MDMAppleCustomActivation{
+				Identifier:              "com.example.acttok.act",
+				RawJSON:                 []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.example.acttok.act","Payload":{"StandardConfigurations":["com.example.acttok"]}}`),
+				ConfigurationIdentifier: "com.example.acttok",
+			},
+		}, nil)
+		require.NoError(t, err)
+		insertHostDeclaration(t, hostUUID, decl.DeclarationUUID, "pending", "install", decl.Identifier)
+
+		before := callDeclarativeManagementAndVerify(t, hostUUID, 1, 1).Declarations.Activations[0].ServerToken
+
+		// A variable's value changing bumps variables_updated_at. The activation
+		// is expanded per host, so its token has to move too -- otherwise the host
+		// re-syncs, re-fetches the configuration, and keeps the stale activation.
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_mdm_apple_declarations SET variables_updated_at = ? WHERE host_uuid = ? AND declaration_uuid = ?`,
+				time.Now().UTC(), hostUUID, decl.DeclarationUUID)
+			return err
+		})
+
+		after := callDeclarativeManagementAndVerify(t, hostUUID, 1, 1).Declarations.Activations[0].ServerToken
+		require.NotEqual(t, before, after, "the activation token must change when variables_updated_at does")
+
+		// Delivery has to agree with the new advertised token.
+		req := mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: hostUUID}}
+		dm := mdm.DeclarativeManagement{}
+		dm.UDID = hostUUID
+		dm.Endpoint = "declaration/activation/com.example.acttok.act"
+		served, err := ddmService.DeclarativeManagement(&req, &dm)
+		require.NoError(t, err)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(served, &body))
+		require.Equal(t, after, body["ServerToken"])
+	})
+
 	t.Run("ActivationVariablesCheckedWhenDeclarationHasNone", func(t *testing.T) {
 		hostUUID, hardwareSerial := "test-host-uuid-actvar", "ACT-VAR"
 		createHost(t, hostUUID, hardwareSerial)
@@ -1169,7 +1217,7 @@ func TestDeclarativeManagementOSUpdatesPendingThenResolved(t *testing.T) {
 
 	// === Phase 1: target not ready -> pending with detail, excluded from manifest ===
 
-	body, err := svc.handleConfigurationDeclaration(ctx, configParts, hostUUID, fleet.PayloadScopeSystem)
+	body, err := svc.handleConfigurationDeclaration(ctx, configParts, hostUUID, fleet.PayloadScopeSystem, false)
 	require.NoError(t, err)
 	require.Nil(t, body, "an unresolvable declaration is served as an empty 200")
 
@@ -1208,7 +1256,7 @@ func TestDeclarativeManagementOSUpdatesPendingThenResolved(t *testing.T) {
 
 	// === Phase 3: the declaration now resolves and is served with concrete values ===
 
-	body, err = svc.handleConfigurationDeclaration(ctx, configParts, hostUUID, fleet.PayloadScopeSystem)
+	body, err = svc.handleConfigurationDeclaration(ctx, configParts, hostUUID, fleet.PayloadScopeSystem, false)
 	require.NoError(t, err)
 	require.NotNil(t, body)
 	require.NotContains(t, string(body), "$FLEET_VAR")

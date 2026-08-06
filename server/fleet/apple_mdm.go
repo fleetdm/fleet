@@ -1315,7 +1315,7 @@ type MDMAppleDDMDeclarationItem struct {
 	// ServerToken field is just for the static token of the DDM.
 	AssetsUpdatedAt     *time.Time `db:"assets_updated_at"`
 	ActivationUpdatedAt *time.Time `db:"activation_updated_at"`
-	DeclarationType *string `db:"declaration_type"`
+	DeclarationType     *string    `db:"declaration_type"`
 	// RawJSON is conditionally loaded only for declarations that use Fleet
 	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
 	// so that handleDeclarationItems can check variable resolution without an
