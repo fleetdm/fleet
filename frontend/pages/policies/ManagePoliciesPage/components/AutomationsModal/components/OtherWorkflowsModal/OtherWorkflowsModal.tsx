@@ -293,7 +293,6 @@ const OtherWorkflowsModal = forwardRef<
             showText="Show example ticket"
             caretPosition="after"
             onClick={() => setShowExampleTicket(!showExampleTicket)}
-            variant="secondary"
           />
           {showExampleTicket && (
             <ExampleTicket
@@ -377,7 +376,6 @@ const OtherWorkflowsModal = forwardRef<
               showText="Example payload"
               caretPosition="after"
               onClick={() => setShowExamplePayload(!showExamplePayload)}
-              variant="secondary"
             />
             {showExamplePayload && <ExamplePayload />}
           </>

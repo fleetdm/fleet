@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mocksoftware "github.com/fleetdm/fleet/v4/server/mock/software"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
@@ -370,6 +371,71 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
 
 	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
+}
+
+// TestAddFleetMaintainedAppReconcilesWindowsTitles covers the wiring, not the merge
+// itself: adding a maintained app must kick the Windows title reconcile so software
+// already inventoried under a versioned title picks up the installer straight away
+// rather than waiting for the periodic pass.
+func TestAddFleetMaintainedAppReconcilesWindowsTitles(t *testing.T) {
+	installerBytes := []byte("abc")
+
+	ds := new(mock.Store)
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID: 1, Name: "Internet Exploder", Slug: "iexplode/windows",
+			Platform: "windows", UniqueIdentifier: "Internet Exploder",
+		}, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.MatchOrCreateSoftwareInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, uint, error) {
+		return 1, 42, nil
+	}
+	ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(ctx context.Context) error { return nil }
+
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(installerBytes)
+	}))
+	defer installerServer.Close()
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		manifest := ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            "6.0",
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installerServer.URL + "/iexplode.exe",
+				InstallScriptRef:   "foobaz",
+				UninstallScriptRef: "foobaz",
+				SHA256:             noCheckHash,
+			}},
+			Refs: map[string]string{"foobaz": "Hello World!"},
+		}
+		_ = json.NewEncoder(w).Encode(manifest)
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	svc := newTestService(t, ds)
+	// Fail at the storage step, which runs just after the reconcile, so the call returns
+	// before NewActivity needs a fully wired service.
+	svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(context.Context, string) (bool, error) {
+			return false, errors.New("forced error to short-circuit storage and activity creation")
+		},
+	}
+
+	ctx := authz_ctx.NewContext(context.Background(), &authz_ctx.AuthorizationContext{})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	_, err := svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil, nil)
+	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
+
+	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
+	require.True(t, ds.ReconcileWindowsMaintainedAppSoftwareTitlesFuncInvoked,
+		"adding a Windows maintained app must reconcile Windows software titles")
 }
 
 func TestAddFleetMaintainedAppFleetVariables(t *testing.T) {

@@ -237,7 +237,6 @@ const DiskEncryption = ({
             hideText="Advanced options"
             caretPosition="after"
             onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-            variant="secondary"
           />
           {showAdvancedOptions && (
             <Checkbox

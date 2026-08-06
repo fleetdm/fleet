@@ -42,7 +42,7 @@
 
   &__action-button-container {
     display: flex;
-    gap: $pad-small;
+    gap: $gap-action-elements;
   }
 
   .queries-table {
@@ -94,10 +94,6 @@
           tbody {
             .name__cell {
               width: auto;
-
-              .inherited-badge {
-                overflow: initial;
-              }
             }
 
             @media (max-width: $break-md) {

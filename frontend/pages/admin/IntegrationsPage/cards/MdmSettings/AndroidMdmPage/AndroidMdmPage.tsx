@@ -202,7 +202,7 @@ const TurnOffAndroidMdm = ({ onClickTurnOff }: ITurnOffAndroidMdmProps) => {
               </>
             }
           >
-            Android Enterprise Id
+            Android Enterprise ID
           </TooltipWrapper>
         }
         value={data.android_enterprise_id}

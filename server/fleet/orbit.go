@@ -55,6 +55,11 @@ type OrbitConfigNotifications struct {
 	// during macOS Setup Assistant.
 	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
 
+	// CreateWindowsManagedLocalAccount tells fleetd on Windows to create the hidden managed local admin account and escrow its password.
+	// Set for any Windows MDM host whose fleet has the setting enabled, not only during OOBE, for hosts whose fleetd advertises
+	// CapabilityWindowsManagedLocalAccount, and until the host has escrowed a password for its current enrollment.
+	CreateWindowsManagedLocalAccount bool `json:"create_windows_managed_local_account,omitempty"`
+
 	// RunDiskEncryptionEscrow tells Orbit to prompt the end user to escrow disk
 	// encryption data for Linux platforms where disk encryption is supported,
 	// see EnforceBitLockerEncryption for Windows and RotateDiskEncryptionKey

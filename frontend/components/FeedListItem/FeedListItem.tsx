@@ -88,9 +88,8 @@ const FeedListItem = ({
               variant="subdued"
               onClick={onClickFeedItem}
               ariaLabel="show info"
-            >
-              <Icon name="info-outline" />
-            </Button>
+              icon="info-outline"
+            />
           )}
           {allowCancel && (
             <Button
