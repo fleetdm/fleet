@@ -6173,7 +6173,7 @@ Note that if the host is online and the query times out, this endpoint will retu
 
 ### Run live report on host by identifier (ad hoc)
 
-Runs an ad hoc live report against a host identified using `uuid` and responds with the results.
+Runs an ad hoc live report against a host, specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier, and responds with the results.
 
 The live report will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
