@@ -856,8 +856,15 @@ const modifyOptions = (
           </>
         );
       } else if (managedAccountStatus === "failed") {
-        // The reason the host reported is the actionable part, so prefer it over generic copy.
-        managedAccountOption.tooltipContent = managedAccountDetail || (
+        // The reason the host reported is the actionable part, so prefer it over generic copy. Only
+        // the Windows path reports one; the fallback is macOS, where a failed AccountConfiguration
+        // command genuinely does wait for the next enrollment. The reason runs to a few sentences,
+        // and dropdown tooltips are centered by default, so it opts out of that.
+        managedAccountOption.tooltipContent = managedAccountDetail ? (
+          <span className="host-actions-dropdown__managed-account-error">
+            {managedAccountDetail}
+          </span>
+        ) : (
           <>
             The managed account failed to be
             <br />

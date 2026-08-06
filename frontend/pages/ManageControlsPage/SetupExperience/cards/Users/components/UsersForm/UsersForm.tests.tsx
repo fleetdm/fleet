@@ -158,17 +158,29 @@ describe("UsersForm", () => {
   });
 
   describe("platform tabs", () => {
-    it("hides the Windows tab when Windows MDM is not enabled and configured", () => {
-      renderWithMdmEnabled(<UsersForm {...defaultProps} />);
+    // The Windows tab is always offered, matching macOS: hiding it would leave an admin with no way
+    // to discover the setting. Turning Windows MDM on is what unlocks the checkbox.
+    it("keeps the Windows tab but disables the checkbox when Windows MDM is not configured", async () => {
+      const { user } = renderWithMdmEnabled(<UsersForm {...defaultProps} />);
       expect(screen.getByRole("tab", { name: "macOS" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("tab", { name: "Windows" }));
+
+      // The Checkbox renders a div with role="checkbox", so aria-disabled is the disabled signal.
       expect(
-        screen.queryByRole("tab", { name: "Windows" })
-      ).not.toBeInTheDocument();
+        screen.getByRole("checkbox", { name: "Create hidden admin" })
+      ).toHaveAttribute("aria-disabled", "true");
     });
 
-    it("shows the Windows tab when Windows MDM is enabled and configured", () => {
-      renderWithWindowsMdmEnabled(<UsersForm {...defaultProps} />);
-      expect(screen.getByRole("tab", { name: "Windows" })).toBeInTheDocument();
+    it("enables the checkbox when Windows MDM is enabled and configured", async () => {
+      const { user } = renderWithWindowsMdmEnabled(
+        <UsersForm {...defaultProps} />
+      );
+      await user.click(screen.getByRole("tab", { name: "Windows" }));
+
+      expect(
+        screen.getByRole("checkbox", { name: "Create hidden admin" })
+      ).toHaveAttribute("aria-disabled", "false");
     });
 
     // Which section each tab renders. The sections' own contents are their components' concern, so this only pins the wiring.
