@@ -93,6 +93,11 @@ export interface IMdmConfig {
   macos_setup?: {
     enable_managed_local_account?: boolean;
   };
+  windows_settings?: {
+    managed_local_account_settings?: {
+      enabled?: boolean;
+    };
+  };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
     deadline_days: number | null;
@@ -250,6 +255,7 @@ export interface IConfig {
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;
+  max_software_package_size: number;
 }
 
 interface IFleetPartnerships {

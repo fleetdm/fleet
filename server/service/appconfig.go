@@ -59,6 +59,8 @@ type appConfigResponseFields struct {
 	SandboxEnabled bool                `json:"sandbox_enabled,omitempty"`
 	Err            error               `json:"error,omitempty"`
 	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
+	// Maximum software package size is loaded from the service.
+	MaxSoftwarePackageSize int64 `json:"max_software_package_size"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -230,13 +232,14 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			ConditionalAccess: appConfig.ConditionalAccess,
 		},
 		appConfigResponseFields: appConfigResponseFields{
-			UpdateInterval:  updateIntervalConfig,
-			Vulnerabilities: vulnConfig,
-			License:         lic,
-			Logging:         loggingConfig,
-			Email:           emailConfig,
-			SandboxEnabled:  svc.SandboxEnabled(),
-			Partnerships:    partnerships,
+			UpdateInterval:         updateIntervalConfig,
+			Vulnerabilities:        vulnConfig,
+			License:                lic,
+			Logging:                loggingConfig,
+			Email:                  emailConfig,
+			SandboxEnabled:         svc.SandboxEnabled(),
+			Partnerships:           partnerships,
+			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
 		},
 	}
 	return response, nil
@@ -349,8 +352,9 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	response := appConfigResponse{
 		AppConfig: *appConfig,
 		appConfigResponseFields: appConfigResponseFields{
-			License: lic,
-			Logging: loggingConfig,
+			License:                lic,
+			Logging:                loggingConfig,
+			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
 		},
 	}
 
@@ -3032,4 +3036,8 @@ func isValidHostname(h string) bool {
 	}
 
 	return true
+}
+
+func (svc *Service) MaxInstallerSizeBytes() int64 {
+	return svc.config.Server.MaxInstallerSizeBytes
 }

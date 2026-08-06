@@ -72,6 +72,7 @@ const (
 	CronAppleMDMWorker                          CronScheduleName = "apple_mdm_worker"
 	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
 	CronCleanupExpiredADUEChallenges            CronScheduleName = "cleanup_expired_adue_challenges"
+	CronAppleMDMOSUpdatesSchedule               CronScheduleName = "apple_mdm_os_updates"
 )
 
 type CronSchedulesService interface {

@@ -547,6 +547,8 @@ type Service interface {
 	AppConfigObfuscated(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
+	// MaxInstallerSizeBytes returns the configured maximum size for software installer uploads.
+	MaxInstallerSizeBytes() int64
 	AppConfigUrls(ctx context.Context) (urls *AppConfigUrls, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.

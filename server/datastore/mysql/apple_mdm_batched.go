@@ -206,13 +206,14 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 	}
 
 	// Load label assignments, joining labels to get membership type and
-	// label creation time (needed by the exclude-any handler).
+	// label creation time (needed by the include-all and exclude-any
+	// handlers' unknown-membership rule).
 	//
 	// Do not COALESCE label_created_at to a string literal — MySQL would
 	// coerce the result column to VARCHAR and the driver returns []uint8,
-	// which sql.NullTime cannot scan. The exclude-any handler already
-	// treats a zero CreatedAt as "no timing check", which is the natural
-	// outcome of a NULL → invalid NullTime → zero time.Time.
+	// which sql.NullTime cannot scan. The handlers already treat a zero
+	// CreatedAt as "no timing check", which is the natural outcome of a
+	// NULL → invalid NullTime → zero time.Time.
 	//
 	// When teamID is set we restrict the label rows to the profile UUIDs
 	// we just loaded — the WHERE IN clause is on the same set so the
