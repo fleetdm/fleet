@@ -86,6 +86,16 @@ describe("parseFile", () => {
     expect(result.isAppleDeclaration).toBe(false);
   });
 
+  it("rejects an array Payload, which typeof reports as an object", async () => {
+    const result = await parseFile(
+      jsonFile(
+        JSON.stringify({ Type: "com.apple.configuration.x", Payload: [] })
+      )
+    );
+
+    expect(result.isAppleDeclaration).toBe(false);
+  });
+
   it("rejects mixed casing, which the backend won't accept as either type", async () => {
     const result = await parseFile(
       jsonFile(

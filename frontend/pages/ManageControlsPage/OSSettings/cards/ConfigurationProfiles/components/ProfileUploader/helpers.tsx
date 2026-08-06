@@ -75,7 +75,13 @@ const parseAppleDeclaration = async (
     return NOT_A_DECLARATION;
   }
 
-  if (typeof contents.Payload !== "object" || contents.Payload === null) {
+  // arrays need excluding here too, for the same reason as the parsed value
+  // above.
+  if (
+    typeof contents.Payload !== "object" ||
+    contents.Payload === null ||
+    Array.isArray(contents.Payload)
+  ) {
     return NOT_A_DECLARATION;
   }
 
