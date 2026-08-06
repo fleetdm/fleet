@@ -1,0 +1,1 @@
+- Added the `s3_software_installers_signed_url` configuration option to serve software installer and in-house app downloads via GCS presigned URLs (the GCS counterpart to CloudFront URL signing), so clients download directly from object storage instead of streaming through the Fleet server.
