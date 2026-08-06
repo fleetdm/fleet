@@ -10,7 +10,7 @@ import {
 } from "pages/SoftwarePage/helpers";
 import { ensurePeriod } from "pages/SoftwarePage/SoftwareAddPage/helpers";
 
-const EDIT_SOFTWARE_ERROR_PREFIX = "Couldn't edit software.";
+export const EDIT_SOFTWARE_ERROR_PREFIX = "Couldn't edit software.";
 const DEFAULT_ERROR_MESSAGE = `${EDIT_SOFTWARE_ERROR_PREFIX} Please try again.`;
 
 // eslint-disable-next-line import/prefer-default-export

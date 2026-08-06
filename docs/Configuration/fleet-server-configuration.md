@@ -3708,22 +3708,24 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
 
-### mdm.enable_custom_filevault
+### mdm.enable_custom_disk_encryption
 
-> `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Custom OS updates will be enabled for all, for FileVault you can use `mdm.enable_custom_filevault` instead. When set to `true`, it enables both custom OS update and FileVault profiles (equivalent to setting both replacement options to `true`). Maintained for backwards compatibility.
+> `mdm.enable_custom_filevault` is deprecated as of Fleet 4.90.0 and `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Both are maintained for backwards compatibility. Please use `mdm.enable_custom_disk_encryption` instead. As of Fleet 4.87.0, custom OS updates are enabled by default.
 
 *Available in Fleet Premium.*
 
-Allows users to add custom Apple MDM profiles for FileVault management, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles
+For macOS, allows users to add custom macOS [configuration profiles](https://fleetdm.com/guides/custom-os-settings) for FileVault, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles.
 
-> Enabling this option may cause conflicts between your custom FileVault configuration profiles and the profiles Fleet manages under the hood for disk encryption.
+For Windows, allows users to add custom Windows profiles for BitLocker.
+
+> Enabling this option may cause conflicts between your custom disk encryption configuration profiles and the profiles Fleet manages under the hood when [Fleet's disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) is enabled.
 
 - Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_FILEVAULT`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_DISK_ENCRYPTION`
 - Config file format:
   ```yaml
   mdm:
-    enable_custom_filevault: false
+    enable_custom_disk_encryption: false
   ```
 
 ### mdm.allow_all_declarations
