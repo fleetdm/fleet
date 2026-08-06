@@ -6,6 +6,29 @@ Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-f
 
 > Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
 
+## custom_host_vitals
+
+[Custom host vitals](https://fleetdm.com/guides/custom-host-vitals) are global and can only be specified inline in your `default.yml` file. They cannot be specified in `fleets/fleet-name.yml` or `fleets/unassigned.yml`.
+
+- `name` specifies the vital's name. Must be unique across all custom host vitals.
+
+Each vital is assigned an ID by Fleet when it's created, which isn't set in YAML. Find it in the Custom host vitals table in the Fleet UI to reference the vital as `$FLEET_HOST_VITAL_<id>` in scripts and configuration profiles, or as `custom_host_vital_id` in a [Host vitals label](#labels)'s `criteria`.
+
+> `custom_host_vitals` is an optional key, but unlike `labels`, omitting it entirely deletes every existing custom host vital. To keep existing vitals, list them.
+>
+> Removing an entry deletes that vital on the next GitOps run. A run fails if the vital is still referenced by a script, configuration profile, or Host vitals label. Remove the reference first.
+
+### Example
+
+`default.yml`
+
+```yaml
+custom_host_vitals:
+  - name: Asset tag
+  - name: Function
+  - name: ITAM device ID
+```
+
 ## labels
 
 Labels can be specified in your `default.yml` and `fleets/fleet-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Labels cannot be specified in `fleets/unassigned.yml`.
@@ -19,13 +42,17 @@ Labels support `path:` (single file) and `paths:` (glob pattern) references. See
 - `label_membership_type` specifies label type which determines how hosts are added to the label. Choices for type are `dynamic` , `manual`, and `host_vitals` (default: `dynamic`).
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
 - `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`. If omitted, existing host membership is preserved (no changes). If provided but empty, all hosts are removed from the label.
-- `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
+- `criteria` is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. To match on a [custom host vital](https://fleetdm.com/guides/custom-host-vitals), set `vital` to `custom_host_vital` and also specify `custom_host_vital_id`. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
 
 Only one of `query`, `hosts`, or `criteria` can be specified. If none are specified, a manual label with no hosts will be created.
 
 The `hostname` host identifier is deprecated. Please use a host's `id`, `hardware_serial`, or `uuid` instead.
 
-> `labels` is an optional key: if included in `default.yml`, existing global labels not listed will be deleted. If included in `fleets/fleet-name.yml`, the fleet's existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
+> `labels` is an optional key. Its behavior depends on the labels exception in **Settings** > **Integrations** > **Change management**.
+>
+> When the labels exception is disabled, labels are managed in git. If `labels` is included in `default.yml`, existing global labels not listed will be deleted. If included in `fleets/fleet-name.yml`, the fleet's existing labels not listed will be deleted. Omitting the `labels` key also deletes that file's existing labels. The Fleet UI prevents creating and editing labels while [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) is enabled.
+>
+> When the labels exception is enabled, labels are managed outside of git. `fleetctl gitops` leaves existing labels intact, and fails if a YAML file includes a `labels` key. The Fleet UI allows creating and editing labels, even while GitOps mode is enabled. Learn more in the [GitOps mode guide](https://fleetdm.com/guides/gitops-mode).
 >
 > Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [reports](https://fleetdm.com/docs/configuration/yaml-files#reports) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
 
@@ -54,6 +81,13 @@ labels:
     criteria:
       vital: end_user_idp_department
       value: Engineering
+  - name: Point of sale terminals
+    description: Hosts whose "Function" custom host vital is set to "Point of sale"
+    label_membership_type: host_vitals
+    criteria:
+      vital: custom_host_vital
+      custom_host_vital_id: 2
+      value: Point of sale
 ```
 
 #### Separate file
@@ -855,6 +889,8 @@ The `gitops` section allows configuring [GitOps mode](https://fleetdm.com/learn-
 - `repository_url` (default: `""`) — the URL of the GitOps repository that manages this Fleet. Must be a valid `http://` or `https://` URL. Required when `gitops_mode_enabled: true`.
 
 Can only be configured for "All fleets" (`org_settings`).
+
+> GitOps mode exceptions for labels, software, and enroll secrets can't be set in YAML. Configure them in the Fleet UI under **Settings** > **Integrations** > **Change management**. Learn more in the [GitOps mode guide](https://fleetdm.com/guides/gitops-mode).
 
 > If `gitops:` is not provided in your YAML file, any existing GitOps mode settings will be preserved.
 

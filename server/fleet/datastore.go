@@ -2125,8 +2125,14 @@ type Datastore interface {
 	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID
 	// on the given channel (scope).
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string, scope PayloadScope) ([]MDMAppleDDMDeclarationItem, error)
+
+	// ListCustomActivationsForDeclarations returns the custom activations
+	// attached to the given declarations. Declarations without one are absent
+	// from the result.
+	ListCustomActivationsForDeclarations(ctx context.Context, declUUIDs []string) ([]*MDMAppleDDMActivationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDeclaration, error)
+	MDMAppleDDMActivationResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDDMActivationForDelivery, error)
 
 	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync,
 	// partitioned by channel (device vs user) so the reconciler only pokes the
@@ -3534,6 +3540,9 @@ type Datastore interface {
 	// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
 	// If the slice is empty, it returns true
 	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
+	// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore
+	// If the slice is empty, it returns true
+	ScimGroupsExist(ctx context.Context, ids []uint) (bool, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) ([]ActivityTypeResentCertificate, error)
 	// DeleteScimUser deletes a SCIM user from the database
@@ -3849,6 +3858,22 @@ type Datastore interface {
 
 	// InsertAppleSoftwareUpdateDeviceID inserts a new Apple software update device ID for the given host UUID for per-host os update tracking.
 	InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error
+	// GetLastAppleOSUpdatesUpdate retrieves the timestamp of the last Apple OS updates update in the datastore.
+	GetLastAppleOSUpdatesUpdate(ctx context.Context) (*time.Time, error)
+	// UpsertAppleOSUpdates inserts or updates the given Apple OS update assets in the datastore. updates map is grouped by platform
+	UpsertAppleOSUpdates(ctx context.Context, updates map[string][]OSUpdateAsset) error
+	// DeleteStaleAppleOSUpdates deletes the cached Apple OS update assets that are no longer
+	// reported by Apple. The updates map is grouped by platform and holds the assets Apple
+	// currently reports. No values for the platform or less than 1 entry for a platform does a no-op to avoid deleting on an incomplete view.
+	DeleteStaleAppleOSUpdates(ctx context.Context, updates map[string][]OSUpdateAsset) (int64, error)
+	// ListAppleOSUpdateAssets retrieves all Apple OS update assets from the datastore, grouped by platform.
+	ListAppleOSUpdateAssets(ctx context.Context) (map[string][]AppleSoftwareUpdateAsset, error)
+	// ListAppleOSUpdateHostsForReconcile retrieves a batch of Apple software update hosts for OS update reconciliation
+	ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*AppleSoftwareUpdateHost, error)
+	// SetAppleOSUpdateTargetsAndResend sets the targets for Apple OS updates and triggers a resend for needed hosts.
+	SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*ComputedAppleSoftwareUpdateHost) error
+	// GetAppleOSUpdateHostByUUID retrieves stored Apple software update configuration for a given host by its UUID.
+	GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*AppleSoftwareUpdateHost, error)
 }
 
 type AndroidDatastore interface {

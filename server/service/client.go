@@ -471,6 +471,18 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 			}
 			extByName[name] = ext
 
+			var activationContents []byte
+			if profile.Activation != "" {
+				if platform != "macos" || ext != ".json" {
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg,
+						"activation is only supported for declaration (DDM) profiles.")
+				}
+				activationContents, err = os.ReadFile(resolveApplyRelativePath(baseDir, profile.Activation))
+				if err != nil {
+					return nil, fmt.Errorf("%s: reading activation: %w", prefixErrMsg, err)
+				}
+			}
+
 			result = append(result, fleet.MDMProfileBatchPayload{
 				Name:             name,
 				Contents:         fileContents,
@@ -478,6 +490,7 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 				LabelsIncludeAll: profile.LabelsIncludeAll,
 				LabelsIncludeAny: profile.LabelsIncludeAny,
 				LabelsExcludeAny: profile.LabelsExcludeAny,
+				Activation:       activationContents,
 			})
 
 		}

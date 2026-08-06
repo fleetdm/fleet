@@ -124,6 +124,7 @@ interface IHostActionConfigOptions {
   recoveryLockPasswordAvailable: boolean;
   isManagedLocalAccountEnabled: boolean;
   managedAccountStatus: string | null | undefined;
+  managedAccountDetail: string | undefined;
   managedAccountPasswordAvailable: boolean;
   /**
    * BYOD permission gates (issue #23242). Undefined when the host's stored
@@ -400,9 +401,16 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
     isManagedLocalAccountEnabled,
   } = config;
   if (!isPremiumTier) return false;
-  if (hostPlatform !== "darwin") return false;
+  if (hostPlatform !== "darwin" && hostPlatform !== "windows") return false;
   if (!isConnectedToFleetMdm) return false;
-  if (!isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)) return false;
+  // Automatic device enrollment is an Apple ADE concept. On Windows the account is created by fleetd after any MDM
+  // enrollment, so the managedAccountStatus fallback below is what tells us a row exists for this host.
+  if (
+    hostPlatform === "darwin" &&
+    !isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)
+  ) {
+    return false;
+  }
   if (!isManagedLocalAccountEnabled && !config.managedAccountStatus) {
     return false;
   }
@@ -694,6 +702,7 @@ const modifyOptions = (
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
     managedAccountStatus,
+    managedAccountDetail,
     managedAccountPasswordAvailable,
     wipeAllowed,
     lockAllowed,
@@ -838,7 +847,7 @@ const modifyOptions = (
     if (managedAccountOption) {
       managedAccountOption.disabled = true;
       if (managedAccountStatus === "pending") {
-        // No password yet — the AccountConfiguration command hasn't been acked.
+        // No password yet. On macOS the AccountConfiguration command hasn't been acked; on Windows fleetd hasn't escrowed a password yet.
         managedAccountOption.tooltipContent = (
           <>
             The managed account is still being
@@ -847,11 +856,25 @@ const modifyOptions = (
           </>
         );
       } else if (managedAccountStatus === "failed") {
-        managedAccountOption.tooltipContent = (
+        // The reason the host reported is the actionable part, so prefer it over generic copy.
+        managedAccountOption.tooltipContent = managedAccountDetail ? (
+          <span className="host-actions-dropdown__managed-account-error">
+            {managedAccountDetail}
+          </span>
+        ) : (
           <>
             The managed account failed to be
             <br />
             created. It will retry at the next enrollment.
+          </>
+        );
+      } else if (hostPlatform === "windows") {
+        // Unlike macOS, the Windows setting is declarative: fleetd provisions already-enrolled hosts too, so this is a "not yet" rather than a "never".
+        managedAccountOption.tooltipContent = (
+          <>
+            The managed account hasn&apos;t been
+            <br />
+            created on this host yet.
           </>
         );
       } else {

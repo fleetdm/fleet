@@ -95,6 +95,7 @@ func TestMDMApple(t *testing.T) {
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
 		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
 		{"MDMAppleCustomActivations", testMDMAppleCustomActivations},
+		{"MDMAppleBatchCustomActivations", testMDMAppleBatchCustomActivations},
 		{"NewMDMAppleDeclarationSoftwareUpdateTracking", testNewMDMAppleDeclarationSoftwareUpdateTracking},
 		{"SetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking", testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking},
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
@@ -108,6 +109,8 @@ func TestMDMApple(t *testing.T) {
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"ReconcileAppleProfilesDuplicateHostUUID", testReconcileAppleProfilesDuplicateHostUUID},
+		{"AppleOSUpdatesReconcile", testAppleOSUpdatesReconcile},
+		{"AppleOSUpdateAssets", testAppleOSUpdateAssets},
 		{"GetEnrollmentIDsWithPendingMDMAppleCommands", testGetEnrollmentIDsWithPendingMDMAppleCommands},
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
@@ -14073,4 +14076,331 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
 		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
 	require.Zero(t, varCount)
+}
+
+func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "os-updates-team"})
+	require.NoError(t, err)
+
+	newHost := func(hostUUID, platform, deviceID string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(hostUUID),
+			NodeKey:         new(hostUUID),
+			UUID:            hostUUID,
+			Hostname:        hostUUID,
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		require.NoError(t, ds.InsertAppleSoftwareUpdateDeviceID(ctx, hostUUID, deviceID))
+		return h
+	}
+
+	// UUIDs are chosen so that lexical host_uuid order is mac-team, mac-noteam, ios-noteam.
+	hMacTeam := newHost("aaa-mac-team", "darwin", "Mac14,2")
+	hMacNoTeam := newHost("bbb-mac-noteam", "darwin", "Mac14,2")
+	hIOSNoTeam := newHost("ccc-ios-noteam", "ios", "iPhone15,2")
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hMacTeam.ID})))
+
+	latest := func(darwin, ios, ipados map[uint]int) map[string]map[uint]int {
+		return map[string]map[uint]int{"darwin": darwin, "ios": ios, "ipados": ipados}
+	}
+	uuidsOf := func(hosts []*fleet.AppleSoftwareUpdateHost) []string {
+		out := make([]string, len(hosts))
+		for i, h := range hosts {
+			out[i] = h.HostUUID
+		}
+		return out
+	}
+
+	t.Run("ListForReconcile filters by team and platform", func(t *testing.T) {
+		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(map[uint]int{team.ID: 2}, nil, nil))
+		require.NoError(t, err)
+		require.Equal(t, []string{hMacTeam.UUID}, uuidsOf(got))
+		require.Equal(t, "darwin", got[0].Platform)
+		require.Equal(t, team.ID, got[0].TeamID)
+	})
+
+	t.Run("ListForReconcile matches no-team hosts via team_id 0", func(t *testing.T) {
+		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(map[uint]int{0: 2}, nil, nil))
+		require.NoError(t, err)
+		require.Equal(t, []string{hMacNoTeam.UUID}, uuidsOf(got))
+		require.Equal(t, uint(0), got[0].TeamID)
+	})
+
+	t.Run("ListForReconcile returns hosts with an existing target even without a latest team", func(t *testing.T) {
+		deadline := time.Now().UTC().Truncate(time.Microsecond)
+		require.NoError(t, ds.SetAppleOSUpdateTargetsAndResend(ctx, []*fleet.ComputedAppleSoftwareUpdateHost{{
+			AppleSoftwareUpdateHost: fleet.AppleSoftwareUpdateHost{HostUUID: hIOSNoTeam.UUID, TargetOSVersion: "18.1", TargetDeadline: &deadline},
+		}}))
+		// No teams have latest configured, but the iOS host now has a target set,
+		// so the reconciler must still revisit it (to potentially clear it).
+		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(nil, nil, nil))
+		require.NoError(t, err)
+		require.Equal(t, []string{hIOSNoTeam.UUID}, uuidsOf(got))
+		require.Equal(t, "18.1", got[0].TargetOSVersion)
+		require.NotNil(t, got[0].TargetDeadline)
+		require.True(t, deadline.Equal(*got[0].TargetDeadline))
+	})
+
+	t.Run("ListForReconcile paginates by host_uuid cursor", func(t *testing.T) {
+		all := latest(map[uint]int{team.ID: 2, 0: 2}, map[uint]int{0: 2}, nil)
+		page1, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 2, all)
+		require.NoError(t, err)
+		require.Equal(t, []string{hMacTeam.UUID, hMacNoTeam.UUID}, uuidsOf(page1))
+
+		page2, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, page1[len(page1)-1].HostUUID, 2, all)
+		require.NoError(t, err)
+		require.Equal(t, []string{hIOSNoTeam.UUID}, uuidsOf(page2))
+	})
+
+	t.Run("SetTargetsAndResend upserts targets and resets only the OS-update declaration", func(t *testing.T) {
+		// Seed two declarations on the mac team host: one OS-update declaration
+		// (status should be reset for resend) and one unrelated declaration
+		// (must be left untouched).
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			for _, d := range []struct{ ident, name string }{
+				{"os-updates", fleetmdm.FleetMacOSUpdatesProfileName},
+				{"other", "Some Other Profile"},
+			} {
+				if _, err := q.ExecContext(ctx,
+					`INSERT INTO host_mdm_apple_declarations (host_uuid, status, operation_type, token, declaration_identifier, declaration_uuid, declaration_name, scope) VALUES (?, ?, ?, UNHEX(REPEAT('00', 16)), ?, ?, ?, 'System')`,
+					hMacTeam.UUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall, d.ident, uuid.NewString(), d.name); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+
+		resolvedAt := time.Now().UTC().Truncate(time.Microsecond)
+		deadline := resolvedAt.Add(48 * time.Hour)
+		require.NoError(t, ds.SetAppleOSUpdateTargetsAndResend(ctx, []*fleet.ComputedAppleSoftwareUpdateHost{{
+			AppleSoftwareUpdateHost: fleet.AppleSoftwareUpdateHost{
+				HostUUID: hMacTeam.UUID, TargetOSVersion: "15.1", TargetDeadline: &deadline, ResolvedAt: &resolvedAt,
+			},
+			Resend: true,
+		}}))
+
+		var row fleet.AppleSoftwareUpdateHost
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT host_uuid, target_os_version, target_deadline, resolved_at FROM host_mdm_apple_os_updates WHERE host_uuid = ?`, hMacTeam.UUID)
+		})
+		require.Equal(t, "15.1", row.TargetOSVersion)
+		require.NotNil(t, row.TargetDeadline)
+		require.True(t, deadline.Equal(*row.TargetDeadline))
+		require.NotNil(t, row.ResolvedAt)
+		require.True(t, resolvedAt.Equal(*row.ResolvedAt))
+
+		var decls []struct {
+			Name   string  `db:"declaration_name"`
+			Status *string `db:"status"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &decls,
+				`SELECT declaration_name, status FROM host_mdm_apple_declarations WHERE host_uuid = ? ORDER BY declaration_name`, hMacTeam.UUID)
+		})
+		byName := map[string]*string{}
+		for _, d := range decls {
+			byName[d.Name] = d.Status
+		}
+		require.Contains(t, byName, fleetmdm.FleetMacOSUpdatesProfileName)
+		require.Nil(t, byName[fleetmdm.FleetMacOSUpdatesProfileName], "OS-update declaration status should be reset to NULL for resend")
+		require.Contains(t, byName, "Some Other Profile")
+		require.NotNil(t, byName["Some Other Profile"], "unrelated declaration should be untouched")
+	})
+}
+
+func testAppleOSUpdateAssets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	asset := func(version, build string) fleet.OSUpdateAsset {
+		return fleet.OSUpdateAsset{
+			ProductVersion:   version,
+			Build:            build,
+			PostingDate:      "2024-10-28",
+			ExpirationDate:   "2025-10-28",
+			SupportedDevices: []string{"Mac14,2"},
+		}
+	}
+	versionsOf := func(assets []fleet.AppleSoftwareUpdateAsset) []string {
+		out := make([]string, len(assets))
+		for i, a := range assets {
+			out[i] = a.ProductVersion
+		}
+		sort.Strings(out)
+		return out
+	}
+	listed := func() map[string][]fleet.AppleSoftwareUpdateAsset {
+		got, err := ds.ListAppleOSUpdateAssets(ctx)
+		require.NoError(t, err)
+		return got
+	}
+
+	require.NoError(t, ds.UpsertAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+		"macos": {asset("15.1", "24B83"), asset("14.7.1", "23H222"), asset("13.7.1", "22H221")},
+		"ios":   {asset("18.1", "22B83"), asset("17.7.1", "21H221")},
+	}))
+
+	t.Run("List returns the upserted assets per class", func(t *testing.T) {
+		got := listed()
+		require.Equal(t, []string{"13.7.1", "14.7.1", "15.1"}, versionsOf(got["macos"]))
+		require.Equal(t, []string{"17.7.1", "18.1"}, versionsOf(got["ios"]))
+		require.Equal(t, "2024-10-28", got["macos"][0].PostingDate.Format(time.DateOnly))
+		require.Equal(t, "2025-10-28", got["macos"][0].ExpirationDate.Format(time.DateOnly))
+		require.Equal(t, fleet.SliceString{"Mac14,2"}, got["macos"][0].SupportedDevices)
+		require.False(t, got["macos"][0].FirstSeenAt.IsZero())
+
+		// upserting without any changes, still updates updated_at
+		prev := got
+		require.NoError(t, ds.UpsertAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {asset("15.1", "24B83"), asset("14.7.1", "23H222"), asset("13.7.1", "22H221")},
+			"ios":   {asset("18.1", "22B83"), asset("17.7.1", "21H221")},
+		}))
+		// check that updated_at was updated
+		got = listed()
+		for class, assets := range got {
+			for i, a := range assets {
+				require.True(t, a.UpdatedAt.After(prev[class][i].UpdatedAt), "updated_at should be updated on upsert even if no changes")
+			}
+		}
+	})
+
+	t.Run("DeleteStale removes the assets missing from the new set", func(t *testing.T) {
+		// 13.7.1 expired out of the macOS set and 17.7.1 out of the iOS set
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {asset("15.1", "24B83"), asset("14.7.1", "23H222")},
+			"ios":   {asset("18.1", "22B83")},
+		})
+		require.NoError(t, err)
+		require.EqualValues(t, 2, deleted)
+
+		got := listed()
+		require.Equal(t, []string{"14.7.1", "15.1"}, versionsOf(got["macos"]))
+		require.Equal(t, []string{"18.1"}, versionsOf(got["ios"]))
+	})
+
+	t.Run("DeleteStale matches on build so a rebuilt version is replaced", func(t *testing.T) {
+		require.NoError(t, ds.UpsertAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {asset("15.1", "24B2083")},
+		}))
+		require.Len(t, listed()["macos"], 3)
+
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {asset("15.1", "24B2083"), asset("14.7.1", "23H222")},
+		})
+		require.NoError(t, err)
+		require.EqualValues(t, 1, deleted, "the 15.1 asset with the superseded build is deleted")
+
+		var builds []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &builds,
+				`SELECT build FROM apple_software_update_assets WHERE class = 'macos' AND product_version = '15.1'`)
+		})
+		require.Equal(t, []string{"24B2083"}, builds)
+	})
+
+	t.Run("DeleteStale keeps the cached assets of a class with no reported assets", func(t *testing.T) {
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {},
+			"ios":   nil,
+		})
+		require.NoError(t, err)
+		require.EqualValues(t, 0, deleted)
+
+		got := listed()
+		require.Len(t, got["macos"], 2)
+		require.Len(t, got["ios"], 1)
+	})
+
+	t.Run("DeleteStale leaves the classes missing from the set untouched", func(t *testing.T) {
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": {asset("15.1", "24B2083"), asset("14.7.1", "23H222")},
+		})
+		require.NoError(t, err)
+		require.EqualValues(t, 0, deleted)
+		require.Len(t, listed()["ios"], 1)
+	})
+}
+
+func testMDMAppleBatchCustomActivations(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	declRaw := []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.batch.cfg","Payload":{"Echo":"foo"}}`)
+	actRaw := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.batch.act","Payload":{"StandardConfigurations":["com.fleet.batch.cfg"],"Predicate":"TRUEPREDICATE"}}`)
+
+	decl := func(activation *fleet.MDMAppleCustomActivation) *fleet.MDMAppleDeclaration {
+		return &fleet.MDMAppleDeclaration{
+			Identifier: "com.fleet.batch.cfg",
+			Name:       "batch-cfg",
+			RawJSON:    declRaw,
+			Activation: activation,
+		}
+	}
+	withActivation := func(raw []byte) *fleet.MDMAppleCustomActivation {
+		return &fleet.MDMAppleCustomActivation{
+			Identifier:              "com.fleet.batch.act",
+			RawJSON:                 raw,
+			ConfigurationIdentifier: "com.fleet.batch.cfg",
+		}
+	}
+
+	countActivations := func() int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM mdm_apple_ddm_activations`))
+		return n
+	}
+
+	updates, err := ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(actRaw))}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, updates.AppleDeclaration)
+	require.Equal(t, 1, countActivations())
+
+	var stored []byte
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stored,
+		`SELECT raw_json FROM mdm_apple_ddm_activations WHERE identifier = 'com.fleet.batch.act'`))
+	require.JSONEq(t, string(actRaw), string(stored))
+
+	// Changing only the activation must report an update, or the batch path
+	// won't emit an edited-declaration activity.
+	editedAct := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.batch.act","Payload":{"StandardConfigurations":["com.fleet.batch.cfg"],"Predicate":"FALSEPREDICATE"}}`)
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(editedAct))}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, updates.AppleDeclaration, "an activation-only change must count as an update")
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stored,
+		`SELECT raw_json FROM mdm_apple_ddm_activations WHERE identifier = 'com.fleet.batch.act'`))
+	require.JSONEq(t, string(editedAct), string(stored))
+	require.Equal(t, 1, countActivations(), "editing must reuse the row, not add one")
+
+	// Re-applying identical content must report no change, or every gitops run
+	// would emit an edited-declaration activity.
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(editedAct))}, nil, nil)
+	require.NoError(t, err)
+	require.False(t, updates.AppleDeclaration, "an unchanged re-apply must not count as an update")
+
+	// Dropping the activation key from GitOps YAML removes the stored one.
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(nil)}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, updates.AppleDeclaration)
+	require.Zero(t, countActivations())
+
+	// And removing the declaration entirely cascades.
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(actRaw))}, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, countActivations())
+
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil, []*fleet.MDMAppleDeclaration{}, nil, nil)
+	require.NoError(t, err)
+	require.Zero(t, countActivations())
 }
