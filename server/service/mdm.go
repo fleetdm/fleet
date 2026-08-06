@@ -1897,6 +1897,10 @@ type updateMDMConfigProfileRequest struct {
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
 	Activation       *multipart.FileHeader
+	// ActivationSet reports whether the request mentioned the activation at all.
+	// Absent leaves the stored one alone; present without a file removes it.
+	// Without this the two cases are indistinguishable.
+	ActivationSet bool
 }
 
 func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
@@ -1925,12 +1929,17 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 		}
 	}
 
+	// Tri-state, so an edit can leave the activation alone, replace it, or drop
+	// it. Multipart has no null, so an empty value stands in for one.
 	// Enforced by the service, which resolves the profile type from its UUID.
 	if fhs, ok := r.MultipartForm.File["activation"]; ok && len(fhs) > 0 {
 		decoded.Activation = fhs[0]
+		decoded.ActivationSet = true
 		if decoded.Activation.Size > fleet.MaxProfileSize {
 			return nil, fleet.NewInvalidArgumentError("activation", fleet.MaxProfileSizeErrMsg)
 		}
+	} else if _, ok := r.MultipartForm.Value["activation"]; ok {
+		decoded.ActivationSet = true
 	}
 
 	// add labels
@@ -2000,7 +2009,7 @@ func updateMDMConfigProfileEndpoint(ctx context.Context, request any, svc fleet.
 		}
 	}
 
-	if err := svc.UpdateMDMConfigProfile(ctx, req.ProfileUUID, data, labels, labelsMode, req.LabelsExcludeAny, activation); err != nil {
+	if err := svc.UpdateMDMConfigProfile(ctx, req.ProfileUUID, data, labels, labelsMode, req.LabelsExcludeAny, activation, req.ActivationSet); err != nil {
 		return &updateMDMConfigProfileResponse{Err: err}, nil
 	}
 
@@ -2085,7 +2094,7 @@ func (svc *Service) checkLabelsOnlyProfileUpdate(ctx context.Context, labelsIncl
 // UpdateMDMConfigProfile updates an existing configuration profile's contents
 // and/or label targeting in place, dispatching by profile UUID to the
 // platform-specific implementation.
-func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error {
+func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte, activationSet bool) error {
 	// The edit path resolves the profile type here rather than in the endpoint.
 	if len(activation) > 0 && !isAppleDeclarationUUID(profileUUID) {
 		// Basic check only, as in the type-specific update methods: the profile's
@@ -2105,7 +2114,7 @@ func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID stri
 	case isAndroidProfileUUID(profileUUID):
 		return svc.updateMDMAndroidConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	case isAppleDeclarationUUID(profileUUID):
-		return svc.updateMDMAppleDeclaration(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, activation)
+		return svc.updateMDMAppleDeclaration(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, activation, activationSet)
 	default:
 		if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 			return ctxerr.Wrap(ctx, err)

@@ -1202,7 +1202,28 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 // mdm_apple_declarations.token is a MySQL generated column derived from
 // raw_json, so the ReconcileAppleDeclarations cron picks up a content change
 // on its own.
-func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error {
+// carryExistingActivation returns the stored activation with its Fleet
+// variables re-derived. It is loaded without them, and the datastore rewrites
+// associations from whatever it is handed, so carrying it forward as-is would
+// drop the associations while the content still uses them.
+func (svc *Service) carryExistingActivation(ctx context.Context, act *fleet.MDMAppleCustomActivation) (*fleet.MDMAppleCustomActivation, error) {
+	if act == nil {
+		return nil, nil
+	}
+	expanded, _, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(act.RawJSON))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expanding secrets for existing activation")
+	}
+	varNames := make([]fleet.FleetVarName, 0, len(act.FleetVariables))
+	for _, v := range variables.Find(expanded) {
+		varNames = append(varNames, fleet.FleetVarName(v))
+	}
+	carried := *act
+	carried.FleetVariables = varNames
+	return &carried, nil
+}
+
+func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte, activationSet bool) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -1265,22 +1286,6 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		for _, v := range variables.Find(expanded) {
 			varNames = append(varNames, fleet.FleetVarName(v))
 		}
-		// Loaded without its variables, and the datastore rewrites associations
-		// from whatever it's handed, so re-derive them as above.
-		carriedActivation := existing.Activation
-		if carriedActivation != nil {
-			expandedAct, _, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(carriedActivation.RawJSON))
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "expanding secrets for existing activation")
-			}
-			actVarNames := make([]fleet.FleetVarName, 0, len(carriedActivation.FleetVariables))
-			for _, v := range variables.Find(expandedAct) {
-				actVarNames = append(actVarNames, fleet.FleetVarName(v))
-			}
-			carried := *carriedActivation
-			carried.FleetVariables = actVarNames
-			carriedActivation = &carried
-		}
 		decl = &fleet.MDMAppleDeclaration{
 			Name:             existing.Name,
 			Identifier:       existing.Identifier,
@@ -1290,8 +1295,6 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 			// the upsert writes scope unconditionally, so the unchanged
 			// content's scope must be carried over or it would be cleared
 			Scope: existing.Scope,
-			// a declaration written without one has its activation cleared
-			Activation: carriedActivation,
 		}
 		switch labelsMembershipMode {
 		case fleet.LabelsIncludeAll:
@@ -1302,21 +1305,30 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		decl.LabelsExcludeAny = excludeLabels
 	}
 
-	// A supplied activation replaces the stored one; new content without one
-	// drops it, which is how an admin removes it.
-	if len(activation) > 0 && decl.Type == "" {
-		// content is unchanged, so recover Type for the management check
-		rawDecl, err := fleet.GetRawDeclarationValues(decl.RawJSON)
+	// Three states: not mentioned leaves the stored activation alone, mentioned
+	// with content replaces it, mentioned without content removes it.
+	switch {
+	case !activationSet:
+		carried, err := svc.carryExistingActivation(ctx, existing.Activation)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "parsing existing declaration")
+			return err
 		}
-		decl.Type = rawDecl.Type
-	}
-	customActivation, err := svc.validateActivation(ctx, activation, decl.Identifier, decl.Type)
-	if err != nil {
-		return err
-	}
-	if customActivation != nil {
+		decl.Activation = carried
+	case len(activation) == 0:
+		decl.Activation = nil
+	default:
+		if decl.Type == "" {
+			// content is unchanged, so recover Type for the management check
+			rawDecl, err := fleet.GetRawDeclarationValues(decl.RawJSON)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "parsing existing declaration")
+			}
+			decl.Type = rawDecl.Type
+		}
+		customActivation, err := svc.validateActivation(ctx, activation, decl.Identifier, decl.Type)
+		if err != nil {
+			return err
+		}
 		decl.Activation = customActivation
 	}
 
