@@ -77,7 +77,7 @@ describe("getPrimaryDeviceUser", () => {
     ]);
   });
 
-  it("shows the first 5 emails then a '+N more' line when the total exceeds the cap", () => {
+  it("shows the first 5 emails then a '+N more' line when the remainder is 2 or more", () => {
     const users = Array.from({ length: 7 }, (_, i) => ({
       email: `user${i}@acmecorp.com`,
       source: "custom",
@@ -92,6 +92,16 @@ describe("getPrimaryDeviceUser", () => {
       "user4@acmecorp.com",
       "+2 more",
     ]);
+  });
+
+  it("shows all 6 emails inline instead of collapsing a single remainder into '+1 more'", () => {
+    const users = Array.from({ length: 6 }, (_, i) => ({
+      email: `user${i}@acmecorp.com`,
+      source: "custom",
+    }));
+    const { tooltipLines } = getPrimaryDeviceUser(users);
+    expect(tooltipLines).toHaveLength(6);
+    expect(tooltipLines.some((line) => line.includes("more"))).toBe(false);
   });
 
   it("does not append a '+N more' line when the total is exactly the cap", () => {
@@ -116,6 +126,20 @@ describe("getPrimaryDeviceUser", () => {
       "shared@acmecorp.com",
       "chrome@acmecorp.com",
     ]);
+  });
+
+  it("still picks the IdP email as primary when its `custom` duplicate is ordered first (backend sorts by email, source)", () => {
+    // Regression: with a naive "first occurrence wins" dedupe, the
+    // `custom` row would drop the `mdm_idp_accounts` row for the same
+    // address, leaving no IdP source in the deduped list and demoting
+    // primary to an unrelated address.
+    const { primaryEmail, suffixCount } = getPrimaryDeviceUser([
+      { email: "alice@acmecorp.com", source: "custom" },
+      { email: "bob@acmecorp.com", source: "custom" },
+      { email: "bob@acmecorp.com", source: "mdm_idp_accounts" },
+    ]);
+    expect(primaryEmail).toBe("bob@acmecorp.com");
+    expect(suffixCount).toBe(1);
   });
 });
 

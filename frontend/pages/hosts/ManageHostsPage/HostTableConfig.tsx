@@ -68,33 +68,43 @@ interface IPrimaryDeviceUser {
   tooltipLines: string[];
 }
 
+// Both `mdm_idp_accounts` (set at MDM enrollment) and `idp` (set via
+// `PUT /hosts/{id}/device_mapping`) represent IdP-sourced identities and
+// are treated as equivalent by the backend.
+const sourcePriority = (source: string): number => {
+  if (source === "mdm_idp_accounts" || source === "idp") return 0;
+  if (source === "google_chrome_profiles") return 1;
+  return 2;
+};
+
 const getPrimaryDeviceUser = (users: IDeviceUser[]): IPrimaryDeviceUser => {
   if (!users?.length) {
     return { primaryEmail: undefined, suffixCount: 0, tooltipLines: [] };
   }
 
-  // Defensive dedupe: the same address can appear under multiple `source`
-  // values (e.g. `mdm_idp_accounts` + `custom` if a user submits their IdP
-  // address via `PUT /hosts/{id}/device_mapping`). Keeping the first
-  // occurrence avoids double-counting in the "+N" badge and repeated lines
-  // in the tooltip.
+  // Sort by source priority BEFORE deduping so a first-seen non-IdP row
+  // doesn't shadow a lower-priority `mdm_idp_accounts`/`idp` row for the
+  // same address (the backend orders `device_mapping` by `email, source`,
+  // so this happens for any user who supplies their IdP address via
+  // `PUT /hosts/{id}/device_mapping`). Stable sort preserves API ordering
+  // within a priority band.
+  const byPriority = users
+    .map((u, i) => ({ u, i }))
+    .sort((a, b) => {
+      const pa = sourcePriority(a.u.source);
+      const pb = sourcePriority(b.u.source);
+      return pa === pb ? a.i - b.i : pa - pb;
+    })
+    .map(({ u }) => u);
+
   const seen = new Set<string>();
-  const uniqueUsers = users.filter((u) => {
+  const uniqueUsers = byPriority.filter((u) => {
     if (seen.has(u.email)) return false;
     seen.add(u.email);
     return true;
   });
 
-  // Both `mdm_idp_accounts` (set at MDM enrollment) and `idp` (set via
-  // `PUT /hosts/{id}/device_mapping`) represent IdP-sourced identities and
-  // are treated as equivalent by the backend.
-  const idpUser = uniqueUsers.find(
-    (u) => u.source === "mdm_idp_accounts" || u.source === "idp"
-  );
-  const chromeUser = uniqueUsers.find(
-    (u) => u.source === "google_chrome_profiles"
-  );
-  const primary = idpUser ?? chromeUser ?? uniqueUsers[0];
+  const primary = uniqueUsers[0];
   const suffixCount = uniqueUsers.length - 1;
 
   // No other emails to surface in a tooltip, so leave tooltipLines empty.
@@ -102,17 +112,21 @@ const getPrimaryDeviceUser = (users: IDeviceUser[]): IPrimaryDeviceUser => {
     return { primaryEmail: primary.email, suffixCount, tooltipLines: [] };
   }
 
-  const orderedEmails = [
-    primary.email,
-    ...uniqueUsers.filter((u) => u !== primary).map((u) => u.email),
-  ];
-  const shown = orderedEmails.slice(0, MAX_EMAILS_BEFORE_MORE_LINE);
+  const orderedEmails = uniqueUsers.map((u) => u.email);
   const remainder = orderedEmails.length - MAX_EMAILS_BEFORE_MORE_LINE;
 
+  // Only collapse into a "+N more" line when it saves at least two entries;
+  // hiding a single email behind a "+1 more" line is worse UX than showing
+  // it inline.
   return {
     primaryEmail: primary.email,
     suffixCount,
-    tooltipLines: remainder > 0 ? shown.concat(`+${remainder} more`) : shown,
+    tooltipLines:
+      remainder > 1
+        ? orderedEmails
+            .slice(0, MAX_EMAILS_BEFORE_MORE_LINE)
+            .concat(`+${remainder} more`)
+        : orderedEmails,
   };
 };
 
