@@ -9032,6 +9032,27 @@
       "description": "Visual Paradigm is an UML, SysML, BPMN modelling platform."
     },
     {
+      "name": "Visual Studio Community 2022",
+      "slug": "visual-studio-2022-community/windows",
+      "platform": "windows",
+      "unique_identifier": "Visual Studio Community 2022",
+      "description": "Visual Studio Community 2022 is a free, full-featured IDE from Microsoft for building apps across desktop, web, mobile, and cloud."
+    },
+    {
+      "name": "Visual Studio Enterprise 2022",
+      "slug": "visual-studio-2022-enterprise/windows",
+      "platform": "windows",
+      "unique_identifier": "Visual Studio Enterprise 2022",
+      "description": "Visual Studio Enterprise 2022 is Microsoft's IDE for enterprise development teams, built for scale, security, and complex, high-impact projects."
+    },
+    {
+      "name": "Visual Studio Professional 2022",
+      "slug": "visual-studio-2022-professional/windows",
+      "platform": "windows",
+      "unique_identifier": "Visual Studio Professional 2022",
+      "description": "Visual Studio Professional 2022 is Microsoft's IDE for professional developers, built for building apps across desktop, web, mobile, and cloud."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",

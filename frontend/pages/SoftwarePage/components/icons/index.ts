@@ -1061,6 +1061,9 @@ import VirtualBox from "./VirtualBox";
 import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualParadigm from "./VisualParadigm";
+import VisualStudio2022Community from "./VisualStudio2022Community";
+import VisualStudio2022Enterprise from "./VisualStudio2022Enterprise";
+import VisualStudio2022Professional from "./VisualStudio2022Professional";
 import VisualStudioCode from "./VisualStudioCode";
 import Vivaldi from "./Vivaldi";
 import VividApp from "./VividApp";
@@ -2231,6 +2234,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   viscosity: Viscosity,
   "visual paradigm": VisualParadigm,
   "visual studio code": VisualStudioCode,
+  "visual studio community 2022": VisualStudio2022Community,
+  "visual studio enterprise 2022": VisualStudio2022Enterprise,
+  "visual studio professional 2022": VisualStudio2022Professional,
   vivaldi: Vivaldi,
   vivid: VividApp,
   viz: Viz,
