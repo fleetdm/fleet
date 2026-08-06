@@ -289,6 +289,14 @@ sequenceDiagram
 
 **Note on Redis pub/sub (new mechanism):** Today, campaign targeting is written to Redis keys and each server instance discovers it independently when a host polls. There is no inter-instance notification. With WebSockets, the server instance holding an agent's connection may not be the one that created the campaign. To solve this, campaign creation adds a Redis `PUBLISH` on a wake-up channel. All server instances subscribe to this channel and nudge the relevant agents they hold. Redis pub/sub already exists in Fleet for streaming query results back; this extends the same pattern for the wake-up signal.
 
+**Orbit proxies all osquery traffic, not just distributed queries.** With orbit acting as osquery's proxy, all osquery-to-server communication flows through orbit. This includes:
+
+- `distributed/read` and `distributed/write` (live queries, policies, software ingestion)
+- **Scheduled query result logs** (`/api/osquery/log`). Today osquery sends these directly to the server. With the proxy, osquery sends results to orbit locally, and orbit forwards them to the server via HTTP.
+- Config fetches (`/api/osquery/config`), if orbit also registers as the config plugin in a future phase.
+
+Orbit is the single point of contact between the host and the server. osquery communicates only with orbit on localhost; orbit handles all external network communication.
+
 **Why the extension plugin approach (not an HTTP proxy):**
 
 - Orbit already runs an osquery extension manager for custom tables. Registering a `distributed` plugin is the same mechanism.
