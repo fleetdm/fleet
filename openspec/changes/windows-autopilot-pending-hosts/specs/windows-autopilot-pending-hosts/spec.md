@@ -50,12 +50,26 @@ identical data while doubling API calls and making per-tenant failure reporting 
 - **THEN** the request SHALL be rejected with a validation error
 - **AND** neither entry SHALL be stored
 
-#### Scenario: Multiple distinct tenants are accepted
+### Requirement: At most one credential is accepted in this release
+
+Fleet SHALL reject a configuration containing more than one `microsoft_graph_credentials` entry. The field SHALL remain a list so that
+raising this cap later requires only a validation change, with no rename, no scalar-to-list type change, no API break, and no migration.
+Storage, the sync loop, per-credential failure handling, and `host_autopilot_devices.tenant_id` SHALL all be implemented for the multi-entry
+case regardless of the cap.
+
+#### Scenario: A second credential is rejected
 
 - **GIVEN** a Fleet Premium instance
-- **WHEN** an admin sends two entries with different `tenant_id` values
-- **THEN** both SHALL be stored
-- **AND** the sync SHALL pull Autopilot devices from both tenants
+- **WHEN** an admin sends `mdm.microsoft_graph_credentials` containing two entries with different `tenant_id` values
+- **THEN** the request SHALL be rejected with a validation error explaining that only one credential is supported
+- **AND** neither entry SHALL be stored
+
+#### Scenario: A single credential is accepted
+
+- **GIVEN** a Fleet Premium instance
+- **WHEN** an admin sends exactly one valid entry
+- **THEN** it SHALL be stored
+- **AND** the sync SHALL pull Autopilot devices from that tenant
 
 ### Requirement: Client secrets are stored encrypted and never returned
 
@@ -192,6 +206,42 @@ that tenant's pending hosts.
 - **WHEN** the sync runs
 - **THEN** Fleet SHALL honor `Retry-After`
 - **AND** SHALL NOT surface the condition to the admin as a credential problem
+
+### Requirement: A bad credential raises an app-wide banner
+
+Fleet SHALL mark a credential invalid when a sync fails to authenticate or is denied authorization, and SHALL surface that state as an
+app-wide banner, matching the existing invalid-ABM-token treatment. The flag SHALL be cleared on the next successful sync. Fleet SHALL NOT
+mark a credential invalid for transient failures, so that a Microsoft outage does not raise a credential alarm.
+
+The banner SHALL only render for Fleet Premium, consistent with every other MDM banner in the single-banner priority chain.
+
+#### Scenario: An expired secret raises the banner
+
+- **GIVEN** a stored credential whose client secret has expired
+- **WHEN** the sync runs and token acquisition fails
+- **THEN** the credential SHALL be marked invalid
+- **AND** an admin loading any page SHALL see the banner reporting the Microsoft Graph credential needs attention
+
+#### Scenario: A revoked permission raises the banner
+
+- **GIVEN** a stored credential whose Graph permission or admin consent has been removed
+- **WHEN** the sync runs and Graph responds 403
+- **THEN** the credential SHALL be marked invalid
+- **AND** the banner SHALL be shown
+
+#### Scenario: A transient outage does not raise the banner
+
+- **GIVEN** a stored, valid credential
+- **WHEN** the sync runs and Graph responds 429 or 5xx
+- **THEN** the credential SHALL NOT be marked invalid
+- **AND** no banner SHALL be shown
+
+#### Scenario: Fixing the credential clears the banner
+
+- **GIVEN** a credential marked invalid
+- **WHEN** an admin stores a working secret and the next sync succeeds
+- **THEN** the credential SHALL no longer be marked invalid
+- **AND** the banner SHALL no longer be shown
 
 ### Requirement: A pending Autopilot host is reused when the device enrolls
 

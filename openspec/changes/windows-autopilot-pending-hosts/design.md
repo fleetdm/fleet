@@ -27,7 +27,7 @@ enrollment token.
 controls:
   windows_entra_tenant_ids: [...]      # unchanged, inbound
   windows_entra_client_ids: [...]      # unchanged, inbound
-  microsoft_graph_credentials:         # new, outbound
+  microsoft_graph_credentials:         # new, outbound. List shape, max 1 entry for now.
     - tenant_id: 5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4
       client_id: 7f6b1665-51f5-48de-a9b6-ac17539583fb
       client_secret: $WINDOWS_ENTRA_CLIENT_SECRET_ACME
@@ -46,6 +46,19 @@ reject a duplicate `tenant_id` in the incoming list with a 422.
 A duplicate would not create duplicate hosts (reconciliation is keyed on tenant plus device), but it doubles Graph calls against Microsoft's
 throttling limits and makes failure reporting incoherent: one revoked secret would surface errors for a tenant that is otherwise syncing.
 
+### Capped at one credential for this release
+
+The list carries **at most one entry for now**. A configuration with two or more entries SHALL be rejected with a 422. Multi-tenant sync is
+deliberately deferred.
+
+The shape stays a list precisely so lifting the cap later is a validation change and nothing else: no key rename, no type change from scalar
+to list, no API break, and no migration, since the table is already keyed on `tenant_id` and the sync already iterates. This is the whole
+reason not to ship the scalar the merged docs describe, even though only one credential is supported today.
+
+Everything downstream is written to the multi-entry shape regardless: the table, the per-tenant sync loop, per-credential failure isolation,
+and `host_autopilot_devices.tenant_id`. The cap is enforced at exactly one place, config validation, so removing it is a one-line change plus
+the UI going from one form to a list.
+
 ### Storage
 
 Do **not** use `mdm_config_assets`. It is keyed `UNIQUE (name, deletion_uuid)` and structurally holds one row per credential name. Fleet has
@@ -60,6 +73,7 @@ CREATE TABLE `microsoft_graph_credentials` (
   `tenant_id`      varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `client_id`      varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `client_secret`  blob NOT NULL,             -- encrypted with the server private key, as abm_tokens.token
+  `credential_invalid` tinyint(1) NOT NULL DEFAULT '0',   -- drives the app-wide banner, as abm_tokens.token_invalid
   `last_synced_at` timestamp NULL DEFAULT NULL,
   `last_sync_error` text COLLATE utf8mb4_unicode_ci,
   `created_at`     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -146,6 +160,36 @@ Graph returns **two different error codes for the same 403 cause**: `Authorizati
 Intune endpoints. Do not key permission detection on a single code string; key on the HTTP status.
 
 In every failure case the tenant's existing pending hosts are left untouched. Only a successful 200 may remove a host.
+
+### Surfacing a bad credential to the admin
+
+Product decision: use the **app-wide banner**, the same treatment as an invalid ABM token. Figma to follow.
+
+The precedent is exact and should be mirrored rather than reinvented:
+
+| ABM | Windows Graph |
+|---|---|
+| `abm_tokens.token_invalid` (migration `20260721090128`) | `microsoft_graph_credentials.credential_invalid` |
+| `SetABMTokenInvalidForOrgName` / `IsABMTokenInvalidForOrgName` (`apple_mdm.go:6608`, `:6627`) | same pair keyed on `tenant_id` |
+| `ABMToken.TokenInvalid` json `token_invalid` (`server/fleet/mdm.go:200`) | `credential_invalid` on the credential response |
+| `hasInvalidABMToken` computed in `App.tsx:150` | same shape for the Graph credential |
+| `<AppleBMTokenInvalidMessage orgNames={...} />` in the `MainContent.tsx` priority chain | new banner component in the same chain |
+
+`MainContent.tsx:59-83` shows exactly one banner at a time in a fixed priority order, and every banner except the APNs one sits inside the
+`isPremiumTier` branch. The Graph credential banner belongs in that premium branch. Its position in the priority order is a product call;
+placing it after the VPP banner and before the license-expiry banner is the natural default, since it is narrower in blast radius than the
+Apple MDM banners above it.
+
+The flag is set by the sync, not at config-write time. A credential is verified on write (see section 1), so it is valid when stored; it goes
+bad later through expiry, revocation, or a permission change. Set `credential_invalid = 1` on an authentication or authorization failure
+(token-endpoint `AADSTS*` errors, Graph 401, Graph 403) and clear it on the next successful sync. Do **not** set it for transient 429 or 5xx,
+or a Microsoft outage would raise a credential alarm across every deployment.
+
+**Open question for product.** The ABM banner names the offending token by `org_name`, which is human-readable. A Graph credential's only
+identity is the tenant GUID, which is not. Options: show the GUID, add an admin-supplied display label to the credential, or read the tenant
+name from Graph (`/organization`), which would require another permission and undercut the least-privilege setup. With the cap at one
+credential this barely matters, since the banner can simply say "the Microsoft Graph credential", but it needs deciding before the cap is
+lifted.
 
 ## 3. Sync cron
 

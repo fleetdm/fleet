@@ -36,6 +36,8 @@ the sub-issue as currently written and need the issue updated first.
 ### Config, premium, activities, GitOps
 
 - [ ] Validate GUID format for `tenant_id`/`client_id`; reject duplicate `tenant_id` in the incoming list with a 422.
+- [ ] **Cap the list at one entry**, rejecting a second with a 422. Enforce in exactly one place (config validation) so lifting the cap is a
+      one-line change. Everything below is still built for the multi-entry case.
 - [ ] Premium gate with `ErrMissingLicense`; require `server.PrivateKey` when a new secret is supplied.
 - [ ] Extend `AppConfig.Obfuscate()` to mask each `client_secret`; preserve the stored secret when the masked value is sent back.
 - [ ] Call `VerifyCredential` on create/change; reject with `NewInvalidArgumentError` on failure.
@@ -53,6 +55,8 @@ the sub-issue as currently written and need the issue updated first.
 - [ ] Empty-response guard so a zero-device response never deletes that tenant's pending hosts. Log at most once per credential, since zero
       devices is a legitimate steady state.
 - [ ] Persist `last_synced_at` / `last_sync_error` per credential, distinguishing auth failure, permission failure, and transient errors.
+- [ ] Set `credential_invalid` on auth (`AADSTS*`, 401) or authorization (403) failure; clear it on the next successful sync; never set it on
+      429/5xx. Mirror `SetABMTokenInvalidForOrgName` (`server/datastore/mysql/apple_mdm.go:6608`), keyed on `tenant_id`.
 - [ ] **[spec change]** Skip devices whose serial satisfies `fleet.IsPlaceholderHardwareSerial`, with a logged count. Such a host could never
       reconcile at enrollment.
 
@@ -84,8 +88,12 @@ the sub-issue as currently written and need the issue updated first.
 
 ## Track 3: frontend (#48851)
 
-- [ ] **[spec change]** Credential **list** UI (add/delete rows) on the Microsoft Entra section, not three standalone inputs. Mirror the
-      existing tenant and client ID list widgets on `WindowsAutomaticEnrollmentPage`. **Blocked on Figma from Marko.**
+- [ ] Single-credential form (tenant ID, client ID, client secret) on the Microsoft Entra section. The cap at one keeps #48851's original
+      three-inputs-and-Save scope intact; no list UI is needed for this release.
+- [ ] **App-wide banner** when the credential is invalid. Add a component alongside `AppleBMTokenInvalidMessage`, wire the flag through
+      `App.tsx` the way `hasInvalidABMToken` is wired (`frontend/components/App/App.tsx:150`), and insert it into the premium branch of the
+      single-banner priority chain in `frontend/components/MainContent/MainContent.tsx:59-83`. **Blocked on Figma from Marko** for wording and
+      priority position.
 - [ ] Premium gating: keep `<PremiumFeatureMessage />` when `!isPremiumTier`.
 - [ ] Wrap controls in `GitOpsModeTooltipWrapper` so they are read-only under `gitops_mode_enabled`.
 - [ ] Masked secret placeholder; only send a new secret when the admin changes it.
@@ -114,6 +122,8 @@ the sub-issue as currently written and need the issue updated first.
 
 ## Blocked on product
 
-- [ ] Figma for the multi-tenant credential list UI.
-- [ ] Sign-off on the scalar → list config change and the rename, since both merged docs PRs must be rewritten.
+- [ ] Figma for the invalid-credential banner: wording, and where it sits in the single-banner priority order.
+- [ ] Sign-off on the scalar → list config change (capped at one) and the rename, since both merged docs PRs must be rewritten.
 - [ ] Clarify "multiple tags" in the story's edge cases. Graph returns `groupTag` as a single string.
+- [ ] Before the one-credential cap is ever lifted: decide how the banner names the offending credential. ABM uses a human-readable
+      `org_name`; a Graph credential has only a tenant GUID.
