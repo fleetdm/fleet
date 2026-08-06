@@ -125,11 +125,13 @@ type integrationMDMTestSuite struct {
 	integrationsSchedule         *schedule.Schedule
 	cleanupsSchedule             *schedule.Schedule
 	appleMDMWorkerSchedule       *schedule.Schedule
+	appleOSUpdatesSchedule       *schedule.Schedule
 	onProfileJobDone             func() // function called when profileSchedule.Trigger() job completed
 	onAndroidProfileJobDone      func() // function called when androidProfileSchedule.Trigger() job completed
 	onIntegrationsScheduleDone   func() // function called when integrationsSchedule.Trigger() job completed
 	onCleanupScheduleDone        func() // function called when cleanupsSchedule.Trigger() job completed
 	onAppleMDMWorkerScheduleDone func() // function called when appleMDMWorkerSchedule.Trigger() job completed
+	onAppleOSUpdatesScheduleDone func() // function called when appleOSUpdatesSchedule.Trigger() job completed
 	mdmStorage                   *mysql.NanoMDMStorage
 	worker                       *worker.Worker
 	appleMDMWorker               *worker.Worker
@@ -301,6 +303,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	var cleanupsSchedule *schedule.Schedule
 	var androidProfileSchedule *schedule.Schedule
 	var appleMDMWorkerSchedule *schedule.Schedule
+	var appleOSUpdatesSchedule *schedule.Schedule
 	cronLog := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		cronLog = slog.New(slog.DiscardHandler)
@@ -418,6 +421,23 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						}),
 					)
 					return appleMDMWorkerSchedule, nil
+				}
+			},
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronAppleMDMOSUpdatesSchedule)
+					logger := cronLog
+					appleOSUpdatesSchedule = schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("apple_os_updates", func(ctx context.Context) error {
+							if s.onAppleOSUpdatesScheduleDone != nil {
+								defer s.onAppleOSUpdatesScheduleDone()
+							}
+							return apple_mdm.HandleAppleMDMOSUpdates(ctx, ds, logger)
+						}),
+					)
+					return appleOSUpdatesSchedule, nil
 				}
 			},
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
@@ -551,6 +571,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.cleanupsSchedule = cleanupsSchedule
 	s.androidProfileSchedule = androidProfileSchedule
 	s.appleMDMWorkerSchedule = appleMDMWorkerSchedule
+	s.appleOSUpdatesSchedule = appleOSUpdatesSchedule
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
@@ -11107,6 +11128,34 @@ func (s *integrationMDMTestSuite) runDEPSchedule() {
 	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	err := fleetSyncer.RunAssigner(ctx)
 	require.NoError(s.T(), err)
+}
+
+func (s *integrationMDMTestSuite) runAppleOSUpdatesSchedule() {
+	ch := make(chan bool)
+	var once sync.Once
+	s.onAppleOSUpdatesScheduleDone = func() {
+		once.Do(func() { close(ch) })
+	}
+
+	var (
+		didTrigger bool
+		err        error
+	)
+	for range 10 {
+		_, didTrigger, err = s.appleOSUpdatesSchedule.Trigger(s.T().Context())
+		s.Require().NoError(err)
+		if didTrigger {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	s.Require().True(didTrigger, "apple os updates schedule did not trigger after 1 second of retries")
+
+	select {
+	case <-ch:
+	case <-time.After(30 * time.Second):
+		s.T().Fatal("apple os updates schedule did not complete")
+	}
 }
 
 func (s *integrationMDMTestSuite) runIntegrationsSchedule() {

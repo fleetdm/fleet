@@ -2270,6 +2270,20 @@ type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, assets [
 
 type InsertAppleSoftwareUpdateDeviceIDFunc func(ctx context.Context, hostUUID string, updateDeviceID string) error
 
+type GetLastAppleOSUpdatesUpdateFunc func(ctx context.Context) (*time.Time, error)
+
+type UpsertAppleOSUpdatesFunc func(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) error
+
+type DeleteStaleAppleOSUpdatesFunc func(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) (int64, error)
+
+type ListAppleOSUpdateAssetsFunc func(ctx context.Context) (map[string][]fleet.AppleSoftwareUpdateAsset, error)
+
+type ListAppleOSUpdateHostsForReconcileFunc func(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*fleet.AppleSoftwareUpdateHost, error)
+
+type SetAppleOSUpdateTargetsAndResendFunc func(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error
+
+type GetAppleOSUpdateHostByUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error)
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -5639,6 +5653,27 @@ type DataStore struct {
 
 	InsertAppleSoftwareUpdateDeviceIDFunc        InsertAppleSoftwareUpdateDeviceIDFunc
 	InsertAppleSoftwareUpdateDeviceIDFuncInvoked bool
+
+	GetLastAppleOSUpdatesUpdateFunc        GetLastAppleOSUpdatesUpdateFunc
+	GetLastAppleOSUpdatesUpdateFuncInvoked bool
+
+	UpsertAppleOSUpdatesFunc        UpsertAppleOSUpdatesFunc
+	UpsertAppleOSUpdatesFuncInvoked bool
+
+	DeleteStaleAppleOSUpdatesFunc        DeleteStaleAppleOSUpdatesFunc
+	DeleteStaleAppleOSUpdatesFuncInvoked bool
+
+	ListAppleOSUpdateAssetsFunc        ListAppleOSUpdateAssetsFunc
+	ListAppleOSUpdateAssetsFuncInvoked bool
+
+	ListAppleOSUpdateHostsForReconcileFunc        ListAppleOSUpdateHostsForReconcileFunc
+	ListAppleOSUpdateHostsForReconcileFuncInvoked bool
+
+	SetAppleOSUpdateTargetsAndResendFunc        SetAppleOSUpdateTargetsAndResendFunc
+	SetAppleOSUpdateTargetsAndResendFuncInvoked bool
+
+	GetAppleOSUpdateHostByUUIDFunc        GetAppleOSUpdateHostByUUIDFunc
+	GetAppleOSUpdateHostByUUIDFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -13502,4 +13537,53 @@ func (s *DataStore) InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostU
 	s.InsertAppleSoftwareUpdateDeviceIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertAppleSoftwareUpdateDeviceIDFunc(ctx, hostUUID, updateDeviceID)
+}
+
+func (s *DataStore) GetLastAppleOSUpdatesUpdate(ctx context.Context) (*time.Time, error) {
+	s.mu.Lock()
+	s.GetLastAppleOSUpdatesUpdateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetLastAppleOSUpdatesUpdateFunc(ctx)
+}
+
+func (s *DataStore) UpsertAppleOSUpdates(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) error {
+	s.mu.Lock()
+	s.UpsertAppleOSUpdatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertAppleOSUpdatesFunc(ctx, updates)
+}
+
+func (s *DataStore) DeleteStaleAppleOSUpdates(ctx context.Context, updates map[string][]fleet.OSUpdateAsset) (int64, error) {
+	s.mu.Lock()
+	s.DeleteStaleAppleOSUpdatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteStaleAppleOSUpdatesFunc(ctx, updates)
+}
+
+func (s *DataStore) ListAppleOSUpdateAssets(ctx context.Context) (map[string][]fleet.AppleSoftwareUpdateAsset, error) {
+	s.mu.Lock()
+	s.ListAppleOSUpdateAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAppleOSUpdateAssetsFunc(ctx)
+}
+
+func (s *DataStore) ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*fleet.AppleSoftwareUpdateHost, error) {
+	s.mu.Lock()
+	s.ListAppleOSUpdateHostsForReconcileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAppleOSUpdateHostsForReconcileFunc(ctx, cursor, batchSize, teamsWithLatest)
+}
+
+func (s *DataStore) SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error {
+	s.mu.Lock()
+	s.SetAppleOSUpdateTargetsAndResendFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAppleOSUpdateTargetsAndResendFunc(ctx, targets)
+}
+
+func (s *DataStore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error) {
+	s.mu.Lock()
+	s.GetAppleOSUpdateHostByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleOSUpdateHostByUUIDFunc(ctx, hostUUID)
 }
