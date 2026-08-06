@@ -1,31 +1,5 @@
 # REST API
 
-- [Authentication](#authentication)
-- [Activities](#activities)
-- [Charts](#charts)
-- [Fleet configuration](#fleet-configuration)
-- [File carving](#file-carving)
-- [Hosts](#hosts)
-- [Labels](#labels)
-- [OS Settings](#os-settings)
-- [Setup Experience](#setup-experience)
-- [Commands](#commands)
-- [Integrations](#integrations-1)
-- [SCIM](#scim)
-- [Policies](#policies)
-- [Reports](#reports)
-- [Schedule (deprecated)](#schedule)
-- [Scripts](#scripts)
-- [Sessions](#sessions)
-- [Software](#software)
-- [Targets](#targets)
-- [Fleets](#fleets)
-- [Translator](#translator)
-- [Users](#users)
-- [Custom variables](#custom-variables)
-- [Custom host vitals](#custom-host-vitals)
-- [API errors](#api-responses)
-
 Use the Fleet APIs to automate Fleet.
 
 This page includes a list of available resources and their API routes.
