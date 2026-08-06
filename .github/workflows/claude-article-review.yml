@@ -1,0 +1,62 @@
+name: Claude article review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "articles/**.md"
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0 # full history so `git diff` against main works, as the formatting skills expect
+          persist-credentials: false
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          use_sticky_comment: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            This PR changes files under articles/. Review each changed article for
+            structure and voice, routing to the right skill by content type:
+
+            1. Run `gh pr diff --name-only` and keep only files under `articles/`
+               ending in `.md`.
+            2. For each one, read its `<meta name="category" value="...">` tag
+               (near the bottom of the file).
+            3. Route by category:
+               - `articles` or `comparison` -> invoke the `fleet-article-formatting` skill
+               - `guides` -> invoke the `fleet-guide-formatting` skill
+               - any other category (e.g. `announcements`, `case study`, `whitepaper`) ->
+                 skip structural review for that file, but still run step 4 on it
+            4. Regardless of category, also invoke the `content-style` skill on the
+               file for word-level voice (both formatting skills expect this to run
+               alongside them).
+            5. This is a review, not an edit pass: do NOT modify any files. Report
+               findings only.
+            6. Post one summary comment via `gh pr comment` grouped by file, each
+               finding with a section header and one sentence.
+               Skip files with no findings. If every changed article is clean, post
+               a short comment saying so.
+
+            Note: the PR branch is already checked out in the current working directory.
+
+          claude_args: |
+            --allowedTools "Skill,Read,Grep,Glob,Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git status:*)"
+            --disallowedTools "Edit,Write,NotebookEdit"
