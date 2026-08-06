@@ -639,7 +639,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// fleet.OsqueryService.GetClientConfigWithETag for the full contract.
 	if svc != nil && config.Osquery.RedisConfigETags && configETagStore != nil {
 		svc.SetConfigETagStore(configETagStore)
-		logger.InfoContext(ctx, "osquery config ETag short circuit ENABLED: matching config check-ins are served 304 from Redis without building the config",
+		logger.InfoContext(ctx, "osquery config ETag short circuit ENABLED: matching config check-ins are answered 'unchanged' from Redis without building the config",
 			"component", "config-etag", "flag", "osquery.redis_config_etags")
 	} else {
 		// Neutral message: this branch is reached when the flag is off, but

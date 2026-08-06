@@ -5,7 +5,7 @@
 // ██ WHY A DATASTORE DECORATOR, AND WHAT IT PROTECTS ████████████████████████
 //
 // The Redis-backed config ETag SHORT CIRCUIT (see
-// fleet.OsqueryService.GetClientConfigWithETag) serves 304 responses without
+// fleet.OsqueryService.GetClientConfigWithETag) serves "unchanged" responses without
 // building the config. Its correctness therefore depends ENTIRELY on this
 // decorator seeing every write that can change the rendered osquery config.
 // Hooking here — rather than in service methods — means core service,
@@ -55,7 +55,7 @@
 //     host IDs for exactly this purpose).
 //
 // A missed hook does NOT poison ETags forever — every stored record carries
-// a backstop TTL — but hosts would receive stale 304s for up to that TTL.
+// a backstop TTL — but hosts would be told "unchanged" against stale configs for up to that TTL.
 // When in doubt, hook the method: over-invalidating costs minutes of the
 // optimization, never correctness.
 //
