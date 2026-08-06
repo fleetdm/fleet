@@ -329,8 +329,14 @@ func (svc *Service) debugEnabledForHost(ctx context.Context, id uint) bool {
 ////////////////////////////////////////////////////////////////////////////////
 
 type getClientConfigRequest struct {
-	NodeKey     string `json:"node_key"`
-	IfNoneMatch string `json:"-"`
+	NodeKey string `json:"node_key"`
+	// ETag is the body-carried conditional-request validator (see the
+	// GetClientConfigWithETag interface docs). nil means the agent did not
+	// send the field and has not opted in; an empty string means the agent
+	// opted in but holds no validator yet (its first request). The field is
+	// decoded from the body even in header-auth mode, where only node_key is
+	// ignored.
+	ETag *string `json:"etag"`
 }
 
 func (r *getClientConfigRequest) hostNodeKey() string {
@@ -345,9 +351,13 @@ func (getClientConfigRequest) DecodeRequest(
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		return nil, err
 	}
-	req.IfNoneMatch = r.Header.Get("If-None-Match")
 	return req, nil
 }
+
+// configUnchangedBody is the constant response for an agent whose etag
+// matches the current config: the reserved value "ok" tells the agent its
+// config is current. It is never used as a real validator.
+const configUnchangedBody = `{"etag":"ok"}`
 
 type getClientConfigResponse struct {
 	// Config is NOT populated on the live request path anymore: the endpoint
@@ -356,7 +366,6 @@ type getClientConfigResponse struct {
 	// (client-side decoding of a config response).
 	Config      map[string]any `json:"-"`
 	body        []byte
-	etag        string
 	notModified bool
 	Err         error `json:"error,omitempty"`
 }
@@ -394,17 +403,15 @@ func (r getClientConfigResponse) HijackRender(
 	ctx context.Context,
 	w http.ResponseWriter,
 ) {
-	w.Header().Set("ETag", r.etag)
 	w.Header().Set("Cache-Control", "private, no-cache")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-	if r.notModified {
-		w.WriteHeader(http.StatusNotModified)
-		return
-	}
-
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write(r.body); err != nil {
+
+	body := r.body
+	if r.notModified {
+		body = []byte(configUnchangedBody)
+	}
+	if _, err := w.Write(body); err != nil {
 		logging.WithErr(ctx, err)
 	}
 }
@@ -422,46 +429,22 @@ func marshalClientConfig(config map[string]any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// clientConfigETag computes a quoted SHA-256 ETag over the given body bytes.
+// clientConfigETag computes the SHA-256 validator over the canonical
+// (etag-less) config body. The value is opaque to agents and carried in the
+// JSON bodies, not HTTP headers, so it uses bare hex — which also can never
+// collide with the reserved "ok" value.
 func clientConfigETag(body []byte) string {
 	sum := sha256.Sum256(body)
-	return `"` + hex.EncodeToString(sum[:]) + `"`
+	return hex.EncodeToString(sum[:])
 }
 
-// clientConfigETagMatches parses the If-None-Match header and checks whether
-// it contains the computed ETag. It follows RFC 7232 semantics for strong
-// validators, with osquery-specific behavior for POST.
-func clientConfigETagMatches(ifNoneMatch, etag string) bool {
-	if ifNoneMatch == "" {
-		return false
-	}
-
-	// Trim leading/trailing whitespace
-	v := strings.TrimSpace(ifNoneMatch)
-	if v == "" {
-		return false
-	}
-
-	// "*" matches any existing representation
-	if v == "*" {
-		return true
-	}
-
-	// Parse comma-separated list
-	for tag := range strings.SplitSeq(v, ",") {
-		tag = strings.TrimSpace(tag)
-		if tag == "" {
-			continue
-		}
-		// Skip weak tags
-		if strings.HasPrefix(tag, "W/") {
-			continue
-		}
-		if tag == etag {
-			return true
-		}
-	}
-	return false
+// clientConfigETagMatches reports whether the agent's body-carried etag
+// matches the current validator. A nil clientETag means the agent did not
+// opt in; an empty one is the opt-in signal from an agent with no stored
+// validator. Neither can match, so the "unchanged" response is never sent
+// to an agent without history.
+func clientConfigETagMatches(clientETag *string, etag string) bool {
+	return clientETag != nil && *clientETag != "" && *clientETag == etag
 }
 
 func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -474,7 +457,7 @@ func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	// which it falls back to a full build. The feature is ON by default;
 	// disable it with FLEET_OSQUERY_REDIS_CONFIG_ETAGS=false
 	// (osquery.redis_config_etags).
-	result, err := svc.GetClientConfigWithETag(ctx, req.IfNoneMatch)
+	result, err := svc.GetClientConfigWithETag(ctx, req.ETag)
 	if err != nil {
 		return getClientConfigResponse{Err: err}, nil
 	}
@@ -490,9 +473,15 @@ func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	logging.WithLevel(ctx, slog.LevelDebug)
 	logging.WithExtras(ctx, "etag_result", result.CacheStatus, "etag_mode", result.Mode)
 
+	// Opted-in agents receive the config with the "etag" key added; agents
+	// that did not send the field receive the canonical body, byte-identical
+	// to the pre-feature response.
+	body := result.Body
+	if result.BodyWithETag != nil {
+		body = result.BodyWithETag
+	}
 	return getClientConfigResponse{
-		body:        result.Body,
-		etag:        result.ETag,
+		body:        body,
 		notModified: result.NotModified,
 	}, nil
 }
@@ -547,8 +536,8 @@ func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
 // The usedLegacyPacks return value matters beyond this function: a host WITH
 // legacy packs has a host-specific config, so its ETag must never be
 // persisted to the team-shared Redis ETag store (it would poison every
-// teammate with 304s against the wrong config). GetClientConfigWithETag
-// relies on this flag to guard that write.
+// teammate with not-modified responses against the wrong config).
+// GetClientConfigWithETag relies on this flag to guard that write.
 //
 // ██ bypassTeamPackCache ██ When true, the team-keyed packConfigCache is
 // neither read NOR written. Per-host cache mode (label-scoped reports in the
@@ -681,13 +670,16 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error)
 // the team-shared Redis store).
 //
 // ██ SIDE-EFFECT NOTICE ██ Anything added to this function (or anything it
-// calls) does NOT run when GetClientConfigWithETag serves a 304 from the
-// Redis ETag short circuit. A side effect that must run on every config
-// check-in belongs in GetClientConfigWithETag BEFORE its fast-path return,
-// not here. (The existing UpdateHostOsqueryIntervals reconciliation below is
-// safe to skip on 304: intervals only drift when the config content changes,
-// and a matching ETag proves the host already received the current config —
-// the full response that delivered it performed the reconciliation.)
+// calls) does NOT run when GetClientConfigWithETag serves a not-modified
+// response from the Redis ETag short circuit. A side effect that must run on
+// every config check-in belongs in GetClientConfigWithETag BEFORE its
+// fast-path return, not here. (The existing UpdateHostOsqueryIntervals
+// reconciliation below is safe to skip on a match: intervals only drift when
+// the config content changes, and a matching etag proves the host already
+// received the current config — the full response that delivered it
+// performed the reconciliation. Agents echo the etag of the last config
+// RECEIVED, not applied; a host stuck failing to apply a config surfaces
+// that loudly on its own logs and refresh status, not on this endpoint.)
 //
 // bypassTeamPackCache must be true for per-host cache-mode builds — see the
 // notice on getPackConfig.
@@ -799,8 +791,8 @@ const (
 //
 // ██ SHORT CIRCUIT ██ When svc.configETagStore is set (which serve.go does
 // ONLY when the osquery.redis_config_etags feature flag is enabled) and the
-// host's If-None-Match validator matches a generation-valid stored ETag,
-// this returns a 304 result WITHOUT BUILDING THE CONFIG — skipping every
+// host's body-carried etag matches a generation-valid stored ETag, this
+// returns a NotModified result WITHOUT BUILDING THE CONFIG — skipping every
 // datastore read of the build (AppConfig, ListPacksForHost, agent options,
 // scheduled queries) and the host-intervals reconciliation. See the
 // SIDE-EFFECT NOTICE on buildClientConfig before adding logic to either
@@ -825,7 +817,7 @@ const (
 // fail the request or serve wrong data. If gate state cannot be read or
 // loaded, the request is treated as BYPASS — never guess that a host is
 // eligible for the shared key.
-func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch string) (*fleet.ClientConfigResult, error) {
+func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *string) (*fleet.ClientConfigResult, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -891,7 +883,10 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 	}
 
 	// ██ THE SHORT CIRCUIT ██ One Redis MGET; zero database reads on a hit.
-	if ifNoneMatch != "" {
+	// Gated on a non-empty client etag: an agent that did not opt in (nil)
+	// or holds no validator yet ("") always gets a full build, and can never
+	// be answered "unchanged".
+	if clientETag != nil && *clientETag != "" {
 		switch mode {
 		case configETagModeShared:
 			storedETag, valid, err := store.GetValid(ctx, scope, host.Platform)
@@ -899,7 +894,7 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 			case err != nil:
 				// FAIL OPEN: fall through to the full build.
 				svc.logConfigETagError(ctx, "config etag: redis read failed; falling back to full config build", err)
-			case valid && clientConfigETagMatches(ifNoneMatch, storedETag):
+			case valid && clientConfigETagMatches(clientETag, storedETag):
 				return &fleet.ClientConfigResult{
 					ETag:        storedETag,
 					NotModified: true,
@@ -915,7 +910,7 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 			switch {
 			case err != nil:
 				svc.logConfigETagError(ctx, "config etag: redis host read failed; falling back to full config build", err)
-			case valid && clientConfigETagMatches(ifNoneMatch, storedETag):
+			case valid && clientConfigETagMatches(clientETag, storedETag):
 				return &fleet.ClientConfigResult{
 					ETag:        storedETag,
 					NotModified: true,
@@ -991,13 +986,15 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 	}
 
 	// Even without the short circuit, honor the validator against the
-	// just-built body (this is the pre-existing bandwidth-only 304 path).
-	notModified := clientConfigETagMatches(ifNoneMatch, etag)
+	// just-built body (this is the pre-existing bandwidth-only
+	// naive-not-modified path: the config was built, but the response body
+	// shrinks to the constant "unchanged" form).
+	notModified := clientConfigETagMatches(clientETag, etag)
 	cacheStatus := "full_mismatch"
 	switch {
 	case notModified:
 		cacheStatus = "not_modified"
-	case ifNoneMatch == "":
+	case clientETag == nil || *clientETag == "":
 		cacheStatus = "full_no_validator"
 	}
 	result := &fleet.ClientConfigResult{
@@ -1008,6 +1005,18 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 	}
 	if !notModified {
 		result.Body = body
+		// An opted-in agent receives the config with the validator added
+		// under the "etag" key. The validator itself is always computed over
+		// the etag-less Body — the representation the agent applies after
+		// stripping the key — so the re-marshal happens after hashing.
+		if clientETag != nil {
+			config["etag"] = etag
+			bodyWithETag, err := marshalClientConfig(config)
+			if err != nil {
+				return nil, newOsqueryError("internal error: encode config with etag: " + err.Error())
+			}
+			result.BodyWithETag = bodyWithETag
+		}
 	}
 	return result, nil
 }
@@ -1017,8 +1026,8 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 // matches packs whose pack_type is NULL or empty — deliberately wider than
 // ListPacksForHost's strict `pack_type IS NULL`, because for this gate
 // over-matching only costs the optimization while under-matching could let a
-// host 304 past a legacy pack change. Errors report as present (fail toward
-// bypassing the optimization).
+// host's stale etag match past a legacy pack change. Errors report as
+// present (fail toward bypassing the optimization).
 func (svc *Service) userPacksExist(ctx context.Context) (bool, error) {
 	packs, err := svc.ds.ListPacks(ctx, fleet.PackListOptions{ListOptions: fleet.ListOptions{PerPage: 1}})
 	if err != nil {
