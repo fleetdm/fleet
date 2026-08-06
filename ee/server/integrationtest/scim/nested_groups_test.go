@@ -272,14 +272,17 @@ func testNestedGroups(t *testing.T, s *Suite) {
 	})
 
 	t.Run("Nested group cycles are tolerated", func(t *testing.T) {
+		cycleUserID, _ := createTestUser(t, s, "nested-cycle-user@example.com")
 		cycle1ID, _ := createTestGroup(t, s, "Nested Cycle 1", nil)
 		cycle2ID, _ := createTestGroup(t, s, "Nested Cycle 2", []string{cycle1ID})
+		defer s.Do(t, "DELETE", scimPath("/Users/"+cycleUserID), nil, http.StatusNoContent)
 		defer s.Do(t, "DELETE", scimPath("/Groups/"+cycle1ID), nil, http.StatusNoContent)
 		defer s.Do(t, "DELETE", scimPath("/Groups/"+cycle2ID), nil, http.StatusNoContent)
 
-		// Close the cycle: 1 -> 2 -> 1. Entra ID prevents cycles on its side, but
-		// Fleet must not error or loop if one is ever provisioned (the recursive
-		// membership expansion uses UNION, which guarantees termination).
+		// Close the cycle (1 -> 2 -> 1) and add a user to cycle 1 in the same
+		// patch. Entra ID prevents cycles on its side, but Fleet must not error
+		// or loop if one is ever provisioned (the recursive membership expansion
+		// uses UNION, which guarantees termination).
 		patchPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
 			"Operations": []map[string]any{
@@ -287,6 +290,7 @@ func testNestedGroups(t *testing.T, s *Suite) {
 					"op":   "add",
 					"path": "members",
 					"value": []map[string]any{
+						{"value": cycleUserID},
 						{"value": cycle2ID},
 					},
 				},
@@ -296,11 +300,31 @@ func testNestedGroups(t *testing.T, s *Suite) {
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+cycle1ID), patchPayload, http.StatusOK, &resp)
 
 		members := groupMembersByValue(t, s, cycle1ID)
-		require.Len(t, members, 1)
+		require.Len(t, members, 2)
+		assert.Equal(t, "User", members[cycleUserID])
 		assert.Equal(t, "Group", members[cycle2ID])
 		members = groupMembersByValue(t, s, cycle2ID)
 		require.Len(t, members, 1)
 		assert.Equal(t, "Group", members[cycle1ID])
+
+		// The user's effective membership walks the cycle: direct member of
+		// cycle 1, transitive member of cycle 2 (its parent), and cycle 1 is not
+		// revisited. Each group must appear exactly once, proving the UNION
+		// dedup in getScimUserGroups terminates the cycle.
+		var userResp map[string]any
+		s.DoJSON(t, "GET", scimPath("/Users/"+cycleUserID), nil, http.StatusOK, &userResp)
+		groupsIntf, ok := userResp["groups"].([]any)
+		require.True(t, ok, "User should have a groups array")
+		groupValues := make([]string, 0, len(groupsIntf))
+		groupDisplays := make([]string, 0, len(groupsIntf))
+		for _, g := range groupsIntf {
+			group, ok := g.(map[string]any)
+			require.True(t, ok, "Group should be an object")
+			groupValues = append(groupValues, group["value"].(string))
+			groupDisplays = append(groupDisplays, group["display"].(string))
+		}
+		assert.ElementsMatch(t, []string{cycle1ID, cycle2ID}, groupValues)
+		assert.ElementsMatch(t, []string{"Nested Cycle 1", "Nested Cycle 2"}, groupDisplays)
 	})
 
 	// Clean up (the suite also truncates SCIM tables after each case).
