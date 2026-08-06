@@ -5599,22 +5599,56 @@ SELECT
 	hmad.variables_updated_at,
 	hmad.assets_updated_at,
 	hmad.activation_updated_at,
-	act.identifier AS activation_identifier,
-	HEX(act.token) AS activation_token,
 	JSON_UNQUOTE(JSON_EXTRACT(mad.raw_json, '$.Type')) AS declaration_type,
-	IF(hmad.variables_updated_at IS NOT NULL AND operation_type = ?, mad.raw_json, NULL) as raw_json,
-	IF(hmad.variables_updated_at IS NOT NULL AND operation_type = ?, act.raw_json, NULL) as activation_raw_json
+	IF(hmad.variables_updated_at IS NOT NULL AND operation_type = ?, mad.raw_json, NULL) as raw_json
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
-	LEFT JOIN mdm_apple_ddm_activations act ON act.declaration_uuid = mad.declaration_uuid
 WHERE
 	hmad.host_uuid = ? AND hmad.scope = ?`
 
 	var res []fleet.MDMAppleDDMDeclarationItem
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt,
-		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeInstall, hostUUID, scope); err != nil {
+		fleet.MDMOperationTypeInstall, hostUUID, scope); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM declaration items")
+	}
+
+	return res, nil
+}
+
+// ListCustomActivationsForDeclarations returns the custom activations attached
+// to the given declarations. Declarations without one are simply absent, and
+// the caller synthesizes Fleet's activation for those.
+func (ds *Datastore) ListCustomActivationsForDeclarations(ctx context.Context, declUUIDs []string) ([]*fleet.MDMAppleDDMActivationItem, error) {
+	if len(declUUIDs) == 0 {
+		return nil, nil
+	}
+
+	// Custom host vitals aren't recorded in mdm_configuration_profile_variables,
+	// so they only show up by scanning the body -- same approach as the reconciler.
+	const stmt = `
+SELECT
+	act.declaration_uuid,
+	act.identifier,
+	HEX(act.token) AS token,
+	act.raw_json,
+	(
+		EXISTS(SELECT 1 FROM mdm_configuration_profile_variables v WHERE v.apple_ddm_activation_uuid = act.activation_uuid)
+		OR INSTR(act.raw_json, ?) > 0
+	) AS has_fleet_variables
+FROM
+	mdm_apple_ddm_activations act
+WHERE
+	act.declaration_uuid IN (?)`
+
+	q, args, err := sqlx.In(stmt, fleet.CustomHostVitalPrefix, declUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build custom activations query")
+	}
+
+	var res []*fleet.MDMAppleDDMActivationItem
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, q, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list custom activations for declarations")
 	}
 
 	return res, nil

@@ -7197,10 +7197,29 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
 	}
 
-	activations := []fleet.MDMAppleDDMManifest{}
-	configurations := []fleet.MDMAppleDDMManifest{}
-	management := []fleet.MDMAppleDDMManifest{}
-	declarationUUIDs := []string{}
+	// Custom activations are fetched separately so the activation section is
+	// built from activation data, with its own token and its own variable check,
+	// rather than columns carried along on each declaration row.
+	allDeclUUIDs := make([]string, 0, len(di))
+	for _, d := range di {
+		allDeclUUIDs = append(allDeclUUIDs, d.DeclarationUUID)
+	}
+	customActivations, err := svc.ds.ListCustomActivationsForDeclarations(ctx, allDeclUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing custom activations")
+	}
+	activationByDecl := make(map[string]*fleet.MDMAppleDDMActivationItem, len(customActivations))
+	for _, a := range customActivations {
+		activationByDecl[a.DeclarationUUID] = a
+	}
+
+	// Pass 1: keep the declarations this host should install, and record the
+	// removes that still need marking pending.
+	type installable struct {
+		item           fleet.MDMAppleDDMDeclarationItem
+		effectiveToken string
+	}
+	var toInstall []installable
 	var removeDeclarationUUIDsToUpdateToPending []string
 	for _, d := range di {
 		if d.OperationType == nil {
@@ -7219,69 +7238,93 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 		// fetch or apply it. NOTE: the declaration is still included in the token
 		// computation below so that the token matches the SQL-computed
 		// token from handleTokens.
-		// The activation is expanded at delivery too, so an unresolvable variable
-		// there has to drop the declaration here as well -- otherwise the manifest
-		// advertises an activation the host can never fetch.
-		if d.VariablesUpdatedAt != nil {
-			var unresolvable error
-			for _, raw := range []*json.RawMessage{d.RawJSON, d.ActivationRawJSON} {
-				if raw == nil {
-					continue
-				}
-				if _, err := svc.replaceDeclarationFleetVariables(ctx, string(*raw), hostUUID); err != nil {
-					unresolvable = err
-					break
-				}
-			}
-			if unresolvable != nil {
-				if nryErr, ok := errors.AsType[notReadyYetError](unresolvable); ok {
+		if d.VariablesUpdatedAt != nil && d.RawJSON != nil {
+			if _, err := svc.replaceDeclarationFleetVariables(ctx, string(*d.RawJSON), hostUUID); err != nil {
+				if nryErr, ok := errors.AsType[notReadyYetError](err); ok {
 					if err := svc.markDeclarationPending(ctx, hostUUID, d.DeclarationUUID, nryErr.Message); err != nil {
 						return nil, ctxerr.Wrap(ctx, err, "mark declaration as pending")
 					}
 					continue
 				}
-				if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, unresolvable.Error()); err != nil {
+				if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, err.Error()); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
 				}
 				continue
 			}
 		}
 
-		effectiveToken := fleet.EffectiveDDMToken(d.ServerToken, d.VariablesUpdatedAt, d.AssetsUpdatedAt, d.ActivationUpdatedAt)
+		toInstall = append(toInstall, installable{
+			item:           d,
+			effectiveToken: fleet.EffectiveDDMToken(d.ServerToken, d.VariablesUpdatedAt, d.AssetsUpdatedAt, d.ActivationUpdatedAt),
+		})
+	}
+
+	// Pass 2: build the activations. A custom activation is expanded at delivery
+	// like a declaration, so its variables are checked here -- against the
+	// activation itself, which may carry variables the declaration doesn't.
+	activations := []fleet.MDMAppleDDMManifest{}
+	failedByActivation := make(map[string]struct{})
+	for _, in := range toInstall {
+		d := in.item
+		if d.DeclarationType != nil && strings.HasPrefix(*d.DeclarationType, fleet.MDMAppleManagementTypePrefix) {
+			// Activations only take StandardConfigurations, never management.
+			continue
+		}
+
+		act := activationByDecl[d.DeclarationUUID]
+		if act == nil {
+			activations = append(activations, fleet.MDMAppleDDMManifest{
+				Identifier:  d.DeclarationUUID + fleet.MDMAppleGeneratedActivationSuffix,
+				ServerToken: in.effectiveToken,
+			})
+			continue
+		}
+
+		if act.HasFleetVariables {
+			if _, err := svc.replaceDeclarationFleetVariables(ctx, string(act.RawJSON), hostUUID); err != nil {
+				// Same not-ready-yet distinction the declaration gets: a value that
+				// hasn't arrived yet is pending, not a failure.
+				if nryErr, ok := errors.AsType[notReadyYetError](err); ok {
+					if err := svc.markDeclarationPending(ctx, hostUUID, d.DeclarationUUID, nryErr.Message); err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "mark declaration as pending")
+					}
+					failedByActivation[d.DeclarationUUID] = struct{}{}
+					continue
+				}
+				if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, err.Error()); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
+				}
+				failedByActivation[d.DeclarationUUID] = struct{}{}
+				continue
+			}
+		}
+
+		activations = append(activations, fleet.MDMAppleDDMManifest{
+			Identifier:  act.Identifier,
+			ServerToken: act.Token,
+		})
+	}
+
+	// Pass 3: the core profile flow.
+	configurations := []fleet.MDMAppleDDMManifest{}
+	management := []fleet.MDMAppleDDMManifest{}
+	declarationUUIDs := []string{}
+	for _, in := range toInstall {
+		d := in.item
+		if _, failed := failedByActivation[d.DeclarationUUID]; failed {
+			continue
+		}
 
 		// Management declarations can reference assets too (organization-info
 		// carries one), so they belong in the asset lookup as well.
 		declarationUUIDs = append(declarationUUIDs, d.DeclarationUUID)
 
+		entry := fleet.MDMAppleDDMManifest{Identifier: d.Identifier, ServerToken: in.effectiveToken}
 		if d.DeclarationType != nil && strings.HasPrefix(*d.DeclarationType, fleet.MDMAppleManagementTypePrefix) {
-			management = append(management, fleet.MDMAppleDDMManifest{
-				Identifier:  d.Identifier,
-				ServerToken: effectiveToken,
-			})
+			management = append(management, entry)
 			continue
 		}
-
-		configurations = append(configurations, fleet.MDMAppleDDMManifest{
-			Identifier:  d.Identifier,
-			ServerToken: effectiveToken,
-		})
-
-		// A synthesized activation has no content of its own, so it rides on the
-		// declaration's effective token. A custom one is independent content and
-		// carries its own, so editing the declaration or an asset it references
-		// no longer forces the host to re-fetch the activation.
-		activationIdentifier := d.DeclarationUUID + fleet.MDMAppleGeneratedActivationSuffix
-		activationToken := effectiveToken
-		if d.ActivationIdentifier != nil {
-			activationIdentifier = *d.ActivationIdentifier
-			if d.ActivationToken != nil {
-				activationToken = *d.ActivationToken
-			}
-		}
-		activations = append(activations, fleet.MDMAppleDDMManifest{
-			Identifier:  activationIdentifier,
-			ServerToken: activationToken,
-		})
+		configurations = append(configurations, entry)
 	}
 
 	referencedAssets, err := svc.ds.GetAppleDDMAssetsReferencedByDeclarations(ctx, declarationUUIDs)
@@ -7575,7 +7618,7 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 	}
 
 	// Configurations and management declarations are graded differently, so
-	// each gets its own pass rather than one switch juggling both.
+	// each gets its own pass.
 	decls := statusReport.StatusItems.Management.Declarations
 	updates := make([]*fleet.MDMAppleHostDeclaration, 0, len(decls.Configurations)+len(decls.Management))
 	for _, r := range decls.Configurations {

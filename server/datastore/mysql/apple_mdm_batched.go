@@ -646,8 +646,20 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 		declUUIDs = append(declUUIDs, u)
 	}
 	if len(declUUIDs) > 0 {
-		const varsStmt = `SELECT DISTINCT apple_declaration_uuid FROM mdm_configuration_profile_variables WHERE apple_declaration_uuid IN (?)`
-		q, args, err := sqlx.In(varsStmt, declUUIDs)
+		// A variable may live only in the custom activation, which is recorded
+		// against apple_ddm_activation_uuid. Missing those leaves the owning
+		// declaration unstamped, so the host never re-fetches when the value
+		// changes.
+		const varsStmt = `
+SELECT DISTINCT apple_declaration_uuid AS declaration_uuid
+FROM mdm_configuration_profile_variables
+WHERE apple_declaration_uuid IN (?)
+UNION
+SELECT DISTINCT act.declaration_uuid
+FROM mdm_configuration_profile_variables v
+	JOIN mdm_apple_ddm_activations act ON act.activation_uuid = v.apple_ddm_activation_uuid
+WHERE act.declaration_uuid IN (?)`
+		q, args, err := sqlx.In(varsStmt, declUUIDs, declUUIDs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "build apple declaration variables query")
 		}

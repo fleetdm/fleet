@@ -1284,6 +1284,8 @@ type MDMAppleDDMDeclarationsTokenFunc func(ctx context.Context, hostUUID string,
 
 type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string, scope fleet.PayloadScope) ([]fleet.MDMAppleDDMDeclarationItem, error)
 
+type ListCustomActivationsForDeclarationsFunc func(ctx context.Context, declUUIDs []string) ([]*fleet.MDMAppleDDMActivationItem, error)
+
 type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDeclaration, error)
 
 type MDMAppleDDMActivationResponseFunc func(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDDMActivationForDelivery, error)
@@ -4176,6 +4178,9 @@ type DataStore struct {
 
 	MDMAppleDDMDeclarationItemsFunc        MDMAppleDDMDeclarationItemsFunc
 	MDMAppleDDMDeclarationItemsFuncInvoked bool
+
+	ListCustomActivationsForDeclarationsFunc        ListCustomActivationsForDeclarationsFunc
+	ListCustomActivationsForDeclarationsFuncInvoked bool
 
 	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
 	MDMAppleDDMDeclarationsResponseFuncInvoked bool
@@ -10091,6 +10096,13 @@ func (s *DataStore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID st
 	s.MDMAppleDDMDeclarationItemsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleDDMDeclarationItemsFunc(ctx, hostUUID, scope)
+}
+
+func (s *DataStore) ListCustomActivationsForDeclarations(ctx context.Context, declUUIDs []string) ([]*fleet.MDMAppleDDMActivationItem, error) {
+	s.mu.Lock()
+	s.ListCustomActivationsForDeclarationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListCustomActivationsForDeclarationsFunc(ctx, declUUIDs)
 }
 
 func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDeclaration, error) {

@@ -894,6 +894,45 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 			"the served activation token must match the manifest")
 	})
 
+	t.Run("ActivationVariablesCheckedWhenDeclarationHasNone", func(t *testing.T) {
+		hostUUID, hardwareSerial := "test-host-uuid-actvar", "ACT-VAR"
+		createHost(t, hostUUID, hardwareSerial)
+		setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+
+		teamID := uint(44)
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Name:       "ActVarDecl",
+			Identifier: "com.example.actvar",
+			TeamID:     &teamID,
+			// No variables in the declaration itself.
+			RawJSON: []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.actvar","Payload":{"Enabled":true}}`),
+			Scope:   fleet.PayloadScopeSystem,
+			Activation: &fleet.MDMAppleCustomActivation{
+				Identifier: "com.example.actvar.act",
+				// ...but the activation references a vital that doesn't exist.
+				RawJSON:                 []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.example.actvar.act","Payload":{"StandardConfigurations":["com.example.actvar"],"Predicate":"$FLEET_HOST_VITAL_999999 == 'x'"}}`),
+				ConfigurationIdentifier: "com.example.actvar",
+			},
+		}, nil)
+		require.NoError(t, err)
+		insertHostDeclaration(t, hostUUID, decl.DeclarationUUID, "pending", "install", decl.Identifier)
+
+		// The activation's variables have to be checked on the activation itself.
+		// Gating on the declaration's variables_updated_at skipped this entirely,
+		// leaving the host with an activation it could never resolve.
+		manifest := callDeclarativeManagementAndVerify(t, hostUUID, 0, 0)
+		require.Empty(t, manifest.Declarations.Configurations)
+		require.Empty(t, manifest.Declarations.Activations)
+
+		var status string
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				`SELECT status FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_uuid = ?`,
+				hostUUID, decl.DeclarationUUID)
+		})
+		require.Equal(t, string(fleet.MDMDeliveryFailed), status)
+	})
+
 	t.Run("ManagementDeclarationRoutingAndEndpointGuard", func(t *testing.T) {
 		hostUUID := "test-host-uuid-mgmt"
 		hardwareSerial := "ABC123-MGMT"

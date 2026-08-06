@@ -1315,23 +1315,28 @@ type MDMAppleDDMDeclarationItem struct {
 	// ServerToken field is just for the static token of the DDM.
 	AssetsUpdatedAt     *time.Time `db:"assets_updated_at"`
 	ActivationUpdatedAt *time.Time `db:"activation_updated_at"`
-	// Identifier of the custom activation attached to this declaration; nil
-	// means Fleet synthesizes one.
-	ActivationIdentifier *string `db:"activation_identifier"`
-	// ActivationToken is the custom activation's own token, so editing the
-	// declaration or one of its assets doesn't re-sync the activation. Nil
-	// alongside ActivationIdentifier when Fleet synthesizes the activation.
-	ActivationToken *string `db:"activation_token"`
 	DeclarationType *string `db:"declaration_type"`
 	// RawJSON is conditionally loaded only for declarations that use Fleet
 	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
 	// so that handleDeclarationItems can check variable resolution without an
 	// extra query.
 	RawJSON *json.RawMessage `db:"raw_json"`
-	// ActivationRawJSON is the custom activation's body, loaded under the same
-	// condition as RawJSON. Fleet variables in an activation are expanded at
-	// delivery too, so they have to be preflighted alongside the declaration.
-	ActivationRawJSON *json.RawMessage `db:"activation_raw_json"`
+}
+
+// MDMAppleDDMActivationItem is a custom activation as the manifest needs it:
+// its own identifier and token, plus enough to know whether its Fleet variables
+// resolve for a host. Kept apart from MDMAppleDDMDeclarationItem so the
+// activation section of the manifest is built from activation data rather than
+// columns carried along on each declaration row.
+type MDMAppleDDMActivationItem struct {
+	DeclarationUUID string `db:"declaration_uuid"`
+	Identifier      string `db:"identifier"`
+	// Token is the activation's own token, hex-encoded.
+	Token   string `db:"token"`
+	RawJSON []byte `db:"raw_json"`
+	// HasFleetVariables covers both recorded Fleet variables and custom host
+	// vitals, which are only detectable by scanning the body.
+	HasFleetVariables bool `db:"has_fleet_variables"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
