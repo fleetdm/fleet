@@ -259,6 +259,13 @@ const PolicyAutomationsActivitiesTable = ({
       <TableContainer
         columnConfigs={columnConfigs}
         data={data?.activities ?? []}
+        // Each row is one (activity, host) pair, so batch automations (e.g.
+        // one webhook POST covering many hosts) return multiple rows sharing
+        // the same activity id. The default row id (row.id) would collapse
+        // them into a single rendered row.
+        getRowId={(row: IPolicyAutomationActivity) =>
+          `${row.id}-${row.host_id}`
+        }
         isLoading={isLoading}
         manualSortBy
         pageIndex={page}
