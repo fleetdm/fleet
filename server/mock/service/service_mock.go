@@ -44,7 +44,7 @@ type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err e
 
 type GetActivitiesWebhookSettingsFunc func(ctx context.Context) (fleet.ActivitiesWebhookSettings, error)
 
-type GetHostActivitiesWebhookSettingsFunc func(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookSettings, error)
+type GetHostActivitiesWebhookSettingsFunc func(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error)
 
 type ActivateNextUpcomingActivityForHostFunc func(ctx context.Context, hostID uint, fromCompletedExecID string) error
 
@@ -2538,7 +2538,7 @@ func (s *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.Activ
 	return s.GetActivitiesWebhookSettingsFunc(ctx)
 }
 
-func (s *Service) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookSettings, error) {
+func (s *Service) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error) {
 	s.mu.Lock()
 	s.GetHostActivitiesWebhookSettingsFuncInvoked = true
 	s.mu.Unlock()

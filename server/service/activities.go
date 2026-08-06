@@ -30,7 +30,7 @@ func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.Act
 // not. DefaultTeamConfig is served from the datastore cache but TeamLite is
 // not, so named-fleet hosts cost one lite host read plus one team read per
 // activity.
-func (svc *Service) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookSettings, error) {
+func (svc *Service) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error) {
 	if !license.IsPremium(ctx) {
 		return nil, nil
 	}

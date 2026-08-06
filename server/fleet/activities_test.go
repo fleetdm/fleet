@@ -57,17 +57,14 @@ func TestFailedAutomationTicketActivities(t *testing.T) {
 }
 
 func TestRanAutomationTicketActivities(t *testing.T) {
-	// assertHostIDsAndNoPolicyName checks that the marshaled details include
-	// the host_ids list (so webhook/API consumers can act on the affected
-	// hosts; see #50218) and still omit the policy name.
-	assertHostIDsAndNoPolicyName := func(t *testing.T, got map[string]any, want []uint) {
+	// assertNoHostIDsAndNoPolicyName checks that the marshaled (stored)
+	// details omit the host_ids list — it is injected into webhook payloads
+	// only at fire time (see #50218), keeping API/feed responses lean — and
+	// still omit the policy name.
+	assertNoHostIDsAndNoPolicyName := func(t *testing.T, got map[string]any) {
 		t.Helper()
-		raw, ok := got["host_ids"].([]any)
-		require.True(t, ok, "host_ids missing from details")
-		require.Len(t, raw, len(want))
-		for i, v := range raw {
-			assert.EqualValues(t, want[i], v)
-		}
+		_, hasHostIDs := got["host_ids"]
+		assert.False(t, hasHostIDs, "host_ids must not be stored in details")
 		_, hasPolicyName := got["policy_name"]
 		assert.False(t, hasPolicyName)
 	}
@@ -94,7 +91,7 @@ func TestRanAutomationTicketActivities(t *testing.T) {
 		// ticket_id omitted for jira
 		_, hasTicketID := got["ticket_id"]
 		assert.False(t, hasTicketID)
-		assertHostIDsAndNoPolicyName(t, got, []uint{11})
+		assertNoHostIDsAndNoPolicyName(t, got)
 	})
 
 	t.Run("ticket (zendesk)", func(t *testing.T) {
@@ -119,7 +116,7 @@ func TestRanAutomationTicketActivities(t *testing.T) {
 		// ticket_key omitted for zendesk
 		_, hasTicketKey := got["ticket_key"]
 		assert.False(t, hasTicketKey)
-		assertHostIDsAndNoPolicyName(t, got, []uint{12, 13})
+		assertNoHostIDsAndNoPolicyName(t, got)
 	})
 }
 
@@ -189,14 +186,10 @@ func TestFailedPolicyAutomationActivities(t *testing.T) {
 }
 
 func TestSuccessPolicyAutomationActivities(t *testing.T) {
-	assertHostIDsAndNoPolicyName := func(t *testing.T, got map[string]any, want []uint) {
+	assertNoHostIDsAndNoPolicyName := func(t *testing.T, got map[string]any) {
 		t.Helper()
-		raw, ok := got["host_ids"].([]any)
-		require.True(t, ok, "host_ids missing from details")
-		require.Len(t, raw, len(want))
-		for i, v := range raw {
-			assert.EqualValues(t, want[i], v)
-		}
+		_, hasHostIDs := got["host_ids"]
+		assert.False(t, hasHostIDs, "host_ids must not be stored in details")
 		_, hasPolicyName := got["policy_name"]
 		assert.False(t, hasPolicyName)
 	}
@@ -216,7 +209,7 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		var got map[string]any
 		require.NoError(t, json.Unmarshal(b, &got))
 		assert.EqualValues(t, 14, got["policy_id"])
-		assertHostIDsAndNoPolicyName(t, got, []uint{42})
+		assertNoHostIDsAndNoPolicyName(t, got)
 	})
 
 	t.Run("webhook sent", func(t *testing.T) {
@@ -236,7 +229,7 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		require.NoError(t, json.Unmarshal(b, &got))
 		assert.EqualValues(t, 7, got["policy_id"])
 		assert.EqualValues(t, 200, got["status_code"])
-		assertHostIDsAndNoPolicyName(t, got, []uint{10, 20, 30})
+		assertNoHostIDsAndNoPolicyName(t, got)
 	})
 
 	t.Run("webhook sent omits zero status code", func(t *testing.T) {
@@ -262,7 +255,7 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		var got map[string]any
 		require.NoError(t, json.Unmarshal(b, &got))
 		assert.EqualValues(t, 15, got["policy_id"])
-		assertHostIDsAndNoPolicyName(t, got, []uint{43})
+		assertNoHostIDsAndNoPolicyName(t, got)
 	})
 }
 

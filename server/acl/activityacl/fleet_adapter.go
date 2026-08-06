@@ -133,7 +133,10 @@ func (a *FleetServiceAdapter) GetHostActivitiesWebhooks(ctx context.Context, hos
 	}
 	hooks := make([]activity.HostActivitiesWebhook, 0, len(settings))
 	for _, s := range settings {
-		hooks = append(hooks, activity.HostActivitiesWebhook{DestinationURL: s.DestinationURL})
+		hooks = append(hooks, activity.HostActivitiesWebhook{
+			DestinationURL: s.DestinationURL,
+			HostIDs:        s.HostIDs,
+		})
 	}
 	return hooks, nil
 }
