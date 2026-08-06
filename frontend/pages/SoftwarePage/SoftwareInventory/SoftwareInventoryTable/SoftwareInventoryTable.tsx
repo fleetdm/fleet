@@ -24,7 +24,6 @@ import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
@@ -253,11 +252,11 @@ const SoftwareTable = ({
           disableTooltip={!hasVulnFilters}
         >
           <Button
-            variant="inverse"
+            variant="secondary"
             onClick={onAddFiltersClick}
             disabled={controlsDisabled}
+            icon="filter"
           >
-            <Icon name="filter" />
             <span>{vulnFilterDetails.buttonText}</span>
           </Button>
         </TooltipWrapper>

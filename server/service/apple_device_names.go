@@ -144,7 +144,7 @@ func ReconcileHostDeviceNames(
 		// Expand any custom host vital ($FLEET_HOST_VITAL_<id>) references with this
 		// host's stored value. Unlike secrets, vital values are per-host, so this
 		// can't be memoized across hosts sharing a template.
-		if len(fleet.ContainsCustomHostVitalIDs(expandedTmpl)) > 0 {
+		if len(fleet.FindCustomHostVitalIDs(expandedTmpl)) > 0 {
 			withVitals, vitalErr := ds.ExpandCustomHostVitals(ctx, host.HostID, expandedTmpl)
 			if vitalErr != nil {
 				if _, ok := errors.AsType[*fleet.MissingCustomHostVitalValueError](vitalErr); !ok {

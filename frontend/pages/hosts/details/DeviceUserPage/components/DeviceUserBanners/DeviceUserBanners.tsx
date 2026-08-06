@@ -7,6 +7,7 @@ import { MacDiskEncryptionActionRequired } from "interfaces/host";
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import CustomLink from "components/CustomLink";
 import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
+import { isAutomaticDeviceEnrollment } from "interfaces/mdm";
 
 const baseClass = "device-user-banners";
 
@@ -58,6 +59,11 @@ const DeviceUserBanners = ({
     diskEncryptionActionRequired === "rotate_key" &&
     !isNewMdmEnrollment;
 
+  // ADE-enrolled hosts escrow their FileVault key automatically, so there's nothing
+  // for the end user to do but refetch. Manually-enrolled hosts only get a new key at
+  // next login, so they keep the log-out instruction.
+  const isAdeEnrolled = isAutomaticDeviceEnrollment(mdmEnrollmentStatus);
+
   const turnOnMdmButton = mdmManualEnrolmentUrl ? (
     <CustomLink
       url={mdmManualEnrolmentUrl}
@@ -85,9 +91,19 @@ const DeviceUserBanners = ({
     if (showMacDiskEncryptionKeyResetRequired) {
       return (
         <InfoBanner color="yellow">
-          Disk encryption: Log out of your device or restart it to safeguard
-          your data in case your device is lost or stolen. After, select{" "}
-          <strong>Refetch</strong> to clear this banner.
+          {isAdeEnrolled ? (
+            <>
+              Disk encryption: Refetch to ensure data is safeguarded in case
+              your device is lost or stolen. If this banner persists, contact
+              your IT admin.
+            </>
+          ) : (
+            <>
+              Disk encryption: Log out of your device or restart it to safeguard
+              your data in case your device is lost or stolen. After, select{" "}
+              <strong>Refetch</strong> to clear this banner.
+            </>
+          )}
         </InfoBanner>
       );
     }
@@ -128,7 +144,7 @@ const DeviceUserBanners = ({
           <InfoBanner
             cta={
               <Button
-                variant="inverse"
+                variant="secondary"
                 onClick={onTriggerEscrowLinuxKey}
                 className="create-key-button"
               >

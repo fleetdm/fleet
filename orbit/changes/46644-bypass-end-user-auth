@@ -1,0 +1,1 @@
+- Added a `--bypass-end-user-auth` flag (env `ORBIT_BYPASS_END_USER_AUTH`) that skips the end-user authentication prompt during enrollment on Linux and Windows by not advertising the end-user auth capability to the Fleet server. When a Windows MDM EUA token is present, it takes precedence and end-user auth is still processed.

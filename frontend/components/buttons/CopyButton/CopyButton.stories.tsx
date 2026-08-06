@@ -28,8 +28,8 @@ const inlineRow: React.CSSProperties = {
   fontSize: 14,
 };
 
-export const IconVariant: Story = {
-  args: { ...DEFAULT_ARGS, variant: "icon" },
+export const SubduedVariant: Story = {
+  args: { ...DEFAULT_ARGS, variant: "subdued" },
   render: (args) => (
     <span style={inlineRow}>
       <span>fleet-maintained-app-slug</span>
@@ -48,8 +48,8 @@ export const CompactVariant: Story = {
   ),
 };
 
-export const InverseVariant: Story = {
-  args: { ...DEFAULT_ARGS, variant: "inverse" },
+export const SecondaryVariant: Story = {
+  args: { ...DEFAULT_ARGS, variant: "secondary" },
   render: (args) => (
     <span style={inlineRow}>
       <code>SELECT * FROM users;</code>

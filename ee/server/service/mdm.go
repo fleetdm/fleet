@@ -206,7 +206,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		return err
 	}
 
-	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateManagedLocalAccount bool
+	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateMacOSManagedLocalAccount bool
 	if payload.EnableEndUserAuthentication != nil {
 		if ac.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
 			ac.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
@@ -280,7 +280,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 	if payload.EnableManagedLocalAccount != nil {
 		if !ac.MDM.MacOSSetup.EnableManagedLocalAccount.Valid || ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value != *payload.EnableManagedLocalAccount {
 			ac.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(*payload.EnableManagedLocalAccount)
-			didUpdateManagedLocalAccount = true
+			didUpdateMacOSManagedLocalAccount = true
 			didUpdate = true
 		}
 	}
@@ -300,8 +300,8 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 				return err
 			}
 		}
-		if didUpdateManagedLocalAccount {
-			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, nil, nil); err != nil {
+		if didUpdateMacOSManagedLocalAccount {
+			if err := svc.logEnableManagedLocalAccountActivity(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", nil, nil); err != nil {
 				return err
 			}
 		}
@@ -326,15 +326,16 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 	return nil
 }
 
-func (svc *Service) updateMacOSSetupEnableManagedLocalAccount(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
+// logEnableManagedLocalAccountActivity logs the enabled/disabled managed local account activity for one platform's toggle ("darwin" or "windows").
+func (svc *Service) logEnableManagedLocalAccountActivity(ctx context.Context, enable bool, platform string, teamID *uint, teamName *string) error {
 	var act fleet.ActivityDetails
 	if enable {
-		act = fleet.ActivityTypeEnabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+		act = fleet.ActivityTypeEnabledManagedLocalAccount{TeamID: teamID, TeamName: teamName, Platform: platform}
 	} else {
-		act = fleet.ActivityTypeDisabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+		act = fleet.ActivityTypeDisabledManagedLocalAccount{TeamID: teamID, TeamName: teamName, Platform: platform}
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+		return ctxerr.Wrap(ctx, err, "create activity for enable managed local account change")
 	}
 	return nil
 }
@@ -1485,6 +1486,24 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 
 	// OS updates enabled, create or update the profile with the current settings.
 
+	targetOSVersion := updates.MinimumVersion.Value
+	targetDeadline := updates.Deadline.Value
+	var usesFleetVars []fleet.FleetVarName
+	if updates.EnforcesLatestVersion() {
+		// In "latest" mode the target version and deadline differ per host (they
+		// depend on the host's hardware and on when Apple released the version it
+		// can run), so emit placeholders that are resolved at declaration fetch
+		// time. The deadline placeholder is brace-delimited so it doesn't absorb
+		// the time suffix appended below, and resolves to a YYYY-MM-DD date, the
+		// same shape as updates.Deadline in specific-version mode.
+		targetOSVersion = fmt.Sprintf("$FLEET_VAR_%s", fleet.FleetVarHostTargetOSVersion)
+		targetDeadline = fmt.Sprintf("${FLEET_VAR_%s}", fleet.FleetVarHostTargetOSDeadline)
+		usesFleetVars = []fleet.FleetVarName{
+			fleet.FleetVarHostTargetOSVersion,
+			fleet.FleetVarHostTargetOSDeadline,
+		}
+	}
+
 	rawDecl := []byte(fmt.Sprintf(`{
 	"Identifier": %q,
 	"Type": %q,
@@ -1492,7 +1511,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		"TargetOSVersion": %q,
 		"TargetLocalDateTime": "%sT12:00:00"
 	}
-}`, softwareUpdateIdentifier, apple_mdm.DeclarationTypeSoftwareUpdate, updates.MinimumVersion.Value, updates.Deadline.Value))
+}`, softwareUpdateIdentifier, apple_mdm.DeclarationTypeSoftwareUpdate, targetOSVersion, targetDeadline))
 
 	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, apple_mdm.DeclarationTypeSoftwareUpdate, softwareUpdateIdentifier)
 
@@ -1505,7 +1524,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		{LabelName: labelName, LabelID: lblIDs[labelName]},
 	}
 
-	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, nil)
+	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, usesFleetVars)
 	if err != nil {
 		return err
 	}

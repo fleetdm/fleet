@@ -61,11 +61,8 @@ const EndUserAuthSection = ({
               <CustomLink
                 url={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
                 text="identity provider (IdP)"
-              />{" "}
-              when setting up new hosts. Supported for Apple (macOS, iOS,
-              iPadOS),
-              <br />
-              Windows, Linux, and Android hosts.
+              />
+              . ChromeOS not supported.
             </span>
           }
         >
@@ -103,9 +100,8 @@ const EndUserAuthSection = ({
               onChange={onLockEndUserInfoChange}
               helpText={
                 <span>
-                  Prevents macOS users from editing{" "}
                   <strong>Account Name</strong> and <strong>Full name</strong>{" "}
-                  in Setup Assistant. These fields will be locked to IdP values.
+                  will be locked to IdP values in Setup Assistant. macOS only.
                 </span>
               }
             >

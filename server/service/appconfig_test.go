@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1219,13 +1220,14 @@ func TestMDMConfig(t *testing.T) {
 				Script:                      optjson.String{Set: true},
 				ManualAgentInstall:          optjson.Bool{Set: true},
 			},
-			MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-			IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-			IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+			MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+			IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
+			IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
 			VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 			WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -1296,6 +1298,50 @@ func TestMDMConfig(t *testing.T) {
 			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
 				m.DeprecatedAppleBMDefaultTeam = "foobar"
 			}),
+		},
+		{
+			// A lapsed-premium instance can still have "latest" stored, so editing
+			// only deadline_days must hit the license gate like any other OS update
+			// change would.
+			name:        "deadlineDaysFree",
+			licenseTier: "free",
+			oldMDM: fleet.MDM{MacOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(14),
+			}},
+			newMDM: fleet.MDM{MacOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(21),
+			}},
+			expectedError: "macos_updates.minimum_version " + licenseErr,
+		},
+		{
+			// The license gate is shared by the three Apple platforms, so the
+			// reported field has to follow the one that changed.
+			name:        "deadlineDaysFreeIOS",
+			licenseTier: "free",
+			oldMDM: fleet.MDM{IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(14),
+			}},
+			newMDM: fleet.MDM{IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(21),
+			}},
+			expectedError: "ios_updates.minimum_version " + licenseErr,
+		},
+		{
+			name:        "deadlineDaysFreeIPadOS",
+			licenseTier: "free",
+			oldMDM: fleet.MDM{IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(14),
+			}},
+			newMDM: fleet.MDM{IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(21),
+			}},
+			expectedError: "ipados_updates.minimum_version " + licenseErr,
 		},
 		{
 			name:          "ssoFree",
@@ -1579,6 +1625,11 @@ func TestMDMConfig(t *testing.T) {
 				*dsAppConfig = *conf
 				return nil
 			}
+			// Reached whenever OS updates are configured, including "latest" mode,
+			// before the license gate runs.
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(context.Context, uint) (bool, error) {
+				return false, nil
+			}
 			ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 				if tt.findTeam {
 					return &fleet.Team{}, nil
@@ -1640,6 +1691,185 @@ func TestMDMConfig(t *testing.T) {
 			require.Equal(t, tt.expectedMDM, ac.MDM)
 		})
 	}
+}
+
+// A sparse PATCH that switches mode doesn't mention the outgoing mode's
+// deadline field, so the merged config keeps the stale value and validation
+// rejects it. Both directions are affected: "latest" rejects a deadline, a
+// specific version rejects deadline_days. TestMDMConfig can't cover either: it
+// builds payloads with json.Marshal of a whole fleet.MDM, and optjson emits an
+// explicit null for every unset field, which clears the value on the way in.
+func TestModifyAppConfigClearsStaleAppleOSUpdateDeadline(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	latest := fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+		DeadlineDays:   optjson.SetInt(14),
+	}
+
+	// 14.6.1 is a macOS version present in the GDMF fixture.
+	specific := fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("14.6.1"),
+		Deadline:       optjson.SetString("2026-09-01"),
+	}
+
+	setup := func(t *testing.T, stored fleet.MDM) (fleet.Service, context.Context) {
+		// validateMDM checks minimum_version against GDMF unconditionally, so
+		// serve Apple's asset list from the local fixture. Without this the
+		// subtests reach out to Apple and start failing whenever a version stops
+		// being published.
+		mdmtest.StartNewAppleGDMFTestServer(t)
+
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			MDM:            stored,
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return dsAppConfig, nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(context.Context, uint) (bool, error) {
+			return false, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{}, nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{}, nil
+		}
+		// changing OS updates reconciles the reserved software-update
+		// declaration, so the write path has to be stubbed for the success cases
+		// to get past validation.
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, tmFilter fleet.TeamFilter) (map[string]uint, error) {
+			ids := make(map[string]uint, len(names))
+			for i, name := range names {
+				ids[name] = uint(i + 1) //nolint:gosec // G115: small test values
+			}
+			return ids, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			return d, nil
+		}
+		ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+			return nil
+		}
+		return svc, ctx
+	}
+
+	t.Run("macOS switching to a specific version", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: latest})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"14.6.1","deadline":"2026-09-01"}}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.Equal(t, "14.6.1", modified.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.Equal(t, "2026-09-01", modified.MDM.MacOSUpdates.Deadline.Value)
+		require.False(t, modified.MDM.MacOSUpdates.DeadlineDays.Valid)
+	})
+
+	t.Run("switching into latest mode drops the stored deadline", func(t *testing.T) {
+		// the mirror case: "latest" derives its deadline from deadline_days, so a
+		// stored deadline is what's stale here.
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: specific})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"latest","deadline_days":14}}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.Equal(t, fleet.AppleOSUpdateLatestVersion, modified.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.Equal(t, 14, modified.MDM.MacOSUpdates.DeadlineDays.Value)
+		require.Empty(t, modified.MDM.MacOSUpdates.Deadline.Value)
+
+		// deadline has always serialized as a string, so the cleared value has to
+		// stay "" rather than becoming null.
+		raw, err := json.Marshal(modified.MDM.MacOSUpdates)
+		require.NoError(t, err)
+		require.Contains(t, string(raw), `"deadline":""`)
+	})
+
+	t.Run("an explicitly supplied deadline is still rejected in latest mode", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: specific})
+
+		_, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"latest","deadline":"2026-09-01","deadline_days":14}}}`),
+			fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `deadline cannot be set when minimum_version is set to "latest"`)
+	})
+
+	t.Run("clearing enforcement entirely", func(t *testing.T) {
+		// turning enforcement off also leaves "latest" mode, so the stored
+		// deadline_days must not block it either.
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: latest})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"","deadline":""}}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.Empty(t, modified.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.False(t, modified.MDM.MacOSUpdates.DeadlineDays.Valid)
+	})
+
+	// the clearing is wired up per platform, so cover the other two. They clear
+	// enforcement rather than set a version to keep Apple's supported-version
+	// list out of it.
+	t.Run("iOS clearing enforcement", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.MDM{IOSUpdates: latest})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"ios_updates":{"minimum_version":"","deadline":""}}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.False(t, modified.MDM.IOSUpdates.DeadlineDays.Valid)
+	})
+
+	t.Run("iPadOS clearing enforcement", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.MDM{IPadOSUpdates: latest})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"ipados_updates":{"minimum_version":"","deadline":""}}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.False(t, modified.MDM.IPadOSUpdates.DeadlineDays.Valid)
+	})
+
+	t.Run("an explicitly supplied deadline_days is still rejected", func(t *testing.T) {
+		// the caller sent it, so this is a real mistake and has to keep failing
+		// with the error that explains the constraint.
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: latest})
+
+		_, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"mdm":{"macos_updates":{"minimum_version":"14.6.1","deadline":"2026-09-01","deadline_days":14}}}`),
+			fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `deadline_days can only be set when minimum_version is set to "latest"`)
+	})
+
+	t.Run("latest mode is untouched when the payload omits the platform", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.MDM{MacOSUpdates: latest})
+
+		modified, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"org_info":{"org_name":"Renamed"}}`),
+			fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		require.Equal(t, fleet.AppleOSUpdateLatestVersion, modified.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.Equal(t, 14, modified.MDM.MacOSUpdates.DeadlineDays.Value)
+	})
 }
 
 func TestModifyAppConfigWindowsEntraClientIDNormalization(t *testing.T) {
@@ -3042,57 +3272,121 @@ func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestModifyAppConfigManagedLocalAccount covers the no-team (team 0) path
-// through PATCH /config, which ModifyTeam doesn't handle.
+// TestModifyAppConfigManagedLocalAccount covers the no-team (team 0) path through PATCH /config for both managed
+// local account platform toggles, which ModifyTeam doesn't handle.
 func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
 
 	testCases := []struct {
-		name          string
-		mdmConfigured bool
-		startEnabled  bool
-		patch         string
-		wantErr       string
-		wantActivity  string
+		name               string
+		freeTier           bool
+		appleMDMOff        bool
+		windowsMDMOff      bool
+		startMacOS         bool
+		startWindows       bool
+		patch              string
+		wantErr            string
+		wantActivities     []string
+		wantWindowsEnabled bool
 	}{
 		{
-			name:    "MDM not configured rejects the change",
-			patch:   `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
-			wantErr: "setup_experience.enable_managed_local_account",
+			name:        "macOS: enabling managed local account requires Apple MDM",
+			appleMDMOff: true,
+			patch:       `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			wantErr:     "setup_experience.enable_managed_local_account",
 		},
 		{
-			name:          "enabling emits the enabled activity",
-			mdmConfigured: true,
-			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
-			wantActivity:  fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			name:           "macOS: enabling managed local account emits the enabled activity",
+			patch:          `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			wantActivities: []string{"enabled_managed_local_account:darwin"},
 		},
 		{
-			name:          "disabling emits the disabled activity",
-			mdmConfigured: true,
-			startEnabled:  true,
-			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
-			wantActivity:  fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+			name:           "macOS: disabling managed local account emits the disabled activity",
+			startMacOS:     true,
+			patch:          `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+			wantActivities: []string{"disabled_managed_local_account:darwin"},
 		},
 		{
-			name:          "no-op change emits no activity",
-			mdmConfigured: true,
-			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+			name:  "macOS: managed local account no-op change emits no activity",
+			patch: `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+		},
+		{
+			name:               "windows: enabling managed local account persists and fires activity",
+			patch:              `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			wantActivities:     []string{"enabled_managed_local_account:windows"},
+			wantWindowsEnabled: true,
+		},
+		{
+			name:           "windows: disabling managed local account persists and fires activity",
+			startWindows:   true,
+			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+			wantActivities: []string{"disabled_managed_local_account:windows"},
+		},
+		{
+			name:               "windows: null managed local account enabled means not provided",
+			startWindows:       true,
+			patch:              `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": null}}}}`,
+			wantWindowsEnabled: true,
+		},
+		{
+			name:  "windows: managed local account no-op change fires no activity",
+			patch: `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+		},
+		{
+			name:               "enabling managed local account on both platforms in one payload fires one activity per platform",
+			patch:              `{"mdm": {"macos_setup": {"enable_managed_local_account": true}, "windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			wantActivities:     []string{"enabled_managed_local_account:darwin", "enabled_managed_local_account:windows"},
+			wantWindowsEnabled: true,
+		},
+		{
+			name:     "windows: enabling managed local account requires premium",
+			freeTier: true,
+			patch:    `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			wantErr:  "missing or invalid license",
+		},
+		{
+			name:           "windows: disabling managed local account is allowed without premium (license downgrade)",
+			freeTier:       true,
+			startWindows:   true,
+			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+			wantActivities: []string{"disabled_managed_local_account:windows"},
+		},
+		{
+			name:          "windows: enabling managed local account requires Windows MDM",
+			windowsMDMOff: true,
+			patch:         `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			wantErr:       "windows_settings.managed_local_account_settings",
+		},
+		{
+			name:    "windows: managed local account with end_user_local_account_type rejected",
+			patch:   `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}, "end_user_local_account_type": "admin"}}}`,
+			wantErr: "end_user_local_account_type",
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
-			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			tier := fleet.TierPremium
+			if tt.freeTier {
+				tier = fleet.TierFree
+			}
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: tier}}
+			// keeping Windows MDM enabled across the PATCH requires a configured WSTEP cert/key pair
+			cfg := config.TestConfig()
+			cfg.MDM.WindowsWSTEPIdentityCert = "testdata/server.pem"
+			cfg.MDM.WindowsWSTEPIdentityKey = "testdata/server.key"
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 			dsAppConfig := &fleet.AppConfig{
 				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
 				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
 			}
-			dsAppConfig.MDM.EnabledAndConfigured = tt.mdmConfigured
-			dsAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(tt.startEnabled)
+			dsAppConfig.MDM.EnabledAndConfigured = !tt.appleMDMOff
+			dsAppConfig.MDM.WindowsEnabledAndConfigured = !tt.windowsMDMOff
+			dsAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(tt.startMacOS)
+			dsAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(tt.startWindows)
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
 			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
@@ -3105,9 +3399,11 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 
 			var gotActivities []string
 			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
-				switch act.(type) {
-				case fleet.ActivityTypeEnabledManagedLocalAccount, fleet.ActivityTypeDisabledManagedLocalAccount:
-					gotActivities = append(gotActivities, act.ActivityName())
+				switch a := act.(type) {
+				case fleet.ActivityTypeEnabledManagedLocalAccount:
+					gotActivities = append(gotActivities, a.ActivityName()+":"+a.Platform)
+				case fleet.ActivityTypeDisabledManagedLocalAccount:
+					gotActivities = append(gotActivities, a.ActivityName()+":"+a.Platform)
 				}
 				return nil
 			}
@@ -3118,15 +3414,252 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.wantErr)
 				require.Empty(t, gotActivities)
+				require.False(t, ds.SaveAppConfigFuncInvoked, "config should not have been saved")
 				return
 			}
 			require.NoError(t, err)
+			require.Equal(t, tt.wantActivities, gotActivities)
+			require.Equal(t, tt.wantWindowsEnabled, dsAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+		})
+	}
+}
 
-			var wantActivities []string
-			if tt.wantActivity != "" {
-				wantActivities = []string{tt.wantActivity}
+func TestProcessAppleOSUpdateSettingsDeadlineDays(t *testing.T) {
+	ctx := context.Background()
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	// sentinel is returned by the override so the change is observable without
+	// standing up the activity service: reaching the override means the settings
+	// were considered changed.
+	sentinel := errors.New("override invoked")
+
+	newSvc := func(called *bool) *Service {
+		svc := &Service{ds: new(mock.Store)}
+		svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+			MDMAppleEditedAppleOSUpdates: func(ctx context.Context, teamID *uint, appleDevice fleet.AppleDevice,
+				updates fleet.AppleOSUpdateSettings,
+			) error {
+				*called = true
+				return sentinel
+			},
+		})
+		return svc
+	}
+
+	latest := func(days optjson.Int) fleet.AppleOSUpdateSettings {
+		return fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+			DeadlineDays:   days,
+		}
+	}
+
+	cases := []struct {
+		name        string
+		old         fleet.AppleOSUpdateSettings
+		new         fleet.AppleOSUpdateSettings
+		wantUpdated bool
+	}{
+		{
+			name:        "deadline_days changed",
+			old:         latest(optjson.SetInt(14)),
+			new:         latest(optjson.SetInt(7)),
+			wantUpdated: true,
+		},
+		{
+			name:        "deadline_days set from unset",
+			old:         latest(optjson.Int{}),
+			new:         latest(optjson.SetInt(14)),
+			wantUpdated: true,
+		},
+		{
+			name:        "deadline_days cleared to null",
+			old:         latest(optjson.SetInt(14)),
+			new:         latest(optjson.Int{Set: true, Valid: false}),
+			wantUpdated: true,
+		},
+		{
+			name:        "nothing changed",
+			old:         latest(optjson.SetInt(14)),
+			new:         latest(optjson.SetInt(14)),
+			wantUpdated: false,
+		},
+		{
+			name:        "minimum_version changed",
+			old:         latest(optjson.SetInt(14)),
+			new:         fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("15.7.8"), Deadline: optjson.SetString("2026-09-01")},
+			wantUpdated: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var called bool
+			svc := newSvc(&called)
+
+			err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.MacOS, tc.old, tc.new)
+			if tc.wantUpdated {
+				require.ErrorIs(t, err, sentinel, "expected the OS updates change to be detected")
+				require.True(t, called)
+			} else {
+				require.NoError(t, err)
+				require.False(t, called, "expected no update for unchanged settings")
 			}
-			require.Equal(t, wantActivities, gotActivities)
+		})
+	}
+}
+
+func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	teamID := uint(7)
+
+	type testCase struct {
+		name           string
+		licenseTier    string
+		payload        string
+		currentTeamID  *uint
+		expectErr      string
+		expectSet      bool
+		expectSetTo    *uint
+		expectActivity bool
+	}
+	testCases := []testCase{
+		{
+			name:           "set to existing fleet",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			expectSet:      true,
+			expectSetTo:    &teamID,
+			expectActivity: true,
+		},
+		{
+			name:           "unchanged value writes nothing",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+		{
+			name:           "clear with empty string",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":""}}}`,
+			currentTeamID:  &teamID,
+			expectSet:      true,
+			expectSetTo:    nil,
+			expectActivity: true,
+		},
+		{
+			name:        "unknown fleet name is invalid",
+			licenseTier: fleet.TierPremium,
+			payload:     `{"mdm":{"windows_enrollment":{"default_fleet":"Nope"}}}`,
+			expectErr:   `fleet "Nope" doesn't exist`,
+		},
+		{
+			name:        "premium required to set",
+			licenseTier: fleet.TierFree,
+			payload:     `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			expectErr:   "missing or invalid license",
+		},
+		{
+			name:           "unchanged value tolerated without premium",
+			licenseTier:    fleet.TierFree,
+			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+		{
+			name:           "omitted key is a no-op",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"org_info":{"org_name":"Test2"}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+		{
+			name:           "null keeps the persisted setting",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"mdm":{"windows_enrollment":null}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+		{
+			name:           "null tolerated without premium",
+			licenseTier:    fleet.TierFree,
+			payload:        `{"mdm":{"windows_enrollment":null}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+		{
+			name:           "clear with empty string allowed without premium",
+			licenseTier:    fleet.TierFree,
+			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":""}}}`,
+			currentTeamID:  &teamID,
+			expectSet:      true,
+			expectSetTo:    nil,
+			expectActivity: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: tc.licenseTier}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			var activities []string
+			opts.ActivityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, act activity_api.ActivityDetails) error {
+				activities = append(activities, act.ActivityName())
+				return nil
+			}
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { *dsAppConfig = *conf; return nil }
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+				if name == "Workstations" {
+					return &fleet.Team{ID: teamID, Name: "Workstations"}, nil
+				}
+				return nil, newNotFoundError()
+			}
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				if tc.currentTeamID != nil {
+					return tc.currentTeamID, "Workstations", nil
+				}
+				return nil, "", nil
+			}
+			var setTo *uint
+			ds.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, id *uint) error {
+				setTo = id
+				return nil
+			}
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tc.payload), fleet.ApplySpecOptions{})
+			if tc.expectErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectErr)
+				require.False(t, ds.SaveAppConfigFuncInvoked)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.expectSet, ds.SetWindowsEnrollmentDefaultFleetFuncInvoked)
+			if tc.expectSet {
+				require.Equal(t, tc.expectSetTo, setTo)
+			}
+			if tc.expectActivity {
+				require.Contains(t, activities, "edited_windows_enrollment_default_fleet")
+			} else {
+				require.NotContains(t, activities, "edited_windows_enrollment_default_fleet")
+			}
 		})
 	}
 }

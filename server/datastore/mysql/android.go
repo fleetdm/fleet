@@ -1173,6 +1173,13 @@ func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandU
 	return nil
 }
 
+// androidApplicableProfilesQuery computes, per host, the set of applicable profiles based on team and label scoping. Label
+// semantics must match the in-code Apple/Windows evaluator in server/mdm/reconcile: a dynamic label created after the host's
+// last label scan (h.label_updated_at < lbl.created_at) has unknown membership and preserves the host's current profile state —
+// it counts as a member for include-all and as a non-member for exclude-any only when the profile is already on the host (a
+// host_mdm_android_profiles row with operation_type = 'install', any status; the hmap join below), so scope edits don't remove
+// profiles from hosts that haven't reported yet. Manual (membership_type=1) and host-vitals (2) labels are server-populated, so
+// their membership is always considered known.
 const androidApplicableProfilesQuery = `
 	-- non label-based profiles
 	SELECT
@@ -1203,7 +1210,8 @@ const androidApplicableProfilesQuery = `
 	UNION
 
 	-- include-all only (no exclude labels): host must be a member of every include label.
-	-- broken include labels disqualify the profile.
+	-- broken include labels disqualify the profile. A dynamic include label with unknown
+	-- membership counts as a member only when the profile is already on the host.
 	SELECT
 		macp.profile_uuid,
 		macp.name,
@@ -1212,7 +1220,10 @@ const androidApplicableProfilesQuery = `
 		h.id as host_id,
 		COUNT(*) as count_profile_labels,
 		COUNT(mcpl.label_id) as count_non_broken_labels,
-		COUNT(lm.label_id) as count_host_labels,
+		SUM(
+			CASE WHEN lm.label_id IS NOT NULL THEN 1
+			WHEN lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at AND COALESCE(hmap.operation_type, '') = 'install' THEN 1
+		ELSE 0 END) as count_host_labels,
 		0 as count_host_updated_after_labels
 	FROM
 		mdm_android_configuration_profiles macp
@@ -1222,8 +1233,12 @@ const androidApplicableProfilesQuery = `
 				ON ad.host_id = h.id
 			JOIN mdm_configuration_profile_labels mcpl
 				ON mcpl.android_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 1
+			LEFT OUTER JOIN labels lbl
+				ON lbl.id = mcpl.label_id
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
+			LEFT OUTER JOIN host_mdm_android_profiles hmap
+				ON hmap.host_uuid = h.uuid AND hmap.profile_uuid = macp.profile_uuid
 	WHERE
 		h.platform = 'android' AND
 		NOT EXISTS (
@@ -1239,7 +1254,9 @@ const androidApplicableProfilesQuery = `
 	UNION
 
 	-- exclude-any only (no include labels): host must NOT be a member of any exclude label.
-	-- broken or not-yet-scanned dynamic exclude labels disqualify the profile.
+	-- broken exclude labels disqualify the profile. A dynamic exclude label with unknown
+	-- membership counts as "known non-member" when the profile is already on the host and
+	-- disqualifies otherwise.
 	SELECT
 		macp.profile_uuid,
 		macp.name,
@@ -1250,8 +1267,8 @@ const androidApplicableProfilesQuery = `
 		COUNT(mcpl.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
 		SUM(
-			CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1
-			WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+			CASE WHEN lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND (h.label_updated_at >= lbl.created_at OR COALESCE(hmap.operation_type, '') = 'install') THEN 1
+			WHEN lbl.label_membership_type <> 0 AND lbl.created_at IS NOT NULL THEN 1
 		ELSE 0 END) as count_host_updated_after_labels
 	FROM
 		mdm_android_configuration_profiles macp
@@ -1265,6 +1282,8 @@ const androidApplicableProfilesQuery = `
 				ON lbl.id = mcpl.label_id
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
+			LEFT OUTER JOIN host_mdm_android_profiles hmap
+				ON hmap.host_uuid = h.uuid AND hmap.profile_uuid = macp.profile_uuid
 	WHERE
 		h.platform = 'android' AND
 		NOT EXISTS (
@@ -1317,7 +1336,9 @@ const androidApplicableProfilesQuery = `
 	UNION
 
 	-- include-all + exclude-any: host must be in ALL include labels AND NOT in ANY exclude label.
-	-- broken include labels or broken/not-yet-scanned dynamic exclude labels disqualify the profile.
+	-- broken include or exclude labels disqualify the profile. A dynamic label with unknown
+	-- membership preserves the host's current state: for include it counts as a member, and for
+	-- exclude as a non-member, only when the profile is already on the host.
 	SELECT
 		macp.profile_uuid,
 		macp.name,
@@ -1326,9 +1347,11 @@ const androidApplicableProfilesQuery = `
 		h.id as host_id,
 		SUM(CASE WHEN mcpl.exclude = 0 THEN 1 ELSE 0 END) as count_profile_labels,
 		SUM(CASE WHEN mcpl.exclude = 0 AND mcpl.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_non_broken_labels,
-		SUM(CASE WHEN mcpl.exclude = 0 AND lm_inc.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_host_labels,
+		SUM(CASE WHEN mcpl.exclude = 0 AND lm_inc.label_id IS NOT NULL THEN 1
+			WHEN mcpl.exclude = 0 AND lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at AND COALESCE(hmap.operation_type, '') = 'install' THEN 1
+			ELSE 0 END) as count_host_labels,
 		SUM(CASE WHEN mcpl.exclude = 1 AND lm_exc.label_id IS NOT NULL THEN 1
-			WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) THEN 1
+			WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) AND COALESCE(hmap.operation_type, '') <> 'install' THEN 1
 			WHEN mcpl.exclude = 1 AND mcpl.label_id IS NULL THEN 1
 			ELSE 0 END) as count_host_updated_after_labels
 	FROM
@@ -1345,6 +1368,8 @@ const androidApplicableProfilesQuery = `
 				ON lm_inc.label_id = mcpl.label_id AND lm_inc.host_id = h.id AND mcpl.exclude = 0
 			LEFT OUTER JOIN label_membership lm_exc
 				ON lm_exc.label_id = mcpl.label_id AND lm_exc.host_id = h.id AND mcpl.exclude = 1
+			LEFT OUTER JOIN host_mdm_android_profiles hmap
+				ON hmap.host_uuid = h.uuid AND hmap.profile_uuid = macp.profile_uuid
 	WHERE
 		h.platform = 'android' AND
 		EXISTS (
@@ -1367,7 +1392,8 @@ const androidApplicableProfilesQuery = `
 	UNION
 
 	-- include-any + exclude-any: host must be in AT LEAST ONE include label AND NOT in ANY exclude label.
-	-- broken/not-yet-scanned dynamic exclude labels disqualify the profile.
+	-- broken exclude labels disqualify the profile. A dynamic exclude label with unknown membership
+	-- disqualifies only when the profile is not already on the host.
 	SELECT
 		macp.profile_uuid,
 		macp.name,
@@ -1378,7 +1404,7 @@ const androidApplicableProfilesQuery = `
 		SUM(CASE WHEN mcpl.exclude = 0 AND mcpl.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_non_broken_labels,
 		SUM(CASE WHEN mcpl.exclude = 0 AND lm_inc.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_host_labels,
 		SUM(CASE WHEN mcpl.exclude = 1 AND lm_exc.label_id IS NOT NULL THEN 1
-			WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) THEN 1
+			WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) AND COALESCE(hmap.operation_type, '') <> 'install' THEN 1
 			WHEN mcpl.exclude = 1 AND mcpl.label_id IS NULL THEN 1
 			ELSE 0 END) as count_host_updated_after_labels
 	FROM
@@ -1395,6 +1421,8 @@ const androidApplicableProfilesQuery = `
 				ON lm_inc.label_id = mcpl.label_id AND lm_inc.host_id = h.id AND mcpl.exclude = 0
 			LEFT OUTER JOIN label_membership lm_exc
 				ON lm_exc.label_id = mcpl.label_id AND lm_exc.host_id = h.id AND mcpl.exclude = 1
+			LEFT OUTER JOIN host_mdm_android_profiles hmap
+				ON hmap.host_uuid = h.uuid AND hmap.profile_uuid = macp.profile_uuid
 	WHERE
 		h.platform = 'android' AND
 		EXISTS (

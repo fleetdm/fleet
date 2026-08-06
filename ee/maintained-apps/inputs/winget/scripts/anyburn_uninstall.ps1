@@ -1,87 +1,110 @@
-# Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
-# variable
-# AnyBurn registers DisplayName "AnyBurn" (NSIS installer); silent uninstall
-# uses the NSIS /S flag.
-$softwareName = "AnyBurn"
+# AnyBurn ships an NSIS uninstaller. "uninstall.exe /S" with Start-Process -Wait
+# hung until the validator's 10-minute timeout: -Wait also waits on descendants,
+# and without the NSIS "_?=" flag the uninstaller relaunches itself from %TEMP%.
+# So run it in place, wait on that process only, and finish the job ourselves —
+# "_?=" leaves the uninstaller and its directory behind even on success.
 
-# Match the DisplayName exactly to avoid uninstalling AnyBurn Pro or other
-# similarly named software.
-$uninstallArgs = "/S"
+$displayName = "AnyBurn"
+$processName = "anyburn"
+$timeoutSeconds = 120
 
-$machineKey = `
- 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
-$machineKey32on64 = `
- 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$paths = @(
+  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
+)
 
-$exitCode = 0
+# Exact DisplayName match so "AnyBurn Pro" is left alone.
+function Find-UninstallEntry {
+  foreach ($p in $paths) {
+    $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
+      $_.DisplayName -eq $displayName
+    }
+    if ($items) { return $items | Select-Object -First 1 }
+  }
+  return $null
+}
+
+function Remove-InstallDir {
+  param([string]$dir)
+  if (-not $dir) { return }
+  $resolved = $null
+  try { $resolved = (Resolve-Path -LiteralPath $dir -ErrorAction Stop).Path } catch { return }
+  # Never recurse a drive root or a two-segment path like C:\Windows.
+  if (($resolved -match '^[A-Za-z]:\\') -and ((($resolved.TrimEnd('\')) -split '\\').Count -ge 3)) {
+    Remove-Item -LiteralPath $resolved -Recurse -Force -ErrorAction SilentlyContinue
+  }
+}
+
+$entry = Find-UninstallEntry
+if (-not $entry -or -not $entry.UninstallString) {
+  Write-Host "Uninstall entry for '$displayName' not found; nothing to do."
+  Exit 0
+}
 
 try {
+  $uninstallString = $entry.UninstallString
+  if ($uninstallString -match '^"([^"]+)"') {
+    $uninstallExe = $matches[1]
+  } elseif ($uninstallString -match '^(.+?\.exe)') {
+    $uninstallExe = $matches[1]
+  } else {
+    $uninstallExe = $uninstallString
+  }
 
-[array]$uninstallKeys = Get-ChildItem `
-    -Path @($machineKey, $machineKey32on64) `
-    -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath }
+  $installDir = $entry.InstallLocation
+  if (-not $installDir -or -not (Test-Path -LiteralPath $installDir)) {
+    $installDir = Split-Path -Parent $uninstallExe
+  }
+  # A quoted argument ending in "\" would escape its own closing quote.
+  if ($installDir) { $installDir = $installDir.TrimEnd('\') }
 
-$foundUninstaller = $false
-foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -eq $softwareName) {
-        $foundUninstaller = $true
-        # Get the uninstall command. Some uninstallers do not include
-        # 'QuietUninstallString' and require a flag to run silently.
-        $uninstallCommand = if ($key.QuietUninstallString) {
-            $key.QuietUninstallString
-        } else {
-            $key.UninstallString
-        }
+  Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
 
-        # The uninstall command may contain command and args, like:
-        # "C:\Program Files\Software\uninstall.exe" /SILENT
-        # Split the command and args
-        $splitArgs = $uninstallCommand.Split('"')
-        if ($splitArgs.Length -gt 1) {
-            if ($splitArgs.Length -eq 3) {
-                $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
-            } elseif ($splitArgs.Length -gt 3) {
-                Throw `
-                    "Uninstall command contains multiple quoted strings. " +
-                        "Please update the uninstall script.`n" +
-                        "Uninstall command: $uninstallCommand"
-            }
-            $uninstallCommand = $splitArgs[1]
-        }
-        Write-Host "Uninstall command: $uninstallCommand"
-        Write-Host "Uninstall args: $uninstallArgs"
+  $uninstallArgs = @("/S", "_?=$installDir")
+  Write-Host "Uninstall command: $uninstallExe"
+  Write-Host "Uninstall args: $uninstallArgs"
 
-        $processOptions = @{
-            FilePath = $uninstallCommand
-            PassThru = $true
-            Wait = $true
-        }
-        if ($uninstallArgs -ne '') {
-            $processOptions.ArgumentList = "$uninstallArgs"
-        }
+  $process = Start-Process -FilePath $uninstallExe -ArgumentList $uninstallArgs `
+    -PassThru -NoNewWindow
+  # Touch the handle so ExitCode is still readable after the process exits.
+  try { $null = $process.Handle } catch { }
+  if ($process.WaitForExit($timeoutSeconds * 1000)) {
+    Write-Host "Uninstall exit code: $($process.ExitCode)"
+  } else {
+    Write-Host "Uninstaller did not exit within $timeoutSeconds seconds; terminating it."
+    & taskkill.exe /PID $process.Id /T /F 2>&1 | Write-Host
+  }
 
-        # Start process and track exit code
-        $process = Start-Process @processOptions
-        $exitCode = $process.ExitCode
+  Stop-Process -Name "Au_" -Force -ErrorAction SilentlyContinue
 
-        # Prints the exit code
-        Write-Host "Uninstall exit code: $exitCode"
-        # Exit the loop once the software is found and uninstalled.
-        break
-    }
-}
+  # Don't trust the uninstaller's outcome; check what is actually left.
+  $remaining = Find-UninstallEntry
+  if ($remaining) {
+    Write-Host "'$displayName' is still registered; removing it manually."
+    Remove-Item -LiteralPath $remaining.PSPath -Recurse -Force -ErrorAction SilentlyContinue
+  }
 
-if (-not $foundUninstaller) {
-    Write-Host "Uninstaller for '$softwareName' not found."
-    # Change exit code to 0 if you don't want to fail if uninstaller is not
-    # found. This could happen if program was already uninstalled.
-    $exitCode = 1
-}
+  $shortcuts = @(
+    "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\$displayName",
+    "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\$displayName",
+    "$env:PUBLIC\Desktop\$displayName.lnk",
+    "$env:USERPROFILE\Desktop\$displayName.lnk"
+  )
+  foreach ($shortcut in $shortcuts) {
+    Remove-Item -LiteralPath $shortcut -Recurse -Force -ErrorAction SilentlyContinue
+  }
 
+  Remove-InstallDir $installDir
+
+  if (Find-UninstallEntry) {
+    Write-Host "'$displayName' is still present after removal attempts."
+    Exit 1
+  }
+
+  Write-Host "'$displayName' is no longer present."
+  Exit 0
 } catch {
-    Write-Host "Error: $_"
-    $exitCode = 1
+  Write-Host "Error running uninstaller: $_"
+  Exit 1
 }
-
-Exit $exitCode

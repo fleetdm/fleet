@@ -34,6 +34,11 @@ const (
 	DisplayNameAllTeams = "All fleets"
 )
 
+// MaxTeamNameLength matches the varchar(255) size of teams.name in MySQL.
+// Enforce this before insert/update so callers get an InvalidArgumentError
+// instead of a raw "Data too long" MySQL error.
+const MaxTeamNameLength = 255
+
 // IsReservedTeamName checks if the name provided is a reserved fleet name (case-insensitive).
 // Both old names ("No team", "All teams") and new display names ("Unassigned", "All fleets")
 // are reserved to prevent creating teams with any of these names.
@@ -60,11 +65,13 @@ type TeamPayload struct {
 // `features` shape so admins can use the same JSON path on both endpoints.
 //
 // Only the sub-fields defined here take effect; the broader Features
-// fields (enable_host_users, enable_software_inventory, additional_queries,
-// detail_query_overrides) remain settable per-fleet only via the
-// `/spec/fleets` GitOps path.
+// fields (enable_host_users, additional_queries, detail_query_overrides)
+// remain settable per-fleet only via the `/spec/fleets` GitOps path.
 type TeamPayloadFeatures struct {
-	HistoricalData *HistoricalDataPayload `json:"historical_data"`
+	// EnableSoftwareInventory uses optjson.Bool so a key omitted from a
+	// PATCH body retains its current stored value (PATCH-merge semantics).
+	EnableSoftwareInventory optjson.Bool           `json:"enable_software_inventory"`
+	HistoricalData          *HistoricalDataPayload `json:"historical_data"`
 }
 
 // HistoricalDataPayload is the per-sub-key partial-PATCH form of
@@ -98,6 +105,15 @@ type TeamPayloadMDM struct {
 
 	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
 	HostNameTemplate optjson.String `json:"name_template"`
+
+	// WindowsSettings exposes only the managed local account surface on the team PATCH endpoint;
+	// configuration profiles are managed through their own endpoints.
+	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
+}
+
+// TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH endpoint.
+type TeamPayloadWindowsSettings struct {
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -182,6 +198,16 @@ func (t Team) MarshalJSON() ([]byte, error) {
 		HostCount:   t.HostCount,
 		Hosts:       HostResponsesForHostsCheap(t.Hosts),
 		Secrets:     t.Secrets,
+	}
+
+	// Fall back to defaults when these keys are missing from the stored config
+	// (e.g. a team created before they existed), so the serialized team matches
+	// what AppConfig.MarshalJSON serves for the global config.
+	if !x.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		x.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !x.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		x.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
 
 	return json.Marshal(x)
@@ -752,6 +778,9 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
 	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
+	// assets are only present in ToMap for GitOps request validation; they are
+	// not stored on the team config, so keep them out of the generated spec.
+	delete(mdmSpec.MacOSSettings, "assets")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)

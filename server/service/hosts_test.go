@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -31,8 +32,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
@@ -742,6 +745,10 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		verified := string(fleet.MDMDeliveryVerified)
+		return &fleet.HostMDMManagedLocalAccount{Status: &verified, PasswordAvailable: true}, nil
+	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
@@ -777,6 +784,12 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 	require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionVerified, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
+
+	// The Windows host-detail path surfaces the managed local account status.
+	require.True(t, ds.GetHostManagedLocalAccountStatusFuncInvoked)
+	require.NotNil(t, hostDetail.MDM.OSSettings.ManagedLocalAccount.Status)
+	require.Equal(t, string(fleet.MDMDeliveryVerified), *hostDetail.MDM.OSSettings.ManagedLocalAccount.Status)
+	require.True(t, hostDetail.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
 }
 
 func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
@@ -1019,6 +1032,238 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 		}
 		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return nil, errors.New("db exploded")
+		}
+
+		ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		_, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin),
+			&fleet.Host{ID: 42, Platform: "darwin", UUID: "test-uuid"}, fleet.HostDetailOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "db exploded")
+	})
+}
+
+func TestHostDetailsOSUpdates(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) { return nil, nil }
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error { return nil }
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) { return nil, nil }
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) { return nil, nil }
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) { return nil, nil }
+	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) { return nil, nil }
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) { return false, nil }
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
+	}
+	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+		return nil, nil
+	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+		return nil, nil
+	}
+
+	// enforceVersion builds settings pinned to a specific minimum version, the
+	// mode where the config itself carries the target and deadline.
+	enforceVersion := func(minimumVersion, deadline string) fleet.AppleOSUpdateSettings {
+		return fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString(minimumVersion),
+			Deadline:       optjson.SetString(deadline),
+		}
+	}
+	// enforceLatest builds "latest" settings, where the target version and
+	// deadline are resolved per host.
+	enforceLatest := func(deadlineDays int) fleet.AppleOSUpdateSettings {
+		return fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+			DeadlineDays:   optjson.SetInt(deadlineDays),
+		}
+	}
+	deadline := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		name string
+		// mdm is the app config MDM settings; teamMDM, when non-nil, is what
+		// TeamLite reports for the host's team and must win over mdm.
+		mdm          fleet.MDM
+		teamMDM      *fleet.TeamMDM
+		platform     string
+		osUpdateHost *fleet.AppleSoftwareUpdateHost
+		// wantOSUpdateHostQueried asserts whether the per-host resolved row was
+		// looked up, which only happens in "latest" mode.
+		wantOSUpdateHostQueried bool
+		wantMinimumVersion      *string
+		wantDeadline            *string
+	}{
+		{
+			name:     "not configured",
+			mdm:      fleet.MDM{EnabledAndConfigured: true},
+			platform: "darwin",
+		},
+		{
+			name: "macOS specific version from app config",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+			},
+			platform:           "darwin",
+			wantMinimumVersion: new("15.6.1"),
+			wantDeadline:       new("2026-09-15"),
+		},
+		{
+			name: "iOS host reads the iOS settings",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+				IOSUpdates:           enforceVersion("18.7", "2026-10-01"),
+				IPadOSUpdates:        enforceVersion("18.6", "2026-11-01"),
+			},
+			platform:           "ios",
+			wantMinimumVersion: new("18.7"),
+			wantDeadline:       new("2026-10-01"),
+		},
+		{
+			name: "iPadOS host reads the iPadOS settings",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+				IOSUpdates:           enforceVersion("18.7", "2026-10-01"),
+				IPadOSUpdates:        enforceVersion("18.6", "2026-11-01"),
+			},
+			platform:           "ipados",
+			wantMinimumVersion: new("18.6"),
+			wantDeadline:       new("2026-11-01"),
+		},
+		{
+			name: "non-Apple platform never reports OS updates",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+			},
+			platform: "windows",
+		},
+		{
+			name: "latest with a resolved target",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceLatest(14),
+			},
+			platform: "darwin",
+			osUpdateHost: &fleet.AppleSoftwareUpdateHost{
+				HostUUID:        "test-uuid",
+				TargetOSVersion: "26.1",
+				TargetDeadline:  &deadline,
+			},
+			wantOSUpdateHostQueried: true,
+			wantMinimumVersion:      new("26.1"),
+			wantDeadline:            new("2026-09-15"),
+		},
+		{
+			name: "latest with no row yet",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceLatest(14),
+			},
+			platform:                "darwin",
+			wantOSUpdateHostQueried: true,
+			wantMinimumVersion:      new("Pending"),
+			wantDeadline:            new("Pending"),
+		},
+		{
+			name: "team settings win over app config",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+			},
+			teamMDM:            &fleet.TeamMDM{MacOSUpdates: enforceVersion("26.0.1", "2026-12-24")},
+			platform:           "darwin",
+			wantMinimumVersion: new("26.0.1"),
+			wantDeadline:       new("2026-12-24"),
+		},
+		{
+			name: "team without OS updates configured overrides a configured app config",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+			},
+			teamMDM:  &fleet.TeamMDM{},
+			platform: "darwin",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: c.mdm}, nil
+			}
+			ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+				return nil, nil
+			}
+			ds.TeamLiteFuncInvoked = false
+			ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+				require.NotNil(t, c.teamMDM, "team config must not be loaded for a no-team host")
+				return &fleet.TeamLite{ID: id, Config: fleet.TeamConfigLite{MDM: *c.teamMDM}}, nil
+			}
+			ds.GetAppleOSUpdateHostByUUIDFuncInvoked = false
+			ds.GetAppleOSUpdateHostByUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error) {
+				require.Equal(t, "test-uuid", hostUUID)
+				return c.osUpdateHost, nil
+			}
+
+			host := &fleet.Host{ID: 42, Platform: c.platform, UUID: "test-uuid"}
+			if c.teamMDM != nil {
+				host.TeamID = new(uint(1))
+			}
+
+			ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+			hd, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), host, fleet.HostDetailOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, hd)
+
+			assert.Equal(t, c.teamMDM != nil, ds.TeamLiteFuncInvoked)
+			assert.Equal(t, c.wantOSUpdateHostQueried, ds.GetAppleOSUpdateHostByUUIDFuncInvoked)
+			assert.Equal(t, c.wantMinimumVersion, hd.OSUpdateMinimumVersion)
+			assert.Equal(t, c.wantDeadline, hd.OSUpdateDeadline)
+		})
+	}
+
+	t.Run("team lookup error propagates", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+			return nil, errors.New("no such team")
+		}
+
+		ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		_, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin),
+			&fleet.Host{ID: 42, Platform: "darwin", UUID: "test-uuid", TeamID: new(uint(1))}, fleet.HostDetailOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no such team")
+	})
+
+	t.Run("resolved OS update lookup error propagates", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, MacOSUpdates: enforceLatest(14)}}, nil
+		}
+		ds.GetAppleOSUpdateHostByUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error) {
 			return nil, errors.New("db exploded")
 		}
 
@@ -5583,6 +5828,254 @@ func TestListHostsIgnoresPremiumOptions(t *testing.T) {
 			count, err = svc.CountHosts(premiumCtx, nil, tc.opts)
 			require.NoError(t, err)
 			require.Equal(t, 1, count)
+		})
+	}
+}
+
+func TestGetHostDEPAssignmentDetailsNotFoundClassification(t *testing.T) {
+	ds := new(mock.Store)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session":
+			_, err := w.Write([]byte(`{"auth_session_token": "yoo"}`))
+			assert.NoError(t, err)
+		case "/devices":
+			var req struct {
+				Devices []string `json:"devices"`
+			}
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			serial := req.Devices[0]
+
+			devices := map[string]any{}
+			switch serial {
+			case "FOUND123":
+				devices[serial] = map[string]any{
+					"serial_number":   serial,
+					"response_status": "SUCCESS",
+					"profile_status":  "assigned",
+				}
+			case "EMPTYSTATUS123":
+				// Status-only entry: no serial_number, no response_status.
+				devices[serial] = map[string]any{}
+			case "NOTACCESSIBLEWITHSERIAL123":
+				// Recognized by Apple but not accessible from this MDM
+				// server -- serial_number populated despite the failure.
+				devices[serial] = map[string]any{
+					"serial_number":   serial,
+					"response_status": "NOT_ACCESSIBLE",
+				}
+			case "FAILEDWITHSERIAL123":
+				devices[serial] = map[string]any{
+					"serial_number":   serial,
+					"response_status": "FAILED",
+				}
+				// MISSING123 is intentionally left out of the response entirely.
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"devices": devices}))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	depStorage := &nanodep_mock.Storage{}
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	depStorage.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: ts.URL}, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{DEPStorage: depStorage})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	serialsByHostID := map[uint]string{
+		1: "FOUND123",
+		2: "EMPTYSTATUS123",
+		3: "NOTACCESSIBLEWITHSERIAL123",
+		4: "FAILEDWITHSERIAL123",
+		5: "MISSING123",
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: id, HardwareSerial: serialsByHostID[id]}, nil
+	}
+	abmTokenID := uint(9)
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{HostID: hostID, ABMTokenID: &abmTokenID}, nil
+	}
+	ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+		return &fleet.ABMToken{ID: tokenID, OrganizationName: "org"}, nil
+	}
+	// The DEP client's after-hook runs on every request (success or
+	// failure) to keep the ABM token's token_invalid/terms_expired flags
+	// in sync, so these datastore methods must be mocked too.
+	ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+		return false, nil
+	}
+	ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+		return false, nil
+	}
+	ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	cases := []struct {
+		name       string
+		hostID     uint
+		wantDevice bool
+		wantDepErr fleet.DEPDeviceErrorType
+	}{
+		{"found device is not misclassified as not found", 1, true, ""},
+		{"status-only entry with empty serial is classified as not found", 2, false, fleet.DEPDeviceErrorNotFound},
+		{"not-accessible device with a populated serial is still classified as not found", 3, false, fleet.DEPDeviceErrorNotFound},
+		{"failed device with a populated serial is still classified as not found", 4, false, fleet.DEPDeviceErrorNotFound},
+		{"missing device entry is classified as not found", 5, false, fleet.DEPDeviceErrorNotFound},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, depDevice, depErr, err := svc.GetHostDEPAssignmentDetails(ctx, c.hostID)
+			require.NoError(t, err)
+			assert.Equal(t, c.wantDepErr, depErr)
+			if c.wantDevice {
+				require.NotNil(t, depDevice)
+			} else {
+				assert.Nil(t, depDevice)
+			}
+		})
+	}
+}
+
+func TestReorderCSVColumnAfter(t *testing.T) {
+	cases := []struct {
+		name     string
+		recs     [][]string
+		col      string
+		afterCol string
+		want     [][]string
+	}{
+		{
+			name: "moves a column that comes after its target",
+			recs: [][]string{
+				{"a", "model", "b", "c", "marketing"},
+				{"1", "m1", "2", "3", "mk1"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"a", "model", "marketing", "b", "c"},
+				{"1", "m1", "mk1", "2", "3"},
+			},
+		},
+		{
+			name: "reorders every data row",
+			recs: [][]string{
+				{"a", "model", "b", "marketing"},
+				{"1", "m1", "2", "mk1"},
+				{"3", "m2", "4", "mk2"},
+				{"5", "m3", "6", "mk3"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"a", "model", "marketing", "b"},
+				{"1", "m1", "mk1", "2"},
+				{"3", "m2", "mk2", "4"},
+				{"5", "m3", "mk3", "6"},
+			},
+		},
+		{
+			name: "moves a column that comes before its target",
+			recs: [][]string{
+				{"marketing", "a", "model", "b"},
+				{"mk1", "1", "m1", "2"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"a", "model", "marketing", "b"},
+				{"1", "m1", "mk1", "2"},
+			},
+		},
+		{
+			name: "already immediately after target is unchanged",
+			recs: [][]string{
+				{"model", "marketing", "b"},
+				{"m1", "mk1", "2"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"model", "marketing", "b"},
+				{"m1", "mk1", "2"},
+			},
+		},
+		{
+			name: "header-only records are reordered",
+			recs: [][]string{
+				{"a", "marketing", "model", "b"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"a", "model", "marketing", "b"},
+			},
+		},
+		{
+			name: "missing col is a no-op",
+			recs: [][]string{
+				{"model", "b"},
+				{"m1", "2"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"model", "b"},
+				{"m1", "2"},
+			},
+		},
+		{
+			name: "missing afterCol is a no-op",
+			recs: [][]string{
+				{"marketing", "b"},
+				{"mk1", "2"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"marketing", "b"},
+				{"mk1", "2"},
+			},
+		},
+		{
+			name:     "empty records is a no-op",
+			recs:     [][]string{},
+			col:      "marketing",
+			afterCol: "model",
+			want:     [][]string{},
+		},
+		{
+			name: "ragged rows are padded without panicking",
+			recs: [][]string{
+				{"a", "model", "b", "marketing"},
+				{"1", "m1"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"a", "model", "marketing", "b"},
+				{"1", "m1", "", ""},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			reorderCSVColumnAfter(c.recs, c.col, c.afterCol)
+			require.Equal(t, c.want, c.recs)
 		})
 	}
 }

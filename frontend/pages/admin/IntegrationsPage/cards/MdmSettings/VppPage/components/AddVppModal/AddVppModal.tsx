@@ -70,7 +70,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
         accept=".vpptoken"
         message="Content token (.vpptoken)"
         graphicName="file-vpp"
-        buttonType="brand-inverse-icon"
+        buttonType="secondary"
         buttonMessage={isUploading ? "Uploading..." : "Upload"}
         fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
         onFileUpload={onSelectFile}

@@ -1,1 +1,0 @@
-- Added native Splunk HEC log destination for osquery status, result, and audit logs.

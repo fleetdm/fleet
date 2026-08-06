@@ -45,8 +45,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
 	"github.com/remitly-oss/httpsig-go"
+	"github.com/smallstep/pkcs7"
 )
 
 var (
@@ -504,6 +506,10 @@ type agent struct {
 	// ddmUserDeclTokens caches per-declaration tokens (identifier → serverToken).
 	ddmUserDeclTokens map[string]string
 
+	// notNowProfiles tracks the profile identifiers (per channel) this agent has
+	// already responded NotNow to, so the redelivered command is acknowledged.
+	notNowProfiles map[string]bool
+
 	disableScriptExec   bool
 	disableFleetDesktop bool
 	loggerTLSMaxLines   int
@@ -903,20 +909,13 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	// NOTE: the windows MDM client enrollment is only done after receiving a
 	// notification via the config in the runOrbitLoop.
 	if a.macMDMClient != nil {
-		if err := a.macMDMClient.Enroll(); err != nil {
-			log.Printf("macOS MDM enroll failed: %s", err)
-			a.stats.IncrementMDMErrors()
-			return
-		}
+		mdmEnrollWithRetry("macOS", a.stats.IncrementMDMErrors, a.macMDMClient.Enroll)
 		a.setMDMEnrolled()
 		a.stats.IncrementMDMEnrollments()
 
 		if rand.Float64() < a.mdmUserProb {
-			if err := a.macMDMClient.UserEnroll(); err != nil {
-				log.Printf("macOS MDM user enroll failed: %s", err)
-				a.stats.IncrementMDMUserErrors()
-				return
-			}
+			a.macMDMClient.GenerateUserIdentity()
+			mdmEnrollWithRetry("macOS user channel", a.stats.IncrementMDMUserErrors, a.macMDMClient.UserTokenUpdate)
 			a.setMDMUserEnrolled()
 			a.stats.IncrementMDMUserEnrollments()
 		}
@@ -1101,6 +1100,7 @@ func (a *agent) runOrbitLoop() {
 		nil,
 		signerWrapper,
 		"",
+		false,
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)
@@ -1279,6 +1279,46 @@ func (a *agent) runOrbitLoop() {
 	}
 }
 
+// profileNotNowRequested reports whether the delivered InstallProfile command
+// carries a profile whose decoded content contains the marker string "NotNow"
+// and this agent has not yet responded NotNow to that profile identifier on
+// the given channel. When it returns true it records the identifier, so the
+// redelivered command is acknowledged. Only called from the MDM loop
+// goroutine, so notNowProfiles needs no locking.
+func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
+	var full micromdm.CommandPayload
+	if err := plist.Unmarshal(cmd.Raw, &full); err != nil || full.Command.InstallProfile == nil {
+		return false
+	}
+	profile := full.Command.InstallProfile.Payload
+	// The mobileconfig may be PKCS7-signed; unwrap to the raw XML plist.
+	if !bytes.HasPrefix(profile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(profile)
+		if err != nil {
+			return false
+		}
+		profile = p7.Content
+	}
+	if !bytes.Contains(profile, []byte("NotNow")) {
+		return false
+	}
+	var parsed struct {
+		PayloadIdentifier string `plist:"PayloadIdentifier"`
+	}
+	if err := plist.Unmarshal(profile, &parsed); err != nil || parsed.PayloadIdentifier == "" {
+		return false
+	}
+	key := channel + "/" + parsed.PayloadIdentifier
+	if a.notNowProfiles[key] {
+		return false
+	}
+	if a.notNowProfiles == nil {
+		a.notNowProfiles = make(map[string]bool)
+	}
+	a.notNowProfiles[key] = true
+	return true
+}
+
 func (a *agent) runMacosMDMLoop() {
 	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
 
@@ -1312,6 +1352,19 @@ func (a *agent) runMacosMDMLoop() {
 						break INNER_FOR_LOOP
 					}
 				} else {
+					// A profile whose content carries the "NotNow" marker is
+					// rejected with NotNow on first delivery and installed on the
+					// redelivery, so check before treating it as installed.
+					if a.profileNotNowRequested(mdmCommandPayload, "device") {
+						mdmCommandPayload, err = a.macMDMClient.NotNow(mdmCommandPayload.CommandUUID)
+						if err != nil {
+							log.Printf("MDM NotNow request failed: %s", err)
+							a.stats.IncrementMDMErrors()
+							break INNER_FOR_LOOP
+						}
+						continue
+					}
+
 					// The profile installed successfully. If it's the PSSO
 					// profile, capture the Fleet-signed registration token it
 					// carries and unblock the PSSO loop — the token only reaches
@@ -1494,6 +1547,16 @@ func (a *agent) runMacosMDMLoop() {
 							break INNER_FOR_LOOP_USER
 						}
 					} else {
+						if a.profileNotNowRequested(mdmCommandPayload, "user") {
+							mdmCommandPayload, err = a.macMDMClient.UserNotNow(mdmCommandPayload.CommandUUID)
+							if err != nil {
+								log.Printf("MDM NotNow request failed: %s", err)
+								a.stats.IncrementMDMUserErrors()
+								break INNER_FOR_LOOP_USER
+							}
+							continue
+						}
+
 						mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
 						if err != nil {
 							log.Printf("MDM Acknowledge request failed: %s", err)
@@ -2023,6 +2086,21 @@ func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
 		response, err = http.DefaultClient.Do(a.sign(fn()))
 	}
 	return response
+}
+
+// mdmEnrollWithRetry runs enroll until it succeeds, sleeping a random 1-120s
+// between attempts (same spread as waitingDo) so that agents starting at the
+// same time don't repeatedly hammer the server with simultaneous enrollments.
+func mdmEnrollWithRetry(deviceLabel string, incrementErrStat func(), enroll func() error) {
+	for {
+		err := enroll()
+		if err == nil {
+			return
+		}
+		log.Printf("%s MDM enroll failed, will retry: %s", deviceLabel, err)
+		incrementErrStat()
+		time.Sleep(time.Duration(rand.Intn(120)+1) * time.Second)
+	}
 }
 
 // TODO: add support to `alreadyEnrolled` akin to the `enroll` function.  for
@@ -3668,11 +3746,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 		softwareSource = "ipados_apps"
 	}
 
-	if err := mdmClient.Enroll(); err != nil {
-		log.Printf("%s MDM enroll failed: %s", a.model, err)
-		a.stats.IncrementMDMErrors()
-		return
-	}
+	mdmEnrollWithRetry(a.model, a.stats.IncrementMDMErrors, mdmClient.Enroll)
 
 	a.stats.IncrementMDMEnrollments()
 

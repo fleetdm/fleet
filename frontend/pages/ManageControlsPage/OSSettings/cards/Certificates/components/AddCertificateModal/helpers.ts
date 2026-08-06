@@ -10,7 +10,6 @@ export interface IAddCertFormValidation {
 
 export const INVALID_NAME_MSG =
   "Invalid characters. Only letters, numbers, spaces, dashes, and underscores allowed.";
-export const NAME_TOO_LONG_MSG = "Name is too long. Maximum is 255 characters.";
 export const NAME_REQUIRED_MSG = "Name must be completed.";
 export const CA_REQUIRED_MSG = "Certificate authority must be completed.";
 export const SUBJECT_NAME_REQUIRED_MSG = "Subject name must be completed.";
@@ -51,13 +50,6 @@ export const generateFormValidations = (): IFormValidations => {
             return /^[a-zA-Z0-9 \-_]+$/.test(formData.name);
           },
           message: INVALID_NAME_MSG,
-        },
-        {
-          name: "maxLength",
-          isValid: (formData: IAddCertFormData) => {
-            return formData.name.length <= 255;
-          },
-          message: NAME_TOO_LONG_MSG,
         },
       ],
     },

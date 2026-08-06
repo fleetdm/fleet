@@ -23,6 +23,8 @@ spec:
         configuration_profiles: null
       windows_settings:
         configuration_profiles: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         configuration_profiles: null
         certificates: null
@@ -41,14 +43,17 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       windows_updates:
@@ -82,6 +87,8 @@ spec:
         custom_settings: null
       windows_settings:
         custom_settings: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         custom_settings: null
         certificates: null
@@ -100,14 +107,17 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       windows_updates:

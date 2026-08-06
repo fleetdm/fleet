@@ -9,7 +9,6 @@ import { notify } from "components/ToastNotification";
 
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
-import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
@@ -65,24 +64,22 @@ const AssetListItem = ({
     <>
       <Button
         className={`${baseClass}__action-button`}
-        variant="icon"
+        variant="secondary"
         onClick={onClickDownload}
         ariaLabel={`Download ${asset.name}`}
-      >
-        <Icon name="download" />
-      </Button>
+        icon="download"
+      />
       {!isTechnician && (
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button
               disabled={disableChildren}
               className={`${baseClass}__action-button`}
-              variant="icon"
+              variant="secondary"
               onClick={() => onClickDelete(asset)}
               ariaLabel={`Delete ${asset.name}`}
-            >
-              <Icon name="trash" />
-            </Button>
+              icon="trash"
+            />
           )}
         />
       )}

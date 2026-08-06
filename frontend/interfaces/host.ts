@@ -139,6 +139,7 @@ export interface IOSSettings {
   host_name?: IHostMdmHostNameSetting;
   managed_local_account?: {
     status: string | null;
+    detail?: string;
     password_available: boolean;
     auto_rotate_at?: string;
     pending_rotation?: boolean;
@@ -353,6 +354,7 @@ export interface IHost {
   cpu_logical_cores: number;
   hardware_vendor: string;
   hardware_model: string;
+  hardware_marketing_name: string;
   hardware_version: string;
   hardware_serial: string;
   computer_name: string;
@@ -397,6 +399,7 @@ export interface IHost {
   custom_host_vitals?: IHostCustomVital[];
   conditional_access_bypassed: boolean;
   mdm_enrollment_hardware_attested?: boolean;
+  dep_assigned_to_fleet: boolean;
 }
 
 /*
