@@ -4251,6 +4251,17 @@ Returns the information of the specified host.
           "managed_local_account": "",
           "detail": "",
           "self_service": true
+        },
+        {
+          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381234",
+          "name": "profile2",
+          "status": "verifying",
+          "operation_type": "install",
+          "scope": "device",
+          "managed_local_account": "",
+          "detail": "",
+          "self_service": false,
+          "hidden": true
         }
       ]
     }
@@ -7182,6 +7193,7 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 | labels_exclude_any     | array    | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
 | display_name           | string   | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
 | self_service           | boolean  | Specifies if the profile should be opt-in for end users (no forced install). Supported for .mobileconfig profiles. Default is `false`. |
+| hidden.                | boolean  | Specifies if the profile should be hidden from end users on Fleet Desktop. `self_service` must be set to `false` (force install of profile) to use this option. |
 
 For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
 
