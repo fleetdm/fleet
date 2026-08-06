@@ -35,7 +35,7 @@ Custom host vitals are global and are specified inline in your `default.yml` fil
 custom_host_vitals:
   - name: Asset tag
   - name: Function
-  - name: Jamf device ID
+  - name: ITAM device ID
 ```
 
 Custom host vitals removed from `default.yml` are deleted on the next GitOps run.
