@@ -1,4 +1,4 @@
-- name: Windows - Sufficient disk space available
+- name: Sufficient disk space available (Windows)
   query: SELECT 1 WHERE (SELECT CAST(SUM(free_space) AS REAL) / SUM(size) FROM logical_drives WHERE file_system = 'NTFS') > 0.10;
   critical: false
   description: >-
