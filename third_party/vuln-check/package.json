@@ -10,7 +10,7 @@
     "directory": "third_party/vuln-check"
   },
   "dependencies": {
-    "node-sql-parser": "5.3.13"
+    "node-sql-parser": "5.4.0"
   },
   "devDependencies": {},
   "scripts": {},

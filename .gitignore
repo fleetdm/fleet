@@ -18,6 +18,7 @@ assets/*@*.woff2
 assets/*@*.ttf
 assets/*@*.mp4
 frontend/templates/react.tmpl
+frontend/utilities/osquery_sql_parser/osquery_sql_parser.generated.js
 bindata.go
 server/bindata/generated.go
 *.cover

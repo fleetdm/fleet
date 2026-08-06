@@ -37,9 +37,9 @@ This directory solves that problem by creating "dummy" manifest files that list 
 
 ### npm dependencies (package.json)
 
-| Dependency      | Fleet Location                      | Version |
-|-----------------|-------------------------------------|---------|
-| node-sql-parser | frontend/utilities/node-sql-parser/ | 5.3.13  |
+| Dependency      | Fleet Location                         | Version |
+|-----------------|----------------------------------------|---------|
+| node-sql-parser | frontend/utilities/osquery_sql_parser/ | 5.4.0   |
 
 ## Running vulnerability scans locally
 
