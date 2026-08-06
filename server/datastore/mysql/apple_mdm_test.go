@@ -8314,7 +8314,7 @@ func testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange(t *test
 		"service subscriptions keyed by the host's previous UUID must be cleared on transition to BYOD")
 }
 
-// Tests that we upsert the correct enrollment type on re-enrollment sync etc. Check-in becomes an authorative source
+// Tests that we upsert the correct enrollment type on re-enrollment sync etc. Check-in becomes an authoritative source
 // of truth to set all values, and sets installed_from_dep to true if a host_dep_assignment row exists.
 func testMDMAppleUpsertHostEnrollmentTypeOnReenrollment(t *testing.T, ds *Datastore) {
 	ctx := t.Context()

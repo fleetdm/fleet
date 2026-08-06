@@ -2031,8 +2031,8 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 			mdm_migration_deadline = VALUES(mdm_migration_deadline),
 			hardware_serial = VALUES(hardware_serial)`
 
-	hostIDs := make([]uint, len(hosts))
-	args := []interface{}{}
+	hostIDs := []uint{}
+	args := []any{}
 	values := []string{}
 	for _, host := range hosts {
 		var deadline *time.Time
@@ -2180,11 +2180,12 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 	parts := []string{}
 	for _, id := range hostIDs {
 		var isDepAssigned bool
-		if source == appleMDMInfoFromCheckin {
+		switch source {
+		case appleMDMInfoFromCheckin:
 			_, isDepAssigned = depAssignedSet[id]
-		} else if source == appleMDMInfoFromDEPSync {
+		case appleMDMInfoFromDEPSync:
 			isDepAssigned = true
-		} else {
+		default:
 			isDepAssigned = false
 		}
 		args = append(args, enrolled, serverURL, isDepAssigned, mdmID, false, id, fromPersonalEnrollment)
@@ -2196,7 +2197,7 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ","))
 
 	if source == appleMDMInfoFromCheckin {
-		stmt += `, installed_from_dep = VALUES(installed_from_dep), server_url = VALUES(server_url), mdm_id = VALUES(mdm_id)`
+		stmt += `, installed_from_dep = VALUES(installed_from_dep)`
 	}
 
 	_, err = tx.ExecContext(ctx, stmt, args...)
