@@ -1,0 +1,3 @@
+- Fixed editing only the username or only the password of an NDES SCEP certificate authority skipping validation against the NDES server. Fleet now verifies the credentials on save and returns an error if they're wrong, instead of saving a broken certificate authority whose misconfiguration only surfaced later as a profile failure on hosts.
+- Fixed editing only the SCEP URL of an NDES SCEP certificate authority failing with a `"password" must be set when modifying an existing certificate authority` error. The password field is now cleared when the SCEP URL changes, so it's re-entered and sent with the update.
+- Fixed an empty username or password being saved on an NDES SCEP certificate authority.
