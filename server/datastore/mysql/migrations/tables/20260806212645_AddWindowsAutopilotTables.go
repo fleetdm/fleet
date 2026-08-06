@@ -47,10 +47,14 @@ func Up_20260806212645(tx *sql.Tx) error {
 	// on host_dep_assignments, Fleet's precedent for per-device pending metadata, which is the Apple counterpart of
 	// this table and likewise carries no mdm_ infix.
 	//
-	// autopilot_device_id is the Graph resource id of the Autopilot registration and is distinct from
-	// azure_ad_device_id (the Entra device object). Reconciliation keys on autopilot_device_id because it is unique
-	// and stable for the life of the registration, whereas serial numbers are neither: Graph itself paginates this
-	// collection on serial, and placeholder serials such as "Default string" ship on real hardware.
+	// autopilot_device_id is the Graph resource id of the Autopilot registration, distinct from azure_ad_device_id
+	// (the Entra device object). It is recorded because it is the one stable, unique identifier Graph gives us:
+	// serial numbers are neither (Graph paginates this collection on serial, and placeholder serials such as
+	// "Default string" ship on real hardware), which is why the Graph client deduplicates its pages by this id.
+	//
+	// It carries no UNIQUE constraint: nothing looks a host up by it today, and the empty-string default would make
+	// one collide across rows. Add the constraint together with the first query that needs it, dropping the default
+	// at the same time.
 	//
 	// group_tag is VARCHAR(2048) because that is Intune's maximum group tag length; a narrower column would truncate
 	// silently. It is deliberately NOT indexed: at utf8mb4 that is 8192 bytes, well over InnoDB's 3072-byte index key

@@ -1110,7 +1110,7 @@ func TestCachedFMANamesByIdentifier(t *testing.T) {
 	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
 }
 
-func TestCachedMicrosoftGraphCredentials(t *testing.T) {
+func TestCachedMicrosoftGraphCredentialMetadata(t *testing.T) {
 	t.Parallel()
 
 	mockedDS := new(mock.Store)
@@ -1121,7 +1121,7 @@ func TestCachedMicrosoftGraphCredentials(t *testing.T) {
 		{TenantID: "tenant-a", ClientID: "client-a", ClientSecret: "secret-a", LastSyncError: &syncErr},
 	}
 	var dbReads int
-	mockedDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	mockedDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
 		dbReads++
 		return stored, nil
 	}
@@ -1135,17 +1135,17 @@ func TestCachedMicrosoftGraphCredentials(t *testing.T) {
 	mockedDS.RecordMicrosoftGraphSyncResultFunc = func(ctx context.Context, tenantID string, syncErr *string) error { return nil }
 
 	// The second read is served from cache: every config read hydrates credentials, so this is a hot path.
-	got, err := ds.ListMicrosoftGraphCredentials(t.Context())
+	got, err := ds.ListMicrosoftGraphCredentialMetadata(t.Context())
 	require.NoError(t, err)
 	require.Len(t, got, 1)
-	_, err = ds.ListMicrosoftGraphCredentials(t.Context())
+	_, err = ds.ListMicrosoftGraphCredentialMetadata(t.Context())
 	require.NoError(t, err)
 	require.Equal(t, 1, dbReads)
 
 	// A cached read is a deep copy, so mutating it cannot corrupt the cache.
 	got[0].TenantID = "mutated"
 	*got[0].LastSyncError = "mutated"
-	fresh, err := ds.ListMicrosoftGraphCredentials(t.Context())
+	fresh, err := ds.ListMicrosoftGraphCredentialMetadata(t.Context())
 	require.NoError(t, err)
 	require.Equal(t, "tenant-a", fresh[0].TenantID)
 	require.Equal(t, "boom", *fresh[0].LastSyncError)
@@ -1167,13 +1167,13 @@ func TestCachedMicrosoftGraphCredentials(t *testing.T) {
 		{"record sync result", func() error { return ds.RecordMicrosoftGraphSyncResult(t.Context(), "tenant-a", nil) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ds.ListMicrosoftGraphCredentials(t.Context())
+			_, err := ds.ListMicrosoftGraphCredentialMetadata(t.Context())
 			require.NoError(t, err)
 			before := dbReads
 
 			require.NoError(t, tc.mutate())
 
-			_, err = ds.ListMicrosoftGraphCredentials(t.Context())
+			_, err = ds.ListMicrosoftGraphCredentialMetadata(t.Context())
 			require.NoError(t, err)
 			require.Equal(t, before+1, dbReads, "mutation must invalidate the cache")
 		})

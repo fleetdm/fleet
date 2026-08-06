@@ -1356,6 +1356,8 @@ type IsABMTokenInvalidForOrgNameFunc func(ctx context.Context, orgName string) (
 
 type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
 
+type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
 type GetMicrosoftGraphCredentialFunc func(ctx context.Context, tenantID string) (*fleet.MicrosoftGraphCredential, error)
 
 type UpsertMicrosoftGraphCredentialFunc func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error
@@ -4312,6 +4314,9 @@ type DataStore struct {
 
 	ListMicrosoftGraphCredentialsFunc        ListMicrosoftGraphCredentialsFunc
 	ListMicrosoftGraphCredentialsFuncInvoked bool
+
+	ListMicrosoftGraphCredentialMetadataFunc        ListMicrosoftGraphCredentialMetadataFunc
+	ListMicrosoftGraphCredentialMetadataFuncInvoked bool
 
 	GetMicrosoftGraphCredentialFunc        GetMicrosoftGraphCredentialFunc
 	GetMicrosoftGraphCredentialFuncInvoked bool
@@ -10413,6 +10418,13 @@ func (s *DataStore) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet
 	s.ListMicrosoftGraphCredentialsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMicrosoftGraphCredentialsFunc(ctx)
+}
+
+func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialMetadataFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialMetadataFunc(ctx)
 }
 
 func (s *DataStore) GetMicrosoftGraphCredential(ctx context.Context, tenantID string) (*fleet.MicrosoftGraphCredential, error) {

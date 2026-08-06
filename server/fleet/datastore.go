@@ -2255,6 +2255,10 @@ type Datastore interface {
 	// Callers that serialize the result must mask the secret first.
 	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
 
+	// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets, decrypting
+	// nothing. Used by the config API, which masks the secret anyway.
+	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+
 	// GetMicrosoftGraphCredential returns the credential for an Entra tenant, with its client secret decrypted.
 	GetMicrosoftGraphCredential(ctx context.Context, tenantID string) (*MicrosoftGraphCredential, error)
 

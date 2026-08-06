@@ -349,3 +349,61 @@ func TestTokenAcquisitionFailureSurfaces(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "AADSTS7000215")
 }
+
+// A next link is a URL chosen by the remote service, and the oauth2 transport attaches the access token to whatever we
+// request. A link pointing off the Graph origin must be refused rather than followed, or Fleet would hand its token to
+// another host.
+func TestListRejectsNextLinkOnAnotherOrigin(t *testing.T) {
+	evil := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("client followed a next link to a foreign origin and sent header %q", r.Header.Get("Authorization"))
+		writeDevices(t, w, "")
+	}))
+	t.Cleanup(evil.Close)
+
+	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		writeDevices(t, w, evil.URL+autopilotDevicesPath, device("id-1", "SERIAL-1", "A"))
+	})
+
+	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected origin")
+	assert.Nil(t, devices)
+}
+
+func TestListRejectsRelativeNextLink(t *testing.T) {
+	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		writeDevices(t, w, "/v1.0/deviceManagement/windowsAutopilotDeviceIdentities?$skiptoken=x",
+			device("id-1", "SERIAL-1", "A"))
+	})
+
+	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected origin")
+}
+
+// A wrong or expired client secret fails at Entra's token endpoint, before Graph is reached, so it never becomes a
+// Graph response. It still has to classify as an auth failure, or the admin is told it's a connection problem.
+func TestTokenEndpointInvalidClientClassifiesAsAuthError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"invalid_client","error_description":"AADSTS7000215: Invalid client secret provided."}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := newClientWithHosts(&fleet.MicrosoftGraphCredential{
+		TenantID: testTenantID, ClientID: testClientID, ClientSecret: "wrong",
+	}, srv.URL, srv.URL)
+	require.NoError(t, err)
+
+	_, err = c.ListWindowsAutopilotDevices(t.Context())
+	require.Error(t, err)
+
+	graphErr, ok := AsError(err)
+	require.True(t, ok, "a token-endpoint failure must still be classifiable")
+	assert.True(t, graphErr.IsAuthError())
+	assert.False(t, graphErr.IsPermissionError())
+	assert.False(t, graphErr.IsTransient())
+	assert.Equal(t, "invalid_client", graphErr.Code)
+	assert.Contains(t, graphErr.Message, "AADSTS7000215")
+}

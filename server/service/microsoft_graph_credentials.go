@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
@@ -220,6 +221,24 @@ func (svc *Service) persistMicrosoftGraphCredentials(
 	}
 
 	return added, edited, deleted, nil
+}
+
+// hydrateMicrosoftGraphCredentials populates ac.MDM.MicrosoftGraphCredentials from the credentials table.
+//
+// Both the GET and PATCH config responses need this: the credentials are not part of the AppConfig JSON, so a config
+// read (or the re-read that builds the PATCH response) carries an empty list unless it is filled in here. Callers must
+// still call Obfuscate afterwards to mask the secrets.
+func (svc *Service) hydrateMicrosoftGraphCredentials(ctx context.Context, ac *fleet.AppConfig) error {
+	stored, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
+	}
+	creds := make([]fleet.MicrosoftGraphCredential, 0, len(stored))
+	for _, cred := range stored {
+		creds = append(creds, *cred)
+	}
+	ac.MDM.MicrosoftGraphCredentials = optjson.SetSlice(creds)
+	return nil
 }
 
 func (svc *Service) storedMicrosoftGraphCredentialsByTenant(ctx context.Context) (map[string]*fleet.MicrosoftGraphCredential, error) {

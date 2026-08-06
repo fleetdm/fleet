@@ -1524,6 +1524,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err != nil {
 		return nil, err
 	}
+	// The re-read JSON never carries Graph credentials, so without this the PATCH response would report an empty list
+	// immediately after storing one, and a UI that renders the response would show the credential as removed.
+	if err := svc.hydrateMicrosoftGraphCredentials(ctx, obfuscatedAppConfig); err != nil {
+		return nil, err
+	}
 	obfuscatedAppConfig.Obfuscate()
 
 	newAgentOptions := ""

@@ -298,17 +298,20 @@ func (ds *cachedMysql) SetWindowsEnrollmentDefaultFleet(ctx context.Context, fle
 	return nil
 }
 
-// ListMicrosoftGraphCredentials is cached because every config read hydrates the credentials from this table (they are
-// never stored in the app config JSON), which puts it on the same hot path as AppConfig itself. It shares the app
-// config expiration for the same reason.
-func (ds *cachedMysql) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+// ListMicrosoftGraphCredentialMetadata is cached because every config read hydrates the credentials from this table
+// (they are never stored in the app config JSON), which puts it on the same hot path as AppConfig itself. It shares
+// the app config expiration for the same reason.
+//
+// The secret-bearing ListMicrosoftGraphCredentials is deliberately not cached: it is only used by config writes and
+// the sync, both rare, and keeping decrypted secrets out of the cache is worth the extra query.
+func (ds *cachedMysql) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
 	if x, found := ds.c.Get(ctx, microsoftGraphCredentialsKey); found {
 		if v, ok := x.(microsoftGraphCredentialsList); ok {
 			return v, nil
 		}
 	}
 
-	creds, err := ds.Datastore.ListMicrosoftGraphCredentials(ctx)
+	creds, err := ds.Datastore.ListMicrosoftGraphCredentialMetadata(ctx)
 	if err != nil {
 		return nil, err
 	}

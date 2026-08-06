@@ -57,6 +57,25 @@ ORDER BY tenant_id`
 	return creds, nil
 }
 
+// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets, and without
+// decrypting anything.
+//
+// The config API uses this rather than ListMicrosoftGraphCredentials because it masks the secret immediately anyway.
+// Decrypting there would be wasted work on a hot path, and worse, it would make a missing or rotated server private
+// key fail the entire GET /config rather than just the credential feature.
+func (ds *Datastore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	const stmt = `
+SELECT tenant_id, client_id, credential_invalid, last_synced_at, last_sync_error
+FROM mdm_microsoft_graph_credentials
+ORDER BY tenant_id`
+
+	var creds []*fleet.MicrosoftGraphCredential
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &creds, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
+	}
+	return creds, nil
+}
+
 // GetMicrosoftGraphCredential returns the credential for a tenant, with its client secret decrypted.
 func (ds *Datastore) GetMicrosoftGraphCredential(ctx context.Context, tenantID string) (*fleet.MicrosoftGraphCredential, error) {
 	const stmt = `

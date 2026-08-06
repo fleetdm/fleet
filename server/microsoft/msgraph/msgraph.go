@@ -9,6 +9,7 @@ package msgraph
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -161,10 +162,36 @@ func (c *client) ListWindowsAutopilotDevices(ctx context.Context) ([]fleet.Windo
 				pageNum, len(page))
 		}
 
+		// The next link is a URL chosen by the remote service, and the oauth2 transport attaches the access token to
+		// whatever we request. Requiring it to stay on the Graph origin means a malformed or hostile link cannot make
+		// Fleet hand its token to another host.
+		if link != "" {
+			if err := c.assertGraphOrigin(link); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "validate microsoft graph next link")
+			}
+		}
+
 		nextURL = link
 	}
 
 	return devices, nil
+}
+
+// assertGraphOrigin rejects a next link that is relative or points anywhere other than the Graph host.
+func (c *client) assertGraphOrigin(link string) error {
+	next, err := url.Parse(link)
+	if err != nil {
+		return fmt.Errorf("parse next link: %w", err)
+	}
+	graph, err := url.Parse(c.graphHost)
+	if err != nil {
+		return fmt.Errorf("parse graph host: %w", err)
+	}
+	if !strings.EqualFold(next.Scheme, graph.Scheme) || !strings.EqualFold(next.Host, graph.Host) {
+		return fmt.Errorf("nextLink points at unexpected origin %q://%q, expected %q://%q",
+			next.Scheme, next.Host, graph.Scheme, graph.Host)
+	}
+	return nil
 }
 
 type autopilotDevicesResponse struct {
@@ -182,6 +209,12 @@ func (c *client) getPage(ctx context.Context, requestURL string) ([]fleet.Window
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		// The oauth2 transport fetches the access token lazily on the first request, so a rejected client secret
+		// surfaces here as a token-endpoint failure rather than as a Graph response. Convert it so callers see an
+		// auth error instead of a generic connection failure.
+		if retrieveErr, ok := errors.AsType[*oauth2.RetrieveError](err); ok {
+			return nil, "", ctxerr.Wrap(ctx, newTokenError(retrieveErr), "acquire microsoft graph token")
+		}
 		return nil, "", ctxerr.Wrap(ctx, err, "call microsoft graph")
 	}
 	defer resp.Body.Close()

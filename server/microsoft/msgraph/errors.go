@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 // Error is a failed Microsoft Graph call, classified by what the caller should do about it.
@@ -54,6 +56,28 @@ type graphErrorBody struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
+}
+
+// newTokenError converts an OAuth2 token-endpoint failure into an *Error so callers classify it exactly as they
+// classify a Graph response.
+//
+// This matters because the most common misconfiguration by far, a wrong or expired client secret, fails at Entra's
+// token endpoint before Graph is ever reached. Without this it would surface as an opaque oauth2 error and be reported
+// as a generic connection problem rather than a rejected credential.
+func newTokenError(retrieveErr *oauth2.RetrieveError) *Error {
+	// RFC 6749 specifies 401 for invalid_client, but providers are inconsistent and some answer 400. Pin it so the
+	// credential is classified as rejected either way.
+	status := http.StatusUnauthorized
+	if retrieveErr.ErrorCode != "invalid_client" && retrieveErr.Response != nil {
+		status = retrieveErr.Response.StatusCode
+	}
+
+	message := retrieveErr.ErrorDescription
+	if message == "" {
+		message = string(retrieveErr.Body)
+	}
+
+	return &Error{StatusCode: status, Code: retrieveErr.ErrorCode, Message: message}
 }
 
 func newGraphError(resp *http.Response, body []byte) *Error {

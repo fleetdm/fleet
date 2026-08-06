@@ -19,6 +19,7 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"GraphCredentialUpsertListGet", testGraphCredentialUpsertListGet},
+		{"GraphCredentialMetadataOmitsSecret", testGraphCredentialMetadataOmitsSecret},
 		{"GraphCredentialSecretEncryptedAtRest", testGraphCredentialSecretEncryptedAtRest},
 		{"GraphCredentialDelete", testGraphCredentialDelete},
 		{"GraphCredentialInvalidFlag", testGraphCredentialInvalidFlag},
@@ -294,4 +295,25 @@ func testHostAutopilotDeviceMaxGroupTag(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, got.GroupTag, 2048)
 	assert.Equal(t, maxTag, got.GroupTag)
+}
+
+// The config API reads metadata rather than the full credential, so a missing or rotated server private key cannot
+// fail GET /config: nothing is decrypted on that path, and the secret is masked in the response anyway.
+func testGraphCredentialMetadataOmitsSecret(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	require.NoError(t, ds.UpsertMicrosoftGraphCredential(ctx, &fleet.MicrosoftGraphCredential{
+		TenantID: testTenantA, ClientID: "client-a", ClientSecret: "plaintext-secret",
+	}))
+	_, err := ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true)
+	require.NoError(t, err)
+
+	meta, err := ds.ListMicrosoftGraphCredentialMetadata(ctx)
+	require.NoError(t, err)
+	require.Len(t, meta, 1)
+	assert.Equal(t, testTenantA, meta[0].TenantID)
+	assert.Equal(t, "client-a", meta[0].ClientID)
+	assert.Empty(t, meta[0].ClientSecret, "the metadata read must not carry the secret")
+	// The fields the UI needs, including the banner flag, still come through.
+	assert.True(t, meta[0].CredentialInvalid)
 }

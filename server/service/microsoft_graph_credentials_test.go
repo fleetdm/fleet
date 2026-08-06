@@ -91,6 +91,15 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 		}
 		return out, nil
 	}
+	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+		out := make([]*fleet.MicrosoftGraphCredential, 0, len(env.stored))
+		for _, c := range env.stored {
+			meta := *c
+			meta.ClientSecret = "" // the metadata read never decrypts
+			out = append(out, &meta)
+		}
+		return out, nil
+	}
 	ds.UpsertMicrosoftGraphCredentialFunc = func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
 		copied := *cred
 		env.stored[cred.TenantID] = &copied
@@ -233,17 +242,18 @@ func TestModifyAppConfigMicrosoftGraphCredentials(t *testing.T) {
 	t.Run("the secret never lands in the saved app config", func(t *testing.T) {
 		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 
-		var saved *fleet.AppConfig
+		// Snapshot the count at save time rather than holding the pointer: the mock hands back the same *AppConfig on
+		// the later read, so a retained pointer would observe the response hydration instead of what was persisted.
+		savedCredCount := -1
 		env.ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
-			saved = conf
+			savedCredCount = len(conf.MDM.MicrosoftGraphCredentials.Value)
 			return nil
 		}
 
 		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(validPayload), fleet.ApplySpecOptions{})
 		require.NoError(t, err)
 
-		require.NotNil(t, saved)
-		assert.Empty(t, saved.MDM.MicrosoftGraphCredentials.Value,
+		assert.Equal(t, 0, savedCredCount,
 			"credentials belong to their own table; persisting them in app_config_json would store the secret in plaintext")
 	})
 
@@ -271,4 +281,25 @@ func TestMicrosoftGraphVerifyMessage(t *testing.T) {
 			assert.Contains(t, microsoftGraphVerifyMessage(tc.err), tc.contains)
 		})
 	}
+}
+
+// The PATCH response is built from a re-read of the app config JSON, which never carries credentials. Without explicit
+// hydration it would report an empty list right after storing one, and a UI that renders the response would show the
+// credential as removed until the next config read.
+func TestModifyAppConfigMicrosoftGraphCredentialsResponse(t *testing.T) {
+	env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
+
+	payload := `{"mdm":{"microsoft_graph_credentials":[{"tenant_id":"` + graphTenantA +
+		`","client_id":"` + graphClientA + `","client_secret":"secret-a"}]}}`
+
+	modified, err := env.svc.ModifyAppConfig(env.ctx, []byte(payload), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+
+	require.Len(t, modified.MDM.MicrosoftGraphCredentials.Value, 1,
+		"the PATCH response must report the credential it just stored")
+	got := modified.MDM.MicrosoftGraphCredentials.Value[0]
+	assert.Equal(t, graphTenantA, got.TenantID)
+	assert.Equal(t, graphClientA, got.ClientID)
+	// Masked, never the plaintext the caller sent.
+	assert.Equal(t, fleet.MaskedPassword, got.ClientSecret)
 }

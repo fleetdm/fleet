@@ -121,6 +121,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 				return nil, nil
 			}
 		}
+		if mockDS.ListMicrosoftGraphCredentialMetadataFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+				return nil, nil
+			}
+		}
 	}
 
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
