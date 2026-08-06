@@ -4282,7 +4282,8 @@ Returns the information of the specified host.
           "operation_type": "install",
           "scope": "device",
           "managed_local_account": "",
-          "detail": ""
+          "detail": "",
+          "self_service": true
         }
       ]
     }
@@ -5085,7 +5086,8 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
           "operation_type": "install",
           "scope": "device",
           "managed_local_account": "",
-          "detail": ""
+          "detail": "",
+          "self_service": true
         }
       ]
     }
@@ -5812,7 +5814,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
           "operation_type": "install",
           "scope": "device",
           "managed_local_account": "",
-          "detail": ""
+          "detail": "",
+          "self_service": true
         }
       ]
     }
@@ -6852,7 +6855,8 @@ Retrieves a list of the configuration profiles assigned to a host.
       "identifier": "com.example.profile",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo="
+      "checksum": "dGVzdAo=",
+      "self_service": true
     }
   ]
 }
@@ -8133,6 +8137,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo=",
+      "self_service": true,
       "labels_exclude_any": [
        {
         "name": "Label name 1",
@@ -8149,6 +8154,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)",
+      "self_service": true,
       "labels_include_all": [
         {
           "name": "Label name 2",
@@ -8372,11 +8378,11 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 
 #### Parameters
 
-| Name      | Type   | In    | Description                                                                                                                       |
-| --------- | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Name       | Type   | In    | Description                                                                                                                       |
+| ---------  | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
 | fleet_id   | number | query | _Available in Fleet Premium_ The fleet ID to apply the configuration profiles to. Only one of `fleet_name` or `fleet_id` may be included in the request.          |
 | fleet_name | string | query | _Available in Fleet Premium_ The name of the fleet to apply the custom settings to. Only one of `fleet_name` or `fleet_id` may be included in the request. |
-| dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
+| dry_run    | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
 | configuration_profiles  | object   | body  | **Required**. See [configuration_profiles](#configuration-profiles) |
 
 ##### Configuration profiles
@@ -8389,6 +8395,7 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 | labels_exclude_any      | array   | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
 | display_name            | string  | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
 | activation              | string  | _Available in Fleet Premium_. The Base64 encoded activation criteria for the profile. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
+| self_service            | boolean | Specifies if the profile should be opt-in for end users (no forced install). Supported for .mobileconfig profiles. Default is `false`. |
 
 For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
 
@@ -8407,7 +8414,8 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
       "activation": "eyJldmVudCI6...",
       "labels_include_any": [
         "Apple Silicon macOS hosts"
-      ]
+      ],
+      "self_service": true
     }
   ]
 }
@@ -16069,7 +16077,8 @@ _Available in Fleet Premium_
         "configuration_profiles": [
           {
             "path": "path/to/profile1.mobileconfig",
-            "labels": ["Label 1", "Label 2"]
+            "labels": ["Label 1", "Label 2"],
+            "self_service": true
           },
           {
             "path": "path/to/declaration.json",
@@ -16590,7 +16599,8 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
+          "labels": ["Label 1", "Label 2"],
+          "self_service": true
         },
         {
           "path": "path/to/profile2.json",
@@ -16797,7 +16807,8 @@ _Available in Fleet Premium_
         "configuration_profiles": [
           {
            "path": "path/to/profile1.mobileconfig",
-           "labels": ["Label 1", "Label 2"]
+           "labels": ["Label 1", "Label 2"],
+           "self_service": true
           },
           {
            "path": "path/to/declaration.json",
