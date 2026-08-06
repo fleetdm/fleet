@@ -583,7 +583,7 @@ func (s *Stats) Log() {
 	fmt.Fprintf(&b, "    distributed:         reads=%d writes=%d (errs: reads=%d writes=%d)\n",
 		s.distributedReads, s.distributedWrites, s.distributedReadErrors, s.distributedWriteErrors)
 	fmt.Fprintf(&b, "    config requests:     %d (errs: %d)\n", s.configRequests, s.configErrors)
-	fmt.Fprintf(&b, "    config etags:        200s=%d 304s=%d conditional=%d drift=%d\n",
+	fmt.Fprintf(&b, "    config etags:        full=%d not_modified=%d conditional=%d drift=%d\n",
 		s.configFullResponses, s.configNotModified, s.configConditionalRequests, s.configETagDrift)
 	fmt.Fprintf(&b, "    config body bytes:   sent=%d avoided=%d (savings: %.1f%%)\n",
 		s.configResponseBodyBytes, s.configEstimatedSavedBytes, configSavingsPct)

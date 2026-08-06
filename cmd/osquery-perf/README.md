@@ -168,46 +168,50 @@ To force an osquery-perf agent to respond with `NotNow` once to an `InstallProfi
 
 To force a certain ErrorCode and failure for an `InstallApplication` command, the `iTunesStoreID` payload field has to have a value below 100_000. The agent will respond with a failure and the specified error code, which helps QA and repro logic scenarios on certain error codes.
 
-## Config ETag / 304 Support
+## Conditional Config Request (ETag) Support
 
-The agent can simulate the native osquery ETag lifecycle for config requests.
-When enabled, each simulated host keeps its own in-memory ETag (a quoted SHA-256
-hash of the config response body). The first config request has no validator and
-receives a full body; subsequent requests send `If-None-Match` and treat `304`
-Not Modified as success, retaining the installed scheduled-query state.
+The agent can simulate the native osquery conditional config request
+lifecycle. The validator travels in the JSON bodies: an enabled agent sends
+an `"etag"` field in the config request body (empty on its first request),
+stores the server-assigned `"etag"` value from each full config response, and
+treats the constant `{"etag":"ok"}` response as "unchanged", retaining the
+installed scheduled-query state.
 
-- `--config_tls_etag`: default `false`, enable native osquery config ETag/304 behavior
+- `--config_tls_etag`: default `false`, enable native osquery conditional config requests
 
 This feature is **off by default** because osquery-perf is designed for load
-testing, and enabling ETag reduces bandwidth without reducing backend load
-(Phase 1 Fleet behavior). Opt in with `--config_tls_etag=true` to measure
-bandwidth savings.
+testing, and enabling it reduces bandwidth without necessarily reducing
+backend load. Opt in with `--config_tls_etag=true` to measure bandwidth
+savings.
 
-The ETag is in-memory only — a restarted osquery-perf process starts with a
-full fetch for every simulated host. The locally calculated SHA-256 validator
-is authoritative; the server's `ETag` response header is compared only as a
-diagnostic (mismatches are counted but do not affect behavior).
+The etag is in-memory only — a restarted osquery-perf process starts with a
+full fetch for every simulated host. The value is stored on receipt, before
+the config is processed, mirroring the real osquery client: a config the
+agent fails to process is confirmed unchanged on later check-ins rather than
+re-downloaded. The server's value is authoritative and opaque; a local
+SHA-256 of the canonical (etag-less) body is compared only as a diagnostic
+(mismatches are counted but do not affect behavior).
 
 Stats logged every 10 seconds include:
 
-- `config 200s`: full config responses received
-- `config 304s`: not-modified responses received
-- `conditional config requests`: requests that sent `If-None-Match`
+- `config full responses`: full config responses received
+- `config not-modified responses`: `{"etag":"ok"}` responses received
+- `conditional config requests`: requests that echoed a non-empty etag
 - `config response body bytes`: total downloaded config body bytes
-- `estimated config body bytes avoided`: body bytes saved by `304` responses
+- `estimated config body bytes avoided`: body bytes saved by not-modified responses
 - `estimated config body savings pct`: percentage of logical body bytes avoided
-- `config etag header mismatches`: times the server's `ETag` header disagreed with the locally calculated hash
+- `config etag drift`: times the server's etag disagreed with the locally calculated hash
 
 ### Example control/treatment run
 
-Run a control (no ETag) and treatment (ETag enabled) against the same Fleet
+Run a control (no etag) and treatment (etag enabled) against the same Fleet
 server to measure bandwidth savings:
 
 ```
-# Control: no ETag, every request downloads the full config
+# Control: no etag, every request downloads the full config
 go run agent.go --config_tls_etag=false --host_count 100 --config_interval 1m ...
 
-# Treatment: ETag enabled, unchanged configs return 304
+# Treatment: etag enabled, unchanged configs get the minimal body
 go run agent.go --config_tls_etag=true --host_count 100 --config_interval 1m ...
 ```
 
