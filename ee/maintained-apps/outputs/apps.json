@@ -2424,6 +2424,13 @@
       "description": "Dell Command Update is a standalone application that delivers BIOS, firmware, driver, and application updates for Dell client hardware."
     },
     {
+      "name": "Dell Display and Peripheral Manager",
+      "slug": "dell-display-and-peripheral-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Dell Display and Peripheral Manager",
+      "description": "Dell Display and Peripheral Manager sets up and configures Dell monitors and peripherals such as keyboards, mice, webcams, audio devices, and active pens."
+    },
+    {
       "name": "Descript",
       "slug": "descript/darwin",
       "platform": "darwin",
@@ -3222,13 +3229,6 @@
       "description": "Fetch is a file transfer client."
     },
     {
-      "name": "fig",
-      "slug": "fig/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.mschrage.fig",
-      "description": "fig is a terminal app."
-    },
-    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -3535,27 +3535,6 @@
       "platform": "darwin",
       "unique_identifier": "com.nektony.Funter-SIII",
       "description": "Funter is a shows hidden files and folders and switches their visibility in Finder."
-    },
-    {
-      "name": "Gadwin PrintScreen Pro",
-      "slug": "gadwin-printscreen-pro/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin PrintScreenPro (64-Bit)",
-      "description": "Gadwin PrintScreen Pro is a screen capture tool for saving, printing, and sharing screenshots."
-    },
-    {
-      "name": "Gadwin PrintScreen",
-      "slug": "gadwin-printscreen/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin PrintScreen (64-Bit)",
-      "description": "Gadwin PrintScreen is a screen capture tool that saves screenshots in multiple graphics formats."
-    },
-    {
-      "name": "Gadwin ScreenRecorder",
-      "slug": "gadwin-screenrecorder/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin ScreenRecorder (64-Bit)",
-      "description": "Gadwin ScreenRecorder is a screen recording tool for creating videos of on-screen activity."
     },
     {
       "name": "Galaxy Modeler",
@@ -7079,6 +7058,13 @@
       "description": "Python 3.14 is a high-level, general-purpose programming language used for web development, data analysis, automation, scripting, and scientific computing."
     },
     {
+      "name": "QEMU",
+      "slug": "qemu/windows",
+      "platform": "windows",
+      "unique_identifier": "QEMU",
+      "description": "QEMU is an open-source machine emulator and virtualizer."
+    },
+    {
       "name": "QLab",
       "slug": "qlab/darwin",
       "platform": "darwin",
@@ -8449,6 +8435,13 @@
       "platform": "darwin",
       "unique_identifier": "com.apptorium.TeaCode-dm",
       "description": "TeaCode is a text expanding app for developers."
+    },
+    {
+      "name": "TeamViewer Host",
+      "slug": "teamviewer-host/windows",
+      "platform": "windows",
+      "unique_identifier": "TeamViewer Host",
+      "description": "TeamViewer Host is a remote access agent for unattended 24/7 access to a device, for uses such as remote device monitoring and server maintenance."
     },
     {
       "name": "TeamViewer",

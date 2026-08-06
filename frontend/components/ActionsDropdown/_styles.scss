@@ -31,3 +31,9 @@
 .actions-dropdown__option:focus-visible {
   outline: none;
 }
+
+// Drop the stale highlight for as long as a disabled option is hovered.
+.actions-dropdown-select__menu-list:has(.actions-dropdown-select__option--is-disabled:hover)
+  .actions-dropdown-select__option--is-focused {
+  background-color: transparent;
+}

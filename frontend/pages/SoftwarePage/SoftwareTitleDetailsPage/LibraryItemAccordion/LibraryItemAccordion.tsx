@@ -232,8 +232,8 @@ const LibraryItemAccordion = ({
           size="small"
           onClick={handleBadgeClick(onBadgeClick)}
           className={`${baseClass}__badge-button`}
+          icon={iconName}
         >
-          <Icon name={iconName} />
           <span>{label}</span>
         </Button>
       );
@@ -280,9 +280,8 @@ const LibraryItemAccordion = ({
           onClick={handleBadgeClick(onClick)}
           className={`${baseClass}__icon-button`}
           ariaLabel={ariaLabel}
-        >
-          <Icon name={iconName} />
-        </Button>
+          icon={iconName}
+        />
       ) : (
         <Icon name={iconName} />
       )}
@@ -354,8 +353,8 @@ const LibraryItemAccordion = ({
                 size="small"
                 onClick={handleBadgeClick(onLabelCountClick)}
                 className={`${baseClass}__badge-button`}
+                icon="tag"
               >
-                <Icon name="tag" />
                 <span>{labelCount}</span>
               </Button>
             ) : (
@@ -375,8 +374,8 @@ const LibraryItemAccordion = ({
               size="small"
               onClick={handleBadgeClick(onLabelCountClick)}
               className={`${baseClass}__badge-button`}
+              icon="tag"
             >
-              <Icon name="tag" />
               <span>{ALL_HOSTS_LABEL}</span>
             </Button>
           ) : (
@@ -579,9 +578,8 @@ const LibraryItemAccordion = ({
       onClick={onTrashClick}
       ariaLabel="Delete this version"
       className={`${baseClass}__trash-button`}
-    >
-      <Icon name="trash" />
-    </Button>
+      icon="trash"
+    />
   );
 
   // GitOps-lock the trash button for installer types whose mutations should
@@ -733,9 +731,8 @@ const LibraryItemAccordion = ({
                 onClick={onDownloadClick}
                 ariaLabel="Download installer"
                 className={`${baseClass}__download-button`}
-              >
-                <Icon name="download" />
-              </Button>
+                icon="download"
+              />
             )}
             {canEditSoftware && renderTrashButton()}
           </div>

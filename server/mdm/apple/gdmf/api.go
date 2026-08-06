@@ -22,38 +22,12 @@ import (
 
 const baseURL = "https://gdmf.apple.com/v2/pmv"
 
-// Asset represents the metadata for an asset in the Apple Software Lookup Service[1][2].
-// Example:
-//
-//	{
-//	    "ProductVersion": "14.6.1",
-//	    "Build": "23G93",
-//	    "PostingDate": "2024-08-07",
-//	    "ExpirationDate": "2024-11-11",
-//	    "SupportedDevices": [
-//	        "J132AP",
-//	        "VMA2MACOSAP",
-//	        "VMM-x86_64"
-//	    ]
-//	}
-//
-// [1]: http://gdmf.apple.com/v2/pmv
-// [2]:
-// https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-type Asset struct {
-	ProductVersion   string   `json:"ProductVersion"`
-	Build            string   `json:"Build"`
-	PostingDate      string   `json:"PostingDate"`
-	ExpirationDate   string   `json:"ExpirationDate"`
-	SupportedDevices []string `json:"SupportedDevices"`
-}
-
 // AssetSets represents the metadata for a set of assets in the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 type AssetSets struct {
-	IOS   []Asset `json:"iOS"`
-	MacOS []Asset `json:"macOS"`
+	IOS   []fleet.OSUpdateAsset `json:"iOS"`
+	MacOS []fleet.OSUpdateAsset `json:"macOS"`
 	// VisionOS []Asset `json:"visionOS"` // Fleet doesn't support visionOS yet
 	// XROS     []Asset `json:"xrOS"`    // Fleet doesn't support xrOS yet
 }
@@ -113,24 +87,19 @@ func (a AssetMetadata) IsSupportedIOSVersion(version string, devicePrefix string
 }
 
 // GetLatestOSVersion returns the latest OS version for the given device. The device is matched
-// against the Apple Software Update Lookup Service[1][2] to find the latest version in the
-// PublicAssetSets. If no matching asset is found, an error is returned.
+// against the Apple Software Update Lookup Service[1][2] that is locally cached in the apple_software_update_assets table to find the latest version in the
+// updateAssets. If no matching asset is found, an error is returned.
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
-	am, err := GetAssetMetadata()
-	if err != nil {
-		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
-	}
-
-	assetSet := am.PublicAssetSets.MacOS // default to public asset set; note that if the device is not macOS, iPhone, iPad, or iPod we'll fail to match the supported device and return an error below
+func GetLatestOSVersion(device fleet.MDMAppleMachineInfo, updateAssets map[string][]fleet.AppleSoftwareUpdateAsset) (*fleet.AppleSoftwareUpdateAsset, error) {
+	assetSet := updateAssets["macos"] // default to public asset set; note that if the device is not macOS, iPhone, iPad, or iPod we'll fail to match the supported device and return an error below
 	if strings.HasPrefix(device.Product, "iPhone") ||
 		strings.HasPrefix(device.Product, "iPod") ||
 		strings.HasPrefix(device.Product, "iPad") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPhone") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPod") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPad") {
-		assetSet = am.PublicAssetSets.IOS
+		assetSet = updateAssets["ios"]
 	}
 	latestIdx := -1
 	for i, s := range assetSet {
