@@ -5,18 +5,21 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import ManagedAccountCheckbox from "../ManagedAccountCheckbox";
+import TurnOnMdmTooltipWrapper from "../TurnOnMdmTooltipWrapper";
 
 const baseClass = "windows-account-section";
 
 interface IWindowsAccountSectionProps {
   enableManagedLocalAccount: boolean;
   onEnableManagedLocalAccountChange: (value: boolean) => void;
+  isWindowsMdmEnabledAndConfigured: boolean;
 }
 
-/** Windows tab of the Users card. The tab is only rendered when Windows MDM is configured, so unlike the macOS section there is no "turn on MDM first" state to handle here. */
+/** Windows tab of the Users card. The managed account checkbox mirrors the macOS tab, including the disabled state that points admins at Windows MDM when it isn't turned on yet. */
 const WindowsAccountSection = ({
   enableManagedLocalAccount,
   onEnableManagedLocalAccountChange,
+  isWindowsMdmEnabledAndConfigured,
 }: IWindowsAccountSectionProps) => {
   return (
     <div className={baseClass}>
@@ -32,18 +35,23 @@ const WindowsAccountSection = ({
         </div>
 
         <h3 className={`${baseClass}__sub-header`}>Managed account</h3>
-        <GitOpsModeTooltipWrapper
-          position="left"
-          tipOffset={8}
-          isInputField
-          renderChildren={(gitopsEnabled) => (
-            <ManagedAccountCheckbox
-              disabled={!!gitopsEnabled}
-              value={enableManagedLocalAccount}
-              onChange={onEnableManagedLocalAccountChange}
-            />
-          )}
-        />
+        <TurnOnMdmTooltipWrapper
+          platform="windows"
+          isMdmEnabledAndConfigured={isWindowsMdmEnabledAndConfigured}
+        >
+          <GitOpsModeTooltipWrapper
+            position="left"
+            tipOffset={8}
+            isInputField
+            renderChildren={(gitopsEnabled) => (
+              <ManagedAccountCheckbox
+                disabled={!!gitopsEnabled || !isWindowsMdmEnabledAndConfigured}
+                value={enableManagedLocalAccount}
+                onChange={onEnableManagedLocalAccountChange}
+              />
+            )}
+          />
+        </TurnOnMdmTooltipWrapper>
       </div>
     </div>
   );

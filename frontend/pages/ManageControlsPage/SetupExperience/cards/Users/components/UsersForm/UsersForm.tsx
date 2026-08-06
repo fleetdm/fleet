@@ -196,11 +196,9 @@ const UsersForm = ({
               <Tab>
                 <TabText>macOS</TabText>
               </Tab>
-              {isWindowsMdmEnabledAndConfigured && (
-                <Tab>
-                  <TabText>Windows</TabText>
-                </Tab>
-              )}
+              <Tab>
+                <TabText>Windows</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               <LocalAccountSection
@@ -212,18 +210,19 @@ const UsersForm = ({
                 isMacMdmEnabledAndConfigured={!!isMacMdmEnabledAndConfigured}
               />
             </TabPanel>
-            {isWindowsMdmEnabledAndConfigured && (
-              <TabPanel>
-                <WindowsAccountSection
-                  enableManagedLocalAccount={
-                    formData.enableManagedLocalAccountWindows
-                  }
-                  onEnableManagedLocalAccountChange={
-                    onEnableManagedLocalAccountWindowsChange
-                  }
-                />
-              </TabPanel>
-            )}
+            <TabPanel>
+              <WindowsAccountSection
+                enableManagedLocalAccount={
+                  formData.enableManagedLocalAccountWindows
+                }
+                onEnableManagedLocalAccountChange={
+                  onEnableManagedLocalAccountWindowsChange
+                }
+                isWindowsMdmEnabledAndConfigured={
+                  !!isWindowsMdmEnabledAndConfigured
+                }
+              />
+            </TabPanel>
           </Tabs>
         </TabNav>
         <GitOpsModeTooltipWrapper

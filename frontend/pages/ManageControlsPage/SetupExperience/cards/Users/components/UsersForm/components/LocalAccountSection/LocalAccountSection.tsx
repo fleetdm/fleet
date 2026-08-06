@@ -1,14 +1,11 @@
 import React from "react";
 
-import PATHS from "router/paths";
-
-import CustomLink from "components/CustomLink";
-import TooltipWrapper from "components/TooltipWrapper";
 import Radio from "components/forms/fields/Radio";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import ManagedAccountCheckbox from "../ManagedAccountCheckbox";
+import TurnOnMdmTooltipWrapper from "../TurnOnMdmTooltipWrapper";
 import { IUsersFormData } from "../../UsersForm";
 
 const baseClass = "local-account-section";
@@ -38,24 +35,9 @@ const LocalAccountSection = ({
     localAccountType !== EndUserLocalAccountType.ADMIN;
   return (
     <div className={baseClass}>
-      <TooltipWrapper
-        tipContent={
-          !isMacMdmEnabledAndConfigured ? (
-            <span>
-              To enable, first turn on{" "}
-              <CustomLink
-                url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
-                text="Apple MDM"
-                variant="tooltip-link"
-              />
-              .
-            </span>
-          ) : undefined
-        }
-        disableTooltip={isMacMdmEnabledAndConfigured}
-        underline={false}
-        position="left"
-        showArrow
+      <TurnOnMdmTooltipWrapper
+        platform="apple"
+        isMdmEnabledAndConfigured={isMacMdmEnabledAndConfigured}
       >
         <GitOpsModeTooltipWrapper
           position="left"
@@ -127,7 +109,7 @@ const LocalAccountSection = ({
             );
           }}
         />
-      </TooltipWrapper>
+      </TurnOnMdmTooltipWrapper>
     </div>
   );
 };
