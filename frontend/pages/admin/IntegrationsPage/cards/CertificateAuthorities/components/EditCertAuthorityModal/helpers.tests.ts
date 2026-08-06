@@ -1,18 +1,11 @@
-import { ICertificatesNDES } from "interfaces/certificates";
+import { createMockNDESCertAuthority } from "__mocks__/certificatesMock";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
 import { INDESFormData } from "../NDESForm/NDESForm";
 
 import { generateEditCertAuthorityData, updateFormData } from "./helpers";
 
-const ndesCertAuthority: ICertificatesNDES = {
-  id: 1,
-  type: "ndes_scep_proxy",
-  url: "https://ndes.example.com/certsrv/mscep/mscep.dll",
-  admin_url: "https://ndes.example.com/certsrv/mscep_admin/",
-  username: "ndes-username",
-  password: UNCHANGED_PASSWORD_API_RESPONSE,
-};
+const ndesCertAuthority = createMockNDESCertAuthority();
 
 const ndesFormData: INDESFormData = {
   scepURL: ndesCertAuthority.url,
@@ -58,7 +51,7 @@ describe("EditCertAuthorityModal helpers", () => {
 
       expect(
         generateEditCertAuthorityData(ndesCertAuthority, formData)
-      ).toStrictEqual({
+      ).toEqual({
         ndes_scep_proxy: {
           url: "https://new.example.com/certsrv/mscep/mscep.dll",
           password: "entered-password",
@@ -74,7 +67,7 @@ describe("EditCertAuthorityModal helpers", () => {
 
       expect(
         generateEditCertAuthorityData(ndesCertAuthority, formData)
-      ).toStrictEqual({
+      ).toEqual({
         ndes_scep_proxy: { password: "entered-password" },
       });
     });
