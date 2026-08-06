@@ -26,7 +26,7 @@ Each vital is assigned an ID by Fleet when it's created, which isn't set in YAML
 custom_host_vitals:
   - name: Asset tag
   - name: Function
-  - name: Jamf device ID
+  - name: ITAM device ID
 ```
 
 ## labels

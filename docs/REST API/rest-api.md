@@ -16323,7 +16323,7 @@ Replaces all existing custom host vital definitions with the provided list. Exis
   "custom_host_vitals": [
     { "name": "Asset tag" },
     { "name": "Function" },
-    { "name": "Jamf device ID" }
+    { "name": "ITAM device ID" }
   ]
 }
 ```
