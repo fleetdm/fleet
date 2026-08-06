@@ -23,6 +23,7 @@
 - [Translator](#translator)
 - [Users](#users)
 - [Custom variables](#custom-variables)
+- [Custom host vitals](#custom-host-vitals)
 - [API errors](#api-responses)
 
 Use the Fleet APIs to automate Fleet.
@@ -6392,10 +6393,11 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
 
 #### criteria
 
-| Name        | Type   | Description                                                                                                                                                                                                                                  |
-| ----------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| vital       | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"` or `"end_user_idp_department"`. |
-| value       | string | Hosts with vital data matching this value will be added to the label. |
+| Name                  | Type   | Description                                                                                                                                                                                                                                  |
+| --------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| vital                 | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"`, `"end_user_idp_department"`, or `"custom_host_vital"`. |
+| custom_host_vital_id  | integer | The ID of the [custom host vital](https://fleetdm.com/guides/custom-host-vitals) to match on. Required when `vital` is `"custom_host_vital"`. |
+| value                 | string | Hosts with vital data matching this value will be added to the label. |
 
 
 #### Example
@@ -16651,6 +16653,229 @@ Removes a custom variable from Fleet.
 ##### Default response
 
 `Status: 200`
+
+## Custom host vitals
+
+- [List custom host vitals](#list-custom-host-vitals)
+- [Create custom host vital](#create-custom-host-vital)
+- [Update custom host vital](#update-custom-host-vital)
+- [Delete custom host vital](#delete-custom-host-vital)
+- [Update host's custom host vital value](#update-hosts-custom-host-vital-value)
+- [Replace all custom host vitals](#replace-all-custom-host-vitals)
+
+### List custom host vitals
+
+Lists all [custom host vitals](https://fleetdm.com/guides/custom-host-vitals), which can be referenced as `$FLEET_HOST_VITAL_<id>` in scripts and configuration profiles, or as `custom_host_vital_id` in a Host vitals label's [`criteria`](#criteria).
+
+`GET /api/v1/fleet/custom_host_vitals`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
+| query           | string  | query | Search query. Matches against the vital's name or its `$FLEET_HOST_VITAL_<id>` variable. |
+| page            | integer | query | Page number of the results to fetch.  |
+| per_page        | integer | query | Results per page. |
+| order_key       | string  | query | What to order results by. Allowed fields are `name`, `id`, and `updated_at`. Default is `name`. |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+#### Example
+
+`GET /api/v1/fleet/custom_host_vitals`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "custom_host_vitals": [
+    {
+      "id": 1,
+      "name": "Asset tag",
+      "created_at": "2026-06-04T15:22:36Z",
+      "updated_at": "2026-06-04T15:22:36Z"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  },
+  "count": 1
+}
+```
+
+### Create custom host vital
+
+Creates a custom host vital.
+
+`POST /api/v1/fleet/custom_host_vitals`
+
+#### Parameters
+
+| Name | Type   | In   | Description                                |
+|:---- |:------ |:---- |:--------------------------------------------|
+| name | string | body | **Required.** The vital's name, without the `FLEET_HOST_VITAL_` prefix. Must be unique across all custom host vitals (case-insensitive), and 255 characters or fewer. |
+
+Fails with a `409` if a custom host vital with this name already exists.
+
+#### Example
+
+`POST /api/v1/fleet/custom_host_vitals`
+
+##### Request body
+
+```json
+{
+  "name": "Asset tag"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "custom_host_vital": {
+    "id": 1,
+    "name": "Asset tag",
+    "created_at": "2026-06-04T15:22:36Z",
+    "updated_at": "2026-06-04T15:22:36Z"
+  }
+}
+```
+
+### Update custom host vital
+
+Renames a custom host vital. The vital's ID, its `$FLEET_HOST_VITAL_<id>` variable, and any host values already set for it, are unaffected.
+
+`PATCH /api/v1/fleet/custom_host_vitals/:id`
+
+#### Parameters
+
+| Name | Type    | In   | Description                            |
+|:---- |:------- |:---- |:----------------------------------------|
+| id   | integer | path | **Required.** The custom host vital's ID. |
+| name | string  | body | **Required.** The vital's new name. |
+
+Fails with a `409` if another custom host vital already has this name.
+
+#### Example
+
+`PATCH /api/v1/fleet/custom_host_vitals/1`
+
+##### Request body
+
+```json
+{
+  "name": "Asset tag number"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "custom_host_vital": {
+    "id": 1,
+    "name": "Asset tag number",
+    "created_at": "2026-06-04T15:22:36Z",
+    "updated_at": "2026-06-05T09:03:11Z"
+  }
+}
+```
+
+### Delete custom host vital
+
+Deletes a custom host vital, along with any per-host values set for it.
+
+`DELETE /api/v1/fleet/custom_host_vitals/:id`
+
+#### Parameters
+
+| Name | Type    | In   | Description                            |
+|:---- |:------- |:---- |:----------------------------------------|
+| id   | integer | path | **Required.** The custom host vital's ID. |
+
+Fails with a `409` if the vital is still referenced by a script, configuration profile, or Host vitals label. Remove the reference first.
+
+#### Example
+
+`DELETE /api/v1/fleet/custom_host_vitals/1`
+
+##### Default response
+
+`Status: 200`
+
+### Update host's custom host vital value
+
+Sets a host's value for a custom host vital.
+
+`PUT /api/v1/fleet/hosts/:host_id/custom_host_vitals/:id`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                       |
+|:------- |:------- |:---- |:---------------------------------------------------|
+| host_id | integer | path | **Required.** The host's ID. |
+| id      | integer | path | **Required.** The custom host vital's ID. |
+| value   | string  | body | **Required.** The value to set for this host. |
+
+#### Example
+
+`PUT /api/v1/fleet/hosts/123/custom_host_vitals/1`
+
+##### Request body
+
+```json
+{
+  "value": "C02XL0Zerato"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Replace all custom host vitals
+
+Replaces all existing custom host vital definitions with the provided list. Existing vitals not included in the list are deleted, which fails if one of them is still referenced by a script, configuration profile, or Host vitals label.
+
+`PUT /api/v1/fleet/spec/custom_host_vitals`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                       |
+|:------------------ |:------- |:---- |:---------------------------------------------------|
+| custom_host_vitals | array   | body | The full list of custom host vitals. Each item is an object with a `name`. |
+| dry_run            | boolean | body | If `true`, validates the request without applying changes. Default is `false`. |
+
+> Omitting `custom_host_vitals` from the request, or sending an empty list, deletes every existing custom host vital. This is the endpoint `fleetctl gitops` uses to apply the `custom_host_vitals:` key in `default.yml`.
+
+#### Example
+
+`PUT /api/v1/fleet/spec/custom_host_vitals`
+
+##### Request body
+
+```json
+{
+  "custom_host_vitals": [
+    { "name": "Asset tag" },
+    { "name": "Function" },
+    { "name": "ITAM device ID" }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
 
 ## API errors
 
