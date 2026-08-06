@@ -6,6 +6,29 @@ Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-f
 
 > Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
 
+## custom_host_vitals
+
+[Custom host vitals](https://fleetdm.com/guides/custom-host-vitals) are global and can only be specified inline in your `default.yml` file. They cannot be specified in `fleets/fleet-name.yml` or `fleets/unassigned.yml`.
+
+- `name` specifies the vital's name. Must be unique across all custom host vitals.
+
+Each vital is assigned an ID by Fleet when it's created, which isn't set in YAML. Find it in the Custom host vitals table in the Fleet UI to reference the vital as `$FLEET_HOST_VITAL_<id>` in scripts and configuration profiles, or as `custom_host_vital_id` in a [Host vitals label](#labels)'s `criteria`.
+
+> `custom_host_vitals` is an optional key, but unlike `labels`, omitting it entirely deletes every existing custom host vital. To keep existing vitals, list them.
+>
+> Removing an entry deletes that vital on the next GitOps run. A run fails if the vital is still referenced by a script, configuration profile, or Host vitals label. Remove the reference first.
+
+### Example
+
+`default.yml`
+
+```yaml
+custom_host_vitals:
+  - name: Asset tag
+  - name: Function
+  - name: Jamf device ID
+```
+
 ## labels
 
 Labels can be specified in your `default.yml` and `fleets/fleet-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Labels cannot be specified in `fleets/unassigned.yml`.
