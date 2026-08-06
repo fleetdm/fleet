@@ -68,6 +68,16 @@ export const DEFAULT_SORT_DIRECTION = "asc";
 export const DEFAULT_PAGE_SIZE = 50;
 export const DEFAULT_PAGE_INDEX = 0;
 
+// Columns rendered as "N days ago" durations. Sort direction is inverted so
+// arrow-down = biggest days-ago (oldest date) first, matching the visible
+// number rather than the underlying timestamp.
+export const TIME_AGO_SORT_HEADERS = new Set([
+  "seen_time",
+  "detail_updated_at",
+  "last_restarted_at",
+  "last_enrolled_at",
+]);
+
 export const hostSelectStatuses = (isPremiumTier: boolean) => {
   const baseStatuses = [
     {

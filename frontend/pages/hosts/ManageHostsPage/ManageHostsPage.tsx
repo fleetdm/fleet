@@ -111,6 +111,7 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
+  TIME_AGO_SORT_HEADERS,
   hostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
@@ -1065,10 +1066,18 @@ const ManageHostsPage = ({
 
       let sort = sortBy;
       if (sortHeader) {
+        let direction = sortDirection;
+        if (TIME_AGO_SORT_HEADERS.has(sortHeader)) {
+          if (sortDirection === "asc") {
+            direction = "desc";
+          } else {
+            direction = "asc";
+          }
+        }
         sort = [
           {
             key: sortHeader,
-            direction: sortDirection || DEFAULT_SORT_DIRECTION,
+            direction: direction || DEFAULT_SORT_DIRECTION,
           },
         ];
       } else if (!sortBy.length) {
