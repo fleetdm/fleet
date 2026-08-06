@@ -763,6 +763,11 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
+	if err := policy.VerifyFleetManagedKey(); err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", err),
+		})
+	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 

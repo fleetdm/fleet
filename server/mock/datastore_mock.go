@@ -990,6 +990,10 @@ type UpdateVulnerabilityHostCountsFunc func(ctx context.Context, maxRoutines int
 
 type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
+type ReplaceAppleSoftwareUpdateAssetsFunc func(ctx context.Context, class fleet.AppleSoftwareUpdateAssetClass, assets []fleet.AppleSoftwareUpdateAsset) error
+
+type UpdateFleetManagedPolicyQueriesFunc func(ctx context.Context, fleetManagedKey string, query string) (updatedIDs []uint, err error)
+
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error)
 
 type UpdateMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error)
@@ -3719,6 +3723,12 @@ type DataStore struct {
 
 	IsCVEKnownToFleetFunc        IsCVEKnownToFleetFunc
 	IsCVEKnownToFleetFuncInvoked bool
+
+	ReplaceAppleSoftwareUpdateAssetsFunc        ReplaceAppleSoftwareUpdateAssetsFunc
+	ReplaceAppleSoftwareUpdateAssetsFuncInvoked bool
+
+	UpdateFleetManagedPolicyQueriesFunc        UpdateFleetManagedPolicyQueriesFunc
+	UpdateFleetManagedPolicyQueriesFuncInvoked bool
 
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
@@ -9022,6 +9032,20 @@ func (s *DataStore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, er
 	s.IsCVEKnownToFleetFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsCVEKnownToFleetFunc(ctx, cve)
+}
+
+func (s *DataStore) ReplaceAppleSoftwareUpdateAssets(ctx context.Context, class fleet.AppleSoftwareUpdateAssetClass, assets []fleet.AppleSoftwareUpdateAsset) error {
+	s.mu.Lock()
+	s.ReplaceAppleSoftwareUpdateAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceAppleSoftwareUpdateAssetsFunc(ctx, class, assets)
+}
+
+func (s *DataStore) UpdateFleetManagedPolicyQueries(ctx context.Context, fleetManagedKey string, query string) (updatedIDs []uint, err error) {
+	s.mu.Lock()
+	s.UpdateFleetManagedPolicyQueriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateFleetManagedPolicyQueriesFunc(ctx, fleetManagedKey, query)
 }
 
 func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {

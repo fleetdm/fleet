@@ -209,8 +209,9 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 // registerMDMCrons covers the Apple MDM worker, DEP profile assigner, service
 // discovery, the Apple/Windows/Android profile managers, the Android device
-// reconciler, the Android default-policy and per-host policy migrations, and
-// the APNs pusher.
+// reconciler, the Android default-policy and per-host policy migrations, the
+// APNs pusher, and apple_software_update_assets (GDMF polling for macOS
+// OS-currency policies; Apple-specific but does not require MDM to be configured).
 func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register apple_mdm_worker schedule", func() (fleet.CronSchedule, error) {
 		vppInstaller := deps.svc.(fleet.AppleMDMVPPInstaller)
@@ -286,6 +287,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.commander,
 			deps.logger,
 		)
+	})
+
+	deps.register("failed to register apple_software_update_assets schedule", func() (fleet.CronSchedule, error) {
+		return newAppleSoftwareUpdateAssetsSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 }
 

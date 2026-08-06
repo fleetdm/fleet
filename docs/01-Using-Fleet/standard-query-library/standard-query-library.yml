@@ -1262,11 +1262,23 @@ apiVersion: v1
 kind: policy
 spec:
   name: Operating system up to date (macOS)
-  query: SELECT 1 FROM os_version WHERE version >= '14.1.1';
-  bash: version=$(sw_vers -productVersion); [ "$(printf '%s\n' "$version" "14.1.1" | sort -V | head -n1)" = "14.1.1" ] && echo 1 || echo 0
-  description: "Checks that the operating system is up to date."
-  resolution: "From the Apple menu () in the corner of your screen choose System Preferences. Then select Software Update and select Upgrade Now. You might be asked to restart or enter your password."
-  tags: compliance, CIS, template, CIS1.1, critical
+  fleet_managed_key: macos_os_up_to_date
+  query: SELECT 1 FROM os_version WHERE (major = 26 AND version_compare(version, '26.6') >= 0) OR (major = 15 AND version_compare(version, '15.7.8') >= 0);
+  description: "Checks that the Mac is on the latest macOS for its major version track (current major or previous major for older hardware). Fleet keeps this policy's version floors up to date from Apple's software update catalog (GDMF)."
+  resolution: "From the Apple menu () choose System Settings > General > Software Update, then install available updates. You might be asked to restart or enter your password."
+  tags: compliance, CIS, CIS1.1, critical, fleet-maintained, gdmf
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Operating system version is acceptable (macOS)
+  fleet_managed_key: macos_os_acceptable
+  query: SELECT 1 FROM os_version WHERE (major = 26 AND version_compare(version, '26.5.2') >= 0) OR (major = 15 AND version_compare(version, '15.7.7') >= 0);
+  description: "Checks that the Mac is on an acceptable macOS version: the latest for its major track, or the previous point release while a newer release is less than 30 days old. Fleet keeps this policy's version floors up to date from Apple's software update catalog (GDMF)."
+  resolution: "From the Apple menu () choose System Settings > General > Software Update, then install available updates. You might be asked to restart or enter your password."
+  tags: compliance, critical, fleet-maintained, gdmf
   platform: darwin
   contributors: GuillaumeRoss
 ---

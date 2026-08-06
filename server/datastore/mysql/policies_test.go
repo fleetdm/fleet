@@ -104,6 +104,12 @@ func TestPolicies(t *testing.T) {
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 		{"RecordPolicyQueryExecutionsStalePolicyIDs", testRecordPolicyQueryExecutionsStalePolicyIDs},
 		{"ResetPolicy", testResetPolicy},
+		{"UpdateFleetManagedPolicyQueries", testUpdateFleetManagedPolicyQueries},
+		{"ApplyPolicySpecsFleetManagedKeyUnclaim", testApplyPolicySpecsFleetManagedKeyUnclaim},
+		{"ApplyPolicySpecsFleetManagedKeyRename", testApplyPolicySpecsFleetManagedKeyRename},
+		{"ApplyPolicySpecsFleetManagedKeyRenameConflict", testApplyPolicySpecsFleetManagedKeyRenameConflict},
+		{"ApplyPolicySpecsFleetManagedKeyTransfer", testApplyPolicySpecsFleetManagedKeyTransfer},
+		{"SavePolicyRejectsInvalidManagedPolicy", testSavePolicyRejectsInvalidManagedPolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -111,6 +117,38 @@ func TestPolicies(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
+}
+
+func testSavePolicyRejectsInvalidManagedPolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "ManagedSave", "managed-save@example.com", true)
+
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{{
+		Name:            "managed save defense",
+		Query:           "SELECT 1;",
+		Platform:        "darwin",
+		Type:            fleet.PolicyTypeDynamic,
+		FleetManagedKey: fleet.FleetManagedKeyMacOSUpToDate,
+	}}))
+
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	policy := policies[0]
+	policy.Platform = "windows"
+	// Exercise the datastore contract independently of the service and omit the
+	// key from the caller-owned value. SavePolicy preserves the database key, so
+	// its defense must validate the persisted owner rather than trusting this field.
+	policy.FleetManagedKey = nil
+
+	err = ds.SavePolicy(ctx, policy, false, true)
+	require.ErrorContains(t, err, `"fleet_managed_key" requires platform "darwin"`)
+
+	stored, err := ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, "darwin", stored.Platform)
+	require.NotNil(t, stored.FleetManagedKey)
+	require.Equal(t, fleet.FleetManagedKeyMacOSUpToDate, *stored.FleetManagedKey)
 }
 
 func testPoliciesNewGlobalPolicyLegacy(t *testing.T, ds *Datastore) {
@@ -7876,6 +7914,20 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 		}
 	}
+	seedStats := func(t *testing.T, polID uint, failing int) {
+		t.Helper()
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+			VALUES (?, 0, 0, ?)
+			ON DUPLICATE KEY UPDATE failing_host_count = VALUES(failing_host_count)`, polID, failing)
+		require.NoError(t, err)
+	}
+	requireNoStats := func(t *testing.T, polID uint) {
+		t.Helper()
+		var count int
+		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_stats WHERE policy_id = ?`, polID))
+		assert.Zero(t, count, "policy_stats must be removed before the recovery flag is cleared")
+	}
 
 	t.Run("gitops retry re-triggers cleanup", func(t *testing.T) {
 		// Create policy via ApplyPolicySpecs so it exists in the DB.
@@ -7896,6 +7948,7 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 		// Record membership rows.
 		hosts := newHosts(t, 4, "retry-recovery")
 		recordResults(t, hosts, pol.ID)
+		seedStats(t, pol.ID, 4)
 
 		var count int
 		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
@@ -7921,6 +7974,7 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 		// All memberships must be gone.
 		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
 		assert.Zero(t, count, "all policy_membership rows must be removed by the GitOps retry")
+		requireNoStats(t, pol.ID)
 	})
 
 	t.Run("cron cleans up when no gitops retry", func(t *testing.T) {
@@ -7928,6 +7982,7 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 
 		hosts := newHosts(t, 4, "cron-recovery")
 		recordResults(t, hosts, pol.ID)
+		seedStats(t, pol.ID, 4)
 
 		var count int
 		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
@@ -7950,6 +8005,7 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 		// All memberships must be removed.
 		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
 		assert.Zero(t, count, "all policy_membership rows must be cleaned up by the cron safety net")
+		requireNoStats(t, pol.ID)
 	})
 
 	t.Run("cron clears flag when cleanup already completed", func(t *testing.T) {
@@ -7958,6 +8014,7 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 		// UPDATE policies SET needs_full_membership_cleanup = 0.
 		// The cron must handle this gracefully (no-op cleanup) and clear the flag.
 		pol := newTestPolicy(t, ds, user1, "flag-only recovery policy", "", nil)
+		seedStats(t, pol.ID, 1)
 
 		// No membership rows exist — simulating that cleanup already removed them.
 		var count int
@@ -7977,6 +8034,7 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.writer(ctx).Get(&flagVal,
 			`SELECT needs_full_membership_cleanup FROM policies WHERE id = ?`, pol.ID))
 		assert.Zero(t, flagVal, "flag must be cleared even when no membership rows remain")
+		requireNoStats(t, pol.ID)
 	})
 }
 
@@ -9087,4 +9145,264 @@ func testApplyPolicySpecFirstAddedInstaller(t *testing.T, ds *Datastore) {
 	require.Len(t, policies, 1)
 	require.NotNil(t, policies[0].SoftwareInstallerID)
 	require.Equal(t, installerA, *policies[0].SoftwareInstallerID, "GitOps must resolve to the first-added package")
+}
+
+func testUpdateFleetManagedPolicyQueries(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "ManagedKey", "managed-key@example.com", true)
+
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Operating system up to date (macOS)",
+			Query:           "SELECT 0;",
+			Platform:        "darwin",
+			FleetManagedKey: fleet.FleetManagedKeyMacOSUpToDate,
+		},
+	}))
+
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.NotNil(t, policies[0].FleetManagedKey)
+	require.Equal(t, fleet.FleetManagedKeyMacOSUpToDate, *policies[0].FleetManagedKey)
+
+	newQuery := "SELECT 1 FROM os_version WHERE major = 26;"
+	ids, err := ds.UpdateFleetManagedPolicyQueries(ctx, fleet.FleetManagedKeyMacOSUpToDate, newQuery)
+	require.NoError(t, err)
+	require.Equal(t, []uint{policies[0].ID}, ids)
+
+	updated, err := ds.Policy(ctx, policies[0].ID)
+	require.NoError(t, err)
+	require.Equal(t, newQuery, updated.Query)
+
+	// Unclaimed policies must not be rewritten.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:     "Operating system up to date (macOS)",
+			Query:    "SELECT 'custom';",
+			Platform: "darwin",
+		},
+	}))
+	ids, err = ds.UpdateFleetManagedPolicyQueries(ctx, fleet.FleetManagedKeyMacOSUpToDate, "SELECT 99;")
+	require.NoError(t, err)
+	require.Empty(t, ids)
+	stillCustom, err := ds.Policy(ctx, policies[0].ID)
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 'custom';", stillCustom.Query)
+	require.Nil(t, stillCustom.FleetManagedKey)
+}
+
+func testApplyPolicySpecsFleetManagedKeyUnclaim(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Unclaim", "unclaim@example.com", true)
+
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:            "acceptable",
+			Query:           "SELECT 1;",
+			Platform:        "darwin",
+			FleetManagedKey: fleet.FleetManagedKeyMacOSAcceptable,
+		},
+	}))
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.NotNil(t, policies[0].FleetManagedKey)
+
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:     "acceptable",
+			Query:    "SELECT 2;",
+			Platform: "darwin",
+		},
+	}))
+	cleared, err := ds.Policy(ctx, policies[0].ID)
+	require.NoError(t, err)
+	require.Nil(t, cleared.FleetManagedKey)
+	require.Equal(t, "SELECT 2;", cleared.Query)
+}
+
+func TestFleetManagedTeamKey(t *testing.T) {
+	require.Equal(t, "global:macos_os_up_to_date", fleetManagedTeamKey(nil, fleet.FleetManagedKeyMacOSUpToDate))
+	require.Equal(t, "0:macos_os_acceptable", fleetManagedTeamKey(new(uint(0)), fleet.FleetManagedKeyMacOSAcceptable))
+	require.Equal(t, "42:macos_os_up_to_date", fleetManagedTeamKey(new(uint(42)), fleet.FleetManagedKeyMacOSUpToDate))
+}
+
+func testApplyPolicySpecsFleetManagedKeyRename(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "KeyRename", "key-rename@example.com", true)
+
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:            "old name",
+			Query:           "SELECT 1;",
+			Platform:        "darwin",
+			FleetManagedKey: fleet.FleetManagedKeyMacOSUpToDate,
+		},
+	}))
+	before, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, before, 1)
+	ownerID := before[0].ID
+	var checksumBefore []byte
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &checksumBefore, `SELECT checksum FROM policies WHERE id = ?`, ownerID))
+
+	host := test.NewHost(t, ds, "key-rename-host", "192.0.2.1", "key-rename-host-uuid", "key-rename-host-node-key", time.Now())
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO policy_membership (policy_id, host_id, passes) VALUES (?, ?, 0)`, ownerID, host.ID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count) VALUES (?, 0, 0, 1)`, ownerID)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:            "new name",
+			Query:           "SELECT 99;",
+			Platform:        "darwin",
+			FleetManagedKey: fleet.FleetManagedKeyMacOSUpToDate,
+		},
+	}))
+
+	after, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, after, 1)
+	require.Equal(t, ownerID, after[0].ID)
+	require.Equal(t, "new name", after[0].Name)
+	require.Equal(t, "SELECT 99;", after[0].Query)
+	require.NotNil(t, after[0].FleetManagedKey)
+	require.Equal(t, fleet.FleetManagedKeyMacOSUpToDate, *after[0].FleetManagedKey)
+
+	var checksumAfter []byte
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &checksumAfter, `SELECT checksum FROM policies WHERE id = ?`, ownerID))
+	require.NotEqual(t, checksumBefore, checksumAfter)
+
+	var count int
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &count,
+		`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, ownerID))
+	require.Zero(t, count, "query-changing rename must clean policy membership")
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &count,
+		`SELECT COUNT(*) FROM policy_stats WHERE policy_id = ?`, ownerID))
+	require.Zero(t, count, "query-changing rename must clean policy statistics")
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &count,
+		`SELECT needs_full_membership_cleanup FROM policies WHERE id = ?`, ownerID))
+	require.Zero(t, count, "completed cleanup must clear its recovery flag")
+}
+
+func testApplyPolicySpecsFleetManagedKeyRenameConflict(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "KeyRenameConflict", "key-rename-conflict@example.com", true)
+
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:            "owner",
+			Query:           "SELECT 1;",
+			Platform:        "darwin",
+			FleetManagedKey: fleet.FleetManagedKeyMacOSUpToDate,
+		},
+		{
+			Name:     "occupied destination",
+			Query:    "SELECT 2;",
+			Platform: "darwin",
+		},
+	}))
+
+	before, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, before, 2)
+	beforeByName := make(map[string]*fleet.Policy, len(before))
+	for _, policy := range before {
+		beforeByName[policy.Name] = policy
+	}
+	ownerBefore, ok := beforeByName["owner"]
+	require.True(t, ok)
+	require.NotNil(t, ownerBefore)
+	destinationBefore, ok := beforeByName["occupied destination"]
+	require.True(t, ok)
+	require.NotNil(t, destinationBefore)
+	ownerID := ownerBefore.ID
+	destinationID := destinationBefore.ID
+
+	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:            "occupied destination",
+			Query:           "SELECT 99;",
+			Platform:        "darwin",
+			FleetManagedKey: fleet.FleetManagedKeyMacOSUpToDate,
+		},
+	})
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, err, &conflict)
+	if conflict == nil {
+		t.Fatal("expected ConflictError")
+	}
+	require.Contains(t, conflict.Message, "fleet_managed_key")
+	require.Contains(t, conflict.Message, fleet.FleetManagedKeyMacOSUpToDate)
+
+	after, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, after, 2)
+	afterByName := make(map[string]*fleet.Policy, len(after))
+	for _, policy := range after {
+		afterByName[policy.Name] = policy
+	}
+	ownerAfter, ok := afterByName["owner"]
+	require.True(t, ok)
+	require.NotNil(t, ownerAfter)
+	destinationAfter, ok := afterByName["occupied destination"]
+	require.True(t, ok)
+	require.NotNil(t, destinationAfter)
+	require.Equal(t, ownerID, ownerAfter.ID)
+	require.Equal(t, "SELECT 1;", ownerAfter.Query)
+	require.NotNil(t, ownerAfter.FleetManagedKey)
+	require.Equal(t, fleet.FleetManagedKeyMacOSUpToDate, *ownerAfter.FleetManagedKey)
+	require.Equal(t, destinationID, destinationAfter.ID)
+	require.Equal(t, "SELECT 2;", destinationAfter.Query)
+	require.Nil(t, destinationAfter.FleetManagedKey)
+}
+
+func testApplyPolicySpecsFleetManagedKeyTransfer(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "KeyTransfer", "key-transfer@example.com", true)
+
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:            "owner",
+			Query:           "SELECT 1;",
+			Platform:        "darwin",
+			FleetManagedKey: fleet.FleetManagedKeyMacOSAcceptable,
+		},
+	}))
+
+	// Same apply clears the previous owner and claims the key on a new policy.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:     "owner",
+			Query:    "SELECT 1;",
+			Platform: "darwin",
+		},
+		{
+			Name:            "new-owner",
+			Query:           "SELECT 2;",
+			Platform:        "darwin",
+			FleetManagedKey: fleet.FleetManagedKeyMacOSAcceptable,
+		},
+	}))
+
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+	byName := map[string]*fleet.Policy{}
+	for _, p := range policies {
+		byName[p.Name] = p
+	}
+	ownerAfter, ok := byName["owner"]
+	require.True(t, ok)
+	require.NotNil(t, ownerAfter)
+	newOwner, ok := byName["new-owner"]
+	require.True(t, ok)
+	require.NotNil(t, newOwner)
+	require.Nil(t, ownerAfter.FleetManagedKey)
+	require.NotNil(t, newOwner.FleetManagedKey)
+	require.Equal(t, fleet.FleetManagedKeyMacOSAcceptable, *newOwner.FleetManagedKey)
 }

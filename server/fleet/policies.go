@@ -145,6 +145,9 @@ var (
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
 	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
+	errPolicyInvalidFleetManagedKey                  = errors.New("invalid \"fleet_managed_key\"")
+	errPolicyFleetManagedKeyPlatform                 = errors.New("\"fleet_managed_key\" requires platform \"darwin\"")
+	errPolicyFleetManagedKeyType                     = errors.New("\"fleet_managed_key\" is only supported for dynamic policies")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -451,6 +454,10 @@ type PolicyData struct {
 	// Only applies to team policies.
 	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
 
+	// FleetManagedKey marks policies whose query Fleet owns and may rewrite.
+	// Empty/nil means user-owned.
+	FleetManagedKey *string `json:"fleet_managed_key,omitempty" db:"fleet_managed_key"`
+
 	UpdateCreateTimestamps
 }
 
@@ -464,6 +471,17 @@ func (p PolicyData) VerifyLabelScopes() error {
 		LabelIdentsToNames(p.LabelsExcludeAny),
 		LabelIdentsToNames(p.LabelsExcludeAll),
 	)
+}
+
+// VerifyFleetManagedKey validates the policy's persisted Fleet-managed
+// ownership against the fields that determine whether Fleet may safely rewrite
+// its query.
+func (p PolicyData) VerifyFleetManagedKey() error {
+	var key string
+	if p.FleetManagedKey != nil {
+		key = *p.FleetManagedKey
+	}
+	return verifyFleetManagedKey(key, p.Platform, p.Type)
 }
 
 // Policy is a fleet's policy query.
@@ -660,6 +678,13 @@ type PolicySpec struct {
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
 	PatchSoftwareTitleID   uint   `json:"-"`
+
+	// FleetManagedKey marks policies whose query Fleet owns and may rewrite
+	// (for example macOS OS-currency policies driven by Apple's GDMF catalog).
+	// Empty means user-owned and clears any previously set key on apply.
+	// Ownership is never inferred from the policy name; GitOps/API must set
+	// this field explicitly to one of the known Fleet-managed keys.
+	FleetManagedKey string `json:"fleet_managed_key,omitempty"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.
@@ -712,7 +737,31 @@ func (p PolicySpec) Verify() error {
 	if p.Type != PolicyTypePatch && p.FleetMaintainedAppSlug != "" {
 		return errPolicyFMASlugRequiresPatch
 	}
+	if err := verifyFleetManagedKey(p.FleetManagedKey, p.Platform, p.Type); err != nil {
+		return err
+	}
 	return p.VerifyLabelScopes()
+}
+
+// verifyFleetManagedKey ensures ownership keys are known and only applied to
+// dynamic darwin policies (the only ones the GDMF cron rewrites today).
+func verifyFleetManagedKey(key, platform, typ string) error {
+	if key == "" {
+		return nil
+	}
+	switch key {
+	case FleetManagedKeyMacOSUpToDate, FleetManagedKeyMacOSAcceptable:
+		// OK
+	default:
+		return errPolicyInvalidFleetManagedKey
+	}
+	if typ != "" && typ != PolicyTypeDynamic {
+		return errPolicyFleetManagedKeyType
+	}
+	if platform != "darwin" {
+		return errPolicyFleetManagedKeyPlatform
+	}
+	return nil
 }
 
 // VerifyLabelScopes checks that the spec's label scopes are valid: at most one
@@ -733,6 +782,26 @@ func FirstDuplicatePolicySpecName(specs []*PolicySpec) string {
 			team[spec.Name] = struct{}{}
 		} else {
 			teams[spec.Team] = map[string]struct{}{spec.Name: {}}
+		}
+	}
+	return ""
+}
+
+// FirstDuplicatePolicySpecFleetManagedKey returns the first duplicate
+// fleet_managed_key within a fleet (team name, including ""), or "" if none.
+func FirstDuplicatePolicySpecFleetManagedKey(specs []*PolicySpec) string {
+	teams := make(map[string]map[string]struct{})
+	for _, spec := range specs {
+		if spec.FleetManagedKey == "" {
+			continue
+		}
+		if keys, ok := teams[spec.Team]; ok {
+			if _, ok = keys[spec.FleetManagedKey]; ok {
+				return spec.FleetManagedKey
+			}
+			keys[spec.FleetManagedKey] = struct{}{}
+		} else {
+			teams[spec.Team] = map[string]struct{}{spec.FleetManagedKey: {}}
 		}
 	}
 	return ""
@@ -771,4 +840,11 @@ type PolicyMembershipResult struct {
 const (
 	PolicyTypeDynamic = "dynamic"
 	PolicyTypePatch   = "patch"
+
+	// FleetManagedKeyMacOSUpToDate identifies policies Fleet may rewrite to
+	// require the latest macOS (grace_days = 0).
+	FleetManagedKeyMacOSUpToDate = "macos_os_up_to_date"
+	// FleetManagedKeyMacOSAcceptable identifies policies Fleet may rewrite to
+	// allow the previous point release for 30 days after a newer release.
+	FleetManagedKeyMacOSAcceptable = "macos_os_acceptable"
 )

@@ -72,6 +72,10 @@ const (
 	CronAppleMDMWorker                          CronScheduleName = "apple_mdm_worker"
 	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
 	CronCleanupExpiredADUEChallenges            CronScheduleName = "cleanup_expired_adue_challenges"
+	// CronAppleSoftwareUpdateAssets refreshes Apple's GDMF software-update
+	// catalog into apple_software_update_assets and rewrites Fleet-maintained
+	// macOS OS-currency policy queries (up to date / acceptable). Runs hourly.
+	CronAppleSoftwareUpdateAssets CronScheduleName = "apple_software_update_assets"
 )
 
 type CronSchedulesService interface {

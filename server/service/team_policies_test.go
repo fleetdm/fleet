@@ -179,6 +179,34 @@ func TestTeamPoliciesAuth(t *testing.T) {
 	}
 }
 
+func TestModifyTeamPolicyRejectsInvalidManagedPolicyPlatform(t *testing.T) {
+	const teamID = uint(1)
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		return &fleet.Policy{PolicyData: fleet.PolicyData{
+			ID:              id,
+			TeamID:          new(teamID),
+			Name:            "managed team policy",
+			Query:           "SELECT 1;",
+			Platform:        "darwin",
+			Type:            fleet.PolicyTypeDynamic,
+			FleetManagedKey: new(fleet.FleetManagedKeyMacOSAcceptable),
+		}}, nil
+	}
+	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, shouldDeleteAll bool, removePolicyStats bool) error {
+		t.Fatal("invalid managed policy must be rejected before SavePolicy")
+		return nil
+	}
+
+	platform := ""
+	_, err := svc.ModifyTeamPolicy(ctx, teamID, 1, fleet.ModifyPolicyPayload{Platform: &platform})
+	require.ErrorContains(t, err, `"fleet_managed_key" requires platform "darwin"`)
+	require.False(t, ds.SavePolicyFuncInvoked)
+}
+
 func TestTeamPolicyVPPAutomationRejectsNonMacOS(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)

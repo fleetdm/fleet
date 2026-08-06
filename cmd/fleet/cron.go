@@ -29,6 +29,7 @@ import (
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -2691,5 +2692,28 @@ func newCleanupExpiredADUEChallengesSchedule(
 		}),
 	)
 
+	return s, nil
+}
+
+// newAppleSoftwareUpdateAssetsSchedule refreshes Apple's GDMF catalog and
+// rewrites Fleet-maintained macOS OS-currency policy queries.
+func newAppleSoftwareUpdateAssetsSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAppleSoftwareUpdateAssets)
+		defaultInterval = 1 * time.Hour
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("sync_macos_currency_policies", func(ctx context.Context) error {
+			return gdmf.SyncMacOSCurrencyPolicies(ctx, ds, logger, time.Now().UTC())
+		}),
+	)
 	return s, nil
 }
