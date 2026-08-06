@@ -729,75 +729,64 @@ describe("Custom host vitals", () => {
   describe("Operating system OS update requirement", () => {
     const renderWithRequirement = createCustomRenderer({});
 
-    it("states the target and deadline for a 'latest' requirement", async () => {
-      const mockHost = createMockHost({ platform: "darwin" });
-
-      const { user } = renderWithRequirement(
-        <Vitals
-          vitalsData={mockHost}
-          osVersionRequirement={{
-            minimum_version: "latest",
-            deadline: "",
-            deadline_days: 7,
-          }}
-        />
-      );
-
-      await user.hover(screen.getByText(mockHost.os_version));
-
-      await waitFor(() => {
-        expect(screen.getByText(/Latest version required\./i)).toBeVisible();
-        expect(
-          screen.getByText(/Deadline to update: 7 days after release\./i)
-        ).toBeVisible();
+    it("shows the required version and deadline", async () => {
+      const mockHost = createMockHost({
+        platform: "darwin",
+        os_version: "macOS 26.5",
       });
-    });
-
-    it("singularises the deadline for a one day requirement", async () => {
-      const mockHost = createMockHost({ platform: "darwin" });
 
       const { user } = renderWithRequirement(
         <Vitals
           vitalsData={mockHost}
-          osVersionRequirement={{
-            minimum_version: "latest",
-            deadline: "",
-            deadline_days: 1,
-          }}
+          osUpdateMinimumVersion="26.6"
+          osUpdateDeadline="2026-07-30"
         />
       );
 
-      await user.hover(screen.getByText(mockHost.os_version));
+      await user.hover(screen.getByText("macOS 26.5"));
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Deadline to update: 1 day after release\./i)
+          screen.getByText(/Minimum version required: 26\.6/i)
         ).toBeVisible();
+        expect(screen.getByText(/Deadline: 2026-07-30/i)).toBeVisible();
       });
     });
 
-    it("makes no claim about meeting a 'latest' requirement", async () => {
-      // The resolved target is per host and isn't in the host response, so
-      // there's nothing to compare the version against.
-      const mockHost = createMockHost({ platform: "darwin" });
+    it("shows Pending while the target is still being resolved", async () => {
+      const mockHost = createMockHost({
+        platform: "darwin",
+        os_version: "macOS 26.5",
+      });
 
       const { user } = renderWithRequirement(
         <Vitals
           vitalsData={mockHost}
-          osVersionRequirement={{
-            minimum_version: "latest",
-            deadline: "",
-            deadline_days: 7,
-          }}
+          osUpdateMinimumVersion="Pending"
+          osUpdateDeadline="Pending"
         />
       );
 
-      await user.hover(screen.getByText(mockHost.os_version));
+      await user.hover(screen.getByText("macOS 26.5"));
 
       await waitFor(() => {
-        expect(screen.getByText(/Latest version required\./i)).toBeVisible();
+        expect(
+          screen.getByText(/Minimum version required: Pending/i)
+        ).toBeVisible();
+        expect(screen.getByText(/Deadline: Pending/i)).toBeVisible();
       });
-      expect(screen.queryByText(/minimum version requirement/i)).toBeNull();
+    });
+
+    it("renders no tooltip when there's no requirement", () => {
+      const mockHost = createMockHost({
+        platform: "darwin",
+        os_version: "macOS 26.5",
+      });
+
+      renderWithRequirement(<Vitals vitalsData={mockHost} />);
+
+      expect(screen.getByText("macOS 26.5")).toBeVisible();
+      expect(screen.queryByText(/Minimum version required/i)).toBeNull();
     });
   });
 });

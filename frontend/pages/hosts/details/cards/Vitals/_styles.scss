@@ -76,6 +76,10 @@
 
     > .component__tooltip-wrapper__element {
       overflow: hidden;
+      // TooltipWrapper pulls its dashed underline into the element's last
+      // pixel with a negative margin, which DataSet's `dd` then clips away.
+      // Keep the border inside the box so the hover affordance survives.
+      margin-bottom: 0;
     }
   }
 

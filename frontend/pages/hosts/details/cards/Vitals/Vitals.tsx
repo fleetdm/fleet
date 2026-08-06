@@ -1,7 +1,6 @@
 import React from "react";
 import classnames from "classnames";
 
-import { IAppleDeviceUpdates } from "interfaces/config";
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import {
@@ -23,7 +22,6 @@ import {
   removeOSPrefix,
   compareVersions,
 } from "utilities/helpers";
-import { pluralize } from "utilities/strings/stringUtils";
 import { getHardwareModelDisplay } from "pages/hosts/helpers";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
@@ -43,7 +41,12 @@ interface IVitalsProps {
   vitalsData: { [key: string]: any };
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
-  osVersionRequirement?: IAppleDeviceUpdates;
+  /** The OS version the host is required to reach, resolved per host by the
+   * server. "Pending" while Fleet is still working it out for a "latest"
+   * requirement, and undefined when OS updates aren't configured. */
+  osUpdateMinimumVersion?: string | null;
+  /** The deadline for osUpdateMinimumVersion, following the same states. */
+  osUpdateDeadline?: string | null;
   className?: string;
   /**
    * Opens the Location modal. Presence of this handler also makes the
@@ -64,6 +67,10 @@ interface IVitalsProps {
 type VitalForSort = { sortKey: string; element: React.ReactNode };
 
 const baseClass = "vitals-card";
+
+/** What the API sends for a host's OS update target while Fleet is still
+ * resolving a "latest" requirement. Shown to the user as-is, per the design. */
+const OS_UPDATE_REQUIREMENT_PENDING = "Pending";
 
 const DISK_ENCRYPTION_MESSAGES = {
   darwin: {
@@ -129,7 +136,8 @@ const Vitals = ({
   vitalsData,
   munki,
   mdm,
-  osVersionRequirement,
+  osUpdateMinimumVersion,
+  osUpdateDeadline,
   className,
   toggleLocationModal,
   toggleMDMStatusModal,
@@ -509,8 +517,8 @@ const Vitals = ({
     }
 
     // Operating system
-    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
-    if (!osVersionRequirement?.minimum_version) {
+    // No tooltip if there's no requirement, including all Windows, Linux, ChromeOS, Android operating systems
+    if (!osUpdateMinimumVersion) {
       const version = vitalsData.os_version;
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
         <>
@@ -531,55 +539,17 @@ const Vitals = ({
           />
         ),
       });
-    } else if (osVersionRequirement.minimum_version === "latest") {
-      // "latest" resolves to a different version per host, and the host
-      // response doesn't carry the resolved target, so there's nothing to
-      // compare against — state the target rather than claim a verdict.
-      vitals.push({
-        sortKey: "Operating system",
-        element: (
-          <DataSet
-            key="operating-system"
-            title="Operating system"
-            value={
-              <span className={`${baseClass}__os-version`}>
-                <TooltipWrapper
-                  className={`${baseClass}__os-version-tooltip`}
-                  tipContent={
-                    <>
-                      Latest version required.
-                      {!!osVersionRequirement.deadline_days && (
-                        <>
-                          <br />
-                          Deadline to update:{" "}
-                          {osVersionRequirement.deadline_days}{" "}
-                          {pluralize(
-                            osVersionRequirement.deadline_days,
-                            "day",
-                            "s"
-                          )}{" "}
-                          after release.
-                        </>
-                      )}
-                    </>
-                  }
-                >
-                  <span className={`${baseClass}__os-version-text`}>
-                    {vitalsData.os_version}
-                  </span>
-                </TooltipWrapper>
-              </span>
-            }
-            className={`${baseClass}__os-data-set`}
-          />
-        ),
-      });
     } else {
-      const osVersionWithoutPrefix = removeOSPrefix(vitalsData.os_version);
+      // A "latest" requirement is resolved per host by the server, which sends
+      // "Pending" until it has worked the target out. There's nothing to
+      // compare against until then, so no compliance icon is shown.
+      const isPendingRequirement =
+        osUpdateMinimumVersion === OS_UPDATE_REQUIREMENT_PENDING;
       const osVersionRequirementMet =
+        isPendingRequirement ||
         compareVersions(
-          osVersionWithoutPrefix,
-          osVersionRequirement.minimum_version
+          removeOSPrefix(vitalsData.os_version),
+          osUpdateMinimumVersion
         ) >= 0;
 
       vitals.push({
@@ -596,21 +566,11 @@ const Vitals = ({
                 <TooltipWrapper
                   className={`${baseClass}__os-version-tooltip`}
                   tipContent={
-                    osVersionRequirementMet ? (
-                      <>
-                        {vitalsData.os_version}
-                        <br />
-                        Meets minimum version requirement.
-                      </>
-                    ) : (
-                      <>
-                        {vitalsData.os_version}
-                        <br />
-                        Does not meet minimum version requirement.
-                        <br />
-                        Deadline to update: {osVersionRequirement.deadline}
-                      </>
-                    )
+                    <>
+                      Minimum version required: {osUpdateMinimumVersion}
+                      <br />
+                      Deadline: {osUpdateDeadline}
+                    </>
                   }
                 >
                   <span className={`${baseClass}__os-version-text`}>
