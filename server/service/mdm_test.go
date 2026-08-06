@@ -1945,12 +1945,12 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 		return nil, errors.New("simulated declaration lookup error")
 	}
 
-	err := svc.UpdateMDMConfigProfile(ctx, declUUID, nil, nil, fleet.LabelsIncludeAll, nil)
+	err := svc.UpdateMDMConfigProfile(ctx, declUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
 	require.ErrorContains(t, err, "simulated declaration lookup error")
 	require.True(t, ds.GetMDMAppleDeclarationFuncInvoked)
 
 	// an unrecognized profile UUID prefix still falls through to "not supported".
-	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil)
+	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, nil)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "updating this profile type is not yet supported")
 }
@@ -3197,7 +3197,7 @@ func TestUpdateMDMHostNameTemplateValidatesCustomHostVitals(t *testing.T) {
 		var missing []uint
 		for _, d := range documents {
 			malformed = append(malformed, fleet.ContainsMalformedCustomHostVitalRefs(d)...)
-			for _, id := range fleet.ContainsCustomHostVitalIDs(d) {
+			for _, id := range fleet.FindCustomHostVitalIDs(d) {
 				if id != 1 {
 					missing = append(missing, id)
 				}
@@ -3691,6 +3691,79 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 	}
 }
 
+func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true, AndroidEnabledAndConfigured: true},
+		}, nil
+	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) { return nil, nil }
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error { return nil }
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	androidProfile := androidConfigProfileForTest(t, "$FLEET_HOST_VITAL_9", nil)
+	profiles := []fleet.MDMProfileBatchPayload{{Name: "android-vital", Contents: androidProfile.RawJSON}}
+
+	t.Run("android profile content is included in the existence check", func(t *testing.T) {
+		var gotDocs []string
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			gotDocs = documents
+			return nil
+		}
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		require.NoError(t, err)
+		found := false
+		for _, doc := range gotDocs {
+			if strings.Contains(doc, "$FLEET_HOST_VITAL_9") {
+				found = true
+			}
+		}
+		require.True(t, found, "android profile content should have been passed to ValidateReferencedCustomHostVitals")
+	})
+
+	t.Run("unknown vital ID referenced by an android profile is rejected", func(t *testing.T) {
+		ds.BatchSetMDMProfilesFuncInvoked = false
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{9}}
+		}
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "is not defined")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArgErr)
+		require.False(t, ds.BatchSetMDMProfilesFuncInvoked, "batch set should not run when vitals validation fails")
+	})
+
+	t.Run("infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.BatchSetMDMProfilesFuncInvoked = false
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "connection refused")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
+		require.False(t, ds.BatchSetMDMProfilesFuncInvoked, "batch set should not run when vitals validation fails")
+	})
+}
+
 func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
 	if content == nil {
 		content = make(map[string]any)
@@ -3942,6 +4015,56 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 	}
 }
 
+func TestNewMDMAndroidConfigProfileCustomHostVitals(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+		}, nil
+	}
+	ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+		return &cp, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	t.Run("valid custom host vital reference is accepted", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			require.Len(t, documents, 1)
+			require.Contains(t, documents[0], "$FLEET_HOST_VITAL_7")
+			return nil
+		}
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+	})
+
+	t.Run("unknown custom host vital ID is rejected at upload", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{7}}
+		}
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "is not defined")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArgErr)
+	})
+
+	t.Run("infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "connection refused")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
+	})
+}
+
 func TestNewMDMAndroidConfigProfileLicense(t *testing.T) {
 	setup := func(premium bool) (fleet.Service, *mock.Store, context.Context) {
 		ds := new(mock.Store)
@@ -4100,7 +4223,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
 		require.NoError(t, err)
 
 		assert.Empty(t, updated.RawJSON)
@@ -4133,7 +4256,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		assert.Equal(t, existing.Name, updated.Name)
@@ -4163,7 +4286,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.NotNil(t, updated.TeamID)
@@ -4192,7 +4315,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.Len(t, updated.LabelsIncludeAny, 1)
@@ -4214,7 +4337,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		invalidContent := []byte(`{"notARealAndroidPolicyField": true}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil, nil)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "Invalid JSON payload")
 	})
@@ -4231,7 +4354,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, nil)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, `label "label1" cannot appear in both include and exclude lists`)
 	})
@@ -4248,7 +4371,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -4260,7 +4383,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, nil)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -4277,7 +4400,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
 
@@ -4286,7 +4409,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
 		require.NoError(t, err)
 	})
 
@@ -4307,14 +4430,14 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"name": "$FLEET_VAR_HOST_UUID"}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarHostUUID)
 
 		// labels-only edit passes no variables -- the datastore leaves the
 		// existing associations untouched when no content is provided
 		capturedVars = []fleet.FleetVarName{fleet.FleetVarName("sentinel")}
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
 		require.NoError(t, err)
 		assert.Empty(t, capturedVars)
 	})
@@ -4335,10 +4458,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -4391,10 +4514,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 
 				// profile content and labels are deliberately nil/empty here --
 				// this isolates the authz checks from content/label validation.
-				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil)
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
 				checkShouldFail(t, err, tt.shouldFailGlobal)
 
-				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil)
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
 				checkShouldFail(t, err, tt.shouldFailTeam)
 			})
 		}
@@ -4839,10 +4962,17 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
 			return nil, &notFoundError{}
 		}
+		// On this branch the serial is persisted on the unlinked enrollment row so the orbit enrollment path can reverse-link it.
+		ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc = func(_ context.Context, mdmDeviceID string, hardwareSerial string) error {
+			assert.Equal(t, testDeviceID, mdmDeviceID)
+			assert.Equal(t, testSerial, hardwareSerial)
+			return nil
+		}
 
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
 		require.NoError(t, err)
 		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+		assert.True(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked, "serial should be persisted for the reverse-link path")
 		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
 		assert.Empty(t, enrolledDevice.HostUUID, "no link means HostUUID stays empty")
 		assert.True(t, hasGetForDevDetailSerial(cmds), "without a host match, the Get is reinjected for the next session")

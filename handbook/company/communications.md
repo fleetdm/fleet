@@ -45,6 +45,9 @@ Fleet is successful because of our customers and community, and those relationsh
 > **Compliance**
 > Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-operations#fleets-vendor-collateral) from Google Drive.
 
+> **Export control**
+> Fleet conforms to the export-control restrictions applicable to ECCN 5D992.c classification. Accordingly, Fleet does not currently do business in Cuba, Iran, Syria, North Korea, Russia, or Belarus, or in the Crimea, Donetsk, and Luhansk regions of Ukraine.
+
 
 ## Directly responsible individuals (DRIs)
 
@@ -740,7 +743,7 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 ### Wellness budget 
 
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. This is a "use-it-or-lose-it" monthly budget that cannot be carried over to future months. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. This is a "use-it-or-lose-it" monthly budget that cannot be carried over to future months and should fit within one of the following categories: physical health, mental health, or lifestyle/self-care. Gift vouchers are not an approved wellness expense. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
 
 
 ### Compensation
@@ -923,5 +926,5 @@ Please see 📖[handbook/engineering#perform-an-incident-postmortem](https://fle
 Please see 📖[handbook/company/communications#tools-and-equipment](https://fleetdm.com/handbook/company/communications#tools-and-equipment).
 
 
-<meta name="maintainedBy" value="sampfluger88">
+<meta name="maintainedBy" value="ireedy">
 <meta name="title" value="🛰️ Communications">

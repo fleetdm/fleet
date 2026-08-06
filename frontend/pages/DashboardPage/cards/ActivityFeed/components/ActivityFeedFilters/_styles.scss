@@ -12,7 +12,7 @@
     display: grid;
     grid-template-areas: "type date sort";
     grid-template-columns: 4fr 3fr 3fr;
-    gap: $pad-medium;
+    gap: $gap-table-elements;
   }
 
   &__type-filter-dropdown {

@@ -196,6 +196,21 @@ Continuous flow does not use story points or track velocity. [T-shirt sizing](#t
 - **Help finish in-flight work when nothing in Ready is available.** Assist with code review, QA, or sub-issues for active stories.
 - **Hit a blocker or have a question?** It's okay — blockers happen. Move the issue to **Blocked** and try to resolve it async (in the group's Slack channel, with the relevant collaborator, etc.) rather than waiting for standup. If it isn't resolved async, the next standup is the latest it should go without being addressed.
 
+### Code review coverage during time off
+
+Fleet's product groups typically have two to three engineers. With AI-assisted development accelerating how fast code is written, deep code review is the primary engineering bottleneck. When one engineer in a small group is on vacation or out of office, the remaining engineer may have no one available to review their pull requests, blocking progress until the teammate returns.
+
+To prevent PRs from stalling, engineers should arrange temporary review coverage before a teammate's absence (or as soon as the need arises):
+
+1. **Talk to your Engineering Manager.** Let your EM know you need review coverage. The EM will find an engineer from another product group who can review your PRs while your teammate is out.
+2. **Prefer groups under the same Engineering Manager.** When possible, the EM should find a reviewer from another group they also manage. This keeps tracking and follow-up simple since the EM already has visibility into both groups' boards.
+3. **Cross-EM arrangements are fine when needed.** If no group under your EM has capacity, the EM can coordinate with another EM to find a reviewer. Both EMs should stay in the loop so the commitment is tracked.
+4. **Communicate the plan.** Post in your product group's Slack channel (and the covering group's channel, if different) so everyone knows who is handling reviews and for how long.
+
+The arrangement between groups can be a mutual trade (your group covers reviews for theirs in return), one-sided help, or whatever works for the teams involved.
+
+The goal is to keep pull requests moving. A brief async message to arrange coverage is far cheaper than a week of blocked PRs.
+
 ### Daily standup (30 minutes)
 
 By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). Complex user stories go through user story review reviewed. It's up to the Product Designer to decide if a user story needs to be reviewed. Simple stories, ones with known patters, can go straigh to the "Ready" column during the next weekly planning.
@@ -592,16 +607,12 @@ Any fleetie can follow the process below to add a priority label to an issue.
 4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
 
 
-### Notify stakeholders when a user story is pushed to the next release
+### Notify stakeholders when a user story is pushed
 
-[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be [drafted](#drafting) in a single release cycle and built in the following single, often but not always, release cycle. 
+[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be [drafted](#drafting) in a single release cycle and built in the following single, often but not always, release cycle. When stories take longer than expected, they're pushed to a later release and stakeholders are notified:
 
-When the Product Designers (PD) knows a user story in drafting will be pushed, it is the PD's responsibility to notify stakeholders.
-
-When an Engineering Manager (EM) knows a user story being built will be pushed, it is the EM's responsibility to notify stakeholders.
-
-1. If the story is being built, send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
-2. If `~activation-blocker`, `~customer promise`, or both a `customer-*` and a `P*` label are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel.
+1. If the story is being built, the Engineering Manager (EM) send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
+2. If `~activation-blocker`, `~customer promise`, or both a `customer-*` and a `P*` label are applied to the user story, also at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel. If the user story is still in drafting, it's up to the Product Designers (PD) to notify.
 
 > Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
 

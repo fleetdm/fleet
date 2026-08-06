@@ -794,6 +794,68 @@ func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 		})
 	})
 
+	t.Run("latest", func(t *testing.T) {
+		// "latest" is a sentinel resolved per host later, so it must never be
+		// looked up against Apple's published versions.
+		t.Run("accepted on every platform", func(t *testing.T) {
+			t.Run("app config mdm settings", func(t *testing.T) {
+				ac := mockAppConfigMDM()
+				ac.MacOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				ac.IOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				ac.IPadOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+				require.NoError(t, err)
+				assert.Empty(t, got, "expect latest to be accepted when including non-public asset sets")
+
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+				require.NoError(t, err)
+				assert.Empty(t, got, "expect latest to be accepted when excluding non-public asset sets")
+			})
+
+			t.Run("team mdm settings", func(t *testing.T) {
+				tm := mockTeamMDM()
+				tm.MacOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				tm.IOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				tm.IPadOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+				require.NoError(t, err)
+				assert.Empty(t, got, "expect latest to be accepted when including non-public asset sets")
+
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+				require.NoError(t, err)
+				assert.Empty(t, got, "expect latest to be accepted when excluding non-public asset sets")
+			})
+		})
+
+		t.Run("mixed with a real version still validates that version", func(t *testing.T) {
+			t.Run("app config mdm settings", func(t *testing.T) {
+				ac := mockAppConfigMDM()
+				ac.MacOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				// only supported for Apple Watch, so iOS should still be flagged
+				ac.IOSUpdates.MinimumVersion = optjson.SetString("5.3.9")
+				ac.IPadOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+				require.NoError(t, err)
+				checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect only the concrete version to be validated")
+			})
+
+			t.Run("team mdm settings", func(t *testing.T) {
+				tm := mockTeamMDM()
+				tm.MacOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				// only supported for Apple Watch, so iOS should still be flagged
+				tm.IOSUpdates.MinimumVersion = optjson.SetString("5.3.9")
+				tm.IPadOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+				require.NoError(t, err)
+				checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect only the concrete version to be validated")
+			})
+		})
+	})
+
 	// These subtests are placed last so that the dev_mode override cleanup for the error server
 	// doesn't interfere with the earlier subtests that rely on the valid mock server.
 	t.Run("GetAssetMetadata error", func(t *testing.T) {
@@ -814,6 +876,16 @@ func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 		tm := mockTeamMDM()
 		got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
 		require.Error(t, err)
+		assert.Nil(t, got)
+
+		// With every platform set to "latest" there is nothing to look up, so the
+		// broken metadata endpoint must never be contacted.
+		ac = mockAppConfigMDM()
+		ac.MacOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+		ac.IOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+		ac.IPadOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+		got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+		require.NoError(t, err, "latest-only settings must not fetch Apple metadata")
 		assert.Nil(t, got)
 	})
 }

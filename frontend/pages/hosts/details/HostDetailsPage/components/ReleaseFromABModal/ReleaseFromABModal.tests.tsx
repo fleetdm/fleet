@@ -14,7 +14,11 @@ describe("Release from AB modal", () => {
   };
   it("disables release until checkbox is checked", async () => {
     const { user } = renderComponent({
-      host: { id: 1, display_name: "Test Host" },
+      host: {
+        id: 1,
+        display_name: "Test Host",
+        enrollment_status: "On (automatic)",
+      },
       onExit: jest.fn(),
       onRelease: jest.fn(),
     });
@@ -28,5 +32,21 @@ describe("Release from AB modal", () => {
     await user.click(checkbox);
 
     expect(releaseButton).toBeEnabled();
+  });
+
+  it("shows correct message when enrollment status is Pending", () => {
+    renderComponent({
+      host: {
+        id: 1,
+        display_name: "Test Host",
+        enrollment_status: "Pending",
+      },
+      onExit: jest.fn(),
+      onRelease: jest.fn(),
+    });
+
+    expect(
+      screen.getByText("This will also remove the host from Fleet.")
+    ).toBeInTheDocument();
   });
 });

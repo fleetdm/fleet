@@ -125,11 +125,13 @@ type integrationMDMTestSuite struct {
 	integrationsSchedule         *schedule.Schedule
 	cleanupsSchedule             *schedule.Schedule
 	appleMDMWorkerSchedule       *schedule.Schedule
+	appleOSUpdatesSchedule       *schedule.Schedule
 	onProfileJobDone             func() // function called when profileSchedule.Trigger() job completed
 	onAndroidProfileJobDone      func() // function called when androidProfileSchedule.Trigger() job completed
 	onIntegrationsScheduleDone   func() // function called when integrationsSchedule.Trigger() job completed
 	onCleanupScheduleDone        func() // function called when cleanupsSchedule.Trigger() job completed
 	onAppleMDMWorkerScheduleDone func() // function called when appleMDMWorkerSchedule.Trigger() job completed
+	onAppleOSUpdatesScheduleDone func() // function called when appleOSUpdatesSchedule.Trigger() job completed
 	mdmStorage                   *mysql.NanoMDMStorage
 	worker                       *worker.Worker
 	appleMDMWorker               *worker.Worker
@@ -301,6 +303,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	var cleanupsSchedule *schedule.Schedule
 	var androidProfileSchedule *schedule.Schedule
 	var appleMDMWorkerSchedule *schedule.Schedule
+	var appleOSUpdatesSchedule *schedule.Schedule
 	cronLog := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		cronLog = slog.New(slog.DiscardHandler)
@@ -418,6 +421,23 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						}),
 					)
 					return appleMDMWorkerSchedule, nil
+				}
+			},
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronAppleMDMOSUpdatesSchedule)
+					logger := cronLog
+					appleOSUpdatesSchedule = schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("apple_os_updates", func(ctx context.Context) error {
+							if s.onAppleOSUpdatesScheduleDone != nil {
+								defer s.onAppleOSUpdatesScheduleDone()
+							}
+							return apple_mdm.HandleAppleMDMOSUpdates(ctx, ds, logger)
+						}),
+					)
+					return appleOSUpdatesSchedule, nil
 				}
 			},
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
@@ -551,6 +571,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.cleanupsSchedule = cleanupsSchedule
 	s.androidProfileSchedule = androidProfileSchedule
 	s.appleMDMWorkerSchedule = appleMDMWorkerSchedule
+	s.appleOSUpdatesSchedule = appleOSUpdatesSchedule
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
@@ -2785,8 +2806,10 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionWithDisabledEncr
 	t := s.T()
 	ctx := context.Background()
 
-	// Create a macOS host enrolled via orbit
-	host := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	// Create a macOS host enrolled in Fleet's MDM. Fleet MDM enrollment is required
+	// to escrow a disk encryption key (see the IsHostConnectedToFleetMDM check in
+	// the darwin key ingestion).
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	// Turn on disk encryption for the global team
 	acResp := appConfigResponse{}
@@ -6096,6 +6119,24 @@ func generateMultipartRequest(t *testing.T,
 	uploadFileField, fileName string, fileContent []byte, token string,
 	extraFields map[string][]string,
 ) (*bytes.Buffer, map[string]string) {
+	return generateMultipartRequestWithFiles(t, uploadFileField, fileName, fileContent, token, extraFields, nil)
+}
+
+// multipartFile is an additional file part for endpoints that accept more than
+// one, such as a configuration profile uploaded together with its custom DDM
+// activation.
+type multipartFile struct {
+	fileName string
+	content  []byte
+}
+
+// generateMultipartRequestWithFiles builds a multipart body with a primary file
+// part plus any number of additional file parts, keyed by form field name.
+// generateMultipartRequest delegates here so single-file callers are unchanged.
+func generateMultipartRequestWithFiles(t *testing.T,
+	uploadFileField, fileName string, fileContent []byte, token string,
+	extraFields map[string][]string, extraFiles map[string]multipartFile,
+) (*bytes.Buffer, map[string]string) {
 	var body bytes.Buffer
 
 	writer := multipart.NewWriter(&body)
@@ -6105,6 +6146,14 @@ func generateMultipartRequest(t *testing.T,
 		ff, err := writer.CreateFormFile(uploadFileField, fileName)
 		require.NoError(t, err)
 		_, err = io.Copy(ff, bytes.NewReader(fileContent))
+		require.NoError(t, err)
+	}
+
+	// add any additional file parts
+	for field, f := range extraFiles {
+		ff, err := writer.CreateFormFile(field, f.fileName)
+		require.NoError(t, err)
+		_, err = io.Copy(ff, bytes.NewReader(f.content))
 		require.NoError(t, err)
 	}
 
@@ -11081,6 +11130,34 @@ func (s *integrationMDMTestSuite) runDEPSchedule() {
 	require.NoError(s.T(), err)
 }
 
+func (s *integrationMDMTestSuite) runAppleOSUpdatesSchedule() {
+	ch := make(chan bool)
+	var once sync.Once
+	s.onAppleOSUpdatesScheduleDone = func() {
+		once.Do(func() { close(ch) })
+	}
+
+	var (
+		didTrigger bool
+		err        error
+	)
+	for range 10 {
+		_, didTrigger, err = s.appleOSUpdatesSchedule.Trigger(s.T().Context())
+		s.Require().NoError(err)
+		if didTrigger {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	s.Require().True(didTrigger, "apple os updates schedule did not trigger after 1 second of retries")
+
+	select {
+	case <-ch:
+	case <-time.After(30 * time.Second):
+		s.T().Fatal("apple os updates schedule did not complete")
+	}
+}
+
 func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 	ch := make(chan bool)
 	var once sync.Once
@@ -15906,7 +15983,7 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 
 	// manual enrollment from My Device
 	token := "token_test_manual_enroll"
-	createHostAndDeviceToken(t, s.ds, token)
+	host := createHostAndDeviceToken(t, s.ds, token)
 	var r getDeviceMDMManualEnrollProfileResponse
 	s.DoJSON("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK, &r)
 	u, err := url.Parse(r.EnrollURL)
@@ -15926,8 +16003,10 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	require.NoError(t, err)
 
 	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
-		Serial: uuid.New().String(),
-		UDID:   uuid.New().String(),
+		Serial:                 uuid.New().String(),
+		UDID:                   host.UUID,
+		Product:                "Mac13,1",
+		SoftwareUpdateDeviceID: "bogus-update-id",
 	})
 	require.NoError(t, err)
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
@@ -15938,6 +16017,15 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 
 	// unsigned manual enrollment profile for IT admins
 	s.downloadAndVerifyEnrollmentProfileManual(t)
+
+	// Verify that macOS enrollment inserts entry into os updates tracking
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var count int
+		err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM host_mdm_apple_os_updates WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+		return nil
+	})
 
 	// ensure the fleetd profile sends a good enroll secret too
 	s.awaitTriggerProfileSchedule(t)
@@ -16118,6 +16206,15 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			require.Nil(t, hostByIdentifierResp.Host.TeamID)
+
+			// Verify that OTA enrollment upserts the macOS entry for software_device_id.
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				var count int
+				err := sqlx.GetContext(t.Context(), q, &count, `SELECT COUNT(*) FROM host_mdm_apple_os_updates WHERE host_uuid = ?`, mdmDevice.UUID)
+				require.NoError(t, err)
+				require.Equal(t, 1, count)
+				return nil
+			})
 		})
 
 		t.Run("ota enrolling an ipad", func(t *testing.T) {

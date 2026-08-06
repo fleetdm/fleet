@@ -110,7 +110,8 @@ const getHostDiskEncryptionTooltipMessage = (
     platform === "archarm" ||
     platform === "manjaro" ||
     platform === "manjaro-arm" ||
-    platform === "cachyos"
+    platform === "cachyos" ||
+    platform === "omarchy"
   ) {
     return DISK_ENCRYPTION_MESSAGES.linux[
       diskEncryptionEnabled ? "enabled" : "unknown"

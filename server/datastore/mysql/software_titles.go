@@ -50,9 +50,13 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		inHouseAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("iha.global_or_team_id = %d", *teamID)
 	} else {
 		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "sthc")
-		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
-		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
-		inHouseAppsTeamsGlobalOrTeamIDFilter = "TRUE"
+		// A nil teamID means "every fleet the caller can see", not "every fleet".
+		// These joins decide whether the title row exists at all, so leaving them
+		// unfiltered confirms titles that exist only in a fleet the caller has no
+		// access to. Same boundary the host-counts filter above already applies.
+		softwareInstallerGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "si.global_or_team_id")
+		vppAppsTeamsGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "vat.global_or_team_id")
+		inHouseAppsTeamsGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "iha.global_or_team_id")
 	}
 
 	// Select software title but filter out if the software has zero host counts
@@ -1186,19 +1190,19 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 	return result, nil
 }
 
-func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
-	var exists bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `
-		SELECT EXISTS(
-			SELECT 1 FROM software_installers
-				WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
-			LIMIT 1
-		)
+func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error) {
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &storageID, `
+		SELECT storage_id FROM software_installers
+			WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
+		LIMIT 1
 	`, ptr.ValOrZero(teamID), fmaID, version)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "check FMA installer version exists")
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, "", nil
 	}
-	return exists, nil
+	if err != nil {
+		return false, "", ctxerr.Wrap(ctx, err, "get FMA installer version storage id")
+	}
+	return true, storageID, nil
 }
 
 func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
