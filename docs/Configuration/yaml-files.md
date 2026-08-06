@@ -19,7 +19,7 @@ Labels support `path:` (single file) and `paths:` (glob pattern) references. See
 - `label_membership_type` specifies label type which determines how hosts are added to the label. Choices for type are `dynamic` , `manual`, and `host_vitals` (default: `dynamic`).
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
 - `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`. If omitted, existing host membership is preserved (no changes). If provided but empty, all hosts are removed from the label.
-- `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
+- `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. To match on a [custom host vital](https://fleetdm.com/guides/custom-host-vitals), set `vital` to `custom_host_vital` and also specify `custom_host_vital_id`. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
 
 Only one of `query`, `hosts`, or `criteria` can be specified. If none are specified, a manual label with no hosts will be created.
 
@@ -54,6 +54,13 @@ labels:
     criteria:
       vital: end_user_idp_department
       value: Engineering
+  - name: Asset tag test
+    description: Hosts with an asset tag of "Test"
+    label_membership_type: host_vitals
+    criteria:
+      vital: custom_host_vital
+      custom_host_vital_id: 1
+      value: Test
 ```
 
 #### Separate file

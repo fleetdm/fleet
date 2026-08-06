@@ -6327,10 +6327,11 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
 
 #### criteria
 
-| Name        | Type   | Description                                                                                                                                                                                                                                  |
-| ----------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| vital       | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"` or `"end_user_idp_department"`. |
-| value       | string | Hosts with vital data matching this value will be added to the label. |
+| Name                  | Type   | Description                                                                                                                                                                                                                                  |
+| --------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| vital                 | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"`, `"end_user_idp_department"`, or `"custom_host_vital"`. |
+| custom_host_vital_id  | integer | The ID of the [custom host vital](https://fleetdm.com/guides/custom-host-vitals) to match on. Required when `vital` is `"custom_host_vital"`. |
+| value                 | string | Hosts with vital data matching this value will be added to the label. |
 
 
 #### Example
