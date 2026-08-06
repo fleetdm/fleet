@@ -1696,7 +1696,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		host.HostSoftware.Software = []fleet.HostSoftwareEntry{}
 	}
 
-	if fleet.IsAppleMobilePlatform(host.Platform) {
+	// BYOD/personal enrollments never receive the device vitals fields (see
+	// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
+	// there's nothing to load.
+	isPersonalEnrollment := host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal
+	if fleet.IsAppleMobilePlatform(host.Platform) && !isPersonalEnrollment {
 		if err := svc.ds.LoadHostMDMAppleDeviceVitals(ctx, host); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host mdm apple device vitals")
 		}
