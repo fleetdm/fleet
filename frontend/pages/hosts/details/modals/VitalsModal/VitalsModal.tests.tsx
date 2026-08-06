@@ -138,7 +138,9 @@ describe("VitalsModal component", () => {
       <VitalsModal host={host} vitalsData={host} mdm={host.mdm} onExit={noop} />
     );
 
-    expect(findValueCell(container, "Battery level")?.textContent).toBe(DEFAULT_EMPTY_CELL_VALUE);
+    expect(findValueCell(container, "Battery level")?.textContent).toBe(
+      DEFAULT_EMPTY_CELL_VALUE
+    );
     expect(screen.queryByText("-100%")).not.toBeInTheDocument();
   });
 
