@@ -33,8 +33,8 @@ try {
 }
 
 if ($selected.Count -eq 0) {
-    Write-Host "Uninstall entry not found for $softwareNameLike"
-    Exit 1
+    Write-Host "Uninstall entry not found for $softwareNameLike; nothing to do."
+    Exit 0
 }
 
 # Best-effort: stop Visual Studio so the uninstaller doesn't fail on locked files.

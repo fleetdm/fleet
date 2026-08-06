@@ -10,7 +10,10 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
-$registryTimeoutSeconds = 1800
+# Overall cap stays under production's 1 hour limit for install scripts. The wait
+# below gives up as soon as the installer is no longer running, so a failed
+# install reports its log well inside the validator's 10 minute script cap.
+$registryTimeoutSeconds = 3300
 
 $uninstallPaths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -68,16 +71,19 @@ $exitCode = $process.ExitCode
 Write-Host "Installer exit code: $exitCode"
 
 # Wait for the uninstall registry entry, which is what osquery reports. The
-# bootstrapper can outlive its own exit code.
+# bootstrapper can outlive its own exit code, so keep waiting while an installer
+# process is still running and give up once none is left.
 $deadline = (Get-Date).AddSeconds($registryTimeoutSeconds)
 $entries = @(Get-ReSharperEntries)
 while ($entries.Count -eq 0 -and (Get-Date) -lt $deadline) {
+  $installerRunning = @(Get-Process -Name 'JetBrains.Platform.Installer*' -ErrorAction SilentlyContinue).Count -gt 0
   Start-Sleep -Seconds 10
   $entries = @(Get-ReSharperEntries)
+  if ($entries.Count -eq 0 -and -not $installerRunning) { break }
 }
 
 if ($entries.Count -eq 0) {
-  Write-Host "Timed out waiting for the ReSharper uninstall registry entry."
+  Write-Host "The ReSharper uninstall registry entry did not appear."
   if (Test-Path $logFile) {
     Write-Host "--- last 50 lines of $logFile ---"
     Get-Content $logFile -Tail 50 | ForEach-Object { Write-Host $_ }
