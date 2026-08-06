@@ -19,7 +19,7 @@ import {
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { ICommandResult } from "interfaces/command";
-import { isAppleDevice, isMacOS } from "interfaces/platform";
+import { isAndroid, isAppleDevice, isMacOS } from "interfaces/platform";
 import { secondsToDhms } from "utilities/helpers";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
@@ -185,37 +185,38 @@ export const getStatusMessage = ({
 
   // Verification failed (timeout)
   if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
+    if (isAppleDevice(platform)) {
+      return (
+        <>
+          <div>
+            The host acknowledged the MDM command to install <b>{appName}</b>
+            {!isMyDevicePage && <> on {formattedHost}</>}, but the install took
+            longer than {formattedVerifyTimeout}, so Fleet marked it as failed.
+          </div>
+          {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
+            <div className="vpp-install-details-modal__update-tip">
+              If you&apos;re updating the app and the app is open,{" "}
+              <TooltipWrapper
+                tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
+                position="top"
+              >
+                close it
+              </TooltipWrapper>{" "}
+              and try again.
+            </div>
+          )}
+        </>
+      );
+    }
+
+    // Reached for Android app store installs. This copy makes no
+    // Android-specific claim, so it also covers any other unexpected
+    // platform value safely.
     return (
       <>
-        {isAppleDevice(platform) ? (
-          <>
-            <div>
-              The host acknowledged the MDM command to install <b>{appName}</b>
-              {!isMyDevicePage && <> on {formattedHost}</>}, but the install
-              took longer than {formattedVerifyTimeout}, so Fleet marked it as
-              failed.
-            </div>
-            {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
-              <div className="vpp-install-details-modal__update-tip">
-                If you&apos;re updating the app and the app is open,{" "}
-                <TooltipWrapper
-                  tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
-                  position="top"
-                >
-                  close it
-                </TooltipWrapper>{" "}
-                and try again.
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            The MDM command (request) to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but
-            the installation has not been verified. Please re-attempt this
-            installation.
-          </>
-        )}
+        The MDM command (request) to install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
+        installation has not been verified. Please re-attempt this installation.
       </>
     );
   }
@@ -230,17 +231,16 @@ export const getStatusMessage = ({
     );
   }
 
-  if (displayStatus === "failed_install" && isMyDevicePage) {
-    return (
-      <>
-        Fleet failed to install <b>{appName}</b>
-        {displayTimestamp && <> {displayTimestamp}</>}. Retry via the Google
-        Play Store in your work profile, or select <b>Retry</b> below.
-      </>
-    );
-  }
-
-  if (displayStatus === "failed_install") {
+  if (displayStatus === "failed_install" && isAndroid(platform)) {
+    if (isMyDevicePage) {
+      return (
+        <>
+          Fleet failed to install <b>{appName}</b>
+          {displayTimestamp && <> {displayTimestamp}</>}. Retry via the Google
+          Play Store in your work profile, or select <b>Retry</b> below.
+        </>
+      );
+    }
     return (
       <>
         Fleet failed to install <b>{appName}</b> on {formattedHost}

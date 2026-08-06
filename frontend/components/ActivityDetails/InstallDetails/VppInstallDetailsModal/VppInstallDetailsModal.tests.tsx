@@ -120,16 +120,16 @@ describe("getStatusMessage helper function", () => {
     expect(screen.getByText("End user")).toBeInTheDocument();
   });
 
-  it("shows failed_install message for non-Apple platform when MDM command fails", () => {
+  it("shows failed_install message for Android when MDM command fails", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
         isMDMStatusNotNow: false,
         isMDMStatusAcknowledged: false,
         appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
+        hostDisplayName: "Marko's Pixel 8",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
-        platform: "windows",
+        platform: "android",
       })
     );
     expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
@@ -138,7 +138,7 @@ describe("getStatusMessage helper function", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows first-person failed_install message for non-Apple platform on My Device page", () => {
+  it("shows first-person failed_install message for Android on My Device page", () => {
     render(
       getStatusMessage({
         isMyDevicePage: true,
@@ -158,6 +158,22 @@ describe("getStatusMessage helper function", () => {
     expect(
       screen.queryByText(/The end user can retry/i)
     ).not.toBeInTheDocument();
+  });
+
+  it("falls back to generic failed_install copy for a platform that's neither Apple nor Android", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's ThinkPad",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "windows",
+      })
+    );
+    expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Google Play Store/i)).not.toBeInTheDocument();
   });
 
   it("shows Apple-specific message when MDM command fails on macOS", () => {
@@ -226,16 +242,16 @@ describe("getStatusMessage helper function", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows failed verification message for non-Apple platforms", () => {
+  it("shows failed verification message for Android", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
         isMDMStatusNotNow: false,
         isMDMStatusAcknowledged: true,
         appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
+        hostDisplayName: "Marko's Pixel 8",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
-        platform: "windows",
+        platform: "android",
       })
     );
     expect(
@@ -245,6 +261,23 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/Please re-attempt this installation/i)
     ).toBeInTheDocument();
     expect(screen.queryByText(/within 10 minutes/i)).not.toBeInTheDocument();
+  });
+
+  it("falls back to the same failed-verification copy for a platform that's neither Apple nor Android", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's ThinkPad",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "windows",
+      })
+    );
+    expect(
+      screen.getByText(/installation has not been verified/i)
+    ).toBeInTheDocument();
   });
 
   it("shows Apple-specific failed verification message for macOS", () => {
