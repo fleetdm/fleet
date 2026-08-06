@@ -65,13 +65,16 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 			}
 			// Per-fleet payloads carry host_ids for activities whose stored
 			// details don't already identify their hosts (batch automation
-			// activities). The list is injected at fire time only: batches can
+			// activities). The list is injected at fire time only — batches can
 			// span thousands of hosts, so storing it would bloat every affected
 			// host's feed response and expose the full batch to any user who
-			// can read one of its hosts. The global webhook payload above is
-			// intentionally left as stored (matching its pre-existing format).
-			webhookDetails := s.detailsWithHostIDs(ctx, activity, detailsBytes)
+			// can read one of its hosts — and each delivery gets only the host
+			// IDs belonging to the fleet(s) behind its destination, so one
+			// fleet's endpoint never sees another fleet's hosts. The global
+			// webhook payload above is intentionally left as stored (matching
+			// its pre-existing format).
 			for _, hook := range hooks {
+				webhookDetails := s.detailsWithHostIDs(ctx, activity.ActivityName(), detailsBytes, hook.HostIDs)
 				s.fireActivityWebhook(ctx, user, activity, webhookDetails, timestamp, hook.DestinationURL)
 			}
 		}
@@ -93,18 +96,12 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 	return s.store.NewActivity(ctx, user, activity, detailsBytes, timestamp)
 }
 
-// detailsWithHostIDs returns the details to use in per-fleet host activities
-// webhook payloads: for
-// host-linked activities whose details carry no host identifier of their own
-// (neither host_id nor host_ids), it returns a copy with the host_ids list
-// added. On any failure it falls back to the stored details rather than
-// blocking webhook delivery.
-func (s *Service) detailsWithHostIDs(ctx context.Context, activity api.ActivityDetails, detailsBytes []byte) []byte {
-	ah, ok := activity.(types.ActivityHosts)
-	if !ok {
-		return detailsBytes
-	}
-	hostIDs := ah.HostIDs()
+// detailsWithHostIDs returns the details to use in one per-fleet host
+// activities webhook delivery: when the stored details carry no host
+// identifier of their own (no host_id and no non-empty host_ids), it returns
+// a copy with the delivery's host_ids added. On any failure it falls back to
+// the stored details rather than blocking webhook delivery.
+func (s *Service) detailsWithHostIDs(ctx context.Context, activityName string, detailsBytes []byte, hostIDs []uint) []byte {
 	if len(hostIDs) == 0 {
 		return detailsBytes
 	}
@@ -112,14 +109,20 @@ func (s *Service) detailsWithHostIDs(ctx context.Context, activity api.ActivityD
 	var details map[string]json.RawMessage
 	if err := json.Unmarshal(detailsBytes, &details); err != nil {
 		s.logger.ErrorContext(ctx, "unmarshal details to inject host_ids",
-			slog.String("activity", activity.ActivityName()), slog.String("err", err.Error()))
+			slog.String("activity", activityName), slog.String("err", err.Error()))
 		return detailsBytes
 	}
 	if _, ok := details["host_id"]; ok {
 		return detailsBytes
 	}
-	if _, ok := details["host_ids"]; ok {
-		return detailsBytes
+	// A stored host_ids list is kept only when it actually identifies hosts:
+	// an empty or malformed one (e.g. a future type serializing an empty
+	// HostIDList) is replaced with the delivery's list.
+	if raw, ok := details["host_ids"]; ok {
+		var stored []uint
+		if err := json.Unmarshal(raw, &stored); err == nil && len(stored) > 0 {
+			return detailsBytes
+		}
 	}
 	if details == nil { // details were JSON null
 		details = make(map[string]json.RawMessage, 1)
@@ -128,14 +131,14 @@ func (s *Service) detailsWithHostIDs(ctx context.Context, activity api.ActivityD
 	idsBytes, err := json.Marshal(hostIDs)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "marshal host_ids",
-			slog.String("activity", activity.ActivityName()), slog.String("err", err.Error()))
+			slog.String("activity", activityName), slog.String("err", err.Error()))
 		return detailsBytes
 	}
 	details["host_ids"] = idsBytes
 	withIDs, err := json.Marshal(details)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "marshal details with host_ids",
-			slog.String("activity", activity.ActivityName()), slog.String("err", err.Error()))
+			slog.String("activity", activityName), slog.String("err", err.Error()))
 		return detailsBytes
 	}
 	return withIDs

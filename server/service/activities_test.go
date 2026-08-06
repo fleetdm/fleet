@@ -291,6 +291,7 @@ func TestGetHostActivitiesWebhookSettings(t *testing.T) {
 		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1, 2})
 		require.NoError(t, err)
 		require.Len(t, settings, 1)
+		require.Equal(t, []uint{1, 2}, settings[0].HostIDs)
 	})
 
 	t.Run("hosts across fleets return one webhook per enabled fleet", func(t *testing.T) {
@@ -305,14 +306,19 @@ func TestGetHostActivitiesWebhookSettings(t *testing.T) {
 		svc := &Service{ds: ds}
 		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1, 2, 3})
 		require.NoError(t, err)
-		urls := make([]string, 0, len(settings))
+		// Each delivery carries only its own fleet's hosts (the fleet-2 host is
+		// absent entirely: that fleet's webhook is disabled).
+		hostsByURL := make(map[string][]uint, len(settings))
 		for _, s := range settings {
-			urls = append(urls, s.DestinationURL)
+			hostsByURL[s.DestinationURL] = s.HostIDs
 		}
-		require.ElementsMatch(t, []string{"https://example.com/a", "https://example.com/no-team"}, urls)
+		require.Equal(t, map[string][]uint{
+			"https://example.com/a":       {1},
+			"https://example.com/no-team": {3},
+		}, hostsByURL)
 	})
 
-	t.Run("fleets sharing a destination URL yield one entry", func(t *testing.T) {
+	t.Run("fleets sharing a destination URL yield separate scoped deliveries", func(t *testing.T) {
 		ds := newDS(
 			[]*fleet.Host{hostInTeam(1, &teamID1), hostInTeam(2, &teamID2)},
 			map[uint]*fleet.HostActivitiesWebhookSettings{
@@ -324,8 +330,27 @@ func TestGetHostActivitiesWebhookSettings(t *testing.T) {
 		svc := &Service{ds: ds}
 		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1, 2})
 		require.NoError(t, err)
-		require.Len(t, settings, 1)
+		// A delivery is one fleet's subscription: sharing a URL must not merge
+		// fleets' host IDs into one payload.
+		require.Len(t, settings, 2)
 		require.Equal(t, "https://example.com/shared", settings[0].DestinationURL)
+		require.Equal(t, []uint{1}, settings[0].HostIDs)
+		require.Equal(t, "https://example.com/shared", settings[1].DestinationURL)
+		require.Equal(t, []uint{2}, settings[1].HostIDs)
+	})
+
+	t.Run("a fleet and no-fleet sharing a destination stay separate deliveries", func(t *testing.T) {
+		ds := newDS(
+			[]*fleet.Host{hostInTeam(1, &teamID1), hostInTeam(2, nil)},
+			map[uint]*fleet.HostActivitiesWebhookSettings{teamID1: enabled("https://example.com/shared")},
+			enabled("https://example.com/shared"),
+		)
+		svc := &Service{ds: ds}
+		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1, 2})
+		require.NoError(t, err)
+		require.Len(t, settings, 2)
+		require.Equal(t, []uint{1}, settings[0].HostIDs)
+		require.Equal(t, []uint{2}, settings[1].HostIDs)
 	})
 
 	t.Run("no-team host uses the default team config", func(t *testing.T) {

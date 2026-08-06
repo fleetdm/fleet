@@ -918,7 +918,7 @@ func (t *testingLookupService) GetActivitiesWebhookSettings(ctx context.Context)
 	return appConfig.WebhookSettings.ActivitiesWebhook, nil
 }
 
-func (t *testingLookupService) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookSettings, error) {
+func (t *testingLookupService) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error) {
 	// Host activities webhooks are not exercised through this test adapter.
 	return nil, nil
 }

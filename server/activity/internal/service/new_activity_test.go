@@ -85,6 +85,19 @@ type hostActivityNestedID struct {
 	Nested map[string]uint `json:"nested"`
 }
 
+// hostActivityStoredEmptyIDs serializes an empty host_ids of its own (e.g. a
+// future batch type whose HostIDList loses the json:"-" tag).
+type hostActivityStoredEmptyIDs struct {
+	hostActivity
+	StoredHostIDs []uint `json:"host_ids"`
+}
+
+// hostActivityMalformedIDs serializes a non-array host_ids of its own.
+type hostActivityMalformedIDs struct {
+	hostActivity
+	StoredHostIDs string `json:"host_ids"`
+}
+
 type aliasedActivity struct {
 	TeamID uint `json:"team_id" renameto:"fleet_id"`
 }
@@ -448,8 +461,8 @@ func TestNewActivityHostWebhook(t *testing.T) {
 				mockUserProvider: &mockUserProvider{},
 				mockHostProvider: &mockHostProvider{},
 				hostWebhooks: []activity.HostActivitiesWebhook{
-					{DestinationURL: srv.URL + "/fleet-a"},
-					{DestinationURL: srv.URL + "/fleet-b"},
+					{DestinationURL: srv.URL + "/fleet-a", HostIDs: []uint{42}},
+					{DestinationURL: srv.URL + "/fleet-b", HostIDs: []uint{43}},
 				},
 			},
 		}
@@ -472,6 +485,11 @@ func TestNewActivityHostWebhook(t *testing.T) {
 			}
 		}
 		require.Len(t, paths, 2)
+		// Each destination's payload carries only its own fleet's host IDs.
+		wantHostIDs := map[string][]any{
+			"/fleet-a": {float64(42)},
+			"/fleet-b": {float64(43)},
+		}
 		for _, path := range []string{"/fleet-a", "/fleet-b"} {
 			body, ok := paths[path]
 			require.True(t, ok, "expected a webhook POST to %s", path)
@@ -487,7 +505,7 @@ func TestNewActivityHostWebhook(t *testing.T) {
 			require.NoError(t, json.Unmarshal(*body.Details, &details))
 			assert.Equal(t, "host act", details["name"])
 			// host_ids is injected into the webhook payload at fire time...
-			assert.Equal(t, []any{float64(42), float64(43)}, details["host_ids"])
+			assert.Equal(t, wantHostIDs[path], details["host_ids"])
 		}
 		// ...but not into the stored details, which stay lean for API/feed
 		// responses.
@@ -504,7 +522,7 @@ func TestNewActivityHostWebhook(t *testing.T) {
 				mockUserProvider: &mockUserProvider{},
 				mockHostProvider: &mockHostProvider{},
 				hostWebhooks: []activity.HostActivitiesWebhook{
-					{DestinationURL: srv.URL + "/single-host"},
+					{DestinationURL: srv.URL + "/single-host", HostIDs: []uint{7}},
 				},
 			},
 		}
@@ -537,7 +555,7 @@ func TestNewActivityHostWebhook(t *testing.T) {
 				mockUserProvider: &mockUserProvider{},
 				mockHostProvider: &mockHostProvider{},
 				hostWebhooks: []activity.HostActivitiesWebhook{
-					{DestinationURL: srv.URL + "/nested"},
+					{DestinationURL: srv.URL + "/nested", HostIDs: []uint{5}},
 				},
 			},
 		}
@@ -559,6 +577,68 @@ func TestNewActivityHostWebhook(t *testing.T) {
 			// Only top-level keys count: the nested host_id must not
 			// suppress the injection.
 			assert.Equal(t, []any{float64(5)}, details["host_ids"])
+		}
+	})
+
+	t.Run("stored empty host_ids is replaced with the delivery's list", func(t *testing.T) {
+		ds := &newActivityMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+				hostWebhooks: []activity.HostActivitiesWebhook{
+					{DestinationURL: srv.URL + "/stored-empty", HostIDs: []uint{11}},
+				},
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		act := hostActivityStoredEmptyIDs{
+			hostActivity:  hostActivity{simpleActivity: simpleActivity{Name: "stored empty"}, hostIDs: []uint{11}},
+			StoredHostIDs: []uint{},
+		}
+		require.NoError(t, svc.NewActivity(t.Context(), user, act))
+
+		select {
+		case <-time.After(3 * time.Second):
+			t.Fatal("timeout waiting for host activities webhook")
+		case p := <-received:
+			require.Equal(t, "/stored-empty", p.path)
+			var details map[string]any
+			require.NoError(t, json.Unmarshal(*p.body.Details, &details))
+			// The stored empty list identifies nothing, so the delivery's
+			// list wins.
+			assert.Equal(t, []any{float64(11)}, details["host_ids"])
+		}
+	})
+
+	t.Run("malformed stored host_ids is replaced with the delivery's list", func(t *testing.T) {
+		ds := &newActivityMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+				hostWebhooks: []activity.HostActivitiesWebhook{
+					{DestinationURL: srv.URL + "/stored-malformed", HostIDs: []uint{13}},
+				},
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		act := hostActivityMalformedIDs{
+			hostActivity:  hostActivity{simpleActivity: simpleActivity{Name: "stored malformed"}, hostIDs: []uint{13}},
+			StoredHostIDs: "not-a-list",
+		}
+		require.NoError(t, svc.NewActivity(t.Context(), user, act))
+
+		select {
+		case <-time.After(3 * time.Second):
+			t.Fatal("timeout waiting for host activities webhook")
+		case p := <-received:
+			require.Equal(t, "/stored-malformed", p.path)
+			var details map[string]any
+			require.NoError(t, json.Unmarshal(*p.body.Details, &details))
+			assert.Equal(t, []any{float64(13)}, details["host_ids"])
 		}
 	})
 
@@ -650,7 +730,7 @@ func TestNewActivityHostWebhook(t *testing.T) {
 					DestinationURL: srv.URL + "/global",
 				},
 				hostWebhooks: []activity.HostActivitiesWebhook{
-					{DestinationURL: srv.URL + "/fleet-c"},
+					{DestinationURL: srv.URL + "/fleet-c", HostIDs: []uint{9}},
 				},
 			},
 		}

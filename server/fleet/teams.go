@@ -310,10 +310,17 @@ type HostActivitiesWebhookLookup interface {
 	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
 }
 
-// ResolveHostActivitiesWebhooks returns the enabled host-activities webhook
-// settings of the fleets the given hosts belong to, deduplicated by fleet and
-// by destination URL so one activity yields at most one delivery per endpoint.
-func ResolveHostActivitiesWebhooks(ctx context.Context, ds HostActivitiesWebhookLookup, hostIDs []uint) ([]HostActivitiesWebhookSettings, error) {
+// HostActivitiesWebhookDelivery is one fleet's resolved host-activities
+// webhook destination together with the subset of the activity's hosts that
+// belong to that fleet. Payloads are scoped this way so a delivery is always
+// exactly one fleet's subscription — it never mixes fleets' host IDs.
+type HostActivitiesWebhookDelivery struct {
+	DestinationURL string
+	HostIDs        []uint
+}
+
+// ResolveHostActivitiesWebhooks returns one enabled host-activities webhook delivery per fleet the given hosts belong to.
+func ResolveHostActivitiesWebhooks(ctx context.Context, ds HostActivitiesWebhookLookup, hostIDs []uint) ([]HostActivitiesWebhookDelivery, error) {
 	if len(hostIDs) == 0 {
 		return nil, nil
 	}
@@ -323,30 +330,34 @@ func ResolveHostActivitiesWebhooks(ctx context.Context, ds HostActivitiesWebhook
 		return nil, err
 	}
 
-	// Dedup by fleet: team ID 0 is reserved for "No fleet" so a nil TeamID maps
-	// to key 0 without colliding with a real fleet.
-	seenTeamIDs := make(map[uint]struct{})
-	seenURLs := make(map[string]struct{})
-	var settings []HostActivitiesWebhookSettings
+	// fleetKeys keeps delivery order deterministic (map iteration is
+	// randomized). Key 0 is reserved for "Unassigned" hosts (nil TeamID), so
+	// it can't collide with a real fleet.
+	fleetKeys := make([]uint, 0, len(hosts))
+	hostsByFleet := make(map[uint][]uint)
 	for _, host := range hosts {
-		var teamKey uint
+		var fleetKey uint
 		if host.TeamID != nil {
-			teamKey = *host.TeamID
+			fleetKey = *host.TeamID
 		}
-		if _, ok := seenTeamIDs[teamKey]; ok {
-			continue
+		if _, ok := hostsByFleet[fleetKey]; !ok {
+			fleetKeys = append(fleetKeys, fleetKey)
 		}
-		seenTeamIDs[teamKey] = struct{}{}
+		hostsByFleet[fleetKey] = append(hostsByFleet[fleetKey], host.ID)
+	}
 
+	// Resolve each fleet's webhook into its own delivery.
+	var deliveries []HostActivitiesWebhookDelivery
+	for _, fleetKey := range fleetKeys {
 		var webhook *HostActivitiesWebhookSettings
-		if teamKey == 0 {
+		if fleetKey == 0 {
 			config, err := ds.DefaultTeamConfig(ctx)
 			if err != nil {
 				return nil, err
 			}
 			webhook = config.WebhookSettings.HostActivitiesWebhook
 		} else {
-			team, err := ds.TeamLite(ctx, teamKey)
+			team, err := ds.TeamLite(ctx, fleetKey)
 			if err != nil {
 				// The host's fleet may have been deleted between the activity and
 				// this lookup; skip rather than fail the activity creation.
@@ -358,16 +369,16 @@ func ResolveHostActivitiesWebhooks(ctx context.Context, ds HostActivitiesWebhook
 			webhook = team.Config.WebhookSettings.HostActivitiesWebhook
 		}
 
-		if webhook != nil && webhook.Enable && webhook.DestinationURL != "" {
-			if _, dup := seenURLs[webhook.DestinationURL]; dup {
-				continue
-			}
-			seenURLs[webhook.DestinationURL] = struct{}{}
-			settings = append(settings, *webhook)
+		if webhook == nil || !webhook.Enable || webhook.DestinationURL == "" {
+			continue
 		}
+		deliveries = append(deliveries, HostActivitiesWebhookDelivery{
+			DestinationURL: webhook.DestinationURL,
+			HostIDs:        hostsByFleet[fleetKey],
+		})
 	}
 
-	return settings, nil
+	return deliveries, nil
 }
 
 // DefaultTeam represents the limited team information returned for team ID 0

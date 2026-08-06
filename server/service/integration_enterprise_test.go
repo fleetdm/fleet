@@ -3477,8 +3477,8 @@ func (s *integrationEnterpriseTestSuite) TestFailingPolicyAutomationFiresHostAct
 }
 
 // A failing GLOBAL policy batch spanning hosts of two fleets fires each
-// fleet's host activities webhook once, and each delivery carries the
-// complete batch host_ids list.
+// fleet's host activities webhook once, and each delivery carries only the
+// host IDs belonging to that fleet.
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyAutomationFiresEachFleetsHostActivitiesWebhook() {
 	t := s.T()
 	ctx := t.Context()
@@ -3569,7 +3569,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyAutomationFiresEachFlee
 		slog.New(slog.DiscardHandler), activitySvc,
 	))
 
-	// One delivery per fleet destination, each carrying the complete batch.
+	// One delivery per fleet destination, each scoped to that fleet's hosts.
 	deliveries := make(map[string]hostActivitiesWebhookPayload, 2)
 	for range 2 {
 		select {
@@ -3580,6 +3580,10 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyAutomationFiresEachFlee
 		}
 	}
 	require.Len(t, deliveries, 2)
+	wantHostIDs := map[string][]uint{
+		"/fleet-a": {hostA.ID},
+		"/fleet-b": {hostB.ID},
+	}
 	for _, path := range []string{"/fleet-a", "/fleet-b"} {
 		body, ok := deliveries[path]
 		require.True(t, ok, "expected a webhook POST to %s", path)
@@ -3590,7 +3594,8 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyAutomationFiresEachFlee
 		}
 		require.NoError(t, json.Unmarshal(body.Details, &details))
 		assert.Equal(t, gpol.ID, details.PolicyID)
-		assert.ElementsMatch(t, []uint{hostA.ID, hostB.ID}, details.HostIDs)
+		// Each fleet's endpoint only sees its own hosts.
+		assert.Equal(t, wantHostIDs[path], details.HostIDs)
 	}
 	// No third delivery: one request per destination, not per host.
 	select {
