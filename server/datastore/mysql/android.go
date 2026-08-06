@@ -577,6 +577,128 @@ UPDATE host_mdm
 	return rows > 0, nil
 }
 
+// GetAndroidPubSubDedupState returns the last-processed Google Pub/Sub messageId
+// and AMAPI event timestamp recorded for the host, used by the AMAPI notification
+// handler to drop duplicate (same messageId) and stale (older timestamp)
+// deliveries. When the android_devices row exists but nothing has been recorded
+// yet, it returns an empty messageId and nil eventTime with no error. When no
+// android_devices row exists for the host, it returns a NotFound error.
+func (ds *Datastore) GetAndroidPubSubDedupState(ctx context.Context, hostID uint) (messageID string, eventTime *time.Time, err error) {
+	var state struct {
+		MessageID *string    `db:"last_pubsub_message_id"`
+		EventTime *time.Time `db:"last_pubsub_event_time"`
+	}
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &state,
+		`SELECT last_pubsub_message_id, last_pubsub_event_time FROM android_devices WHERE host_id = ?`, hostID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", nil, ctxerr.Wrap(ctx, notFound("AndroidDevice").WithID(hostID), "get android pubsub dedup state")
+	case err != nil:
+		return "", nil, ctxerr.Wrap(ctx, err, "get android pubsub dedup state")
+	}
+	return ptr.ValOrZero(state.MessageID), state.EventTime, nil
+}
+
+// SetAndroidPubSubDedupState records the last-processed Google Pub/Sub messageId
+// and AMAPI event timestamp for the host after a notification is handled
+// successfully. Returns a NotFound error when no android_devices row matches
+// hostID, so a missing row surfaces (via the caller's log) instead of silently
+// dropping dedup state.
+//
+// An empty messageID or nil eventTime leaves that column at its previous value
+// rather than clearing it. A notification that carries no usable timestamp says
+// nothing about ordering, so overwriting the recorded baseline with NULL would
+// disable staleness protection for the host until some later message happened to
+// carry a parseable timestamp. The columns only ever move forward.
+func (ds *Datastore) SetAndroidPubSubDedupState(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error {
+	// clientFoundRows is set on the DSN, so RowsAffected below counts matched rows, not
+	// changed rows — a write that preserves both columns still reports 1 for an existing row.
+	result, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE android_devices
+	SET last_pubsub_message_id = IF(? = '', last_pubsub_message_id, ?),
+		last_pubsub_event_time = CASE
+			WHEN ? IS NULL THEN last_pubsub_event_time
+			WHEN last_pubsub_event_time IS NULL OR ? > last_pubsub_event_time THEN ?
+			ELSE last_pubsub_event_time
+		END
+	WHERE host_id = ?`,
+		messageID, messageID, eventTime, eventTime, eventTime, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set android pubsub dedup state")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get rows affected for set android pubsub dedup state")
+	}
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("AndroidDevice").WithID(hostID), "set android pubsub dedup state")
+	}
+	return nil
+}
+
+// SetAndroidHostEnrolled flips host_mdm back to enrolled for an Android host that
+// is currently marked unenrolled. This recovers a host that was wrongly unenrolled
+// by an out-of-order DELETED delivery: a live device sending a STATUS_REPORT is by
+// definition still managed. It is a no-op (returns false) when the host is already
+// enrolled or has no host_mdm row, so it is safe to call on every STATUS_REPORT. It
+// intentionally does not re-run enrollment side effects (setup experience, cert
+// templates, team assignment) — those belong to the ENROLLMENT path.
+//
+// It preserves the existing is_personal_enrollment classification rather than
+// recomputing it: the triggering STATUS_REPORT payload may omit Ownership, which
+// would otherwise misclassify a COBO (company-owned) host as personal.
+func (ds *Datastore) SetAndroidHostEnrolled(ctx context.Context, hostID uint) (bool, error) {
+	// Fast path: this is called on every STATUS_REPORT, but almost always the host is
+	// already enrolled and there is nothing to do. Check that with a cheap read before
+	// opening a write transaction. The transaction below re-reads authoritatively, so a
+	// stale replica read here at worst causes a redundant (still-correct) transaction or
+	// defers recovery to the next report.
+	var enrolled bool
+	switch err := sqlx.GetContext(ctx, ds.reader(ctx), &enrolled,
+		`SELECT enrolled FROM host_mdm WHERE host_id = ?`, hostID); {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "check android host_mdm enrolled state")
+	case enrolled:
+		return false, nil
+	}
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "set android host enrolled get app config")
+	}
+
+	var didEnroll bool
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var current struct {
+			Enrolled             bool `db:"enrolled"`
+			IsPersonalEnrollment bool `db:"is_personal_enrollment"`
+		}
+		err := sqlx.GetContext(ctx, tx, &current,
+			`SELECT enrolled, is_personal_enrollment FROM host_mdm WHERE host_id = ?`, hostID)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			// No host_mdm row yet; leave enrollment to the ENROLLMENT path.
+			return nil
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "get android host_mdm enrolled state")
+		case current.Enrolled:
+			// Already enrolled: nothing to recover.
+			return nil
+		}
+		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, !current.IsPersonalEnrollment, true, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "re-enroll android host_mdm info")
+		}
+		didEnroll = true
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return didEnroll, nil
+}
+
 func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, companyOwned, enrolled bool, hostID uint) error {
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)

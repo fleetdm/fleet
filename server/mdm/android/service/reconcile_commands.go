@@ -131,8 +131,10 @@ func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client an
 			}
 			errCode := googleStatusCode(googleStatusCodeNotFound)
 			errMsg := "Fleet did not receive a result for this command and Google no longer has a record of it."
+			// nil dedup recorder: this path is driven by the cron, not a Pub/Sub notification, so there is
+			// no messageId or publish time to record.
 			if err := setAndroidCommandTerminalState(ctx, ds, newActivityFn, cmd,
-				string(android.MDMAndroidCommandStatusError), &errCode, &errMsg); err != nil {
+				string(android.MDMAndroidCommandStatusError), &errCode, &errMsg, nil); err != nil {
 				logger.ErrorContext(ctx, "failed to fail android command with unknown operation",
 					"command_uuid", cmd.CommandUUID, "err", err)
 				ctxerr.Handle(ctx, err)
@@ -155,7 +157,7 @@ func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client an
 
 		default:
 			status, errCode, errMsg := androidOperationTerminalState(op)
-			if err := setAndroidCommandTerminalState(ctx, ds, newActivityFn, cmd, status, errCode, errMsg); err != nil {
+			if err := setAndroidCommandTerminalState(ctx, ds, newActivityFn, cmd, status, errCode, errMsg, nil); err != nil {
 				logger.ErrorContext(ctx, "failed to apply reconciled android command status",
 					"command_uuid", cmd.CommandUUID, "status", status, "err", err)
 				ctxerr.Handle(ctx, err)
