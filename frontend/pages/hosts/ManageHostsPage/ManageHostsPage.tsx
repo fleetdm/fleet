@@ -1065,21 +1065,10 @@ const ManageHostsPage = ({
 
       let sort = sortBy;
       if (sortHeader) {
-        let direction = sortDirection;
-        if (
-          sortHeader === "last_restarted_at" ||
-          sortHeader === "last_enrolled_at"
-        ) {
-          if (sortDirection === "asc") {
-            direction = "desc";
-          } else {
-            direction = "asc";
-          }
-        }
         sort = [
           {
             key: sortHeader,
-            direction: direction || DEFAULT_SORT_DIRECTION,
+            direction: sortDirection || DEFAULT_SORT_DIRECTION,
           },
         ];
       } else if (!sortBy.length) {
