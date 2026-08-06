@@ -23,7 +23,6 @@ import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import Pagination from "components/Pagination";
 
