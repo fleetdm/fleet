@@ -108,6 +108,10 @@ A patch policy's `query` automatically updates. Hosts will fail this policy if t
 
 To automatically install the app when this policy fails, you can add an automation by setting `install_software` to `true`.
 
+To notify the end user before the app is updated, set `notify_before_patching` to `true`. Fleet shows a notification listing the apps that will be updated, waits 1 hour, then installs. A reminder is shown 5 minutes before the install, and anything the end user updates themselves in the meantime is skipped. Nothing is installed until the end user has been notified and the hour has elapsed. Also, `continuous_automations_enabled` is automatically set to `true`.
+
+`notify_before_patching` requires macOS and [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Patch policies targeting other platforms install without notifying.
+
 #### Automations
 
 ##### Install software
@@ -203,6 +207,13 @@ policies:
   fleet_maintained_app_slug: zoom/darwin
   continuous_automations_enabled: true
   install_software: true
+- name: 1Password up to date
+  description: Outdated software might introduce security vulnerabilities or compatibility issues.
+  resolution: Install the latest version from self-service.
+  type: patch
+  fleet_maintained_app_slug: 1password/darwin
+  install_software: true
+  notify_before_patching: true
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `fleets/fleet-name.yml`, or `fleet/unassigned.yml`
