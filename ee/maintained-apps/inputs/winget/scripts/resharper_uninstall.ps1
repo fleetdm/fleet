@@ -1,9 +1,6 @@
-# Removes JetBrains ReSharper via the uninstall entries in the registry.
-#
-# ReSharper registers one entry per Visual Studio instance, so every match is
-# removed. The uninstaller is the JetBrains dotUltimate installer, which takes
-# /Silent=True rather than the NSIS /S the JetBrains IDE FMAs use. ReSharper C++
-# and the ReSharper SDK are separate products and are excluded.
+# Removes JetBrains ReSharper via its registry uninstall entries. ReSharper
+# registers one per Visual Studio instance, so every match is removed, and the
+# JetBrains uninstaller takes /Silent=True rather than the NSIS /S.
 # https://resharper-support.jetbrains.com/hc/en-us/articles/207241485
 
 $softwareNameLike = "JetBrains ReSharper*"
@@ -23,6 +20,7 @@ try {
     -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
 
+# ReSharper C++ and the ReSharper SDK are separate products.
 [array]$selected = $uninstallKeys | Where-Object {
     $_.DisplayName -and
     $_.DisplayName -like $softwareNameLike -and
@@ -37,7 +35,6 @@ if ($selected.Count -eq 0) {
     Exit 0
 }
 
-# Best-effort: stop Visual Studio so the uninstaller doesn't fail on locked files.
 Stop-Process -Name "devenv" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "JetBrains.Etw.Collector.Host" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "JetBrains.Platform.Satellite" -Force -ErrorAction SilentlyContinue
@@ -45,8 +42,7 @@ Stop-Process -Name "JetBrains.Platform.Satellite" -Force -ErrorAction SilentlyCo
 foreach ($entry in $selected) {
     $uninstallCommand = $entry.UninstallString
 
-    # Split the uninstall string into exe + args, handling quoted and unquoted
-    # paths (JetBrains stores unquoted paths that contain spaces).
+    # JetBrains stores unquoted paths that contain spaces.
     $exePath = ""
     $existingArgs = ""
     if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {

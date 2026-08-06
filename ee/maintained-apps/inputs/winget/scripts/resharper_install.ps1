@@ -1,18 +1,14 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
-# ReSharper is a Visual Studio extension. The installer is a web bootstrapper that
-# downloads the product packages, so this can take a while. /PerMachine=True keeps
-# the install out of the SYSTEM profile, /SkipEtwService=True avoids the UAC prompt
-# JetBrains documents as unavoidable, and /VsVersion names the Visual Studio
-# instances to integrate into.
+# ReSharper is a Visual Studio extension installed by a web bootstrapper.
+# /PerMachine=True keeps it out of the SYSTEM profile, /SkipEtwService=True avoids
+# an unavoidable UAC prompt, /VsVersion picks the VS instances to integrate into.
 # https://resharper-support.jetbrains.com/hc/en-us/articles/207241485
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
-# Overall cap stays under production's 1 hour limit for install scripts. The wait
-# below gives up as soon as the installer is no longer running, so a failed
-# install reports its log well inside the validator's 10 minute script cap.
+# Under production's 1 hour cap; the wait below also gives up early.
 $registryTimeoutSeconds = 3300
 
 $uninstallPaths = @(
@@ -70,16 +66,16 @@ $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 Write-Host "Installer exit code: $exitCode"
 
-# Wait for the uninstall registry entry, which is what osquery reports. The
-# bootstrapper can outlive its own exit code, so keep waiting while an installer
-# process is still running and give up once none is left.
+# The bootstrapper can outlive its own exit code, so poll for the uninstall
+# registry entry (what osquery reports). Sampling the process before the sleep
+# leaves an interval of grace for the entry to be written after it exits.
 $deadline = (Get-Date).AddSeconds($registryTimeoutSeconds)
 $entries = @(Get-ReSharperEntries)
 while ($entries.Count -eq 0 -and (Get-Date) -lt $deadline) {
-  $installerRunning = @(Get-Process -Name 'JetBrains.Platform.Installer*' -ErrorAction SilentlyContinue).Count -gt 0
+  $installerWasRunning = @(Get-Process -Name 'JetBrains.Platform.Installer*' -ErrorAction SilentlyContinue).Count -gt 0
   Start-Sleep -Seconds 10
   $entries = @(Get-ReSharperEntries)
-  if ($entries.Count -eq 0 -and -not $installerRunning) { break }
+  if ($entries.Count -eq 0 -and -not $installerWasRunning) { break }
 }
 
 if ($entries.Count -eq 0) {
