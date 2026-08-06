@@ -1,5 +1,5 @@
-import { Parser } from "node-sql-parser";
 import { intersection, isPlainObject, uniq } from "lodash";
+import { astify } from "utilities/osquery_sql_parser";
 import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {
   MACADMINS_EXTENSION_TABLES,
@@ -7,8 +7,6 @@ import {
   QueryablePlatform,
 } from "interfaces/platform";
 import { TableSchemaPlatform } from "interfaces/osquery_table";
-
-const parser = new Parser();
 
 type IAstNode = Record<string | number | symbol, unknown>;
 
@@ -75,7 +73,7 @@ const filterCompatiblePlatforms = (
   return QUERYABLE_PLATFORMS.filter((p) => compatiblePlatforms.includes(p));
 };
 
-export const parseSqlTables = (
+const parseSqlTables = (
   sqlString: string,
   includeVirtualTables = false
 ): string[] => {
@@ -136,89 +134,54 @@ export const parseSqlTables = (
     }
   };
 
-  try {
-    const sqlTree = parser.astify(sqlString, { database: "sqlite" }) as unknown;
-    _visit(sqlTree as IAstNode, _callback);
+  const sqlTree = astify(sqlString);
+  _visit(sqlTree as IAstNode, _callback);
 
-    // Remove virtual tables unless includeVirtualTables is true.
-    if (virtualTables.length && !includeVirtualTables) {
-      results = results.filter((r: string) => !virtualTables.includes(r));
-    }
-
-    // Always remove function tables.
-    if (functionTables.length) {
-      results = results.filter((r: string) => !functionTables.includes(r));
-    }
-
-    // Remove duplicates.
-    results = uniq(results);
-
-    return results;
-  } catch (err) {
-    // console.log(`sqlite-parser error: ${err}\n\n${sqlString}`);
-
-    throw err;
+  // Remove virtual tables unless includeVirtualTables is true.
+  if (virtualTables.length && !includeVirtualTables) {
+    results = results.filter((r: string) => !virtualTables.includes(r));
   }
+
+  // Always remove function tables.
+  if (functionTables.length) {
+    results = results.filter((r: string) => !functionTables.includes(r));
+  }
+
+  // Remove duplicates.
+  return uniq(results);
 };
 
 export const checkTable = (
   sqlString = "",
   includeVirtualTables = false
 ): { tables: string[] | null; error: Error | null } => {
-  let sqlTables: string[] | undefined;
   try {
-    sqlTables = parseSqlTables(sqlString, includeVirtualTables);
+    return {
+      tables: parseSqlTables(sqlString, includeVirtualTables),
+      error: null,
+    };
   } catch (err) {
     return { tables: null, error: new Error(`${err}`) };
   }
-
-  if (sqlTables === undefined) {
-    return {
-      tables: null,
-      error: new Error(
-        "Unexpected error checking table names: sqlTables are undefined"
-      ),
-    };
-  }
-
-  return { tables: sqlTables, error: null };
 };
 
 export const checkPlatformCompatibility = (
   sqlString: string,
   includeVirtualTables = false
 ): { platforms: QueryablePlatform[] | null; error: Error | null } => {
-  let sqlTables: string[] | undefined;
   try {
-    // get tables from str
-    sqlTables = parseSqlTables(sqlString, includeVirtualTables);
-  } catch (err) {
-    return { platforms: null, error: new Error(`${err}`) };
-  }
-
-  if (sqlTables === undefined) {
-    return {
-      platforms: null,
-      error: new Error(
-        "Unexpected error checking platform compatibility: sqlTables are undefined"
-      ),
-    };
-  }
-
-  try {
-    // use tables to get platforms
-    const platforms = filterCompatiblePlatforms(sqlTables);
-    return { platforms, error: null };
+    const sqlTables = parseSqlTables(sqlString, includeVirtualTables);
+    return { platforms: filterCompatiblePlatforms(sqlTables), error: null };
   } catch (err) {
     return { platforms: null, error: new Error(`${err}`) };
   }
 };
 
+// Keywords offered by the SQL editor's autocomplete. Restricted to what
+// osquery accepts (SELECT statements only) so completions never produce a
+// query that fails validation.
 export const sqlKeyWords = [
   "select",
-  "insert",
-  "update",
-  "delete",
   "from",
   "where",
   "and",
@@ -230,6 +193,7 @@ export const sqlKeyWords = [
   "offset",
   "having",
   "like",
+  "escape",
   "using",
   "in",
   "distinct",
@@ -251,19 +215,31 @@ export const sqlKeyWords = [
   "desc",
   "asc",
   "union",
+  "not",
+  "null",
+  "inner",
+  "cross",
+  "natural",
+  "with",
+  "values",
+];
+
+// Keywords recognized by the SQL editor's syntax highlighting. Includes
+// DDL/DML words osquery doesn't execute, so pasted non-SELECT SQL still
+// highlights sensibly instead of rendering keywords as plain identifiers.
+export const sqlHighlightKeywords = [
+  ...sqlKeyWords,
+  "insert",
+  "update",
+  "delete",
   "create",
   "table",
   "primary",
   "key",
   "if",
   "foreign",
-  "not",
   "references",
   "default",
-  "null",
-  "inner",
-  "cross",
-  "natural",
   "database",
   "drop",
   "grant",
@@ -312,11 +288,3 @@ export const sqlDataTypes = [
   "number",
   "integer",
 ];
-
-export default {
-  checkPlatformCompatibility,
-  checkTable,
-  sqlKeyWords,
-  sqlBuiltinFunctions,
-  sqlDataTypes,
-};
