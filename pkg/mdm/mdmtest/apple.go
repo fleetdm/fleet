@@ -424,9 +424,17 @@ func (c *TestAppleMDMClient) Reenroll() error {
 }
 
 func (c *TestAppleMDMClient) UserEnroll() error {
+	c.GenerateUserIdentity()
+	return c.UserTokenUpdate()
+}
+
+// GenerateUserIdentity assigns a new random identity to the simulated user of
+// the user channel. Callers that retry the enrollment should generate the
+// identity once and retry UserTokenUpdate, otherwise each attempt enrolls a
+// distinct user.
+func (c *TestAppleMDMClient) GenerateUserIdentity() {
 	c.UserUUID = strings.ToUpper(uuid.New().String())
 	c.Username = "fleetie" + randStr(5)
-	return c.UserTokenUpdate()
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
@@ -591,6 +599,8 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	<string>%s</string>
 	<key>VERSION</key>
 	<string>22A5316k</string>
+	<key>SOFTWARE_UPDATE_DEVICE_ID</key>
+	<string>bogus-OTA-update-id</string>
 </dict>
 </plist>`, c.Model, c.SerialNumber, c.UUID))
 

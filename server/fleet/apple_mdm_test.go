@@ -235,6 +235,7 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 	cases := []struct {
 		name        string
 		declType    string
+		identifier  string
 		wantErr     bool
 		errContains string
 	}{
@@ -278,15 +279,44 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 			name:        "non-configuration declaration not allowed",
 			declType:    "com.apple.activation.simple",
 			wantErr:     true,
-			errContains: "Only configuration declarations (com.apple.configuration.) are supported.",
+			errContains: "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported.",
+		},
+		{
+			name:     "management declaration allowed",
+			declType: "com.apple.management.organization-info",
+			wantErr:  false,
+		},
+		{
+			name:     "management properties declaration allowed",
+			declType: "com.apple.management.properties",
+			wantErr:  false,
+		},
+		{
+			name:        "identifier over Apple's 64 octet limit",
+			declType:    "com.apple.configuration.passcode.settings",
+			identifier:  strings.Repeat("a", 65),
+			wantErr:     true,
+			errContains: "Identifier must be 64 bytes or fewer.",
+		},
+		{
+			// octets, not characters: 22 three-byte runes exceed 64
+			name:        "multibyte identifier counted in octets",
+			declType:    "com.apple.configuration.passcode.settings",
+			identifier:  strings.Repeat("日", 22),
+			wantErr:     true,
+			errContains: "Identifier must be 64 bytes or fewer.",
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			identifier := c.identifier
+			if identifier == "" {
+				identifier = "test-identifier"
+			}
 			decl := &MDMAppleRawDeclaration{
 				Type:       c.declType,
-				Identifier: "test-identifier",
+				Identifier: identifier,
 			}
 
 			err := decl.ValidateUserProvided()
@@ -985,6 +1015,86 @@ func TestValidateNoSecretsInProfileName(t *testing.T) {
 	}
 }
 
+func TestIsMacIdentifier(t *testing.T) {
+	cases := []struct {
+		product string
+		want    bool
+		wantErr bool
+	}{
+		// --- MacBookPro ---
+		{product: "MacBookPro16,1", want: true},
+		{product: "MacBookPro16,4", want: true},
+		{product: "MacBookPro17,1", want: true},
+		{product: "MacBookPro18,3", want: true},
+		{product: "MacBookPro18,4", want: true},
+
+		// --- MacBookAir ---
+		{product: "MacBookAir9,1", want: true},
+		{product: "MacBookAir10,1", want: true},
+		{product: "MacBookAir14,2", want: true},
+
+		// --- Macmini ---
+		{product: "Macmini8,1", want: true},
+		{product: "Macmini9,1", want: true},
+		{product: "Macmini9,2", want: true},
+
+		// --- iMac ---
+		{product: "iMac20,1", want: true},
+		{product: "iMac20,2", want: true},
+		{product: "iMac21,1", want: true},
+		{product: "iMac21,2", want: true},
+
+		// --- MacBook (no suffix) — all x86, line discontinued before Apple Silicon ---
+		{product: "MacBook10,1", want: true},
+		{product: "MacBook9,1", want: true},
+
+		// --- iMacPro — all x86, discontinued before Apple Silicon ---
+		{product: "iMacPro1,1", want: true},
+
+		// --- MacPro — old numbering, all x86 ---
+		{product: "MacPro7,1", want: true},
+		{product: "MacPro6,1", want: true},
+
+		// --- Mac (bare prefix) — unified Apple Silicon naming ---
+		{product: "Mac13,1", want: true},
+		{product: "Mac13,2", want: true},
+		{product: "Mac14,8", want: true},
+		{product: "Mac16,10", want: true},
+
+		// --- Non-Mac Apple devices — return false without error ---
+		{product: "iPhone15,2", want: false},
+		{product: "iPhone14,3", want: false},
+		{product: "iPad13,18", want: false},
+		{product: "iPodTouch9,1", want: false},
+
+		// --- Virtual Mac machines ---
+		{product: "VirtualMac2,1", want: true},
+
+		// --- Error cases ---
+		// Empty string
+		{product: "", wantErr: true},
+		// No comma separator
+		{product: "MacBookPro18", wantErr: true},
+		// Garbage input
+		{product: "not-a-model", wantErr: true},
+		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
+		{product: "AppleTV6,2", wantErr: true},
+		{product: "AppleTV14,1", wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.product, func(t *testing.T) {
+			got, _, _, err := IsMacIdentifier(tc.product)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.want, got)
+			}
+		})
+	}
+}
+
 func TestIsMacAppleSilicon(t *testing.T) {
 	cases := []struct {
 		product string
@@ -1059,6 +1169,7 @@ func TestIsMacAppleSilicon(t *testing.T) {
 		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
 		{product: "AppleTV6,2", wantErr: true},
 		{product: "AppleTV14,1", wantErr: true},
+		{product: "VirtualMac2,1", wantErr: true},
 	}
 
 	for _, tc := range cases {
@@ -1072,4 +1183,132 @@ func TestIsMacAppleSilicon(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetRawActivationValues(t *testing.T) {
+	t.Run("valid activation", func(t *testing.T) {
+		raw, err := GetRawActivationValues([]byte(`{
+			"Type": "com.apple.activation.simple",
+			"Identifier": "com.fleet.act.passcode",
+			"Payload": {
+				"StandardConfigurations": ["com.fleet.cfg.passcode"],
+				"Predicate": "@status(os.version.major) >= 15"
+			}
+		}`))
+		require.NoError(t, err)
+		require.Equal(t, "com.apple.activation.simple", raw.Type)
+		require.Equal(t, "com.fleet.act.passcode", raw.Identifier)
+		require.Equal(t, []string{"com.fleet.cfg.passcode"}, raw.Payload.StandardConfigurations)
+	})
+
+	t.Run("malformed JSON", func(t *testing.T) {
+		_, err := GetRawActivationValues([]byte(`{"Type":`))
+		require.Error(t, err)
+		require.ErrorContains(t, err, "should include valid JSON")
+	})
+}
+
+func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
+	const configIdentifier = "com.fleet.cfg.passcode"
+
+	cases := []struct {
+		name        string
+		activation  MDMAppleRawActivation
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid activation",
+			activation: rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
+				configIdentifier),
+		},
+		{
+			// Fleet accepts the whole com.apple.activation.* namespace so a new
+			// Apple activation type doesn't need a Fleet change.
+			name: "unknown activation type under the activation prefix is allowed",
+			activation: rawActivation("com.apple.activation.something-new", "com.fleet.act.passcode",
+				configIdentifier),
+		},
+		{
+			name:        "missing type",
+			activation:  rawActivation("", "com.fleet.act.passcode", configIdentifier),
+			wantErr:     true,
+			errContains: "Activation must include a Type.",
+		},
+		{
+			name:        "whitespace type",
+			activation:  rawActivation("      ", "com.fleet.act.passcode", configIdentifier),
+			wantErr:     true,
+			errContains: "Activation must include a Type.",
+		},
+		{
+			name: "configuration type is not an activation",
+			activation: rawActivation("com.apple.configuration.passcode.settings", "com.fleet.act.passcode",
+				configIdentifier),
+			wantErr:     true,
+			errContains: "Only activation declarations (com.apple.activation.) are supported.",
+		},
+		{
+			name:        "missing identifier",
+			activation:  rawActivation("com.apple.activation.simple", "   ", configIdentifier),
+			wantErr:     true,
+			errContains: "Activation must include an Identifier.",
+		},
+		{
+			name:        "identifier over Apple's 64 octet limit",
+			activation:  rawActivation("com.apple.activation.simple", strings.Repeat("a", 65), configIdentifier),
+			wantErr:     true,
+			errContains: "Identifier must be 64 bytes or fewer.",
+		},
+		{
+			name:        "no configurations referenced",
+			activation:  rawActivation("com.apple.activation.simple", "com.fleet.act.passcode"),
+			wantErr:     true,
+			errContains: "Activation must reference the configuration profile it's uploaded with.",
+		},
+		{
+			name: "more than one configuration referenced",
+			activation: rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
+				configIdentifier, "com.fleet.cfg.firewall"),
+			wantErr:     true,
+			errContains: "Activation can only reference one configuration profile.",
+		},
+		{
+			name: "references a different configuration",
+			activation: rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
+				"com.fleet.cfg.firewall"),
+			wantErr:     true,
+			errContains: `Expected "com.fleet.cfg.passcode", got "com.fleet.cfg.firewall".`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := c.activation.ValidateUserProvided(configIdentifier)
+			if c.wantErr {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+
+	t.Run("all problems are reported at once", func(t *testing.T) {
+		act := rawActivation("com.apple.configuration.passcode.settings", "")
+		err := act.ValidateUserProvided(configIdentifier)
+		require.Error(t, err)
+
+		var invalid *InvalidArgumentError
+		require.ErrorAs(t, err, &invalid)
+		require.Len(t, invalid.Errors, 3)
+	})
+}
+
+func rawActivation(declType, identifier string, standardConfigurations ...string) MDMAppleRawActivation {
+	var act MDMAppleRawActivation
+	act.Type = declType
+	act.Identifier = identifier
+	act.Payload.StandardConfigurations = standardConfigurations
+	return act
 }

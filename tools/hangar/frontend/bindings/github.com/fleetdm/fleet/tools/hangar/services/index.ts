@@ -7,12 +7,15 @@ import * as DialogService from "./dialogservice.js";
 import * as FleetctlService from "./fleetctlservice.js";
 import * as GitService from "./gitservice.js";
 import * as GitopsService from "./gitopsservice.js";
+import * as MdmAssetsService from "./mdmassetsservice.js";
 import * as PerfConfigService from "./perfconfigservice.js";
 import * as PerfService from "./perfservice.js";
 import * as ProcessService from "./processservice.js";
+import * as ScepService from "./scepservice.js";
 import * as SettingsService from "./settingsservice.js";
 import * as TrayService from "./trayservice.js";
 import * as TroubleshootService from "./troubleshootservice.js";
+import * as TufService from "./tufservice.js";
 export {
     DBService,
     DepsService,
@@ -20,10 +23,13 @@ export {
     FleetctlService,
     GitService,
     GitopsService,
+    MdmAssetsService,
     PerfConfigService,
     PerfService,
     ProcessService,
+    ScepService,
     SettingsService,
     TrayService,
-    TroubleshootService
+    TroubleshootService,
+    TufService
 };

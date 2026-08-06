@@ -801,6 +801,20 @@ Setting to true will disable the origin check.
     websockets_allow_unsafe_origin: true
   ```
 
+### server_allow_private_network_integrations
+
+Allows Fleet's HTTP client to make outbound requests to RFC 1918 and other private network addresses. Enable this if  Fleet needs to reach an integration over HTTP. (Examples include SSO/IdP, EJBCA, Jira, or SCEP server, or an `HTTP_PROXY`/`HTTPS_PROXY` hosted on a private network.)
+
+This does not affect the always-blocked loopback (`127.0.0.0/8`) and cloud metadata (`169.254.0.0/16`) ranges.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_PRIVATE_NETWORK_INTEGRATIONS`
+- Config file format:
+```yaml
+server:
+  allow_private_network_integrations: true
+```
+
 ### server_force_h2c
 
 Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
@@ -2763,6 +2777,8 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 ## S3
 
+> If you're hosting Fleet on Render (or any service that doesn't offer S3-compatible storage and is not a multi-container deployment) or building Fleet locally, use the `FLEET_SOFTWARE_INSTALLER_STORE_DIR` environment variable (no YAML or flag equivalent) to store software installers and bootstrap packages on local disk instead. If you're hosting Fleet in AWS, GCP or any other large-scale deployment, use an S3 compatible object store (below) because local storage won't work for multi-container deployments.
+
 ### s3_software_installers_bucket
 
 *Available in Fleet Premium.*
@@ -3692,22 +3708,24 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
 
-### mdm.enable_custom_filevault
+### mdm.enable_custom_disk_encryption
 
-> `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Custom OS updates will be enabled for all, for FileVault you can use `mdm.enable_custom_filevault` instead. When set to `true`, it enables both custom OS update and FileVault profiles (equivalent to setting both replacement options to `true`). Maintained for backwards compatibility.
+> `mdm.enable_custom_filevault` is deprecated as of Fleet 4.90.0 and `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Both are maintained for backwards compatibility. Please use `mdm.enable_custom_disk_encryption` instead. As of Fleet 4.87.0, custom OS updates are enabled by default.
 
 *Available in Fleet Premium.*
 
-Allows users to add custom Apple MDM profiles for FileVault management, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles
+For macOS, allows users to add custom macOS [configuration profiles](https://fleetdm.com/guides/custom-os-settings) for FileVault, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles.
 
-> Enabling this option may cause conflicts between your custom FileVault configuration profiles and the profiles Fleet manages under the hood for disk encryption.
+For Windows, allows users to add custom Windows profiles for BitLocker.
+
+> Enabling this option may cause conflicts between your custom disk encryption configuration profiles and the profiles Fleet manages under the hood when [Fleet's disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) is enabled.
 
 - Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_FILEVAULT`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_DISK_ENCRYPTION`
 - Config file format:
   ```yaml
   mdm:
-    enable_custom_filevault: false
+    enable_custom_disk_encryption: false
   ```
 
 ### mdm.allow_all_declarations

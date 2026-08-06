@@ -2358,6 +2358,21 @@ type Datastore interface {
 	// WindowsHostLiteByHardwareSerial returns a HostLite for the Windows host whose hardware_serial matches the given serial.
 	WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*HostLite, error)
 
+	// MDMWindowsSaveUnlinkedEnrollmentHardwareSerial stores the SMBIOS serial reported over OMA-DM (DevDetail) on a still-unlinked
+	// Windows MDM enrollment, so the orbit enrollment path can reverse-link the enrollment once the host record exists.
+	MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error
+
+	// MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the most recent unlinked (host_uuid = "") Windows
+	// MDM enrollment whose device-reported SMBIOS serial matches. Returns a NotFound error when there is none.
+	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*MDMWindowsEnrolledDevice, error)
+
+	// GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments: nil fleet
+	// id and empty name when unset.
+	GetWindowsEnrollmentDefaultFleet(ctx context.Context) (fleetID *uint, fleetName string, err error)
+
+	// SetWindowsEnrollmentDefaultFleet sets (or clears, with nil) the default fleet for new user-driven Windows MDM enrollments.
+	SetWindowsEnrollmentDefaultFleet(ctx context.Context, fleetID *uint) error
+
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
 
@@ -3841,6 +3856,9 @@ type Datastore interface {
 	// declaration. It returns the names of the assets it created, edited, and
 	// deleted so the caller can log the corresponding activities.
 	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*MDMAppleDDMAssetToSet) (*MDMAppleDDMAssetsBatchChanges, error)
+
+	// InsertAppleSoftwareUpdateDeviceID inserts a new Apple software update device ID for the given host UUID for per-host os update tracking.
+	InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error
 }
 
 type AndroidDatastore interface {

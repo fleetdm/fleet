@@ -43,6 +43,9 @@ func TestAndroid(t *testing.T) {
 		{"ListMDMAndroidProfilesToSend", testListMDMAndroidProfilesToSend},
 		{"ListMDMAndroidProfilesToSend_WithExcludeAny", testListMDMAndroidProfilesToSendWithExcludeAny},
 		{"ListMDMAndroidProfilesToSend_WithCombinedLabels", testListMDMAndroidProfilesToSendWithCombinedLabels},
+		{"ListMDMAndroidProfilesToSend_ExcludeAnyUnknownLabelPreservation", testListMDMAndroidProfilesToSendExcludeAnyUnknownLabelPreservation},
+		{"ListMDMAndroidProfilesToSend_IncludeAllUnknownLabelPreservation", testListMDMAndroidProfilesToSendIncludeAllUnknownLabelPreservation},
+		{"ListMDMAndroidProfilesToSend_CombinedUnknownLabelPreservation", testListMDMAndroidProfilesToSendCombinedUnknownLabelPreservation},
 		{"ListMDMAndroidProfilesToSend_Cursor", testListMDMAndroidProfilesToSendCursor},
 		{"GetMDMAndroidProfilesContents", testGetMDMAndroidProfilesContents},
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles},
@@ -2191,6 +2194,257 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 	require.Empty(t, toRemove)
 	require.Len(t, profs, 1)
 	require.Equal(t, pCombinedAny.ProfileUUID, profs[0].ProfileUUID)
+}
+
+// insertAndroidHostProfileInstalled simulates a profile fully installed on a host: install
+// operation, verified status, and the profile's current checksum so no change is detected.
+func insertAndroidHostProfileInstalled(t *testing.T, ds *Datastore, hostUUID string, prof *fleet.MDMAndroidConfigProfile, checksum []byte) {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `INSERT INTO host_mdm_android_profiles
+			(host_uuid, profile_uuid, profile_name, included_in_policy_version, operation_type, status, checksum)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, hostUUID, prof.ProfileUUID, prof.Name, 1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, checksum)
+		return err
+	})
+}
+
+// A dynamic exclude label whose membership is unknown for a host (label created after the
+// host's last label scan) must preserve the host's current profile state: the profile stays
+// applicable on hosts that already have it and stays withheld from hosts that don't, until the
+// host reports label results (see #47865). Host-vitals exclude labels are server-populated so
+// they evaluate immediately, like manual labels.
+func testListMDMAndroidProfilesToSendExcludeAnyUnknownLabelPreservation(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+	ctx := t.Context()
+
+	// hostWith will have the profile installed, hostWithout won't. Both keep their initial
+	// label_updated_at, which predates the labels created below, so dynamic membership is unknown.
+	newHostWith, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-0"), false)
+	require.NoError(t, err)
+	hostWith := newHostWith.Host
+	newHostWithout, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-1"), false)
+	require.NoError(t, err)
+	hostWithout := newHostWithout.Host
+
+	lblExclDyn, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-dyn", Query: "select 1"})
+	require.NoError(t, err)
+	lblExclHV, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-hv", LabelMembershipType: fleet.LabelMembershipTypeHostVitals})
+	require.NoError(t, err)
+
+	pExcDyn, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-exc-dyn", lblExclDyn), nil)
+	require.NoError(t, err)
+	pExcHV, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-exc-hv", lblExclHV), nil)
+	require.NoError(t, err)
+
+	profChecksum := getAndroidProfileChecksum(t, ds, pExcDyn.ProfileUUID)
+	insertAndroidHostProfileInstalled(t, ds, hostWith.UUID, pExcDyn, profChecksum)
+
+	// pExcDyn's label is unknown for both hosts: it stays applicable to hostWith (already
+	// installed) and withheld from hostWithout. pExcHV's host-vitals label evaluates
+	// immediately (neither host is a member), so it is applicable to both, which is also what
+	// flags both hosts as changed and surfaces their full applicable sets.
+	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pExcDyn.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcDyn.Name, Checksum: profChecksum},
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+	}, profs)
+
+	// hostWith reports label results and is a member of the exclude label: the preserved
+	// profile is now authoritatively excluded and must be removed.
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclDyn, []uint{hostWith.ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	hostWith.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	hostWith.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hostWith)
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pExcDyn.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcDyn.Name, Checksum: profChecksum},
+	}, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+	}, profs)
+
+	// hostWithout reports label results and is not a member: pExcDyn now becomes applicable to it.
+	hostWithout.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	hostWithout.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hostWithout)
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pExcDyn.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcDyn.Name, Checksum: profChecksum},
+	}, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+		{ProfileUUID: pExcDyn.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pExcDyn.Name, Checksum: profChecksum},
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+	}, profs)
+}
+
+// A dynamic include-all label with unknown membership counts as a member only for hosts that
+// already have the profile, so adding a label to an installed profile's scope doesn't strip the
+// profile while hosts haven't reported yet; a confirmed non-membership of any other include
+// label still removes it (see #47865).
+func testListMDMAndroidProfilesToSendIncludeAllUnknownLabelPreservation(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+	ctx := t.Context()
+
+	newHostWith, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-0"), false)
+	require.NoError(t, err)
+	hostWith := newHostWith.Host
+	newHostWithout, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-1"), false)
+	require.NoError(t, err)
+	hostWithout := newHostWithout.Host
+
+	// Both labels land in LabelsIncludeAll (no name prefix). Manual membership is always
+	// known; the dynamic label is unknown for both hosts (created after their last scan).
+	lblManual, err := ds.NewLabel(ctx, &fleet.Label{Name: "known-manual", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	lblDyn, err := ds.NewLabel(ctx, &fleet.Label{Name: "unknown-dyn", Query: "select 1"})
+	require.NoError(t, err)
+
+	err = ds.AddLabelsToHost(ctx, hostWith.ID, []uint{lblManual.ID})
+	require.NoError(t, err)
+	err = ds.AddLabelsToHost(ctx, hostWithout.ID, []uint{lblManual.ID})
+	require.NoError(t, err)
+
+	pInc, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-inc", lblManual, lblDyn), nil)
+	require.NoError(t, err)
+	profChecksum := getAndroidProfileChecksum(t, ds, pInc.ProfileUUID)
+	insertAndroidHostProfileInstalled(t, ds, hostWith.UUID, pInc, profChecksum)
+
+	// The dynamic label is unknown for both hosts: hostWith keeps the installed profile (no
+	// change at all), hostWithout keeps waiting for confirmed membership.
+	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.Empty(t, profs)
+
+	// hostWithout reports label results and is a member of the dynamic label: the profile
+	// becomes applicable to it.
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblDyn, []uint{hostWithout.ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	hostWithout.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	hostWithout.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hostWithout)
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pInc.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pInc.Name, Checksum: profChecksum},
+	}, profs)
+
+	// hostWith is confirmed NOT a member of the other (manual) include label: the profile is
+	// removed even though the dynamic label is still unknown and the profile is installed.
+	err = ds.RemoveLabelsFromHost(ctx, hostWith.ID, []uint{lblManual.ID})
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pInc.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pInc.Name, Checksum: profChecksum},
+	}, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pInc.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pInc.Name, Checksum: profChecksum},
+	}, profs)
+}
+
+// Combined include+exclude branches: unknown dynamic labels on either side of a combined
+// (include-all + exclude-any, include-any + exclude-any) profile must preserve the host's
+// current profile state, same as the single-mode branches (see #47865).
+func testListMDMAndroidProfilesToSendCombinedUnknownLabelPreservation(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+	ctx := t.Context()
+
+	newHostWith, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-0"), false)
+	require.NoError(t, err)
+	hostWith := newHostWith.Host
+	newHostWithout, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-1"), false)
+	require.NoError(t, err)
+	hostWithout := newHostWithout.Host
+
+	// Manual labels are always known; the dynamic labels are unknown for both hosts (created
+	// after their last label scan). Label name prefixes drive the scope mode in
+	// androidProfileForTest: default -> include-all, "inclany-" -> include-any, "exclude-" -> exclude-any.
+	lblIncManual, err := ds.NewLabel(ctx, &fleet.Label{Name: "known-manual", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	lblAnyManual, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclany-manual", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	lblIncDyn, err := ds.NewLabel(ctx, &fleet.Label{Name: "unknown-dyn", Query: "select 1"})
+	require.NoError(t, err)
+	lblExclDyn, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-dyn", Query: "select 1"})
+	require.NoError(t, err)
+
+	err = ds.AddLabelsToHost(ctx, hostWith.ID, []uint{lblIncManual.ID, lblAnyManual.ID})
+	require.NoError(t, err)
+	err = ds.AddLabelsToHost(ctx, hostWithout.ID, []uint{lblIncManual.ID, lblAnyManual.ID})
+	require.NoError(t, err)
+
+	// include-all [manual, dyn] + exclude-any [dyn]
+	pAll, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-all", lblIncManual, lblIncDyn, lblExclDyn), nil)
+	require.NoError(t, err)
+	// include-any [manual] + exclude-any [dyn]
+	pAny, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-any", lblAnyManual, lblExclDyn), nil)
+	require.NoError(t, err)
+
+	profChecksum := getAndroidProfileChecksum(t, ds, pAll.ProfileUUID)
+	insertAndroidHostProfileInstalled(t, ds, hostWith.UUID, pAll, profChecksum)
+	insertAndroidHostProfileInstalled(t, ds, hostWith.UUID, pAny, profChecksum)
+
+	// Both dynamic labels are unknown for both hosts: hostWith keeps both installed profiles
+	// (unknown include counts as member, unknown exclude as non-member) so nothing changes;
+	// hostWithout keeps waiting (pAll misses the unknown include label, pAny is blocked by the
+	// unknown exclude label).
+	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.Empty(t, profs)
+
+	// hostWithout reports label results: member of the include label, not of the exclude
+	// label. Both combined profiles become applicable to it.
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{lblIncDyn.ID, hostWithout.ID}})
+	require.NoError(t, err)
+	hostWithout.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	hostWithout.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hostWithout)
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pAll.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pAll.Name, Checksum: profChecksum},
+		{ProfileUUID: pAny.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pAny.Name, Checksum: profChecksum},
+	}, profs)
+
+	// hostWith reports label results: member of both dynamic labels. The exclude label is now
+	// authoritative, so both preserved profiles are removed.
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{lblIncDyn.ID, hostWith.ID}, {lblExclDyn.ID, hostWith.ID}})
+	require.NoError(t, err)
+	hostWith.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	hostWith.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hostWith)
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pAll.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pAll.Name, Checksum: profChecksum},
+		{ProfileUUID: pAny.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pAny.Name, Checksum: profChecksum},
+	}, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pAll.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pAll.Name, Checksum: profChecksum},
+		{ProfileUUID: pAny.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pAny.Name, Checksum: profChecksum},
+	}, profs)
 }
 
 func testGetMDMAndroidProfilesContents(t *testing.T, ds *Datastore) {
