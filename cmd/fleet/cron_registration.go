@@ -287,6 +287,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.logger,
 		)
 	})
+
+	deps.register("failed to register Apple MDM OS updates schedule", func() (fleet.CronSchedule, error) {
+		return newAppleMDMOSUpdatesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
 }
 
 // registerPremiumCrons covers the Fleet Premium schedules: iPhone/iPad

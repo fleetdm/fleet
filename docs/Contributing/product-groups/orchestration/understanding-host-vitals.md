@@ -357,6 +357,20 @@ WITH
 	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
 ```
 
+## mdm_macos_software_update_id
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ioreg'
+```
+
+- Query:
+```sql
+SELECT key, value FROM ioreg WHERE c = 'IOPlatformExpertDevice' AND key IN ('compatible', 'bridge-model', 'board-id');
+```
+
 ## mdm_windows
 
 - Platforms: windows
@@ -671,6 +685,30 @@ select * from osquery_info limit 1
 SELECT *,
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
 			FROM osquery_schedule
+```
+
+## software_adobe_plugins
+
+- Platforms: darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'adobe_plugins'
+```
+
+- Query:
+```sql
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  bundle_id AS extension_id,
+  '' AS extension_for,
+  'adobe_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM adobe_plugins
 ```
 
 ## software_chrome

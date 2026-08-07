@@ -128,7 +128,7 @@ func ensureUser(username, password string) error {
 			0, // parm_err
 		)
 		if ret != 0 {
-			return accountError(fmt.Sprintf("resetting password for %s", username), ret, len(password))
+			return accountError(fmt.Sprintf("Resetting password for %s", username), ret, len(password))
 		}
 		// Resetting the password is not enough to make the account usable again. If it was disabled, locked out, or had
 		// its never-expire flag removed after we created it, Fleet would escrow a password that cannot actually log in.
@@ -154,7 +154,7 @@ func ensureUser(username, password string) error {
 		0, // parm_err
 	)
 	if ret != 0 {
-		return accountError(fmt.Sprintf("creating %s", username), ret, len(password))
+		return accountError(fmt.Sprintf("Creating %s", username), ret, len(password))
 	}
 	return nil
 }
@@ -166,8 +166,8 @@ func ensureUser(username, password string) error {
 func accountError(op string, ret uintptr, passwordLen int) error {
 	if ret == nerrPasswordTooShort || ret == errorPasswordRestriction {
 		return fmt.Errorf(
-			"%s: this device's password policy rejected the generated %d-character password; "+
-				"check the minimum password length and any custom password filter on the host",
+			"%s. This device's password policy rejected the generated %d-character password. "+
+				"Check any custom password filter on the host.",
 			op, passwordLen)
 	}
 	return fmt.Errorf("%s: %w", op, windows.Errno(ret))

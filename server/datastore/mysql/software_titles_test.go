@@ -48,6 +48,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
 		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
 		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
+		{"SoftwareTitleByIDNoFleetScopedToVisibleFleets", testSoftwareTitleByIDNoFleetScopedToVisibleFleets},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2432,6 +2433,63 @@ func testSoftwareTitleNameForHostFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, noTeamSw.Name, name)
 	assert.Empty(t, displayName)
+}
+
+// A nil fleet means "every fleet the caller can see". A title reachable only
+// through an installer in another fleet has to stay NotFound, or the response
+// tells the caller that software they can't reach exists.
+func testSoftwareTitleByIDNoFleetScopedToVisibleFleets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	visible, err := ds.NewTeam(ctx, &fleet.Team{Name: "visible fleet"})
+	require.NoError(t, err)
+	hidden, err := ds.NewTeam(ctx, &fleet.Team{Name: "hidden fleet"})
+	require.NoError(t, err)
+
+	author := test.NewUser(t, ds, "Author", "author@example.com", true)
+
+	newInstallerTitle := func(name, filename, bundleID string, teamID *uint) uint {
+		_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            name,
+			Source:           "apps",
+			InstallScript:    "echo",
+			Filename:         filename,
+			BundleIdentifier: bundleID,
+			TeamID:           teamID,
+			UserID:           author.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return titleID
+	}
+
+	// Neither title has hosts, so the installer join is the only thing that can
+	// make the row exist.
+	hiddenTitleID := newInstallerTitle("hidden app", "hidden.pkg", "com.example.hidden", &hidden.ID)
+	visibleTitleID := newInstallerTitle("visible app", "visible.pkg", "com.example.visible", &visible.ID)
+
+	scopedFilter := fleet.TeamFilter{
+		User:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: visible.ID}, Role: fleet.RoleObserver}}},
+		IncludeObserver: true,
+	}
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	_, err = ds.SoftwareTitleByID(ctx, hiddenTitleID, nil, scopedFilter)
+	require.True(t, fleet.IsNotFound(err), "expected NotFound, got: %v", err)
+
+	// Same answer when they name their own fleet, so the two can't be compared.
+	_, err = ds.SoftwareTitleByID(ctx, hiddenTitleID, &visible.ID, scopedFilter)
+	require.True(t, fleet.IsNotFound(err), "expected NotFound, got: %v", err)
+
+	// Their own fleet's installer still resolves without naming a fleet.
+	title, err := ds.SoftwareTitleByID(ctx, visibleTitleID, nil, scopedFilter)
+	require.NoError(t, err)
+	require.Equal(t, visibleTitleID, title.ID)
+
+	// Global roles still match every fleet.
+	title, err = ds.SoftwareTitleByID(ctx, hiddenTitleID, nil, adminFilter)
+	require.NoError(t, err)
+	require.Equal(t, hiddenTitleID, title.ID)
 }
 
 func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {

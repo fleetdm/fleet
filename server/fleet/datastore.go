@@ -690,6 +690,10 @@ type Datastore interface {
 	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
 	// TeamLite retrieves a Team by ID, including only id, created_at, name, filename, description, config fields.
 	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
+	// TeamLitesByIDs retrieves the TeamLite of every existing team among ids in
+	// one query; deleted IDs are absent from the result. ID 0 ("Unassigned") is
+	// synthesized from the default team config.
+	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name (including extras).
@@ -1271,6 +1275,16 @@ type Datastore interface {
 	// SetOrUpdateHostDisksSpace sets or updates the gigs_total_disk_space and gigs_all_disk_space
 	// fields for a host. gigs_all_disk_space should should only be non-nil for Linux hosts
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error
+
+	// SetOrUpdateHostMDMAppleDeviceVitals persists the iOS/iPadOS vitals parsed
+	// from a DeviceInformation command ack into host_mdm_apple_device_vitals
+	// and host_mdm_apple_service_subscriptions.
+	SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAppleDeviceVitals) error
+	// LoadHostMDMAppleDeviceVitals populates host's HostMDMAppleDeviceVitals
+	// fields from host_mdm_apple_device_vitals and
+	// host_mdm_apple_service_subscriptions. Callers are responsible for only
+	// calling this for iOS/iPadOS hosts.
+	LoadHostMDMAppleDeviceVitals(ctx context.Context, host *Host) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
@@ -2125,8 +2139,14 @@ type Datastore interface {
 	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID
 	// on the given channel (scope).
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string, scope PayloadScope) ([]MDMAppleDDMDeclarationItem, error)
+
+	// ListCustomActivationsForDeclarations returns the custom activations
+	// attached to the given declarations. Declarations without one are absent
+	// from the result.
+	ListCustomActivationsForDeclarations(ctx context.Context, declUUIDs []string) ([]*MDMAppleDDMActivationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDeclaration, error)
+	MDMAppleDDMActivationResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDDMActivationForDelivery, error)
 
 	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync,
 	// partitioned by channel (device vs user) so the reconciler only pokes the
@@ -2347,6 +2367,21 @@ type Datastore interface {
 
 	// WindowsHostLiteByHardwareSerial returns a HostLite for the Windows host whose hardware_serial matches the given serial.
 	WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*HostLite, error)
+
+	// MDMWindowsSaveUnlinkedEnrollmentHardwareSerial stores the SMBIOS serial reported over OMA-DM (DevDetail) on a still-unlinked
+	// Windows MDM enrollment, so the orbit enrollment path can reverse-link the enrollment once the host record exists.
+	MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error
+
+	// MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the most recent unlinked (host_uuid = "") Windows
+	// MDM enrollment whose device-reported SMBIOS serial matches. Returns a NotFound error when there is none.
+	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*MDMWindowsEnrolledDevice, error)
+
+	// GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments: nil fleet
+	// id and empty name when unset.
+	GetWindowsEnrollmentDefaultFleet(ctx context.Context) (fleetID *uint, fleetName string, err error)
+
+	// SetWindowsEnrollmentDefaultFleet sets (or clears, with nil) the default fleet for new user-driven Windows MDM enrollments.
+	SetWindowsEnrollmentDefaultFleet(ctx context.Context, fleetID *uint) error
 
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
@@ -2674,7 +2709,7 @@ type Datastore interface {
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
-	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
+	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName, activationAction MDMAppleActivationAction) (*MDMAppleDeclaration, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
@@ -3519,6 +3554,9 @@ type Datastore interface {
 	// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
 	// If the slice is empty, it returns true
 	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
+	// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore
+	// If the slice is empty, it returns true
+	ScimGroupsExist(ctx context.Context, ids []uint) (bool, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) ([]ActivityTypeResentCertificate, error)
 	// DeleteScimUser deletes a SCIM user from the database
@@ -3831,6 +3869,25 @@ type Datastore interface {
 	// declaration. It returns the names of the assets it created, edited, and
 	// deleted so the caller can log the corresponding activities.
 	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*MDMAppleDDMAssetToSet) (*MDMAppleDDMAssetsBatchChanges, error)
+
+	// InsertAppleSoftwareUpdateDeviceID inserts a new Apple software update device ID for the given host UUID for per-host os update tracking.
+	InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error
+	// GetLastAppleOSUpdatesUpdate retrieves the timestamp of the last Apple OS updates update in the datastore.
+	GetLastAppleOSUpdatesUpdate(ctx context.Context) (*time.Time, error)
+	// UpsertAppleOSUpdates inserts or updates the given Apple OS update assets in the datastore. updates map is grouped by platform
+	UpsertAppleOSUpdates(ctx context.Context, updates map[string][]OSUpdateAsset) error
+	// DeleteStaleAppleOSUpdates deletes the cached Apple OS update assets that are no longer
+	// reported by Apple. The updates map is grouped by platform and holds the assets Apple
+	// currently reports. No values for the platform or less than 1 entry for a platform does a no-op to avoid deleting on an incomplete view.
+	DeleteStaleAppleOSUpdates(ctx context.Context, updates map[string][]OSUpdateAsset) (int64, error)
+	// ListAppleOSUpdateAssets retrieves all Apple OS update assets from the datastore, grouped by platform.
+	ListAppleOSUpdateAssets(ctx context.Context) (map[string][]AppleSoftwareUpdateAsset, error)
+	// ListAppleOSUpdateHostsForReconcile retrieves a batch of Apple software update hosts for OS update reconciliation
+	ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*AppleSoftwareUpdateHost, error)
+	// SetAppleOSUpdateTargetsAndResend sets the targets for Apple OS updates and triggers a resend for needed hosts.
+	SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*ComputedAppleSoftwareUpdateHost) error
+	// GetAppleOSUpdateHostByUUID retrieves stored Apple software update configuration for a given host by its UUID.
+	GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*AppleSoftwareUpdateHost, error)
 }
 
 type AndroidDatastore interface {
@@ -3849,6 +3906,19 @@ type AndroidDatastore interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error)
+	// SetAndroidHostEnrolled flips host_mdm back to enrolled for an Android host
+	// that is currently marked unenrolled, recovering a host wrongly unenrolled by
+	// an out-of-order Pub/Sub DELETED delivery. Returns false (no-op) when the host
+	// is already enrolled or has no host_mdm row. It preserves the existing
+	// is_personal_enrollment classification.
+	SetAndroidHostEnrolled(ctx context.Context, hostID uint) (bool, error)
+	// GetAndroidPubSubDedupState returns the last-processed Google Pub/Sub messageId
+	// and AMAPI event timestamp recorded for the host, for dropping duplicate and
+	// stale AMAPI notification deliveries.
+	GetAndroidPubSubDedupState(ctx context.Context, hostID uint) (messageID string, eventTime *time.Time, err error)
+	// SetAndroidPubSubDedupState records the last-processed Google Pub/Sub messageId
+	// and AMAPI event timestamp for the host after a notification is handled.
+	SetAndroidPubSubDedupState(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
