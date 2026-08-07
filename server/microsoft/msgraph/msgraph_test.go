@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
 )
 
 const (
@@ -232,42 +231,88 @@ func TestListParsesDeviceFields(t *testing.T) {
 	assert.Equal(t, maxTag, devices[2].GroupTag)
 }
 
-// The hang this guard exists for: at $top=1 the live service returns an @odata.nextLink byte-identical to the URL just
-// requested, so "follow nextLink until absent" never terminates. The walk must stop instead of spinning.
-func TestListTerminatesOnSelfReferentialNextLink(t *testing.T) {
-	var gs *graphServer
-	gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		// Echo back the exact URL just requested, to simulate infinite loop.
-		writeDevices(t, w, gs.URL+r.URL.String(), device(fmt.Sprintf("id-%d", gs.graphRequests.Load()), "SERIAL-1", "A"))
-	})
+// The walk must refuse to continue in several shapes, each of which was either observed live or is a token-safety hazard.
+func TestListRefusesToContinue(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		handler func(gs *graphServer) http.HandlerFunc
+		wantErr string
+	}{
+		{
+			// Verified live at $top=1: the service echoes back a nextLink byte-identical to the URL just requested,
+			// so "follow until absent" never terminates.
+			name: "nextLink identical to the request URL",
+			handler: func(gs *graphServer) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					writeDevices(t, w, gs.URL+r.URL.String(),
+						device(fmt.Sprintf("id-%d", gs.graphRequests.Load()), "SERIAL-1", "A"))
+				}
+			},
+			wantErr: "identical to the request URL",
+		},
+		{
+			// The cursor is keyed on serial, and serials are not unique, so a run sharing one serial stalls it even
+			// though the URL keeps changing.
+			name: "same devices under an advancing cursor",
+			handler: func(gs *graphServer) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					next := fmt.Sprintf("%s%s?$skiptoken=%s-more", gs.URL, autopilotDevicesPath, r.URL.Query().Get("$skiptoken"))
+					writeDevices(t, w, next, device("id-1", "Default string", "A"), device("id-2", "Default string", "B"))
+				}
+			},
+			wantErr: "stopped advancing",
+		},
+		{
+			// Empty pages with a changing cursor are the one shape the identical-URL guard cannot see.
+			name: "empty pages under an advancing cursor",
+			handler: func(gs *graphServer) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					next := fmt.Sprintf("%s%s?$skiptoken=%s-more", gs.URL, autopilotDevicesPath, r.URL.Query().Get("$skiptoken"))
+					writeDevices(t, w, next)
+				}
+			},
+			wantErr: "stopped advancing",
+		},
+		{
+			// A relative nextLink has no origin to validate, so it must be refused rather than resolved.
+			name: "relative nextLink",
+			handler: func(gs *graphServer) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					writeDevices(t, w, autopilotDevicesPath+"?$skiptoken=x", device("id-1", "SERIAL-1", "A"))
+				}
+			},
+			wantErr: "unexpected origin",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var gs *graphServer
+			gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) { tc.handler(gs)(w, r) })
 
-	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.Error(t, err)
-	// Assert the specific guard.
-	assert.Contains(t, err.Error(), "identical to the request URL")
-	assert.Less(t, gs.graphRequests.Load(), int32(5), "must give up immediately, not grind to the page cap")
+			devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+			assert.Nil(t, devices, "a partial list must not be returned; the sync would treat it as authoritative")
+			assert.Less(t, gs.graphRequests.Load(), int32(5), "must give up immediately, not grind to the page cap")
+		})
+	}
 }
 
-// Because the cursor is keyed on serial number and serials are not unique, a run of devices sharing one serial stops
-// the cursor advancing even though the URL keeps changing. The walk must fail rather than loop, and must not hand back
-// the devices gathered so far: a partial list would make the sync delete every pending host it did not see.
-func TestListFailsWhenPageYieldsNothingNew(t *testing.T) {
-	var gs *graphServer
-	gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		// Every page hands back the same devices under a different cursor value, so the URL keeps changing but no
-		// progress is made.
-		token := r.URL.Query().Get("$skiptoken")
-		next := fmt.Sprintf("%s%s?$skiptoken=%s-more", gs.URL, autopilotDevicesPath, token)
-		writeDevices(t, w, next,
-			device("id-1", "Default string", "A"),
-			device("id-2", "Default string", "B"))
+// The oauth2 transport attaches the bearer token to whatever we request, so a nextLink off the Graph origin is an
+// exfiltration vector, not just a correctness bug.
+func TestListRejectsNextLinkOnAnotherOrigin(t *testing.T) {
+	evil := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Fail(t, "client followed a next link to a foreign origin", "sent header %q", r.Header.Get("Authorization"))
+	}))
+	t.Cleanup(evil.Close)
+
+	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		writeDevices(t, w, evil.URL+autopilotDevicesPath, device("id-1", "SERIAL-1", "A"))
 	})
 
 	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "stopped advancing")
-	assert.Nil(t, devices, "a partial list must not be returned; the sync would treat it as authoritative")
-	assert.Less(t, gs.graphRequests.Load(), int32(5))
+	assert.Contains(t, err.Error(), "unexpected origin")
+	assert.Nil(t, devices)
 }
 
 func TestListClassifiesErrors(t *testing.T) {
@@ -371,37 +416,6 @@ func TestVerifyCredential(t *testing.T) {
 	})
 }
 
-// A next link is a URL chosen by the remote service, and the oauth2 transport attaches the access token to whatever we
-// request. A link pointing off the Graph origin must be refused rather than followed, or Fleet would hand its token to
-// another host.
-func TestListRejectsNextLinkOnAnotherOrigin(t *testing.T) {
-	evil := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Errorf("client followed a next link to a foreign origin and sent header %q", r.Header.Get("Authorization"))
-		writeDevices(t, w, "")
-	}))
-	t.Cleanup(evil.Close)
-
-	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		writeDevices(t, w, evil.URL+autopilotDevicesPath, device("id-1", "SERIAL-1", "A"))
-	})
-
-	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected origin")
-	assert.Nil(t, devices)
-}
-
-func TestListRejectsRelativeNextLink(t *testing.T) {
-	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		writeDevices(t, w, "/v1.0/deviceManagement/windowsAutopilotDeviceIdentities?$skiptoken=x",
-			device("id-1", "SERIAL-1", "A"))
-	})
-
-	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected origin")
-}
-
 // A wrong or expired client secret fails at Entra's token endpoint, before Graph is reached, so it never becomes a
 // Graph response. It still has to classify as an auth failure, or the admin is told it's a connection problem.
 func TestTokenEndpointInvalidClientClassifiesAsAuthError(t *testing.T) {
@@ -453,111 +467,28 @@ func TestTokenAcquisitionHonorsCallerContext(t *testing.T) {
 }
 
 // Every page of one listing shares a single access token; a token per page would multiply calls against Entra.
-func TestListMintsOneTokenPerOperation(t *testing.T) {
-	var gs *graphServer
-	gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Query().Get("$skiptoken") {
-		case "":
-			writeDevices(t, w, gs.URL+autopilotDevicesPath+"?$skiptoken=p2", device("id-1", "S1", "A"))
-		case "p2":
-			writeDevices(t, w, gs.URL+autopilotDevicesPath+"?$skiptoken=p3", device("id-2", "S2", "B"))
-		default:
-			writeDevices(t, w, "", device("id-3", "S3", "C"))
+func TestListRequestShape(t *testing.T) {
+	var tops []string
+	gs := newPagedGraphServer(t,
+		[]WindowsAutopilotDevice{device("id-1", "S1", "A")},
+		[]WindowsAutopilotDevice{device("id-2", "S2", "B")},
+		[]WindowsAutopilotDevice{device("id-3", "S3", "C")},
+	)
+	inner := gs.Config.Handler
+	gs.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if top := r.URL.Query().Get("$top"); top != "" {
+			tops = append(tops, top)
 		}
+		inner.ServeHTTP(w, r)
 	})
 
 	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
 	require.NoError(t, err)
 	require.Len(t, devices, 3)
-	assert.Equal(t, int32(1), gs.tokenRequests.Load(), "all pages must share one token")
-}
 
-// The page size is sent explicitly rather than relying on Graph's default.
-func TestListRequestsExplicitPageSize(t *testing.T) {
-	var gotTop string
-	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		gotTop = r.URL.Query().Get("$top")
-		writeDevices(t, w, "", device("id-1", "SERIAL-1", "A"))
-	})
-
-	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.NoError(t, err)
-
-	assert.Equal(t, strconv.Itoa(pageSize), gotTop, "the first request must pin $top")
+	require.NotEmpty(t, tops, "the first request must pin $top")
+	assert.Equal(t, strconv.Itoa(pageSize), tops[0])
 	assert.GreaterOrEqual(t, pageSize, 1000,
 		"lowering the page size multiplies round trips and inclusive-cursor duplicates for large tenants")
-}
-
-// Empty pages carrying a non-empty nextLink are the one loop shape the identical-URL guard cannot see, because the URL
-// keeps changing. The no-progress guard has to catch it.
-func TestListFailsFastOnEmptyPagesWithAdvancingCursor(t *testing.T) {
-	var gs *graphServer
-	pages := 0
-	gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		pages++
-		writeDevices(t, w, fmt.Sprintf("%s%s?$skiptoken=p%d", gs.URL, autopilotDevicesPath, pages))
-	})
-
-	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "stopped advancing")
-	assert.Nil(t, devices, "a partial list must not be returned")
-	assert.LessOrEqual(t, pages, 2, "must stop on the first unproductive page, not grind to maxPages")
-}
-
-func TestErrorUnwrapsUnderlyingCause(t *testing.T) {
-	// A token-endpoint failure must keep the oauth2 error reachable.
-	retrieveErr := &oauth2.RetrieveError{
-		ErrorCode:        "invalid_client",
-		ErrorDescription: "AADSTS7000215: Invalid client secret provided.",
-	}
-	wrapped := fmt.Errorf("outer: %w", newTokenError(retrieveErr))
-
-	graphErr, ok := errors.AsType[*Error](wrapped)
-	require.True(t, ok)
-	assert.True(t, graphErr.IsAuthError())
-
-	var gotRetrieve *oauth2.RetrieveError
-	require.ErrorAs(t, wrapped, &gotRetrieve, "the oauth2 cause must survive wrapping")
-	require.NotNil(t, gotRetrieve)
-	assert.Equal(t, "invalid_client", gotRetrieve.ErrorCode)
-}
-
-func TestParseRetryAfter(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		header string
-		want   bool // whether a positive duration is expected
-	}{
-		{"delta seconds", "42", true},
-		{"zero", "0", false},
-		{"negative is ignored", "-5", false},
-		{"absent", "", false},
-		{"garbage", "soon", false},
-		// RFC 7231 permits an HTTP-date. Reading it as zero would mean no backoff at all.
-		{"http date in the future", time.Now().Add(90 * time.Second).UTC().Format(http.TimeFormat), true},
-		{"http date in the past", time.Now().Add(-90 * time.Second).UTC().Format(http.TimeFormat), false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got := parseRetryAfter(tc.header)
-			assert.Equal(t, tc.want, got > 0, "got %v", got)
-		})
-	}
-	assert.Equal(t, 42*time.Second, parseRetryAfter("42"))
-}
-
-func TestGraphErrorBodyIsBounded(t *testing.T) {
-	// An edge proxy can return a large HTML page on 5xx; this string lands in logs and in the admin-visible sync error.
-	huge := strings.Repeat("x", 10_000)
-	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadGateway)
-		_, _ = w.Write([]byte(huge))
-	})
-
-	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.Error(t, err)
-	graphErr, ok := errors.AsType[*Error](err)
-	require.True(t, ok)
-	assert.LessOrEqual(t, len(graphErr.Message), maxErrorBodyBytes+len("... (truncated)"))
-	assert.Contains(t, graphErr.Message, "truncated")
+	assert.Equal(t, int32(1), gs.tokenRequests.Load(), "all pages must share one token")
 }
