@@ -10,7 +10,7 @@ import {
 import generateTableHeaders from "./OSTableConfig";
 
 const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_SORT_HEADER = "hosts_count";
+const DEFAULT_SORT_HEADER = "version";
 const PAGE_SIZE = 8;
 
 const baseClass = "operating-systems";

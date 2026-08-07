@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/csv"
@@ -11,6 +12,7 @@ import (
 	"iter"
 	"net/http"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -3565,7 +3567,7 @@ func (svc *Service) OSVersions(
 		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
 	}
 
-	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" {
+	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" && opts.OrderKey != "version" {
 		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
@@ -3610,8 +3612,30 @@ func (svc *Service) OSVersions(
 		return nil, count, nil, err
 	}
 
-	// Sort by hosts_count (default: desc to match previous behavior)
-	if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
+	// Sort by version or hosts_count (default: hosts_count desc, to match previous behavior)
+	if opts.OrderKey == "version" {
+		// compareOSVersions ties on versions it can't parse (e.g. two Arch Linux
+		// "rolling" rows) and on genuinely equal versions across platforms/names,
+		// so break ties on OSVersionID (unique per NameOnly/Version combination)
+		// to keep results deterministic across identical requests. sort.Slice is
+		// unstable, which would otherwise let pagination return duplicate or
+		// missing rows across requests within a tied group.
+		if opts.OrderDirection == fleet.OrderAscending {
+			sort.SliceStable(osVersions.OSVersions, func(i, j int) bool {
+				if c := compareOSVersions(osVersions.OSVersions[i].Version, osVersions.OSVersions[j].Version); c != 0 {
+					return c < 0
+				}
+				return osVersions.OSVersions[i].OSVersionID < osVersions.OSVersions[j].OSVersionID
+			})
+		} else {
+			sort.SliceStable(osVersions.OSVersions, func(i, j int) bool {
+				if c := compareOSVersions(osVersions.OSVersions[i].Version, osVersions.OSVersions[j].Version); c != 0 {
+					return c > 0
+				}
+				return osVersions.OSVersions[i].OSVersionID < osVersions.OSVersions[j].OSVersionID
+			})
+		}
+	} else if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
 		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
 			return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
 		})
@@ -3670,6 +3694,81 @@ func (svc *Service) OSVersions(
 		CountsUpdatedAt: osVersions.CountsUpdatedAt,
 		OSVersions:      paged,
 	}, count, meta, nil
+}
+
+var numericVersionPattern = regexp.MustCompile(`^\d+(\.\d+)*$`)
+var windowsFeatureUpdatePattern = regexp.MustCompile(`^(\d{2})H([12])$`)
+
+// versionSegments returns the numeric segments used to order a version
+// string, and whether it could be parsed. Handles dot-separated numeric
+// versions (e.g. "26.5.2", "10.0.26200.8875") and Windows feature-update
+// codenames (e.g. "21H2", "23H1", ordered as [year, half]) — fleet.OSVersion's
+// Version field documents both as valid ("e.g., '21H2', '20.4.0', or '12.5'").
+// Other formats (e.g. Arch Linux's "rolling") aren't comparable this way.
+func versionSegments(version string) ([]int, bool) {
+	if numericVersionPattern.MatchString(version) {
+		parts := strings.Split(version, ".")
+		segments := make([]int, len(parts))
+		for i, p := range parts {
+			segments[i], _ = strconv.Atoi(p) // safe: numericVersionPattern pre-validated digits-only
+		}
+		return segments, true
+	}
+	if m := windowsFeatureUpdatePattern.FindStringSubmatch(version); m != nil {
+		year, _ := strconv.Atoi(m[1])
+		half, _ := strconv.Atoi(m[2])
+		return []int{year, half}, true
+	}
+	return nil, false
+}
+
+// compareOSVersions compares version strings by numeric segment (e.g.
+// "26.10" > "26.6", "10.0.26200.8875" > "10.0.9200.100") or, for Windows
+// feature-update codenames, by year and half (e.g. "22H1" > "21H2"), so
+// versions sort correctly instead of as plain strings. Versions that don't
+// match either format (e.g. Arch Linux's "rolling") aren't comparable this
+// way, so they sort before comparable ones.
+//
+// This only ever sees fleet.OSVersion.Version values, which are always one of
+// those two clean shapes, so the whole string must match. The frontend's
+// compareVersions (frontend/utilities/helpers.tsx) implements the same
+// numeric-segment and Windows-codename comparison, but is also reused for
+// messier, suffixed version strings (e.g. Fleet-maintained-app versions like
+// "2.26.7_1"), so it only requires a version's *first* segment to be numeric
+// rather than the whole string. Keep the segment/codename comparison logic in
+// sync between the two; the non-numeric-fallback strictness is intentionally
+// different.
+func compareOSVersions(a, b string) int {
+	aSegments, aOK := versionSegments(a)
+	bSegments, bOK := versionSegments(b)
+
+	switch {
+	case !aOK && !bOK:
+		return 0
+	case !aOK:
+		return -1
+	case !bOK:
+		return 1
+	}
+
+	maxLen := len(aSegments)
+	if len(bSegments) > maxLen {
+		maxLen = len(bSegments)
+	}
+
+	for i := 0; i < maxLen; i++ {
+		var aPart, bPart int
+		if i < len(aSegments) {
+			aPart = aSegments[i]
+		}
+		if i < len(bSegments) {
+			bPart = bSegments[i]
+		}
+		if c := cmp.Compare(aPart, bPart); c != 0 {
+			return c
+		}
+	}
+	return 0
 }
 
 // filterOSVersions checks the MatchQuery and filters on the platform name.

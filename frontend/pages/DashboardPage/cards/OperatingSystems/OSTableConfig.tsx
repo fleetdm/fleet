@@ -98,8 +98,16 @@ const generateDefaultTableHeaders = (
     },
   },
   {
-    Header: "Version",
-    disableSortBy: true,
+    Header: (cellProps: IHostHeaderProps) => (
+      <HeaderCell
+        value="Version"
+        disableSortBy={false}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    disableSortBy: false,
+    accessor: "version",
+    sortType: "version",
     Cell: (cellProps: IVersionCellProps) => {
       const { version, name_only } = cellProps.row.original;
       if (
