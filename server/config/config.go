@@ -2136,6 +2136,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
+			ConfigETags:                      man.getConfigBool("osquery.config_etags"),
 			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
 		},
 		Activity: ActivityConfig{
