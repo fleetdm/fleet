@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.7.13",
+      "version": "7.9.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'NordPass' AND publisher = 'NordPass Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NordPass' AND publisher = 'NordPass Team' AND version_compare(version, '7.7.13') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NordPass' AND publisher = 'NordPass Team' AND version_compare(version, '7.9.3') < 0);"
       },
       "installer_url": "https://downloads.npass.app/windows/NordPassSetup.exe",
       "install_script_ref": "17ae065a",
       "uninstall_script_ref": "472381ce",
-      "sha256": "1442b20921236be4f97f7f8ba1dbedcde9f373b4e0415700e9458487e813a514",
+      "sha256": "cb2392c7733236335243441caf89aaa0dfc7ce028e9fb6f27e43254ce1c94fe5",
       "default_categories": [
         "Productivity"
       ]

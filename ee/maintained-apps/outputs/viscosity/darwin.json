@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.13",
+      "version": "1.13.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.viscosityvpn.Viscosity';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.viscosityvpn.Viscosity' AND version_compare(bundle_short_version, '1.13') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.viscosityvpn.Viscosity' AND version_compare(bundle_short_version, '1.13.1') < 0);"
       },
-      "installer_url": "https://swupdate.sparklabs.com/download/mac/release/viscosity/Viscosity%201.13.dmg",
+      "installer_url": "https://swupdate.sparklabs.com/download/mac/release/viscosity/Viscosity%201.13.1.dmg",
       "install_script_ref": "c1aade9c",
       "uninstall_script_ref": "e73e99d6",
-      "sha256": "cf5f458ffaf0b8df9cd386d9630418171a939425985572a936ffca02a1e0cc0e",
+      "sha256": "362b97f2b69e1b096a146b1eb4acde6ea7e4edb32a75bf3f68ae2048c550b0ed",
       "default_categories": [
         "Productivity"
       ]
