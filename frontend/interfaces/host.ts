@@ -458,6 +458,13 @@ export interface IHost {
   conditional_access_bypassed: boolean;
   mdm_enrollment_hardware_attested?: boolean;
   dep_assigned_to_fleet: boolean;
+  /** The OS version this host is required to reach. Null when OS updates
+   * aren't configured for the host's fleet, and "Pending" while Fleet is still
+   * resolving the target for a "latest" requirement. */
+  os_update_minimum_version?: string | null;
+  /** The date by which os_update_minimum_version must be installed, in
+   * YYYY-MM-DD. Null and "Pending" follow os_update_minimum_version. */
+  os_update_deadline?: string | null;
   // iOS/iPadOS-only vitals collected via the DeviceInformation MDM command.
   // Omitted entirely (not just null) for every other platform.
   udid?: string;
