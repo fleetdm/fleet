@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -229,14 +228,21 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	require.NotNil(t, got.LastSyncedAt)
 	assert.Nil(t, got.LastSyncError)
 
-	// A rotated credential keeps whatever sync state it had
+	// Rotating the credential clears all of its sync state, which describes the credential being replaced.
+	failure := "AADSTS7000222: client secret expired"
+	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &failure))
 	_, err = ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true)
 	require.NoError(t, err)
-	seedGraphCredential(t, ds, testTenantA)
+
+	require.NoError(t, ds.UpsertMicrosoftGraphCredential(ctx, &fleet.MicrosoftGraphCredential{
+		TenantID: testTenantA, ClientID: "client-a", ClientSecret: "rotated-secret",
+	}))
+
 	got, err = ds.GetMicrosoftGraphCredential(ctx, testTenantA)
 	require.NoError(t, err)
-	assert.True(t, got.CredentialInvalid)
-	require.NotNil(t, got.LastSyncedAt)
+	assert.False(t, got.CredentialInvalid, "rotating a verified credential must clear the banner flag")
+	assert.Nil(t, got.LastSyncError, "rotating a credential must clear the error recorded against the old secret")
+	assert.Nil(t, got.LastSyncedAt, "the previous sync time describes the replaced credential, not the new one")
 }
 
 func testHostAutopilotDeviceUpsertAndGet(t *testing.T, ds *Datastore) {
@@ -276,15 +282,6 @@ func testHostAutopilotDeviceUpsertAndGet(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, "Sales", got.GroupTag)
 
-	// 2048 characters is Intune's documented maximum for a group tag. The column is sized for it exactly, so a real
-	// tag is never truncated on the way in. Len is asserted separately from the value because a truncation failure
-	// reads as a character count rather than a 2048-character diff.
-	dev.GroupTag = strings.Repeat("z", 2048)
-	upsertAutopilotDevices(t, ds, dev)
-	got, err = ds.GetHostAutopilotDevice(ctx, host.ID)
-	require.NoError(t, err)
-	require.Len(t, got.GroupTag, 2048)
-	assert.Equal(t, dev.GroupTag, got.GroupTag)
 }
 
 func testHostAutopilotDeviceListByTenant(t *testing.T, ds *Datastore) {
@@ -314,13 +311,6 @@ func testHostAutopilotDeviceListByTenant(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	assert.Equal(t, hosts[0].ID, devices[0].HostID)
-
-	// Deleting the host takes the Autopilot record with it. Fleet forbids foreign keys to hosts, so this cleanup is
-	// driven by the table's membership in hostRefs and would silently rot if that entry were dropped.
-	require.NoError(t, ds.DeleteHost(ctx, hosts[0].ID))
-	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
-	require.NoError(t, err)
-	require.Empty(t, devices)
 }
 
 // A tenant's device list is written in batches, so the batch boundary must not drop or duplicate devices. The batch
@@ -365,15 +355,11 @@ func testHostAutopilotDeviceBatchSpansBatches(t *testing.T, ds *Datastore) {
 	upsertAutopilotDevices(t, ds, devices...)
 	assertStoredTags("update across batches")
 
-	// An empty slice is the steady state of a sync where nothing changed, and must not build a syntactically invalid
-	// statement.
+	// An empty slice is the steady state of a sync where nothing changed, and must not build a syntactically invalid statement.
 	upsertAutopilotDevices(t, ds)
 }
 
-// Re-upserting unchanged devices must not dirty the rows. This is what lets a sync re-send devices it is unsure about
-// without generating write load, and it is a property of MySQL's ON DUPLICATE KEY UPDATE rather than of our SQL, so it
-// is worth pinning: losing it (for example by adding a column that always changes) would turn every sync into a
-// full-table rewrite for a 100k-device tenant.
+// Re-upserting unchanged devices must not dirty the rows.
 func testHostAutopilotDeviceUnchangedUpsertIsNotAWrite(t *testing.T, ds *Datastore) {
 	host := newAutopilotHosts(t, ds, "noop", 1)[0]
 

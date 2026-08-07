@@ -95,7 +95,9 @@ WHERE tenant_id = ?`
 	return row.toCredential(string(secret)), nil
 }
 
-// UpsertMicrosoftGraphCredential stores a credential, encrypting the client secret with the server private key.
+// UpsertMicrosoftGraphCredential stores a credential, encrypting the client secret with the server private key. Storing
+// a credential resets all of its sync state, because that state describes the credential being replaced rather than the
+// new one: a new secret may carry different permissions or point at a different app registration.
 func (ds *Datastore) UpsertMicrosoftGraphCredential(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
 	encryptedSecret, err := encrypt([]byte(cred.ClientSecret), ds.serverPrivateKey)
 	if err != nil {
@@ -107,7 +109,10 @@ INSERT INTO mdm_microsoft_graph_credentials (tenant_id, client_id, client_secret
 VALUES (?, ?, ?)
 ON DUPLICATE KEY UPDATE
 	client_id = VALUES(client_id),
-	client_secret = VALUES(client_secret)`
+	client_secret = VALUES(client_secret),
+	last_synced_at = NULL,
+	credential_invalid = 0,
+	last_sync_error = NULL`
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, cred.TenantID, cred.ClientID, encryptedSecret); err != nil {
 		return ctxerr.Wrap(ctx, err, "upsert microsoft graph credential")
