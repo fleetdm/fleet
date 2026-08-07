@@ -1191,6 +1191,52 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 	// the results of this query are appended to the results of the other software queries.
 }
 
+// softwareAdobePlugins collects Adobe plugins (CEP and UXP extensions) reported by
+// fleetd's adobe_plugins table. The table emits one row per plugin, including a user
+// column for per-user installs, so there's no need to join with cached_users.
+//
+// The default (standard) scan level is used, which covers CEP and UXP extensions. The
+// deep scan level additionally reports native plug-ins, which have no manifest and thus
+// no version.
+//
+// Neither bundle_identifier nor extension_for is stored, following vscode_extensions and
+// jetbrains_plugins: the plugin's bundle id goes in extension_id instead, which is not part of
+// a software title's identity.
+//
+// software_titles keys titles on (unique_identifier, source, extension_for) and on
+// (bundle_identifier, additional_identifier), where unique_identifier falls back to the name
+// and additional_identifier is 0 for every source except ios_apps and ipados_apps. Storing the
+// bundle id or the manifest's host applications therefore puts plugin titles on keys they can
+// collide with:
+//   - a plugin sharing a bundle id with a macOS app, which is keyed the same way;
+//   - a plugin whose extension directory name matches its own bundle id, on a host where the
+//     manifest can't be read and fleetd falls back to the directory name;
+//   - a plugin whose manifest changes which applications it supports, since host_application
+//     changes while the bundle id stays the same.
+//
+// Every one of those drops the title's INSERT IGNORE and leaves the software row with no title
+// at all: invisible on the Software page, and an error logged on every check-in. Nothing
+// user-facing is lost, because the Type column shows a flat "Plugin (Adobe)" and never displays
+// the host application.
+var softwareAdobePlugins = DetailQuery{
+	Query: `
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  bundle_id AS extension_id,
+  '' AS extension_for,
+  'adobe_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM adobe_plugins`,
+	Platforms: []string{"darwin", "windows"},
+	Discovery: discoveryTable("adobe_plugins"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
 var scheduledQueryStats = DetailQuery{
 	Query: `
 			SELECT *,
@@ -3617,6 +3663,7 @@ func GetDetailQueries(
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
+		generatedMap["software_adobe_plugins"] = softwareAdobePlugins
 		generatedMap["software_go_binaries"] = softwareGoBinaries
 
 		for key, query := range SoftwareOverrideQueries {

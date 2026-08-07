@@ -316,6 +316,7 @@ export const SOURCE_TYPE_CONVERSION = {
   py_packages: "Script-only package (macOS & Linux)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   go_binaries: "Binary (Go)",
+  adobe_plugins: "Plugin (Adobe)", // the type label is flat: Fleet doesn't store a host Adobe application for adobe_plugins, so `extension_for` is always empty for this source (see softwareAdobePlugins in server/service/osquery_utils/queries.go).
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
@@ -350,6 +351,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   py_packages: "linux", // stored as linux; also runs on macOS via the unix-like install exception
   jetbrains_plugins: null,
   go_binaries: null,
+  adobe_plugins: null,
 } as const;
 
 export const SCRIPT_PACKAGE_SOURCES = [

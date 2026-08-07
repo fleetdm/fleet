@@ -2410,7 +2410,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -7393,7 +7393,7 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
@@ -7950,7 +7950,7 @@ func TestGitOpsWindowsOSUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
 	}
 	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {

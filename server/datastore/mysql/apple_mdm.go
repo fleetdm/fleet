@@ -4675,6 +4675,11 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			if err := softDeleteHostRecoveryLockPassword(ctx, tx, hostUUID); err != nil {
 				return err
 			}
+
+			// Same reasoning for the managed local account password, as recovery lock password, which shares the escrow model
+			if err := softDeleteManagedLocalAccountPasswordDB(ctx, tx, hostUUID); err != nil {
+				return err
+			}
 		}
 
 		// reset the enrolled_from_migration value. We only get to this
@@ -4801,7 +4806,13 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 		return false, ctxerr.Wrap(ctx, err, "update declaration asset associations")
 	}
 
-	return deletedDeclarations || insertedOrUpdatedDeclarations || updatedLabels || updatedVars || updatedAssets, nil
+	updatedActivations, err := batchSetDeclarationActivationsDB(ctx, tx, incomingDeclarations, teamIDOrZero)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update declaration activations")
+	}
+
+	return deletedDeclarations || insertedOrUpdatedDeclarations || updatedLabels || updatedVars || updatedAssets ||
+		updatedActivations, nil
 }
 
 // updateDeclarationsAssetAssociations reconciles mdm_apple_declaration_asset_references
@@ -5134,10 +5145,10 @@ INSERT INTO mdm_apple_declarations (
 		isSoftwareUpdate = rawDecl.Type == apple_mdm.DeclarationTypeSoftwareUpdate
 	}
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate)
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate, fleet.MDMAppleActivationApply)
 }
 
-func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 	const stmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
@@ -5176,10 +5187,10 @@ ON DUPLICATE KEY UPDATE
 		}
 	}
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate)
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate, activationAction)
 }
 
-func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, isSoftwareUpdate bool) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, isSoftwareUpdate bool, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 
 	var tmID uint
@@ -5263,8 +5274,10 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			return ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
 		}
 
-		if err := setMDMAppleDDMActivationDB(ctx, tx, declUUID, tmID, declaration); err != nil {
-			return err
+		if activationAction == fleet.MDMAppleActivationApply {
+			if _, err := setMDMAppleDDMActivationDB(ctx, tx, declUUID, tmID, declaration); err != nil {
+				return err
+			}
 		}
 
 		if isSoftwareUpdate {
@@ -5328,17 +5341,67 @@ func setMDMAppleDeclarationAssetReferencesDB(ctx context.Context, tx sqlx.ExtCon
 	return updatedDB, nil
 }
 
+// batchSetDeclarationActivationsDB matches declarations by name because the
+// batch upsert keys on it, so an incoming declaration's UUID isn't necessarily
+// the stored one. A declaration with no activation has any stored one removed,
+// which is how dropping the activation key from GitOps YAML clears it.
+func batchSetDeclarationActivationsDB(ctx context.Context, tx sqlx.ExtContext,
+	incomingDeclarations []*fleet.MDMAppleDeclaration, teamID uint,
+) (updatedDB bool, err error) {
+	if len(incomingDeclarations) == 0 {
+		return false, nil
+	}
+
+	names := make([]string, 0, len(incomingDeclarations))
+	for _, d := range incomingDeclarations {
+		names = append(names, d.Name)
+	}
+
+	const uuidsStmt = `SELECT name, declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND name IN (?)`
+	stmt, args, err := sqlx.In(uuidsStmt, teamID, names)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "sqlx.In resolve declaration uuids")
+	}
+	var rows []struct {
+		Name            string `db:"name"`
+		DeclarationUUID string `db:"declaration_uuid"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "resolve declaration uuids")
+	}
+	uuidByName := make(map[string]string, len(rows))
+	for _, r := range rows {
+		uuidByName[r.Name] = r.DeclarationUUID
+	}
+
+	for _, d := range incomingDeclarations {
+		declUUID, ok := uuidByName[d.Name]
+		if !ok {
+			return false, ctxerr.Errorf(ctx, "declaration %q not found after upsert", d.Name)
+		}
+		updated, err := setMDMAppleDDMActivationDB(ctx, tx, declUUID, teamID, d)
+		if err != nil {
+			return false, err
+		}
+		updatedDB = updatedDB || updated
+	}
+
+	return updatedDB, nil
+}
+
 // Keyed on declaration_uuid rather than inserted fresh, so an edit keeps the
 // same activation_uuid and its variable associations survive.
 func setMDMAppleDDMActivationDB(ctx context.Context, tx sqlx.ExtContext, declUUID string, tmID uint,
 	declaration *fleet.MDMAppleDeclaration,
-) error {
+) (updatedDB bool, err error) {
 	if declaration.Activation == nil {
 		const deleteStmt = `DELETE FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
-		if _, err := tx.ExecContext(ctx, deleteStmt, declUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting declaration activation")
+		res, err := tx.ExecContext(ctx, deleteStmt, declUUID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "deleting declaration activation")
 		}
-		return nil
+		deleted, _ := res.RowsAffected()
+		return deleted > 0, nil
 	}
 
 	act := declaration.Activation
@@ -5355,11 +5418,11 @@ WHERE team_id = ? AND identifier = ? AND declaration_uuid != ?`
 	case err == nil:
 		// Not an existsError: the callers turn those into a message about the
 		// configuration profile's identifier, which isn't the one that clashed.
-		return ctxerr.Wrap(ctx, &fleet.ConflictError{
+		return false, ctxerr.Wrap(ctx, &fleet.ConflictError{
 			Message: "An activation with this identifier already exists.",
 		}, "conflicting activation identifier")
 	case !errors.Is(err, sql.ErrNoRows):
-		return ctxerr.Wrap(ctx, err, "checking for conflicting activation identifier")
+		return false, ctxerr.Wrap(ctx, err, "checking for conflicting activation identifier")
 	}
 
 	const upsertStmt = `
@@ -5384,6 +5447,15 @@ ON DUPLICATE KEY UPDATE
 	secrets_updated_at = VALUES(secrets_updated_at)
 `
 
+	// insertOnDuplicateDidInsertOrUpdate needs a LAST_INSERT_ID this table has no
+	// AUTO_INCREMENT to supply, and CLIENT_FOUND_ROWS makes RowsAffected report 1
+	// for unchanged rows. uploaded_at only advances when the content changes.
+	var prevUploadedAt sql.NullTime
+	const prevStmt = `SELECT uploaded_at FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
+	if err := sqlx.GetContext(ctx, tx, &prevUploadedAt, prevStmt, declUUID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, "reading current activation")
+	}
+
 	if _, err := tx.ExecContext(ctx, upsertStmt,
 		uuid.NewString(),
 		tmID,
@@ -5393,23 +5465,29 @@ ON DUPLICATE KEY UPDATE
 		declaration.Identifier,
 		act.SecretsUpdatedAt,
 	); err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting declaration activation")
+		return false, ctxerr.Wrap(ctx, err, "inserting declaration activation")
 	}
 
 	// On an edit the upsert keeps the existing row, so the generated UUID is unused.
-	var activationUUID string
-	const reloadStmt = `SELECT activation_uuid FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
-	if err := sqlx.GetContext(ctx, tx, &activationUUID, reloadStmt, declUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "reload declaration activation")
+	var reloaded struct {
+		ActivationUUID string    `db:"activation_uuid"`
+		UploadedAt     time.Time `db:"uploaded_at"`
 	}
+	const reloadStmt = `SELECT activation_uuid, uploaded_at FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
+	if err := sqlx.GetContext(ctx, tx, &reloaded, reloadStmt, declUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "reload declaration activation")
+	}
+	activationUUID := reloaded.ActivationUUID
+	updatedDB = !prevUploadedAt.Valid || !prevUploadedAt.Time.Equal(reloaded.UploadedAt)
 
-	if _, err := setVariableAssociationsForColumnDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+	updatedVars, err := setVariableAssociationsForColumnDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
 		{ProfileUUID: activationUUID, FleetVariables: act.FleetVariables},
-	}, "apple_ddm_activation_uuid"); err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting activation variable associations")
+	}, "apple_ddm_activation_uuid")
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "inserting activation variable associations")
 	}
 
-	return nil
+	return updatedDB || updatedVars, nil
 }
 
 func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext,
@@ -5560,7 +5638,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDDMDeclarationsToken, error) {
 	const stmt = `
 SELECT
-	COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(CONCAT(CONCAT(HEX(mad.token), IFNULL(hmad.variables_updated_at, '')), IFNULL(hmad.assets_updated_at, ''))
+	COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(CONCAT(CONCAT(CONCAT(HEX(mad.token), IFNULL(hmad.variables_updated_at, '')), IFNULL(hmad.assets_updated_at, '')), IFNULL(hmad.activation_updated_at, ''))
 		ORDER BY
 			mad.uploaded_at DESC, mad.declaration_uuid ASC separator ''))), '') AS token,
 	COALESCE(MAX(mad.created_at), NOW()) AS latest_created_timestamp
@@ -5598,6 +5676,8 @@ SELECT
 	mad.identifier, mad.declaration_uuid, status, operation_type, mad.uploaded_at,
 	hmad.variables_updated_at,
 	hmad.assets_updated_at,
+	hmad.activation_updated_at,
+	JSON_UNQUOTE(JSON_EXTRACT(mad.raw_json, '$.Type')) AS declaration_type,
 	IF(hmad.variables_updated_at IS NOT NULL AND operation_type = ?, mad.raw_json, NULL) as raw_json
 FROM
 	host_mdm_apple_declarations hmad
@@ -5606,11 +5686,93 @@ WHERE
 	hmad.host_uuid = ? AND hmad.scope = ?`
 
 	var res []fleet.MDMAppleDDMDeclarationItem
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, fleet.MDMOperationTypeInstall, hostUUID, scope); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt,
+		fleet.MDMOperationTypeInstall, hostUUID, scope); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM declaration items")
 	}
 
 	return res, nil
+}
+
+// ListCustomActivationsForDeclarations returns the custom activations attached
+// to the given declarations. Declarations without one are simply absent, and
+// the caller synthesizes Fleet's activation for those.
+func (ds *Datastore) ListCustomActivationsForDeclarations(ctx context.Context, declUUIDs []string) ([]*fleet.MDMAppleDDMActivationItem, error) {
+	if len(declUUIDs) == 0 {
+		return nil, nil
+	}
+
+	// Custom host vitals aren't recorded in mdm_configuration_profile_variables,
+	// so they only show up by scanning the body -- same approach as the reconciler.
+	const stmt = `
+SELECT
+	act.declaration_uuid,
+	act.identifier,
+	HEX(act.token) AS token,
+	act.raw_json,
+	(
+		EXISTS(SELECT 1 FROM mdm_configuration_profile_variables v WHERE v.apple_ddm_activation_uuid = act.activation_uuid)
+		OR INSTR(act.raw_json, ?) > 0
+	) AS has_fleet_variables
+FROM
+	mdm_apple_ddm_activations act
+WHERE
+	act.declaration_uuid IN (?)`
+
+	q, args, err := sqlx.In(stmt, fleet.CustomHostVitalPrefix, declUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build custom activations query")
+	}
+
+	var res []*fleet.MDMAppleDDMActivationItem
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, q, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list custom activations for declarations")
+	}
+
+	return res, nil
+}
+
+// MDMAppleDDMActivationResponse resolves an activation request to either the
+// stored custom activation or the declaration Fleet synthesizes one for,
+// restricted to declarations the host is scoped to. RawJSON is nil for the
+// synthesized case.
+//
+// Generated activations are named after the declaration's UUID rather than its
+// identifier so an admin-chosen activation identifier can never collide with
+// one Fleet invents.
+func (ds *Datastore) MDMAppleDDMActivationResponse(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDDMActivationForDelivery, error) {
+	const stmt = `
+SELECT
+	act.raw_json,
+	mad.identifier AS configuration_identifier,
+	HEX(mad.token) AS token,
+	HEX(act.token) AS activation_token,
+	hmad.variables_updated_at,
+	hmad.assets_updated_at,
+	hmad.activation_updated_at,
+	mad.declaration_uuid
+FROM
+	host_mdm_apple_declarations hmad
+	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
+	LEFT JOIN mdm_apple_ddm_activations act ON act.declaration_uuid = mad.declaration_uuid
+WHERE
+	hmad.host_uuid = ? AND hmad.scope = ? AND hmad.operation_type = ?
+	AND (
+		act.identifier = ?
+		OR (act.activation_uuid IS NULL AND CONCAT(mad.declaration_uuid, ?) = ?)
+	)`
+
+	var res fleet.MDMAppleDDMActivationForDelivery
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt,
+		hostUUID, scope, fleet.MDMOperationTypeInstall,
+		identifier, fleet.MDMAppleGeneratedActivationSuffix, identifier,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("MDMAppleActivation").WithName(identifier)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get ddm activation response")
+	}
+	return &res, nil
 }
 
 func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDeclaration, error) {
@@ -5620,7 +5782,8 @@ func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identi
 	// declarations are removed, but the join would provide an extra layer of safety.
 	const stmt = `
 SELECT
-	mad.declaration_uuid, mad.raw_json, HEX(mad.token) as token, hmad.variables_updated_at, hmad.assets_updated_at
+	mad.declaration_uuid, mad.raw_json, HEX(mad.token) as token,
+	hmad.variables_updated_at, hmad.assets_updated_at, hmad.activation_updated_at
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
@@ -5769,14 +5932,14 @@ func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, prof
 // scoped to that channel or the other channel's rows would look "removed".
 func (ds *Datastore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, scope fleet.PayloadScope, updates []*fleet.MDMAppleHostDeclaration) error {
 	getHostDeclarationsStmt := `
-    SELECT host_uuid, status, operation_type, HEX(token) as token, secrets_updated_at, variables_updated_at, assets_updated_at, declaration_uuid, declaration_identifier, declaration_name
+    SELECT host_uuid, status, operation_type, HEX(token) as token, secrets_updated_at, variables_updated_at, assets_updated_at, activation_updated_at, declaration_uuid, declaration_identifier, declaration_name
     FROM host_mdm_apple_declarations
     WHERE host_uuid = ? AND scope = ?
   `
 
 	updateHostDeclarationsStmt := `
 INSERT INTO host_mdm_apple_declarations
-    (host_uuid, declaration_uuid, status, operation_type, detail, declaration_name, declaration_identifier, token, secrets_updated_at)
+    (host_uuid, declaration_uuid, status, operation_type, detail, declaration_name, declaration_identifier, token, secrets_updated_at, scope)
 VALUES
   %s
 ON DUPLICATE KEY UPDATE
@@ -5805,10 +5968,10 @@ ON DUPLICATE KEY UPDATE
 	for _, c := range current {
 		// Skip updates for 'remove' operations because it is possible that IT admin removed a profile and then re-added it.
 		// Pending removes are cleaned up after we update status of installs.
-		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt, c.AssetsUpdatedAt)]; ok && c.OperationType != fleet.MDMOperationTypeRemove {
-			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?),")
-			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Token,
-				c.SecretsUpdatedAt)
+		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt, c.AssetsUpdatedAt, c.ActivationUpdatedAt)]; ok && c.OperationType != fleet.MDMOperationTypeRemove {
+			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?, ?),")
+			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Name, c.Identifier, c.Token,
+				c.SecretsUpdatedAt, scope)
 		}
 	}
 
