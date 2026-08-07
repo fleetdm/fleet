@@ -71,6 +71,31 @@ foreach ($key in $uninstallKeys) {
 
         # Prints the exit code
         Write-Host "Uninstall exit code: $exitCode"
+
+        # Without an "_?=<installdir>" argument, an NSIS uninstaller copies
+        # itself to %TEMP%, relaunches the copy detached, and the process we
+        # waited on exits 0 immediately -- so the removal is still in flight
+        # here. Poll the uninstall registry key until the entry disappears so
+        # this script only reports success once the app is really gone.
+        if ($exitCode -eq 0) {
+            $deadline = (Get-Date).AddSeconds(300)
+            do {
+                Start-Sleep -Seconds 5
+                $stillInstalled = Get-ChildItem `
+                    -Path @($machineKey, $machineKey32on64) `
+                    -ErrorAction SilentlyContinue |
+                        ForEach-Object { Get-ItemProperty $_.PSPath } |
+                        Where-Object { $_.DisplayName -like $softwareNameLike }
+            } while ($stillInstalled -and (Get-Date) -lt $deadline)
+
+            if ($stillInstalled) {
+                Write-Host "'$softwareName' is still registered after waiting."
+                $exitCode = 1
+            } else {
+                Write-Host "'$softwareName' was removed."
+            }
+        }
+
         # Exit the loop once the software is found and uninstalled.
         break
     }
