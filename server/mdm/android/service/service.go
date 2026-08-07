@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -1085,6 +1086,59 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 	svc.logger.InfoContext(ctx, "android wipe command issued",
 		"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
 	return nil
+}
+
+// IssueCustomCommand issues an arbitrary AMAPI command from raw JSON. It reuses resolveAndroidCommandTarget
+// for auth/device resolution, unmarshals the JSON into an AMAPI Command, calls IssueCommand, and persists the
+// row in mdm_android_commands with raw_command populated. No host_mdm_actions ref is written.
+func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
+	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "custom-command")
+	if err != nil {
+		return nil, err
+	}
+
+	var amapiCmd androidmanagement.Command
+	if err := json.Unmarshal(rawJSON, &amapiCmd); err != nil {
+		return nil, &fleet.BadRequestError{Message: "invalid Android command JSON: " + err.Error()}
+	}
+
+	// Set a long duration so the command stays queued until the device comes online,
+	// matching the behavior of Lock/Wipe/ClearPasscode.
+	if amapiCmd.Duration == "" {
+		amapiCmd.Duration = longCommandDuration
+	}
+
+	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &amapiCmd)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "amapi issue custom command")
+	}
+
+	// Determine the command type from the AMAPI response metadata or the request.
+	cmdType := amapiCmd.Type
+	if cmdType == "" {
+		// AMAPI infers the type from params fields (e.g. clearAppsDataParams → CLEAR_APP_DATA).
+		// The type is reflected back in the Operation metadata but not trivially accessible here,
+		// so fall back to "CUSTOM" for now.
+		cmdType = "CUSTOM"
+	}
+
+	cmd := &android.MDMAndroidCommand{
+		CommandUUID:   uuid.NewString(),
+		HostUUID:      host.UUID,
+		OperationName: op.Name,
+		CommandType:   cmdType,
+		RawCommand:    sql.Null[string]{V: string(rawJSON), Valid: true},
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}
+	if err := svc.fleetDS.InsertMDMAndroidCommand(ctx, cmd); err != nil {
+		svc.logger.ErrorContext(ctx, "amapi custom command issued but local state write failed",
+			"host_id", host.ID, "operation_name", op.Name, "err", err)
+		return nil, ctxerr.Wrap(ctx, err, "persist android custom command")
+	}
+
+	svc.logger.InfoContext(ctx, "android custom command issued",
+		"host_id", host.ID, "command_uuid", cmd.CommandUUID, "command_type", cmdType, "operation_name", op.Name)
+	return cmd, nil
 }
 
 func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error) {
