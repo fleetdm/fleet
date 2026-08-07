@@ -10167,13 +10167,19 @@ func (s *integrationTestSuite) TestOsqueryConfigETag() {
 	require.Equal(t, expectedETag, etagOf(optedInBody))
 	require.NotEqual(t, "ok", etagOf(optedInBody))
 
-	// Stripping the etag key yields exactly the legacy bytes.
-	var optedInConfig map[string]any
+	// Stripping the etag key yields the same configuration. This is a
+	// semantic (unmarshaled) comparison, not a byte comparison: pack content
+	// is embedded as struct-marshaled json.RawMessage whose field order a
+	// round-trip through map[string]any cannot preserve, so re-marshaling
+	// here would alphabetize nested keys and spuriously mismatch whenever
+	// earlier suite tests left scheduled reports behind. The byte-level
+	// guarantee — the validator covers the exact legacy bytes — is already
+	// pinned by the expectedETag assertion above.
+	var legacyConfig, optedInConfig map[string]any
+	require.NoError(t, json.Unmarshal(legacyBody, &legacyConfig))
 	require.NoError(t, json.Unmarshal(optedInBody, &optedInConfig))
 	delete(optedInConfig, "etag")
-	stripped, err := marshalClientConfig(optedInConfig)
-	require.NoError(t, err)
-	require.Equal(t, string(legacyBody), string(stripped))
+	require.Equal(t, legacyConfig, optedInConfig)
 
 	// 3. Echoing the validator gets the constant unchanged body, HTTP 200.
 	unchangedBody := readAll(s.DoRaw("POST", "/api/osquery/config", etagRequestBody(expectedETag), http.StatusOK))
