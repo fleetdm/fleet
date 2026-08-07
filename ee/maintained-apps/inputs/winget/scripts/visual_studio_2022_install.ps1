@@ -11,6 +11,11 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
+if (-not (Test-Path $exeFilePath)) {
+  Write-Host "Error: Installer file not found at: $exeFilePath"
+  Exit 1
+}
+
 $processOptions = @{
   FilePath = "$exeFilePath"
   ArgumentList = "--quiet --wait --norestart"

@@ -13,22 +13,19 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup
 
 try {
 
-if (-not (Test-Path $vswhere)) {
-  Write-Host "vswhere.exe not found at $vswhere - Visual Studio Installer is not present"
-  Exit 1
-}
-
-if (-not (Test-Path $vsInstaller)) {
-  Write-Host "setup.exe not found at $vsInstaller - Visual Studio Installer is not present"
-  Exit 1
+# The Visual Studio Installer is absent, so no edition is installed and there
+# is nothing to remove. Uninstall is idempotent, so report success.
+if (-not (Test-Path $vswhere) -or -not (Test-Path $vsInstaller)) {
+  Write-Host "Visual Studio Installer not present, nothing to uninstall"
+  Exit 0
 }
 
 $installPath = & $vswhere -products Microsoft.VisualStudio.Product.Community -version "[17.0,18.0)" -property installationPath
 $installPath = ($installPath | Select-Object -First 1)
 
 if (-not $installPath) {
-  Write-Host "No installed Visual Studio Community 2022 instance found"
-  Exit 1
+  Write-Host "No Visual Studio Community 2022 instance found, nothing to uninstall"
+  Exit 0
 }
 
 Write-Host "Found Visual Studio Community 2022 at: $installPath"
