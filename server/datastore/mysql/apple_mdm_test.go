@@ -95,6 +95,7 @@ func TestMDMApple(t *testing.T) {
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
 		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
 		{"MDMAppleCustomActivations", testMDMAppleCustomActivations},
+		{"MDMAppleActivationKeepLeavesItUntouched", testMDMAppleActivationKeepLeavesItUntouched},
 		{"MDMAppleBatchCustomActivations", testMDMAppleBatchCustomActivations},
 		{"NewMDMAppleDeclarationSoftwareUpdateTracking", testNewMDMAppleDeclarationSoftwareUpdateTracking},
 		{"SetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking", testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking},
@@ -106,6 +107,8 @@ func TestMDMApple(t *testing.T) {
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
+		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
+		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"ReconcileAppleProfilesDuplicateHostUUID", testReconcileAppleProfilesDuplicateHostUUID},
@@ -6767,7 +6770,7 @@ func testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *
 		Name:       "su",
 		TeamID:     &tm.ID,
 		RawJSON:    suJSON("com.fleet.su", "2026-06-01T12:00:00"),
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Equal(t, decl.DeclarationUUID, updated.DeclarationUUID)
 	require.True(t, configured())
@@ -6779,7 +6782,7 @@ func testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *
 		Name:       "su",
 		TeamID:     &tm.ID,
 		RawJSON:    otherJSON("com.fleet.su"),
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.False(t, configured())
 
@@ -6789,7 +6792,7 @@ func testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *
 		Name:       "su",
 		TeamID:     &tm.ID,
 		RawJSON:    suJSON("com.fleet.su", "2027-01-01T12:00:00"),
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.True(t, configured())
 
@@ -6802,7 +6805,7 @@ func testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *
 		Name:       fleetmdm.FleetMacOSUpdatesProfileName,
 		TeamID:     &tm2.ID,
 		RawJSON:    suJSON("com.fleetdm.fleet.mdm.apple.osupdates", "2027-01-01T12:00:00"),
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	reservedConfigured, err := ds.HasAppleUpdateConfigProfileConfigured(ctx, tm2.ID)
 	require.NoError(t, err)
@@ -6904,7 +6907,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:       "d1",
 		TeamID:     &tm1.ID,
 		RawJSON:    json.RawMessage(`{"Identifier": "i1"}`),
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.NotEqual(t, d1.DeclarationUUID, d1tm1.DeclarationUUID)
 
@@ -6918,7 +6921,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:             "d1",
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Equal(t, d1.DeclarationUUID, d1Ori.DeclarationUUID)
 	require.NotEqual(t, d1.DeclarationUUID, d1tm1.DeclarationUUID)
@@ -6934,7 +6937,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:             "d1",
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l2.Name, LabelID: l2.ID}},
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Equal(t, d1.DeclarationUUID, d1Ori.DeclarationUUID)
 
@@ -6950,7 +6953,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		TeamID:           &tm1.ID,
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Equal(t, d1tm1B.DeclarationUUID, d1tm1.DeclarationUUID)
 
@@ -8175,6 +8178,139 @@ func testMDMAppleUpsertHostPersonalEnrollment(t *testing.T, ds *Datastore) {
 	// A brand-new host inserted directly as BYOD (insertMDMAppleHostDB path).
 	byodID := upsert("byod-first", true)
 	require.True(t, readPersonalEnrollment(byodID), "fresh BYOD enrollment should be personal")
+}
+
+// testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals is a regression
+// test for stale PII (service subscription phone numbers, push token, etc.)
+// persisting under a host_uuid after it transitions from company-owned to
+// personal (BYOD): matchHostDuringEnrollment reuses the same host row, and
+// the command-level BYOD gating in commander.go only prevents *new* fields
+// from being requested/stored going forward -- it doesn't clear whatever was
+// already stored under the prior, non-personal enrollment.
+func testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	const hostUUID = "company-then-byod-vitals"
+
+	upsert := func(personal bool) {
+		err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+			UUID:           hostUUID,
+			HardwareSerial: "serial-" + hostUUID,
+			HardwareModel:  "iPad13,1",
+			Platform:       "ipados",
+		}, personal)
+		require.NoError(t, err)
+	}
+
+	countRows := func(table string) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE host_uuid = ?`, table), hostUUID) //nolint:gosec // table is a fixed literal at each call site, not user input
+		})
+		return n
+	}
+
+	upsert(false) // company-owned enrollment
+
+	// Simulate a company-owned refetch populating the fuller vitals set,
+	// including PII that must not survive a switch to BYOD.
+	vitals := fleet.MDMAppleDeviceVitals{
+		UDID:         new(hostUUID),
+		BatteryLevel: new(0.87),
+		ServiceSubscriptions: []fleet.MDMAppleServiceSubscription{
+			{Slot: "CTSubscriptionSlotOne", PhoneNumber: new("+15555550100")},
+		},
+	}
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, hostUUID, vitals))
+	require.Equal(t, 1, countRows("host_mdm_apple_device_vitals"))
+	require.Equal(t, 1, countRows("host_mdm_apple_service_subscriptions"))
+
+	// Re-enrolling the same device as BYOD must clear the vitals collected
+	// under the prior company-owned enrollment.
+	upsert(true)
+	require.Equal(t, 0, countRows("host_mdm_apple_device_vitals"),
+		"vitals from the prior company-owned enrollment must be cleared on transition to BYOD")
+	require.Equal(t, 0, countRows("host_mdm_apple_service_subscriptions"),
+		"service subscriptions from the prior company-owned enrollment must be cleared on transition to BYOD")
+
+	// A subsequent BYOD-safe refetch does insert a row here: WiFiMAC and
+	// IsMDMLostModeEnabled are among the pre-existing 9 keys Fleet requests
+	// regardless of enrollment type (see byodDeviceInformationQueryKeys in
+	// server/mdm/apple/commander.go) and happen to also be columns on this
+	// table -- but never any of the 26 new, PII-bearing fields (UDID,
+	// BatteryLevel, ServiceSubscriptions, etc. all stay nil/absent).
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, hostUUID, fleet.MDMAppleDeviceVitals{
+		WiFiMAC:              new("a4:83:e7:12:34:57"),
+		IsMDMLostModeEnabled: new(false),
+	}))
+	require.Equal(t, 1, countRows("host_mdm_apple_device_vitals"))
+
+	// Re-enrolling again as BYOD (no change in classification) must not wipe
+	// the vitals collected since the transition.
+	upsert(true)
+	require.Equal(t, 1, countRows("host_mdm_apple_device_vitals"),
+		"re-enrolling as BYOD again with no classification change must not clear existing vitals")
+}
+
+// testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange is a
+// regression test for a variant of the above: matchHostDuringEnrollment can
+// match an existing host by hardware serial even when the incoming UUID
+// differs from what's currently stored (e.g. a device re-enrolling with a
+// new UDID). updateMDMAppleHostDB's UPDATE hosts SET ... uuid = ? changes
+// hosts.uuid to the new value -- the BYOD cleanup must delete rows keyed by
+// the host's *previous* UUID (which is what the stale vitals are actually
+// stored under), not the new one the checkin reports.
+func testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	const (
+		serial  = "serial-uuid-change"
+		oldUUID = "old-uuid-company-owned"
+		newUUID = "new-uuid-byod"
+	)
+
+	countRows := func(table, uuid string) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE host_uuid = ?`, table), uuid) //nolint:gosec // table is a fixed literal at each call site, not user input
+		})
+		return n
+	}
+
+	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           oldUUID,
+		HardwareSerial: serial,
+		HardwareModel:  "iPad13,1",
+		Platform:       "ipados",
+	}, false)
+	require.NoError(t, err)
+
+	// Simulate a company-owned refetch populating PII that must not survive
+	// a switch to BYOD.
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, oldUUID, fleet.MDMAppleDeviceVitals{
+		ServiceSubscriptions: []fleet.MDMAppleServiceSubscription{
+			{Slot: "CTSubscriptionSlotOne", PhoneNumber: new("+15555550100")},
+		},
+	}))
+	require.Equal(t, 1, countRows("host_mdm_apple_device_vitals", oldUUID))
+	require.Equal(t, 1, countRows("host_mdm_apple_service_subscriptions", oldUUID))
+
+	// Re-enroll the same hardware serial as BYOD, but with a different
+	// incoming UUID -- matched via hardware_serial, not uuid.
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           newUUID,
+		HardwareSerial: serial,
+		HardwareModel:  "iPad13,1",
+		Platform:       "ipados",
+	}, true)
+	require.NoError(t, err)
+
+	require.Equal(t, 0, countRows("host_mdm_apple_device_vitals", oldUUID),
+		"vitals keyed by the host's previous UUID must be cleared on transition to BYOD")
+	require.Equal(t, 0, countRows("host_mdm_apple_service_subscriptions", oldUUID),
+		"service subscriptions keyed by the host's previous UUID must be cleared on transition to BYOD")
 }
 
 func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -13952,7 +14088,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 		Identifier:              "com.fleet.act-test.custom",
 		RawJSON:                 editedAct,
 		ConfigurationIdentifier: "com.fleet.act-test",
-	}), nil)
+	}), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 
 	var count int
@@ -13980,7 +14116,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 		RawJSON:                 varAct,
 		ConfigurationIdentifier: "com.fleet.act-test",
 		FleetVariables:          []fleet.FleetVarName{fleet.FleetVarHostUUID},
-	}), nil)
+	}), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 
 	var activationUUID string
@@ -14011,7 +14147,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 			RawJSON:                 actRaw,
 			ConfigurationIdentifier: "com.fleet.act-test.other",
 		},
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.Error(t, err)
 	// A conflict rather than an exists error, so callers don't report it as a
 	// clash on the configuration profile's identifier.
@@ -14037,7 +14173,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 			RawJSON:                 []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act-test.other.custom","Payload":{"StandardConfigurations":["com.fleet.act-test.other"]}}`),
 			ConfigurationIdentifier: "com.fleet.act-test.other",
 		},
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.DeleteMDMAppleDeclaration(ctx, otherActDecl.DeclarationUUID))
@@ -14057,7 +14193,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 
 	carriedAct := *carried.Activation
 	carriedAct.FleetVariables = []fleet.FleetVarName{fleet.FleetVarHostUUID}
-	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(&carriedAct), nil)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(&carriedAct), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
@@ -14066,7 +14202,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 
 	// Re-uploading the declaration without an activation removes it, and the
 	// FK cascade takes the variable association with it.
-	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
@@ -14076,6 +14212,75 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
 		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
 	require.Zero(t, varCount)
+}
+
+func testMDMAppleActivationKeepLeavesItUntouched(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	declRaw := []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.leave-test","Payload":{"Echo":"foo"}}`)
+	actRaw := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.leave-test.custom","Payload":{"StandardConfigurations":["com.fleet.leave-test"],"Predicate":"$FLEET_VAR_HOST_HARDWARE_SERIAL == 'x'"}}`)
+
+	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.leave-test",
+		Name:       "leave-test",
+		RawJSON:    declRaw,
+		Activation: &fleet.MDMAppleCustomActivation{
+			Identifier:              "com.fleet.leave-test.custom",
+			RawJSON:                 actRaw,
+			ConfigurationIdentifier: "com.fleet.leave-test",
+			FleetVariables:          []fleet.FleetVarName{fleet.FleetVarHostHardwareSerial},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	var before struct {
+		ActivationUUID string    `db:"activation_uuid"`
+		UploadedAt     time.Time `db:"uploaded_at"`
+	}
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &before,
+		`SELECT activation_uuid, uploaded_at FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+
+	countVars := func() (n int) {
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n,
+			`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, before.ActivationUUID))
+		return n
+	}
+	require.Equal(t, 1, countVars(), "the activation's variable association should exist")
+
+	// A write that leaves the activation alone must not touch the row or its
+	// variable associations, even though the declaration itself is rewritten and
+	// the incoming struct carries no activation at all.
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.leave-test",
+		Name:       "leave-test",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.leave-test","Payload":{"Echo":"bar"}}`),
+	}, nil, fleet.MDMAppleActivationKeep)
+	require.NoError(t, err)
+
+	var after struct {
+		ActivationUUID string    `db:"activation_uuid"`
+		UploadedAt     time.Time `db:"uploaded_at"`
+		RawJSON        []byte    `db:"raw_json"`
+	}
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &after,
+		`SELECT activation_uuid, uploaded_at, raw_json FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.Equal(t, before.ActivationUUID, after.ActivationUUID)
+	require.True(t, before.UploadedAt.Equal(after.UploadedAt), "uploaded_at must not move")
+	require.JSONEq(t, string(actRaw), string(after.RawJSON))
+	require.Equal(t, 1, countVars(), "variable associations must survive")
+
+	// Apply with a nil activation is how removal is expressed.
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.leave-test",
+		Name:       "leave-test",
+		RawJSON:    declRaw,
+	}, nil, fleet.MDMAppleActivationApply)
+	require.NoError(t, err)
+
+	var remaining int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &remaining,
+		`SELECT COUNT(*) FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.Zero(t, remaining)
 }
 
 func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {

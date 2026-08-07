@@ -1683,7 +1683,7 @@ func TestModifyTeamOSUpdatesDeadlineDays(t *testing.T) {
 			var gotDecl *fleet.MDMAppleDeclaration
 			var gotVars []fleet.FleetVarName
 			ds.SetOrUpdateMDMAppleDeclarationFunc = func(_ context.Context, decl *fleet.MDMAppleDeclaration,
-				usesFleetVars []fleet.FleetVarName,
+				usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction,
 			) (*fleet.MDMAppleDeclaration, error) {
 				gotDecl = decl
 				gotVars = usesFleetVars
@@ -1795,7 +1795,7 @@ func TestModifyTeamSwitchingOSUpdateModes(t *testing.T) {
 			return ids, nil
 		}
 		ds.SetOrUpdateMDMAppleDeclarationFunc = func(_ context.Context, decl *fleet.MDMAppleDeclaration,
-			_ []fleet.FleetVarName,
+			_ []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction,
 		) (*fleet.MDMAppleDeclaration, error) {
 			decl.DeclarationUUID = "decl-uuid"
 			return decl, nil
@@ -1962,7 +1962,7 @@ func TestApplyTeamSpecsOSUpdatesValidation(t *testing.T) {
 				return ids, nil
 			}
 			ds.SetOrUpdateMDMAppleDeclarationFunc = func(_ context.Context, decl *fleet.MDMAppleDeclaration,
-				_ []fleet.FleetVarName,
+				_ []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction,
 			) (*fleet.MDMAppleDeclaration, error) {
 				decl.DeclarationUUID = "decl-uuid"
 				return decl, nil

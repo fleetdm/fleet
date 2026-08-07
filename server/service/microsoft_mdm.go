@@ -3143,6 +3143,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	// osquery's directIngestMDMDeviceIDWindows remains as a backstop.
 	displayName := reqDeviceName
 	var serial string
+	var hostID uint
 	if hostUUID != "" {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
@@ -3172,6 +3173,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 			// then we found the host, so use the data from there for the activity
 			displayName = hosts[0].DisplayName()
 			serial = hosts[0].HardwareSerial
+			hostID = hosts[0].ID
 
 			// Flip host_mdm.enrolled = 1 immediately so the Windows profile reconciler selects this host. This covers
 			// fresh enrollment, ESP/OOBE, and the post-disable re-enable cycle. The values written here are the same
@@ -3218,6 +3220,10 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 	err = svc.NewActivity(
 		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
+			// HostID stays zero (omitted) for Azure automatic enrollments: the
+			// enrollment row is unlinked until the device reports its serial on
+			// the first management session, so there is no host to link yet.
+			HostID:          hostID,
 			HostDisplayName: displayName,
 			MDMPlatform:     fleet.MDMPlatformMicrosoft,
 			HostSerial:      &serial,

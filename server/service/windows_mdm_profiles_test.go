@@ -678,7 +678,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		assert.Empty(t, updated.SyncML)
@@ -714,7 +714,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, syncML, updated.SyncML)
 		assert.Equal(t, existing.Name, updated.Name)
@@ -744,7 +744,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, syncML, updated.SyncML)
 		require.NotNil(t, updated.TeamID)
@@ -773,7 +773,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, syncML, updated.SyncML)
 		require.Len(t, updated.LabelsIncludeAny, 1)
@@ -794,7 +794,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -806,7 +806,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "w"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, "w"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -823,7 +823,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
 
@@ -832,7 +832,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 	})
 
@@ -852,10 +852,10 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		}
 
 		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -874,7 +874,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarName("HOST_UUID"))
 	})
@@ -895,7 +895,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 				return &p, nil
 			}
 
-			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, nil)
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 			require.NoError(t, err)
 			assert.Equal(t, osUpdateSyncML, updated.SyncML)
 		})
@@ -921,7 +921,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 				return nil, nil
 			}
 
-			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, nil)
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 			require.Error(t, err)
 			assert.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		})
@@ -938,7 +938,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 				return nil, nil
 			}
 
-			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, nil)
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 			require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		})
 	})
@@ -992,10 +992,10 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 
 				// profile content and labels are deliberately nil/empty here --
 				// this isolates the authz checks from content/label validation.
-				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailGlobal)
 
-				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailTeam)
 			})
 		}

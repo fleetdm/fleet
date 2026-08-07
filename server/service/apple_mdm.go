@@ -68,6 +68,8 @@ const (
 	// Shared with the batch/GitOps path so the same mistake reads the same way.
 	ActivationUnsupportedProfileErrorMsg    = "Activations are only supported for declaration (DDM) profiles."
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
+	ActivationEmptyFileErrorMsg             = "Activation must contain a declaration. To remove the activation, send an empty activation field."
+	ActivationConflictingPartsErrorMsg      = "Send either an activation file to replace it or an empty activation field to remove it, not both."
 )
 
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
@@ -1202,7 +1204,7 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 // mdm_apple_declarations.token is a MySQL generated column derived from
 // raw_json, so the ReconcileAppleDeclarations cron picks up a content change
 // on its own.
-func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error {
+func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -1265,22 +1267,6 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		for _, v := range variables.Find(expanded) {
 			varNames = append(varNames, fleet.FleetVarName(v))
 		}
-		// Loaded without its variables, and the datastore rewrites associations
-		// from whatever it's handed, so re-derive them as above.
-		carriedActivation := existing.Activation
-		if carriedActivation != nil {
-			expandedAct, _, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(carriedActivation.RawJSON))
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "expanding secrets for existing activation")
-			}
-			actVarNames := make([]fleet.FleetVarName, 0, len(carriedActivation.FleetVariables))
-			for _, v := range variables.Find(expandedAct) {
-				actVarNames = append(actVarNames, fleet.FleetVarName(v))
-			}
-			carried := *carriedActivation
-			carried.FleetVariables = actVarNames
-			carriedActivation = &carried
-		}
 		decl = &fleet.MDMAppleDeclaration{
 			Name:             existing.Name,
 			Identifier:       existing.Identifier,
@@ -1290,8 +1276,6 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 			// the upsert writes scope unconditionally, so the unchanged
 			// content's scope must be carried over or it would be cleared
 			Scope: existing.Scope,
-			// a declaration written without one has its activation cleared
-			Activation: carriedActivation,
 		}
 		switch labelsMembershipMode {
 		case fleet.LabelsIncludeAll:
@@ -1302,25 +1286,30 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		decl.LabelsExcludeAny = excludeLabels
 	}
 
-	// A supplied activation replaces the stored one; new content without one
-	// drops it, which is how an admin removes it.
-	if len(activation) > 0 && decl.Type == "" {
-		// content is unchanged, so recover Type for the management check
-		rawDecl, err := fleet.GetRawDeclarationValues(decl.RawJSON)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "parsing existing declaration")
+	// Three states: an edit that doesn't mention the activation keeps the stored
+	// one, a null one removes it, and content replaces it. The datastore write
+	// is a full replace, so keeping it has to be said explicitly.
+	activationAction := fleet.MDMAppleActivationKeep
+	if activation.Set {
+		activationAction = fleet.MDMAppleActivationApply
+		if activation.Valid {
+			if decl.Type == "" {
+				// content is unchanged, so recover Type for the management check
+				rawDecl, err := fleet.GetRawDeclarationValues(decl.RawJSON)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "parsing existing declaration")
+				}
+				decl.Type = rawDecl.Type
+			}
+			customActivation, err := svc.validateActivation(ctx, activation.Value, decl.Identifier, decl.Type)
+			if err != nil {
+				return err
+			}
+			decl.Activation = customActivation
 		}
-		decl.Type = rawDecl.Type
-	}
-	customActivation, err := svc.validateActivation(ctx, activation, decl.Identifier, decl.Type)
-	if err != nil {
-		return err
-	}
-	if customActivation != nil {
-		decl.Activation = customActivation
 	}
 
-	if _, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, varNames); err != nil {
+	if _, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, varNames, activationAction); err != nil {
 		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
 			err = fleet.NewInvalidArgumentError("profile", "Couldn't edit. A configuration profile with this identifier already exists.").WithStatus(http.StatusConflict)
 		}
@@ -6411,6 +6400,16 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 
 	if err := svc.ds.UpdateHost(ctx, host); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
+	}
+
+	// A failure here is logged rather than returned: the refetch results are
+	// already persisted above, this is a non-critical write the next refetch
+	// will redo, and aborting would skip the MDM-enrollment-status and
+	// lost-mode reconciliation below. Mirrors UpdateHostDeviceNameStatusFromReport
+	// just below.
+	vitals := parseMDMAppleDeviceVitals(queryResponses)
+	if err := svc.ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals); err != nil {
+		svc.logger.ErrorContext(ctx, "update host mdm apple device vitals from refetch", "host_uuid", host.UUID, "err", err)
 	}
 
 	if deviceNameOK && deviceName != "" && fleet.IsAppleMobilePlatform(host.Platform) {
