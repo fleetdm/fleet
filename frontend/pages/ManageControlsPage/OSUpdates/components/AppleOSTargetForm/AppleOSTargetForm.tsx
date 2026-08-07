@@ -246,10 +246,11 @@ const AppleOSTargetForm = ({
           ? await configAPI.update(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
         notify.success("Successfully updated.");
-        // Only refetch on success: a rejected save leaves the stored config
-        // untouched, so there'd be nothing new to pull. This doesn't reset the
-        // form -- its state is initialised once and only re-initialises on
-        // remount, which PlatformTabs keys to the team.
+        // Only refetch on success: the refetch flips isFetching, which unmounts
+        // this form behind TargetSection's spinner and remounts it against the
+        // stored config -- that's what resets it. After a rejected save nothing
+        // changed on the server, so resetting would just discard what the user
+        // needs to fix.
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? refetchAppConfig()
           : refetchTeamConfig();
