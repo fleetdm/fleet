@@ -9,7 +9,7 @@ func init() {
 	MigrationClient.AddMigration(Up_20260807120050, Down_20260807120050)
 }
 
-// Up_20260806161534 creates host_mdm_apple_device_vitals and
+// Up_20260807120050 creates host_mdm_apple_device_vitals and
 // host_mdm_apple_service_subscriptions, which hold the additional
 // iOS/iPadOS host vitals collected via the expanded DeviceInformation MDM
 // command (see #49984). Both tables are keyed by host_uuid, no FK, and are
