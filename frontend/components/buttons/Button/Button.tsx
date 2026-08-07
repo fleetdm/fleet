@@ -10,7 +10,6 @@ export type ButtonVariant =
   | "default"
   | "alert"
   | "pill"
-  | "grey-pill"
   | "link" // Looks like CustomLink with animated underline on hover
   | "secondary" // Bordered secondary button (off-white fill + border). The new preferred secondary — see #35329.
   | "subdued" // Low-emphasis borderless text + icon button. Not to be confused with a link.

@@ -47,7 +47,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | DRI                               | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
-## Customer support service level objectives (SLOs)
+## Customer support service level objectives (SLAs)
 
 **Fleet Free:**
 
@@ -492,6 +492,7 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
 - [Fleet for digital workplace leaders](https://drive.google.com/file/d/1JlIV1PY5lECQQmq2H_eR35haeKefHXIf/view?usp=sharing)
 - [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
+- [Meraki goes EoL](https://docs.google.com/presentation/d/19_aV9Xx94RClPdO34YBWdDo1FGBP_75MlttV8IcE4TM/edit?slide=id.g3f521d67c72_1_0#slide=id.g3f521d67c72_1_0)
 
 <!--
 - [Fleet for digital workplace leaders](https://docs.google.com/presentation/d/1G8BtuhYRX92He3AifA5TAW4YlZO3jlcj8OeCqcSHmOM/edit?slide=id.g3d28ee536a1_2_37#slide=id.g3d28ee536a1_2_37)
@@ -576,7 +577,7 @@ We track certain social posts from the [LinkedIn company page](https://www.linke
 
 #### Quotes
 
-##### Change which fields are visable when editing selected quote line items
+##### Change which fields are visible when editing selected quote line items
 
 <img width="1698" height="391" alt="image" src="https://github.com/user-attachments/assets/71f540b8-c1b7-408e-b7cc-640237db7930" />
 

@@ -4,6 +4,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import {
   IAppStoreApp,
+  isAndroidSoftwareSource,
   isIpadOrIphoneSoftwareSource,
   ISoftwarePackage,
   InstallerType,
@@ -162,6 +163,7 @@ const EditIconModal = ({
   const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
     previewInfo?.source || ""
   );
+  const isAndroidApp = isAndroidSoftwareSource(previewInfo?.source || "");
 
   // Fetch current custom icon from API if applicable
   const shouldFetchCustomIcon =
@@ -613,20 +615,24 @@ const EditIconModal = ({
         gitopsCompatible={false}
       />
       <h2>Preview</h2>
-      <TabNav>
-        <Tabs selectedIndex={previewTabIndex} onSelect={onTabChange}>
-          <TabList>
-            <Tab>
-              <TabText>Fleet</TabText>
-            </Tab>
-            <Tab>
-              <TabText>Self-service</TabText>
-            </Tab>
-          </TabList>
-          <TabPanel>{renderPreviewFleetCard()}</TabPanel>
-          <TabPanel>{renderPreviewSelfServiceCard()}</TabPanel>
-        </Tabs>
-      </TabNav>
+      {isAndroidApp ? (
+        renderPreviewFleetCard()
+      ) : (
+        <TabNav>
+          <Tabs selectedIndex={previewTabIndex} onSelect={onTabChange}>
+            <TabList>
+              <Tab>
+                <TabText>Fleet</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Self-service</TabText>
+              </Tab>
+            </TabList>
+            <TabPanel>{renderPreviewFleetCard()}</TabPanel>
+            <TabPanel>{renderPreviewSelfServiceCard()}</TabPanel>
+          </Tabs>
+        </TabNav>
+      )}
     </>
   );
 
