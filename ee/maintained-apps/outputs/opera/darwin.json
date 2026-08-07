@@ -4,7 +4,8 @@
       "version": "134.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera' AND version_compare(bundle_short_version, '134.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera' AND version_compare(bundle_short_version, '134.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.operasoftware.Opera');"
       },
       "installer_url": "https://get.geo.opera.com/pub/opera/desktop/134.0.5954.46/mac/Opera_134.0.5954.46_Setup.dmg",
       "install_script_ref": "f2f3d814",

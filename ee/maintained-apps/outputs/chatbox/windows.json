@@ -4,7 +4,8 @@
       "version": "1.22.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox Community%' AND publisher = 'Benn Huang';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox Community%' AND publisher = 'Benn Huang' AND version_compare(version, '1.22.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox Community%' AND publisher = 'Benn Huang' AND version_compare(version, '1.22.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chatbox.exe');"
       },
       "installer_url": "https://download.chatboxai.app/releases/Chatbox-1.22.2-Setup.exe",
       "install_script_ref": "dd2de847",

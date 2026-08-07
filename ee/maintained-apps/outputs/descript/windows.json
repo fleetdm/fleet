@@ -4,7 +4,8 @@
       "version": "2.15.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Descript %' AND publisher = 'Descript, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Descript %' AND publisher = 'Descript, Inc.' AND version_compare(version, '2.15.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Descript %' AND publisher = 'Descript, Inc.' AND version_compare(version, '2.15.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'descript.exe');"
       },
       "installer_url": "https://static-cdn.descript.com/desktop/win32/x64/Descript%20Setup%202.15.0.exe",
       "install_script_ref": "a5276316",

@@ -4,7 +4,8 @@
       "version": "2.52.315",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.' AND version_compare(version, '2.52.315') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.' AND version_compare(version, '2.52.315') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'box drive.exe');"
       },
       "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.52.315.msi",
       "install_script_ref": "22e48c46",

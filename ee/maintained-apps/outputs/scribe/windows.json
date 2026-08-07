@@ -4,7 +4,8 @@
       "version": "6.8.4.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Scribe' AND publisher = 'Colony Labs, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Scribe' AND publisher = 'Colony Labs, Inc' AND version_compare(version, '6.8.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Scribe' AND publisher = 'Colony Labs, Inc' AND version_compare(version, '6.8.4.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'scribe.exe');"
       },
       "installer_url": "https://colony-labs-public.s3.us-east-2.amazonaws.com/Scribe_6.8.4.msi",
       "install_script_ref": "cf2d0de4",

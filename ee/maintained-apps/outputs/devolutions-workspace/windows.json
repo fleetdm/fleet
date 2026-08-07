@@ -4,7 +4,8 @@
       "version": "2026.2.2.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Devolutions Password Manager' AND publisher = 'Devolutions Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Devolutions Password Manager' AND publisher = 'Devolutions Inc.' AND version_compare(version, '2026.2.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Devolutions Password Manager' AND publisher = 'Devolutions Inc.' AND version_compare(version, '2026.2.2.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'devolutions workspace.exe');"
       },
       "installer_url": "https://cdn.devolutions.net/download/Devolutions.PasswordManager.2026.2.2.0-x64.msi",
       "install_script_ref": "22e48c46",

@@ -4,7 +4,8 @@
       "version": "9.0.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zotero' AND publisher = 'Corporation for Digital Scholarship';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zotero' AND publisher = 'Corporation for Digital Scholarship' AND version_compare(version, '9.0.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zotero' AND publisher = 'Corporation for Digital Scholarship' AND version_compare(version, '9.0.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'zotero.exe');"
       },
       "installer_url": "https://download.zotero.org/client/release/9.0.6/Zotero-9.0.6_x64_setup.exe",
       "install_script_ref": "d29b62d2",

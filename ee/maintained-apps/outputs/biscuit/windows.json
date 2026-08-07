@@ -4,7 +4,8 @@
       "version": "2.1.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Biscuit %' AND publisher = 'Biscuit Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Biscuit %' AND publisher = 'Biscuit Project' AND version_compare(version, '2.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Biscuit %' AND publisher = 'Biscuit Project' AND version_compare(version, '2.1.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'biscuit.exe');"
       },
       "installer_url": "https://github.com/agata/dl.biscuit/releases/download/2.1.1/Biscuit-2.1.1-setup.exe",
       "install_script_ref": "f8daa30f",

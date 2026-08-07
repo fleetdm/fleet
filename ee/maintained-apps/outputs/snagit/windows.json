@@ -4,7 +4,8 @@
       "version": "26.2.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Snagit 2026' AND publisher = 'TechSmith Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Snagit 2026' AND publisher = 'TechSmith Corporation' AND version_compare(version, '26.2.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Snagit 2026' AND publisher = 'TechSmith Corporation' AND version_compare(version, '26.2.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'snagit.exe');"
       },
       "installer_url": "https://download.techsmith.com/snagit/releases/2622/snagit.msi",
       "install_script_ref": "22e48c46",

@@ -4,7 +4,8 @@
       "version": "1.26.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Go Programming Language%' AND publisher = 'https://go.dev';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Go Programming Language%' AND publisher = 'https://go.dev' AND version_compare(version, '1.26.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Go Programming Language%' AND publisher = 'https://go.dev' AND version_compare(version, '1.26.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'go.exe');"
       },
       "installer_url": "https://go.dev/dl/go1.26.5.windows-amd64.msi",
       "install_script_ref": "22e48c46",

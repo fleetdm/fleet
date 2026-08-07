@@ -4,7 +4,8 @@
       "version": "3.4.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Notesnook %' AND publisher = 'Streetwriters';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Notesnook %' AND publisher = 'Streetwriters' AND version_compare(version, '3.4.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Notesnook %' AND publisher = 'Streetwriters' AND version_compare(version, '3.4.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'notesnook.exe');"
       },
       "installer_url": "https://github.com/streetwriters/notesnook/releases/download/v3.4.5/notesnook_win_x64.exe",
       "install_script_ref": "fae91a29",

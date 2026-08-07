@@ -4,7 +4,8 @@
       "version": "1.9.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ToWatchList.SimpleComic';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ToWatchList.SimpleComic' AND version_compare(bundle_short_version, '1.9.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ToWatchList.SimpleComic' AND version_compare(bundle_short_version, '1.9.9') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.ToWatchList.SimpleComic');"
       },
       "installer_url": "https://github.com/MaddTheSane/Simple-Comic/releases/download/App-Store-1.9.9/Simple.Comic.1.9.9.zip",
       "install_script_ref": "cd02745a",

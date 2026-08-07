@@ -4,7 +4,8 @@
       "version": "254.8.4.603",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'TextExpander' AND publisher = 'TextExpander, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'TextExpander' AND publisher = 'TextExpander, Inc.' AND version_compare(version, '254.8.4.603') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'TextExpander' AND publisher = 'TextExpander, Inc.' AND version_compare(version, '254.8.4.603') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'textexpander.exe');"
       },
       "installer_url": "https://cdn.textexpander.com/windows/846.3.0/TextExpander_x64.msi",
       "install_script_ref": "22e48c46",

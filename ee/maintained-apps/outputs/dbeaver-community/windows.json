@@ -4,7 +4,8 @@
       "version": "26.1.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DBeaver %' AND publisher = 'DBeaver Corp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaver %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.1.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaver %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.1.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dbeaver.exe');"
       },
       "installer_url": "https://github.com/dbeaver/dbeaver/releases/download/26.1.4/dbeaver-ce-26.1.4-windows-x86_64.exe",
       "install_script_ref": "44838cfb",

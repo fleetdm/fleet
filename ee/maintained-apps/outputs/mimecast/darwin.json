@@ -4,7 +4,8 @@
       "version": "2.11",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mimecast.Mimecast-Mail';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mimecast.Mimecast-Mail' AND version_compare(bundle_short_version, '2.11') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mimecast.Mimecast-Mail' AND version_compare(bundle_short_version, '2.11') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.mimecast.Mimecast-Mail');"
       },
       "installer_url": "https://us-api.mimecast.com/update/bin/msm/eNptjMtuwjAURP_F6xb5mdjsoBWL8lBVhKqyiRzfa7CKkxYnoaTqv9fsWY00c-b8koSuP2MAMiVvzUn4xerA5gv_8RKfr5fd97haDj-7i9ovj-YwcjsPfP36rrd-vTzqbR2LYTOmzQJmcF2RB-JOAZuu_wLb4cSHE04aGzG71yGis6mbQDzc5SKojIG3SjrNlRGqMKIUvHRgwDHuCi50cbv2qWsjnl0LN_HTbjtjM2nuSlMYbwyjrDSS6swMeE6hbciU3eO79hPzRuqqT5RVSlUDKPUoKk45pSpXkjOBhlFEB-C8LrUsTAFSuZLpmqI33tKS5dRWc5_7GmovbQ1WGecY-fsHKkl1eg",
       "install_script_ref": "1d5453bb",

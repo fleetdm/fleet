@@ -4,7 +4,8 @@
       "version": "2026.2.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DataGrip %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DataGrip %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.9437.70') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DataGrip %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.9437.70') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('datagrip.exe','datagrip64.exe'));"
       },
       "installer_url": "https://download.jetbrains.com/datagrip/datagrip-2026.2.2.exe",
       "install_script_ref": "0897461e",

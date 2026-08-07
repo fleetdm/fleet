@@ -4,7 +4,8 @@
       "version": "1.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.janhuelsmann.sanesidebuttons';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.janhuelsmann.sanesidebuttons' AND version_compare(bundle_short_version, '1.4.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.janhuelsmann.sanesidebuttons' AND version_compare(bundle_short_version, '1.4.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.janhuelsmann.sanesidebuttons');"
       },
       "installer_url": "https://github.com/thealpa/SaneSideButtons/releases/download/1.4.1/SaneSideButtons.dmg",
       "install_script_ref": "18c1bb65",

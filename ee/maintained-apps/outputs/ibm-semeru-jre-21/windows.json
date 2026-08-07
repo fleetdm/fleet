@@ -4,7 +4,8 @@
       "version": "21.0.12.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JRE)%' AND publisher = 'Semeru' AND version LIKE '21.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JRE)%' AND publisher = 'Semeru' AND version LIKE '21.%' AND version_compare(version, '21.0.12.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JRE)%' AND publisher = 'Semeru' AND version LIKE '21.%' AND version_compare(version, '21.0.12.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ibm semeru runtime open edition jre 21.exe');"
       },
       "installer_url": "https://github.com/ibmruntimes/semeru21-binaries/releases/download/jdk-21.0.12.0/ibm-semeru-open-jre_x64_windows_21.0.12.0.msi",
       "install_script_ref": "22e48c46",

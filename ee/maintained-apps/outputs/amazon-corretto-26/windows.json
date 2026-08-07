@@ -4,7 +4,8 @@
       "version": "26.0.2.10",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '26.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '26.%' AND version_compare(version, '26.0.2.10') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '26.%' AND version_compare(version, '26.0.2.10') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon corretto 26.exe');"
       },
       "installer_url": "https://corretto.aws/downloads/resources/26.0.2.10.1/amazon-corretto-26.0.2.10.1-windows-x64.msi",
       "install_script_ref": "22e48c46",
