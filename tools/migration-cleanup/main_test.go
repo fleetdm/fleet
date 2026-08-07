@@ -175,7 +175,7 @@ func TestFindRenameCommitsRange(t *testing.T) {
 		t.Fatalf("git rev-parse HEAD~1: %v", err)
 	}
 	expectedRenameSHA := strings.TrimSpace(string(out))
-	if commits[0] != expectedRenameSHA {
+	if len(commits) > 0 && commits[0] != expectedRenameSHA {
 		t.Errorf("findRenameCommits() = %q, want %q", commits[0], expectedRenameSHA)
 	}
 }
