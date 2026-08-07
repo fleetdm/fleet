@@ -47,15 +47,24 @@ $exitCode = $process.ExitCode
 
 # TEMP DIAGNOSTICS - remove before merge.
 if ($exitCode -ne 0) {
-  Write-Host "----- Visual Studio Installer logs -----"
+  Write-Host "----- diagnostics -----"
+  Write-Host "cmd: $vsInstaller uninstall --installPath \"$installPath\" --quiet --norestart"
+  Write-Host "whoami: $(whoami)"
+  Write-Host "elevated: $(([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+  Write-Host "--- vswhere -all instances ---"
+  & $vswhere -all -prerelease -format value -property installationPath 2>&1 | ForEach-Object { Write-Host $_ }
+  $since = (Get-Date).AddMinutes(-6)
   Get-ChildItem "$env:TEMP\dd_*.log" -ErrorAction SilentlyContinue |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 3 |
+    Where-Object { $_.LastWriteTime -gt $since } |
+    Sort-Object LastWriteTime |
     ForEach-Object {
-      Write-Host "--- $($_.Name) ---"
-      Get-Content $_.FullName -Tail 40 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_ }
+      Write-Host "--- $($_.Name) [matched lines] ---"
+      Select-String -Path $_.FullName -Pattern 'error|fail|exception|denied|elevat|cannot|unable|refus|not found|invalid|abort' -ErrorAction SilentlyContinue |
+        Select-Object -Last 25 | ForEach-Object { Write-Host $_.Line }
+      Write-Host "--- $($_.Name) [last 25] ---"
+      Get-Content $_.FullName -Tail 25 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_ }
     }
-  Write-Host "----------------------------------------"
+  Write-Host "-----------------------"
 }
 
 # 3010/1641: uninstall succeeded but a reboot is pending/was triggered. Fleet
