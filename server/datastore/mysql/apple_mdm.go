@@ -1532,6 +1532,28 @@ func updateMDMAppleHostDB(
 ) error {
 	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
 
+	// A host transitioning from company-owned to personal (BYOD) must not
+	// keep vitals collected under the prior, non-personal enrollment. Both
+	// reads below must happen before the UPDATE further down, which can
+	// change hosts.uuid (matchHostDuringEnrollment may match an existing
+	// host by hardware serial even when the incoming UUID differs) -- the
+	// stale vitals are keyed by the host's *previous* UUID, not the new one.
+	transitioningToPersonal := false
+	var previousUUID string
+	if fromPersonalEnrollment {
+		var previouslyPersonal bool
+		err := sqlx.GetContext(ctx, tx, &previouslyPersonal, `SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`, hostID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "get host mdm enrollment type")
+		}
+		transitioningToPersonal = err == nil && !previouslyPersonal
+		if transitioningToPersonal {
+			if err := sqlx.GetContext(ctx, tx, &previousUUID, `SELECT uuid FROM hosts WHERE id = ?`, hostID); err != nil {
+				return ctxerr.Wrap(ctx, err, "load host uuid before update")
+			}
+		}
+	}
+
 	args := []interface{}{
 		mdmHost.HardwareSerial,
 		mdmHost.UUID,
@@ -1577,6 +1599,12 @@ func updateMDMAppleHostDB(
 	// clear any host_mdm_actions following re-enrollment here
 	if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "error clearing mdm apple host_mdm_actions")
+	}
+
+	if transitioningToPersonal {
+		if err := deleteHostMDMAppleDeviceVitalsDB(ctx, tx, previousUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear stale device vitals on enrollment type change")
+		}
 	}
 
 	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, false, fromPersonalEnrollment, hostID); err != nil {
@@ -6356,6 +6384,7 @@ SELECT
 	h.id as host_id,
 	h.uuid as uuid,
 	hmdm.installed_from_dep,
+	hmdm.is_personal_enrollment,
 	JSON_ARRAYAGG(hmc.command_type) as commands_already_sent
 FROM hosts h
 	INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id

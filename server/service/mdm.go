@@ -3707,6 +3707,7 @@ func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet
 			HostID:          &host.ID,
 			HostDisplayName: ptr.String(host.DisplayName()),
 			ProfileName:     profileName,
+			ProfileUUID:     profileUUID,
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for resend config profile")
 	}
@@ -4239,6 +4240,7 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 		if err := svc.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfileBatch{
 				ProfileName: profileName,
+				ProfileUUID: profileUUID,
 				HostCount:   count,
 			}); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for batch-resend of profile")

@@ -125,6 +125,22 @@ func (a *FleetServiceAdapter) GetActivitiesWebhookConfig(ctx context.Context) (*
 	}, nil
 }
 
+// GetHostActivitiesWebhooks returns the enabled host-activities webhook destinations of the fleets the given hosts belong to.
+func (a *FleetServiceAdapter) GetHostActivitiesWebhooks(ctx context.Context, hostIDs []uint) ([]activity.HostActivitiesWebhook, error) {
+	settings, err := a.svc.GetHostActivitiesWebhookSettings(ctx, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	hooks := make([]activity.HostActivitiesWebhook, 0, len(settings))
+	for _, s := range settings {
+		hooks = append(hooks, activity.HostActivitiesWebhook{
+			DestinationURL: s.DestinationURL,
+			HostIDs:        s.HostIDs,
+		})
+	}
+	return hooks, nil
+}
+
 // ActivateNextUpcomingActivity activates the next upcoming activity in the queue.
 func (a *FleetServiceAdapter) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
 	return a.svc.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
