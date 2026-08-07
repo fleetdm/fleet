@@ -293,5 +293,5 @@ Self-service installs are per-user. If an app has to be present for every user o
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-08-05">
+<meta name="publishedOn" value="2026-08-07">
 <meta name="description" value="Use Fleet script-only .ps1 packages and winget to add Microsoft Store apps to Windows self-service, per-user or machine-wide.">
