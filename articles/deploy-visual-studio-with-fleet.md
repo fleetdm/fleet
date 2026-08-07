@@ -12,11 +12,11 @@ Check these before you start:
 - License entitlement for Professional or Enterprise. Community is free, and its license covers classroom and academic use.
 - Hosts with network access to Microsoft's download servers
 
-> **Warning:** Visual Studio installs are large and slow. Fleet stops an install script after one hour. The download happens inside that script, so it counts against the hour. Test your workload selection on a host with typical network speed before you roll it out.
+> **Warning:** Visual Studio downloads its payload during installation. Install time depends on the host's internet connection and the workloads you select. Fleet stops an install script after one hour, and that download counts against the hour. Test your selection on a host with a typical connection before you roll it out.
 
 ## Understand what the default install gives you
 
-The Fleet-maintained app runs the Visual Studio bootstrapper unattended. With no workload selected, that installs the core shell only. It finishes in a couple of minutes and uses little disk space.
+The Fleet-maintained app runs the Visual Studio bootstrapper unattended. With no workload selected, that installs the core shell only. The core install downloads far less than one that includes workloads, so it finishes sooner and uses less disk space.
 
 That core install is still useful, because it includes the Visual Studio Installer. That's the app developers use to add workloads later.
 
