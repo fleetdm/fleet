@@ -2611,6 +2611,30 @@ func TestAuthorizeMDMAppleSetupAssistant(t *testing.T) {
 	})
 }
 
+func TestAuthorizeMDMAppleManualEnrollmentProfile(t *testing.T) {
+	t.Parallel()
+
+	profile := &fleet.MDMAppleManualEnrollmentProfile{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: profile, action: read, allow: false},
+		{user: test.UserNoRoles, object: profile, action: read, allow: false},
+
+		{user: test.UserAdmin, object: profile, action: read, allow: true},
+		{user: test.UserMaintainer, object: profile, action: read, allow: true},
+		{user: test.UserObserver, object: profile, action: read, allow: false},
+		{user: test.UserObserverPlus, object: profile, action: read, allow: false},
+		{user: test.UserTechnician, object: profile, action: read, allow: false},
+		{user: test.UserGitOps, object: profile, action: read, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: profile, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: profile, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: profile, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: profile, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: profile, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: profile, action: read, allow: false},
+	})
+}
+
 func TestAuthorizeMDMAppleBootstrapPackage(t *testing.T) {
 	t.Parallel()
 

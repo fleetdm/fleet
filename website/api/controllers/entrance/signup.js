@@ -246,6 +246,7 @@ the account verification message.)`,
         eventType: 'Intent signal',
         intentSignal: 'Signed up for a fleetdm.com account',
         relatedCampaign: recordDetails.mostRecentCampaign,
+        eventSource: 'Website - Sign up',
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });

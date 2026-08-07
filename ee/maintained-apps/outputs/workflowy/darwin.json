@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.3.2607301322",
+      "version": "4.3.2608061204",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.workflowy.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.workflowy.desktop' AND version_compare(bundle_short_version, '4.3.2607301322') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.workflowy.desktop' AND version_compare(bundle_short_version, '4.3.2608061204') < 0);"
       },
-      "installer_url": "https://github.com/workflowy/desktop/releases/download/v4.3.2607301322/WorkFlowy.zip",
+      "installer_url": "https://github.com/workflowy/desktop/releases/download/v4.3.2608061204/WorkFlowy.zip",
       "install_script_ref": "b65ecb27",
       "uninstall_script_ref": "71fe81c3",
-      "sha256": "ec768dce4843dcf923151eebe22d6b56a467792cc9269649e64c237fbb8c343e",
+      "sha256": "1232f4ee399ad832c843735aba2cdbe10740175dd639649b099a298605e8084a",
       "default_categories": [
         "Productivity"
       ]

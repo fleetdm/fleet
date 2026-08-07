@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.1.5",
+      "version": "6.1.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Spyder %' AND publisher = 'Spyder-IDE';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Spyder %' AND publisher = 'Spyder-IDE' AND version_compare(version, '6.1.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Spyder %' AND publisher = 'Spyder-IDE' AND version_compare(version, '6.1.6') < 0);"
       },
-      "installer_url": "https://github.com/spyder-ide/spyder/releases/download/v6.1.5/Spyder-Windows-x86_64.exe",
+      "installer_url": "https://github.com/spyder-ide/spyder/releases/download/v6.1.6/Spyder-Windows-x86_64.exe",
       "install_script_ref": "6831586d",
       "uninstall_script_ref": "1fb72c38",
-      "sha256": "92005331137502c199fb9926501d5aeaec0e940cc54a69f1e3d0908473176472",
+      "sha256": "6e2f4abb7bfe4a6130fc8e053b571daad00289329af7ed135f46c82a9b325512",
       "default_categories": [
         "Developer tools"
       ]

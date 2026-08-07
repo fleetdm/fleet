@@ -1,0 +1,15 @@
+{
+  "name": "Visual Studio Enterprise 2022",
+  "slug": "visual-studio-2022-enterprise/windows",
+  "package_identifier": "Microsoft.VisualStudio.2022.Enterprise",
+  "unique_identifier": "Visual Studio Enterprise 2022",
+  "exists_query": "SELECT 1 FROM programs WHERE (name = 'Visual Studio Enterprise 2022' OR name LIKE 'Visual Studio Enterprise 2022 (%') AND publisher = 'Microsoft Corporation';",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/visual_studio_2022_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/visual_studio_2022_enterprise_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

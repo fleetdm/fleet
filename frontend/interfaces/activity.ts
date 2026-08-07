@@ -108,6 +108,7 @@ export enum ActivityType {
   DisabledGitOpsException = "disabled_gitops_exception",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
+  EditedWindowsEnrollmentDefaultFleet = "edited_windows_enrollment_default_fleet",
   RanScript = "ran_script",
   RanCustomMdmCommand = "ran_custom_mdm_command",
   RanScriptBatch = "ran_script_batch",
@@ -326,6 +327,7 @@ export interface IActivityDetails {
   policy_name?: string;
   profile_identifier?: string;
   profile_name?: string;
+  profile_uuid?: string;
   public_ip?: string;
   query_id?: number;
   query_ids?: number[];
@@ -491,6 +493,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_saved_query: "Edited report",
   edited_script: "Edited script",
   edited_software: "Edited software",
+  edited_windows_enrollment_default_fleet:
+    "Edited enrollment default fleet: Windows",
   edited_windows_profile: "Edited configuration profiles: Windows",
   edited_windows_updates: "OS updates: edited Windows",
   enabled_activity_automations: "Enabled activity automations",

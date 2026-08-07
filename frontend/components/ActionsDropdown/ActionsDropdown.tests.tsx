@@ -32,6 +32,28 @@ describe("Actions dropdown", () => {
     expect(screen.queryByText(/delete/i)).toBeInTheDocument();
   });
 
+  it("opens the icon-trigger menu with Enter (single toggle)", async () => {
+    const { user } = renderWithSetup(
+      <ActionsDropdown
+        options={DROPDOWN_OPTIONS}
+        placeholder={PLACEHOLDER}
+        onChange={ON_CHANGE}
+        triggerIcon="settings"
+      />
+    );
+
+    const trigger = screen.getByRole("button", { name: PLACEHOLDER });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    trigger.focus();
+    // Button fires onClick from its Enter-keydown handler AND the native
+    // click; a double toggle would leave the menu closed.
+    await user.keyboard("{Enter}");
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByText(/show query/i)).toBeInTheDocument();
+  });
+
   it("renders dropdown as disabled when disabled prop is true", () => {
     renderWithSetup(
       <ActionsDropdown
