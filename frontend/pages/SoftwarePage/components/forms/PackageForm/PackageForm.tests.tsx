@@ -54,6 +54,7 @@ describe("PackageForm", () => {
       expect(screen.queryByText(TARGET_BANNER_COPY)).not.toBeInTheDocument();
       expect(screen.queryByLabelText("All hosts")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
+      expect(screen.queryByText("Self-service")).not.toBeInTheDocument();
     });
 
     it("renders the Target section with the first-added banner once a file is selected", () => {
@@ -65,6 +66,7 @@ describe("PackageForm", () => {
       expect(screen.getByText(TARGET_BANNER_COPY)).toBeInTheDocument();
       expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
       expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+      expect(screen.getByText("Self-service")).toBeInTheDocument();
     });
 
     it("omits the first-added banner on the Edit flow", () => {

@@ -62,6 +62,10 @@ type updateSoftwareInstallerRequest struct {
 	Version *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged.
 	Configuration []byte
+	// Patch creates or keeps the title's patch policy when true and deletes it when false. Omitted leaves it unchanged. FMA-only.
+	Patch *bool
+	// PatchWhenClosed skips the install while the app is open. Omitted leaves it unchanged. FMA-only.
+	PatchWhenClosed *bool
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -160,6 +164,22 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	// Only set Version when the field is present, so an omitted field stays nil and an empty value means "Latest".
 	if versionMultipart, ok := r.MultipartForm.Value["version"]; ok && len(versionMultipart) > 0 {
 		decoded.Version = &versionMultipart[0]
+	}
+
+	if patchVal, ok := r.MultipartForm.Value["patch"]; ok && len(patchVal) > 0 && patchVal[0] != "" {
+		parsed, err := strconv.ParseBool(patchVal[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode patch bool in multipart form: %s", err.Error())}
+		}
+		decoded.Patch = &parsed
+	}
+
+	if patchWhenClosedVal, ok := r.MultipartForm.Value["patch_when_closed"]; ok && len(patchWhenClosedVal) > 0 && patchWhenClosedVal[0] != "" {
+		parsed, err := strconv.ParseBool(patchWhenClosedVal[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode patch_when_closed bool in multipart form: %s", err.Error())}
+		}
+		decoded.PatchWhenClosed = &parsed
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]
@@ -279,6 +299,8 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		DisplayName:       req.DisplayName,
 		Configuration:     req.Configuration,
 		PinnedVersion:     req.Version,
+		Patch:             req.Patch,
+		PatchWhenClosed:   req.PatchWhenClosed,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
