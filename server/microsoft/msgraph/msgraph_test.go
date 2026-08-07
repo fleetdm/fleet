@@ -39,6 +39,9 @@ func newGraphServer(t *testing.T, handler http.HandlerFunc) *graphServer {
 			// The tenant must appear in the token URL: client credentials is tenant-scoped, and Microsoft rejects
 			// /common and /organizations for this flow.
 			assert.Contains(t, r.URL.Path, testTenantID)
+			// Bound the body before parsing (gosec G120): unbounded ParseForm can be a memory-exhaustion vector.
+			// The token form is tiny, so 1 MiB is generous.
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 			// assert, not require: a failed require inside an HTTP handler would call t.FailNow off the test
 			// goroutine, which testify cannot do safely.
 			assert.NoError(t, r.ParseForm())

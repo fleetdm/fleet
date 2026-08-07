@@ -74,7 +74,7 @@ func NewClient(cred *fleet.MicrosoftGraphCredential) (Client, error) {
 
 func newClientWithHosts(cred *fleet.MicrosoftGraphCredential, loginHost, graphHost string) (Client, error) {
 	if cred == nil || !cred.Configured() {
-		return nil, fmt.Errorf("microsoft graph credential is not fully configured")
+		return nil, errors.New("microsoft graph credential is not fully configured")
 	}
 
 	cfg := &clientcredentials.Config{

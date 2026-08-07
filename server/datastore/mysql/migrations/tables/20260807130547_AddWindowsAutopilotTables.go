@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260806212645, Down_20260806212645)
+	MigrationClient.AddMigration(Up_20260807130547, Down_20260807130547)
 }
 
-func Up_20260806212645(tx *sql.Tx) error {
+func Up_20260807130547(tx *sql.Tx) error {
 	// mdm_microsoft_graph_credentials stores the Entra app-registration credential Fleet authenticates with when
 	// calling Microsoft Graph to read Windows Autopilot device identities. It is a dedicated table rather than a field
 	// on app_config_json because client_secret is a secret and must be encrypted at rest, and rather than an entry in
@@ -45,7 +45,11 @@ func Up_20260806212645(tx *sql.Tx) error {
 	// host_autopilot_devices stores the Windows-Autopilot-only per-device metadata for a host, keyed by host_id so the
 	// group tag survives the pending -> enrolled transition (the host row is reused when the device enrolls). Modeled
 	// on host_dep_assignments, Fleet's precedent for per-device pending metadata, which is the Apple counterpart of
-	// this table and likewise carries no mdm_ infix.
+	// this table and likewise carries no mdm_ infix and no foreign key to hosts.
+	//
+	// There is deliberately no FOREIGN KEY to hosts: Fleet forbids them because they take locks on a very hot table
+	// (see handbook/engineering/scaling-fleet.md#foreign-keys-and-locking, enforced by CI). Cleanup on host deletion
+	// is handled by adding this table to hostRefs in server/datastore/mysql/hosts.go instead.
 	//
 	// autopilot_device_id is the Graph resource id of the Autopilot registration, distinct from azure_ad_device_id
 	// (the Entra device object). It is recorded because it is the one stable, unique identifier Graph gives us:
@@ -72,8 +76,7 @@ func Up_20260806212645(tx *sql.Tx) error {
 	    deleted_at TIMESTAMP NULL DEFAULT NULL,
 	    PRIMARY KEY (host_id),
 	    KEY idx_host_autopilot_hardware_serial (hardware_serial),
-	    KEY idx_host_autopilot_tenant_id (tenant_id),
-	    CONSTRAINT fk_host_autopilot_devices_host_id FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
+	    KEY idx_host_autopilot_tenant_id (tenant_id)
 	) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 	`)
 	if err != nil {
@@ -83,6 +86,6 @@ func Up_20260806212645(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260806212645(tx *sql.Tx) error {
+func Down_20260807130547(tx *sql.Tx) error {
 	return nil
 }

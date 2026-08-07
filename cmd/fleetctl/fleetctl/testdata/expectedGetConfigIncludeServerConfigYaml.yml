@@ -54,6 +54,7 @@ spec:
     apple_require_hardware_attestation: false
     windows_entra_tenant_ids: null
     windows_entra_client_ids: null
+    microsoft_graph_credentials: null
     macos_migration:
       enable: false
       mode: ""

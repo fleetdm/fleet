@@ -226,12 +226,19 @@ func (svc *Service) persistMicrosoftGraphCredentials(
 // hydrateMicrosoftGraphCredentials populates ac.MDM.MicrosoftGraphCredentials from the credentials table.
 //
 // Both the GET and PATCH config responses need this: the credentials are not part of the AppConfig JSON, so a config
-// read (or the re-read that builds the PATCH response) carries an empty list unless it is filled in here. Callers must
-// still call Obfuscate afterwards to mask the secrets.
+// read (or the re-read that builds the PATCH response) carries nothing unless it is filled in here. Callers must still
+// call Obfuscate afterwards to mask the secrets.
+//
+// When nothing is configured the field is left untouched rather than set to an empty list, mirroring the conditional
+// hydration of MDM.WindowsEnrollment in AppConfigObfuscated. Unconditionally setting it would change the marshalled
+// config for every deployment that has never configured the feature, which is the overwhelming majority.
 func (svc *Service) hydrateMicrosoftGraphCredentials(ctx context.Context, ac *fleet.AppConfig) error {
 	stored, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
+	}
+	if len(stored) == 0 && !ac.MDM.MicrosoftGraphCredentials.Set {
+		return nil
 	}
 	creds := make([]fleet.MicrosoftGraphCredential, 0, len(stored))
 	for _, cred := range stored {

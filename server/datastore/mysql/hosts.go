@@ -610,6 +610,10 @@ var hostRefs = []string{
 	"host_last_known_locations",
 	"host_issues",
 	"host_custom_host_vitals",
+	// Unlike host_dep_assignments below, this is deleted with the host: everything in it is re-derivable from
+	// Microsoft Graph on the next sync, and the row is keyed by host_id, so keeping it would only strand a row
+	// pointing at an id that no longer exists.
+	"host_autopilot_devices",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
