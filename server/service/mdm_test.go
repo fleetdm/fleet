@@ -1845,6 +1845,32 @@ func TestUpdateMDMConfigProfileDecodeRequest(t *testing.T) {
 			fileContent: oversizedFile,
 			wantErr:     "maximum configuration profile file size is 1 MB",
 		},
+		{
+			// The only way to say "remove the activation": multipart has no null.
+			name:        "empty activation value marks it for removal",
+			profileUUID: "abc-123",
+			fields:      map[string][]string{"activation": {""}},
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.True(t, req.ActivationSet)
+				assert.Nil(t, req.Activation)
+			},
+		},
+		{
+			// More likely a malformed upload than a request to delete.
+			name:        "nonempty activation value is rejected",
+			profileUUID: "abc-123",
+			fields:      map[string][]string{"activation": {"com.apple.activation.simple"}},
+			wantErr:     ActivationEmptyFileErrorMsg,
+		},
+		{
+			name:        "activation not mentioned leaves it untouched",
+			profileUUID: "abc-123",
+			fields:      map[string][]string{"labels_include_all": {"Label A"}},
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.False(t, req.ActivationSet)
+				assert.Nil(t, req.Activation)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1930,6 +1956,41 @@ func TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestUpdateMDMConfigProfileDecodeActivationFile(t *testing.T) {
+	build := func(t *testing.T, content []byte) *http.Request {
+		t.Helper()
+		var buf bytes.Buffer
+		w := multipart.NewWriter(&buf)
+		fw, err := w.CreateFormFile("activation", "activation.json")
+		require.NoError(t, err)
+		_, err = fw.Write(content)
+		require.NoError(t, err)
+		require.NoError(t, w.Close())
+
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
+		req.Header.Set("Content-Type", w.FormDataContentType())
+		return mux.SetURLVars(req, map[string]string{"profile_uuid": "abc-123"})
+	}
+
+	t.Run("a file replaces the activation", func(t *testing.T) {
+		result, err := updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(),
+			build(t, []byte(`{"Type":"com.apple.activation.simple"}`)))
+		require.NoError(t, err)
+		decoded, ok := result.(*updateMDMConfigProfileRequest)
+		require.True(t, ok)
+		assert.True(t, decoded.ActivationSet)
+		require.NotNil(t, decoded.Activation)
+	})
+
+	t.Run("a zero-byte file is rejected", func(t *testing.T) {
+		// Otherwise a failed upload silently deletes the stored activation.
+		// Removal has to go through the explicit empty field.
+		_, err := updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(), build(t, nil))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), ActivationEmptyFileErrorMsg)
+	})
+}
+
 func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
@@ -1953,6 +2014,26 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, nil, false)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "updating this profile type is not yet supported")
+
+	// Clearing an activation is as meaningless as setting one on a profile that
+	// can't have one, so both are rejected -- keyed on the field being present,
+	// not on whether it carried content.
+	for _, prefix := range []string{"a", "w", "g"} {
+		for _, tc := range []struct {
+			name       string
+			activation []byte
+		}{
+			{"with content", []byte(`{"Type":"com.apple.activation.simple"}`)},
+			{"explicitly emptied", nil},
+		} {
+			t.Run(prefix+" "+tc.name, func(t *testing.T) {
+				err := svc.UpdateMDMConfigProfile(ctx, prefix+uuid.NewString(), nil, nil,
+					fleet.LabelsIncludeAll, nil, tc.activation, true)
+				require.Error(t, err)
+				assert.ErrorContains(t, err, ActivationUnsupportedProfileErrorMsg)
+			})
+		}
+	}
 }
 
 func TestMDMBatchSetProfiles(t *testing.T) {

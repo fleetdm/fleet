@@ -1930,15 +1930,25 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 	}
 
 	// Tri-state, so an edit can leave the activation alone, replace it, or drop
-	// it. Multipart has no null, so an empty value stands in for one.
+	// it. Multipart has no null, so an empty value stands in for one -- and only
+	// that empty value, since anything else is more likely a malformed upload
+	// than a request to delete.
 	// Enforced by the service, which resolves the profile type from its UUID.
 	if fhs, ok := r.MultipartForm.File["activation"]; ok && len(fhs) > 0 {
 		decoded.Activation = fhs[0]
 		decoded.ActivationSet = true
-		if decoded.Activation.Size > fleet.MaxProfileSize {
+		switch {
+		case decoded.Activation.Size == 0:
+			return nil, fleet.NewInvalidArgumentError("activation", ActivationEmptyFileErrorMsg)
+		case decoded.Activation.Size > fleet.MaxProfileSize:
 			return nil, fleet.NewInvalidArgumentError("activation", fleet.MaxProfileSizeErrMsg)
 		}
-	} else if _, ok := r.MultipartForm.Value["activation"]; ok {
+	} else if vals, ok := r.MultipartForm.Value["activation"]; ok {
+		for _, v := range vals {
+			if strings.TrimSpace(v) != "" {
+				return nil, fleet.NewInvalidArgumentError("activation", ActivationEmptyFileErrorMsg)
+			}
+		}
 		decoded.ActivationSet = true
 	}
 
@@ -2096,7 +2106,9 @@ func (svc *Service) checkLabelsOnlyProfileUpdate(ctx context.Context, labelsIncl
 // platform-specific implementation.
 func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte, activationSet bool) error {
 	// The edit path resolves the profile type here rather than in the endpoint.
-	if len(activation) > 0 && !isAppleDeclarationUUID(profileUUID) {
+	// Keyed on activationSet, not on the content: clearing an activation is just
+	// as meaningless on a profile that can't have one.
+	if activationSet && !isAppleDeclarationUUID(profileUUID) {
 		// Basic check only, as in the type-specific update methods: the profile's
 		// team isn't known yet, and authorizing an empty MDMConfigProfileAuthz
 		// needs a global role, so team admins would get forbidden instead of this.
