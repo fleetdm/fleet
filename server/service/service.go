@@ -91,7 +91,6 @@ type Service struct {
 	// same no-copy reason.
 	configETagErrLast *atomic.Int64
 
-
 	androidSvc android.Service
 
 	// activitySvc is the activity bounded context service for write operations.

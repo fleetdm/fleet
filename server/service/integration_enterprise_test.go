@@ -36095,7 +36095,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceHostVitalsExcludeAnyLabe
 
 	label, _, err := s.ds.Label(ctx, labelResp.Label.Label.ID, fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
-	_, err = s.ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+	_, _, err = s.ds.UpdateLabelMembershipByHostCriteria(ctx, label)
 	require.NoError(t, err)
 
 	hostsInLabel, err := s.ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})

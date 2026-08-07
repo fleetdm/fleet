@@ -1665,7 +1665,7 @@ func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
 	requireQueries(t, queries, []string{queryNoLabel.Name})
 }
 
-func testLabelScopedScheduledQueryScopes(t *testing.T, ds *Datastore) {
+func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// Create a team.
