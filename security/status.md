@@ -819,6 +819,38 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-07-31 09:46:22
 
+### [CVE-2026-56211](https://nvd.nist.gov/vuln/detail/CVE-2026-56211)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
+### [CVE-2026-56210](https://nvd.nist.gov/vuln/detail/CVE-2026-56210)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
+### [CVE-2026-56209](https://nvd.nist.gov/vuln/detail/CVE-2026-56209)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
+### [CVE-2026-56208](https://nvd.nist.gov/vuln/detail/CVE-2026-56208)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
 ### [CVE-2026-56131](https://nvd.nist.gov/vuln/detail/CVE-2026-56131)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
