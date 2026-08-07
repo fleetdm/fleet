@@ -21,11 +21,6 @@ type StatisticsPayload struct {
 	NumSoftwareCVEs                int    `json:"numSoftwareCVEs"`
 	NumTeams                       int    `json:"numTeams"` //nolint:apiparamcheck // don't want to break analytics ingestion
 	NumPolicies                    int    `json:"numPolicies"`
-	// NumPoliciesAutomationEnabledSoftware is the number of policies with a software
-	// automation, using the same definition as the public automation_type=software
-	// filter: the policy installs software, or it is a patch policy. Kept in sync with
-	// policiesSoftwareAutomationClause in server/datastore/mysql/policies.go.
-	NumPoliciesAutomationEnabledSoftware int `json:"numPoliciesAutomationEnabledSoftware"`
 	NumQueries                     int    `json:"numQueries"` //nolint:apiparamcheck // don't want to break analytics ingestion
 	NumLabels                      int    `json:"numLabels"`
 	SoftwareInventoryEnabled       bool   `json:"softwareInventoryEnabled"`
@@ -92,6 +87,12 @@ type StatisticsPayload struct {
 	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
 	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM
 	NumHostsFleetMDMEnrolledWindows int `json:"numHostsFleetMDMEnrolledWindows"`
+
+	// NumPoliciesAutomationEnabledSoftware is the number of policies with a software
+	// automation, using the same definition as the public automation_type=software
+	// filter: the policy installs software, or it is a patch policy. Kept in sync with
+	// policiesSoftwareAutomationClause in server/datastore/mysql/policies.go.
+	NumPoliciesAutomationEnabledSoftware int `json:"numPoliciesAutomationEnabledSoftware"`
 }
 
 // FleetMaintainedAppUsage reports a Fleet-maintained app in use, whether a patch policy

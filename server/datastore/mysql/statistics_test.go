@@ -805,14 +805,14 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 	// A patch policy with no software automation, and one with a software automation.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO policies (name, query, description, checksum, type, patch_software_title_id)
-			VALUES ('patch zoom', 'SELECT 1', '', UNHEX(MD5('patch zoom')), 'patch', ?)`, zoomTitleID)
+			INSERT INTO policies (name, query, description, checksum, type, team_id, patch_software_title_id)
+			VALUES ('patch zoom', 'SELECT 1', '', UNHEX(MD5('patch zoom')), 'patch', ?, ?)`, fleet.PolicyNoTeamID, zoomTitleID)
 		return err
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO policies (name, query, description, checksum, type, patch_software_title_id, software_installer_id)
-			VALUES ('patch slack', 'SELECT 1', '', UNHEX(MD5('patch slack')), 'patch', ?, ?)`, slackTitleID, slackInstallerID)
+			INSERT INTO policies (name, query, description, checksum, type, team_id, patch_software_title_id, software_installer_id)
+			VALUES ('patch slack', 'SELECT 1', '', UNHEX(MD5('patch slack')), 'patch', ?, ?, ?)`, fleet.PolicyNoTeamID, slackTitleID, slackInstallerID)
 		return err
 	})
 
@@ -824,8 +824,8 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 	// A dynamic policy pointing at the same title must not register as a patch policy.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO policies (name, query, description, checksum, software_installer_id)
-			VALUES ('install slack', 'SELECT 1', '', UNHEX(MD5('install slack')), ?)`, slackInstallerID)
+			INSERT INTO policies (name, query, description, checksum, team_id, software_installer_id)
+			VALUES ('install slack', 'SELECT 1', '', UNHEX(MD5('install slack')), ?, ?)`, fleet.PolicyNoTeamID, slackInstallerID)
 		return err
 	})
 

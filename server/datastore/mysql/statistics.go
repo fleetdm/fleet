@@ -313,7 +313,7 @@ func fleetMaintainedAppsInUseDB(ctx context.Context, db sqlx.QueryerContext) (ma
 		LEFT JOIN policies p
 			ON p.patch_software_title_id = si.title_id
 			AND p.type = ?
-			AND si.global_or_team_id = COALESCE(p.team_id, 0)
+			AND si.global_or_team_id = p.team_id
 		WHERE si.fleet_maintained_app_id IS NOT NULL AND fma.platform IN ('darwin', 'windows')
 		GROUP BY fma.slug, fma.platform
 		ORDER BY fma.platform, fma.slug
