@@ -221,7 +221,6 @@ const HostHeader = ({
 
           <div className={`${baseClass}__last-fetched`}>
             {"Last fetched"} {lastFetched}
-            &nbsp;
           </div>
         </div>
       </div>
