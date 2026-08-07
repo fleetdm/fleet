@@ -1964,6 +1964,20 @@ func amountPoliciesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) 
 	return amount, nil
 }
 
+// amountPoliciesAutomationEnabledSoftwareDB counts the policies with a software automation,
+// reusing the predicate behind the automation_type=software filter so the two can't drift.
+//
+// CountPolicies isn't reusable here: it counts a single team, and skips the automation filter
+// entirely when no team is given.
+func amountPoliciesAutomationEnabledSoftwareDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var amount int
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM policies p WHERE `+policiesSoftwareAutomationClause)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
 // AsyncBatchInsertPolicyMembership inserts into the policy_membership table
 // the batch of policy membership results.
 func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
@@ -2993,6 +3007,11 @@ func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID u
 	return &policy, nil
 }
 
+// policiesSoftwareAutomationClause is the predicate behind the automation_type=software
+// filter: a policy automates software if it installs something, or if it is a patch policy.
+// Requires the policies table to be aliased as `p`.
+const policiesSoftwareAutomationClause = `(p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL OR p.type = 'patch')`
+
 func (ds *Datastore) createAutomationClause(ctx context.Context, automationType string, teamID uint) (string, []any, error) {
 	// TODO: improve filtering by "other"
 	if automationType == "other" {
@@ -3015,7 +3034,7 @@ func (ds *Datastore) createAutomationClause(ctx context.Context, automationType 
 
 	switch automationType {
 	case "software":
-		return " AND (p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL OR p.type = 'patch')", nil, nil
+		return " AND " + policiesSoftwareAutomationClause, nil, nil
 	case "scripts":
 		return " AND p.script_id IS NOT NULL", nil, nil
 	case "calendar":
