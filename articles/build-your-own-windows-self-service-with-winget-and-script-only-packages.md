@@ -277,5 +277,5 @@ _Managing devices as code, one pull request at a time. Start with the [GitOps re
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-08-05">
+<meta name="publishedOn" value="2026-08-07">
 <meta name="description" value="Use Fleet script-only .ps1 packages and winget to put Microsoft Store apps in Windows self-service, despite the SYSTEM context limit.">
