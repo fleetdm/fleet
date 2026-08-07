@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"math/big"
 	mathrand "math/rand/v2"
+	"os"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -106,6 +108,8 @@ func TestMDMApple(t *testing.T) {
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
+		{"MDMAppleUpsertHostRestoresServerURLOnReenroll", testMDMAppleUpsertHostRestoresServerURLOnReenroll},
+		{"UpsertMDMAppleHostMDMInfoDBSQLColumnParity", testUpsertMDMAppleHostMDMInfoDBSQLColumnParity},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"ReconcileAppleProfilesDuplicateHostUUID", testReconcileAppleProfilesDuplicateHostUUID},
@@ -8175,6 +8179,186 @@ func testMDMAppleUpsertHostPersonalEnrollment(t *testing.T, ds *Datastore) {
 	// A brand-new host inserted directly as BYOD (insertMDMAppleHostDB path).
 	byodID := upsert("byod-first", true)
 	require.True(t, readPersonalEnrollment(byodID), "fresh BYOD enrollment should be personal")
+}
+
+// testMDMAppleUpsertHostRestoresServerURLOnReenroll guards host_mdm.server_url
+// and mdm_id through unenroll -> re-enroll. MDMTurnOff clears those columns;
+// MDMAppleUpsertHost must rewrite them on conflict. Without that, iOS/iPadOS
+// hosts keep an empty server_url forever (no osquery to refresh MDM details).
+// Regression for https://github.com/fleetdm/fleet/issues/50187
+func testMDMAppleUpsertHostRestoresServerURLOnReenroll(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	appCfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	expectedServerURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.MDMUrl())
+	require.NoError(t, err)
+
+	type hostMDMRow struct {
+		Enrolled         bool   `db:"enrolled"`
+		ServerURL        string `db:"server_url"`
+		MDMID            *uint  `db:"mdm_id"`
+		InstalledFromDEP bool   `db:"installed_from_dep"`
+	}
+	readHostMDM := func(hostID uint) hostMDMRow {
+		var row hostMDMRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT enrolled, server_url, mdm_id, installed_from_dep FROM host_mdm WHERE host_id = ?`, hostID)
+		})
+		return row
+	}
+
+	for _, platform := range []string{"ios", "ipados"} {
+		uuid := fmt.Sprintf("reenroll-server-url-%s", platform)
+		err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+			UUID:           uuid,
+			HardwareSerial: "serial-" + uuid,
+			HardwareModel:  "test-model",
+			Platform:       platform,
+		}, false)
+		require.NoError(t, err)
+
+		h, err := ds.HostByIdentifier(ctx, uuid)
+		require.NoError(t, err)
+
+		initial := readHostMDM(h.ID)
+		require.True(t, initial.Enrolled)
+		require.Equal(t, expectedServerURL, initial.ServerURL)
+		require.NotNil(t, initial.MDMID)
+		require.False(t, initial.InstalledFromDEP)
+
+		_, _, err = ds.MDMTurnOff(ctx, uuid)
+		require.NoError(t, err)
+
+		afterTurnOff := readHostMDM(h.ID)
+		require.False(t, afterTurnOff.Enrolled)
+		require.Empty(t, afterTurnOff.ServerURL)
+		require.Nil(t, afterTurnOff.MDMID)
+
+		// Re-enroll hits updateMDMAppleHostDB -> upsertMDMAppleHostMDMInfoDB with
+		// an existing host_mdm row (ON DUPLICATE KEY UPDATE path).
+		err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+			UUID:           uuid,
+			HardwareSerial: "serial-" + uuid,
+			HardwareModel:  "test-model",
+			Platform:       platform,
+		}, false)
+		require.NoError(t, err)
+
+		afterReenroll := readHostMDM(h.ID)
+		require.True(t, afterReenroll.Enrolled, "platform %s", platform)
+		require.Equal(t, expectedServerURL, afterReenroll.ServerURL, "platform %s", platform)
+		require.NotNil(t, afterReenroll.MDMID, "platform %s", platform)
+		require.False(t, afterReenroll.InstalledFromDEP, "platform %s", platform)
+	}
+
+	// DEP sync inserts installed_from_dep=1 with enrolled=0; real enrollment upserts
+	// with fromSync=false. installed_from_dep must survive that conflict update.
+	depUUID := "reenroll-server-url-dep"
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           depUUID,
+		HardwareSerial: "serial-" + depUUID,
+		HardwareModel:  "test-model",
+		Platform:       "ios",
+	}, false)
+	require.NoError(t, err)
+	depHost, err := ds.HostByIdentifier(ctx, depUUID)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_mdm SET enrolled = 0, installed_from_dep = 1, server_url = '', mdm_id = NULL WHERE host_id = ?`,
+			depHost.ID)
+		return err
+	})
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           depUUID,
+		HardwareSerial: "serial-" + depUUID,
+		HardwareModel:  "test-model",
+		Platform:       "ios",
+	}, false)
+	require.NoError(t, err)
+	afterDEPEnroll := readHostMDM(depHost.ID)
+	require.True(t, afterDEPEnroll.Enrolled)
+	require.Equal(t, expectedServerURL, afterDEPEnroll.ServerURL)
+	require.NotNil(t, afterDEPEnroll.MDMID)
+	require.True(t, afterDEPEnroll.InstalledFromDEP)
+}
+
+// testUpsertMDMAppleHostMDMInfoDBSQLColumnParity guards the host_mdm ON DUPLICATE
+// KEY UPDATE column set in upsertMDMAppleHostMDMInfoDB. server_url/mdm_id must be
+// rewritten so re-enroll after MDMTurnOff restores them (#50187); installed_from_dep
+// and is_server must not be rewritten or DEP sync → enroll flips automatic to manual.
+func testUpsertMDMAppleHostMDMInfoDBSQLColumnParity(t *testing.T, _ *Datastore) {
+	src, err := os.ReadFile("apple_mdm.go")
+	require.NoError(t, err)
+
+	fn := extractGoFuncBody(t, string(src), "func upsertMDMAppleHostMDMInfoDB")
+	re := regexp.MustCompile("(?s)INSERT INTO host_mdm \\(([^)]+)\\) VALUES %s\\s+ON DUPLICATE KEY UPDATE\\s+([^`]+)`")
+	m := re.FindStringSubmatch(fn)
+	require.Len(t, m, 3, "host_mdm INSERT/ON DUPLICATE KEY UPDATE statement not found")
+
+	updateCols := []string{"enrolled", "server_url", "mdm_id", "is_personal_enrollment"}
+	preserveCols := []string{"installed_from_dep", "is_server", "host_id"}
+	classifiedCols := append(append([]string{}, updateCols...), preserveCols...)
+
+	require.ElementsMatch(t, classifiedCols, splitSQLIdents(t, m[1]),
+		"every host_mdm INSERT column must be classified as updated or preserved on conflict")
+	require.ElementsMatch(t, updateCols, splitSQLUpdateLHS(t, m[2]),
+		"host_mdm ON DUPLICATE KEY UPDATE columns must match the update classification")
+}
+
+func extractGoFuncBody(t *testing.T, src, funcPrefix string) string {
+	t.Helper()
+	start := strings.Index(src, funcPrefix)
+	require.GreaterOrEqual(t, start, 0, "function %q not found", funcPrefix)
+	brace := strings.Index(src[start:], "{")
+	require.GreaterOrEqual(t, brace, 0)
+	i := start + brace
+	depth := 0
+	for j := i; j < len(src); j++ {
+		switch src[j] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return src[i : j+1]
+			}
+		}
+	}
+	require.FailNow(t, "unbalanced braces extracting function body")
+	return ""
+}
+
+func splitSQLIdents(t *testing.T, list string) []string {
+	t.Helper()
+	parts := strings.Split(list, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		require.NotEmpty(t, p)
+		out = append(out, p)
+	}
+	return out
+}
+
+func splitSQLUpdateLHS(t *testing.T, clause string) []string {
+	t.Helper()
+	parts := strings.Split(clause, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		eq := strings.Index(p, "=")
+		require.Positive(t, eq, "assignment %q", p)
+		out = append(out, strings.TrimSpace(p[:eq]))
+	}
+	require.NotEmpty(t, out)
+	return out
 }
 
 func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) {

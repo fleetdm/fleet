@@ -1,0 +1,1 @@
+- Fixed a bug where iOS and iPadOS hosts that unenrolled and re-enrolled in Fleet MDM could continue reporting an empty MDM server URL in the host API.
