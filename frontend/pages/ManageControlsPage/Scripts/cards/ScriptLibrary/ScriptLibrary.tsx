@@ -9,6 +9,7 @@ import { AxiosError } from "axios";
 import { useQuery } from "react-query";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
@@ -28,6 +29,7 @@ import PageDescription from "components/PageDescription";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import CustomLink from "components/CustomLink";
 
 import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
@@ -49,11 +51,23 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     ? parseInt(location.query.page, 10)
     : DEFAULT_PAGE;
 
-  const { isPremiumTier, isGlobalTechnician, isTeamTechnician } = useContext(
-    AppContext
-  );
+  const {
+    isPremiumTier,
+    isGlobalTechnician,
+    isTeamTechnician,
+    isGlobalAdmin,
+    isAnyTeamAdmin,
+    isGlobalMaintainer,
+    isAnyTeamMaintainer,
+  } = useContext(AppContext);
 
-  const isTechnician = isGlobalTechnician || isTeamTechnician;
+  const isTechnician = !!isGlobalTechnician || !!isTeamTechnician;
+  const canRunScripts = !!(
+    isGlobalAdmin ||
+    isAnyTeamAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamMaintainer
+  );
 
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showEditScriptModal, setShowEditScriptModal] = useState(false);
@@ -196,6 +210,12 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
   );
 
   const canUploadScripts = !isTechnician;
+  const hostsUrl = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+    fleet_id: teamId,
+  });
+  const policiesUrl = getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
+    fleet_id: teamId,
+  });
 
   return (
     <div className={baseClass}>
@@ -203,7 +223,23 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
       <div className={`${baseClass}__tab-header`}>
         <PageDescription
           variant="right-panel"
-          content="A collection of scripts for configuring and remediating hosts."
+          content={
+            <>
+              A collection of scripts for configuring and remediating hosts.
+              <br />
+              To manually run a script, go to the{" "}
+              <CustomLink text="Hosts" url={hostsUrl} /> page, select one or
+              more hosts, and click <b>Run script</b>.
+              {!isTechnician && canRunScripts && (
+                <>
+                  <br />
+                  To automatically run a script across hosts that match a policy
+                  condition, create a policy automation on the{" "}
+                  <CustomLink text="Policies" url={policiesUrl} /> page.
+                </>
+              )}
+            </>
+          }
         />
         {canUploadScripts && (
           <GitOpsModeTooltipWrapper

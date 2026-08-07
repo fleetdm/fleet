@@ -25,8 +25,6 @@ import { generateActionDropdownOptions } from "pages/hosts/details/HostDetailsPa
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { IPaginatedListScript } from "pages/hosts/ManageHostsPage/components/RunScriptBatchPaginatedList/RunScriptBatchPaginatedList";
 
-import RunScriptHelpText from "./RunScriptHelpText";
-
 const baseClass = "script-details-modal";
 
 type PartialOrFullHostScript =
@@ -38,7 +36,6 @@ interface IScriptDetailsModalProps {
   /** optional onClose to allow both "go back" behavior and "close" behavior depending on context */
   onClose?: () => void;
   onDelete?: () => void;
-  runScriptHelpText?: boolean;
   showHostScriptActions?: boolean;
   onClickRun?: (script: IHostScript) => void;
   hostTeamId?: number | null;
@@ -49,7 +46,6 @@ interface IScriptDetailsModalProps {
   isScriptContentError?: Error | null;
   isHidden?: boolean;
   onClickRunDetails?: (scriptExecutionId: string) => void;
-  teamIdForApi?: number;
   suppressSecondaryActions?: boolean;
   customPrimaryButtons?: React.ReactNode;
 }
@@ -59,7 +55,6 @@ const ScriptDetailsModal = ({
   onClose,
   onDelete,
   onClickRun,
-  runScriptHelpText = false,
   showHostScriptActions = false,
   hostTeamId,
   selectedScriptId,
@@ -69,7 +64,6 @@ const ScriptDetailsModal = ({
   isScriptContentError,
   isHidden = false,
   onClickRunDetails,
-  teamIdForApi,
   suppressSecondaryActions = false,
   customPrimaryButtons,
 }: IScriptDetailsModalProps) => {
@@ -84,24 +78,7 @@ const ScriptDetailsModal = ({
     }
   };
 
-  const {
-    currentUser,
-    isGlobalAdmin,
-    isAnyTeamAdmin,
-    isGlobalMaintainer,
-    isAnyTeamMaintainer,
-    isTeamTechnician,
-    isGlobalTechnician,
-  } = useContext(AppContext);
-
-  const isTechnician = !!isTeamTechnician || !!isGlobalTechnician;
-
-  const canRunScripts = !!(
-    isGlobalAdmin ||
-    isAnyTeamAdmin ||
-    isGlobalMaintainer ||
-    isAnyTeamMaintainer
-  );
+  const { currentUser } = useContext(AppContext);
 
   // handle multiple possibilities for `selectedScriptDetails`
   let scriptId: number | null = null;
@@ -124,7 +101,7 @@ const ScriptDetailsModal = ({
     () =>
       scriptId
         ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          scriptAPI.downloadScript(scriptId)
+        scriptAPI.downloadScript(scriptId)
         : Promise.resolve(null),
     {
       refetchOnWindowFocus: false,
@@ -143,9 +120,8 @@ const ScriptDetailsModal = ({
     try {
       const content = selectedScriptContent || scriptContent || "";
       const formatDate = format(new Date(), "yyyy-MM-dd");
-      const filename = `${formatDate} ${
-        selectedScriptDetails?.name || "Script details"
-      }`;
+      const filename = `${formatDate} ${selectedScriptDetails?.name || "Script details"
+        }`;
       const file = new File([content], filename);
       FileSaver.saveAs(file);
     } catch {
@@ -268,14 +244,6 @@ const ScriptDetailsModal = ({
         <Textarea label="Script content:" variant="code">
           {scriptContent}
         </Textarea>
-        {runScriptHelpText && (
-          <RunScriptHelpText
-            className="form-field__help-text"
-            isTechnician={isTechnician}
-            canRunScripts={canRunScripts}
-            teamId={teamIdForApi}
-          />
-        )}
       </div>
     );
   };
