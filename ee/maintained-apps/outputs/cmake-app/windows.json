@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.4.1",
+      "version": "4.4.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'CMake' AND publisher = 'Kitware';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CMake' AND publisher = 'Kitware' AND version_compare(version, '4.4.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CMake' AND publisher = 'Kitware' AND version_compare(version, '4.4.2') < 0);"
       },
-      "installer_url": "https://github.com/Kitware/CMake/releases/download/v4.4.1/cmake-4.4.1-windows-x86_64.msi",
+      "installer_url": "https://github.com/Kitware/CMake/releases/download/v4.4.2/cmake-4.4.2-windows-x86_64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "6ac3efbc",
-      "sha256": "2d4800cb2cfb9028edef95fd36c3f1a1c7b20771f6c6b828f23a84e8014d543a",
+      "sha256": "5f391b528a6604c7248375d107ee993baa85667549ecb6e4c14bed9d9a718c41",
       "default_categories": [
         "Productivity"
       ],

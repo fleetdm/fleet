@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.452.4",
+      "version": "7.469.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.granola.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.granola.app' AND version_compare(bundle_short_version, '7.452.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.granola.app' AND version_compare(bundle_short_version, '7.469.1') < 0);"
       },
-      "installer_url": "https://dr2v7l5emb758.cloudfront.net/7.452.4/Granola-7.452.4-mac-universal.dmg",
+      "installer_url": "https://dr2v7l5emb758.cloudfront.net/7.469.1/Granola-7.469.1-mac-universal.dmg",
       "install_script_ref": "08a593fa",
       "uninstall_script_ref": "8135b983",
-      "sha256": "ffb30437fb3f491f6ba0c9ee7e7609ce06d1e95aac7f5a03bdb920ea12d6fdc8",
+      "sha256": "a7e26aa74da9b7d783491437624237ef01ca56735ff9e66bc68f7e60c1815d4e",
       "default_categories": [
         "Productivity"
       ]

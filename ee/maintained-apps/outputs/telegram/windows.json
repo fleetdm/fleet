@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.0.8",
+      "version": "7.0.9",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Telegram Desktop' AND publisher = 'Telegram FZ-LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Telegram Desktop' AND publisher = 'Telegram FZ-LLC' AND version_compare(version, '7.0.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Telegram Desktop' AND publisher = 'Telegram FZ-LLC' AND version_compare(version, '7.0.9') < 0);"
       },
-      "installer_url": "https://github.com/telegramdesktop/tdesktop/releases/download/v7.0.8/tsetup-x64.7.0.8.exe",
+      "installer_url": "https://github.com/telegramdesktop/tdesktop/releases/download/v7.0.9/tsetup-x64.7.0.9.exe",
       "install_script_ref": "0b88a95e",
       "uninstall_script_ref": "42311f1b",
-      "sha256": "5fdd32cc29f07f578373aa7d74c0e68aa864b223cddea882394da31a60248183",
+      "sha256": "ad3cb06ad5444b5c599ba3b4023974e1da7630cd392b7e6fc9b6e6fed1e7e404",
       "default_categories": [
         "Communication"
       ]
