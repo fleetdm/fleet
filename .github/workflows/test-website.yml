@@ -29,7 +29,7 @@ env:
   NPM_CONFIG_MIN_RELEASE_AGE: 0.5
 
 jobs:
-  test-website-changes:
+  build:
     runs-on: ubuntu-latest
 
     strategy:
