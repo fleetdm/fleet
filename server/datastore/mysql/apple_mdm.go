@@ -1532,6 +1532,28 @@ func updateMDMAppleHostDB(
 ) error {
 	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
 
+	// A host transitioning from company-owned to personal (BYOD) must not
+	// keep vitals collected under the prior, non-personal enrollment. Both
+	// reads below must happen before the UPDATE further down, which can
+	// change hosts.uuid (matchHostDuringEnrollment may match an existing
+	// host by hardware serial even when the incoming UUID differs) -- the
+	// stale vitals are keyed by the host's *previous* UUID, not the new one.
+	transitioningToPersonal := false
+	var previousUUID string
+	if fromPersonalEnrollment {
+		var previouslyPersonal bool
+		err := sqlx.GetContext(ctx, tx, &previouslyPersonal, `SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`, hostID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "get host mdm enrollment type")
+		}
+		transitioningToPersonal = err == nil && !previouslyPersonal
+		if transitioningToPersonal {
+			if err := sqlx.GetContext(ctx, tx, &previousUUID, `SELECT uuid FROM hosts WHERE id = ?`, hostID); err != nil {
+				return ctxerr.Wrap(ctx, err, "load host uuid before update")
+			}
+		}
+	}
+
 	args := []interface{}{
 		mdmHost.HardwareSerial,
 		mdmHost.UUID,
@@ -1579,7 +1601,13 @@ func updateMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "error clearing mdm apple host_mdm_actions")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, false, fromPersonalEnrollment, hostID); err != nil {
+	if transitioningToPersonal {
+		if err := deleteHostMDMAppleDeviceVitalsDB(ctx, tx, previousUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear stale device vitals on enrollment type change")
+		}
+	}
+
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, appleMDMInfoFromCheckin, fromPersonalEnrollment, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 
@@ -1660,7 +1688,7 @@ func insertMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, false, fromPersonalEnrollment, mdmHost.ID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, appleMDMInfoFromCheckin, fromPersonalEnrollment, mdmHost.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 	return nil
@@ -1690,7 +1718,7 @@ func createHostFromMDMDB(
 	tx sqlx.ExtContext,
 	logger *slog.Logger,
 	devices []hostToCreateFromMDM,
-	fromADE bool,
+	source appleMDMInfoSource,
 	macOSTeam, iosTeam, ipadTeam *uint,
 ) (int64, []fleet.Host, error) {
 	// NOTE: order of arguments for teams is important, see statement.
@@ -1830,7 +1858,7 @@ func createHostFromMDMDB(
 		ctx,
 		tx,
 		appCfg,
-		fromADE,
+		source,
 		false,
 		unmanagedHostIDs...,
 	); err != nil {
@@ -1855,7 +1883,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 				UUID:           &deviceInfo.UDID,
 			},
 		}
-		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, false, teamID, teamID, teamID)
+		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, appleMDMInfoFromOTAEnrollment, teamID, teamID, teamID)
 		if idpUUID != "" && len(hosts) > 0 {
 			host := hosts[0]
 			ds.logger.InfoContext(ctx, fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
@@ -1953,7 +1981,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 			tx,
 			ds.logger,
 			htc,
-			true,
+			appleMDMInfoFromDEPSync,
 			teamIDs[0], teamIDs[1], teamIDs[2],
 		)
 		if err != nil {
@@ -2003,7 +2031,8 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 			mdm_migration_deadline = VALUES(mdm_migration_deadline),
 			hardware_serial = VALUES(hardware_serial)`
 
-	args := []interface{}{}
+	hostIDs := []uint{}
+	args := []any{}
 	values := []string{}
 	for _, host := range hosts {
 		var deadline *time.Time
@@ -2012,11 +2041,29 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 		}
 		args = append(args, host.ID, abmTokenID, deadline, host.HardwareSerial)
 		values = append(values, "(?, ?, ?, ?)")
+
+		hostIDs = append(hostIDs, host.ID)
 	}
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, strings.Join(values, ",")), args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "upsert host dep assignments")
+	}
+
+	// Cover a case where an ADE enrolled host enrolls before the DEP sync comes in and fix previous installed_from_dep=0 if set.
+	stmt, args, err = sqlx.In(`UPDATE host_mdm hm
+JOIN mobile_device_management_solutions mdms ON mdms.id = hm.mdm_id
+SET hm.installed_from_dep = 1
+WHERE hm.host_id IN (?)
+  AND hm.enrolled = 1
+  AND hm.is_personal_enrollment = 0
+  AND mdms.name = 'Fleet'`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host dep assignments update installed_from_dep")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host dep assignments update installed_from_dep")
 	}
 
 	return nil
@@ -2071,7 +2118,15 @@ func insertHostDisplayNamesIfAbsent(ctx context.Context, tx sqlx.ExtContext, hos
 	return nil
 }
 
-func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, fromSync, fromPersonalEnrollment bool, hostIDs ...uint) error {
+type appleMDMInfoSource int
+
+const (
+	appleMDMInfoFromDEPSync       appleMDMInfoSource = iota // enrolled=0, from_dep=1, narrow ON DUPLICATE
+	appleMDMInfoFromOTAEnrollment                           // enrolled=1, from_dep=0, narrow ON DUPLICATE
+	appleMDMInfoFromCheckin                                 // enrolled=1, from_dep=derived, wide ON DUPLICATE
+)
+
+func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, source appleMDMInfoSource, fromPersonalEnrollment bool, hostIDs ...uint) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
@@ -2083,7 +2138,7 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 
 	// if the device is coming from the DEP sync, we don't consider it
 	// enrolled yet.
-	enrolled := !fromSync
+	enrolled := source != appleMDMInfoFromDEPSync
 
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
@@ -2103,16 +2158,49 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 		}
 	}
 
+	depAssignedSet := map[uint]struct{}{}
+	if source == appleMDMInfoFromCheckin && !fromPersonalEnrollment {
+		stmt, args, err := sqlx.In(`
+		SELECT host_id FROM host_dep_assignments
+		WHERE host_id IN (?) AND deleted_at IS NULL`, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "query dep assigned hosts")
+		}
+		var depAssigned []uint
+		if err := sqlx.SelectContext(ctx, tx, &depAssigned, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "query dep assigned hosts")
+		}
+
+		for _, id := range depAssigned {
+			depAssignedSet[id] = struct{}{}
+		}
+	}
+
 	args := []interface{}{}
 	parts := []string{}
 	for _, id := range hostIDs {
-		args = append(args, enrolled, serverURL, fromSync, mdmID, false, id, fromPersonalEnrollment)
+		var isDepAssigned bool
+		switch source {
+		case appleMDMInfoFromCheckin:
+			_, isDepAssigned = depAssignedSet[id]
+		case appleMDMInfoFromDEPSync:
+			isDepAssigned = true
+		default:
+			isDepAssigned = false
+		}
+		args = append(args, enrolled, serverURL, isDepAssigned, mdmID, false, id, fromPersonalEnrollment)
 		parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")
 	}
 
-	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
+	stmt := fmt.Sprintf(`
 		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id, is_personal_enrollment) VALUES %s
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ","))
+
+	if source == appleMDMInfoFromCheckin {
+		stmt += `, installed_from_dep = VALUES(installed_from_dep)`
+	}
+
+	_, err = tx.ExecContext(ctx, stmt, args...)
 
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
@@ -2597,7 +2685,7 @@ INSERT INTO hosts (
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, *host); err != nil {
 			return ctxerr.Wrap(ctx, err, "restore pending dep host label membership")
 		}
-		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac, true, false, host.ID); err != nil {
+		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac, appleMDMInfoFromDEPSync, false, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 		}
 
@@ -5145,10 +5233,10 @@ INSERT INTO mdm_apple_declarations (
 		isSoftwareUpdate = rawDecl.Type == apple_mdm.DeclarationTypeSoftwareUpdate
 	}
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate)
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate, fleet.MDMAppleActivationApply)
 }
 
-func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 	const stmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
@@ -5187,10 +5275,10 @@ ON DUPLICATE KEY UPDATE
 		}
 	}
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate)
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate, activationAction)
 }
 
-func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, isSoftwareUpdate bool) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, isSoftwareUpdate bool, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 
 	var tmID uint
@@ -5274,8 +5362,10 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			return ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
 		}
 
-		if _, err := setMDMAppleDDMActivationDB(ctx, tx, declUUID, tmID, declaration); err != nil {
-			return err
+		if activationAction == fleet.MDMAppleActivationApply {
+			if _, err := setMDMAppleDDMActivationDB(ctx, tx, declUUID, tmID, declaration); err != nil {
+				return err
+			}
 		}
 
 		if isSoftwareUpdate {
@@ -6354,6 +6444,7 @@ SELECT
 	h.id as host_id,
 	h.uuid as uuid,
 	hmdm.installed_from_dep,
+	hmdm.is_personal_enrollment,
 	JSON_ARRAYAGG(hmc.command_type) as commands_already_sent
 FROM hosts h
 	INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id

@@ -883,6 +883,12 @@ func (t *testingLookupService) GetActivitiesWebhookSettings(ctx context.Context)
 	return appConfig.WebhookSettings.ActivitiesWebhook, nil
 }
 
+func (t *testingLookupService) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error) {
+	// Same resolution as production (server/service); no license gate because
+	// integration-test contexts carry no license.
+	return fleet.ResolveHostActivitiesWebhooks(ctx, t.ds, hostIDs)
+}
+
 func (t *testingLookupService) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
 	return t.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
 }

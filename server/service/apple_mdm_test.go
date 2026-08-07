@@ -1007,7 +1007,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		assert.Empty(t, updated.Mobileconfig)
@@ -1037,7 +1037,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, mcBytes, []byte(updated.Mobileconfig))
 		assert.Equal(t, "Test Profile", updated.Name)
@@ -1064,7 +1064,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, "New Name", updated.Name)
 
@@ -1091,7 +1091,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarHostEndUserEmailIDP)
 	})
@@ -1114,7 +1114,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		require.NotNil(t, updated.SecretsUpdatedAt)
 		assert.True(t, secretsUpdatedAt.Equal(*updated.SecretsUpdatedAt))
@@ -1134,7 +1134,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, mcBytes, []byte(updated.Mobileconfig))
 		require.Len(t, updated.LabelsIncludeAny, 1)
@@ -1156,7 +1156,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "PayloadIdentifier must match")
 	})
@@ -1176,7 +1176,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return nil, existsErrorForTest{}
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		require.ErrorContains(t, err, SameProfileNameUploadErrorMsg)
 
@@ -1197,7 +1197,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -1209,7 +1209,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "a"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, "a"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -1226,7 +1226,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profiles")
 
@@ -1235,7 +1235,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 		mcBytes := mcBytesForTest("Test Profile", "com.fleetdm.test", "UUID")
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 	})
 
@@ -1255,13 +1255,13 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 		}
 
 		mcBytes := mcBytesForTest("Test Profile", "com.fleetdm.test", "UUID")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -1316,10 +1316,10 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 				// this isolates the authz checks from content/label validation,
 				// so a failure can only come from permissions, not some other
 				// unrelated rejection.
-				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailGlobal)
 
-				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailTeam)
 			})
 		}
@@ -1451,7 +1451,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
@@ -1462,7 +1462,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		}
 
 		newContent := declBytesForTest("D1", "updated-content")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		require.NotNil(t, updated)
@@ -1491,7 +1491,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
@@ -1502,7 +1502,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		}
 
 		newAct := activationBytesForTest("com.fleet.actD1.v2", "com.fleet.configD1")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, nil, fleet.LabelsIncludeAll, nil, newAct)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.SetSlice(newAct))
 		require.NoError(t, err)
 
 		require.NotNil(t, updated)
@@ -1531,55 +1531,26 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
-			updated = d
+		var gotAction fleet.MDMAppleActivationAction
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
+			updated, gotAction = d, activationAction
 			return d, nil
 		}
 
 		// no profile content, no activation -- just labels. The datastore
 		// clears the activation of any declaration written without one, so the
 		// stored activation has to be carried forward here.
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label-1"}, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label-1"}, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		require.NotNil(t, updated)
-		require.NotNil(t, updated.Activation, "labels-only edit must not clear the activation")
-		assert.Equal(t, stored.Identifier, updated.Activation.Identifier)
+		// The datastore is told to leave it alone rather than being handed a copy,
+		// so nothing can drop it or its variable associations.
+		assert.Equal(t, fleet.MDMAppleActivationKeep, gotAction,
+			"labels-only edit must not touch the activation")
 	})
 
-	t.Run("labels-only update re-derives the activation's Fleet variables", func(t *testing.T) {
-		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
-		// the stored activation is loaded without its variables, exactly as
-		// GetMDMAppleDeclaration returns it
-		existing.Activation = &fleet.MDMAppleCustomActivation{
-			Identifier: "com.fleet.actD1",
-			RawJSON: []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.actD1",` +
-				`"Payload":{"StandardConfigurations":["com.fleet.configD1"],"Predicate":"$FLEET_VAR_HOST_UUID"}}`),
-			ConfigurationIdentifier: "com.fleet.configD1",
-		}
-
-		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
-			return existing, nil
-		}
-		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
-			updated = d
-			return d, nil
-		}
-
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label-1"}, fleet.LabelsIncludeAll, nil, nil)
-		require.NoError(t, err)
-
-		// the datastore rewrites an activation's variable associations from
-		// whatever it's handed, so carrying it forward without re-deriving
-		// these would wipe them
-		require.NotNil(t, updated)
-		require.NotNil(t, updated.Activation)
-		assert.Equal(t, []fleet.FleetVarName{fleet.FleetVarHostUUID}, updated.Activation.FleetVariables)
-	})
-
-	t.Run("new content without an activation clears the stored one", func(t *testing.T) {
+	t.Run("new content without mentioning the activation preserves it", func(t *testing.T) {
 		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
 		existing.Activation = &fleet.MDMAppleCustomActivation{
@@ -1592,17 +1563,45 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
-			updated = d
+		var gotAction fleet.MDMAppleActivationAction
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
+			updated, gotAction = d, activationAction
 			return d, nil
 		}
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID,
-			declBytesForTest("D1", "updated-content"), nil, fleet.LabelsIncludeAll, nil, nil)
+			declBytesForTest("D1", "updated-content"), nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		require.NotNil(t, updated)
-		assert.Nil(t, updated.Activation, "replacing content without an activation removes it")
+		assert.Equal(t, fleet.MDMAppleActivationKeep, gotAction,
+			"an edit that doesn't mention the activation must leave it alone")
+	})
+
+	t.Run("an explicitly emptied activation is removed", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
+		existing.Activation = &fleet.MDMAppleCustomActivation{
+			Identifier:              "com.fleet.actD1",
+			RawJSON:                 activationBytesForTest("com.fleet.actD1", "com.fleet.configD1"),
+			ConfigurationIdentifier: "com.fleet.configD1",
+		}
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return existing, nil
+		}
+		var updated *fleet.MDMAppleDeclaration
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
+			updated = d
+			return d, nil
+		}
+
+		// activationSet with no content is how the API says "remove it".
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{Set: true})
+		require.NoError(t, err)
+
+		require.NotNil(t, updated)
+		assert.Nil(t, updated.Activation)
 	})
 
 	t.Run("labels-only update, happy path", func(t *testing.T) {
@@ -1613,7 +1612,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
@@ -1623,7 +1622,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		require.NotNil(t, updated)
@@ -1652,13 +1651,13 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		}
 		var capturedVars []fleet.FleetVarName
 		var capturedDecl *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			capturedDecl = d
 			capturedVars = usesFleetVars
 			return d, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarHostUUID)
 		require.NotNil(t, capturedDecl)
@@ -1675,16 +1674,16 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
 
 		newContent := declBytesForTest("D1", "updated-content")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -1696,13 +1695,13 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
 
 		newContent := declBytesForTest("D1", "updated-content")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		require.NotNil(t, updated)
@@ -1721,7 +1720,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return existing, nil
 		}
 		var updated *fleet.MDMAppleDeclaration
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			updated = d
 			return d, nil
 		}
@@ -1732,7 +1731,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		}
 
 		newContent := declBytesForTest("D1", "updated-content")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		require.NotNil(t, updated)
@@ -1755,13 +1754,13 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
 
 		mismatchedContent := declarationForTestWithType("com.fleet.configD2", "com.apple.configuration.management.test")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, mismatchedContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, mismatchedContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "Identifier must match the existing profile's")
 	})
@@ -1773,13 +1772,13 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
 
 		invalidContent := declarationForTestWithType(existing.Identifier, "com.example.not-a-real-type")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported")
 	})
@@ -1791,12 +1790,12 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, `label "label1" cannot appear in both include and exclude lists`)
 	})
@@ -1808,12 +1807,12 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -1825,7 +1824,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "d"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, "d"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -1837,7 +1836,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			return nil, existsErrorForTest{}
 		}
 
@@ -1846,7 +1845,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		// generic ExistsErrorInterface -> 409 mapping rather than any specific
 		// identifier collision.
 		newContent := declarationForTestWithType(existing.Identifier, "com.apple.configuration.management.test")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "Couldn't edit. A configuration profile with this identifier already exists.")
 
@@ -6582,6 +6581,20 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		require.Equal(t, "Work iPad", reportedName)
 		return nil
 	}
+	var vitalsCalls int
+	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
+		require.Equal(t, hostUUID, incomingHostUUID)
+		require.NotNil(t, vitals.WiFiMAC)
+		require.Equal(t, "ff:ff:ff:ff:ff:ff", *vitals.WiFiMAC)
+		vitalsCalls++
+		if vitalsCalls == 1 {
+			require.NotNil(t, vitals.IsMDMLostModeEnabled)
+			require.True(t, *vitals.IsMDMLostModeEnabled)
+		} else {
+			require.Nil(t, vitals.IsMDMLostModeEnabled)
+		}
+		return nil
+	}
 
 	_, err := svc.CommandAndReportResults(
 		&mdm.Request{Context: ctx},
@@ -6629,6 +6642,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	require.True(t, ds.UpdateMDMDataFuncInvoked)
 	require.True(t, ds.GetLatestAppleMDMCommandOfTypeFuncInvoked)
 	require.True(t, ds.SetLockCommandForLostModeCheckinFuncInvoked)
+	require.True(t, ds.SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked)
 
 	_, err = svc.CommandAndReportResults(
 		&mdm.Request{Context: ctx},
@@ -6707,6 +6721,12 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersion(t *testing.T)
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
 		return nil
 	}
+	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
+		require.Equal(t, hostUUID, incomingHostUUID)
+		require.NotNil(t, vitals.SupplementalOSVersionExtra)
+		require.Equal(t, "(a)", *vitals.SupplementalOSVersionExtra)
+		return nil
+	}
 
 	_, err := svc.CommandAndReportResults(
 		&mdm.Request{Context: ctx},
@@ -6748,6 +6768,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersion(t *testing.T)
 
 	require.True(t, ds.UpdateHostFuncInvoked)
 	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+	require.True(t, ds.SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked)
 }
 
 // TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive covers handling of
@@ -6970,6 +6991,9 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 			ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
 				return nil
 			}
+			ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
+				return nil
+			}
 
 			ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 				assert.Equal(t, tc.expect.expectComputerName, host.ComputerName, "ComputerName")
@@ -7070,6 +7094,9 @@ func TestMDMCommandAndReportResultsIOSRefetchMissingProductNameIPhone(t *testing
 	var updatedOS fleet.OperatingSystem
 	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, incomingHostID uint, hostOS fleet.OperatingSystem) error {
 		updatedOS = hostOS
+		return nil
+	}
+	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 		return nil
 	}
 
@@ -7277,6 +7304,9 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionNonString(t *t
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
 		return nil
 	}
+	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
+		return nil
+	}
 
 	_, err := svc.CommandAndReportResults(
 		&mdm.Request{Context: ctx},
@@ -7357,6 +7387,9 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
 		return nil
 	}
+	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
+		return nil
+	}
 
 	_, err := svc.CommandAndReportResults(
 		&mdm.Request{Context: ctx},
@@ -7398,6 +7431,364 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
 
 	require.True(t, ds.UpdateHostFuncInvoked)
 	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+}
+
+// TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitals covers the 29
+// fields added for #49984: all present -> all persisted; a field absent (an
+// enrollment method that doesn't support it) -> left nil, no error.
+func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitals(t *testing.T) {
+	ctx := t.Context()
+	hostID := uint(7)
+	hostUUID := "VITALS-HOST-UUID"
+	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "VITALS-UUID"
+
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, UUID: hostUUID, Platform: "ipados"}, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, incomingHostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
+		return nil
+	}
+	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, incomingHostID uint, hostOS fleet.OperatingSystem) error {
+		return nil
+	}
+	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error { return nil }
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string) error {
+		return nil
+	}
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
+		return nil
+	}
+
+	allFieldsRaw := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CommandUUID</key>
+	<string>` + commandUUID + `</string>
+	<key>QueryResponses</key>
+	<dict>
+		<key>DeviceName</key>
+		<string>Work iPad</string>
+		<key>DeviceCapacity</key>
+		<real>64</real>
+		<key>AvailableDeviceCapacity</key>
+		<real>51.26</real>
+		<key>OSVersion</key>
+		<string>17.5.1</string>
+		<key>ProductName</key>
+		<string>iPad13,18</string>
+		<key>UDID</key>
+		<string>00008030-ABCDEF012345</string>
+		<key>ModelNumber</key>
+		<string>MK1A3LL/A</string>
+		<key>ModemFirmwareVersion</key>
+		<string>1.0.0</string>
+		<key>SupplementalBuildVersion</key>
+		<string>21F79</string>
+		<key>SupplementalOSVersionExtra</key>
+		<string>(a)</string>
+		<key>BluetoothMAC</key>
+		<string>11:22:33:44:55:66</string>
+		<key>WiFiMAC</key>
+		<string>ff:ff:ff:ff:ff:ff</string>
+		<key>EASDeviceIdentifier</key>
+		<string>eas-device-id</string>
+		<key>iTunesStoreAccountHash</key>
+		<string>hash-123</string>
+		<key>PushToken</key>
+		<data>cHVzaC10b2tlbg==</data>
+		<key>BatteryLevel</key>
+		<real>0.85</real>
+		<key>CellularTechnology</key>
+		<integer>1</integer>
+		<key>AppAnalyticsEnabled</key>
+		<true/>
+		<key>AwaitingConfiguration</key>
+		<false/>
+		<key>DataRoamingEnabled</key>
+		<true/>
+		<key>DiagnosticSubmissionEnabled</key>
+		<false/>
+		<key>IsCloudBackupEnabled</key>
+		<true/>
+		<key>IsDeviceLocatorServiceEnabled</key>
+		<true/>
+		<key>IsDoNotDisturbInEffect</key>
+		<false/>
+		<key>IsMDMLostModeEnabled</key>
+		<false/>
+		<key>IsNetworkTethered</key>
+		<false/>
+		<key>iTunesStoreAccountIsActive</key>
+		<true/>
+		<key>PersonalHotspotEnabled</key>
+		<false/>
+		<key>LastCloudBackupDate</key>
+		<date>2026-07-01T00:00:00Z</date>
+		<key>AccessibilitySettings</key>
+		<dict>
+			<key>VoiceOverEnabled</key>
+			<true/>
+			<key>ZoomEnabled</key>
+			<false/>
+			<key>TextSize</key>
+			<integer>5</integer>
+		</dict>
+		<key>OrganizationInfo</key>
+		<dict>
+			<key>OrganizationName</key>
+			<string>Acme Inc.</string>
+			<key>OrganizationEmail</key>
+			<string>[email protected]</string>
+		</dict>
+		<key>MDMOptions</key>
+		<dict>
+			<key>BootstrapTokenAllowed</key>
+			<true/>
+		</dict>
+		<key>DevicePropertiesAttestation</key>
+		<array>
+			<data>bGVhZi1jZXJ0</data>
+			<data>aW50ZXJtZWRpYXRlLWNlcnQ=</data>
+		</array>
+		<key>ServiceSubscriptions</key>
+		<array>
+			<dict>
+				<key>Slot</key>
+				<string>CTSubscriptionSlotOne</string>
+				<key>ICCID</key>
+				<string>8901410321111111111</string>
+				<key>IsDataPreferred</key>
+				<true/>
+				<key>CurrentCarrierNetwork</key>
+				<string>Fleet Wireless</string>
+				<key>PhoneNumber</key>
+				<string>+15555550100</string>
+			</dict>
+			<dict>
+				<key>Slot</key>
+				<string>CTSubscriptionSlotTwo</string>
+				<key>EID</key>
+				<string>89049032000000000000000000000000</string>
+				<key>IMEI</key>
+				<string>35 000000 000000 0</string>
+			</dict>
+		</array>
+	</dict>
+	<key>Status</key>
+	<string>Acknowledged</string>
+	<key>UDID</key>
+	<string>` + hostUUID + `</string>
+</dict>
+</plist>`)
+
+	var gotVitals fleet.MDMAppleDeviceVitals
+	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
+		require.Equal(t, hostUUID, incomingHostUUID)
+		gotVitals = vitals
+		return nil
+	}
+
+	_, err := svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx},
+		&mdm.CommandResults{Enrollment: mdm.Enrollment{UDID: hostUUID}, CommandUUID: commandUUID, Raw: allFieldsRaw},
+	)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked)
+
+	require.Equal(t, "00008030-ABCDEF012345", ptr.ValOrZero(gotVitals.UDID))
+	require.Equal(t, "MK1A3LL/A", ptr.ValOrZero(gotVitals.ModelNumber))
+	require.Equal(t, "1.0.0", ptr.ValOrZero(gotVitals.ModemFirmwareVersion))
+	require.Equal(t, "21F79", ptr.ValOrZero(gotVitals.SupplementalBuildVersion))
+	require.Equal(t, "(a)", ptr.ValOrZero(gotVitals.SupplementalOSVersionExtra))
+	require.Equal(t, "11:22:33:44:55:66", ptr.ValOrZero(gotVitals.BluetoothMAC))
+	require.Equal(t, "ff:ff:ff:ff:ff:ff", ptr.ValOrZero(gotVitals.WiFiMAC))
+	require.Equal(t, "eas-device-id", ptr.ValOrZero(gotVitals.EASDeviceIdentifier))
+	require.Equal(t, "hash-123", ptr.ValOrZero(gotVitals.ITunesStoreAccountHash))
+	require.Equal(t, []byte("push-token"), gotVitals.PushToken)
+	require.InDelta(t, 0.85, ptr.ValOrZero(gotVitals.BatteryLevel), 0.001)
+	require.EqualValues(t, 1, ptr.ValOrZero(gotVitals.CellularTechnology))
+	require.True(t, ptr.ValOrZero(gotVitals.AppAnalyticsEnabled))
+	require.False(t, ptr.ValOrZero(gotVitals.AwaitingConfiguration))
+	require.True(t, ptr.ValOrZero(gotVitals.DataRoamingEnabled))
+	require.False(t, ptr.ValOrZero(gotVitals.DiagnosticSubmissionEnabled))
+	require.True(t, ptr.ValOrZero(gotVitals.IsCloudBackupEnabled))
+	require.True(t, ptr.ValOrZero(gotVitals.IsDeviceLocatorServiceEnabled))
+	require.False(t, ptr.ValOrZero(gotVitals.IsDoNotDisturbInEffect))
+	require.False(t, ptr.ValOrZero(gotVitals.IsMDMLostModeEnabled))
+	require.False(t, ptr.ValOrZero(gotVitals.IsNetworkTethered))
+	require.True(t, ptr.ValOrZero(gotVitals.ITunesStoreAccountIsActive))
+	require.False(t, ptr.ValOrZero(gotVitals.PersonalHotspotEnabled))
+	require.NotNil(t, gotVitals.LastCloudBackupDate)
+	require.Equal(t, 2026, gotVitals.LastCloudBackupDate.Year())
+
+	require.NotNil(t, gotVitals.AccessibilitySettings)
+	require.True(t, ptr.ValOrZero(gotVitals.AccessibilitySettings.VoiceOverEnabled))
+	require.False(t, ptr.ValOrZero(gotVitals.AccessibilitySettings.ZoomEnabled))
+	require.EqualValues(t, 5, ptr.ValOrZero(gotVitals.AccessibilitySettings.TextSize))
+
+	require.NotNil(t, gotVitals.OrganizationInfo)
+	require.Equal(t, "Acme Inc.", ptr.ValOrZero(gotVitals.OrganizationInfo.OrganizationName))
+	require.Equal(t, "[email protected]", ptr.ValOrZero(gotVitals.OrganizationInfo.OrganizationEmail))
+
+	require.NotNil(t, gotVitals.MDMOptions)
+	require.True(t, ptr.ValOrZero(gotVitals.MDMOptions.BootstrapTokenAllowed))
+
+	// Real devices report DevicePropertiesAttestation as a 2-certificate chain
+	// (leaf + the "Apple Enterprise Attestation Sub CA" intermediate), per
+	// manual testing against a physical iPhone.
+	require.Equal(t, [][]byte{[]byte("leaf-cert"), []byte("intermediate-cert")}, gotVitals.DevicePropertiesAttestation)
+
+	// A physical+eSIM dual-SIM device, per manual testing, reports one fully
+	// populated subscription for its active line and a second, mostly-null
+	// subscription for an inactive/unprovisioned eSIM slot (only EID/IMEI
+	// set) — both must be persisted as separate rows.
+	require.Len(t, gotVitals.ServiceSubscriptions, 2)
+	require.Equal(t, "CTSubscriptionSlotOne", gotVitals.ServiceSubscriptions[0].Slot)
+	require.Equal(t, "8901410321111111111", ptr.ValOrZero(gotVitals.ServiceSubscriptions[0].ICCID))
+	require.True(t, ptr.ValOrZero(gotVitals.ServiceSubscriptions[0].IsDataPreferred))
+	require.Equal(t, "Fleet Wireless", ptr.ValOrZero(gotVitals.ServiceSubscriptions[0].CurrentCarrierNetwork))
+
+	require.Equal(t, "CTSubscriptionSlotTwo", gotVitals.ServiceSubscriptions[1].Slot)
+	require.Equal(t, "89049032000000000000000000000000", ptr.ValOrZero(gotVitals.ServiceSubscriptions[1].EID))
+	require.Nil(t, gotVitals.ServiceSubscriptions[1].ICCID)
+	require.Nil(t, gotVitals.ServiceSubscriptions[1].IsDataPreferred)
+
+	// A second ack with none of the new fields present must persist a
+	// zero-value vitals struct (all nils) rather than error.
+	sparseRaw := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CommandUUID</key>
+	<string>` + commandUUID + `</string>
+	<key>QueryResponses</key>
+	<dict>
+		<key>DeviceName</key>
+		<string>Work iPad</string>
+		<key>DeviceCapacity</key>
+		<real>64</real>
+		<key>AvailableDeviceCapacity</key>
+		<real>51.26</real>
+		<key>OSVersion</key>
+		<string>17.5.1</string>
+		<key>ProductName</key>
+		<string>iPad13,18</string>
+	</dict>
+	<key>Status</key>
+	<string>Acknowledged</string>
+	<key>UDID</key>
+	<string>` + hostUUID + `</string>
+</dict>
+</plist>`)
+
+	gotVitals = fleet.MDMAppleDeviceVitals{}
+	ds.SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked = false
+	_, err = svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx},
+		&mdm.CommandResults{Enrollment: mdm.Enrollment{UDID: hostUUID}, CommandUUID: commandUUID, Raw: sparseRaw},
+	)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked)
+	require.Nil(t, gotVitals.UDID)
+	require.Nil(t, gotVitals.BatteryLevel)
+	require.Nil(t, gotVitals.AccessibilitySettings)
+	require.Nil(t, gotVitals.DevicePropertiesAttestation)
+	require.Empty(t, gotVitals.ServiceSubscriptions)
+}
+
+// TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitalsWriteFailure
+// covers that a failure persisting the new vitals doesn't abort the rest of
+// handleRefetchDeviceResults — in particular, the lost-mode lock/wipe
+// reconciliation that runs later in the same function must still happen.
+func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitalsWriteFailure(t *testing.T) {
+	ctx := t.Context()
+	hostID := uint(8)
+	hostUUID := "VITALS-FAIL-HOST-UUID"
+	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "VITALS-FAIL-UUID"
+	lostModeCommandUUID := uuid.NewString()
+
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:   hostID,
+			UUID: hostUUID,
+			MDM:  fleet.MDMHostData{EnrollmentStatus: new("Pending")},
+		}, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, incomingHostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
+		return nil
+	}
+	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, incomingHostID uint, hostOS fleet.OperatingSystem) error {
+		return nil
+	}
+	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error { return nil }
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string) error {
+		return nil
+	}
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
+		return nil
+	}
+	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
+		return errors.New("boom: vitals write failed")
+	}
+	ds.UpdateMDMDataFunc = func(ctx context.Context, incomingHostID uint, enrolled bool) error { return nil }
+	ds.GetLatestAppleMDMCommandOfTypeFunc = func(ctx context.Context, incomingHostUUID, commandType string) (*fleet.MDMCommand, error) {
+		return &fleet.MDMCommand{CommandUUID: lostModeCommandUUID}, nil
+	}
+	ds.SetLockCommandForLostModeCheckinFunc = func(ctx context.Context, incomingHostUUID uint, commandUUID string) error {
+		return nil
+	}
+
+	_, err := svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Raw: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>CommandUUID</key>
+        <string>` + commandUUID + `</string>
+        <key>QueryResponses</key>
+        <dict>
+                <key>DeviceName</key>
+                <string>Work iPad</string>
+                <key>DeviceCapacity</key>
+                <real>64</real>
+                <key>AvailableDeviceCapacity</key>
+                <real>51.26</real>
+                <key>OSVersion</key>
+                <string>17.5.1</string>
+                <key>ProductName</key>
+                <string>iPad13,18</string>
+                <key>WiFiMAC</key>
+                <string>ff:ff:ff:ff:ff:ff</string>
+                <key>IsMDMLostModeEnabled</key>
+                <true/>
+        </dict>
+        <key>Status</key>
+        <string>Acknowledged</string>
+        <key>UDID</key>
+        <string>` + hostUUID + `</string>
+</dict>
+</plist>`),
+		},
+	)
+
+	require.NoError(t, err, "a vitals persistence failure must not abort the check-in")
+	require.True(t, ds.SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked)
+	require.True(t, ds.UpdateHostFuncInvoked)
+	require.True(t, ds.UpdateMDMDataFuncInvoked)
+	require.True(t, ds.SetLockCommandForLostModeCheckinFuncInvoked, "lost-mode reconciliation must still run despite the vitals write failure")
 }
 
 func TestUnmarshalAppList(t *testing.T) {
@@ -9602,7 +9993,7 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 		activation := activationBytesForTest("com.fleet.actD1", "com.fleet.configOther")
 
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, activation)
-		require.ErrorContains(t, err, "Activation must reference the configuration profile it's uploaded with")
+		require.ErrorContains(t, err, "The custom activation must reference the identifier of the configuration profile used to upload it")
 	})
 
 	t.Run("malformed activation is rejected", func(t *testing.T) {

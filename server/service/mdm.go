@@ -23,6 +23,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1897,6 +1898,10 @@ type updateMDMConfigProfileRequest struct {
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
 	Activation       *multipart.FileHeader
+	// ActivationSet reports whether the request mentioned the activation at all.
+	// Absent leaves the stored one alone; present without a file removes it.
+	// Without this the two cases are indistinguishable.
+	ActivationSet bool
 }
 
 func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
@@ -1925,12 +1930,33 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 		}
 	}
 
+	// Tri-state, so an edit can leave the activation alone, replace it, or drop
+	// it. Multipart has no null, so an empty value stands in for one -- and only
+	// that empty value, since anything else is more likely a malformed upload
+	// than a request to delete.
 	// Enforced by the service, which resolves the profile type from its UUID.
+	// Text values are checked first so a request that carries both a file and a
+	// value is rejected rather than silently resolved in favour of one of them.
+	activationValues, hasActivationValue := r.MultipartForm.Value["activation"]
+	for _, v := range activationValues {
+		if strings.TrimSpace(v) != "" {
+			return nil, fleet.NewInvalidArgumentError("activation", ActivationEmptyFileErrorMsg)
+		}
+	}
 	if fhs, ok := r.MultipartForm.File["activation"]; ok && len(fhs) > 0 {
+		if hasActivationValue {
+			return nil, fleet.NewInvalidArgumentError("activation", ActivationConflictingPartsErrorMsg)
+		}
 		decoded.Activation = fhs[0]
-		if decoded.Activation.Size > fleet.MaxProfileSize {
+		decoded.ActivationSet = true
+		switch {
+		case decoded.Activation.Size == 0:
+			return nil, fleet.NewInvalidArgumentError("activation", ActivationEmptyFileErrorMsg)
+		case decoded.Activation.Size > fleet.MaxProfileSize:
 			return nil, fleet.NewInvalidArgumentError("activation", fleet.MaxProfileSizeErrMsg)
 		}
+	} else if hasActivationValue {
+		decoded.ActivationSet = true
 	}
 
 	// add labels
@@ -1986,18 +2012,25 @@ func updateMDMConfigProfileEndpoint(ctx context.Context, request any, svc fleet.
 		labelsMode = fleet.LabelsIncludeAll
 	}
 
-	var activation []byte
-	if req.Activation != nil {
+	// Set reports that the request mentioned the activation, Valid that it
+	// carried one -- so "not mentioned", "remove" and "replace" are three
+	// distinct values rather than a byte slice plus a flag.
+	var activation optjson.Slice[byte]
+	switch {
+	case req.Activation != nil:
 		af, err := req.Activation.Open()
 		if err != nil {
 			return &updateMDMConfigProfileResponse{Err: err}, nil
 		}
 		defer af.Close()
 
-		activation, err = io.ReadAll(af)
+		raw, err := io.ReadAll(af)
 		if err != nil {
 			return &updateMDMConfigProfileResponse{Err: err}, nil
 		}
+		activation = optjson.SetSlice(raw)
+	case req.ActivationSet:
+		activation.Set = true
 	}
 
 	if err := svc.UpdateMDMConfigProfile(ctx, req.ProfileUUID, data, labels, labelsMode, req.LabelsExcludeAny, activation); err != nil {
@@ -2085,9 +2118,11 @@ func (svc *Service) checkLabelsOnlyProfileUpdate(ctx context.Context, labelsIncl
 // UpdateMDMConfigProfile updates an existing configuration profile's contents
 // and/or label targeting in place, dispatching by profile UUID to the
 // platform-specific implementation.
-func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error {
+func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error {
 	// The edit path resolves the profile type here rather than in the endpoint.
-	if len(activation) > 0 && !isAppleDeclarationUUID(profileUUID) {
+	// Keyed on activationSet, not on the content: clearing an activation is just
+	// as meaningless on a profile that can't have one.
+	if activation.Set && !isAppleDeclarationUUID(profileUUID) {
 		// Basic check only, as in the type-specific update methods: the profile's
 		// team isn't known yet, and authorizing an empty MDMConfigProfileAuthz
 		// needs a global role, so team admins would get forbidden instead of this.
@@ -3672,6 +3707,7 @@ func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet
 			HostID:          &host.ID,
 			HostDisplayName: ptr.String(host.DisplayName()),
 			ProfileName:     profileName,
+			ProfileUUID:     profileUUID,
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for resend config profile")
 	}
@@ -4204,6 +4240,7 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 		if err := svc.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfileBatch{
 				ProfileName: profileName,
+				ProfileUUID: profileUUID,
 				HostCount:   count,
 			}); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for batch-resend of profile")

@@ -1076,6 +1076,20 @@ const MDMAppleActivationTypePrefix = "com.apple.activation."
 
 // A custom activation stored against the configuration declaration it
 // activates. Not to be confused with MDMAppleDDMActivation, Apple's wire format.
+// MDMAppleActivationAction tells SetOrUpdateMDMAppleDeclaration what to do with
+// the declaration's activation. The write is otherwise a full replace, so
+// without this an edit that doesn't mention the activation would delete it.
+type MDMAppleActivationAction int
+
+const (
+	// MDMAppleActivationKeep keeps the currently stored activation untouched,
+	// including its Fleet variable associations.
+	MDMAppleActivationKeep MDMAppleActivationAction = iota
+	// MDMAppleActivationApply writes declaration.Activation, removing the stored
+	// one when it is nil.
+	MDMAppleActivationApply
+)
+
 type MDMAppleCustomActivation struct {
 	ActivationUUID          string          `db:"activation_uuid"`
 	TeamID                  uint            `db:"team_id"`
@@ -1115,14 +1129,14 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 	invalid := &InvalidArgumentError{}
 
 	if strings.TrimSpace(r.Type) == "" {
-		invalid.Append("Type", "Activation must include a Type.")
+		invalid.Append("Type", "The custom activation must include a Type.")
 	} else if !strings.HasPrefix(r.Type, MDMAppleActivationTypePrefix) {
 		invalid.Append("Type", fmt.Sprintf("Only activation declarations (%s) are supported.", MDMAppleActivationTypePrefix))
 	}
 
 	switch {
 	case strings.TrimSpace(r.Identifier) == "":
-		invalid.Append("Identifier", "Activation must include an Identifier.")
+		invalid.Append("Identifier", "The custom activation must include an Identifier.")
 	case len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen:
 		invalid.Append("Identifier", fmt.Sprintf(
 			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
@@ -1130,12 +1144,12 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 
 	switch configs := r.Payload.StandardConfigurations; {
 	case len(configs) == 0:
-		invalid.Append("StandardConfigurations", "Activation must reference the configuration profile it's uploaded with.")
+		invalid.Append("StandardConfigurations", "The custom activation must reference the identifier of the configuration profile used to upload it.")
 	case len(configs) > 1:
-		invalid.Append("StandardConfigurations", "Activation can only reference one configuration profile.")
+		invalid.Append("StandardConfigurations", "The custom activation can only have one referenced configuration profile. Learn more: https://fleetdm.com/learn-more-about/ddm-activations")
 	case configs[0] != configurationIdentifier:
 		invalid.Append("StandardConfigurations", fmt.Sprintf(
-			"Activation must reference the configuration profile it's uploaded with. Expected %q, got %q.",
+			"The custom activation must reference the identifier of the configuration profile used to upload it. Expected %q, got %q.",
 			configurationIdentifier, configs[0]))
 	}
 

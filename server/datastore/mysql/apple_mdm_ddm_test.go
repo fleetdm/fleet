@@ -930,30 +930,30 @@ func testUpsertDeclarationAssetReferences(t *testing.T, ds *Datastore) {
 		return got
 	}
 
-	created, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset1UUID}), nil)
+	created, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset1UUID}), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{asset1UUID}, refsFor(created.DeclarationUUID))
 
 	// Re-sending identical contents keeps the existing declaration UUID; the
 	// references must be written against that UUID, not a freshly generated one.
-	updated, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset1UUID}), nil)
+	updated, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset1UUID}), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Equal(t, created.DeclarationUUID, updated.DeclarationUUID)
 	require.ElementsMatch(t, []string{asset1UUID}, refsFor(created.DeclarationUUID))
 
 	// Adding a reference on an edit.
-	updated, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset1UUID, asset2UUID}), nil)
+	updated, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset1UUID, asset2UUID}), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Equal(t, created.DeclarationUUID, updated.DeclarationUUID)
 	require.ElementsMatch(t, []string{asset1UUID, asset2UUID}, refsFor(created.DeclarationUUID))
 
 	// Dropping a reference on an edit removes the stale row.
-	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset2UUID}), nil)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl([]string{asset2UUID}), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{asset2UUID}, refsFor(created.DeclarationUUID))
 
 	// Dropping all references clears them.
-	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Empty(t, refsFor(created.DeclarationUUID))
 }

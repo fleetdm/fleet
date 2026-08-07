@@ -690,6 +690,10 @@ type Datastore interface {
 	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
 	// TeamLite retrieves a Team by ID, including only id, created_at, name, filename, description, config fields.
 	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
+	// TeamLitesByIDs retrieves the TeamLite of every existing team among ids in
+	// one query; deleted IDs are absent from the result. ID 0 ("Unassigned") is
+	// synthesized from the default team config.
+	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name (including extras).
@@ -1271,6 +1275,16 @@ type Datastore interface {
 	// SetOrUpdateHostDisksSpace sets or updates the gigs_total_disk_space and gigs_all_disk_space
 	// fields for a host. gigs_all_disk_space should should only be non-nil for Linux hosts
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error
+
+	// SetOrUpdateHostMDMAppleDeviceVitals persists the iOS/iPadOS vitals parsed
+	// from a DeviceInformation command ack into host_mdm_apple_device_vitals
+	// and host_mdm_apple_service_subscriptions.
+	SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAppleDeviceVitals) error
+	// LoadHostMDMAppleDeviceVitals populates host's HostMDMAppleDeviceVitals
+	// fields from host_mdm_apple_device_vitals and
+	// host_mdm_apple_service_subscriptions. Callers are responsible for only
+	// calling this for iOS/iPadOS hosts.
+	LoadHostMDMAppleDeviceVitals(ctx context.Context, host *Host) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
@@ -2695,7 +2709,7 @@ type Datastore interface {
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
-	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
+	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName, activationAction MDMAppleActivationAction) (*MDMAppleDeclaration, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
@@ -3892,6 +3906,19 @@ type AndroidDatastore interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error)
+	// SetAndroidHostEnrolled flips host_mdm back to enrolled for an Android host
+	// that is currently marked unenrolled, recovering a host wrongly unenrolled by
+	// an out-of-order Pub/Sub DELETED delivery. Returns false (no-op) when the host
+	// is already enrolled or has no host_mdm row. It preserves the existing
+	// is_personal_enrollment classification.
+	SetAndroidHostEnrolled(ctx context.Context, hostID uint) (bool, error)
+	// GetAndroidPubSubDedupState returns the last-processed Google Pub/Sub messageId
+	// and AMAPI event timestamp recorded for the host, for dropping duplicate and
+	// stale AMAPI notification deliveries.
+	GetAndroidPubSubDedupState(ctx context.Context, hostID uint) (messageID string, eventTime *time.Time, err error)
+	// SetAndroidPubSubDedupState records the last-processed Google Pub/Sub messageId
+	// and AMAPI event timestamp for the host after a notification is handled.
+	SetAndroidPubSubDedupState(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)

@@ -82,6 +82,56 @@ func (ds *Datastore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, e
 	return team.ToTeamLite(), err // re-marshaling this way to avoid more code duplication
 }
 
+// TeamLitesByIDs returns the TeamLite of every existing team among ids in one
+// query; IDs of deleted teams are simply absent from the result. ID 0
+// ("Unassigned") is supported: like teamDB, its entry is synthesized from the
+// default team config, since no teams row exists for it.
+func (ds *Datastore) TeamLitesByIDs(ctx context.Context, ids []uint) ([]*fleet.TeamLite, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	namedIDs := make([]uint, 0, len(ids))
+	includeNoTeam := false
+	for _, id := range ids {
+		if id == 0 {
+			includeNoTeam = true
+			continue
+		}
+		namedIDs = append(namedIDs, id)
+	}
+
+	lites := make([]*fleet.TeamLite, 0, len(ids))
+	if includeNoTeam {
+		config, err := defaultTeamConfigDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "default team config")
+		}
+		noTeam := &fleet.Team{
+			ID:     0,
+			Name:   fleet.ReservedNameNoTeam,
+			Config: *config,
+		}
+		lites = append(lites, noTeam.ToTeamLite())
+	}
+
+	if len(namedIDs) > 0 {
+		stmt, args, err := sqlx.In(`SELECT `+teamColumns+` FROM teams WHERE id IN (?)`, namedIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build team lites by ids query")
+		}
+		var teams []*fleet.Team
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select team lites by ids")
+		}
+		for _, team := range teams {
+			lites = append(lites, team.ToTeamLite())
+		}
+	}
+
+	return lites, nil
+}
+
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {
 	if tid == 0 {
 		if withExtras {
