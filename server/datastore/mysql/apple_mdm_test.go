@@ -109,6 +109,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange},
+		{"MDMAppleUpsertHostEnrollmentTypeOnReenrollment", testMDMAppleUpsertHostEnrollmentTypeOnReenrollment},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"ReconcileAppleProfilesDuplicateHostUUID", testReconcileAppleProfilesDuplicateHostUUID},
@@ -8311,6 +8312,198 @@ func testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange(t *test
 		"vitals keyed by the host's previous UUID must be cleared on transition to BYOD")
 	require.Equal(t, 0, countRows("host_mdm_apple_service_subscriptions", oldUUID),
 		"service subscriptions keyed by the host's previous UUID must be cleared on transition to BYOD")
+}
+
+// Tests that we upsert the correct enrollment type on re-enrollment sync etc. Check-in becomes an authoritative source
+// of truth to set all values, and sets installed_from_dep to true if a host_dep_assignment row exists.
+func testMDMAppleUpsertHostEnrollmentTypeOnReenrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "unused",
+		EncryptedToken:   []byte(uuid.NewString()),
+		RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	enrollmentStatus := func(t *testing.T, hostID uint) *string {
+		t.Helper()
+		var status *string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				`SELECT enrollment_status FROM host_mdm WHERE host_id = ?`, hostID)
+		})
+		return status
+	}
+
+	requireEnrollment := func(t *testing.T, hostID uint, wantFromDEP, wantPersonal bool, wantStatus string) {
+		t.Helper()
+		hmdm, err := ds.GetHostMDM(ctx, hostID)
+		require.NoError(t, err)
+		require.True(t, hmdm.Enrolled, "host should be enrolled")
+		require.Equal(t, wantFromDEP, hmdm.InstalledFromDep, "installed_from_dep")
+		require.Equal(t, wantPersonal, hmdm.IsPersonalEnrollment, "is_personal_enrollment")
+		status := enrollmentStatus(t, hostID)
+		require.NotNil(t, status, "enrollment_status must not be NULL")
+		require.Equal(t, wantStatus, *status)
+	}
+
+	// checkin simulates the Apple Authenticate flow
+	// (resetApple -> MDMAppleUpsertHost) for the device with this serial.
+	checkin := func(t *testing.T, serial, hostUUID string, personal bool) uint {
+		t.Helper()
+		require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+			UUID:           hostUUID,
+			HardwareSerial: serial,
+			HardwareModel:  "iPhone14,2",
+			Platform:       "ios",
+		}, personal))
+		h, err := ds.HostByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		return h.ID
+	}
+
+	// assignInABM is the "existing host newly assigned in ABM" path that
+	// DEPService.RunAssigner takes for serials Fleet already knows about.
+	assignInABM := func(t *testing.T, hostID uint, serial string) {
+		t.Helper()
+		require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx,
+			[]fleet.Host{{ID: hostID, HardwareSerial: serial}},
+			abmToken.ID, make(map[uint]time.Time)))
+	}
+
+	// depSync is the "serial appeared in ABM for the first time" path, which
+	// creates the host row up front in the Pending state.
+	depSync := func(t *testing.T, serial string) uint {
+		t.Helper()
+		_, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx,
+			[]godep.Device{{SerialNumber: serial, DeviceFamily: "iPhone", OpType: "added"}},
+			abmToken.ID, nil, nil, nil)
+		require.NoError(t, err)
+		h, err := ds.HostByIdentifier(ctx, serial)
+		require.NoError(t, err)
+		return h.ID
+	}
+
+	t.Run("manual enrollment then ADE after a wipe", func(t *testing.T) {
+		const serial = "REENROLL-MANUAL-TO-ADE"
+
+		hostID := checkin(t, serial, "uuid-manual-to-ade", false)
+		requireEnrollment(t, hostID, false, false, fleet.MDMEnrollmentStatusManual)
+
+		// Device is wiped locally: Fleet gets no CheckOut, so host_mdm keeps
+		// saying "enrolled, manual". IT then assigns it in ABM.
+		assignInABM(t, hostID, serial)
+
+		// It comes back through Setup Assistant as an ADE device.
+		require.Equal(t, hostID, checkin(t, serial, "uuid-manual-to-ade", false))
+		requireEnrollment(t, hostID, true, false, fleet.MDMEnrollmentStatusAutomatic)
+	})
+
+	t.Run("ADE enrollment then removed from AB then manual", func(t *testing.T) {
+		// The reverse transition: once the AB assignment is gone the host is
+		// no longer company-owned and must stop reporting as such.
+		// Side note: only happens if released in AB (and we don't get the op_type=removed), not via the new release from AB in fleet as that deletes the host_dep_assignment row.
+		const serial = "REENROLL-ADE-TO-MANUAL"
+
+		hostID := depSync(t, serial)
+		pending := enrollmentStatus(t, hostID)
+		require.NotNil(t, pending)
+		require.Equal(t, fleet.MDMEnrollmentStatusPending, *pending)
+
+		require.Equal(t, hostID, checkin(t, serial, "uuid-ade-to-manual", false))
+		requireEnrollment(t, hostID, true, false, fleet.MDMEnrollmentStatusAutomatic)
+
+		require.NoError(t, ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{serial}))
+
+		require.Equal(t, hostID, checkin(t, serial, "uuid-ade-to-manual", false))
+		requireEnrollment(t, hostID, false, false, fleet.MDMEnrollmentStatusManual)
+	})
+
+	t.Run("ADE enrollment then personal re-enrollment", func(t *testing.T) {
+		// installed_from_dep and is_personal_enrollment must never both be set:
+		// the generated column has no CASE arm for that pair, so the host would
+		// drop out of every enrollment-status filter with a NULL status.
+		const serial = "REENROLL-ADE-TO-PERSONAL"
+
+		hostID := depSync(t, serial)
+		require.Equal(t, hostID, checkin(t, serial, "uuid-ade-to-personal", false))
+		requireEnrollment(t, hostID, true, false, fleet.MDMEnrollmentStatusAutomatic)
+
+		// Re-enrolls as BYOD while the ABM assignment is still live. Personal
+		// wins over the DEP assignment.
+		require.Equal(t, hostID, checkin(t, serial, "uuid-ade-to-personal", true))
+		requireEnrollment(t, hostID, false, true, fleet.MDMEnrollmentStatusPersonal)
+	})
+
+	t.Run("ADE check-in lands before the AB sync records the assignment", func(t *testing.T) {
+		// Opposite ordering, same wrong outcome: the check-in creates the host
+		// row before host_dep_assignments exists, and the later sync skips it
+		// because unmanagedHostIDs only covers hosts with enrolled = 0.
+		const serial = "REENROLL-CHECKIN-FIRST"
+
+		hostID := checkin(t, serial, "uuid-checkin-first", false)
+		requireEnrollment(t, hostID, false, false, fleet.MDMEnrollmentStatusManual)
+
+		assignInABM(t, hostID, serial)
+		requireEnrollment(t, hostID, true, false, fleet.MDMEnrollmentStatusAutomatic)
+	})
+
+	t.Run("Fleet-enrolled host whose serial first appears in a full ABM sync", func(t *testing.T) {
+		// Same promote step as the subtest above, reached through the other
+		// caller: IngestMDMAppleDevicesFromDEPSync rather than
+		// UpsertMDMAppleHostDEPAssignments. createHostFromMDMDB skips the host
+		// (unmanagedHostIDs excludes enrolled = 1), so only the assignment
+		// upsert can put it right.
+		const serial = "REENROLL-SYNC-AFTER-MANUAL"
+
+		hostID := checkin(t, serial, "uuid-sync-after-manual", false)
+		requireEnrollment(t, hostID, false, false, fleet.MDMEnrollmentStatusManual)
+
+		require.Equal(t, hostID, depSync(t, serial))
+		requireEnrollment(t, hostID, true, false, fleet.MDMEnrollmentStatusAutomatic)
+	})
+
+	t.Run("host enrolled in a third-party MDM is left alone", func(t *testing.T) {
+		// Guards the reason the narrow ON DUPLICATE existed in the first place:
+		// a host being migrated from another MDM shows up in ABM before it ever
+		// talks to Fleet, and neither the sync nor the assignment upsert may
+		// rewrite its MDM info.
+		const serial = "REENROLL-THIRD-PARTY"
+
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       "third-party-mdm-host",
+			OsqueryHostID:  new(serial),
+			NodeKey:        new(serial),
+			UUID:           "uuid-third-party",
+			HardwareSerial: serial,
+			Platform:       "darwin",
+		})
+		require.NoError(t, err)
+
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID,
+			false, // isServer
+			true,  // enrolled
+			"https://test.jamfcloud.com/mdm",
+			false, // installedFromDep
+			fleet.WellKnownMDMJamf,
+			"",    // fleetEnrollmentRef
+			false, // isPersonalEnrollment
+		))
+
+		assignInABM(t, host.ID, serial)
+		_, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx,
+			[]godep.Device{{SerialNumber: serial, DeviceFamily: "Mac", OpType: "added"}},
+			abmToken.ID, nil, nil, nil)
+		require.NoError(t, err)
+
+		hmdm, err := ds.GetHostMDM(ctx, host.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.WellKnownMDMJamf, hmdm.Name, "third-party MDM solution must not be rewritten to Fleet")
+		require.Equal(t, "https://test.jamfcloud.com/mdm", hmdm.ServerURL)
+		require.False(t, hmdm.InstalledFromDep, "ABM assignment alone must not mark a third-party-enrolled host as ADE")
+	})
 }
 
 func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) {
