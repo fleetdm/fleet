@@ -1988,6 +1988,8 @@ type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operation
 
 type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error
 
+type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+
 type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
 type WipeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
@@ -5250,6 +5252,9 @@ type DataStore struct {
 
 	UpdateMDMAndroidCommandStatusFunc        UpdateMDMAndroidCommandStatusFunc
 	UpdateMDMAndroidCommandStatusFuncInvoked bool
+
+	ListPendingMDMAndroidCommandsFunc        ListPendingMDMAndroidCommandsFunc
+	ListPendingMDMAndroidCommandsFuncInvoked bool
 
 	LockHostViaAndroidMDMFunc        LockHostViaAndroidMDMFunc
 	LockHostViaAndroidMDMFuncInvoked bool
@@ -12600,6 +12605,13 @@ func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUU
 	s.UpdateMDMAndroidCommandStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage)
+}
+
+func (s *DataStore) ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+	s.mu.Lock()
+	s.ListPendingMDMAndroidCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPendingMDMAndroidCommandsFunc(ctx, createdBefore, limit)
 }
 
 func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {

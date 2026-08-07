@@ -1296,6 +1296,30 @@ func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandU
 	return nil
 }
 
+// ListPendingMDMAndroidCommands returns pending commands created before createdBefore, oldest first, capped at limit
+// rows. The reconciler cron uses the age cutoff to skip commands that Pub/Sub is still likely to deliver, and the limit
+// to bound how many AMAPI calls a single run makes.
+func (ds *Datastore) ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+	const stmt = `
+		SELECT
+			command_uuid, host_uuid, operation_name, command_type, status,
+			error_code, error_message, created_at, updated_at
+		FROM mdm_android_commands
+		WHERE status = ? AND created_at < ?
+		-- command_uuid breaks ties so rows with identical created_at keep a stable order between runs,
+		-- otherwise a full batch could return the same subset every time and starve the rest.
+		ORDER BY created_at, command_uuid
+		LIMIT ?
+	`
+	var cmds []*android.MDMAndroidCommand
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmds, stmt,
+		string(android.MDMAndroidCommandStatusPending), createdBefore, limit,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing pending mdm android commands")
+	}
+	return cmds, nil
+}
+
 // androidApplicableProfilesQuery computes, per host, the set of applicable profiles based on team and label scoping. Label
 // semantics must match the in-code Apple/Windows evaluator in server/mdm/reconcile: a dynamic label created after the host's
 // last label scan (h.label_updated_at < lbl.created_at) has unknown membership and preserves the host's current profile state —
