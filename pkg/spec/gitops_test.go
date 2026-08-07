@@ -91,6 +91,30 @@ func premiumAppConfig() *fleet.EnrichedAppConfig {
 	return ac
 }
 
+func TestNormalizeMDMSSOConfig(t *testing.T) {
+	t.Parallel()
+
+	orgSettings := map[string]any{
+		"mdm": map[string]any{
+			"end_user_authentication": map[string]any{
+				"idp_name":     "  Example IdP\n\r",
+				"entity_id":    "  https://idp.example.com/entity  ",
+				"metadata":     "  <xml>metadata</xml>  ",
+				"metadata_url": "  https://idp.example.com/metadata  ",
+			},
+		},
+	}
+
+	got := normalizeMDMSSOConfig(orgSettings, nil)
+	require.Nil(t, got)
+
+	eua := orgSettings["mdm"].(map[string]any)["end_user_authentication"].(map[string]any)
+	assert.Equal(t, "Example IdP", eua["idp_name"])
+	assert.Equal(t, "https://idp.example.com/entity", eua["entity_id"])
+	assert.Equal(t, "<xml>metadata</xml>", eua["metadata"])
+	assert.Equal(t, "https://idp.example.com/metadata", eua["metadata_url"])
+}
+
 func TestValidGitOpsYaml(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
@@ -988,14 +1012,50 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "name: No team\nsettings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
 					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5a, noTeamBasePath5a, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
+					require.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in no-team.yml - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed")
 
 					// No team with vulnerabilities_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
 					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5b, noTeamBasePath5b, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
+					require.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in no-team.yml - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed")
+
+					// No team with valid host_activities_webhook should work
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: true\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5c, noTeamBasePath5c := createNamedFileOnTempDir(t, "no-team.yml", config)
+					gitops, err = GitOpsFromFile(noTeamPath5c, noTeamBasePath5c, nil, nopLogf)
+					require.NoError(t, err)
+					assert.NotNil(t, gitops)
+
+					// No team with non-object host_activities_webhook should fail
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook: bad\n"
+					noTeamPath5d, noTeamBasePath5d := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5d, noTeamBasePath5d, nil, nopLogf)
+					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook' must be an object or null")
+
+					// No team with a string-valued enable flag should fail instead of silently disabling
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: \"true\"\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5e, noTeamBasePath5e := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5e, noTeamBasePath5e, nil, nopLogf)
+					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook.enable_host_activities_webhook' must be a boolean")
+
+					// No team with a misspelled key should fail instead of silently disabling
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activity_webhook: true\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5f, noTeamBasePath5f := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5f, noTeamBasePath5f, nil, nopLogf)
+					require.ErrorContains(t, err, "unsupported option 'enable_host_activity_webhook' in settings.webhook_settings.host_activities_webhook")
+
+					// No team with a non-string destination_url should fail
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: true\n      destination_url: 123\n"
+					noTeamPath5g, noTeamBasePath5g := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5g, noTeamBasePath5g, nil, nopLogf)
+					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook.destination_url' must be a string")
 
 					// 'No team' file with invalid name.
 					config = getConfig([]string{"name", "settings"})
@@ -5614,4 +5674,97 @@ policies:
 			}
 		})
 	}
+}
+
+func TestValidateTeamWebhookSettingsHostActivitiesWebhook(t *testing.T) {
+	t.Parallel()
+
+	settings := func(haw any) map[string]any {
+		return map[string]any{"webhook_settings": map[string]any{"host_activities_webhook": haw}}
+	}
+
+	cases := []struct {
+		name    string
+		haw     any
+		wantErr string
+	}{
+		{"valid", map[string]any{"enable_host_activities_webhook": true, "destination_url": "https://example.com/hook"}, ""},
+		{"null is allowed", nil, ""},
+		{"non-object", "bad", "'settings.webhook_settings.host_activities_webhook' must be an object or null"},
+		{"misspelled key", map[string]any{"enable_host_activity_webhook": true}, "unsupported option 'enable_host_activity_webhook' in settings.webhook_settings.host_activities_webhook"},
+		{"string enable flag", map[string]any{"enable_host_activities_webhook": "true"}, "'settings.webhook_settings.host_activities_webhook.enable_host_activities_webhook' must be a boolean"},
+		{"non-string destination_url", map[string]any{"destination_url": 123}, "'settings.webhook_settings.host_activities_webhook.destination_url' must be a string"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := validateTeamWebhookSettings(settings(c.haw), nil).ErrorOrNil()
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+}
+
+func TestGitOpsProfileActivation(t *testing.T) {
+	writeConfig := func(t *testing.T, profileEntry string) (string, string) {
+		dir := t.TempDir()
+		libDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(libDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, "ddm.json"),
+			[]byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.cfg","Payload":{"Echo":"x"}}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, "ddm2.json"),
+			[]byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.cfg2","Payload":{"Echo":"x"}}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, "activation.json"),
+			[]byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act","Payload":{"StandardConfigurations":["com.fleet.cfg"]}}`), 0o644))
+
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  apple_settings:
+    configuration_profiles:
+` + profileEntry
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+		return dir, yamlPath
+	}
+
+	t.Run("activation path is resolved to an absolute path", func(t *testing.T) {
+		dir, yamlPath := writeConfig(t, "      - path: ./lib/ddm.json\n        activation: ./lib/activation.json\n")
+
+		gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+
+		macOSSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok, "unexpected type %T", gitops.Controls.MacOSSettings)
+		require.Len(t, macOSSettings.CustomSettings, 1)
+
+		// The resolved path must be absolute so gitops works from any directory.
+		got := macOSSettings.CustomSettings[0].Activation
+		require.True(t, filepath.IsAbs(got), "activation path should be absolute, got %q", got)
+		require.Equal(t, filepath.Join(dir, "lib", "activation.json"), got)
+	})
+
+	t.Run("activation with a glob is rejected", func(t *testing.T) {
+		dir, yamlPath := writeConfig(t, "      - paths: ./lib/*.json\n        activation: ./lib/activation.json\n")
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `cannot use "activation" with "paths"`)
+	})
+
+	t.Run("missing activation file errors", func(t *testing.T) {
+		dir, yamlPath := writeConfig(t, "      - path: ./lib/ddm.json\n        activation: ./lib/nope.json\n")
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to read activation file")
+	})
 }

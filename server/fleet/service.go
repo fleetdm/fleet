@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -110,6 +111,10 @@ type ActivityLookupService interface {
 
 	// GetActivitiesWebhookSettings returns the webhook settings for activities.
 	GetActivitiesWebhookSettings(ctx context.Context) (ActivitiesWebhookSettings, error)
+	// GetHostActivitiesWebhookSettings returns the enabled host-activities
+	// webhook settings of the fleets the given hosts belong to, deduplicated by
+	// fleet. Returns nil on Fleet Free.
+	GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]HostActivitiesWebhookDelivery, error)
 	// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
 	ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error
 }
@@ -461,8 +466,10 @@ type Service interface {
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 
-	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
-	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
+	// ListDevicePolicies lists all policies for the given host in their
+	// device-safe representation (which excludes the policy author's identity
+	// and the raw SQL query), including passing / failing responses.
+	ListDevicePolicies(ctx context.Context, host *Host) ([]*DevicePolicy, error)
 
 	// BypassConditionalAccess lets a host skip conditional access checks for one check
 	BypassConditionalAccess(ctx context.Context, host *Host) error
@@ -482,6 +489,11 @@ type Service interface {
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
 	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
+
+	// EscrowWindowsManagedLocalAccountPassword stores the device-generated password that Windows fleetd escrows after
+	// creating the managed local admin account. When clientError is set no password is stored; the account is marked failed
+	// and the device-reported reason is recorded on it.
+	EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
@@ -540,6 +552,8 @@ type Service interface {
 	AppConfigObfuscated(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
+	// MaxInstallerSizeBytes returns the configured maximum size for software installer uploads.
+	MaxInstallerSizeBytes() int64
 	AppConfigUrls(ctx context.Context) (urls *AppConfigUrls, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -774,7 +788,7 @@ type Service interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
-	SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name, displayName string, err error)
+	SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error)
 
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
@@ -798,13 +812,7 @@ type Service interface {
 	// Returns a request UUID that can be used to track an ongoing batch request (with GetBatchSetSoftwareInstallersResult).
 	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []*SoftwareInstallerPayload, dryRun bool) (string, error)
 	// GetBatchSetSoftwareInstallersResult polls for the status of a batch-apply started by BatchSetSoftwareInstallers.
-	// Return values:
-	//	- 'status': status of the batch-apply which can be "processing", "completed" or "failed".
-	//	- 'message': which contains error information when the status is "failed".
-	//	- 'packages': Contains the list of the applied software packages (when status is "completed"). This is always empty for a dry run.
-	//	- 'deleted_packages': Contains the list of packages the batch deleted (dry run: would delete), when status is "completed".
-	//  - 'categories': Contains the list of categories the batch uses/added, when status is "completed".
-	GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []SoftwarePackageResponse, deletedPackages []DeletedSoftwarePackage, categories []string, err error)
+	GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*BatchSetSoftwareInstallersResult, error)
 
 	// SelfServiceInstallSoftwareTitle installs a software title
 	// initiated by the user
@@ -928,14 +936,17 @@ type Service interface {
 
 	// GetHostDEPAssignmentDetails retrieves Fleet's DEP assignment record and
 	// Apple's live device details from ABM for the given host ID.
-	// Returns (nil, nil, nil) for non-DEP hosts.
-	// If ABM returns an error, dep_device is nil and the error is logged.
-	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.Device, error)
+	// Returns (nil, nil, "", nil) for non-DEP hosts.
+	// If ABM returns an error, dep_device is nil, depError classifies why, and
+	// the original error is logged rather than returned to the caller.
+	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleDeclaration, error)
+	// activation is an optional custom activation declaration to attach to the
+	// declaration; nil or empty means Fleet generates the activation.
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -1241,6 +1252,11 @@ type Service interface {
 	// unsupported extension is uploaded.
 	NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error
 
+	// Called when an activation is uploaded alongside a profile that isn't an
+	// Apple declaration. Exists, like the two below, so the error goes through
+	// an authorization check.
+	NewMDMActivationUnsupportedProfile(ctx context.Context, teamID uint) error
+
 	// NewMDMInvalidJSONConfigProfile is called when a JSON profile is uploaded with contents that
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
@@ -1249,7 +1265,7 @@ type Service interface {
 	// contents and/or label targeting in place. Supported for Apple
 	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and
 	// Android profiles.
-	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) error
+	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
@@ -1612,6 +1628,9 @@ type Service interface {
 	// for a team (used by GitOps). It upserts the given assets and deletes any
 	// existing assets not in the set.
 	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []MDMAppleDDMAssetBatchPayload, dryRun bool) error
+
+	// ReleaseABDevices releases the specified Apple Business devices.
+	ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*ABReleaseDeviceResponse, error)
 }
 
 type KeyValueStore interface {

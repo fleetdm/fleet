@@ -206,7 +206,7 @@ const DeployModal = ({
               </Button>
             )}
           />
-          <Button variant="inverse" onClick={onExit}>
+          <Button variant="secondary" onClick={onExit}>
             Cancel
           </Button>
         </div>

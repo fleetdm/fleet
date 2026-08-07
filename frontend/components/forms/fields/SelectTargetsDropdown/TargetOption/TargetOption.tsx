@@ -78,7 +78,7 @@ const TargetOption = ({
       <Button
         className={`${baseClass}__add-btn`}
         onClick={handleSelect}
-        variant="icon"
+        variant="subdued"
         size="small"
       >
         <Icon name="plus" color="core-fleet-green" />

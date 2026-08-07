@@ -4,7 +4,6 @@ import classnames from "classnames";
 import { ILoginUserData } from "interfaces/user";
 
 import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 // @ts-ignore
@@ -88,7 +87,7 @@ const LoginForm = ({
       <Button
         className={`${baseClass}__sso-btn`}
         type="button"
-        variant="inverse"
+        variant="secondary"
         onClick={handleSSOSignOn}
         tabIndex={0}
       >
@@ -134,10 +133,10 @@ const LoginForm = ({
         <>
           <Button
             onClick={() => setShowPendingEmail(false)}
-            variant="inverse"
+            variant="subdued"
             className="back-link"
+            icon="chevron-left"
           >
-            <Icon name="chevron-left" color="ui-fleet-black-75" />
             Back to login
           </Button>
           <h1>Check your email</h1>

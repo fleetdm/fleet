@@ -75,6 +75,7 @@ type generateGitopsClient interface {
 	ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
 	GetProfileContents(profileID string) ([]byte, error)
+	GetProfileActivation(profileID string) ([]byte, error)
 	DownloadDDMAsset(assetUUID string) ([]byte, error)
 	GetEULAMetadata() (*fleet.MDMEULA, error)
 	GetEULAContent(token string) ([]byte, error)
@@ -500,6 +501,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			IPadOSUpdates:              cmd.AppConfig.MDM.IPadOSUpdates,
 			WindowsUpdates:             cmd.AppConfig.MDM.WindowsUpdates,
 			MacOSSetup:                 cmd.AppConfig.MDM.MacOSSetup,
+			WindowsSettings:            cmd.AppConfig.MDM.WindowsSettings,
 		}
 
 		// Collect failing policy IDs from webhook settings so we can output
@@ -1214,6 +1216,7 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	}
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
+		result[jsonFieldName(t, "WindowsEnrollment")] = mdm.WindowsEnrollment
 		vppTokens, err := cmd.Client.GetVPPTokens()
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error fetching VPP tokens: %s\n", err)
@@ -1284,11 +1287,13 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	}
 
 	if team.ID == 0 {
-		// Only include failing_policies_webhook for "No Team".
+		// Only include failing_policies_webhook and host_activities_webhook for "No Team".
 		fpw := webhookSettings["failing_policies_webhook"]
+		haw := webhookSettings["host_activities_webhook"]
 		teamSettings = map[string]any{
 			jsonFieldName(t, "WebhookSettings"): map[string]any{
 				"failing_policies_webhook": fpw,
+				"host_activities_webhook":  haw,
 			},
 		}
 		return teamSettings, nil
@@ -1368,11 +1373,24 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(t, "MacOSSettings")] = macosSettings
 			}
 		}
-		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
-			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-					jsonFieldName(windowsSettingsT, "CustomSettings"): profiles["windows_profiles"],
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			windowsSettings := map[string]any{}
+			if profiles != nil {
+				if windowsProfiles, _ := profiles["windows_profiles"].([]map[string]any); len(windowsProfiles) > 0 {
+					windowsSettings[jsonFieldName(windowsSettingsT, "CustomSettings")] = windowsProfiles
 				}
+			}
+			// Emit the managed local account toggle only when it is enabled. Omitting it is lossless because false is
+			// the setting's default: GitOps clears what a YAML file does not define, and a cleared managed local account
+			// setting resolves to false, the same state we would have written out explicitly. Per product guidance
+			// (2026/07/24) we only output what has actually been configured rather than every setting at its default.
+			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+				windowsSettings[jsonFieldName(windowsSettingsT, "ManagedLocalAccountSettings")] = map[string]any{
+					jsonFieldName(reflect.TypeFor[fleet.ManagedLocalAccountSettings](), "Enabled"): true,
+				}
+			}
+			if len(windowsSettings) > 0 {
+				result[jsonFieldName(t, "WindowsSettings")] = windowsSettings
 			}
 		}
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
@@ -1588,6 +1606,33 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 
 		profileSpec["path"] = path
+
+		// Only declarations can carry one, and the list endpoint doesn't return
+		// activations, so it takes a second call.
+		var activation []byte
+		if profile.Platform == "darwin" && strings.HasSuffix(generatedFilename, ".json") {
+			activation, err = cmd.Client.GetProfileActivation(profile.ProfileUUID)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting profile activation: %s\n", err)
+				return nil, err
+			}
+		}
+
+		// Written as a sibling file so the generated YAML round-trips through gitops.
+		if len(activation) > 0 {
+			activationFileName := fmt.Sprintf("activations/%s", generatedFilename)
+			if teamId == nil {
+				activationFileName = fmt.Sprintf("lib/%s", activationFileName)
+			} else {
+				activationFileName = fmt.Sprintf("lib/%s/%s", teamName, activationFileName)
+			}
+			cmd.FilesToWrite[activationFileName] = string(activation)
+			if teamId == nil {
+				profileSpec["activation"] = fmt.Sprintf("./%s", activationFileName)
+			} else {
+				profileSpec["activation"] = fmt.Sprintf("../%s", activationFileName)
+			}
+		}
 
 		switch profile.Platform {
 		case "darwin":

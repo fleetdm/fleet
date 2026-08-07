@@ -35,6 +35,14 @@ type MockClient struct {
 	WithoutMDM       bool
 	WithoutVPP       bool
 	WithAssets       bool
+	WithActivations  bool
+}
+
+func (c MockClient) GetProfileActivation(profileID string) ([]byte, error) {
+	if !c.WithActivations || profileID != "team-declaration-profile-uuid" {
+		return nil, nil
+	}
+	return []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.example.team-declaration.activation","Payload":{"StandardConfigurations":["com.example.team-declaration"]}}`), nil
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -168,14 +176,23 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 		}, nil
 	}
 	if *teamID == 1 {
-		return []*fleet.MDMConfigProfilePayload{
+		profiles := []*fleet.MDMConfigProfilePayload{
 			{
 				ProfileUUID: "test-mobileconfig-profile-uuid",
 				Name:        "Team MacOS MobileConfig Profile",
 				Platform:    "darwin",
 				Identifier:  "com.example.team-macos-mobileconfig-profile",
 			},
-		}, nil
+		}
+		if c.WithActivations {
+			profiles = append(profiles, &fleet.MDMConfigProfilePayload{
+				ProfileUUID: "team-declaration-profile-uuid",
+				Name:        "Team Declaration",
+				Platform:    "darwin",
+				Identifier:  "com.example.team-declaration",
+			})
+		}
+		return profiles, nil
 	}
 	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 || *teamID == 6 {
 		return nil, nil
@@ -228,6 +245,8 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 		return []byte(`{"name": "Global Android Profile", "cameraDisabled": true}`), nil
 	case "test-mobileconfig-profile-uuid":
 		return []byte("<xml>test mobileconfig profile</xml>"), nil
+	case "team-declaration-profile-uuid":
+		return []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.example.team-declaration","Payload":{}}`), nil
 	}
 	return nil, errors.New("profile not found")
 }
@@ -245,6 +264,10 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 						DestinationURL: "https://example.com/no-team-webhook",
 						PolicyIDs:      []uint{1, 2, 3},
 						HostBatchSize:  100,
+					},
+					HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+						Enable:         true,
+						DestinationURL: "https://example.com/no-team-activities-webhook",
 					},
 				},
 			},
@@ -744,6 +767,12 @@ func (MockClient) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 		Description:         "Label C description",
 		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
 		HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital": "end_user_idp_group", "value": "some-group"}`)),
+	}, {
+		Name:                "Label D",
+		Description:         "Label D description",
+		Platform:            "linux",
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		Query:               "SELECT 1",
 	}}, nil
 }
 
@@ -1116,6 +1145,56 @@ func TestGenerateGitopsWithAssets(t *testing.T) {
 	require.True(t, sawAssetFile, "expected a DDM asset json file to be written")
 }
 
+func TestGenerateGitopsWithActivations(t *testing.T) {
+	configureFMAManifestServer(t)
+	// Plain team name: the emoji one slugs the directory but not the YAML
+	// reference, which would break the resolve check below for unrelated reasons.
+	fleetClient := &MockClient{WithActivations: true, TeamNameOverride: "team-a"}
+	action := createGenerateGitopsAction(fleetClient)
+	buf := new(bytes.Buffer)
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
+	cliContext := cli.NewContext(&cli.App{
+		Name:      "test",
+		Usage:     "test",
+		Writer:    buf,
+		ErrWriter: buf,
+	}, flagSet, nil)
+	require.NoError(t, action(cliContext), buf.String())
+	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+
+	// The emitted path is relative to the YAML holding it, so resolving it from
+	// there is what proves gitops can read back what generate-gitops wrote.
+	var refs int
+	require.NoError(t, filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || filepath.Ext(path) != ".yml" {
+			return err
+		}
+		b, err := os.ReadFile(path) //nolint:gosec // reading files under a temp dir created by this test
+		if err != nil {
+			return err
+		}
+		for line := range strings.SplitSeq(string(b), "\n") {
+			_, ref, found := strings.Cut(strings.TrimSpace(line), "activation:")
+			if !found {
+				continue
+			}
+			ref = strings.TrimSpace(ref)
+			require.Contains(t, ref, "/activations/", "activation should live in its own directory")
+
+			resolved := filepath.Join(filepath.Dir(path), ref)
+			contents, err := os.ReadFile(resolved) //nolint:gosec // path derived from the temp dir above
+			require.NoError(t, err, "activation %q referenced by %s does not resolve", ref, path)
+			require.Contains(t, string(contents), "com.apple.activation.simple")
+			refs++
+		}
+		return nil
+	}))
+	require.Equal(t, 1, refs, "expected the declaration's activation to be referenced exactly once")
+}
+
 func TestGenerateGitopsWithoutMDM(t *testing.T) {
 	configureFMAManifestServer(t)
 	fleetClient := &MockClient{WithoutMDM: true}
@@ -1238,6 +1317,20 @@ func TestGenerateOrgSettings(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
+
+	// An unset mdm.windows_enrollment must serialize as null rather than an object with an empty default_fleet.
+	// Applying null is a no-op; an empty default_fleet would clear whatever default the target server has set.
+	appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{}
+	orgSettingsRaw, err = cmd.generateOrgSettings()
+	require.NoError(t, err)
+	b, err = yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
+	mdmSettings, ok := orgSettings["mdm"].(map[string]any)
+	require.True(t, ok)
+	we, present := mdmSettings["windows_enrollment"]
+	require.True(t, present, "windows_enrollment key should still be emitted")
+	require.Nil(t, we, "unset windows_enrollment must serialize as null so applying it is a no-op")
 }
 
 func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
@@ -1702,17 +1795,29 @@ func TestGenerateControls(t *testing.T) {
 	// Check that the controls do not contain a setup_experience section
 	_, ok := controlsRaw["setup_experience"]
 	require.False(t, ok, "Expected no setup_experience section for no-team controls")
+	// The disabled Windows managed local account is not emitted (absent key means disabled).
+	if windowsSection, ok := controlsRaw["windows_settings"].(map[string]any); ok {
+		require.NotContains(t, windowsSection, "managed_local_account_settings")
+	}
 
-	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled.
+	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled,
+	// and the Windows managed local account enabled.
 	mdmConfig = fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
 			EnableEndUserAuthentication: true,
+		},
+		WindowsSettings: fleet.WindowsSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
 		},
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
 	require.NoError(t, err)
 	// Check that the controls do contain a macos_setup section
 	verifyControlsHasMacosSetup(t, controlsRaw)
+	// The enabled Windows managed local account is emitted.
+	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
+	require.True(t, ok, "expected a windows_settings section")
+	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
 
 	// Generate controls for a team.
 	// Note that nested keys here may be strings,

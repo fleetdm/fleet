@@ -31,6 +31,7 @@ export enum ActivityType {
   UserAddedBySSO = "user_added_by_sso",
   UserLoggedIn = "user_logged_in",
   UserFailedLogin = "user_failed_login",
+  UserMFARequested = "user_mfa_requested",
   UserCreated = "created_user",
   UserDeleted = "deleted_user",
   HostDeleted = "deleted_host",
@@ -107,6 +108,7 @@ export enum ActivityType {
   DisabledGitOpsException = "disabled_gitops_exception",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
+  EditedWindowsEnrollmentDefaultFleet = "edited_windows_enrollment_default_fleet",
   RanScript = "ran_script",
   RanCustomMdmCommand = "ran_custom_mdm_command",
   RanScriptBatch = "ran_script_batch",
@@ -164,6 +166,8 @@ export enum ActivityType {
   DeletedCustomVariable = "deleted_custom_variable",
   EditedCustomHostVitalValue = "edited_custom_host_vital_value",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
+  CreatedSetupExperienceScript = "created_setup_experience_script",
+  DeletedSetupExperienceScript = "deleted_setup_experience_script",
   EditedHostIdpData = "edited_host_idp_data",
   AddedGoogleWorkspaceIntegration = "added_google_workspace_integration",
   EditedGoogleWorkspaceIntegration = "edited_google_workspace_integration",
@@ -202,6 +206,7 @@ export enum ActivityType {
   CreatedCustomHostVital = "created_custom_host_vital",
   EditedCustomHostVital = "edited_custom_host_vital",
   DeletedCustomHostVital = "deleted_custom_host_vital",
+  ReleasedDeviceFromAB = "released_from_ab",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -211,6 +216,7 @@ export type IHostPastActivityType =
   | ActivityType.WipedHost
   | ActivityType.FailedWipe
   | ActivityType.MdmUnenrolled
+  | ActivityType.MdmEnrolled
   | ActivityType.ReadHostDiskEncryptionKey
   | ActivityType.RetrievedHostMyDeviceURL
   | ActivityType.ViewedHostRecoveryLockPassword
@@ -243,7 +249,8 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationWebhook
   | ActivityType.FailedAutomationTicket
   | ActivityType.FailedAutomationCalendarEvent
-  | ActivityType.FailedAutomationConditionalAccess;
+  | ActivityType.FailedAutomationConditionalAccess
+  | ActivityType.ReleasedDeviceFromAB;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -321,6 +328,7 @@ export interface IActivityDetails {
   policy_name?: string;
   profile_identifier?: string;
   profile_name?: string;
+  profile_uuid?: string;
   public_ip?: string;
   query_id?: number;
   query_ids?: number[];
@@ -486,6 +494,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_saved_query: "Edited report",
   edited_script: "Edited script",
   edited_software: "Edited software",
+  edited_windows_enrollment_default_fleet:
+    "Edited enrollment default fleet: Windows",
   edited_windows_profile: "Edited configuration profiles: Windows",
   edited_windows_updates: "OS updates: edited Windows",
   enabled_activity_automations: "Enabled activity automations",
@@ -531,6 +541,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   user_added_by_sso: "Added user via JIT",
   user_failed_login: "User login: failed",
   user_logged_in: "User login: success",
+  user_mfa_requested: "User login: MFA email sent",
   wiped_host: "Wiped host",
   failed_wipe: "Failed wipe",
   edited_apple_account_provisioning: "Edited Apple account provisioning",
@@ -575,6 +586,9 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Deleted conditional access: Okta",
   [ActivityType.EditedSetupExperienceSoftware]:
     "Edited setup experience software",
+  [ActivityType.CreatedSetupExperienceScript]: "Added setup experience script",
+  [ActivityType.DeletedSetupExperienceScript]:
+    "Deleted setup experience script",
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
   [ActivityType.AddedGoogleWorkspaceIntegration]:
     "Added Google Workspace integration",
@@ -618,4 +632,5 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.CreatedCustomHostVital]: "Created custom host vital",
   [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
   [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
+  [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
 };

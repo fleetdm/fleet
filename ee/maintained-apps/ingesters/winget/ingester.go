@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -418,7 +419,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	out.Name = input.Name
 	out.Slug = input.Slug
-	out.InstallerURL = selectedInstaller.InstallerURL
+	out.InstallerURL = normalizeSourceForgeURL(selectedInstaller.InstallerURL)
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.DefaultCategories = input.DefaultCategories
 	out.SHA256 = "no_check"
@@ -549,6 +550,43 @@ func isFileType(installerType string) bool {
 	return ok
 }
 
+// normalizeSourceForgeURL appends the "/download" segment that SourceForge's
+// project file URLs need in order to serve the file itself.
+//
+// A bare https://sourceforge.net/projects/<p>/files/<path> URL returns a 200
+// with an HTML landing page for non-browser clients, so Fleet would download
+// that page instead of the installer. Only the ".../download" form redirects to
+// a mirror and returns the binary. Some winget manifests already carry the
+// suffix (WinSCP) and some don't (CrystalDiskMark), so normalize here rather
+// than depending on the manifest author.
+//
+// Called after installer selection so the type-detection above still sees the
+// original file extension.
+func normalizeSourceForgeURL(installerURL string) string {
+	u, err := url.Parse(installerURL)
+	if err != nil {
+		return installerURL
+	}
+
+	host := strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.")
+	if host != "sourceforge.net" {
+		// downloads.sourceforge.net serves files directly and takes no suffix.
+		return installerURL
+	}
+
+	// Only project file paths need this; leave anything else alone.
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) < 4 || parts[0] != "projects" || parts[2] != "files" {
+		return installerURL
+	}
+	if parts[len(parts)-1] == "download" {
+		return installerURL
+	}
+
+	u.Path = path.Join(u.Path, "download")
+	return u.String()
+}
+
 // fuzzyMatch supports three JSON representations:
 //   - false (or omitted): exact match on programs.name
 //   - true: automatic LIKE pattern  "name LIKE '<unique_identifier> %'"
@@ -616,6 +654,11 @@ type inputApp struct {
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
 	PatchPolicyPath   string   `json:"patch_policy_path"`
+	// RequiresClientOS marks installers that refuse to run on Windows Server
+	// SKUs (e.g. Dell Display and Peripheral Manager). The ingester ignores it;
+	// CI (.github/scripts/partition-fma-apps.sh) reads it to route validation to
+	// the windows-11-arm runner, the only GitHub-hosted client-OS Windows runner.
+	RequiresClientOS bool `json:"requires_client_os"`
 }
 
 type installerManifest struct {

@@ -104,6 +104,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
 	}
 
+	//nolint:nilaway // ds.NewTeamPolicy returns an error whenever policy is nil
 	if policy.Type == fleet.PolicyTypePatch && policy.PatchWhenClosed && policy.PatchSoftwareTitleID != nil {
 		if err := svc.ds.ClearPreInstallQueryForTitle(ctx, teamID, *policy.PatchSoftwareTitleID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "clear pre-install query for title")

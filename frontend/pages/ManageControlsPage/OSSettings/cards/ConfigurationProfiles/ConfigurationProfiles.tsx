@@ -20,6 +20,7 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 
@@ -27,12 +28,10 @@ import Pagination from "components/Pagination";
 
 import UploadList from "../../../../../components/UploadList";
 
-import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
 import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import EditProfileModal from "./components/EditProfileModal";
 import ProfileListItem from "./components/ProfileListItem";
-import UploadListHeading from "../../../components/UploadListHeading";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
 import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
 import AssetsTab from "./components/AssetsTab";
@@ -220,7 +219,25 @@ const ConfigurationProfiles = ({
           </Card>
         );
       }
-      return <AddProfileCard setShowModal={setShowAddProfileModal} />;
+      return (
+        <EmptyState
+          variant="header-list"
+          header="No configuration profiles"
+          info="Add a configuration profile to enforce custom settings on your hosts."
+          primaryButton={
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Button
+                  disabled={disableChildren}
+                  onClick={() => setShowAddProfileModal(true)}
+                >
+                  Add profile
+                </Button>
+              )}
+            />
+          }
+        />
+      );
     }
 
     return (
@@ -228,15 +245,6 @@ const ConfigurationProfiles = ({
         <UploadList
           keyAttribute="profile_uuid"
           listItems={profiles}
-          HeadingComponent={() => (
-            <UploadListHeading
-              onClickAdd={
-                isTechnician ? undefined : () => setShowAddProfileModal(true)
-              }
-              entityName="Configuration profile"
-              createEntityText="Add profile"
-            />
-          )}
           ListItemComponent={({ listItem }) => (
             <ProfileListItem
               isPremium={!!isPremiumTier}
@@ -261,26 +269,24 @@ const ConfigurationProfiles = ({
     );
   };
 
-  const pageDescription =
-    activeTab === "assets" ? (
-      "Manage assets that provide data or credentials referenced by DDM declarations."
-    ) : (
-      <>
-        {isTechnician
-          ? "View configuration profiles."
-          : "Create and upload configuration profiles to apply custom settings."}{" "}
-        <CustomLink
-          newTab
-          text="Learn more"
-          url="https://fleetdm.com/guides/custom-os-settings"
-        />
-      </>
-    );
+  const profilesDescription = (
+    <>
+      {isTechnician
+        ? "View configuration profiles."
+        : "Create and upload configuration profiles to apply custom settings."}{" "}
+      <CustomLink
+        newTab
+        text="Learn more"
+        url="https://fleetdm.com/guides/custom-os-settings"
+      />
+    </>
+  );
+
+  const showAddProfileButton = mdmEnabled && !isTechnician;
 
   return (
     <div className={baseClass}>
       <SectionHeader title="Configuration profiles" alignLeftHeaderVertically />
-      <PageDescription variant="right-panel" content={pageDescription} />
       <TabNav secondary>
         <Tabs
           selectedIndex={TABS_BY_INDEX.indexOf(activeTab)}
@@ -295,24 +301,50 @@ const ConfigurationProfiles = ({
             </Tab>
           </TabList>
           <TabPanel>
-            {!mdmEnabled ? (
-              <EmptyState
-                variant="header-list"
-                header="Additional configuration required"
-                info="MDM must be turned on to add configuration profiles."
-                primaryButton={
-                  canTurnOnMdm ? (
-                    <Button
-                      onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
-                    >
-                      Turn on
-                    </Button>
-                  ) : undefined
-                }
-              />
-            ) : (
-              renderProfileList()
-            )}
+            <div className="profiles-tab">
+              <div className="profiles-tab__tab-header">
+                <PageDescription
+                  variant="right-panel"
+                  content={profilesDescription}
+                />
+                {showAddProfileButton && (
+                  <GitOpsModeTooltipWrapper
+                    position="left"
+                    renderChildren={(disableChildren) => (
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={() => setShowAddProfileModal(true)}
+                        disabled={disableChildren}
+                        icon="plus"
+                      >
+                        Add profile
+                      </Button>
+                    )}
+                  />
+                )}
+              </div>
+              {!mdmEnabled ? (
+                <EmptyState
+                  variant="header-list"
+                  header="Additional configuration required"
+                  info="MDM must be turned on to add configuration profiles."
+                  primaryButton={
+                    canTurnOnMdm ? (
+                      <Button
+                        onClick={() =>
+                          router.push(PATHS.ADMIN_INTEGRATIONS_MDM)
+                        }
+                      >
+                        Turn on
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              ) : (
+                renderProfileList()
+              )}
+            </div>
           </TabPanel>
           <TabPanel>
             <AssetsTab currentTeamId={currentTeamId} router={router} />

@@ -1,0 +1,11 @@
+{
+  "name": "Zoom Outlook Plugin",
+  "slug": "zoom-outlook-plugin/windows",
+  "package_identifier": "Zoom.ZoomOutlookPlugin",
+  "unique_identifier": "Zoom Outlook Plugin",
+  "program_publisher": "Zoom",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Communication"]
+}

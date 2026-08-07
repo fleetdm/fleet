@@ -25,7 +25,11 @@ $shadow-transition-width: 16px;
           $core-fleet-white,
           $core-fleet-white-transparent
         ),
-        linear-gradient(to left, $core-fleet-white, $core-fleet-white-transparent),
+        linear-gradient(
+          to left,
+          $core-fleet-white,
+          $core-fleet-white-transparent
+        ),
         /* Shadow covers */
           linear-gradient(
             to right,
@@ -49,8 +53,11 @@ $shadow-transition-width: 16px;
       // End shadow
     }
 
-    // applied to same element as data-table__table while loading
-    &__no-rows {
+    // Reserve height on the wrapper (not the <table>) so the empty/loading
+    // state doesn't stretch <thead> vertically when there's no <tbody>. The
+    // header stays its natural row height at the top; the loading-overlay's
+    // Spinner sits centered in the reserved space below.
+    &__wrapper--no-rows {
       min-height: 272px;
     }
 
@@ -227,18 +234,15 @@ $shadow-transition-width: 16px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: $gap-table-elements;
 
         p {
-          margin: 0 $pad-medium 0 0;
+          margin: 0;
           font-weight: $regular;
 
           span {
             font-weight: $bold;
           }
-        }
-
-        button {
-          margin-right: $pad-medium;
         }
       }
 
@@ -246,6 +250,7 @@ $shadow-transition-width: 16px;
       &__inner-right {
         display: flex;
         align-items: center;
+        gap: $gap-table-elements;
       }
     }
 

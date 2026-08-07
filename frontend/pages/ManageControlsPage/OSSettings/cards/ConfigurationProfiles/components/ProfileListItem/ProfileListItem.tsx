@@ -191,41 +191,40 @@ const ProfileListItem = ({
         <div className={`${subClass}__actions`}>
           <Button
             className={`${subClass}__action-button`}
-            variant="icon"
+            variant="secondary"
             onClick={() => onClickInfo(profile)}
-          >
-            <Icon name="info" size="medium" />
-          </Button>
+            icon="info"
+            ariaLabel={`View ${profile.name} details`}
+          />
           {!isTechnician && (
             // stays enabled in GitOps mode -- the modal is the only place to
             // see a profile's label targeting; it blocks saving instead
             <Button
               className={`${subClass}__action-button`}
-              variant="icon"
+              variant="secondary"
               onClick={() => onClickEdit(profile)}
               ariaLabel={`Edit ${profile.name}`}
-            >
-              <Icon name="pencil" />
-            </Button>
+              icon="pencil"
+            />
           )}
           <Button
             className={`${subClass}__action-button`}
-            variant="icon"
+            variant="secondary"
             onClick={onClickDownload}
-          >
-            <Icon name="download" />
-          </Button>
+            icon="download"
+            ariaLabel={`Download ${profile.name}`}
+          />
           {!isTechnician && (
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
                 <Button
                   disabled={disableChildren}
                   className={`${subClass}__action-button`}
-                  variant="icon"
+                  variant="secondary"
                   onClick={() => onClickDelete(profile)}
-                >
-                  <Icon name="trash" />
-                </Button>
+                  icon="trash"
+                  ariaLabel={`Delete ${profile.name}`}
+                />
               )}
             />
           )}

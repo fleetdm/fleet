@@ -14,7 +14,6 @@ import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
 import EmptyState from "components/EmptyState";
-import Icon from "components/Icon/Icon";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import InfoBanner from "components/InfoBanner";
@@ -113,23 +112,22 @@ const PolicyResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="inverse"
+          variant="secondary"
+          icon="eye"
+          iconPosition="right"
         >
-          <>
-            Show query <Icon name="eye" />
-          </>
+          Show query
         </Button>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={
             tableType === "errors" ? onExportErrorsResults : onExportResults
           }
-          variant="inverse"
+          variant="secondary"
+          icon="download"
+          iconPosition="right"
         >
-          <>
-            Export {tableType}
-            <Icon name="download" color="ui-fleet-black-75" />
-          </>
+          Export {tableType}
         </Button>
       </div>
     );

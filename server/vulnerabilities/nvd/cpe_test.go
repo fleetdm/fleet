@@ -471,6 +471,37 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	assert.True(t, iterator.closed)
 }
 
+// TestTranslateSoftwareToCPEExcludedSources tests that software from sources Fleet does not
+// scan for vulnerabilities never reaches the CPE translation step. Adobe plugins are excluded
+// because no CVE data source maps an Adobe CEP/UXP extension to a CVE, so any match would be
+// a false positive borrowed from the host Adobe application.
+func TestTranslateSoftwareToCPEExcludedSources(t *testing.T) {
+	tempDir := t.TempDir()
+
+	ds := new(mock.Store)
+
+	var excludedSources [][]string
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, q fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
+		excludedSources = append(excludedSources, q.ExcludedSources)
+		return &fakeSoftwareIterator{}, nil
+	}
+
+	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
+	require.NoError(t, err)
+
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
+	err = GenerateCPEDB(dbPath, items.Items)
+	require.NoError(t, err)
+
+	err = TranslateSoftwareToCPE(t.Context(), ds, tempDir, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	require.NotEmpty(t, excludedSources)
+	require.Contains(t, excludedSources[0], "adobe_plugins")
+	require.Contains(t, excludedSources[0], "ios_apps")
+	require.Contains(t, excludedSources[0], "ipados_apps")
+}
+
 // TestTranslateSoftwareToCPEIgnoreEmptyVersion tests that TranslateSoftwareToCPE ignores
 // software that was ingested with an empty version field. The test will simulate a previous
 // version of Fleet storing an incorrect CPE for the software, to test that an upgrade
@@ -673,6 +704,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "105.0.1",
 				Vendor:           "",
 				BundleIdentifier: "org.mozilla.firefox",
+			}, cpe: "cpe:2.3:a:mozilla:firefox:105.0.1:*:*:*:*:macos:*:*",
+		},
+		{ // Firefox Developer Edition tracks standard Firefox; its bundle's product
+			// token isn't a real NVD product, so a translation maps it to mozilla:firefox (#48689).
+			software: fleet.Software{
+				Name:             "Firefox Developer Edition.app",
+				Source:           "apps",
+				Version:          "105.0.1",
+				Vendor:           "",
+				BundleIdentifier: "org.mozilla.firefoxdeveloperedition",
 			}, cpe: "cpe:2.3:a:mozilla:firefox:105.0.1:*:*:*:*:macos:*:*",
 		},
 		{

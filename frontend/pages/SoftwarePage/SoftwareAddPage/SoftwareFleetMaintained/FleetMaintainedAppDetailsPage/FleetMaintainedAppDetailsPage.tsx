@@ -23,7 +23,6 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Card from "components/Card";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import PageDescription from "components/PageDescription";
 import { getPatchPolicyFlags } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 
@@ -94,8 +93,8 @@ const FleetAppSummary = ({
         </div>
       </div>
       <div className={`${baseClass}__fleet-app-summary--show-details`}>
-        <Button variant="inverse" onClick={onClickShowAppDetails}>
-          <Icon name="info" /> Show details
+        <Button variant="subdued" onClick={onClickShowAppDetails} icon="info">
+          Show details
         </Button>
       </div>
     </Card>
