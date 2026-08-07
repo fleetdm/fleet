@@ -775,6 +775,40 @@ func TestValidateCloudfrontURL(t *testing.T) {
 	}
 }
 
+func TestValidateSoftwareInstallersSignedURL(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name      string
+		enabled   bool
+		endpoint  string
+		wantFatal bool
+	}{
+		{"disabled skips validation", false, "https://s3.amazonaws.com", false},
+		{"gcs host", true, "https://storage.googleapis.com", false},
+		{"gcs host without scheme", true, "storage.googleapis.com", false},
+		{"gcs bucket virtual host", true, "https://my-bucket.storage.googleapis.com", false},
+		{"look-alike host rejected", true, "https://storage.googleapis.com.evil.com", true},
+		{"substring in path rejected", true, "https://evil.com/storage.googleapis.com", true},
+		{"non-gcs host rejected", true, "https://s3.amazonaws.com", true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s3 := S3Config{
+				SoftwareInstallersSignedURL:   c.enabled,
+				SoftwareInstallersEndpointURL: c.endpoint,
+			}
+			var gotFatal bool
+			initFatal := func(err error, msg string) {
+				gotFatal = true
+				require.Error(t, err)
+			}
+			s3.ValidateSoftwareInstallersSignedURL(initFatal)
+			require.Equal(t, c.wantFatal, gotFatal)
+		})
+	}
+}
+
 func TestAndroidAgentConfigValidate(t *testing.T) {
 	t.Parallel()
 
