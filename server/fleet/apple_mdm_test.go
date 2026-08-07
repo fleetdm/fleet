@@ -1235,13 +1235,13 @@ func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
 			name:        "missing type",
 			activation:  rawActivation("", "com.fleet.act.passcode", configIdentifier),
 			wantErr:     true,
-			errContains: "Activation must include a Type.",
+			errContains: "The custom activation must include a Type.",
 		},
 		{
 			name:        "whitespace type",
 			activation:  rawActivation("      ", "com.fleet.act.passcode", configIdentifier),
 			wantErr:     true,
-			errContains: "Activation must include a Type.",
+			errContains: "The custom activation must include a Type.",
 		},
 		{
 			name: "configuration type is not an activation",
@@ -1254,7 +1254,7 @@ func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
 			name:        "missing identifier",
 			activation:  rawActivation("com.apple.activation.simple", "   ", configIdentifier),
 			wantErr:     true,
-			errContains: "Activation must include an Identifier.",
+			errContains: "The custom activation must include an Identifier.",
 		},
 		{
 			name:        "identifier over Apple's 64 octet limit",
@@ -1266,14 +1266,14 @@ func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
 			name:        "no configurations referenced",
 			activation:  rawActivation("com.apple.activation.simple", "com.fleet.act.passcode"),
 			wantErr:     true,
-			errContains: "Activation must reference the configuration profile it's uploaded with.",
+			errContains: "The custom activation must reference the identifier of the configuration profile used to upload it.",
 		},
 		{
 			name: "more than one configuration referenced",
 			activation: rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
 				configIdentifier, "com.fleet.cfg.firewall"),
 			wantErr:     true,
-			errContains: "Activation can only reference one configuration profile.",
+			errContains: "The custom activation can only have one referenced configuration profile.",
 		},
 		{
 			name: "references a different configuration",
