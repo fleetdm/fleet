@@ -327,6 +327,7 @@ export interface IActivityDetails {
   policy_name?: string;
   profile_identifier?: string;
   profile_name?: string;
+  profile_uuid?: string;
   public_ip?: string;
   query_id?: number;
   query_ids?: number[];

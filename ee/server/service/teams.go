@@ -215,6 +215,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
 			return nil, err
 		}
+		// A nil HostActivitiesWebhook means "not provided", so preserve the
+		// stored value: existing callers PATCH webhook_settings with only the
+		// webhook they manage (e.g. the policies page sends just
+		// failing_policies_webhook) and must not clear this one. Disabling is
+		// explicit: send the object with enable_host_activities_webhook: false.
+		if payload.WebhookSettings.HostActivitiesWebhook == nil {
+			payload.WebhookSettings.HostActivitiesWebhook = team.Config.WebhookSettings.HostActivitiesWebhook
+		}
 		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
 
@@ -1669,6 +1677,12 @@ func (svc *Service) createTeamFromSpec(
 		hostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
 
+	var hostActivitiesWebhook *fleet.HostActivitiesWebhookSettings
+	if spec.WebhookSettings.HostActivitiesWebhook != nil {
+		fleet.ValidateEnabledHostActivitiesWebhook(*spec.WebhookSettings.HostActivitiesWebhook, invalid)
+		hostActivitiesWebhook = spec.WebhookSettings.HostActivitiesWebhook
+	}
+
 	if spec.Integrations.GoogleCalendar != nil {
 		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, dryRun, invalid)
 		if err != nil {
@@ -1730,7 +1744,8 @@ func (svc *Service) createTeamFromSpec(
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
-				HostStatusWebhook: hostStatusWebhook,
+				HostStatusWebhook:     hostStatusWebhook,
+				HostActivitiesWebhook: hostActivitiesWebhook,
 			},
 			Integrations: fleet.TeamIntegrations{
 				GoogleCalendar:           spec.Integrations.GoogleCalendar,
@@ -2111,6 +2126,11 @@ func (svc *Service) editTeamFromSpec(
 	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
 		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
 		team.Config.WebhookSettings.FailingPoliciesWebhook = *spec.WebhookSettings.FailingPoliciesWebhook
+	}
+
+	if spec.WebhookSettings.HostActivitiesWebhook != nil {
+		fleet.ValidateEnabledHostActivitiesWebhook(*spec.WebhookSettings.HostActivitiesWebhook, invalid)
+		team.Config.WebhookSettings.HostActivitiesWebhook = spec.WebhookSettings.HostActivitiesWebhook
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
@@ -2654,6 +2674,14 @@ func validateTeamWebhookSettings(ctx context.Context, webhookSettings *fleet.Tea
 		}
 	}
 
+	if webhookSettings.HostActivitiesWebhook != nil {
+		invalid := &fleet.InvalidArgumentError{}
+		fleet.ValidateEnabledHostActivitiesWebhook(*webhookSettings.HostActivitiesWebhook, invalid)
+		if invalid.HasErrors() {
+			return ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
 	return nil
 }
 
@@ -2673,6 +2701,9 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 	if payload.WebhookSettings != nil {
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
 			return nil, err
+		}
+		if payload.WebhookSettings.HostActivitiesWebhook == nil {
+			payload.WebhookSettings.HostActivitiesWebhook = config.WebhookSettings.HostActivitiesWebhook
 		}
 		config.WebhookSettings = *payload.WebhookSettings
 	}
