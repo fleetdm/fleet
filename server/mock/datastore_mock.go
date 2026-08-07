@@ -622,7 +622,7 @@ type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleI
 
 type GetCategoriesForSoftwareInstallersFunc func(ctx context.Context, installerIDs []uint) (map[uint][]string, error)
 
-type GetSoftwareTitlesForInstallAllFunc func(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error)
+type GetSoftwareTitlesForInstallAllFunc func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error)
 
 type AssociateMDMInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error
 
@@ -1691,6 +1691,8 @@ type UpdateSoftwareInstallerWithoutPackageIDsFunc func(ctx context.Context, id u
 type UpdateInstallerUpgradeCodeFunc func(ctx context.Context, id uint, upgradeCode string) error
 
 type ProcessInstallerUpdateSideEffectsFunc func(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
+
+type ClearPreInstallQueryForTitleFunc func(ctx context.Context, teamID uint, titleID uint) error
 
 type SaveInstallerUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
 
@@ -4807,6 +4809,9 @@ type DataStore struct {
 	ProcessInstallerUpdateSideEffectsFunc        ProcessInstallerUpdateSideEffectsFunc
 	ProcessInstallerUpdateSideEffectsFuncInvoked bool
 
+	ClearPreInstallQueryForTitleFunc        ClearPreInstallQueryForTitleFunc
+	ClearPreInstallQueryForTitleFuncInvoked bool
+
 	SaveInstallerUpdatesFunc        SaveInstallerUpdatesFunc
 	SaveInstallerUpdatesFuncInvoked bool
 
@@ -7821,11 +7826,11 @@ func (s *DataStore) GetCategoriesForSoftwareInstallers(ctx context.Context, inst
 	return s.GetCategoriesForSoftwareInstallersFunc(ctx, installerIDs)
 }
 
-func (s *DataStore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+func (s *DataStore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
 	s.mu.Lock()
 	s.GetSoftwareTitlesForInstallAllFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareTitlesForInstallAllFunc(ctx, host, categoryID)
+	return s.GetSoftwareTitlesForInstallAllFunc(ctx, host, categoryID, matchQuery)
 }
 
 func (s *DataStore) AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error {
@@ -11564,6 +11569,13 @@ func (s *DataStore) ProcessInstallerUpdateSideEffects(ctx context.Context, insta
 	s.ProcessInstallerUpdateSideEffectsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ProcessInstallerUpdateSideEffectsFunc(ctx, installerID, wasMetadataUpdated, wasPackageUpdated)
+}
+
+func (s *DataStore) ClearPreInstallQueryForTitle(ctx context.Context, teamID uint, titleID uint) error {
+	s.mu.Lock()
+	s.ClearPreInstallQueryForTitleFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearPreInstallQueryForTitleFunc(ctx, teamID, titleID)
 }
 
 func (s *DataStore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {

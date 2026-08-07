@@ -874,8 +874,9 @@ type Datastore interface {
 
 	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
 	// to queue for the host's "install all" action, in alphabetical order, optionally
-	// scoped to a category.
-	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint) ([]*HostSoftwareWithInstaller, *string, error)
+	// scoped to a category and/or a name-match query (same semantics as the self-service
+	// list endpoint).
+	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint, matchQuery string) ([]*HostSoftwareWithInstaller, *string, error)
 
 	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
 	// given install attempt (InstallApplication command).
@@ -3010,6 +3011,10 @@ type Datastore interface {
 	// as removed, hiding them from stats calculations (note that this will null out installer statuses due
 	// to how the virtual column works).
 	ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
+
+	// ClearPreInstallQueryForTitle blanks the pre-install query on a title's active Fleet-maintained
+	// installer and cancels its pending installs. No-op when the query is already empty.
+	ClearPreInstallQueryForTitle(ctx context.Context, teamID uint, titleID uint) error
 
 	// SaveInstallerUpdates persists new values to an existing installer. See comments in the payload struct
 	// for which fields must be set.

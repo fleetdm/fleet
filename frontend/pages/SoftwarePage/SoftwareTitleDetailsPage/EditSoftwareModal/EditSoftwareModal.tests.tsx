@@ -49,4 +49,44 @@ describe("EditSoftwareModal — multi-package title", () => {
     // client; the page tests cover the submit path end-to-end.
     expect(() => renderModal({ installerId: 7 })).not.toThrow();
   });
+
+  // Regression: a patch-when-closed installer must treat the pre-install query
+  // as Fleet-managed even when the caller doesn't pass patchWhenClosed — the
+  // modal derives it from the installer's own patch policy. Otherwise the
+  // pre-install query is sent on save and the backend rejects unrelated edits
+  // (e.g. toggling self-service).
+  it("treats the pre-install query as Fleet-managed when the installer's patch policy is patch-when-closed", async () => {
+    const { user } = renderModal({
+      softwareInstaller: createMockSoftwarePackage({
+        patch_policy: {
+          id: 5,
+          name: "GlobalProtect up to date",
+          patch_when_closed: true,
+          continuous_automations_enabled: true,
+        },
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Advanced options" }));
+
+    expect(
+      screen.getByText(
+        /Pre-install query won't run when install is triggered via self-service/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the pre-install query editable when there is no patch-when-closed policy", async () => {
+    const { user } = renderModal({
+      softwareInstaller: createMockSoftwarePackage({ patch_policy: null }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Advanced options" }));
+
+    expect(
+      screen.queryByText(
+        /Pre-install query won't run when install is triggered via self-service/
+      )
+    ).not.toBeInTheDocument();
+  });
 });
