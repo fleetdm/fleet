@@ -11,9 +11,12 @@ on:
       - 'schema/**'
       - "ee/maintained-apps/outputs/**"
 
-# This allows a subsequently queued workflow run to interrupt previous runs
+# Serialize deploys per branch: a newer push cancels any in-progress deploy so an
+# older build can never finish last and overwrite a newer release on Heroku.
+# (github.head_ref is empty on push events, so keying on it gave every run a
+# unique group and deploys raced.)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:
