@@ -24,9 +24,11 @@ if (-not $installPath) {
 
 Write-Host "Found Visual Studio Community 2022 at: $installPath"
 
+# No --wait here: it's a bootstrapper-only switch and the installer rejects it
+# with exit 87. Start-Process -Wait already blocks until the uninstall exits.
 $processOptions = @{
   FilePath = $vsInstaller
-  ArgumentList = @('uninstall', '--installPath', $installPath, '--quiet', '--norestart', '--wait')
+  ArgumentList = @('uninstall', '--installPath', $installPath, '--quiet', '--norestart')
   PassThru = $true
   Wait = $true
 }
