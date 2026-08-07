@@ -1,9 +1,5 @@
 // Package msgraph is Fleet's client for Microsoft Graph. It authenticates as an Entra app registration using the
 // OAuth2 client-credentials grant and reads Windows Autopilot device identities, which Fleet surfaces as pending hosts.
-//
-// Note this is Microsoft Graph, the unified API over Entra, Intune and the rest of Microsoft 365; the Autopilot
-// collection specifically is Intune data. The credential is an Entra app registration, which is why the config calls it
-// an Entra credential while the API is Graph.
 package msgraph
 
 import (
@@ -30,15 +26,24 @@ const (
 	// defaultGraphHost is the Microsoft Graph host. Overridable in tests.
 	defaultGraphHost = "https://graph.microsoft.com"
 
-	// graphScope requests every application permission already consented for the app registration, which is the
-	// standard scope for the client-credentials flow.
+	// graphScope is the only scope value Entra accepts for the client-credentials flow. This is not a broad grant.
+	// App-only permissions are assigned to the app registration and admin-consented up front, so there is no incremental
+	// consent to negotiate at token time; .default means "the permissions this app has already been granted for this
+	// resource", and the token carries nothing more.
 	graphScope = "https://graph.microsoft.com/.default"
 
+	// autopilotDevicesPath uses v1.0, which is the current GA endpoint as of 2026/08/07
 	autopilotDevicesPath = "/v1.0/deviceManagement/windowsAutopilotDeviceIdentities"
 
-	// maxPages bounds the pagination walk. Graph paginates this collection on serial number with an inclusive cursor,
-	// and can return an @odata.nextLink identical to the request URL, so an unguarded walk does not terminate. The
-	// per-page and identical-link guards below catch that first; this is the last-resort backstop.
+	// verifyPageSize is what VerifyCredential asks for.
+	verifyPageSize = 1
+
+	// pageSize is sent as $top so the number of round trips is a property of our code rather than of an undocumented
+	// service default that Microsoft can change. A large tenant can register 100k+ Autopilot devices; at 1000 per page
+	// that is ~100 requests
+	pageSize = 1000
+
+	// maxPages bounds the pagination walk as a last-resort backstop against a non-advancing cursor.
 	maxPages = 1000
 
 	// requestTimeout bounds a single Graph call.
@@ -46,27 +51,18 @@ const (
 )
 
 // WindowsAutopilotDevice is a Windows Autopilot device identity as returned by Microsoft Graph from
-// /deviceManagement/windowsAutopilotDeviceIdentities.
-//
-// This is a wire type, which is why it lives here rather than in the fleet package: the field names and JSON tags are
-// Graph's, not Fleet's. Callers map it onto fleet.HostAutopilotDevice.
-//
-// ID is the Graph resource id of the Autopilot registration. It is the identity to reconcile on: it is unique and
-// stable for the life of the registration, whereas SerialNumber is neither (Graph paginates this collection on serial,
-// and placeholder serials such as "Default string" ship on real hardware).
+// /deviceManagement/windowsAutopilotDeviceIdentities. ID is the Graph resource id of the Autopilot registration.
 type WindowsAutopilotDevice struct {
 	ID           string `json:"id"`
 	SerialNumber string `json:"serialNumber"`
 	GroupTag     string `json:"groupTag"`
-	// The JSON tag is Graph's and must stay as-is: Microsoft rebranded Azure AD to Entra ID but never renamed this
-	// API field, so it is still azureActiveDirectoryDeviceId on the wire. The Go name follows Fleet's convention.
+	// The JSON tag is Graph's and must stay as-is: Microsoft rebranded Azure AD to Entra ID but never renamed this API field.
 	EntraDeviceID string `json:"azureActiveDirectoryDeviceId"`
 }
 
 // Client reads Windows Autopilot data from Microsoft Graph.
 type Client interface {
-	// VerifyCredential mints a token and lists a single page to confirm the credential works. Used to reject a bad
-	// credential at config-write time rather than silently failing on the next sync.
+	// VerifyCredential mints a token and lists a single page to confirm the credential works.
 	VerifyCredential(ctx context.Context) error
 	// ListWindowsAutopilotDevices returns all Autopilot device identities for the credential's tenant, deduplicated by
 	// device ID.
@@ -84,8 +80,7 @@ type client struct {
 	graphHost  string
 }
 
-// NewClient builds a Graph client for the given credential. The returned client refreshes its own access token: tokens
-// live about an hour, which is why Fleet stores an app-registration credential rather than a pasted token.
+// NewClient builds a Graph client for the given credential. The returned client refreshes its own access token.
 func NewClient(cred *fleet.MicrosoftGraphCredential) (Client, error) {
 	return newClientWithHosts(cred, defaultLoginHost, defaultGraphHost)
 }
@@ -100,14 +95,10 @@ func newClientWithHosts(cred *fleet.MicrosoftGraphCredential, loginHost, graphHo
 		ClientSecret: cred.ClientSecret,
 		TokenURL:     fmt.Sprintf("%s/%s/oauth2/v2.0/token", strings.TrimSuffix(loginHost, "/"), url.PathEscape(cred.TenantID)),
 		Scopes:       []string{graphScope},
-		// Send the credential as form parameters, which is the shape Microsoft documents for this flow. The library's
-		// default is auto-detect, which tries HTTP Basic first and silently retries on failure; pinning the style keeps
-		// the request deterministic and avoids a wasted probe round-trip.
+		// Send the credential as form parameters, which is the shape Microsoft documents for this flow.
 		AuthStyle: oauth2.AuthStyleInParams,
 	}
 
-	// Drive the oauth2 transport from fleethttp rather than a bare http.Client so Fleet's shared transport settings
-	// apply to both the token request and the Graph calls.
 	return &client{
 		cfg:        cfg,
 		baseClient: fleethttp.NewClient(fleethttp.WithTimeout(requestTimeout)),
@@ -116,19 +107,13 @@ func newClientWithHosts(cred *fleet.MicrosoftGraphCredential, loginHost, graphHo
 }
 
 // httpClientFor builds an HTTP client whose token acquisition inherits ctx.
-//
-// clientcredentials.Config.Client bakes the context into its token source, so a client built once at construction time
-// would fetch tokens under a background context and keep waiting after the caller had already cancelled or timed out.
-// Building per operation costs one token mint per operation rather than reusing one for its full hour, which is a
-// single extra round trip per sync; pages within one listing share the client and therefore the token.
 func (c *client) httpClientFor(ctx context.Context) *http.Client {
 	return c.cfg.Client(context.WithValue(ctx, oauth2.HTTPClient, c.baseClient))
 }
 
 func (c *client) VerifyCredential(ctx context.Context) error {
-	// One page is enough: it proves the secret mints a token and that the app has the Autopilot read permission with
-	// admin consent, which are the two things that actually go wrong.
-	if _, _, err := c.getPage(ctx, c.httpClientFor(ctx), c.graphHost+autopilotDevicesPath); err != nil {
+	verifyURL := fmt.Sprintf("%s%s?$top=%d", c.graphHost, autopilotDevicesPath, verifyPageSize)
+	if _, _, err := c.getPage(ctx, c.httpClientFor(ctx), verifyURL); err != nil {
 		return ctxerr.Wrap(ctx, err, "verify microsoft graph credential")
 	}
 	return nil
@@ -141,7 +126,7 @@ func (c *client) ListWindowsAutopilotDevices(ctx context.Context) ([]WindowsAuto
 	var (
 		devices  []WindowsAutopilotDevice
 		seen     = make(map[string]struct{})
-		nextURL  = c.graphHost + autopilotDevicesPath
+		nextURL  = fmt.Sprintf("%s%s?$top=%d", c.graphHost, autopilotDevicesPath, pageSize)
 		pageNum  int
 		prevPage string
 	)
@@ -152,10 +137,7 @@ func (c *client) ListWindowsAutopilotDevices(ctx context.Context) ([]WindowsAuto
 			return nil, ctxerr.Errorf(ctx, "microsoft graph autopilot listing exceeded %d pages, aborting", maxPages)
 		}
 
-		// Graph's cursor for this collection is $skiptoken=LastSerialNumber='<serial>', and it is inclusive. When a
-		// page's cursor does not advance past its own last row, the service echoes back the URL just requested, and a
-		// naive "follow nextLink until absent" loop spins forever hammering Graph. Verified against a live tenant at
-		// $top=1.
+		// Graph's cursor for this collection is $skiptoken=LastSerialNumber='<serial>', and it is inclusive.
 		if nextURL == prevPage {
 			return nil, ctxerr.Errorf(ctx,
 				"microsoft graph returned a nextLink identical to the request URL at page %d, aborting to avoid an infinite loop", pageNum)
@@ -167,9 +149,7 @@ func (c *client) ListWindowsAutopilotDevices(ctx context.Context) ([]WindowsAuto
 			return nil, ctxerr.Wrapf(ctx, err, "list windows autopilot devices page %d", pageNum)
 		}
 
-		// The same inclusive cursor repeats the boundary device on the next page, so dedupe by the Autopilot device
-		// ID. Serial numbers cannot be used for this: they are not unique (placeholder serials such as "Default
-		// string" ship on real hardware) and are exactly what the cursor is keyed on.
+		// The same inclusive cursor repeats the boundary device on the next page, so dedupe by the Autopilot device ID.
 		var newOnPage int
 		for _, d := range page {
 			if d.ID == "" {
@@ -183,11 +163,12 @@ func (c *client) ListWindowsAutopilotDevices(ctx context.Context) ([]WindowsAuto
 			newOnPage++
 		}
 
-		// A page that returned rows but contributed nothing new means the cursor did not advance, which happens when a
-		// run of devices shares one serial number (the cursor is keyed on serial). This is an error rather than a
+		// A page that advertises more results but contributes no new devices means the cursor is not advancing, so
+		// continuing cannot make progress. Two shapes hit this: a run of devices sharing one serial number (the cursor
+		// is keyed on serial), and empty pages returned with a non-empty nextLink. This is an error rather than a
 		// graceful stop on purpose: returning the devices gathered so far would be a silently truncated list, and the
 		// sync deletes hosts that are absent from what it is given. Failing leaves the tenant's pending hosts intact.
-		if link != "" && newOnPage == 0 && len(page) > 0 {
+		if link != "" && newOnPage == 0 {
 			return nil, ctxerr.Errorf(ctx,
 				"microsoft graph pagination stopped advancing at page %d (%d rows, none new), aborting rather than returning a partial list",
 				pageNum, len(page))
@@ -241,8 +222,7 @@ func (c *client) getPage(ctx context.Context, httpClient *http.Client, requestUR
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		// The oauth2 transport fetches the access token lazily on the first request, so a rejected client secret
-		// surfaces here as a token-endpoint failure rather than as a Graph response. Convert it so callers see an
-		// auth error instead of a generic connection failure.
+		// surfaces here as a token-endpoint failure rather than as a Graph response.
 		if retrieveErr, ok := errors.AsType[*oauth2.RetrieveError](err); ok {
 			return nil, "", ctxerr.Wrap(ctx, newTokenError(retrieveErr), "acquire microsoft graph token")
 		}

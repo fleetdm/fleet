@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -159,7 +160,7 @@ func (svc *Service) verifyMicrosoftGraphCredentials(
 // different remedies, and Graph reports a missing permission under different error codes depending on the endpoint
 // family, so the classification keys on the HTTP status rather than the code string.
 func microsoftGraphVerifyMessage(err error) string {
-	graphErr, ok := msgraph.AsError(err)
+	graphErr, ok := errors.AsType[*msgraph.Error](err)
 	if !ok {
 		return fmt.Sprintf("Couldn't connect to Microsoft Graph: %s", err)
 	}

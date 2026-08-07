@@ -3,9 +3,11 @@ package msgraph
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -14,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -287,7 +290,7 @@ func TestListClassifiesErrors(t *testing.T) {
 			_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
 			require.Error(t, err)
 
-			graphErr, ok := AsError(err)
+			graphErr, ok := errors.AsType[*Error](err)
 			require.True(t, ok, "error must remain classifiable through the wrap chain")
 			assert.Equal(t, tc.status, graphErr.StatusCode)
 			assert.Equal(t, tc.wantAuth, graphErr.IsAuthError())
@@ -305,12 +308,17 @@ func TestListClassifiesErrors(t *testing.T) {
 
 func TestVerifyCredential(t *testing.T) {
 	t.Run("succeeds on a good page", func(t *testing.T) {
+		var gotTop string
 		gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+			gotTop = r.URL.Query().Get("$top")
 			writeDevices(t, w, "", device("id-1", "SERIAL-1", "A"))
 		})
 		require.NoError(t, gs.client(t).VerifyCredential(t.Context()))
-		// Verification must stay cheap: one page, regardless of how many the tenant has.
+		// Verification must stay cheap: one request, and one device rather than a full page. A 100k-device tenant
+		// would otherwise transfer a page of JSON on an interactive config write.
 		assert.Equal(t, int32(1), gs.graphRequests.Load())
+		assert.Equal(t, strconv.Itoa(verifyPageSize), gotTop)
+		assert.Equal(t, 1, verifyPageSize)
 	})
 
 	t.Run("succeeds on an empty tenant", func(t *testing.T) {
@@ -328,7 +336,7 @@ func TestVerifyCredential(t *testing.T) {
 		})
 		err := gs.client(t).VerifyCredential(t.Context())
 		require.Error(t, err)
-		graphErr, ok := AsError(err)
+		graphErr, ok := errors.AsType[*Error](err)
 		require.True(t, ok)
 		assert.True(t, graphErr.IsPermissionError())
 	})
@@ -404,7 +412,7 @@ func TestTokenEndpointInvalidClientClassifiesAsAuthError(t *testing.T) {
 	_, err = c.ListWindowsAutopilotDevices(t.Context())
 	require.Error(t, err)
 
-	graphErr, ok := AsError(err)
+	graphErr, ok := errors.AsType[*Error](err)
 	require.True(t, ok, "a token-endpoint failure must still be classifiable")
 	assert.True(t, graphErr.IsAuthError())
 	assert.False(t, graphErr.IsPermissionError())
@@ -463,4 +471,108 @@ func TestListMintsOneTokenPerOperation(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, devices, 3)
 	assert.Equal(t, int32(1), gs.tokenRequests.Load(), "all pages must share one token")
+}
+
+// The page size is sent explicitly rather than relying on Graph's default, because the number of round trips for a
+// 100k-device tenant depends entirely on it: ~100 requests at 1000/page versus ~1000 at an unpinned default of 100,
+// which would exceed maxPages and risk throttling.
+func TestListRequestsExplicitPageSize(t *testing.T) {
+	var gotTop string
+	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		gotTop = r.URL.Query().Get("$top")
+		writeDevices(t, w, "", device("id-1", "SERIAL-1", "A"))
+	})
+
+	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, strconv.Itoa(pageSize), gotTop, "the first request must pin $top")
+	assert.GreaterOrEqual(t, pageSize, 1000,
+		"lowering the page size multiplies round trips and inclusive-cursor duplicates for large tenants")
+}
+
+// Empty pages carrying a non-empty nextLink are the one loop shape the identical-URL guard cannot see, because the URL
+// keeps changing. The no-progress guard has to catch it, and has to catch it immediately: before this was tightened the
+// walk ran all the way to maxPages, making 1000 requests against Graph before giving up.
+func TestListFailsFastOnEmptyPagesWithAdvancingCursor(t *testing.T) {
+	var gs *graphServer
+	pages := 0
+	gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		pages++
+		writeDevices(t, w, fmt.Sprintf("%s%s?$skiptoken=p%d", gs.URL, autopilotDevicesPath, pages))
+	})
+
+	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stopped advancing")
+	assert.Nil(t, devices, "a partial list must not be returned")
+	assert.LessOrEqual(t, pages, 2, "must stop on the first unproductive page, not grind to maxPages")
+}
+
+// An empty tenant is a valid configuration, not a loop: no devices and no nextLink returns cleanly.
+func TestListEmptyTenantIsNotAnError(t *testing.T) {
+	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		writeDevices(t, w, "")
+	})
+
+	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, devices)
+}
+
+func TestErrorUnwrapsUnderlyingCause(t *testing.T) {
+	// A token-endpoint failure must keep the oauth2 error reachable. Discarding it would make errors.Is/As against
+	// anything in the oauth2 chain fail, and lose detail beyond the fields we copy out.
+	retrieveErr := &oauth2.RetrieveError{
+		ErrorCode:        "invalid_client",
+		ErrorDescription: "AADSTS7000215: Invalid client secret provided.",
+	}
+	wrapped := fmt.Errorf("outer: %w", newTokenError(retrieveErr))
+
+	graphErr, ok := errors.AsType[*Error](wrapped)
+	require.True(t, ok)
+	assert.True(t, graphErr.IsAuthError())
+
+	var gotRetrieve *oauth2.RetrieveError
+	require.True(t, errors.As(wrapped, &gotRetrieve), "the oauth2 cause must survive wrapping")
+	assert.Equal(t, "invalid_client", gotRetrieve.ErrorCode)
+}
+
+func TestParseRetryAfter(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		header string
+		want   bool // whether a positive duration is expected
+	}{
+		{"delta seconds", "42", true},
+		{"zero", "0", false},
+		{"negative is ignored", "-5", false},
+		{"absent", "", false},
+		{"garbage", "soon", false},
+		// RFC 7231 permits an HTTP-date. Reading it as zero would mean no backoff at all.
+		{"http date in the future", time.Now().Add(90 * time.Second).UTC().Format(http.TimeFormat), true},
+		{"http date in the past", time.Now().Add(-90 * time.Second).UTC().Format(http.TimeFormat), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseRetryAfter(tc.header)
+			assert.Equal(t, tc.want, got > 0, "got %v", got)
+		})
+	}
+	assert.Equal(t, 42*time.Second, parseRetryAfter("42"))
+}
+
+func TestGraphErrorBodyIsBounded(t *testing.T) {
+	// An edge proxy can return a large HTML page on 5xx; this string lands in logs and in the admin-visible sync error.
+	huge := strings.Repeat("x", 10_000)
+	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(huge))
+	})
+
+	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+	require.Error(t, err)
+	graphErr, ok := errors.AsType[*Error](err)
+	require.True(t, ok)
+	assert.LessOrEqual(t, len(graphErr.Message), maxErrorBodyBytes+len("... (truncated)"))
+	assert.Contains(t, graphErr.Message, "truncated")
 }

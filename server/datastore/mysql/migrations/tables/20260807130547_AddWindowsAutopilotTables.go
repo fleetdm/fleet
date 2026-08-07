@@ -11,24 +11,17 @@ func init() {
 
 func Up_20260807130547(tx *sql.Tx) error {
 	// mdm_microsoft_graph_credentials stores the Entra app-registration credential Fleet authenticates with when
-	// calling Microsoft Graph to read Windows Autopilot device identities. It is a dedicated table rather than a field
-	// on app_config_json because client_secret is a secret and must be encrypted at rest, and rather than an entry in
-	// mdm_config_assets because that table is keyed UNIQUE (name, deletion_uuid) and so holds a single row per
-	// credential name. ABM and VPP tokens both had to make this same move once they became multi-instance;
-	// abm_tokens and vpp_tokens are the shape followed here.
+	// calling Microsoft Graph to read Windows Autopilot device identities.
 	//
 	// tenant_id is UNIQUE because the Autopilot device registry is scoped to an Entra tenant and not to an
-	// application: two credentials for the same tenant read an identical device list, while doubling calls against
-	// Graph's throttling limits and making per-tenant sync status ambiguous.
+	// application: two credentials for the same tenant read an identical device list
 	_, err := tx.Exec(`
 	CREATE TABLE IF NOT EXISTS mdm_microsoft_graph_credentials (
 	    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	    tenant_id VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 	    client_id VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-	    -- Encrypted with the server private key, as abm_tokens.token is.
 	    client_secret BLOB NOT NULL,
-	    -- Set by the sync when the credential fails to authenticate or is denied, cleared on the next success. Drives
-	    -- the app-wide banner, as abm_tokens.token_invalid does.
+	    -- Set by the sync when the credential fails to authenticate or is denied, cleared on the next success.
 	    credential_invalid TINYINT(1) NOT NULL DEFAULT '0',
 	    last_synced_at DATETIME(6) NULL DEFAULT NULL,
 	    last_sync_error TEXT COLLATE utf8mb4_unicode_ci,
@@ -44,25 +37,7 @@ func Up_20260807130547(tx *sql.Tx) error {
 
 	// host_autopilot_devices stores the Windows-Autopilot-only per-device metadata for a host, keyed by host_id so the
 	// group tag survives the pending -> enrolled transition (the host row is reused when the device enrolls). Modeled
-	// on host_dep_assignments, Fleet's precedent for per-device pending metadata, which is the Apple counterpart of
-	// this table and likewise carries no mdm_ infix and no foreign key to hosts.
-	//
-	// There is deliberately no FOREIGN KEY to hosts: Fleet forbids them because they take locks on a very hot table
-	// (see handbook/engineering/scaling-fleet.md#foreign-keys-and-locking, enforced by CI). Cleanup on host deletion
-	// is handled by adding this table to hostRefs in server/datastore/mysql/hosts.go instead.
-	//
-	// autopilot_device_id is the Graph resource id of the Autopilot registration, distinct from entra_device_id
-	// (the Entra device object). It is recorded because it is the one stable, unique identifier Graph gives us:
-	// serial numbers are neither (Graph paginates this collection on serial, and placeholder serials such as
-	// "Default string" ship on real hardware), which is why the Graph client deduplicates its pages by this id.
-	//
-	// It carries no UNIQUE constraint: nothing looks a host up by it today, and the empty-string default would make
-	// one collide across rows. Add the constraint together with the first query that needs it, dropping the default
-	// at the same time.
-	//
-	// group_tag is VARCHAR(2048) because that is Intune's maximum group tag length; a narrower column would truncate
-	// silently. It is deliberately NOT indexed: at utf8mb4 that is 8192 bytes, well over InnoDB's 3072-byte index key
-	// limit. Filtering by group tag would need a prefix index.
+	// on host_dep_assignments, Fleet's precedent for per-device pending metadata.
 	_, err = tx.Exec(`
 	CREATE TABLE IF NOT EXISTS host_autopilot_devices (
 	    host_id INT UNSIGNED NOT NULL,

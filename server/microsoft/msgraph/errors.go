@@ -2,7 +2,6 @@ package msgraph
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -24,7 +23,12 @@ type Error struct {
 	Message string
 	// RetryAfter is populated from the Retry-After header when Graph throttles.
 	RetryAfter time.Duration
+	// Err is the underlying cause, when there is one.
+	Err error
 }
+
+// Unwrap exposes the underlying cause.
+func (e *Error) Unwrap() error { return e.Err }
 
 func (e *Error) Error() string {
 	if e.Code != "" {
@@ -58,12 +62,9 @@ type graphErrorBody struct {
 	} `json:"error"`
 }
 
-// newTokenError converts an OAuth2 token-endpoint failure into an *Error so callers classify it exactly as they
-// classify a Graph response.
-//
-// This matters because the most common misconfiguration by far, a wrong or expired client secret, fails at Entra's
-// token endpoint before Graph is ever reached. Without this it would surface as an opaque oauth2 error and be reported
-// as a generic connection problem rather than a rejected credential.
+// newTokenError converts an OAuth2 token-endpoint failure into an *Error so callers classify it exactly as they classify
+// a Graph response. The most common misconfiguration is a wrong or expired client secret, fails at Entra's token
+// endpoint before Graph is ever reached.
 func newTokenError(retrieveErr *oauth2.RetrieveError) *Error {
 	// RFC 6749 specifies 401 for invalid_client, but providers are inconsistent and some answer 400. Pin it so the
 	// credential is classified as rejected either way.
@@ -77,11 +78,15 @@ func newTokenError(retrieveErr *oauth2.RetrieveError) *Error {
 		message = string(retrieveErr.Body)
 	}
 
-	return &Error{StatusCode: status, Code: retrieveErr.ErrorCode, Message: message}
+	return &Error{StatusCode: status, Code: retrieveErr.ErrorCode, Message: message, Err: retrieveErr}
 }
 
+// maxErrorBodyBytes bounds how much of an unparseable response body is kept in the message. A 5xx from an edge proxy
+// can return a large HTML page, and this string ends up in logs and in the sync error surfaced to the admin.
+const maxErrorBodyBytes = 512
+
 func newGraphError(resp *http.Response, body []byte) *Error {
-	graphErr := &Error{StatusCode: resp.StatusCode, Message: string(body)}
+	graphErr := &Error{StatusCode: resp.StatusCode, Message: truncateBody(body)}
 
 	var parsed graphErrorBody
 	if err := json.Unmarshal(body, &parsed); err == nil && parsed.Error.Code != "" {
@@ -89,18 +94,34 @@ func newGraphError(resp *http.Response, body []byte) *Error {
 		graphErr.Message = parsed.Error.Message
 	}
 
-	// Retry-After is seconds on this API. A malformed or absent header just leaves the caller to pick its own backoff.
-	if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
-		if secs, err := strconv.Atoi(retryAfter); err == nil && secs >= 0 {
-			graphErr.RetryAfter = time.Duration(secs) * time.Second
-		}
-	}
+	graphErr.RetryAfter = parseRetryAfter(resp.Header.Get("Retry-After"))
 
 	return graphErr
 }
 
-// AsError extracts a *Error from a wrapped error chain, so callers can classify a failure without knowing how deeply
-// it was wrapped.
-func AsError(err error) (*Error, bool) {
-	return errors.AsType[*Error](err)
+func truncateBody(body []byte) string {
+	if len(body) > maxErrorBodyBytes {
+		return string(body[:maxErrorBodyBytes]) + "... (truncated)"
+	}
+	return string(body)
+}
+
+// parseRetryAfter handles both forms RFC 7231 allows for the header. Graph sends delta-seconds in practice, but an
+// HTTP-date would otherwise be read as zero backoff, which is worse than no value at all.
+func parseRetryAfter(header string) time.Duration {
+	if header == "" {
+		return 0
+	}
+	if secs, err := strconv.Atoi(header); err == nil {
+		if secs < 0 {
+			return 0
+		}
+		return time.Duration(secs) * time.Second
+	}
+	if when, err := http.ParseTime(header); err == nil {
+		if d := time.Until(when); d > 0 {
+			return d
+		}
+	}
+	return 0
 }
