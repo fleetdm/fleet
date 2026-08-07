@@ -274,7 +274,7 @@ The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's 
 - **TLS skip-verify hard-gated to localhost.** `FLEET_TLS_SKIP_VERIFY=true` paired with a non-loopback `FLEET_BASE_URL` makes the binary refuse to start (`logrus.Fatalf`) — copying a dev `.env` to a remote deploy can no longer expose the Fleet token to an on-path attacker.
 - **Strong `MCP_AUTH_TOKEN` enforced.** The server refuses to start if `MCP_AUTH_TOKEN` is shorter than 32 characters — a high-entropy token is the real defense against bearer brute force (`openssl rand -hex 32` satisfies it).
 - **Rate limiting / DoS protection belongs upstream.** The MCP runs no limiter of its own — Fleet typically runs behind a reverse proxy / edge that terminates TLS (above) and throttles requests, which is where per-client rate limiting belongs (Render's edge; or a reverse proxy / WAF such as nginx / Caddy / Cloudflare). The strong `MCP_AUTH_TOKEN` is the brute-force defense, and failed-auth requests are rejected by the MCP before they ever reach Fleet.
-- **API-only token required.** At startup the MCP calls `GET /api/v1/fleet/me` and **refuses to start unless `FLEET_API_KEY` belongs to an API-only Fleet user**. An API-only user has no UI session, its own audit identity, and — via Fleet's per-user role/team scoping — can be locked down to exactly the endpoints (and teams/fleets) the MCP needs, adding a Fleet-side authorization boundary on top of the MCP's bearer auth. Fails closed: if `/me` can't confirm the principal (Fleet unreachable or token invalid) the MCP won't start. To create one with the right access, see Fleet's docs: [Create an API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user), [the endpoints an API-only user can reach](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions), and [Using `fleetctl` with an API-only user](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user).
+- **API-only token required.** At startup the MCP calls `GET /api/v1/fleet/me` and **refuses to start unless `FLEET_API_KEY` belongs to an API-only Fleet user**. An API-only user has no UI session, its own audit identity, and — via Fleet's per-user role/team scoping — can be locked down to exactly the endpoints (and teams/fleets) the MCP needs, adding a Fleet-side authorization boundary on top of the MCP's bearer auth. Fails closed: if `/me` can't confirm the principal (Fleet unreachable or token invalid) the MCP won't start. To create one with the right access, see Fleet's docs: [Create an API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user), [the endpoints an API-only user can reach](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions), and [Using `fleetctl` with an API-only user](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user). If you restrict the user to specific endpoints, allowlist the routes in [Required Fleet API endpoints](#required-fleet-api-endpoints); a startup self-check probes each route and logs any that come back 403.
 - **Read vs run = the token's Fleet role.** The MCP acts with exactly the role of `FLEET_API_KEY` (it has no mode of its own), and Fleet enforces it. The read-only tools work with an **observer** token; the one mutating tool, `run_live_query`, needs **observer_plus** (or admin / maintainer / technician) per Fleet's RBAC — an observer token gets a `403`. **No maintainer or admin role is required.** Recommended: an API-only user with the **lowest role** your tools need — **observer** for a read-only deployment, **observer_plus** if you use `run_live_query`. The MCP doesn't infer or log these rights — it only enforces the API-only requirement above.
 - **Live queries run arbitrary osquery (scope the token).** `run_live_query` dispatches arbitrary osquery to devices — exactly like Fleet's own UI / `fleetctl` / live-query REST API, which the MCP proxies. Tables such as `curl` / `curl_certificate` / `carves` can make outbound requests or exfiltrate file content from a managed device (e.g. cloud-metadata credentials). **This is a Fleet/osquery capability, not specific to the MCP** — the MCP does not (and should not) special-case it. The MCP-layer control is a **least-privilege `FLEET_API_KEY`** (an observer token → Fleet rejects live queries entirely). To remove the capability everywhere (UI, `fleetctl`, scheduled, MCP), disable the tables on the osquery agent: `--disable_tables=curl,curl_certificate,carves,yara,yara_events` via fleetd/orbit agent options.
 - **Body size cap on SSE transport.** `http.MaxBytesReader` caps every incoming request body at 1 MiB. Hostile clients cannot OOM the MCP via oversized JSON-RPC payloads.
@@ -283,6 +283,50 @@ The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's 
 - **PII-safe debug logs.** The Fleet API call log was changed to log only the route shape (path before any `?` query string) — host serials, user emails passed via `?query=`, and CVE IDs no longer leak to debug logs.
 - **CVE / policy / per_page input validation at the MCP layer.** `cve_id` must match `^CVE-\d{4}-\d{4,}$`, `policy_id` must be a positive integer, `per_page` is clamped to 200. Malformed inputs get a usable error message before any Fleet API call.
 - **Context propagation end-to-end.** Every FleetClient method takes `ctx context.Context`; MCP handler cancellation propagates through to in-flight Fleet API calls, including between iterations of fan-out paths (CVE compose, label intersection). A cancelled MCP request stops the whole fan-out instead of running every remaining HTTP call to completion.
+
+## Required Fleet API endpoints
+
+When the API-only user behind `FLEET_API_KEY` is restricted to specific endpoints (see [the endpoints an API-only user can reach](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions)), the allowlist must include every route below. This list is generated from `requiredEndpoints` in `startup_check.go`, which is the source of truth; a package test fails if the toolset starts calling a Fleet API route that isn't in that list.
+
+| Method | Endpoint | Used by |
+|---|---|---|
+| GET | `/api/v1/fleet/me` | startup API-only verification |
+| GET | `/api/v1/fleet/hosts` | `get_endpoints`, `get_host` (substring resolver), `run_live_query` targeting, `get_vulnerability_hosts`, `get_policy_hosts` |
+| GET | `/api/v1/fleet/hosts/count` | `get_endpoints` (scoped `total`) |
+| GET | `/api/v1/fleet/hosts/:id` | `get_host`, `get_host_policies`, `get_host_users`, label-listing enrichment |
+| GET | `/api/v1/fleet/hosts/:id/software` | `get_software` (per-host mode) |
+| GET | `/api/v1/fleet/hosts/identifier/:identifier` | `get_host` / `get_host_policies` identifier fallback |
+| GET | `/api/v1/fleet/host_summary` | `get_aggregate_platforms` |
+| GET | `/api/v1/fleet/labels` | `get_labels`, label/platform name resolution |
+| GET | `/api/v1/fleet/labels/:id/hosts` | label- and platform-filtered host listings |
+| GET | `/api/v1/fleet/fleets` | `get_fleets`, fleet name resolution |
+| GET | `/api/v1/fleet/fleets/:id/policies` | `get_policies` (per-fleet) |
+| GET | `/api/v1/fleet/fleets/:fleet_id/policies/:policy_id` | `get_policy_compliance` (fleet-scoped) |
+| GET | `/api/v1/fleet/global/policies` | `get_policies` |
+| GET | `/api/v1/fleet/global/policies/:id` | `get_policy_compliance` |
+| GET | `/api/v1/fleet/reports` | `get_queries` |
+| POST | `/api/v1/fleet/reports/run` | `run_live_query` (multi-host campaign) |
+| GET | `/api/v1/fleet/software/titles` | `get_software` (cross-host mode), `get_vulnerability_impact`, `get_vulnerability_hosts` |
+| GET | `/api/v1/fleet/software/titles/:id` | CVE-to-vulnerable-version lookup |
+| POST | `/api/v1/fleet/hosts/:id/query` | `run_live_query` (single host) |
+
+Not in the allowlist:
+
+- `GET /api/v1/fleet/results/websocket` is also used (live query result streaming) but is a raw handler that is **not** subject to endpoint restrictions, so it needs no allowlist entry.
+- The developer-only `-seed` mode additionally calls `POST /api/v1/fleet/reports` to create saved queries. Normal MCP serving never does.
+
+### Startup self-check
+
+After the API-only verification, the server probes every route above with the configured token and logs a warning for each one that returns HTTP 403, plus a summary:
+
+```
+level=warning msg="startup self-check: GET /api/v1/fleet/software/titles returned HTTP 403 — blocked by the API-only user's endpoint restrictions or the token's role; MCP tools that call it will fail"
+level=warning msg="startup self-check: 1 of 19 required Fleet API endpoints blocked for this token; update the API-only user's endpoint allowlist ..."
+```
+
+The check runs in the background so readiness never waits on it: `/healthz` (SSE) and the stdio JSON-RPC stream come up immediately, and the probe results land in the logs within seconds (30s cap on a slow Fleet).
+
+This catches a stale allowlist at deploy time instead of surfacing as opaque `403` tool failures for end users. The check is non-fatal: the server still starts, since the remaining tools keep working and a 403 can also reflect an intentional role limit rather than allowlist drift. Probes are side-effect free: path IDs use `0` / a sentinel identifier that never exists, and the two POST probes send intentionally invalid bodies that Fleet rejects during validation before any query or campaign is created.
 
 ## Deploying to Render
 
@@ -306,6 +350,7 @@ The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's 
 ```
 cmd/fleet-mcp/
   main.go                  # entrypoint, flag parsing, transport selection, http.Server timeouts, body-size cap
+  startup_check.go         # requiredEndpoints list + startup self-check that probes each route and warns on 403
   config.go                # env-var loading
   auth.go                  # bearer-auth middleware (SSE)
   route_guard.go           # SSE route allow-list
@@ -333,7 +378,8 @@ Tunables (env vars) for the schema layer:
 2. Pick the right domain file (`mcp_tools_hosts.go`, `mcp_tools_queries.go`, `mcp_tools_policies.go`, or `mcp_tools_inventory.go`) and add a `register<ToolName>` function.
 3. Wire the new register function into the matching `register<Domain>Tools` orchestrator at the top of the same file.
 4. Always set `readOnly` / `destructive` / `idempotent` annotations so Claude Desktop can advertise it.
-5. Build and run the smoke test from the [Smoke-test stdio mode](#smoke-test-stdio-mode-without-claude-desktop) section.
+5. If the tool calls a Fleet API route not already used by the package, add it to `requiredEndpoints` in `startup_check.go` and to the [Required Fleet API endpoints](#required-fleet-api-endpoints) table — `TestRequiredEndpointsCoverSourcePaths` fails until the code list is updated.
+6. Build and run the smoke test from the [Smoke-test stdio mode](#smoke-test-stdio-mode-without-claude-desktop) section.
 
 ### Operational learnings
 

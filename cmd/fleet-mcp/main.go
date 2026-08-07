@@ -106,6 +106,11 @@ func main() {
 		return
 	}
 
+	// Diagnostic-only, so it runs concurrently with serving: readiness
+	// (/healthz on SSE, stdin on stdio) must not wait up to
+	// startupCheckTimeout on a slow Fleet.
+	go verifyRequiredEndpoints(ctx, fleetClient)
+
 	mcpServer := SetupMCPServer(config, fleetClient)
 
 	if *transport == "stdio" {
