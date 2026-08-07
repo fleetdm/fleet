@@ -9,7 +9,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/classify"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/paths"
 )
 
 // vscodeEditor maps an editor label to the home-relative extensions directory
@@ -42,7 +41,10 @@ type vscodeManifest struct {
 	DisplayName string `json:"displayName"`
 }
 
-func scanVSCodeFamily(h homes.Home, _ paths.Roots) []Plugin {
+// scanVSCodeProfiles reports the AI extensions installed under one user's
+// profile. Keys of the rows it produces are added to seen so the bundled pass
+// (scanVSCodeBuiltins) can skip an extension that is already reported here.
+func scanVSCodeProfiles(h homes.Home, seen map[string]struct{}) []Plugin {
 	var out []Plugin
 	for _, ed := range vscodeEditors() {
 		dir := filepath.Join(h.Dir, ed.relPath)
@@ -64,28 +66,47 @@ func scanVSCodeFamily(h homes.Home, _ paths.Roots) []Plugin {
 			if !ok {
 				continue
 			}
-			id := strings.ToLower(m.Publisher + "." + m.Name)
-			if m.Publisher == "" {
-				id = strings.ToLower(m.Name)
-			}
-			isAI, cat := classify.VSCodePlugin(id, m.DisplayName)
-			if !isAI {
+			p, cat, ok := vscodePluginFromManifest(m, ed.editor, manifestPath, filepath.Join(dir, folder))
+			if !ok {
 				continue // AI tools only — skip non-AI extensions
 			}
-			p := Plugin{
-				Editor:       ed.editor,
-				EditorFamily: "vscode",
-				PluginID:     id,
-				Name:         firstNonEmptyStr(m.DisplayName, m.Name),
-				Version:      m.Version,
-				Publisher:    m.Publisher,
-				InstallPath:  filepath.Join(dir, folder),
-				ManifestPath: manifestPath,
-			}
+			seen[vscodePluginKey(ed.editor, p.PluginID)] = struct{}{}
 			out = append(out, p.finish(h, cat))
 		}
 	}
 	return out
+}
+
+// vscodePluginFromManifest derives a plugin row from a package.json, shared by
+// the user-profile and bundled-extension scanners. It reports false for anything
+// that is not an AI extension.
+//
+// TODO: classify on the capabilities a manifest declares, not just its id and
+// display name. An extension contributing chatParticipants, languageModels or
+// mcpServerDefinitionProviders is an AI extension by VS Code's own API surface,
+// whatever it calls itself — which is how we would catch vendor-bundled AI that
+// the KB has never seen (Cursor's and Windsurf's own built-ins) and extensions
+// whose only name signal is a localized placeholder. Name matching stays as the
+// fallback for extensions that predate those contribution points.
+func vscodePluginFromManifest(m vscodeManifest, editor, manifestPath, installPath string) (Plugin, string, bool) {
+	id := strings.ToLower(m.Publisher + "." + m.Name)
+	if m.Publisher == "" {
+		id = strings.ToLower(m.Name)
+	}
+	isAI, cat := classify.VSCodePlugin(id, m.DisplayName)
+	if !isAI {
+		return Plugin{}, "", false
+	}
+	return Plugin{
+		Editor:       editor,
+		EditorFamily: "vscode",
+		PluginID:     id,
+		Name:         firstNonEmptyStr(m.DisplayName, m.Name),
+		Version:      m.Version,
+		Publisher:    m.Publisher,
+		InstallPath:  installPath,
+		ManifestPath: manifestPath,
+	}, cat, true
 }
 
 func readVSCodeManifest(path string) (vscodeManifest, bool) {
@@ -118,11 +139,4 @@ func readObsolete(dir string) map[string]struct{} {
 		}
 	}
 	return out
-}
-
-func firstNonEmptyStr(a, b string) string {
-	if strings.TrimSpace(a) != "" {
-		return a
-	}
-	return b
 }

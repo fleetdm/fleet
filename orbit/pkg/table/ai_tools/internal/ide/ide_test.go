@@ -18,6 +18,16 @@ func write(t *testing.T, path, content string) {
 	}
 }
 
+// useAppRoots points the bundled-extension scan at fixture directories for the
+// duration of the test, so Scan never reads the applications actually installed
+// on the machine running the tests.
+func useAppRoots(t *testing.T, roots ...appRoot) {
+	t.Helper()
+	prev := vscodeAppRoots
+	vscodeAppRoots = func([]homes.Home) []appRoot { return roots }
+	t.Cleanup(func() { vscodeAppRoots = prev })
+}
+
 func TestScanVSCodeFamily(t *testing.T) {
 	home := t.TempDir()
 	extDir := filepath.Join(home, ".vscode", "extensions")
@@ -31,7 +41,12 @@ func TestScanVSCodeFamily(t *testing.T) {
 		`{"name":"ext","publisher":"old","version":"0.0.1","displayName":"Old"}`)
 	write(t, filepath.Join(extDir, ".obsolete"), `{"old.ext-0.0.1": true}`)
 
-	got := Scan(homes.Home{Dir: home, Username: "tester"})
+	useAppRoots(t) // no application installs: this test covers the profile scan only
+
+	got, err := Scan(t.Context(), []homes.Home{{Dir: home, Username: "tester"}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	by := map[string]Plugin{}
 	for _, p := range got {
 		by[p.PluginID] = p
@@ -46,6 +61,10 @@ func TestScanVSCodeFamily(t *testing.T) {
 	}
 	if cop.Version != "1.250.0" || cop.Publisher != "github" || cop.EditorFamily != "vscode" {
 		t.Errorf("copilot metadata wrong: %+v", cop)
+	}
+	// A profile extension belongs to the user whose home it was found in.
+	if cop.Scope != scopeUser || cop.Username != "tester" {
+		t.Errorf("scope=%q username=%q want user/tester", cop.Scope, cop.Username)
 	}
 	// The table surfaces AI tools only: a non-AI extension (Prettier) must not appear.
 	if _, ok := by["esbenp.prettier-vscode"]; ok {
