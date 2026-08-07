@@ -3481,7 +3481,8 @@ func (svc *Service) OSVersions(
 	}
 
 	// Sort by version or hosts_count (default: hosts_count desc, to match previous behavior)
-	if opts.OrderKey == "version" {
+	switch opts.OrderKey {
+	case "version":
 		// compareOSVersions ties on versions it can't parse (e.g. two Arch Linux
 		// "rolling" rows) and on genuinely equal versions across platforms/names,
 		// so break ties on OSVersionID (unique per NameOnly/Version combination)
@@ -3503,11 +3504,18 @@ func (svc *Service) OSVersions(
 				return osVersions.OSVersions[i].OSVersionID < osVersions.OSVersions[j].OSVersionID
 			})
 		}
-	} else if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
-		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
-			return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
-		})
-	} else {
+	case "hosts_count":
+		if opts.OrderDirection == fleet.OrderAscending {
+			sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+				return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
+			})
+		} else {
+			sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+				return osVersions.OSVersions[i].HostsCount > osVersions.OSVersions[j].HostsCount
+			})
+		}
+	default:
+		// No order key specified: default to hosts_count descending.
 		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
 			return osVersions.OSVersions[i].HostsCount > osVersions.OSVersions[j].HostsCount
 		})
@@ -3619,12 +3627,9 @@ func compareOSVersions(a, b string) int {
 		return 1
 	}
 
-	maxLen := len(aSegments)
-	if len(bSegments) > maxLen {
-		maxLen = len(bSegments)
-	}
+	maxLen := max(len(aSegments), len(bSegments))
 
-	for i := 0; i < maxLen; i++ {
+	for i := range maxLen {
 		var aPart, bPart int
 		if i < len(aSegments) {
 			aPart = aSegments[i]
