@@ -21,6 +21,15 @@ if (-not (Test-Path $vswhere) -or -not (Test-Path $vsInstaller)) {
 }
 
 $installPath = & $vswhere -products Microsoft.VisualStudio.Product.Community -version "[17.0,18.0)" -property installationPath
+
+# vswhere reports failure through the exit code rather than by throwing. Without
+# this check a failed query looks identical to "no instance installed", and the
+# script would exit 0 leaving an install in place.
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "vswhere.exe failed with exit code $LASTEXITCODE"
+  Exit 1
+}
+
 $installPath = ($installPath | Select-Object -First 1)
 
 if (-not $installPath) {

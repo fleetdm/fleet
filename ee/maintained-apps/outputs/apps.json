@@ -9050,7 +9050,7 @@
       "slug": "visual-studio-2022-professional/windows",
       "platform": "windows",
       "unique_identifier": "Visual Studio Professional 2022",
-      "description": "Visual Studio Professional 2022 is Microsoft's IDE for professional developers, built for building apps across desktop, web, mobile, and cloud."
+      "description": "Visual Studio Professional 2022 is Microsoft's IDE for professional developers working across desktop, web, mobile, and cloud."
     },
     {
       "name": "Microsoft Visual Studio Code",
