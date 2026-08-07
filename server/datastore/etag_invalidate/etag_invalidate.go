@@ -90,10 +90,12 @@ type Datastore struct {
 	errLogLast atomic.Int64
 }
 
-// New wraps ds. The decorator is intentionally always-on whenever Redis is
-// configured (even when the osquery.redis_config_etags feature flag is off)
-// so the generation counter stays coherent — flipping the flag on later is
-// then immediately safe.
+// New wraps ds. The decorator is wired only when the config ETag feature is
+// effectively enabled (osquery.config_etags AND osquery.redis_config_etags):
+// with the feature off, no config ETag Redis I/O may happen at all, hooks
+// included. Flipping the feature on later is still safe because every
+// enabling boot bumps the ETag generation before serving (see initRedis), so
+// records from a window without these hooks can never validate.
 func New(ds fleet.Datastore, store fleet.ConfigETagStore, logger *slog.Logger) *Datastore {
 	return &Datastore{
 		Datastore: ds,

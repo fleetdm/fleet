@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -577,6 +578,37 @@ func TestConfigETagBodyContract(t *testing.T) {
 	assert.True(t, unchanged.NotModified)
 	assert.Nil(t, unchanged.Body)
 	assert.Nil(t, unchanged.BodyWithETag)
+}
+
+// TestConfigETagFeatureDisabled pins the osquery.config_etags escape hatch:
+// with the flag off, the agent's etag is ignored entirely — no match is ever
+// possible, the response is the legacy body with no etag key, and no etag
+// store I/O happens, even with a warm store and a matching validator.
+func TestConfigETagFeatureDisabled(t *testing.T) {
+	ds := newETagTestDS()
+	cfg := config.TestConfig()
+	cfg.Osquery.ConfigETags = false
+	svc, baseCtx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	store := &stubConfigETagStore{etag: "stored", valid: true}
+	svc.SetConfigETagStore(store)
+
+	ctx := hostctx.NewContext(baseCtx, &fleet.Host{ID: 1, Platform: "darwin"})
+
+	// Even echoing the exact stored validator gets a full legacy build.
+	result, err := svc.GetClientConfigWithETag(ctx, new("stored"))
+	require.NoError(t, err)
+	assert.False(t, result.NotModified)
+	require.NotNil(t, result.Body)
+	assert.NotContains(t, string(result.Body), `"etag"`)
+	assert.Nil(t, result.BodyWithETag, "disabled feature must never emit an etag key")
+	assert.Equal(t, "off", result.Mode)
+	assert.Equal(t, "full_no_validator", result.CacheStatus)
+
+	// The store is never consulted or written.
+	assert.Equal(t, 0, store.getCalls)
+	assert.Equal(t, 0, store.hostGetCalls)
+	assert.Equal(t, 0, store.setCalls)
+	assert.Equal(t, 0, store.hostSetCalls)
 }
 
 // TestConfigETagGateLoaders exercises the real loaders (userPacksExist,

@@ -826,7 +826,18 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 		return nil, newOsqueryError("internal error: missing host from request context")
 	}
 
+	// ██ ESCAPE HATCH ██ osquery.config_etags=false disables conditional
+	// requests entirely: the agent's etag field is ignored (as if never
+	// sent), the response never carries an "etag" key or the "unchanged"
+	// body, and no etag store I/O happens — byte-identical to the
+	// pre-feature behavior for every agent. Distinct from
+	// osquery.redis_config_etags, which only disables the Redis short
+	// circuit and leaves the protocol active.
 	store := svc.configETagStore
+	if !svc.config.Osquery.ConfigETags {
+		clientETag = nil
+		store = nil
+	}
 	scope := clientConfigETagScope(host)
 
 	// Cache-mode selection from the two cached gate answers. Their loaders

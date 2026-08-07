@@ -632,22 +632,35 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	// ██ OSQUERY CONFIG ETAG SHORT CIRCUIT ██ Injecting the store is the ONE
 	// thing that enables it — without this call the service field stays nil
-	// and every config request takes the full-build path. The invalidation
-	// hooks (etag_invalidate, wired in initRedis) run regardless of the flag
-	// so the Redis generation counter stays coherent, making it safe to flip
-	// the flag on/off between restarts. See
-	// fleet.OsqueryService.GetClientConfigWithETag for the full contract.
-	if svc != nil && config.Osquery.RedisConfigETags && configETagStore != nil {
+	// and every config request takes the full-build path. initRedis only
+	// constructs the store (and the etag_invalidate hooks) when
+	// effectiveRedisConfigETags is true and the startup generation bump
+	// succeeded; with the feature gated off, no config ETag Redis code runs
+	// at all. See fleet.OsqueryService.GetClientConfigWithETag for the full
+	// contract.
+	if !config.Osquery.ConfigETags {
+		// The protocol-level escape hatch: the service ignores agents' etag
+		// fields entirely.
+		logger.InfoContext(ctx, "osquery conditional config requests DISABLED by escape hatch; every config response is the full config with no etag",
+			"component", "config-etag", "flag", "osquery.config_etags")
+		if config.Osquery.RedisConfigETags {
+			logger.WarnContext(ctx, "osquery.redis_config_etags cannot be enabled while osquery.config_etags is false; the Redis short circuit is forced off and no config etag Redis I/O will occur",
+				"component", "config-etag")
+		}
+	}
+	if svc != nil && effectiveRedisConfigETags(config) && configETagStore != nil {
 		svc.SetConfigETagStore(configETagStore)
 		logger.InfoContext(ctx, "osquery config ETag short circuit ENABLED: matching config check-ins are answered 'unchanged' from Redis without building the config",
 			"component", "config-etag", "flag", "osquery.redis_config_etags")
 	} else {
-		// Neutral message: this branch is reached when the flag is off, but
-		// also when the store was not configured (Redis init failure path)
-		// or svc is nil — the fields say which.
+		// Neutral message: this branch is reached when either flag gates the
+		// feature off, but also when the store was not constructed (Redis
+		// init failure or failed startup generation bump) or svc is nil —
+		// the fields say which.
 		logger.InfoContext(ctx, "osquery config ETag short circuit disabled; all config requests take the full-build path",
 			"component", "config-etag",
 			"flag_enabled", config.Osquery.RedisConfigETags,
+			"feature_enabled", config.Osquery.ConfigETags,
 			"store_configured", configETagStore != nil)
 	}
 
