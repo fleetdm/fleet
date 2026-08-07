@@ -22,7 +22,7 @@ export interface IInstallAllInCategoryButtonProps {
    * every uninstalled item the device user is entitled to. */
   categoryId?: number;
   /** Current search query. When non-empty, forwarded to install_all so the
-   * request scopes to the filtered subset the user sees on screen (#50528). */
+   * request scopes to the filtered subset the user sees on screen. */
   query?: string;
   /** Called after the install_all request resolves successfully. */
   onSuccess: () => void;

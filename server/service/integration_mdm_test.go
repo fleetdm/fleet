@@ -25706,9 +25706,9 @@ func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
 		require.Equal(t, []string{"chrome", "slack", "zoom"}, macQueued)
 	})
 
-	// #50528: with a search query on the self-service page, install_all should
-	// queue only the titles whose name matches — matching what the user sees
-	// on screen.
+	// With a search query on the self-service page, install_all should queue
+	// only the titles whose name matches — matching what the user sees on
+	// screen.
 	t.Run("scopes to the query parameter when provided", func(t *testing.T) {
 		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 		require.NoError(t, err)

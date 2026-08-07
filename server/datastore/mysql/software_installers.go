@@ -4666,7 +4666,7 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 	}
 	opts.ListOptions.OrderKey = "name"
 	// Match the same MatchQuery semantics as the self-service list endpoint so
-	// "Install all" queues exactly what the user sees on screen (#50528).
+	// "Install all" queues exactly what the user sees on screen.
 	opts.ListOptions.MatchQuery = matchQuery
 
 	software, _, err := ds.ListHostSoftware(ctx, host, opts)

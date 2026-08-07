@@ -981,7 +981,7 @@ type fleetSelfServiceSoftwareInstallAllRequest struct {
 	CategoryID *uint  `query:"category_id,optional"`
 	// Query mirrors the `query` param on the self-service list endpoint. When
 	// set, only titles whose name matches are queued — so the button installs
-	// exactly what the user sees on screen (#50528).
+	// exactly what the user sees on screen.
 	Query string `query:"query,optional"`
 }
 

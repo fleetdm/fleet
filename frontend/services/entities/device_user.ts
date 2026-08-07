@@ -125,7 +125,7 @@ export default {
     // getPathWithQueryParams already drops undefined values, so the BE
     // receives a bare POST and installs every uninstalled item.
     // When `query` is passed through, install_all scopes to the same subset
-    // the user sees on screen (#50528). Trim + coerce empty to `undefined` so
+    // the user sees on screen. Trim + coerce empty to `undefined` so
     // whitespace-only queries (which don't filter the visible list) don't
     // land on the BE as `LIKE '% %'` and return no matches.
     const trimmed = query?.trim();

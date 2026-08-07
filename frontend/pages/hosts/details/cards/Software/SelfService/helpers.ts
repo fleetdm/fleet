@@ -103,9 +103,9 @@ export const filterSoftwareByCustomCategory = (
 // Client-side name-match filter used by the desktop "Install all" count and
 // the mobile tile list. Kept in sync with `SelfServiceTable`'s
 // `searchQueryColumn="name"` (raw name, case-insensitive contains) and the
-// backend `MatchQuery` on `software_titles.name`. #50528: also drives the
-// `query` param sent to install_all so the button installs exactly what the
-// user sees on screen.
+// backend `MatchQuery` on `software_titles.name`. Also drives the `query`
+// param sent to install_all so the button installs exactly what the user
+// sees on screen.
 export const filterSoftwareByQuery = (
   software: IDeviceSoftwareWithUiStatus[],
   query: string | undefined
