@@ -193,38 +193,37 @@ describe("InstallAllInCategoryButton", () => {
     expect(requestedUrl).toContain("category_id=1");
   });
 
-  it("omits the query param when the search query is empty or whitespace-only", async () => {
-    // Whitespace-only would otherwise reach the BE as `LIKE '% %'` and return
-    // zero results, contradicting the on-screen count.
-    for (const emptyish of ["", "   "]) {
-      let requestedUrl = "";
-      mockServer.use(
-        http.post(
-          baseUrl("/device/:token/software/install_all"),
-          ({ request }) => {
-            requestedUrl = request.url;
-            return new HttpResponse(null, { status: 202 });
-          }
-        )
-      );
-      const render = createCustomRenderer({ withBackendMock: true });
-      const user = userEvent.setup();
-      const { unmount } = render(
-        <InstallAllInCategoryButton {...baseProps} query={emptyish} />
-      );
+  // Whitespace-only queries don't filter the visible list, so they must also
+  // be dropped from the outgoing request; otherwise the BE and the on-screen
+  // count would disagree.
+  it.each([
+    ["empty", ""],
+    ["whitespace-only", "   "],
+  ])("omits the query param when the search query is %s", async (_, q) => {
+    let requestedUrl = "";
+    mockServer.use(
+      http.post(
+        baseUrl("/device/:token/software/install_all"),
+        ({ request }) => {
+          requestedUrl = request.url;
+          return new HttpResponse(null, { status: 202 });
+        }
+      )
+    );
+    const render = createCustomRenderer({ withBackendMock: true });
+    const user = userEvent.setup();
+    render(<InstallAllInCategoryButton {...baseProps} query={q} />);
 
-      await user.click(
-        screen.getByRole("button", { name: /Install all \(3\)/i })
-      );
-      await user.click(
-        await screen.findByRole("button", { name: /^Install all$/i })
-      );
+    await user.click(
+      screen.getByRole("button", { name: /Install all \(3\)/i })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /^Install all$/i })
+    );
 
-      await waitFor(() => {
-        expect(requestedUrl).not.toContain("query=");
-      });
-      unmount();
-    }
+    await waitFor(() => {
+      expect(requestedUrl).not.toContain("query=");
+    });
   });
 
   it("trims whitespace on the outgoing query param", async () => {
