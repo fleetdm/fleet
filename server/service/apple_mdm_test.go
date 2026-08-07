@@ -9601,7 +9601,7 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 		activation := activationBytesForTest("com.fleet.actD1", "com.fleet.configOther")
 
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, activation)
-		require.ErrorContains(t, err, "Activation must reference the configuration profile it's uploaded with")
+		require.ErrorContains(t, err, "The custom activation must reference the identifier of the configuration profile used to upload it")
 	})
 
 	t.Run("malformed activation is rejected", func(t *testing.T) {
