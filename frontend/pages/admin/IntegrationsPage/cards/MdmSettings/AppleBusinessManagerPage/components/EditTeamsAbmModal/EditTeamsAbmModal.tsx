@@ -111,14 +111,21 @@ const EditTeamsAbmModal = ({
           tokenId: token.id,
           teams: getSelectedTeamIds(selectedTeamNames, availableTeams),
         });
-        notify.success("Successfully updated fleets for AB token.");
+        notify.success(`Successfully updated fleets for ${token.org_name}`);
         onSuccess();
       } catch (e) {
         notify.error("Couldn’t edit. Please try again.", { response: e });
         onCancel();
       }
     },
-    [token.id, selectedTeamNames, availableTeams, onSuccess, onCancel]
+    [
+      token.id,
+      token.org_name,
+      selectedTeamNames,
+      availableTeams,
+      onSuccess,
+      onCancel,
+    ]
   );
 
   return (

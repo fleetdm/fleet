@@ -112,38 +112,29 @@ All conversation about an unfixed vulnerability stays in the confidential repo â
 **Link the PR back to the confidential ticket.** Since the PR description can't reference the confidential issue, post a comment on the confidential ticket with the PR URL when the PR opens (and again when it merges). That's how we maintain the audit trail without exposing the link publicly.
 
 
-#### Notify stakeholders when a user story is pushed to the next release
-
-[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be built in a single release cycle. When an Engineering Manager (EM) knows a user story will be pushed, it is the EM's responsibility to notify stakeholders:
-
-1. Send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
-2. If `customer-` labels are applied to the user story, also at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
-
-> Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
-
-
 ### Community contributions
+
+Fleet values every community contribution. We want to be upfront about how our engineering workflow has evolved so contributors know what to expect.
+
+Fleet uses AI tools extensively to accelerate code development. This means that writing code is no longer the team's bottleneck. Instead, the primary engineering work has shifted to deep code review: understanding the design, evaluating architecture decisions, assessing security implications, and ensuring the team fully owns every line that ships. Fleet is committed to understanding every line of code that goes into the product, regardless of who wrote it.
+
+Because of this shift, the review effort for any change is the same regardless of who wrote the code. Every contribution receives the same depth of review that Fleet applies to its own work. Larger or more complex PRs may take longer to review as the team fits them into their planned work. Bug reports with clear reproduction steps, feature requests, and design feedback remain especially valuable.
 
 #### Review a community pull request
 
-If you're assigned a community pull request (PR) for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor. This applies to PRs from Fleeties, open source contributors, member of the Customer Success team, etc.
+The goal is to not go more than one business day without responding to the contributor and routing the PR to the right team. This applies to PRs from Fleeties, open source contributors, members of the Customer Success team, etc.
 
-If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
+1. **On-call triage**: All community PRs are first reviewed by the on-call engineer, who routes the PR to the appropriate product group's EM. Internal Fleeties who already know the owning team can go directly to the EM.
 
-If the PR is a bug fix that the author has not validated manually, close the PR. Notify the author that the PR will be re-opened and reviewed after they validate the fix.
+2. **Classification** (EM): The Engineering Manager (EM) of the owning product group determines what type of change this is: bug fix, reliability improvement, product change, or something else.
 
-Make sure to create a Github issue and link it to the PR so that we can track the changes in our release process. Make sure to assign the correct milestone to the issue (by having an issue, QA will make sure the fix is not causing regressions).
+3. **Decision gate**: Based on the type, the right person decides whether this is something we want to pursue:
+   - Product changes (UI, user-facing behavior, API responses or endpoints, configuration options, CLI commands, or significant documentation changes that alter the product definition or meaning): the Product Designer (PD) decides.
+   - Bug fixes, typo fixes, minor documentation improvements, and reliability issues: the Engineering Manager decides.
 
-**For PRs that change the product:**
+   If the PR is not something we want to pursue, thank the contributor, explain the reasoning, optionally invite them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=), and close the PR.
 
-- Assign the PR to the appropriate Product Designer (PD).
-- @ mention the relevant PD in a comment on the PR.
-
-The PD will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The PD should:
-
-- Set the PR to draft.
-- Immediately decide whether to prioritize a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) and bring it through drafting or put the change to the side (not prioritize).
-- Thank the contributor for their hard work, notify them on whether their change was prioritized or put to the side. If the change was put to the side, ask the contributor to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describes the change, let them know that it only means the change has been rejected _at that time_, and close the PR.
+4. **Track the work**: Create an issue using the relevant [work item](https://fleetdm.com/handbook/company/product-groups#work-items) issue template. The issue then moves across the relevant product group's board following the [standard process](https://fleetdm.com/handbook/company/product-groups#how-issues-move).
 
 
 #### Merge a community pull request

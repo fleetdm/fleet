@@ -117,15 +117,17 @@ export default {
 
   installAllSelfServiceSoftwareInCategory: (
     deviceToken: string,
-    categoryId?: number
+    categoryId?: number,
+    query?: string
   ) => {
     const { DEVICE_SOFTWARE_INSTALL_ALL } = endpoints;
-    // When categoryId is undefined ("All" selected) we omit the query param;
-    // getPathWithQueryParams already drops undefined values, so the BE
-    // receives a bare POST and installs every uninstalled item.
+    // `getPathWithQueryParams` drops undefined values, so an omitted
+    // `categoryId` means "install all categories" and an omitted `query`
+    // means "no name filter" — matching the endpoint's optional semantics.
+    // Callers are expected to hand a trimmed query (or an empty string).
     const path = getPathWithQueryParams(
       DEVICE_SOFTWARE_INSTALL_ALL(deviceToken),
-      { category_id: categoryId }
+      { category_id: categoryId, query: query || undefined }
     );
     return sendRequest("POST", path);
   },

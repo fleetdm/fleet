@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from "react";
 import {
   api,
   type NgrokYamlInfo,
+  type NgrokRunningTunnel,
   type ProcInfo,
+  type ServerProfile,
   type Settings,
-} from "../../lib/tauri";
+} from "../../lib/ipc";
 import {
-  BUILD_CHAIN as BUILD_STEPS,
+  buildChainFor,
   dockerUpWithStaleCleanup,
   ngrokArgsFor,
+  staleNgrokTunnels,
   ngrokIsLaunchable,
   pythonArgsFor,
   serveArgsFor,
@@ -18,13 +21,18 @@ import {
   stopAll as orchestrationStopAll,
   waitForExit,
 } from "../../lib/orchestration";
+import {
+  dockerUpArgs,
+  prepareDbArgsFor,
+  procId,
+  serveChannel,
+  updateServer,
+} from "../../lib/servers";
 import type {
   DockerHealth,
   ServeStatus,
 } from "../../lib/useSystemHealth";
 import type { SettingsSection } from "./SettingsTab";
-
-type LogChannel = "fleet-serve";
 
 type ChainStep = {
   id: string;
@@ -34,7 +42,7 @@ type ChainStep = {
   /// "skip awaiting spawn exit in chain runAll" — for things like fleet
   /// serve where the spawn never returns. Pure chain-flow concern.
   longRunning?: boolean;
-  logChannel?: LogChannel;
+  logChannel?: string;
   /// When true, the step row hides the ■ button while running because
   /// the process is also represented in the Active processes panel
   /// where stop control lives.
@@ -44,52 +52,53 @@ type ChainStep = {
   /// LONG-RUNNING tag in the meta column. Set for steps that start a
   /// persistent service (docker compose up -d, fleet serve --dev).
   service?: boolean;
+  /// Identifies the special steps without string-matching ids (ids are now
+  /// per-server-namespaced): "docker-up" routes ▶ through the stale-cleanup
+  /// helper; "serve" gets the command preview rendered beneath it.
+  kind?: "docker-up" | "serve";
   /// Env vars to apply on the spawn, as [key, value] tuples (matches
   /// the IPC shape). Only meaningful for the fleet-serve step right
   /// now — the build chain inherits the parent env unmodified.
   env?: Array<[string, string]>;
 };
 
-// Build chain definition lives in lib/orchestration so the tray can run
-// the same flow; widen here to ChainStep so ChainCard can render it.
-const BUILD_CHAIN: ChainStep[] = BUILD_STEPS;
-
-/// Build the run chain from current settings — the fleet-serve step's
-/// argv is derived from `settings.fleet_serve` so toggling premium /
-/// debug / config from anywhere updates the chain row and the spawn in
-/// one go.
-function runChainFor(settings: Settings): ChainStep[] {
+/// Build the run chain for a server — ids are namespaced to the server, the
+/// fleet-serve argv/env derive from the server's serve config + ports, and
+/// docker/prepare-db carry the per-server project/address flags.
+function runChainFor(server: ServerProfile): ChainStep[] {
   return [
     {
-      id: "docker-compose-up",
+      id: procId(server.id, "docker-compose-up"),
       label: "docker compose up -d",
       program: "docker",
-      args: ["compose", "up", "-d"],
+      args: dockerUpArgs(server),
       hideStop: true,
       service: true,
+      kind: "docker-up",
     },
     {
-      id: "fleet-prepare-db",
+      id: procId(server.id, "fleet-prepare-db"),
       label: "fleet prepare db --dev",
       program: "./build/fleet",
-      args: ["prepare", "db", "--dev"],
+      args: prepareDbArgsFor(server),
     },
     {
-      id: "fleet-serve",
-      label: serveLabelFor(settings),
+      id: procId(server.id, "fleet-serve"),
+      label: serveLabelFor(server),
       program: "./build/fleet",
-      args: serveArgsFor(settings),
-      env: serveEnvFor(settings),
+      args: serveArgsFor(server),
+      env: serveEnvFor(server),
       longRunning: true,
-      logChannel: "fleet-serve",
+      logChannel: serveChannel(server.id),
       hideStop: true,
       service: true,
+      kind: "serve",
     },
   ];
 }
 
 export function ServerTab({
-  repoPath,
+  server,
   settings,
   onSettingsChange,
   procs,
@@ -99,7 +108,7 @@ export function ServerTab({
   goToLogs,
   goToSettings,
 }: {
-  repoPath: string | null;
+  server: ServerProfile;
   settings: Settings;
   onSettingsChange: (next: Settings) => void;
   procs: ProcInfo[];
@@ -109,6 +118,8 @@ export function ServerTab({
   goToLogs: () => void;
   goToSettings: (section: SettingsSection) => void;
 }) {
+  const repoPath = server.worktree_path;
+  const buildChain: ChainStep[] = buildChainFor(server);
   const [now, setNow] = useState(Date.now());
   // Tracks which branch each Build chain step ran against, so we can
   // visually reset to ○ idle when the user switches branches.
@@ -153,7 +164,7 @@ export function ServerTab({
   const pythonRunning =
     pythonProc?.state === "running" || pythonProc?.state === "stopping";
 
-  const runChain = runChainFor(settings);
+  const runChain = runChainFor(server);
 
   return (
     <div
@@ -167,7 +178,7 @@ export function ServerTab({
       }}
     >
       <MasterControl
-        repoPath={repoPath}
+        server={server}
         settings={settings}
         serve={serve}
         docker={docker}
@@ -185,7 +196,8 @@ export function ServerTab({
         <ChainCard
           title="Build chain"
           subtitle="Install deps, bundle frontend, build fleet + fleetctl"
-          steps={BUILD_CHAIN}
+          steps={buildChain}
+          server={server}
           repoPath={repoPath}
           procs={procs}
           now={now}
@@ -197,12 +209,13 @@ export function ServerTab({
           title="Run chain"
           subtitle="Bring up dev environment"
           steps={runChain}
+          server={server}
           repoPath={repoPath}
           procs={procs}
           now={now}
           externalRunningByStepId={{
-            "docker-compose-up": docker.up,
-            "fleet-serve": serve.up,
+            [procId(server.id, "docker-compose-up")]: docker.up,
+            [procId(server.id, "fleet-serve")]: serve.up,
           }}
           header={
             <div style={{ display: "flex", gap: 6 }}>
@@ -212,12 +225,12 @@ export function ServerTab({
           }
           fleetServePreview={
             <ServePreview
-              settings={settings}
+              server={server}
               onTogglePremium={(premium) => {
-                const next: Settings = {
-                  ...settings,
-                  fleet_serve: { ...settings.fleet_serve, premium },
-                };
+                const next = updateServer(settings, server.id, (s) => ({
+                  ...s,
+                  fleet_serve: { ...s.fleet_serve, premium },
+                }));
                 onSettingsChange(next);
                 api.saveSettings(next).catch((e) =>
                   console.error("save serve settings failed", e),
@@ -230,7 +243,7 @@ export function ServerTab({
       </div>
 
       <ActiveProcessesPanel
-        repoPath={repoPath}
+        server={server}
         settings={settings}
         onSettingsChange={onSettingsChange}
         procs={procs}
@@ -247,7 +260,7 @@ export function ServerTab({
 }
 
 function MasterControl({
-  repoPath,
+  server,
   settings,
   serve,
   docker,
@@ -255,7 +268,7 @@ function MasterControl({
   pythonRunning,
   onBuildStepRun,
 }: {
-  repoPath: string;
+  server: ServerProfile;
   settings: Settings;
   serve: ServeStatus;
   docker: DockerHealth;
@@ -282,7 +295,7 @@ function MasterControl({
     setBusy("starting");
     try {
       await orchestrationStartAll({
-        repoPath,
+        server,
         settings,
         health: {
           serveUp: serve.up,
@@ -302,7 +315,7 @@ function MasterControl({
     setBusy("stopping");
     try {
       await orchestrationStopAll({
-        repoPath,
+        server,
         health: {
           serveUp: serve.up,
           dockerUp: docker.up,
@@ -363,22 +376,22 @@ function MasterControl({
 
 /// Preview + premium toggle rendered just under the fleet-serve row.
 /// Shows the exact `./build/fleet serve …` line that will spawn plus
-/// the env-var keys (values redacted). Premium toggle persists into
-/// `settings.fleet_serve.premium`; everything else (config path,
+/// the env-var keys (values redacted). Premium toggle persists into the
+/// active server's `fleet_serve.premium`; everything else (config path,
 /// debug flags, env values) lives in Settings → Fleet server.
 function ServePreview({
-  settings,
+  server,
   onTogglePremium,
   onConfigure,
 }: {
-  settings: Settings;
+  server: ServerProfile;
   onTogglePremium: (next: boolean) => void;
   onConfigure: () => void;
 }) {
-  const args = serveArgsFor(settings);
-  const env = serveEnvFor(settings);
+  const args = serveArgsFor(server);
+  const env = serveEnvFor(server);
   const cmdPreview = `./build/fleet ${args.join(" ")}`;
-  const premium = settings.fleet_serve.premium;
+  const premium = server.fleet_serve.premium;
 
   return (
     <div
@@ -569,6 +582,7 @@ function ChainCard({
   title,
   subtitle,
   steps,
+  server,
   repoPath,
   procs,
   now,
@@ -582,6 +596,7 @@ function ChainCard({
   title: string;
   subtitle: string;
   steps: ChainStep[];
+  server: ServerProfile;
   repoPath: string;
   procs: ProcInfo[];
   now: number;
@@ -602,14 +617,14 @@ function ChainCard({
     setError(null);
     onStepRun?.(step.id);
     try {
-      // docker compose up -d is special — a leftover fleet-mysql-1
-      // from a prior session causes "container name already in use"
-      // and the spawn exits 1. The helper does an idempotent
-      // `compose down` first to guarantee a clean slate. Start all
-      // has always used this path; routing the individual ▶ and
-      // Run all through it too closes the inconsistency.
-      if (step.id === "docker-compose-up") {
-        return await dockerUpWithStaleCleanup(repoPath);
+      // docker compose up -d is special — a leftover container from a prior
+      // session causes "container name already in use" and the spawn exits 1.
+      // The helper does an idempotent `compose down` first to guarantee a
+      // clean slate (and applies this server's project + ports). Start all has
+      // always used this path; routing the individual ▶ and Run all through it
+      // too closes the inconsistency.
+      if (step.kind === "docker-up") {
+        return await dockerUpWithStaleCleanup(server);
       }
       await api.startProcess({
         id: step.id,
@@ -710,7 +725,7 @@ function ChainCard({
               treatAsIdle={isStepStale(s.id)}
               actionsDisabled={running}
             />
-            {s.id === "fleet-serve" && fleetServePreview}
+            {s.kind === "serve" && fleetServePreview}
           </div>
         ))}
       </div>
@@ -1051,7 +1066,7 @@ function formatChainElapsed(ms: number): string {
 }
 
 function ActiveProcessesPanel({
-  repoPath,
+  server,
   settings,
   onSettingsChange,
   procs,
@@ -1061,7 +1076,7 @@ function ActiveProcessesPanel({
   goToLogs,
   goToSettings,
 }: {
-  repoPath: string;
+  server: ServerProfile;
   settings: Settings;
   onSettingsChange: (next: Settings) => void;
   procs: ProcInfo[];
@@ -1071,7 +1086,9 @@ function ActiveProcessesPanel({
   goToLogs: () => void;
   goToSettings: (section: SettingsSection) => void;
 }) {
-  const serveProc = procs.find((p) => p.id === "fleet-serve");
+  const repoPath = server.worktree_path as string;
+  const serveId = procId(server.id, "fleet-serve");
+  const serveProc = procs.find((p) => p.id === serveId);
   const serveOwned = serveProc?.state === "running" || serveProc?.state === "stopping";
   const ngrokProc = procs.find((p) => p.id === "ngrok");
   const pythonProc = procs.find((p) => p.id === "python-server");
@@ -1089,7 +1106,29 @@ function ActiveProcessesPanel({
     api
       .parseNgrokYml(settings.ngrok.yml_path)
       .then((r) => {
-        if (!cancelled) setNgrokInfo(r);
+        if (cancelled) return;
+        setNgrokInfo(r);
+        // Self-heal: if a selected tunnel no longer exists in the yml (renamed
+        // or removed), drop it so `ngrok start` doesn't try to launch a
+        // phantom tunnel. staleNgrokTunnels only fires on a valid parse.
+        const stale = staleNgrokTunnels(settings, r);
+        if (stale.length > 0) {
+          const next: Settings = {
+            ...settings,
+            ngrok: {
+              ...settings.ngrok,
+              default_tunnels: settings.ngrok.default_tunnels.filter(
+                (n) => !stale.includes(n),
+              ),
+            },
+          };
+          api
+            .saveSettings(next)
+            .then(() => onSettingsChange(next))
+            .catch((e) =>
+              console.error("failed to prune stale ngrok tunnels", e),
+            );
+        }
       })
       .catch(() => {});
     return () => {
@@ -1100,14 +1139,18 @@ function ActiveProcessesPanel({
   async function serveStop() {
     setBusy("serve-stop");
     try {
-      await api.stopProcess("fleet-serve");
+      await api.stopProcess(serveId);
     } catch {}
     setBusy(null);
   }
   async function dockerStop() {
     setBusy("docker-stop");
     try {
-      await api.dockerComposeDown(repoPath);
+      await api.dockerComposeDown(
+        procId(server.id, "docker-compose-up"),
+        repoPath,
+        server.compose_project,
+      );
     } catch {}
     setBusy(null);
   }
@@ -1237,13 +1280,29 @@ function ActiveProcessesPanel({
             name="fleet serve --dev"
             subline={
               serve.up
-                ? `up · :8080 · uptime ${formatUptime(now, serve.upSinceMs)}${serveOwned ? "" : " · external"}`
-                : "down · nothing on :8080"
+                ? `up · :${server.ports.server} · uptime ${formatUptime(now, serve.upSinceMs)}${serveOwned ? "" : " · external"}`
+                : `down · nothing on :${server.ports.server}`
             }
             onLogs={goToLogs}
             onStop={serveOwned ? serveStop : undefined}
             busy={busy?.startsWith("serve-") ?? false}
             down={!serve.up}
+            links={
+              serve.up
+                ? [
+                    {
+                      label: `${server.compose_project}.localhost ↗`,
+                      url: `https://${server.compose_project}.localhost:${server.ports.server}`,
+                      title: `Open https://${server.compose_project}.localhost:${server.ports.server} — isolated login (won't sign out your other local servers). Chrome/Firefox resolve *.localhost automatically.`,
+                    },
+                    {
+                      label: "localhost ↗",
+                      url: `https://localhost:${server.ports.server}`,
+                      title: `Open https://localhost:${server.ports.server} — note: the login cookie is shared across all localhost servers, so signing in here can sign you out of the others.`,
+                    },
+                  ]
+                : undefined
+            }
           />
         </Cell>
         <Cell>
@@ -1385,6 +1444,30 @@ function NgrokCell({
   onToggleTunnel: (name: string) => void;
 }) {
   const cfg = settings.ngrok;
+  // Live public URLs from ngrok's local API while it's running. Polled because
+  // the URLs can take a moment to appear after start.
+  const [liveTunnels, setLiveTunnels] = useState<NgrokRunningTunnel[]>([]);
+  useEffect(() => {
+    if (!running) {
+      setLiveTunnels([]);
+      return;
+    }
+    let cancelled = false;
+    const load = () =>
+      api
+        .ngrokTunnels()
+        .then((t) => {
+          if (!cancelled) setLiveTunnels(t);
+        })
+        .catch(() => {});
+    load();
+    const id = window.setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [running]);
+
   if (running) {
     const tunnelLabel = cfg.start_all
       ? "all tunnels"
@@ -1401,6 +1484,27 @@ function NgrokCell({
           busy={busy}
           down={false}
         />
+        {liveTunnels.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+              padding: "0 var(--pad-medium) var(--pad-medium)",
+            }}
+          >
+            {liveTunnels.map((t) => (
+              <button
+                key={t.public_url}
+                onClick={() => api.openUrl(t.public_url)}
+                title={`${t.name} → ${t.addr}`}
+                style={{ padding: "4px 10px", fontSize: "var(--fs-xx-small)" }}
+              >
+                {t.name} ↗
+              </button>
+            ))}
+          </div>
+        )}
       </Cell>
     );
   }
@@ -1619,6 +1723,7 @@ function ProcRow({
   onStop,
   busy,
   down,
+  links,
 }: {
   dotState: string;
   name: string;
@@ -1627,6 +1732,8 @@ function ProcRow({
   onStop?: () => void;
   busy: boolean;
   down: boolean;
+  // Optional "open in browser" links (e.g. the server's URLs when serve is up).
+  links?: { label: string; url: string; title?: string }[];
 }) {
   return (
     <div
@@ -1664,6 +1771,16 @@ function ProcRow({
         </div>
       </div>
       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+        {links?.map((l) => (
+          <button
+            key={l.url}
+            onClick={() => api.openUrl(l.url)}
+            title={l.title}
+            style={{ padding: "4px 10px", fontSize: "var(--fs-xx-small)" }}
+          >
+            {l.label}
+          </button>
+        ))}
         {onLogs && (
           <button
             onClick={onLogs}

@@ -659,6 +659,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_profiles":               "host_uuid",
 	"host_mdm_apple_bootstrap_packages":     "host_uuid",
 	"host_mdm_windows_profiles":             "host_uuid",
+	"host_mdm_windows_profiles_status":      "host_uuid",
 	"host_mdm_apple_declarations":           "host_uuid",
 	"host_mdm_apple_awaiting_configuration": "host_uuid",
 	"setup_experience_status_results":       "host_uuid",
@@ -666,6 +667,9 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_certificate_templates":            "host_uuid",
 	"host_mdm_apple_enrollment_permissions": "host_uuid",
 	"host_mdm_apple_device_names":           "host_uuid",
+	"host_mdm_apple_device_vitals":          "host_uuid",
+	"host_mdm_apple_service_subscriptions":  "host_uuid",
+	"host_mdm_apple_os_updates":             "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -6661,6 +6665,7 @@ const hostLiteColumns = `
 	h.hardware_serial,
 	h.distributed_interval,
 	h.config_tls_refresh,
+	h.created_at,
 	COALESCE(hst.seen_time, h.created_at) AS seen_time`
 
 func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *string) (*fleet.HostLite, error) {

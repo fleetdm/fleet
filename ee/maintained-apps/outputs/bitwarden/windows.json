@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.6.1",
+      "version": "2026.7.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Bitwarden' AND publisher = 'Bitwarden Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Bitwarden' AND publisher = 'Bitwarden Inc.' AND version_compare(version, '2026.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Bitwarden' AND publisher = 'Bitwarden Inc.' AND version_compare(version, '2026.7.0') < 0);"
       },
-      "installer_url": "https://github.com/bitwarden/clients/releases/download/desktop-v2026.6.1/Bitwarden-Installer-2026.6.1.exe",
+      "installer_url": "https://github.com/bitwarden/clients/releases/download/desktop-v2026.7.0/Bitwarden-Installer-2026.7.0.exe",
       "install_script_ref": "234a3679",
       "uninstall_script_ref": "365a2ac0",
-      "sha256": "88033d2130935bbbd86a83f97fef05976ff4cb9c51567106278220ca9d44ceef",
+      "sha256": "b1ceaa2c0a4e479231f4d921709c8e4085d6fb460e83466f31892d77bdba03ed",
       "default_categories": [
         "Productivity"
       ]

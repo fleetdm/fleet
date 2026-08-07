@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -101,12 +100,14 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	select {
 	case err := <-done:
 		if err != nil {
-			_ = conn.WriteJSONError(fmt.Sprintf("cannot find campaign for ID %d", campaignID)) //nolint:errcheck
+			logger.InfoContext(ctx, "stream results campaign lookup failed", "err", err)
+			conn.WriteJSONError(authz.ForbiddenErrorMessage) //nolint:errcheck
 			return
 		}
 	case <-time.After(5 * time.Second):
 		stop <- struct{}{}
-		_ = conn.WriteJSONError(fmt.Sprintf("timeout: cannot find campaign for ID %d", campaignID)) //nolint:errcheck
+		logger.InfoContext(ctx, "stream results campaign lookup timed out")
+		conn.WriteJSONError(authz.ForbiddenErrorMessage) //nolint:errcheck
 		return
 	}
 

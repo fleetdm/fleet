@@ -11,6 +11,13 @@
 #            ee/maintained-apps/inputs/winget/7-zip.json (.installer_arch).
 #            Slugs whose input file or installer_arch is missing default to
 #            the x64 runner.
+#
+#            Exception: inputs with "requires_client_os": true always route
+#            to windows-11-arm regardless of installer_arch. The x64 runner
+#            image is Windows Server, and some installers (e.g. Dell Display
+#            and Peripheral Manager) refuse to install on Server SKUs;
+#            windows-11-arm is the only GitHub-hosted client-OS Windows
+#            runner, and it runs x64/x86 installers under Prism emulation.
 #   darwin   All apps run on macos-latest (arm64; x86-only casks run under
 #            Rosetta 2, matching how customer Macs run them). No architecture
 #            partitioning is needed.
@@ -112,10 +119,19 @@ case "$PLATFORM" in
             name="${slug%/windows}"
             input_file="${WINGET_INPUTS_DIR}/${name}.json"
             arch=""
+            requires_client_os="false"
             if [ -f "$input_file" ]; then
                 arch=$(jq -r '.installer_arch // empty' "$input_file" 2>/dev/null || echo "")
+                requires_client_os=$(jq -r '.requires_client_os // false' "$input_file" 2>/dev/null || echo "false")
             else
                 echo "Warning: no winget input file for '$slug' at $input_file, assuming x64" >&2
+            fi
+            if [ "$requires_client_os" == "true" ]; then
+                # The app won't install on Windows Server (the x64 runner
+                # image), so validate it on the client-OS arm64 runner.
+                arm64_slugs+=("$slug")
+                echo "  - $slug -> windows-11-arm (requires_client_os)"
+                continue
             fi
             case "$arch" in
                 arm64)

@@ -201,6 +201,8 @@ var (
 //   - addr is the address of the Fleet server.
 //   - orbitHostInfo is the host system information used for enrolling to Fleet.
 //   - onGetConfigErrFns can be used to handle errors in the GetConfig request.
+//   - bypassEndUserAuth, when true, omits the end-user auth capability so the server enrolls the
+//     host without prompting for end-user authentication (only meaningful on Linux and Windows).
 func NewOrbitClient(
 	rootDir string,
 	addr string,
@@ -212,8 +214,13 @@ func NewOrbitClient(
 	onGetConfigErrFns *OnGetConfigErrFuncs,
 	httpSignerWrapper func(*http.Client) *http.Client,
 	hostIdentityCertPath string,
+	bypassEndUserAuth bool,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.GetOrbitClientCapabilities()
+	if bypassEndUserAuth {
+		// Don't advertise the end-user auth capability so the Fleet server enrolls this host without prompting for EUA.
+		delete(orbitCapabilities, fleet.CapabilityEndUserAuth)
+	}
 	bc, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)
 	if err != nil {
 		return nil, err
@@ -897,6 +904,21 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 		Salt:        lr.Salt,
 		ClientError: lr.Err,
 		KeyType:     lr.KeyType,
+	}, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SendManagedLocalAccountPassword escrows the password of the managed local admin account that fleetd created on this
+// Windows host. A non-empty clientError reports that creating the account failed, which the server records against the
+// host and which makes it ask this host to try again.
+func (oc *OrbitClient) SendManagedLocalAccountPassword(password, clientError string) error {
+	verb, path := "POST", "/api/fleet/orbit/managed_local_account"
+	var resp fleet.OrbitPostManagedLocalAccountResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitPostManagedLocalAccountRequest{
+		Password:    password,
+		ClientError: clientError,
 	}, &resp); err != nil {
 		return err
 	}

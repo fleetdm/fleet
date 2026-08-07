@@ -82,6 +82,56 @@ func (ds *Datastore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, e
 	return team.ToTeamLite(), err // re-marshaling this way to avoid more code duplication
 }
 
+// TeamLitesByIDs returns the TeamLite of every existing team among ids in one
+// query; IDs of deleted teams are simply absent from the result. ID 0
+// ("Unassigned") is supported: like teamDB, its entry is synthesized from the
+// default team config, since no teams row exists for it.
+func (ds *Datastore) TeamLitesByIDs(ctx context.Context, ids []uint) ([]*fleet.TeamLite, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	namedIDs := make([]uint, 0, len(ids))
+	includeNoTeam := false
+	for _, id := range ids {
+		if id == 0 {
+			includeNoTeam = true
+			continue
+		}
+		namedIDs = append(namedIDs, id)
+	}
+
+	lites := make([]*fleet.TeamLite, 0, len(ids))
+	if includeNoTeam {
+		config, err := defaultTeamConfigDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "default team config")
+		}
+		noTeam := &fleet.Team{
+			ID:     0,
+			Name:   fleet.ReservedNameNoTeam,
+			Config: *config,
+		}
+		lites = append(lites, noTeam.ToTeamLite())
+	}
+
+	if len(namedIDs) > 0 {
+		stmt, args, err := sqlx.In(`SELECT `+teamColumns+` FROM teams WHERE id IN (?)`, namedIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build team lites by ids query")
+		}
+		var teams []*fleet.Team
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select team lites by ids")
+		}
+		for _, team := range teams {
+			lites = append(lites, team.ToTeamLite())
+		}
+	}
+
+	return lites, nil
+}
+
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {
 	if tid == 0 {
 		if withExtras {
@@ -269,7 +319,8 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 // build their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal
 // host-profile rows. Runs in its own transaction to keep load out of the main DeleteTeam transaction.
 func (ds *Datastore) prepareWindowsProfilesForTeamDeletion(ctx context.Context, tid uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var affectedHostUUIDs []string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var profileUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &profileUUIDs,
 			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid); err != nil {
@@ -284,8 +335,19 @@ func (ds *Datastore) prepareWindowsProfilesForTeamDeletion(ctx context.Context, 
 			return ctxerr.Wrapf(ctx, err, "retaining windows profiles for team %d", tid)
 		}
 
-		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profileUUIDs)
+		hosts, err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profileUUIDs)
+		if err != nil {
+			return err
+		}
+		affectedHostUUIDs = hosts
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+	// Post-commit async rollup refresh; scales with the team's host count, healed by the hourly reconcile on crash.
+	ds.dispatchWindowsProfilesStatusRollupRefresh(ctx, affectedHostUUIDs)
+	return nil
 }
 
 func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {

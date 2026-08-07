@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.9.2",
+      "version": "5.9.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Beekeeper Studio' AND publisher = 'Beekeeper Studio Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Beekeeper Studio' AND publisher = 'Beekeeper Studio Team' AND version_compare(version, '5.9.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Beekeeper Studio' AND publisher = 'Beekeeper Studio Team' AND version_compare(version, '5.9.3') < 0);"
       },
-      "installer_url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v5.9.2/Beekeeper-Studio-Setup-5.9.2.exe",
+      "installer_url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v5.9.3/Beekeeper-Studio-Setup-5.9.3.exe",
       "install_script_ref": "13334753",
       "uninstall_script_ref": "44e6f772",
-      "sha256": "b0df0fb81ba4615373b484b77338913c47682f3f78f35806162f9ecd16ec638d",
+      "sha256": "7627dde785d05ef4c20bacf6d2c3a88fcbeb6d30f8bfde344ab09aaecfe15c4e",
       "default_categories": [
         "Developer tools"
       ]

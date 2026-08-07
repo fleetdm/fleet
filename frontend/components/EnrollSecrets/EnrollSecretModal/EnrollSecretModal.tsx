@@ -7,7 +7,6 @@ import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import EnrollSecretTable from "../EnrollSecretTable";
 
 interface IEnrollSecretModal {
@@ -53,37 +52,17 @@ const EnrollSecretModal = ({
     >
       {teamInfo?.secrets?.length ? (
         <div className={`${baseClass} form`}>
-          <div className={`${baseClass}__header`}>
-            <div className={`${baseClass}__description`}>
-              Use these secret(s) to enroll hosts
-              {primoMode || teamInfo?.name === "Unassigned" ? (
-                ""
-              ) : (
-                <>
-                  {" "}
-                  to <b>{teamInfo?.name}</b>
-                </>
-              )}
-              .
-            </div>
-            <div className={`${baseClass}__add-secret`}>
-              <GitOpsModeTooltipWrapper
-                entityType="secrets"
-                position="right"
-                tipOffset={8}
-                renderChildren={(disableChildren) => (
-                  <Button
-                    disabled={disableChildren}
-                    onClick={addNewSecretClick}
-                    className={`${baseClass}__add-secret-btn`}
-                    variant="brand-inverse-icon"
-                    iconStroke
-                  >
-                    Add secret <Icon name="plus" color="core-fleet-green" />
-                  </Button>
-                )}
-              />
-            </div>
+          <div className={`${baseClass}__description`}>
+            Use these secret(s) to enroll hosts
+            {primoMode || teamInfo?.name === "Unassigned" ? (
+              ""
+            ) : (
+              <>
+                {" "}
+                to <b>{teamInfo?.name}</b>
+              </>
+            )}
+            .
           </div>
           <EnrollSecretTable
             secrets={teamInfo?.secrets}
@@ -120,10 +99,10 @@ const EnrollSecretModal = ({
                   disabled={disableChildren}
                   onClick={addNewSecretClick}
                   className={`${baseClass}__add-secret-btn`}
-                  variant="brand-inverse-icon"
-                  iconStroke
+                  variant="secondary"
+                  icon="plus"
                 >
-                  Add secret <Icon name="plus" color="core-fleet-green" />
+                  Add secret
                 </Button>
               )}
             />
@@ -131,7 +110,25 @@ const EnrollSecretModal = ({
         />
       )}
       <div className="modal-cta-wrap">
-        <Button onClick={onReturnToApp}>Close</Button>
+        <Button onClick={onReturnToApp}>Done</Button>
+        {!!teamInfo?.secrets?.length && (
+          <GitOpsModeTooltipWrapper
+            entityType="secrets"
+            position="right"
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                disabled={disableChildren}
+                onClick={addNewSecretClick}
+                className={`${baseClass}__add-secret-btn`}
+                variant="secondary"
+                icon="plus"
+              >
+                Add secret
+              </Button>
+            )}
+          />
+        )}
       </div>
     </Modal>
   );

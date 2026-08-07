@@ -7,9 +7,7 @@ software/os/:id > Top section
 import React from "react";
 import classnames from "classnames";
 
-import { SingleValue } from "react-select-5";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import { TooltipContent } from "interfaces/dropdownOption";
+import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import { getGitOpsModeTipContent } from "utilities/helpers";
@@ -26,9 +24,8 @@ import useGitOpsMode from "hooks/useGitOpsMode";
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
 import Button from "components/buttons/Button";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import ActionsDropdown from "components/ActionsDropdown";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
@@ -40,7 +37,7 @@ import OSIcon from "../../icons/OSIcon";
 export const ACTION_EDIT_APPEARANCE = "edit_appearance";
 export const ACTION_EDIT_SOFTWARE = "edit_software";
 export const ACTION_EDIT_CONFIGURATION = "edit_configuration";
-export const ACTION_PATCH = "patch";
+export const ACTION_DEPLOY = "deploy";
 export const ACTION_VERSIONS = "versions";
 export const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION =
   "edit_auto_update_configuration";
@@ -57,10 +54,9 @@ export interface BuildActionOptionsArgs {
   isAppleVpp?: boolean;
   canEditSoftware: boolean;
   canEditConfiguration: boolean;
-  canAddPatchPolicy: boolean;
+  canDeploySoftware: boolean;
   canManageVersions: boolean;
   canConfigureAutoUpdate: boolean;
-  hasExistingPatchPolicy?: boolean;
 }
 
 export const buildActionOptions = ({
@@ -69,14 +65,12 @@ export const buildActionOptions = ({
   isAppleVpp = false,
   canEditSoftware,
   canEditConfiguration,
-  canAddPatchPolicy,
+  canDeploySoftware,
   canManageVersions,
   canConfigureAutoUpdate,
-  hasExistingPatchPolicy = false,
-}: BuildActionOptionsArgs): CustomOptionType[] => {
+}: BuildActionOptionsArgs): IDropdownOption[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
-  let disabledPatchPolicyTooltipContent: TooltipContent | undefined;
   let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
 
   // Disable state is keyed off `gitOpsModeEnabled` directly (see each option
@@ -95,15 +89,11 @@ export const buildActionOptions = ({
     }
   }
 
-  if (hasExistingPatchPolicy) {
-    disabledPatchPolicyTooltipContent = "Patch policy is already added.";
-  }
-
-  const options: CustomOptionType[] = [
+  const options: IDropdownOption[] = [
     {
       label: "Edit appearance",
       value: ACTION_EDIT_APPEARANCE,
-      isDisabled: gitOpsModeEnabled,
+      disabled: gitOpsModeEnabled,
       tooltipContent: disableEditAppearanceTooltipContent,
     },
   ];
@@ -113,7 +103,7 @@ export const buildActionOptions = ({
     options.push({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
-      isDisabled: !!gitOpsModeEnabled && isAppleVpp,
+      disabled: !!gitOpsModeEnabled && isAppleVpp,
       tooltipContent: disableEditSoftwareTooltipContent,
     });
   }
@@ -123,18 +113,16 @@ export const buildActionOptions = ({
     options.push({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      isDisabled: gitOpsModeEnabled,
+      disabled: gitOpsModeEnabled,
       tooltipContent: disabledEditConfigurationTooltipContent,
     });
   }
 
-  // Show patch option only for fleet maintained apps
-  if (canAddPatchPolicy) {
+  // Show Deploy only for Fleet-maintained apps.
+  if (canDeploySoftware) {
     options.push({
-      label: "Patch",
-      value: ACTION_PATCH,
-      isDisabled: !!disabledPatchPolicyTooltipContent,
-      tooltipContent: disabledPatchPolicyTooltipContent,
+      label: "Deploy",
+      value: ACTION_DEPLOY,
     });
   }
 
@@ -185,8 +173,8 @@ interface ISoftwareDetailsSummaryProps {
   /** Displays an edit CTA to edit the software installer
    * Should only be defined for team view of an installable software */
   onClickEditSoftware?: () => void;
-  /** Displays Patch CTA to add a patch policy */
-  onClickAddPatchPolicy?: () => void;
+  /** Displays Deploy CTA for Fleet-maintained apps. */
+  onClickDeploy?: () => void;
   /** Displays Versions CTA to open the versions / pin modal (Premium FMA only) */
   onClickVersions?: () => void;
   /** undefined unless previewing icon, in which case is string or null */
@@ -197,7 +185,6 @@ interface ISoftwareDetailsSummaryProps {
   iconPreviewUrl?: string | null;
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
-  patchPolicyId?: number;
   /** Optional pill row rendered between the title and the Actions dropdown
    * (e.g. Fleet-maintained, Self-service, Auto install). */
   headerPills?: React.ReactNode;
@@ -224,13 +211,12 @@ const SoftwareDetailsSummary = ({
   canManageSoftware = false,
   onClickEditAppearance,
   onClickEditSoftware,
-  onClickAddPatchPolicy,
+  onClickDeploy,
   onClickVersions,
   onClickEditConfiguration,
   onClickEditAutoUpdateConfig,
   iconPreviewUrl,
   iconUploadedAt,
-  patchPolicyId,
   headerPills,
   isAppleVpp = false,
   useSingleEditAppearanceButton = false,
@@ -240,16 +226,16 @@ const SoftwareDetailsSummary = ({
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
   const isRollingArch = ROLLING_ARCH_LINUX_VERSIONS.includes(displayName);
 
-  const onSelectSoftwareAction = (option: SingleValue<CustomOptionType>) => {
-    switch (option?.value) {
+  const onSelectSoftwareAction = (value: string) => {
+    switch (value) {
       case ACTION_EDIT_APPEARANCE:
         onClickEditAppearance && onClickEditAppearance();
         break;
       case ACTION_EDIT_SOFTWARE:
         onClickEditSoftware && onClickEditSoftware();
         break;
-      case ACTION_PATCH:
-        onClickAddPatchPolicy && onClickAddPatchPolicy();
+      case ACTION_DEPLOY:
+        onClickDeploy && onClickDeploy();
         break;
       case ACTION_VERSIONS:
         onClickVersions && onClickVersions();
@@ -300,10 +286,9 @@ const SoftwareDetailsSummary = ({
     isAppleVpp,
     canEditSoftware: !!onClickEditSoftware,
     canEditConfiguration: !!onClickEditConfiguration,
-    canAddPatchPolicy: !!onClickAddPatchPolicy,
+    canDeploySoftware: !!onClickDeploy,
     canManageVersions: !!onClickVersions,
     canConfigureAutoUpdate: !!onClickEditAutoUpdateConfig,
-    hasExistingPatchPolicy: !!patchPolicyId,
   });
 
   return (
@@ -346,24 +331,23 @@ const SoftwareDetailsSummary = ({
                   position="top"
                   renderChildren={(disableChildren) => (
                     <Button
-                      variant="inverse"
+                      variant="subdued"
                       onClick={onClickEditAppearance}
                       disabled={disableChildren || !onClickEditAppearance}
+                      icon="pencil"
                     >
-                      <Icon name="pencil" />
                       Edit
                     </Button>
                   )}
                 />
               ) : (
-                <DropdownWrapper
+                <ActionsDropdown
                   className={`${baseClass}__actions-dropdown`}
-                  name="software-actions"
                   onChange={onSelectSoftwareAction}
                   placeholder="Actions"
                   options={actionOptions}
-                  variant="button"
-                  nowrapMenu
+                  variant="secondary"
+                  menuAlign="right"
                 />
               )}
             </div>

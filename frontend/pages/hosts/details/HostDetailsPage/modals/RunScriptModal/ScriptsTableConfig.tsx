@@ -166,7 +166,7 @@ export const generateTableColumnConfigs = (
             placeholder="Actions"
             disabled={scriptsDisabled}
             menuAlign="right"
-            variant="small-button"
+            variant="secondary"
           />
         );
       },

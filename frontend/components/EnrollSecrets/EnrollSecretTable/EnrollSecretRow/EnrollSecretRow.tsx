@@ -5,7 +5,6 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
-import Icon from "components/Icon";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "enroll-secrets";
@@ -50,20 +49,18 @@ const EnrollSecretRow = ({
             disabled={disableChildren}
             onClick={onEditSecretClick}
             className={`${baseClass}__edit-secret-icon`}
-            variant="icon"
-            size="small"
-          >
-            <Icon name="pencil" />
-          </Button>
+            variant="secondary"
+            icon="pencil"
+            ariaLabel="Edit enroll secret"
+          />
           <Button
             onClick={onDeleteSecretClick}
             disabled={disableChildren}
             className={`${baseClass}__delete-secret-icon`}
-            variant="icon"
-            size="small"
-          >
-            <Icon name="trash" />
-          </Button>
+            variant="secondary"
+            icon="trash"
+            ariaLabel="Delete enroll secret"
+          />
         </div>
       )}
     />

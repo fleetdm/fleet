@@ -244,8 +244,9 @@ type Datastore interface {
 
 	NewLabel(ctx context.Context, label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
-	// members of this label, or an error.
-	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
+	// members of this label, or an error. When hostIDs is non-nil, the label's
+	// manual membership is replaced with exactly those hosts.
+	SaveLabel(ctx context.Context, label *Label, hostIDs []uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	DeleteLabel(ctx context.Context, name string, filter TeamFilter) error
 	LabelByName(ctx context.Context, name string, filter TeamFilter) (*Label, error)
 	// Label returns the label and an array of host IDs members of this label, or an error.
@@ -689,6 +690,10 @@ type Datastore interface {
 	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
 	// TeamLite retrieves a Team by ID, including only id, created_at, name, filename, description, config fields.
 	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
+	// TeamLitesByIDs retrieves the TeamLite of every existing team among ids in
+	// one query; deleted IDs are absent from the result. ID 0 ("Unassigned") is
+	// synthesized from the default team config.
+	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name (including extras).
@@ -722,7 +727,7 @@ type Datastore interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
-	SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name, displayName string, err error)
+	SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (name, displayName string, err error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
 	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
 	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
@@ -799,6 +804,13 @@ type Datastore interface {
 	// software_titles_host_counts table.
 	SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error
 
+	// ReconcileSoftwareChecksums repairs software rows whose checksum predates
+	// the field-ordering change in Fleet v4.76.0, which produced duplicate
+	// software inventory entries (same name/version/source, different checksum).
+	// It merges each duplicate group onto a single canonical row in batched
+	// transactions and self-limits once no duplicates remain.
+	ReconcileSoftwareChecksums(ctx context.Context) error
+
 	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
 	// specified Software installed. Includes the path were the software was installed.
 	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)
@@ -862,8 +874,9 @@ type Datastore interface {
 
 	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
 	// to queue for the host's "install all" action, in alphabetical order, optionally
-	// scoped to a category.
-	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint) ([]*HostSoftwareWithInstaller, *string, error)
+	// scoped to a category and/or a name-match query (same semantics as the self-service
+	// list endpoint).
+	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint, matchQuery string) ([]*HostSoftwareWithInstaller, *string, error)
 
 	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
 	// given install attempt (InstallApplication command).
@@ -1263,6 +1276,16 @@ type Datastore interface {
 	// SetOrUpdateHostDisksSpace sets or updates the gigs_total_disk_space and gigs_all_disk_space
 	// fields for a host. gigs_all_disk_space should should only be non-nil for Linux hosts
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error
+
+	// SetOrUpdateHostMDMAppleDeviceVitals persists the iOS/iPadOS vitals parsed
+	// from a DeviceInformation command ack into host_mdm_apple_device_vitals
+	// and host_mdm_apple_service_subscriptions.
+	SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAppleDeviceVitals) error
+	// LoadHostMDMAppleDeviceVitals populates host's HostMDMAppleDeviceVitals
+	// fields from host_mdm_apple_device_vitals and
+	// host_mdm_apple_service_subscriptions. Callers are responsible for only
+	// calling this for iOS/iPadOS hosts.
+	LoadHostMDMAppleDeviceVitals(ctx context.Context, host *Host) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
@@ -1905,6 +1928,13 @@ type Datastore interface {
 	// if any since this is called on reenrollments
 	SaveHostManagedLocalAccount(ctx context.Context, hostUUID, plaintextPassword, commandUUID string) error
 
+	// SaveHostManagedLocalAccountFromEscrow encrypts and stores a device-generated managed local account password (Windows).
+	SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword string) error
+
+	// ReportManagedLocalAccountEscrowError records a device-reported failure to create the managed local account
+	// (Windows), marking the row failed and storing the error. Any previously stored password is preserved.
+	ReportManagedLocalAccountEscrowError(ctx context.Context, hostUUID, clientError string) error
+
 	// GetHostManagedLocalAccountPassword retrieves and decrypts the managed local account
 	// password for the given host UUID. Returns notFoundError if no record exists.
 	GetHostManagedLocalAccountPassword(ctx context.Context, hostUUID string) (*HostManagedLocalAccountPassword, error)
@@ -2110,8 +2140,14 @@ type Datastore interface {
 	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID
 	// on the given channel (scope).
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string, scope PayloadScope) ([]MDMAppleDDMDeclarationItem, error)
+
+	// ListCustomActivationsForDeclarations returns the custom activations
+	// attached to the given declarations. Declarations without one are absent
+	// from the result.
+	ListCustomActivationsForDeclarations(ctx context.Context, declUUIDs []string) ([]*MDMAppleDDMActivationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDeclaration, error)
+	MDMAppleDDMActivationResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDDMActivationForDelivery, error)
 
 	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync,
 	// partitioned by channel (device vs user) so the reconciler only pokes the
@@ -2215,6 +2251,18 @@ type Datastore interface {
 	// flagged with the Apple BM terms expired.
 	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
 
+	// SetABMTokenInvalidForOrgName is a specialized method to set only the
+	// token_invalid flag of the ABM token identified by the organization name.
+	// It returns whether that flag was previously set for this token.
+	SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error)
+
+	// IsABMTokenInvalidForOrgName returns the current value of the
+	// token_invalid flag for the ABM token identified by the organization
+	// name, read from a replica. Used to avoid an unnecessary write via
+	// SetABMTokenInvalidForOrgName when the flag already has the desired
+	// value.
+	IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error)
+
 	// InsertABMToken inserts a new ABM token into the datastore.
 	InsertABMToken(ctx context.Context, tok *ABMToken) (*ABMToken, error)
 
@@ -2304,6 +2352,11 @@ type Datastore interface {
 	// enrollment. Written on-change by the orbit-config endpoint so the OMA-DM management session (no capability header) can gate poll relaxation.
 	SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error
 
+	// SetMDMWindowsManagedLocalAccountEscrowed records whether the host has escrowed a managed local account password for its current Windows
+	// MDM enrollment, which is what stops the server asking it to create the account. Reports whether the value changed, so the caller logs the
+	// created activity only when an account was really created. The flag is per-enrollment: re-enrolling deletes the row and so resets it.
+	SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
+
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 
@@ -2315,6 +2368,21 @@ type Datastore interface {
 
 	// WindowsHostLiteByHardwareSerial returns a HostLite for the Windows host whose hardware_serial matches the given serial.
 	WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*HostLite, error)
+
+	// MDMWindowsSaveUnlinkedEnrollmentHardwareSerial stores the SMBIOS serial reported over OMA-DM (DevDetail) on a still-unlinked
+	// Windows MDM enrollment, so the orbit enrollment path can reverse-link the enrollment once the host record exists.
+	MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error
+
+	// MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the most recent unlinked (host_uuid = "") Windows
+	// MDM enrollment whose device-reported SMBIOS serial matches. Returns a NotFound error when there is none.
+	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*MDMWindowsEnrolledDevice, error)
+
+	// GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments: nil fleet
+	// id and empty name when unset.
+	GetWindowsEnrollmentDefaultFleet(ctx context.Context) (fleetID *uint, fleetName string, err error)
+
+	// SetWindowsEnrollmentDefaultFleet sets (or clears, with nil) the default fleet for new user-driven Windows MDM enrollments.
+	SetWindowsEnrollmentDefaultFleet(ctx context.Context, fleetID *uint) error
 
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
@@ -2454,6 +2522,10 @@ type Datastore interface {
 	// each Windows host in the specified team (or, if no team is specified, each host that is not
 	// assigned to any team).
 	GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
+
+	// ReconcileWindowsProfilesStatus recomputes the per-host Windows profile status rollup and drops rollup rows for hosts with no
+	// profiles.
+	ReconcileWindowsProfilesStatus(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
@@ -2638,7 +2710,7 @@ type Datastore interface {
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
-	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
+	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName, activationAction MDMAppleActivationAction) (*MDMAppleDeclaration, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
@@ -2906,8 +2978,8 @@ type Datastore interface {
 	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error
 
 	// HasFMAInstallerVersion returns true if the given FMA version is already
-	// cached as a software installer for the given team.
-	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)
+	// cached as a software installer for the given team, and its storage hash.
+	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
 	// FMA installer version, including install/uninstall scripts, URL, SHA256,
@@ -2939,6 +3011,10 @@ type Datastore interface {
 	// as removed, hiding them from stats calculations (note that this will null out installer statuses due
 	// to how the virtual column works).
 	ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
+
+	// ClearPreInstallQueryForTitle blanks the pre-install query on a title's active Fleet-maintained
+	// installer and cancels its pending installs. No-op when the query is already empty.
+	ClearPreInstallQueryForTitle(ctx context.Context, teamID uint, titleID uint) error
 
 	// SaveInstallerUpdates persists new values to an existing installer. See comments in the payload struct
 	// for which fields must be set.
@@ -3191,8 +3267,9 @@ type Datastore interface {
 	// GetSetupExperienceScriptByID gets the setup experience script by its ID.
 	GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*Script, error)
 
-	// SetSetupExperienceScript sets the setup experience script to the given script.
-	SetSetupExperienceScript(ctx context.Context, script *Script) error
+	// SetSetupExperienceScript sets the setup experience script to the given script. It reports
+	// whether the stored script actually changed (false when the same content is re-submitted).
+	SetSetupExperienceScript(ctx context.Context, script *Script) (changed bool, err error)
 
 	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
@@ -3240,15 +3317,35 @@ type Datastore interface {
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
 
-	// ReconcileMaintainedAppSoftwareNames renames macOS software_titles and software
-	// rows to the canonical FMA name. Called once per sync; set-based, idempotent,
-	// and ambiguity-aware for FMAs that share a bundle identifier.
+	// ReconcileMaintainedAppSoftwareNames renames macOS software titles and software
+	// rows to the canonical Fleet-maintained app name, since inventory and the installer
+	// already share a title via bundle_identifier and only the name is wrong. Belongs to
+	// the catalog sync, which is where those canonical names come from. Idempotent, and
+	// ambiguity-aware for apps that share a bundle identifier.
 	ReconcileMaintainedAppSoftwareNames(ctx context.Context) error
+
+	// ReconcileWindowsMaintainedAppSoftwareTitles merges Windows software titles whose
+	// reported name embeds the version (e.g. "Granola 7.373.2") into the title owned by
+	// the Fleet-maintained app's installer, re-pointing every reference and deleting the
+	// emptied title. Idempotent.
+	//
+	// Separate from the macOS pass because it reads only local installer and title state,
+	// never the catalog: it must not be gated on a successful catalog fetch, and it wants
+	// to run whenever those links change rather than when the catalog refreshes.
+	ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error
 
 	// GetFMANamesByIdentifier returns unique_identifier -> canonical name for macOS
 	// FMAs, used during software ingestion. Identifiers shared by differently-named
 	// FMAs (e.g. Firefox and Firefox ESR) are omitted.
 	GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error)
+
+	// GetWindowsFMAMatches returns the Windows Fleet-maintained apps that have been
+	// added as an installer, populated with just what name matching needs: the catalog
+	// name, unique identifier, platform, and the id and name of the software title the
+	// installer owns. Used during software ingestion to collapse versioned program names
+	// (e.g. "Granola 7.373.2") onto that title. See MaintainedApp.WinMatchPrefixes for how a
+	// reported name is matched against them.
+	GetWindowsFMAMatches(ctx context.Context) ([]MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate management
@@ -3462,6 +3559,9 @@ type Datastore interface {
 	// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
 	// If the slice is empty, it returns true
 	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
+	// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore
+	// If the slice is empty, it returns true
+	ScimGroupsExist(ctx context.Context, ids []uint) (bool, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) ([]ActivityTypeResentCertificate, error)
 	// DeleteScimUser deletes a SCIM user from the database
@@ -3774,6 +3874,25 @@ type Datastore interface {
 	// declaration. It returns the names of the assets it created, edited, and
 	// deleted so the caller can log the corresponding activities.
 	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*MDMAppleDDMAssetToSet) (*MDMAppleDDMAssetsBatchChanges, error)
+
+	// InsertAppleSoftwareUpdateDeviceID inserts a new Apple software update device ID for the given host UUID for per-host os update tracking.
+	InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error
+	// GetLastAppleOSUpdatesUpdate retrieves the timestamp of the last Apple OS updates update in the datastore.
+	GetLastAppleOSUpdatesUpdate(ctx context.Context) (*time.Time, error)
+	// UpsertAppleOSUpdates inserts or updates the given Apple OS update assets in the datastore. updates map is grouped by platform
+	UpsertAppleOSUpdates(ctx context.Context, updates map[string][]OSUpdateAsset) error
+	// DeleteStaleAppleOSUpdates deletes the cached Apple OS update assets that are no longer
+	// reported by Apple. The updates map is grouped by platform and holds the assets Apple
+	// currently reports. No values for the platform or less than 1 entry for a platform does a no-op to avoid deleting on an incomplete view.
+	DeleteStaleAppleOSUpdates(ctx context.Context, updates map[string][]OSUpdateAsset) (int64, error)
+	// ListAppleOSUpdateAssets retrieves all Apple OS update assets from the datastore, grouped by platform.
+	ListAppleOSUpdateAssets(ctx context.Context) (map[string][]AppleSoftwareUpdateAsset, error)
+	// ListAppleOSUpdateHostsForReconcile retrieves a batch of Apple software update hosts for OS update reconciliation
+	ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]int) ([]*AppleSoftwareUpdateHost, error)
+	// SetAppleOSUpdateTargetsAndResend sets the targets for Apple OS updates and triggers a resend for needed hosts.
+	SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*ComputedAppleSoftwareUpdateHost) error
+	// GetAppleOSUpdateHostByUUID retrieves stored Apple software update configuration for a given host by its UUID.
+	GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*AppleSoftwareUpdateHost, error)
 }
 
 type AndroidDatastore interface {
@@ -3792,6 +3911,19 @@ type AndroidDatastore interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error)
+	// SetAndroidHostEnrolled flips host_mdm back to enrolled for an Android host
+	// that is currently marked unenrolled, recovering a host wrongly unenrolled by
+	// an out-of-order Pub/Sub DELETED delivery. Returns false (no-op) when the host
+	// is already enrolled or has no host_mdm row. It preserves the existing
+	// is_personal_enrollment classification.
+	SetAndroidHostEnrolled(ctx context.Context, hostID uint) (bool, error)
+	// GetAndroidPubSubDedupState returns the last-processed Google Pub/Sub messageId
+	// and AMAPI event timestamp recorded for the host, for dropping duplicate and
+	// stale AMAPI notification deliveries.
+	GetAndroidPubSubDedupState(ctx context.Context, hostID uint) (messageID string, eventTime *time.Time, err error)
+	// SetAndroidPubSubDedupState records the last-processed Google Pub/Sub messageId
+	// and AMAPI event timestamp for the host after a notification is handled.
+	SetAndroidPubSubDedupState(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
@@ -3831,6 +3963,11 @@ type AndroidDatastore interface {
 	// UpdateMDMAndroidCommandStatus updates the status (and optional error_code/error_message) of
 	// a previously-issued command. Called by the Pub/Sub COMMAND handler on ack/error.
 	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error
+
+	// ListPendingMDMAndroidCommands returns commands still in the pending status that were created
+	// before createdBefore, oldest first, capped at limit rows. Used by the command reconciler cron to
+	// find commands whose Pub/Sub COMMAND notification never arrived.
+	ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
 
 	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the lock_ref on host_mdm_actions in a
 	// single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate cmd.CommandUUID and cmd.OperationName

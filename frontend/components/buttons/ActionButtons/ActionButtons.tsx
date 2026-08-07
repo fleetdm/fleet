@@ -56,52 +56,24 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
           className={`${baseClass}__action-buttons--secondary-buttons action-buttons__secondary-buttons`}
         >
           {secondaryActions.map((action) => {
-            if (!action.hideAction && action.buttonVariant !== "text-icon") {
-              if (action.gitOpsModeCompatible) {
-                return (
-                  <GitOpsModeTooltipWrapper
-                    renderChildren={(disableChildren) => (
-                      <Button
-                        variant={action.buttonVariant}
-                        onClick={action.onClick}
-                        disabled={disableChildren}
-                      >
-                        {action.label}
-                      </Button>
-                    )}
-                  />
-                );
-              }
-              return (
-                <Button variant={action.buttonVariant} onClick={action.onClick}>
-                  {action.label}
-                </Button>
-              );
-            }
             if (action.gitOpsModeCompatible) {
               return (
                 <GitOpsModeTooltipWrapper
                   renderChildren={(disableChildren) => (
                     <Button
-                      variant="inverse"
+                      variant={action.buttonVariant}
                       onClick={action.onClick}
                       disabled={disableChildren}
                     >
-                      <>
-                        {action.label}
-                        {action.iconName && <Icon name={action.iconName} />}
-                      </>
+                      {action.label}
                     </Button>
                   )}
                 />
               );
             }
             return (
-              <Button variant="inverse" onClick={action.onClick}>
-                <>
-                  {action.label}
-                  {action.iconName && <Icon name={action.iconName} />}
-                </>
+              <Button variant={action.buttonVariant} onClick={action.onClick}>
+                {action.label}
               </Button>
             );
           })}
@@ -112,7 +84,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
           <DropdownButton
             showCaret={false}
             options={secondaryActions}
-            variant="inverse"
+            variant="secondary"
           >
             More options <Icon name="more" />
           </DropdownButton>

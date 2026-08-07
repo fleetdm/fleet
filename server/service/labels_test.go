@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -130,7 +131,7 @@ func TestLabelsAuth(t *testing.T) {
 		}
 		return lbl, nil
 	}
-	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 		return &fleet.LabelWithTeamName{Label: *lbl}, nil, nil
 	}
 	ds.DeleteLabelFunc = func(ctx context.Context, nm string, filter fleet.TeamFilter) error {
@@ -1194,32 +1195,31 @@ func TestModifyManualLabel(t *testing.T) {
 		return []uint{99, 100}, nil
 	}
 	mockListHostsLiteByIDs(ds)
-	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
-		return &fleet.LabelWithTeamName{Label: *lbl}, nil, nil
-	}
 
 	t.Run("using hostnames", func(t *testing.T) {
-		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-			require.Equal(t, uint(1), label.ID)
-			require.Equal(t, []uint{99, 100}, hostIds)
-			return nil, nil, nil
+		ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+			require.Equal(t, uint(1), lbl.ID)
+			require.Equal(t, []uint{99, 100}, hostIDs)
+			return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
 		}
 		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{
 			Hosts: []string{"host1", "host2"},
 		})
 		require.NoError(t, err)
+		require.True(t, ds.SaveLabelFuncInvoked)
 	})
 
 	t.Run("using IDs", func(t *testing.T) {
-		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-			require.Equal(t, uint(1), label.ID)
-			require.Equal(t, []uint{1, 2}, hostIds)
-			return nil, nil, nil
+		ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+			require.Equal(t, uint(1), lbl.ID)
+			require.Equal(t, []uint{1, 2}, hostIDs)
+			return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
 		}
 		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{
 			HostIDs: []uint{1, 2},
 		})
 		require.NoError(t, err)
+		require.True(t, ds.SaveLabelFuncInvoked)
 	})
 }
 
@@ -1249,7 +1249,11 @@ func TestNewHostVitalsLabel(t *testing.T) {
 		require.NoError(t, err)
 		queryValuesJson, err := json.Marshal(queryValues)
 		require.NoError(t, err)
-		assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+		// Compare whitespace-normalized SQL: the IdP join fragment is a multi-line
+		// raw string whose indentation is irrelevant to the query's meaning.
+		assert.Equal(t,
+			"SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN ( WITH RECURSIVE scim_user_group_expanded AS ( SELECT scim_user_id, group_id FROM scim_user_group WHERE scim_user_id IN (SELECT scim_user_id FROM host_scim_user) UNION SELECT e.scim_user_id, gg.parent_group_id AS group_id FROM scim_user_group_expanded e JOIN scim_group_group gg ON gg.child_group_id = e.group_id ) SELECT scim_user_id, group_id FROM scim_user_group_expanded ) scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id",
+			strings.Join(strings.Fields(query), " "))
 		assert.Equal(t, `["admin"]`, string(queryValuesJson))
 	})
 
@@ -1405,7 +1409,7 @@ func TestLabelActivities(t *testing.T) {
 				},
 			}, nil, nil
 		}
-		ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 			return &fleet.LabelWithTeamName{
 				Label:    fleet.Label{ID: lbl.ID, Name: lbl.Name, TeamID: ptr.Uint(teamID)},
 				TeamName: &teamName,

@@ -66,7 +66,7 @@ const DeleteEntraClientIdModal = ({
         >
           Delete
         </Button>
-        <Button onClick={onExit} variant="inverse">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>

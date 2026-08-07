@@ -193,22 +193,34 @@ const HostSoftwareLibraryTable = ({
 
   const renderCustomControls = () => {
     return (
-      <div className={`${baseClass}__filter-controls`}>
-        <DropdownWrapper
-          name="host-library-filter"
-          value={selfService ? "selfService" : "available"}
-          className={`${baseClass}__host-library-filter`}
-          options={DROPDOWN_OPTIONS}
-          onChange={(newValue: SingleValue<CustomOptionType>) =>
-            newValue &&
-            handleCustomFilterDropdownChange(
-              newValue.value as IHostSWLibraryDropdownFilterVal
-            )
-          }
-          variant="table-filter"
-          isDisabled={isTrulyEmpty}
-        />
-      </div>
+      <>
+        <div className={`${baseClass}__filter-controls`}>
+          <DropdownWrapper
+            name="host-library-filter"
+            value={selfService ? "selfService" : "available"}
+            className={`${baseClass}__host-library-filter`}
+            options={DROPDOWN_OPTIONS}
+            onChange={(newValue: SingleValue<CustomOptionType>) =>
+              newValue &&
+              handleCustomFilterDropdownChange(
+                newValue.value as IHostSWLibraryDropdownFilterVal
+              )
+            }
+            variant="table-filter"
+            isDisabled={isTrulyEmpty}
+          />
+        </div>
+        {canAddSoftware && !isTrulyEmpty && (
+          <Button
+            className={`${baseClass}__add-software-button`}
+            variant="secondary"
+            onClick={onAddSoftware}
+            icon="plus"
+          >
+            <span>Add software</span>
+          </Button>
+        )}
+      </>
     );
   };
 

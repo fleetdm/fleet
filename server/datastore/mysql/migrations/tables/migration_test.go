@@ -162,6 +162,7 @@ WHERE
 		{"utf8mb4_bin", "enroll_secrets", "secret", "utf8mb4"},
 		{"utf8mb4_bin", "hosts", "node_key", "utf8mb4"},
 		{"utf8mb4_bin", "hosts", "orbit_node_key", "utf8mb4"},
+		{"utf8mb4_bin", "password_reset_requests", "token", "utf8mb4"},
 		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
 	}
 

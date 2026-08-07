@@ -47,6 +47,8 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesSortByDisplayName", testListSoftwareTitlesSortByDisplayName},
 		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
 		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
+		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
+		{"SoftwareTitleByIDNoFleetScopedToVisibleFleets", testSoftwareTitleByIDNoFleetScopedToVisibleFleets},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2341,6 +2343,153 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), title.HostsCount)
 	require.Equal(t, uint(1), title.VersionsCount)
 	require.Equal(t, ptr.Uint(1), title.Versions[0].HostsCount)
+}
+
+// testSoftwareTitleNameForHostFilter verifies SoftwareTitleNameForHostFilter's
+// live-join lookup and its team/tmFilter scoping.
+func testSoftwareTitleNameForHostFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithTeamID(team1.ID))
+
+	testSw := fleet.Software{Name: "UniqueDSTitleApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.unique.dstitleapp"}
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{testSw})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host1, false))
+	require.Len(t, host1.Software, 1)
+	require.NotNil(t, host1.Software[0].TitleID)
+	titleID := *host1.Software[0].TitleID
+
+	// Scoped to team1 only: can't see team2 or "no team" hosts.
+	team1ScopedUser := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}}
+	team1Filter := fleet.TeamFilter{User: team1ScopedUser, IncludeObserver: true}
+
+	globalAdminUser := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	globalAdminFilter := fleet.TeamFilter{User: globalAdminUser, IncludeObserver: true}
+
+	// No SyncHostsSoftwareTitles call: this must find titles via a live
+	// join, not the aggregate table sync populates.
+
+	// In-scope team: found immediately, pre-sync.
+	name, displayName, err := ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team1.ID, team1Filter)
+	require.NoError(t, err)
+	assert.Equal(t, testSw.Name, name)
+	assert.Empty(t, displayName)
+
+	// A team's display_name override takes precedence over the title name.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return updateSoftwareTitleDisplayName(ctx, q, &team1.ID, titleID, "Team1 Custom Name")
+	})
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team1.ID, team1Filter)
+	require.NoError(t, err)
+	assert.Empty(t, name)
+	assert.Equal(t, "Team1 Custom Name", displayName)
+
+	// Out-of-scope team: NotFound, no data disclosed.
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team2.ID, team1Filter)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Nonexistent title ID: NotFound.
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID+999999, &team1.ID, team1Filter)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// "No team" (team_id=0).
+	noTeamHost := test.NewHost(t, ds, "no-team-host", "", "no-team-hostkey", "no-team-hostuuid", time.Now())
+	noTeamSw := fleet.Software{Name: "UniqueNoTeamTitleApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.unique.noteamtitleapp"}
+	_, err = ds.UpdateHostSoftware(ctx, noTeamHost.ID, []fleet.Software{noTeamSw})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, noTeamHost, false))
+	require.Len(t, noTeamHost.Software, 1)
+	require.NotNil(t, noTeamHost.Software[0].TitleID)
+	noTeamTitleID := *noTeamHost.Software[0].TitleID
+
+	zero := uint(0)
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, &zero, team1Filter)
+	require.NoError(t, err)
+	assert.Equal(t, noTeamSw.Name, name)
+	assert.Empty(t, displayName)
+
+	// nil teamID: scoped to every team the caller can access, and ignores
+	// team1's display_name override (set above) since no single team is in scope.
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, nil, team1Filter)
+	require.NoError(t, err)
+	assert.Equal(t, testSw.Name, name)
+	assert.Empty(t, displayName)
+
+	// ...but not "no team", which this caller can't see.
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, nil, team1Filter)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// A global admin can see "no team" too.
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, nil, globalAdminFilter)
+	require.NoError(t, err)
+	assert.Equal(t, noTeamSw.Name, name)
+	assert.Empty(t, displayName)
+}
+
+// A nil fleet means "every fleet the caller can see". A title reachable only
+// through an installer in another fleet has to stay NotFound, or the response
+// tells the caller that software they can't reach exists.
+func testSoftwareTitleByIDNoFleetScopedToVisibleFleets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	visible, err := ds.NewTeam(ctx, &fleet.Team{Name: "visible fleet"})
+	require.NoError(t, err)
+	hidden, err := ds.NewTeam(ctx, &fleet.Team{Name: "hidden fleet"})
+	require.NoError(t, err)
+
+	author := test.NewUser(t, ds, "Author", "author@example.com", true)
+
+	newInstallerTitle := func(name, filename, bundleID string, teamID *uint) uint {
+		_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            name,
+			Source:           "apps",
+			InstallScript:    "echo",
+			Filename:         filename,
+			BundleIdentifier: bundleID,
+			TeamID:           teamID,
+			UserID:           author.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return titleID
+	}
+
+	// Neither title has hosts, so the installer join is the only thing that can
+	// make the row exist.
+	hiddenTitleID := newInstallerTitle("hidden app", "hidden.pkg", "com.example.hidden", &hidden.ID)
+	visibleTitleID := newInstallerTitle("visible app", "visible.pkg", "com.example.visible", &visible.ID)
+
+	scopedFilter := fleet.TeamFilter{
+		User:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: visible.ID}, Role: fleet.RoleObserver}}},
+		IncludeObserver: true,
+	}
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	_, err = ds.SoftwareTitleByID(ctx, hiddenTitleID, nil, scopedFilter)
+	require.True(t, fleet.IsNotFound(err), "expected NotFound, got: %v", err)
+
+	// Same answer when they name their own fleet, so the two can't be compared.
+	_, err = ds.SoftwareTitleByID(ctx, hiddenTitleID, &visible.ID, scopedFilter)
+	require.True(t, fleet.IsNotFound(err), "expected NotFound, got: %v", err)
+
+	// Their own fleet's installer still resolves without naming a fleet.
+	title, err := ds.SoftwareTitleByID(ctx, visibleTitleID, nil, scopedFilter)
+	require.NoError(t, err)
+	require.Equal(t, visibleTitleID, title.ID)
+
+	// Global roles still match every fleet.
+	title, err = ds.SoftwareTitleByID(ctx, hiddenTitleID, nil, adminFilter)
+	require.NoError(t, err)
+	require.Equal(t, hiddenTitleID, title.ID)
 }
 
 func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {

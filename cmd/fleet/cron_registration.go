@@ -128,6 +128,10 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 		})
 	}
 
+	deps.register(fmt.Sprintf("failed to register %s", fleet.CronSoftwareChecksumMigration), func() (fleet.CronSchedule, error) {
+		return cronSoftwareChecksumMigration(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
 	if deps.config.Server.FrequentCleanupsEnabled {
 		deps.register("failed to register frequent_cleanups schedule", func() (fleet.CronSchedule, error) {
 			return newFrequentCleanupsSchedule(ctx, deps.instanceID, deps.ds, deps.liveQueryStore, deps.logger)
@@ -266,6 +270,18 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 		)
 	})
 
+	// Register Android MDM Command Reconciler schedule (recovers commands whose Pub/Sub notification was lost)
+	deps.register("failed to register mdm_android_command_reconciler schedule", func() (fleet.CronSchedule, error) {
+		return newAndroidMDMCommandReconcilerSchedule(
+			ctx,
+			deps.instanceID,
+			deps.ds,
+			deps.logger,
+			deps.config.License.Key,
+			deps.svc.NewActivity,
+		)
+	})
+
 	deps.register("failed to register enable_android_app_reports_on_default_policy cron", func() (fleet.CronSchedule, error) {
 		return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, deps.instanceID, deps.ds, deps.logger, deps.androidSvc)
 	})
@@ -282,6 +298,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.commander,
 			deps.logger,
 		)
+	})
+
+	deps.register("failed to register Apple MDM OS updates schedule", func() (fleet.CronSchedule, error) {
+		return newAppleMDMOSUpdatesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 }
 
@@ -304,6 +324,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register maintained apps schedule", func() (fleet.CronSchedule, error) {
 		return newMaintainedAppSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
+	deps.register("failed to register windows maintained app titles schedule", func() (fleet.CronSchedule, error) {
+		return newWindowsMaintainedAppTitlesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 
 	deps.register("failed to register maintained apps auto-update schedule", func() (fleet.CronSchedule, error) {
@@ -347,7 +371,13 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register google workspace sync schedule", func() (fleet.CronSchedule, error) {
-		return cron.NewGoogleWorkspaceSchedule(ctx, deps.instanceID, deps.ds, googleworkspace.NewDirectory, deps.logger)
+		factory := googleworkspace.NewDirectoryFactory(googleworkspace.Limits{
+			MaxUsers:            deps.config.GoogleWorkspace.MaxUsers,
+			MaxGroups:           deps.config.GoogleWorkspace.MaxGroups,
+			MaxGroupMembers:     deps.config.GoogleWorkspace.MaxGroupMembers,
+			MaxGroupMemberships: deps.config.GoogleWorkspace.MaxGroupMemberships,
+		})
+		return cron.NewGoogleWorkspaceSchedule(ctx, deps.instanceID, deps.ds, factory, deps.logger)
 	})
 }
 

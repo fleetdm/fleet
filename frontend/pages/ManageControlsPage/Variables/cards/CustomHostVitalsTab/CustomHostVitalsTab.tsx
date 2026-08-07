@@ -11,7 +11,6 @@ import customHostVitalsAPI, {
 } from "services/entities/custom_host_vitals";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
 import PageDescription from "components/PageDescription";
@@ -155,18 +154,19 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
   // search as the search-empty case.
   const isEmpty = !isLoading && count === 0 && !isSearching;
 
-  const renderAddButton = (variant: "inverse" | "default") =>
+  const renderAddButton = (variant: "secondary" | "default") =>
     canEdit ? (
       <GitOpsModeTooltipWrapper
+        position={variant === "secondary" ? "left" : undefined}
         renderChildren={(disableChildren) => (
           <Button
-            variant={variant === "inverse" ? "inverse" : undefined}
-            size={variant === "inverse" ? "small" : undefined}
+            variant={variant === "secondary" ? "secondary" : undefined}
+            size={variant === "secondary" ? "small" : undefined}
             onClick={onClickAdd}
             disabled={disableChildren}
+            icon={variant === "secondary" ? "plus" : undefined}
           >
-            {variant === "inverse" && <Icon name="plus" />}
-            <span>Add vital</span>
+            Add vital
           </Button>
         )}
       />
@@ -227,15 +227,14 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
 
   return (
     <div className={baseClass}>
-      <SectionHeader
-        title="Custom host vitals"
-        alignLeftHeaderVertically
-        details={renderAddButton("inverse")}
-      />
-      <PageDescription
-        variant="tab-panel"
-        content="Manage custom fields on hosts. Their values can be set manually on each host's details page, or via API integration."
-      />
+      <SectionHeader title="Custom host vitals" alignLeftHeaderVertically />
+      <div className={`${baseClass}__tab-header`}>
+        <PageDescription
+          variant="tab-panel"
+          content="Manage custom fields on hosts. Their values can be set manually on each host's details page, or via API integration."
+        />
+        {renderAddButton("secondary")}
+      </div>
       {renderContent()}
       {showAddModal && (
         <AddCustomHostVitalModal

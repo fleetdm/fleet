@@ -305,6 +305,15 @@ func (a ActivityTypeUserFailedLogin) ActivityName() string {
 	return "user_failed_login"
 }
 
+type ActivityTypeUserMFARequested struct {
+	Email    string `json:"email"`
+	PublicIP string `json:"public_ip"`
+}
+
+func (a ActivityTypeUserMFARequested) ActivityName() string {
+	return "user_mfa_requested"
+}
+
 type ActivityTypeCreatedUser struct {
 	UserID    uint   `json:"user_id"`
 	UserName  string `json:"user_name"`
@@ -412,6 +421,12 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 type ActivityTypeMDMEnrolled struct {
+	// HostID is omitted when zero. It is always set for Apple enrollments and
+	// for Windows enrollments where the host is known at enrollment time;
+	// Windows Azure automatic enrollments are linked to their host later (via
+	// the serial reported on the first management session), so their
+	// enrollment activity has no host_id (see #47874).
+	HostID           uint    `json:"host_id,omitempty"`
 	HostSerial       *string `json:"host_serial"`
 	HostDisplayName  string  `json:"host_display_name"`
 	InstalledFromDEP bool    `json:"installed_from_dep"`
@@ -423,6 +438,16 @@ type ActivityTypeMDMEnrolled struct {
 
 func (a ActivityTypeMDMEnrolled) ActivityName() string {
 	return "mdm_enrolled"
+}
+
+// HostIDs links this activity to the host on the host details timeline. Returns nil when the host
+// is unknown (eg the enrollment is being processed before the host record exists) so the global
+// activity is still recorded but no activity_host_past row is inserted.
+func (a ActivityTypeMDMEnrolled) HostIDs() []uint {
+	if a.HostID == 0 {
+		return nil
+	}
+	return []uint{a.HostID}
 }
 
 // TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
@@ -701,6 +726,7 @@ func (a ActivityTypeViewedManagedLocalAccount) HostIDs() []uint {
 type ActivityTypeEnabledManagedLocalAccount struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	Platform string  `json:"platform,omitempty"`
 }
 
 func (a ActivityTypeEnabledManagedLocalAccount) ActivityName() string {
@@ -710,6 +736,7 @@ func (a ActivityTypeEnabledManagedLocalAccount) ActivityName() string {
 type ActivityTypeDisabledManagedLocalAccount struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	Platform string  `json:"platform,omitempty"`
 }
 
 func (a ActivityTypeDisabledManagedLocalAccount) ActivityName() string {
@@ -1156,6 +1183,7 @@ type ActivityTypeResentConfigurationProfile struct {
 	HostID          *uint   `json:"host_id"`
 	HostDisplayName *string `json:"host_display_name"`
 	ProfileName     string  `json:"profile_name"`
+	ProfileUUID     string  `json:"profile_uuid"`
 }
 
 func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
@@ -1164,6 +1192,7 @@ func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
 
 type ActivityTypeResentConfigurationProfileBatch struct {
 	ProfileName string `json:"profile_name"`
+	ProfileUUID string `json:"profile_uuid"`
 	HostCount   int64  `json:"host_count"`
 }
 
@@ -1186,6 +1215,8 @@ type ActivityTypeInstalledSoftware struct {
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
+	// InstallSkippedWhenAppOpen is set only on a patch-when-closed skip; Status is then "failed_install".
+	InstallSkippedWhenAppOpen bool `json:"install_skipped_when_app_open,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1935,6 +1966,28 @@ func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
 	return "edited_setup_experience_software"
 }
 
+// These activities are new, so they use the fleet_id/fleet_name field names directly rather than
+// the team_id/team_name + renameto pattern the older team-scoped activities keep for back-compat.
+type ActivityCreatedSetupExperienceScript struct {
+	FleetID    *uint   `json:"fleet_id"`
+	FleetName  *string `json:"fleet_name"`
+	ScriptName string  `json:"script_name"`
+}
+
+func (a ActivityCreatedSetupExperienceScript) ActivityName() string {
+	return "created_setup_experience_script"
+}
+
+type ActivityDeletedSetupExperienceScript struct {
+	FleetID    *uint   `json:"fleet_id"`
+	FleetName  *string `json:"fleet_name"`
+	ScriptName string  `json:"script_name"`
+}
+
+func (a ActivityDeletedSetupExperienceScript) ActivityName() string {
+	return "deleted_setup_experience_script"
+}
+
 type ActivityTypeCreatedAndroidProfile struct {
 	ProfileName string  `json:"profile_name"`
 	TeamID      *uint   `json:"team_id" renameto:"fleet_id"`
@@ -2056,6 +2109,17 @@ type ActivityTypeDeletedMicrosoftEntraClientID struct {
 
 func (a ActivityTypeDeletedMicrosoftEntraClientID) ActivityName() string {
 	return "deleted_microsoft_entra_client_id"
+}
+
+// ActivityTypeEditedWindowsEnrollmentDefaultFleet is logged when the default fleet for new
+// user-driven Windows MDM enrollments changes. Both fields are null when the default is cleared.
+type ActivityTypeEditedWindowsEnrollmentDefaultFleet struct {
+	FleetID   *uint   `json:"fleet_id"`
+	FleetName *string `json:"fleet_name"`
+}
+
+func (a ActivityTypeEditedWindowsEnrollmentDefaultFleet) ActivityName() string {
+	return "edited_windows_enrollment_default_fleet"
 }
 
 type ActivityTypeEditedEnrollSecrets struct {

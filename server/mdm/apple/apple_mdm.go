@@ -1039,7 +1039,8 @@ func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
 // NewDEPClient creates an Apple DEP API HTTP client based on the provided
 // storage that will flag the ABM token's terms expired field and the
 // AppConfig's AppleBMTermsExpired field whenever the status of the terms
-// changes.
+// changes, and flag the ABM token's token_invalid field whenever Apple
+// rejects the token or reports its signature as invalid.
 func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger *slog.Logger) *godep.Client {
 	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
 		// to check for ABM terms expired, we must have an ABM token organization
@@ -1050,6 +1051,36 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 		orgName := depclient.GetName(ctx)
 		if _, rawTokenPresent := ctxabm.FromContext(ctx); rawTokenPresent || orgName == "" {
 			return reqErr
+		}
+
+		// if the request failed due to the token being rejected or its
+		// signature being invalid, flag the ABM token's token_invalid. If it
+		// succeeded, or failed with a different *definitive* signal that the
+		// token itself was accepted (e.g. terms not signed -- Apple only
+		// evaluates terms after authenticating the token), clear the flag.
+		// Any other failure (e.g. a transient network or server error) is
+		// inconclusive and leaves the flag untouched. This must happen before
+		// the terms-expired handling below, as that block can return early
+		// from this after-hook once its own bookkeeping is done.
+		tokenInvalid := reqErr != nil && (godep.IsTokenRejected(reqErr) || godep.IsSignatureInvalid(reqErr))
+		tokenAccepted := reqErr == nil || godep.IsTermsNotSigned(reqErr)
+		if tokenAccepted || tokenInvalid {
+			// Check the current value via a read replica first, so the common
+			// case (the flag already has the desired value, which is most DEP
+			// API calls) doesn't hit the writer. If the read fails, fall back to
+			// always writing, since that's no worse than before this check
+			// existed.
+			needsUpdate := true
+			if currentlyInvalid, err := updater.IsABMTokenInvalidForOrgName(ctx, orgName); err != nil {
+				logger.ErrorContext(ctx, "Apple DEP client: failed to get token invalid status of ABM token", "err", err)
+			} else {
+				needsUpdate = currentlyInvalid != tokenInvalid
+			}
+			if needsUpdate {
+				if _, err := updater.SetABMTokenInvalidForOrgName(ctx, orgName, tokenInvalid); err != nil {
+					logger.ErrorContext(ctx, "Apple DEP client: failed to update token invalid status of ABM token", "err", err)
+				}
+			}
 		}
 
 		// if the request failed due to terms not signed, or if it succeeded,
@@ -1113,8 +1144,27 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 					"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 			}
 		}
+
 		return reqErr
 	}))
+}
+
+// ClassifyDEPDeviceError classifies an error returned by a DEP device-details
+// style call (e.g. godep.Client.GetDeviceDetails) into a DEPDeviceErrorType
+// for API consumers, or "" if err is nil.
+func ClassifyDEPDeviceError(err error) fleet.DEPDeviceErrorType {
+	switch {
+	case err == nil:
+		return ""
+	case godep.IsTokenRejected(err) || godep.IsSignatureInvalid(err):
+		return fleet.DEPDeviceErrorTokenInvalid
+	case godep.IsTermsNotSigned(err):
+		return fleet.DEPDeviceErrorTermsExpired
+	case godep.IsServerError(err):
+		return fleet.DEPDeviceErrorServerError
+	default:
+		return fleet.DEPDeviceErrorUnavailable
+	}
 }
 
 var funcMap = map[string]any{
@@ -1705,19 +1755,31 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 
 	// DeviceInformation is last because the refetch response clears the refetch_requested flag
-	deviceInfoUUIDs := make([]string, 0, len(devices))
+	deviceInfoUUIDs := struct {
+		Personal []string
+		Other    []string
+	}{}
 	for _, device := range devices {
 		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchDeviceCommandUUIDPrefix) {
-			deviceInfoUUIDs = append(deviceInfoUUIDs, device.UUID)
+			if device.IsPersonalEnrollment {
+				deviceInfoUUIDs.Personal = append(deviceInfoUUIDs.Personal, device.UUID)
+			} else {
+				deviceInfoUUIDs.Other = append(deviceInfoUUIDs.Other, device.UUID)
+			}
 			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
 				HostID:      device.HostID,
 				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
 			})
 		}
 	}
-	if len(deviceInfoUUIDs) > 0 {
+	for i, uuids := range [][]string{deviceInfoUUIDs.Personal, deviceInfoUUIDs.Other} {
+		isPersonalEnrollment := i == 0
+		if len(uuids) == 0 {
+			continue
+		}
+
 		commandUUID := uuid.NewString()
-		err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID)
+		err := commander.DeviceInformation(ctx, uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, isPersonalEnrollment)
 		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
 		if turnedOffError != nil {
 			return turnedOffError
@@ -1851,7 +1913,15 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		return nil, errors.New("invalid settings type")
 	}
 
-	if macOSUpdates.MinimumVersion.Value == "" && iOSUpdates.MinimumVersion.Value == "" && iPadOSUpdates.MinimumVersion.Value == "" {
+	// "latest" is a sentinel, not a version: the concrete target is resolved per
+	// host from Apple's published versions later on, so there is nothing to look
+	// up here.
+	needsVersionCheck := func(s fleet.AppleOSUpdateSettings) bool {
+		return s.MinimumVersion.Value != "" && !s.EnforcesLatestVersion()
+	}
+
+	if !needsVersionCheck(macOSUpdates) && !needsVersionCheck(iOSUpdates) && !needsVersionCheck(iPadOSUpdates) {
+		// nothing to validate, so don't pay for the round trip to Apple.
 		return nil, nil
 	}
 
@@ -1864,12 +1934,12 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 	}
 
 	invalid := make(map[string]string, 3)
-	if macOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(macOSUpdates) {
 		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
 			invalid["macos"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
-	if iOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(iOSUpdates) {
 		// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
 		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
 		// and we want to avoid breaking workflows for users in that event
@@ -1877,7 +1947,7 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 			invalid["ios"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
-	if iPadOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(iPadOSUpdates) {
 		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
 			invalid["ipados"] = fleet.AppleOSVersionUnsupportedMessage
 		}
@@ -2248,7 +2318,7 @@ func EnqueueManagedLocalAccountRotation(
 	commander ManagedLocalAccountRotationCommander,
 	hostUUID, accountUUID string,
 ) (cmdUUID string, err error, rollbackErr error) {
-	newPassword := GenerateManagedAccountPassword()
+	newPassword := fleet.GenerateManagedLocalAccountPassword(false)
 	hashPlist, hashErr := GenerateSaltedSHA512PBKDF2Hash(newPassword)
 	if hashErr != nil {
 		return "", hashErr, nil
@@ -2430,4 +2500,225 @@ func MDMPushCertTopic(ctx context.Context, ds fleet.MDMAssetRetriever) (string, 
 	}
 
 	return mdmPushCertTopic, nil
+}
+
+func HandleAppleMDMOSUpdates(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
+	lastUpdatedAt, err := ds.GetLastAppleOSUpdatesUpdate(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get last apple os updates update")
+	}
+
+	if lastUpdatedAt == nil || time.Since(*lastUpdatedAt) > 24*time.Hour {
+		logger.InfoContext(ctx, "pulling fresh apple os updates from gdmf")
+
+		assetMetadata, err := gdmf.GetAssetMetadata()
+		if err != nil {
+			logger.ErrorContext(ctx, "error getting asset metadata from GDMF", "error", err)
+			goto computeOSTargets
+		}
+
+		updates := map[string][]fleet.OSUpdateAsset{
+			"macos": assetMetadata.PublicAssetSets.MacOS,
+			"ios":   assetMetadata.PublicAssetSets.IOS,
+		}
+
+		err = ds.UpsertAppleOSUpdates(ctx, updates)
+		if err != nil {
+			logger.ErrorContext(ctx, "error upserting apple os updates", "error", err)
+			goto computeOSTargets
+		}
+
+		// Apple stops reporting versions once they expire, so drop the cached assets that are no
+		// longer in the set we just fetched. This only runs when the fetch succeeded, otherwise we
+		// would delete assets based on an incomplete view of what Apple currently publishes.
+		for class, assets := range updates {
+			if len(assets) == 0 {
+				logger.WarnContext(ctx, "gdmf returned no os updates for class, keeping cached assets", "class", class)
+			}
+		}
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, updates)
+		if err != nil {
+			logger.ErrorContext(ctx, "error deleting stale apple os updates", "error", err)
+			goto computeOSTargets
+		}
+		if deleted > 0 {
+			logger.InfoContext(ctx, "deleted apple os updates no longer reported by gdmf", "count", deleted)
+		}
+	} else {
+		logger.InfoContext(ctx, "apple os updates are less than 24 hours old, not pulling new os updates", "last_updated_at", *lastUpdatedAt)
+	}
+
+computeOSTargets:
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	// Get a list of all teams that has latest configured for macOS, iOS, or iPadOS.
+	// We use admin global role to have access to all teams.
+	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
+		GlobalRole: new("admin"),
+	}}, fleet.ListOptions{})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing teams")
+	}
+
+	// platform -> map of team_id -> deadline_days
+	teamsWithLatest := map[string]map[uint]int{}
+	teamsWithLatest["darwin"] = map[uint]int{}
+	teamsWithLatest["ios"] = map[uint]int{}
+	teamsWithLatest["ipados"] = map[uint]int{}
+
+	for _, team := range teams {
+		if team.Config.MDM.MacOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+			teamsWithLatest["darwin"][team.ID] = team.Config.MDM.MacOSUpdates.DeadlineDays.Value
+		}
+		if team.Config.MDM.IOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+			teamsWithLatest["ios"][team.ID] = team.Config.MDM.IOSUpdates.DeadlineDays.Value
+		}
+		if team.Config.MDM.IPadOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+			teamsWithLatest["ipados"][team.ID] = team.Config.MDM.IPadOSUpdates.DeadlineDays.Value
+		}
+	}
+
+	// We will replace 0 with NULL check when looking up hosts to reconcile and checking the team_id column
+	if appCfg.MDM.MacOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+		teamsWithLatest["darwin"][0] = appCfg.MDM.MacOSUpdates.DeadlineDays.Value
+	}
+	if appCfg.MDM.IOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+		teamsWithLatest["ios"][0] = appCfg.MDM.IOSUpdates.DeadlineDays.Value
+	}
+	if appCfg.MDM.IPadOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+		teamsWithLatest["ipados"][0] = appCfg.MDM.IPadOSUpdates.DeadlineDays.Value
+	}
+
+	updateAssets, err := ds.ListAppleOSUpdateAssets(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing apple os update assets")
+	}
+	const batchSize = 1000
+	var cursor string
+	for {
+		hostBatch, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, cursor, batchSize, teamsWithLatest)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing apple os update hosts for reconcile")
+		}
+		if len(hostBatch) == 0 {
+			break
+		}
+		logger.InfoContext(ctx, "recomputing target os version and deadline for hosts", "cursor", cursor, "end_cursor", hostBatch[len(hostBatch)-1].HostUUID, "count", len(hostBatch))
+
+		targets := computeOSUpdatesTarget(ctx, logger, hostBatch, updateAssets, teamsWithLatest)
+		logger.InfoContext(ctx, "updating target os version and deadline for hosts", "count", len(targets))
+		if err := ds.SetAppleOSUpdateTargetsAndResend(ctx, targets); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting apple os update targets and resending profiles")
+		}
+
+		cursor = hostBatch[len(hostBatch)-1].HostUUID
+	}
+
+	return nil
+}
+
+func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*fleet.AppleSoftwareUpdateHost, updateAssets map[string][]fleet.AppleSoftwareUpdateAsset, teamsWithLatest map[string]map[uint]int) []*fleet.ComputedAppleSoftwareUpdateHost {
+	var computedHosts []*fleet.ComputedAppleSoftwareUpdateHost
+
+	// Deduping hosts to avoid gnarly bugs
+	seen := make(map[string]struct{}, len(hosts))
+	var duplicateHosts int
+	for _, host := range hosts {
+		if _, ok := seen[host.HostUUID]; ok {
+			duplicateHosts++
+			continue
+		}
+		seen[host.HostUUID] = struct{}{}
+
+		var updateAssetsPlatform string
+		if host.Platform == "darwin" {
+			updateAssetsPlatform = "macos"
+		} else {
+			updateAssetsPlatform = "ios" // covers iPhone, iPad, iPod
+		}
+
+		// teamsWithLatest is configured per platform, one for macos, ios, ipados.
+		teamsWithLatestForPlatform, ok := teamsWithLatest[host.Platform]
+		if !ok {
+			logger.DebugContext(ctx, "unsupported os update platform", "platform", host.Platform, "host_uuid", host.HostUUID)
+			continue
+		}
+
+		deadlineDays, ok := teamsWithLatestForPlatform[host.TeamID]
+		if !ok {
+			// Host no longer has a team with latest set. Clear the target version and deadline, do NOT mark for resend as the reconciler will handle complete removal of profile.
+			host.TargetOSVersion = ""
+			host.TargetDeadline = nil
+			host.ResolvedAt = nil
+			computedHosts = append(computedHosts, &fleet.ComputedAppleSoftwareUpdateHost{
+				AppleSoftwareUpdateHost: *host,
+				Resend:                  false,
+			})
+			continue
+		}
+
+		// Host has a team with latest set. Compute the target OS version and deadline.
+
+		// Look up latest OS version from updateAssets
+		assets, ok := updateAssets[updateAssetsPlatform]
+		if !ok || len(assets) == 0 {
+			logger.DebugContext(ctx, "no update assets found for platform", "platform", updateAssetsPlatform, "host_uuid", host.HostUUID)
+			continue
+		}
+
+		var latestAsset *fleet.AppleSoftwareUpdateAsset
+		for i := range assets {
+			asset := &assets[i]
+			if !slices.Contains(asset.SupportedDevices, host.SoftwareUpdateDeviceID) {
+				continue
+			}
+
+			if latestAsset == nil {
+				latestAsset = asset
+				continue
+			}
+			// Current latest is less than this asset, so update latestAsset to this one
+			if less, _ := IsLessThanVersion(latestAsset.ProductVersion, asset.ProductVersion); less {
+				latestAsset = asset
+			}
+
+		}
+
+		if latestAsset == nil {
+			logger.DebugContext(ctx, "no update asset found for host's device id", "host_uuid", host.HostUUID, "device_id", host.SoftwareUpdateDeviceID)
+			continue
+		}
+
+		startDate := latestAsset.PostingDate
+		if latestAsset.FirstSeenAt.After(startDate) {
+			startDate = latestAsset.FirstSeenAt
+		}
+		targetDeadline := startDate.Add(time.Duration(deadlineDays) * 24 * time.Hour)
+
+		if latestAsset.ProductVersion == host.TargetOSVersion && (host.TargetDeadline != nil && targetDeadline.Equal(*host.TargetDeadline)) {
+			logger.DebugContext(ctx, "host target version and deadline unchanged", "host_uuid", host.HostUUID, "target_version", host.TargetOSVersion, "target_deadline", host.TargetDeadline)
+			continue
+		}
+
+		logger.DebugContext(ctx, "host target version and/or deadline changed", "host_uuid", host.HostUUID, "old_target_version", host.TargetOSVersion, "new_target_version", latestAsset.ProductVersion, "old_target_deadline", host.TargetDeadline, "new_target_deadline", targetDeadline)
+
+		host.TargetOSVersion = latestAsset.ProductVersion
+		host.TargetDeadline = &targetDeadline
+		host.ResolvedAt = new(time.Now().UTC())
+
+		computedHosts = append(computedHosts, &fleet.ComputedAppleSoftwareUpdateHost{
+			AppleSoftwareUpdateHost: *host,
+			Resend:                  true,
+		})
+	}
+
+	if duplicateHosts > 0 {
+		logger.WarnContext(ctx, "os updates reconcile: skipped rows for host UUIDs already seen in this batch; likely duplicate host rows sharing a UUID",
+			"skipped", duplicateHosts)
+	}
+
+	return computedHosts
 }

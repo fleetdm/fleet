@@ -42,6 +42,11 @@ const ssoAuthInstructions = "SSO is enabled for this Fleet instance. Email/passw
 	"Learn how to authenticate with fleetctl for SSO-enabled accounts:\n" +
 	"https://fleetdm.com/guides/fleetctl#users-with-single-sign-on-sso-or-email-two-factor-authentication-2-fa"
 
+const mfaAuthInstructions = "Note: if your account has multi-factor authentication (MFA) enabled, fleetctl login is not supported.\n" +
+	"Log in via the Fleet web UI and use an API token with fleetctl instead.\n\n" +
+	"Learn how to authenticate with fleetctl:\n" +
+	"https://fleetdm.com/guides/fleetctl#users-with-single-sign-on-sso-or-email-two-factor-authentication-2-fa"
+
 // printAuthError prints an authentication error message. If SSO is enabled on the server,
 // it directs the user to authenticate via API token instead of fleetctl login.
 func printAuthError(w io.Writer, client *service.Client, prefix string) {
