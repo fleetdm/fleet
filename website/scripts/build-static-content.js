@@ -843,6 +843,9 @@ module.exports = {
           dir: topLvlRepoPath,
         })).stdout)).getTime();
 
+        // Sanity check log to make sure we're able to get the correct timestamp with `filter: blob:none` added to the repo checkout step
+        // TODO: remove this before merging.
+        console.log('open positions yaml:'+lastModifiedAt);
 
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
