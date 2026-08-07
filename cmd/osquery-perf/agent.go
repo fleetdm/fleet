@@ -358,6 +358,7 @@ type mdmAgent struct {
 	mdmProfileFailureProb      float64
 	osVersion                  string
 	supplementalOSVersionExtra string
+	isPersonalEnrollment       bool
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -3856,8 +3857,16 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			a.stats.IncrementMDMCommandsReceived()
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
-				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithExtra(udid, mdmCommandPayload.CommandUUID, deviceName,
-					productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
+				if a.isPersonalEnrollment {
+					// A personal (BYOD) enrollment doesn't get asked for the
+					// newer device vitals fields (see byodDeviceInformationQueryKeys
+					// in server/mdm/apple/commander.go), so it shouldn't report them.
+					mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithExtra(udid, mdmCommandPayload.CommandUUID, deviceName,
+						productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
+				} else {
+					mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithVitals(udid, mdmCommandPayload.CommandUUID, deviceName,
+						productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
+				}
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
@@ -4044,6 +4053,7 @@ func main() {
 		mdmUserProb           = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
 		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
 		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
+		mdmIOSBYODProb        = flag.Float64("mdm_ios_byod_prob", 0.0, "Probability of a simulated iOS/iPadOS device (os_templates iphone_14.6/ipad_13.18/iphone_17) reporting as a personal (BYOD) enrollment, which omits the newer device vitals fields from its DeviceInformation ack [0, 1]")
 
 		mdmPSSOProb      = flag.Float64("mdm_psso_prob", 0.0, "Probability of an MDM-enrolled macOS host also simulating Apple Platform SSO [0, 1]. Requires the Fleet server to have account provisioning configured and the PSSO profile assigned to the host")
 		mdmPSSOClientID  = flag.String("mdm_psso_client_id", "", "Apple Platform SSO IdP/extension client ID. Must match the Fleet server's account provisioning config; PSSO is skipped when empty")
@@ -4225,6 +4235,7 @@ func main() {
 				serverAddress:              *serverURL,
 				osVersion:                  osVersion,
 				supplementalOSVersionExtra: supplementalOSVersionExtra,
+				isPersonalEnrollment:       rand.Float64() < *mdmIOSBYODProb, // nolint:gosec,G404 // load testing, not security-sensitive
 				softwareCount: softwareEntityCount{
 					entityCount: entityCount{
 						common: *commonSoftwareCount,
