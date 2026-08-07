@@ -1204,7 +1204,7 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 // mdm_apple_declarations.token is a MySQL generated column derived from
 // raw_json, so the ReconcileAppleDeclarations cron picks up a content change
 // on its own.
-func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte, activationSet bool) error {
+func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -1287,12 +1287,12 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 	}
 
 	// Three states: an edit that doesn't mention the activation keeps the stored
-	// one, an empty one removes it, and content replaces it. The datastore write
+	// one, a null one removes it, and content replaces it. The datastore write
 	// is a full replace, so keeping it has to be said explicitly.
 	activationAction := fleet.MDMAppleActivationKeep
-	if activationSet {
+	if activation.Set {
 		activationAction = fleet.MDMAppleActivationApply
-		if len(activation) > 0 {
+		if activation.Valid {
 			if decl.Type == "" {
 				// content is unchanged, so recover Type for the management check
 				rawDecl, err := fleet.GetRawDeclarationValues(decl.RawJSON)
@@ -1301,7 +1301,7 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 				}
 				decl.Type = rawDecl.Type
 			}
-			customActivation, err := svc.validateActivation(ctx, activation, decl.Identifier, decl.Type)
+			customActivation, err := svc.validateActivation(ctx, activation.Value, decl.Identifier, decl.Type)
 			if err != nil {
 				return err
 			}
