@@ -3764,10 +3764,6 @@ For VPP `InstallApplication` command results, `results_metadata` may include:
 
 Queues an install for every self-service software title available to the device that isn't already installed.
 
-If `category_id` is provided, only titles assigned to that [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories) on the device's fleet are queued.
-
-If `query` is provided, only titles whose name matches are queued (same match semantics as the self-service list endpoint).
-
 `POST /api/v1/fleet/device/{token}/software/install_all`
 
 ##### Parameters
@@ -3775,8 +3771,8 @@ If `query` is provided, only titles whose name matches are queued (same match se
 | Name        | Type    | In    | Description                                                                                                                                          |
 | ----------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | token       | string  | path  | **Required**. The device's authentication token.                                                                                                     |
-| category_id | integer | query | Restrict the install to a single self-service category. Must reference a category that exists on the device's fleet. If omitted, all categories are included. |
-| query       | string  | query | Restrict the install to titles whose name matches. Uses the same match semantics as the self-service list endpoint. If omitted, no name filter is applied. |
+| category_id | integer | query | Restrict to a single [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories). Must exist on the device's fleet. If omitted, all categories are included. |
+| query       | string  | query | Restrict to titles whose name matches (same semantics as the self-service list endpoint). If omitted, no name filter is applied. |
 
 ##### Example
 

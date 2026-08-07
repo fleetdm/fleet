@@ -404,54 +404,10 @@ describe("SelfServiceCard", () => {
     expect(button).toBeEnabled();
   });
 
-  // #50528: with a search query active, the install-all count and the
-  // request sent to the BE must match the visible (filtered) subset — not
-  // the entire category.
-  it("scopes the install-all count to the search query when both a category and a query are active", async () => {
-    mockServer.use(
-      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
-    );
-    const browserPackage = createMockHostSoftwarePackage({
-      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
-    });
-    const props = createTestProps({
-      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 1, query: "fox" },
-      enhancedSoftware: [
-        {
-          ...createMockDeviceSoftware({
-            name: "Firefox",
-            software_package: browserPackage,
-          }),
-          ui_status: "uninstalled",
-        },
-        {
-          ...createMockDeviceSoftware({
-            name: "Google Chrome",
-            software_package: browserPackage,
-          }),
-          ui_status: "uninstalled",
-        },
-        {
-          ...createMockDeviceSoftware({
-            name: "Opera",
-            software_package: browserPackage,
-          }),
-          ui_status: "uninstalled",
-        },
-      ],
-    });
-    const render = createCustomRenderer({ withBackendMock: true });
-
-    render(<SelfServiceCard {...props} />);
-
-    // Only Firefox matches "fox".
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /Install all \(1\)/i })
-      ).toBeInTheDocument();
-    });
-  });
-
+  // With a search query active, the install-all count and the request sent to
+  // the BE must both match the visible (filtered) subset. The count math is
+  // covered at the helper level in helpers.tests.ts; here we only need to
+  // assert the count *renders* correctly and the query lands on the POST.
   it("forwards the search query to install_all so the request matches the visible subset", async () => {
     let installAllUrl = "";
     mockServer.use(

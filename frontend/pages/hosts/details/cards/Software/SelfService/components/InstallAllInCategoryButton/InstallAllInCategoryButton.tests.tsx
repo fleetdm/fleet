@@ -163,8 +163,8 @@ describe("InstallAllInCategoryButton", () => {
     expect(requestedUrl).toContain("category_id=1");
   });
 
-  // #50528: when a search query is active, install_all must scope to the
-  // visible subset, not the entire category.
+  // When a search query is active, install_all must scope to the visible
+  // subset, not the entire category.
   it("forwards the query param on the POST when a search query is active", async () => {
     let requestedUrl = "";
     mockServer.use(
@@ -193,7 +193,44 @@ describe("InstallAllInCategoryButton", () => {
     expect(requestedUrl).toContain("category_id=1");
   });
 
-  it("omits the query param when the search query is empty", async () => {
+  it("omits the query param when the search query is empty or whitespace-only", async () => {
+    // Whitespace-only would otherwise reach the BE as `LIKE '% %'` and return
+    // zero results, contradicting the on-screen count.
+    for (const emptyish of ["", "   "]) {
+      let requestedUrl = "";
+      mockServer.use(
+        http.post(
+          baseUrl("/device/:token/software/install_all"),
+          ({ request }) => {
+            requestedUrl = request.url;
+            return new HttpResponse(null, { status: 202 });
+          }
+        )
+      );
+      const render = createCustomRenderer({ withBackendMock: true });
+      const user = userEvent.setup();
+      const { unmount } = render(
+        <InstallAllInCategoryButton {...baseProps} query={emptyish} />
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: /Install all \(3\)/i })
+      );
+      await user.click(
+        await screen.findByRole("button", { name: /^Install all$/i })
+      );
+
+      await waitFor(() => {
+        expect(requestedUrl).not.toContain("query=");
+      });
+      unmount();
+    }
+  });
+
+  it("trims whitespace on the outgoing query param", async () => {
+    // Users type "  fox " on-screen; the visible filter trims before matching,
+    // so the outgoing query must trim too — otherwise the BE runs
+    // `LIKE '%  fox %'` and queues zero while the count says otherwise.
     let requestedUrl = "";
     mockServer.use(
       http.post(
@@ -206,7 +243,7 @@ describe("InstallAllInCategoryButton", () => {
     );
     const render = createCustomRenderer({ withBackendMock: true });
     const user = userEvent.setup();
-    render(<InstallAllInCategoryButton {...baseProps} query="" />);
+    render(<InstallAllInCategoryButton {...baseProps} query="  fox  " />);
 
     await user.click(
       screen.getByRole("button", { name: /Install all \(3\)/i })
@@ -216,8 +253,9 @@ describe("InstallAllInCategoryButton", () => {
     );
 
     await waitFor(() => {
-      expect(requestedUrl).not.toContain("query=");
+      expect(requestedUrl).toContain("query=fox");
     });
+    expect(requestedUrl).not.toContain("query=%20");
   });
 
   it("omits category_id when categoryId is undefined ('All' selected)", async () => {

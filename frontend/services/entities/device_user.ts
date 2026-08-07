@@ -125,11 +125,13 @@ export default {
     // getPathWithQueryParams already drops undefined values, so the BE
     // receives a bare POST and installs every uninstalled item.
     // When `query` is passed through, install_all scopes to the same subset
-    // the user sees on screen (#50528). Empty strings are stripped here so
-    // an unset search doesn't send `?query=` to the BE.
+    // the user sees on screen (#50528). Trim + coerce empty to `undefined` so
+    // whitespace-only queries (which don't filter the visible list) don't
+    // land on the BE as `LIKE '% %'` and return no matches.
+    const trimmed = query?.trim();
     const path = getPathWithQueryParams(
       DEVICE_SOFTWARE_INSTALL_ALL(deviceToken),
-      { category_id: categoryId, query: query || undefined }
+      { category_id: categoryId, query: trimmed || undefined }
     );
     return sendRequest("POST", path);
   },

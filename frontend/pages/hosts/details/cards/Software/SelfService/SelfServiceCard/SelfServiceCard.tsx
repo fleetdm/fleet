@@ -113,10 +113,9 @@ const SelfServiceCard = ({
     [enhancedSoftware, visibleCategories, queryParams.category_id]
   );
 
-  // #50528: the install-all button count and target must match what's on
-  // screen. Layer the search filter on top of the category filter so
-  // `uninstalledCount` and the request sent to install_all both reflect the
-  // filtered subset.
+  // The install-all button count and target must match what's on screen. Layer
+  // the search filter on top of the category filter so `uninstalledCount` and
+  // the request sent to install_all both reflect the filtered subset.
   const softwareInSelectedCategoryMatchingQuery = useMemo(
     () => filterSoftwareByQuery(softwareInSelectedCategory, queryParams.query),
     [softwareInSelectedCategory, queryParams.query]
