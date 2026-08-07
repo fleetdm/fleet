@@ -3305,6 +3305,116 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, now, vers.CountsUpdatedAt)
 }
 
+func TestOSVersionsOrderByVersion(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Mixes dot-separated numeric versions with differing digit counts, a
+	// Windows feature-update codename, and a non-numeric version (Arch
+	// Linux's "rolling") to exercise every branch of compareOSVersions.
+	testVersions := []fleet.OSVersion{
+		{OSVersionID: 1, NameOnly: "Windows 11 Pro", Platform: "windows", Version: "10.0.9200.100"},
+		{OSVersionID: 2, NameOnly: "Windows 11 Pro", Platform: "windows", Version: "10.0.26200.8875"},
+		{OSVersionID: 3, NameOnly: "Windows 10 Pro", Platform: "windows", Version: "21H2"},
+		{OSVersionID: 4, NameOnly: "Windows 10 Pro", Platform: "windows", Version: "22H1"},
+		{OSVersionID: 5, NameOnly: "macOS", Platform: "darwin", Version: "26.6"},
+		{OSVersionID: 6, NameOnly: "macOS", Platform: "darwin", Version: "26.10"},
+		{OSVersionID: 7, NameOnly: "Arch Linux", Platform: "arch", Version: "rolling"},
+	}
+
+	now := time.Now()
+
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{CountsUpdatedAt: now, OSVersions: testVersions}, nil
+	}
+
+	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
+		return nil, nil
+	}
+
+	// descending version sort (latest first): non-numeric "rolling" sorts
+	// last; "10.0.26200.8875" sorts above "10.0.9200.100" (not a string
+	// comparison, which would get this backwards); "22H1" above "21H2";
+	// "26.10" above "26.6".
+	opts := fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, vers.OSVersions, 7)
+	assert.Equal(t, uint(6), vers.OSVersions[0].OSVersionID) // macOS 26.10
+	assert.Equal(t, uint(5), vers.OSVersions[1].OSVersionID) // macOS 26.6
+	assert.Equal(t, uint(4), vers.OSVersions[2].OSVersionID) // Windows 22H1
+	assert.Equal(t, uint(3), vers.OSVersions[3].OSVersionID) // Windows 21H2
+	assert.Equal(t, uint(2), vers.OSVersions[4].OSVersionID) // Windows 10.0.26200.8875
+	assert.Equal(t, uint(1), vers.OSVersions[5].OSVersionID) // Windows 10.0.9200.100
+	assert.Equal(t, uint(7), vers.OSVersions[6].OSVersionID) // Arch Linux "rolling"
+
+	// ascending version sort: reverse order
+	opts = fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderAscending}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, vers.OSVersions, 7)
+	assert.Equal(t, uint(7), vers.OSVersions[0].OSVersionID) // Arch Linux "rolling"
+	assert.Equal(t, uint(1), vers.OSVersions[1].OSVersionID) // Windows 10.0.9200.100
+	assert.Equal(t, uint(2), vers.OSVersions[2].OSVersionID) // Windows 10.0.26200.8875
+	assert.Equal(t, uint(3), vers.OSVersions[3].OSVersionID) // Windows 21H2
+	assert.Equal(t, uint(4), vers.OSVersions[4].OSVersionID) // Windows 22H1
+	assert.Equal(t, uint(5), vers.OSVersions[5].OSVersionID) // macOS 26.6
+	assert.Equal(t, uint(6), vers.OSVersions[6].OSVersionID) // macOS 26.10
+
+	// pagination + descending version sort stays deterministic across pages
+	opts = fleet.ListOptions{Page: 0, PerPage: 3, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	page0, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, page0.OSVersions, 3)
+
+	opts = fleet.ListOptions{Page: 1, PerPage: 3, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	page1, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, page1.OSVersions, 3)
+
+	assert.Equal(t, uint(6), page0.OSVersions[0].OSVersionID)
+	assert.Equal(t, uint(5), page0.OSVersions[1].OSVersionID)
+	assert.Equal(t, uint(4), page0.OSVersions[2].OSVersionID)
+	assert.Equal(t, uint(3), page1.OSVersions[0].OSVersionID)
+	assert.Equal(t, uint(2), page1.OSVersions[1].OSVersionID)
+	assert.Equal(t, uint(1), page1.OSVersions[2].OSVersionID)
+
+	// invalid order key
+	opts = fleet.ListOptions{OrderKey: "nameonly"}
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.Error(t, err)
+}
+
+func TestCompareOSVersions(t *testing.T) {
+	cases := []struct {
+		name     string
+		a, b     string
+		expected int
+	}{
+		{"equal numeric", "26.6", "26.6", 0},
+		{"multi-digit segment, not a string comparison", "26.6", "26.10", -1},
+		{"longer numeric version is newer", "26.5", "26.5.1", -1},
+		{"differing segment counts, four segments", "10.0.9200.100", "10.0.26200.8875", -1},
+		{"windows codename, same year", "21H1", "21H2", -1},
+		{"windows codename, different year", "21H2", "22H1", -1},
+		{"windows codename equal", "22H1", "22H1", 0},
+		{"non-numeric sorts before numeric", "rolling", "26.6", -1},
+		{"numeric sorts after non-numeric", "26.6", "rolling", 1},
+		{"two non-numeric versions are equal", "rolling", "rolling", 0},
+		{"empty string sorts before numeric", "", "26.6", -1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.expected, compareOSVersions(c.a, c.b), c.name)
+			assert.Equal(t, -c.expected, compareOSVersions(c.b, c.a), c.name+" (reversed)")
+		})
+	}
+}
+
 func TestOSVersionsDefaultPagination(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
