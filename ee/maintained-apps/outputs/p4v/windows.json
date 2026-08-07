@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "242.62.2",
+      "version": "242.62.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'P4 Apps' AND publisher = 'Perforce Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'P4 Apps' AND publisher = 'Perforce Software' AND version_compare(version, '242.62.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'P4 Apps' AND publisher = 'Perforce Software' AND version_compare(version, '242.62.3') < 0);"
       },
       "installer_url": "https://filehost.perforce.com/perforce/r26.2/bin.ntx64/p4vinst64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "030745cd",
-      "sha256": "e6bc46b18a3b20431610c45019664b5fb9c85ff44585135ac8fc1be6fe86ce6d",
+      "sha256": "e68d0917656e1549cc72ea94031f897795ca4e64b0af25d3f1fd1b17f5c345ee",
       "default_categories": [
         "Developer tools"
       ],
