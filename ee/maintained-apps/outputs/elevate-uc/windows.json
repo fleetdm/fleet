@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "2.31.37",
+      "version": "2.32.60",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Elevate UC' AND publisher = 'Serverdata.net, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Elevate UC' AND publisher = 'Serverdata.net, Inc.' AND version_compare(version, '2.31.37') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Elevate UC' AND publisher = 'Serverdata.net, Inc.' AND version_compare(version, '2.32.60') < 0);"
       },
       "installer_url": "https://cp.serverdata.net/voice/pbx/softphonereleases/default/latest-win/elevate-uc-x64.msi",
       "install_script_ref": "22e48c46",
