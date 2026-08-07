@@ -2735,6 +2735,19 @@ software:
 		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
 	})
 
+	t.Run("fleet_maintained_app_display_name_too_long", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  fleet_maintained_apps:
+    - slug: 1password/darwin
+      display_name: "` + longDisplayName + `"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
+	})
+
 	t.Run("valid_display_name", func(t *testing.T) {
 		config := getTeamConfig([]string{"name", "software"})
 		// Use hash instead of URL to avoid network calls, and no scripts required
@@ -2746,6 +2759,9 @@ software:
   app_store_apps:
     - app_store_id: "12345"
       display_name: "Custom VPP App Name"
+  fleet_maintained_apps:
+    - slug: 1password/darwin
+      display_name: "Custom FMA Name"
 `
 		path, basePath := createTempFile(t, "", config)
 		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
@@ -2754,6 +2770,12 @@ software:
 		assert.Equal(t, "Custom Package Name", result.Software.Packages[0].DisplayName)
 		require.Len(t, result.Software.AppStoreApps, 1)
 		assert.Equal(t, "Custom VPP App Name", result.Software.AppStoreApps[0].DisplayName)
+		require.Len(t, result.Software.FleetMaintainedApps, 1)
+		assert.Equal(t, "Custom FMA Name", result.Software.FleetMaintainedApps[0].DisplayName)
+
+		// the FMA display name must survive the conversion to the package spec used
+		// to build the batch payload
+		assert.Equal(t, "Custom FMA Name", result.Software.FleetMaintainedApps[0].ToSoftwarePackageSpec().DisplayName)
 	})
 }
 

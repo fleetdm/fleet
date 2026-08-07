@@ -2433,6 +2433,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
+		// Validate display_name length (matches database VARCHAR(255))
+		if len(maintainedAppSpec.DisplayName) > 255 {
+			multiError = multierror.Append(multiError, fmt.Errorf("fleet maintained app %q display_name is too long (max 255 characters)", maintainedAppSpec.Slug))
+			continue
+		}
+
 		maintainedAppSpec = maintainedAppSpec.ResolveSoftwarePackagePaths(baseDir)
 
 		// handle secrets
