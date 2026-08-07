@@ -4635,7 +4635,7 @@ func (ds *Datastore) checkConflictingFleetMaintainedAppExists(ctx context.Contex
 	}
 }
 
-func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
 	// get software category and check that it exists
 	var categoryName *string
 	if categoryID != nil {
@@ -4665,6 +4665,11 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 		IsMDMEnrolled:           mdmEnrolled,
 	}
 	opts.ListOptions.OrderKey = "name"
+	// Match the same MatchQuery semantics as the self-service list endpoint so
+	// "Install all" queues exactly what the user sees on screen. Trim so a
+	// whitespace-only query (e.g. from a direct API caller who bypassed the
+	// UI's normalization) is treated as no filter rather than as `LIKE '% %'`.
+	opts.ListOptions.MatchQuery = strings.TrimSpace(matchQuery)
 
 	software, _, err := ds.ListHostSoftware(ctx, host, opts)
 	if err != nil {

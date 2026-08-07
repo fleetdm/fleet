@@ -6904,20 +6904,40 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 
 	// no category: only the available titles, returned in alphabetical order by name.
 	// failed_install and failed_uninstall are included so install_all re-queues them.
-	got, categoryName, err := ds.GetSoftwareTitlesForInstallAll(ctx, host, nil)
+	got, categoryName, err := ds.GetSoftwareTitlesForInstallAll(ctx, host, nil, "")
 	require.NoError(t, err)
 	require.Nil(t, categoryName)
 	require.Equal(t, []string{"available", "failed", "failed-uninstall", "label-in", "uninstalled"}, names(got))
 
 	// scoped to a category: only the in-category title, and the name is returned
-	got, categoryName, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &cat.ID)
+	got, categoryName, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &cat.ID, "")
 	require.NoError(t, err)
 	require.NotNil(t, categoryName)
 	require.Equal(t, cat.Name, *categoryName)
 	require.Equal(t, []string{"available"}, names(got))
 
+	// scoped to a match query: the available set is narrowed to titles whose
+	// name matches (same LIKE semantics as the self-service list endpoint).
+	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, nil, "failed")
+	require.NoError(t, err)
+	require.Equal(t, []string{"failed", "failed-uninstall"}, names(got))
+
+	// whitespace-only match query is treated as no filter (defense against
+	// direct API callers that bypass the UI's normalization).
+	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, nil, "   ")
+	require.NoError(t, err)
+	require.Equal(t, []string{"available", "failed", "failed-uninstall", "label-in", "uninstalled"}, names(got))
+
+	// category + query stack: only titles that satisfy both
+	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &cat.ID, "avail")
+	require.NoError(t, err)
+	require.Equal(t, []string{"available"}, names(got))
+	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &cat.ID, "no-match")
+	require.NoError(t, err)
+	require.Empty(t, got)
+
 	// nonexistent category, or a category belonging to another team -> bad request
-	_, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, new(uint(9_999_999)))
+	_, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, new(uint(9_999_999)), "")
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre)
 
@@ -6925,7 +6945,7 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	teamCat, err := ds.NewSoftwareCategory(ctx, team.ID, "iall-team-cat")
 	require.NoError(t, err)
-	_, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &teamCat.ID)
+	_, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &teamCat.ID, "")
 	require.ErrorAs(t, err, &bre)
 
 	// team scoping: a team host sees only its team's self-service installer
@@ -6934,7 +6954,7 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	teamHost, err = ds.Host(ctx, teamHost.ID)
 	require.NoError(t, err)
 	newInstaller("team-app", true, nil, &team.ID, noLabels)
-	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, teamHost, nil)
+	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, teamHost, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, []string{"team-app"}, names(got))
 
@@ -6980,7 +7000,7 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 		},
 	}, &macTeam.ID)
 	require.NoError(t, err)
-	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, macHost, nil)
+	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, macHost, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, []string{"chrome", "slack", "zoom"}, names(got))
 }

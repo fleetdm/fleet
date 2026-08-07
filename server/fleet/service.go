@@ -820,8 +820,9 @@ type Service interface {
 
 	// SelfServiceInstallAllSoftwareTitles queues a self-service install for every available self-service software
 	// title on the host that isn't already installed. When categoryID is non-nil, only titles assigned to that
-	// self-service category on the host's fleet are queued.
-	SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *Host, categoryID *uint) error
+	// self-service category on the host's fleet are queued. When matchQuery is non-empty, only titles whose name
+	// matches the query (same semantics as the self-service list endpoint) are queued.
+	SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *Host, categoryID *uint, matchQuery string) error
 
 	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
 	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
