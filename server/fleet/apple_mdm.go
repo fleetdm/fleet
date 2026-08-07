@@ -1144,7 +1144,7 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 
 	switch configs := r.Payload.StandardConfigurations; {
 	case len(configs) == 0:
-		invalid.Append("StandardConfigurations", "The custom activation must reference the configuration profile's identifier it's uploaded with.")
+		invalid.Append("StandardConfigurations", "The custom activation must reference the identifier of the configuration profile used to upload it.")
 	case len(configs) > 1:
 		invalid.Append("StandardConfigurations", "The custom activation can only have one referenced configuration profile. Learn more: https://fleetdm.com/learn-more-about/ddm-activations")
 	case configs[0] != configurationIdentifier:

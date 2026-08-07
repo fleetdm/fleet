@@ -1266,7 +1266,7 @@ func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
 			name:        "no configurations referenced",
 			activation:  rawActivation("com.apple.activation.simple", "com.fleet.act.passcode"),
 			wantErr:     true,
-			errContains: "The custom activation must reference the configuration profile's identifier it's uploaded with.",
+			errContains: "The custom activation must reference the identifier of the configuration profile used to upload it.",
 		},
 		{
 			name: "more than one configuration referenced",
