@@ -345,7 +345,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 			t.Run(c.name, func(t *testing.T) {
 				next, called := newNext()
 				lc := &logging.LoggingContext{}
-				ctx := logging.NewContext(context.Background(), lc)
+				ctx := logging.NewContext(t.Context(), lc)
 				ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, "POST")
 				ctx = eu.WithRouteTemplate(ctx, c.routeTpl)
 				ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
