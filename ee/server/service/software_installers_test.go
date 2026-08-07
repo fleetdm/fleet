@@ -360,6 +360,184 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
 }
 
+// TestUninstallSoftwareTitleSelfServiceScope covers the My Device uninstall path
+// resolving its package the same way the self-service install path does, while
+// callers acting with a role keep the unscoped lookup.
+func TestUninstallSoftwareTitleSelfServiceScope(t *testing.T) {
+	t.Parallel()
+
+	const (
+		selfServiceInstallerID    = uint(1)
+		notSelfServiceInstallerID = uint(2)
+	)
+
+	deviceContext := func() context.Context {
+		authzCtx := &authz_ctx.AuthorizationContext{}
+		authzCtx.SetAuthnMethod(authz_ctx.AuthnDeviceToken)
+		return authz_ctx.NewContext(context.Background(), authzCtx)
+	}
+	adminContext := func() context.Context {
+		return viewer.NewContext(context.Background(), viewer.Viewer{
+			User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+		})
+	}
+	pkg := func(id uint, selfService bool) *fleet.SoftwareInstaller {
+		return &fleet.SoftwareInstaller{
+			InstallerID: id,
+			Name:        "installer.pkg",
+			Platform:    "darwin",
+			TeamID:      new(uint(1)),
+			SelfService: selfService,
+		}
+	}
+
+	testCases := []struct {
+		name string
+		// packages of the title, first-added first.
+		packages []*fleet.SoftwareInstaller
+		// inScope reports label scoping per installer ID; missing means in scope.
+		outOfScope map[uint]bool
+		asAdmin    bool
+
+		wantErrContains string
+		wantInstallerID uint
+	}{
+		{
+			name:            "device, self-service and in scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(selfServiceInstallerID, true)},
+			wantInstallerID: selfServiceInstallerID,
+		},
+		{
+			name:            "device, not self-service",
+			packages:        []*fleet.SoftwareInstaller{pkg(notSelfServiceInstallerID, false)},
+			wantErrContains: "not available through self-service",
+		},
+		{
+			name:            "device, self-service but out of label scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(selfServiceInstallerID, true)},
+			outOfScope:      map[uint]bool{selfServiceInstallerID: true},
+			wantErrContains: "isn't member of the labels",
+		},
+		{
+			name:            "device, not self-service and out of label scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(notSelfServiceInstallerID, false)},
+			outOfScope:      map[uint]bool{notSelfServiceInstallerID: true},
+			wantErrContains: "isn't member of the labels",
+		},
+		{
+			name:            "device, title has no packages",
+			packages:        []*fleet.SoftwareInstaller{},
+			wantErrContains: "not available for uninstall",
+		},
+		{
+			// First-added wins on the install path, so it has to win here too.
+			name: "device, several eligible packages",
+			packages: []*fleet.SoftwareInstaller{
+				pkg(selfServiceInstallerID, true),
+				pkg(notSelfServiceInstallerID+1, true),
+			},
+			wantInstallerID: selfServiceInstallerID,
+		},
+		{
+			// The first-added package is ineligible, so the next one is used.
+			name: "device, first-added package not self-service",
+			packages: []*fleet.SoftwareInstaller{
+				pkg(notSelfServiceInstallerID, false),
+				pkg(notSelfServiceInstallerID+1, true),
+			},
+			wantInstallerID: notSelfServiceInstallerID + 1,
+		},
+		{
+			name: "device, first-added package out of scope",
+			packages: []*fleet.SoftwareInstaller{
+				pkg(selfServiceInstallerID, true),
+				pkg(notSelfServiceInstallerID+1, true),
+			},
+			outOfScope:      map[uint]bool{selfServiceInstallerID: true},
+			wantInstallerID: notSelfServiceInstallerID + 1,
+		},
+		{
+			// A role-bearing caller can still remove ineligible software.
+			name:            "admin, not self-service and out of label scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(notSelfServiceInstallerID, false)},
+			outOfScope:      map[uint]bool{notSelfServiceInstallerID: true},
+			asAdmin:         true,
+			wantInstallerID: notSelfServiceInstallerID,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{}, nil
+			}
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:           id,
+					OrbitNodeKey: new("orbit_key"),
+					Platform:     "darwin",
+					TeamID:       new(uint(1)),
+				}, nil
+			}
+			ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+				return tt.packages, nil
+			}
+			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint,
+				withScriptContents bool,
+			) (*fleet.SoftwareInstaller, error) {
+				if len(tt.packages) == 0 {
+					return nil, &notFoundError{}
+				}
+				return tt.packages[0], nil
+			}
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+				return !tt.outOfScope[installerID], nil
+			}
+			ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+				return nil, nil
+			}
+			ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return []byte("script"), nil
+			}
+			var gotInstallerID uint
+			var gotSelfService bool
+			ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint,
+				selfService bool,
+			) error {
+				gotInstallerID = softwareInstallerID
+				gotSelfService = selfService
+				return nil
+			}
+
+			ctx := deviceContext()
+			if tt.asAdmin {
+				ctx = adminContext()
+			}
+
+			err := svc.UninstallSoftwareTitle(ctx, 1, 10)
+
+			// The unscoped lookup ignores self-service and label scope, so a My
+			// Device caller must never reach it, whatever the outcome.
+			require.Equal(t, tt.asAdmin, ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked)
+
+			if tt.wantErrContains != "" {
+				require.ErrorContains(t, err, tt.wantErrContains)
+				require.False(t, ds.InsertSoftwareUninstallRequestFuncInvoked)
+				return
+			}
+
+			require.NoError(t, err)
+			require.True(t, ds.InsertSoftwareUninstallRequestFuncInvoked)
+			require.Equal(t, tt.wantInstallerID, gotInstallerID)
+			require.Equal(t, !tt.asAdmin, gotSelfService)
+		})
+	}
+}
+
 func TestInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
@@ -716,6 +894,59 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 		require.ErrorAs(t, err, &forbiddenError)
 	} else {
 		require.NoError(t, err)
+	}
+}
+
+// TestBatchNeedsWindowsTitleReconcile pins the predicate that decides whether a GitOps
+// batch kicks the Windows title reconcile. A false negative here is invisible: the batch
+// succeeds, the uninstall action stays hidden, and nothing surfaces until the periodic
+// pass runs up to an hour later.
+func TestBatchNeedsWindowsTitleReconcile(t *testing.T) {
+	fmaID := uint(7)
+
+	cases := []struct {
+		name       string
+		installers []*fleet.UploadSoftwareInstallerPayload
+		want       bool
+	}{
+		{"empty batch", nil, false},
+		{
+			"custom installers only",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Custom", Platform: "windows"},
+				{Title: "Other", Platform: "darwin"},
+			},
+			false,
+		},
+		{
+			"maintained app present",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Custom", Platform: "windows"},
+				{Title: "Granola", Platform: "windows", FleetMaintainedAppID: &fmaID},
+			},
+			true,
+		},
+		{
+			// Deliberately still true: the platform is not part of the decision, since it
+			// is not reliably populated this far down the batch payload chain and the
+			// reconcile is a no-op for non-Windows apps anyway.
+			"maintained app with no platform set",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Granola", FleetMaintainedAppID: &fmaID},
+			},
+			true,
+		},
+		{
+			"nil entries are skipped",
+			[]*fleet.UploadSoftwareInstallerPayload{nil, {Title: "Custom"}},
+			false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, batchNeedsWindowsTitleReconcile(c.installers))
+		})
 	}
 }
 
@@ -1804,7 +2035,7 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
 	require.NotNil(t, bre)
-	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+	require.Contains(t, bre.Message, "can be installed only on macOS and Linux hosts")
 }
 
 // .py packages are stored with platform='linux', but the unix-like exception
@@ -1920,7 +2151,7 @@ func TestInstallPyScriptOnWindowsFails(t *testing.T) {
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
 	require.NotNil(t, bre)
-	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+	require.Contains(t, bre.Message, "can be installed only on macOS and Linux hosts")
 }
 
 // .py packages are stored with platform='linux'; the self-service install path
@@ -2461,12 +2692,12 @@ func TestBatchSetSoftwareInstallersDryRunEmptyReportsDeletions(t *testing.T) {
 	require.Equal(t, wouldDelete, gotDeleted)
 
 	// The result endpoint returns the deleted packages on the dry-run completed branch.
-	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
+	result, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
 	require.NoError(t, err)
-	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
-	require.Empty(t, message)
-	require.Empty(t, packages)
-	require.Equal(t, wouldDelete, deletedPackages)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, result.Status)
+	require.Empty(t, result.Message)
+	require.Empty(t, result.Packages)
+	require.Equal(t, wouldDelete, result.DeletedPackages)
 }
 
 func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testing.T) {
@@ -2530,12 +2761,13 @@ func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
 		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 	})
 
-	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
+	result, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
 	require.NoError(t, err)
-	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
-	require.Empty(t, message)
-	require.Empty(t, packages)
-	require.Empty(t, deletedPackages)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, result.Status)
+	require.Empty(t, result.Message)
+	require.Empty(t, result.Packages)
+	require.Empty(t, result.DeletedPackages)
+	require.Empty(t, result.DownloadProgress)
 }
 
 func TestVersionMatchesMajor(t *testing.T) {
@@ -2621,6 +2853,10 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .pkg package`},
 		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .msi package`},
 		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`},
+		{name: "py darwin", input: []string{"darwin"}, extension: "py", want: []string{"darwin"}},
+		{name: "py linux", input: []string{"linux"}, extension: "py", want: []string{"linux"}},
+		{name: "py both platforms", input: []string{"darwin", "linux"}, extension: "py", want: []string{"darwin", "linux"}},
+		{name: "py unsupported windows", input: []string{"windows"}, extension: "py", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .py package`},
 		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
 	}
 

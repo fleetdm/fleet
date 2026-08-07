@@ -50,7 +50,7 @@ locals {
       FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD         = "15m"
       FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE            = "500"
       FLEET_SERVER_GZIP_RESPONSES                    = "true"
-
+      FLEET_DEV_ANDROID_PROXY_ENDPOINT = "http://${resource.aws_lb.internal.dns_name}/"
 
       # Load TLS Certificate for RDS Authentication
       FLEET_MYSQL_TLS_CA                  = local.cert_path

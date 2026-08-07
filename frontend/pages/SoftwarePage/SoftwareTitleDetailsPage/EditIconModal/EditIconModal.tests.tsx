@@ -45,6 +45,23 @@ describe("EditIconModal", () => {
     expect(save).toBeInTheDocument();
   });
 
+  it("hides the preview tabs and Self-service view for Android apps", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    const ANDROID_PROPS = {
+      ...MOCK_PROPS,
+      previewInfo: {
+        ...MOCK_PROPS.previewInfo,
+        source: "android_apps",
+      },
+    };
+    render(<EditIconModal {...ANDROID_PROPS} />);
+
+    expect(screen.getByText("Preview")).toBeInTheDocument();
+    expect(screen.queryByText("Fleet")).not.toBeInTheDocument();
+    expect(screen.queryByText("Self-service")).not.toBeInTheDocument();
+    expect(screen.getByText("Version")).toBeInTheDocument();
+  });
+
   it("shows the correct software name and preview info in Fleet card", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<EditIconModal {...MOCK_PROPS} />);

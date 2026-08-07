@@ -37,6 +37,7 @@ func TestSCIM(t *testing.T) {
 		{"PatchUserAttributes", testPatchUserAttributes},
 		{"PatchGroupAttributes", testPatchGroupAttributes},
 		{"PatchGroupMembers", testPatchGroupMembers},
+		{"NestedGroups", testNestedGroups},
 		{"UsersPagination", testUsersPagination},
 		{"GroupsPagination", testGroupsPagination},
 		{"UsersAndGroups", testUsersAndGroups},
@@ -45,7 +46,7 @@ func TestSCIM(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			defer mysqltest.TruncateTables(t, s.DS, []string{
 				"host_scim_user", "scim_users", "scim_user_emails", "scim_groups",
-				"scim_user_group", "scim_last_request",
+				"scim_user_group", "scim_group_group", "scim_last_request",
 			}...)
 			c.fn(t, s)
 		})

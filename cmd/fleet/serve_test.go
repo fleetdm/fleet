@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -1348,7 +1349,8 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 // the semconv version we import. A mismatch (e.g. after a dependabot SDK bump that doesn't
 // update our semconv import) causes a runtime error on server startup.
 func TestOTELResourceCreation(t *testing.T) {
-	res, err := resource.New(t.Context(),
+	res, err := resource.New(
+		t.Context(),
 		resource.WithSchemaURL(semconv.SchemaURL),
 		resource.WithAttributes(
 			semconv.ServiceName("fleet-test"),
@@ -1413,6 +1415,18 @@ func TestArgsToString(t *testing.T) {
 			assert.Equal(t, tc.want, argsToString(tc.args))
 		})
 	}
+}
+
+func TestUseS3DevConfig(t *testing.T) {
+	t.Run("skip flag set", func(t *testing.T) {
+		dev_mode.SetOverride("FLEET_DEV_SKIP_S3_CONFIG", "1", t)
+		assert.False(t, useS3DevConfig())
+	})
+
+	t.Run("skip flag unset", func(t *testing.T) {
+		dev_mode.SetOverride("FLEET_DEV_SKIP_S3_CONFIG", "0", t)
+		assert.True(t, useS3DevConfig())
+	})
 }
 
 func TestGetTLSConfig(t *testing.T) {

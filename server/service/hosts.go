@@ -628,7 +628,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		lifecycleErrs := []error{}
 		serialsWithErrs := []string{}
 		for _, host := range hosts {
-			if fleet.MDMSupported(host.Platform) {
+			if fleet.ClassicMDMSupported(host.Platform) {
 				if err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 					Action:   mdmlifecycle.HostActionDelete,
 					Host:     host,
@@ -1153,7 +1153,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	if fleet.MDMSupported(host.Platform) {
+	if fleet.ClassicMDMSupported(host.Platform) {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionDelete,
@@ -1363,15 +1363,24 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 			hostsByID[h.ID] = h
 		}
 
+		// Derive the activity's host IDs and names exclusively from the hosts
+		// that actually exist, preserving the requested order. IDs that don't
+		// resolve to a host (e.g. non-existent IDs in the request, or a host
+		// deleted right after the transfer) are excluded so they can't be
+		// injected into the audit trail.
+		existingIDs := make([]uint, 0, len(hostIDs))
 		hostNames = make([]string, 0, len(hostIDs))
 		for _, hid := range hostIDs {
 			if h, ok := hostsByID[hid]; ok {
+				existingIDs = append(existingIDs, hid)
 				hostNames = append(hostNames, h.DisplayName())
-			} else {
-				// should not happen unless a host gets deleted just after transfer,
-				// but this ensures hostNames always matches hostIDs at the same index
-				hostNames = append(hostNames, "")
 			}
+		}
+		hostIDs = existingIDs
+
+		// If none of the requested hosts exist, there's nothing to record.
+		if len(hostIDs) == 0 {
+			return nil
 		}
 	}
 
@@ -1787,6 +1796,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				}
 			}
 
+			if err := svc.populateManagedLocalAccountStatus(ctx, host); err != nil {
+				return nil, err
+			}
+
 			profs, err := svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host mdm windows profiles")
@@ -1865,12 +1878,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						host.MDM.OSSettings.RecoveryLockPassword = *rlpStatus
 					}
 
-					acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
-					if err != nil && !fleet.IsNotFound(err) {
-						return nil, ctxerr.Wrap(ctx, err, "get host local managed account status")
-					}
-					if acct != nil {
-						host.MDM.OSSettings.ManagedLocalAccount = *acct
+					if err := svc.populateManagedLocalAccountStatus(ctx, host); err != nil {
+						return nil, err
 					}
 				}
 
@@ -1993,6 +2002,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get custom host vitals for host")
 	}
 
+	osUpdateMinVersion, osUpdateDeadline, err := svc.getOSUpdateForHostDetails(ctx, host, ac)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get os update for host details")
+	}
+
 	return &fleet.HostDetail{
 		Host:                          *host,
 		Labels:                        labels,
@@ -2005,7 +2019,83 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		LastMDMCheckedInAt:            mdmLastCheckedIn,
 		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
 		ConditionalAccessBypassed:     conditionalAccessBypassed,
+		OSUpdateMinimumVersion:        osUpdateMinVersion,
+		OSUpdateDeadline:              osUpdateDeadline,
 	}, nil
+}
+
+// getOSUpdateForHostDetails returns the minimum OS version and deadline for a host.
+// If OS updates is not configured it returns nil
+// if OS updates enforces latest we return the target version and deadline from the host's os_update_host record and "Pending" if the target version is not calculated
+// if OS updates does not enforce latest we return the minimum version and deadline from the config which is constants
+func (svc *Service) getOSUpdateForHostDetails(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) (*string, *string, error) {
+	// Only Apple platforms have OS update settings here, so skip the (possibly
+	// team-scoped) config lookup entirely for everything else.
+	if !fleet.IsApplePlatform(host.Platform) {
+		return nil, nil, nil
+	}
+
+	macOSUpdates := appConfig.MDM.MacOSUpdates
+	iOSUpdates := appConfig.MDM.IOSUpdates
+	iPadOSUpdates := appConfig.MDM.IPadOSUpdates
+
+	if host.TeamID != nil {
+		team, err := svc.ds.TeamLite(ctx, *host.TeamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get team for host")
+		}
+		macOSUpdates = team.Config.MDM.MacOSUpdates
+		iOSUpdates = team.Config.MDM.IOSUpdates
+		iPadOSUpdates = team.Config.MDM.IPadOSUpdates
+	}
+
+	var relevantOSUpdates fleet.AppleOSUpdateSettings
+	switch host.Platform {
+	case "darwin":
+		relevantOSUpdates = macOSUpdates
+	case "ios":
+		relevantOSUpdates = iOSUpdates
+	case "ipados":
+		relevantOSUpdates = iPadOSUpdates
+	}
+
+	if !relevantOSUpdates.Configured() {
+		return nil, nil, nil
+	}
+
+	if relevantOSUpdates.EnforcesLatestVersion() {
+		osUpdateHost, err := svc.ds.GetAppleOSUpdateHostByUUID(ctx, host.UUID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get apple os update host by uuid")
+		}
+
+		if osUpdateHost != nil && osUpdateHost.TargetOSVersion != "" && osUpdateHost.TargetDeadline != nil {
+			osUpdateMinVersion := &osUpdateHost.TargetOSVersion
+			osUpdateDeadlineStr := osUpdateHost.TargetDeadline.Format(time.DateOnly)
+			osUpdateDeadline := &osUpdateDeadlineStr
+			return osUpdateMinVersion, osUpdateDeadline, nil
+		}
+
+		// The host has not yet computed its target deadline and version.
+		pending := "Pending"
+		return &pending, &pending, nil
+	}
+
+	// Extract from target and deadline from config.
+
+	return &relevantOSUpdates.MinimumVersion.Value, &relevantOSUpdates.Deadline.Value, nil
+}
+
+// populateManagedLocalAccountStatus fills in host.MDM.OSSettings.ManagedLocalAccount.
+func (svc *Service) populateManagedLocalAccountStatus(ctx context.Context, host *fleet.Host) error {
+	acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get host managed local account status")
+	}
+	if acct != nil {
+		host.MDM.OSSettings.ManagedLocalAccount = *acct
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3318,11 +3408,20 @@ func (svc *Service) OSVersions(
 	// Input validation
 	if maxVulnerabilities != nil && *maxVulnerabilities < 0 {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, count, nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities must be >= 0")
+		return nil, count, nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities cannot be negative")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, count, nil, err
+	}
+
+	if platform != nil {
+		switch *platform {
+		case "darwin", "windows", "linux", "chrome", "ios", "ipados", "android":
+			// valid platform
+		default:
+			return nil, count, nil, fleet.NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", "chrome", "ios", "ipados", or "android".`)
+		}
 	}
 
 	if name != nil && version == nil {
@@ -3512,7 +3611,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	// Input validation
 	if maxVulnerabilities != nil && *maxVulnerabilities < 0 {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities must be >= 0")
+		return nil, nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities cannot be negative")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
@@ -3545,12 +3644,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		},
 	)
 	if err != nil {
-		if fleet.IsNotFound(err) {
-			// We return an empty result here to be consistent with the fleet/os_versions behavior.
-			// It is possible the os version exists, but the aggregation job has not run yet.
-			return nil, nil, nil
-		}
-		return nil, nil, err
+		return nil, nil, ctxerr.Wrap(ctx, err, "get os version")
 	}
 
 	if osVersion != nil {

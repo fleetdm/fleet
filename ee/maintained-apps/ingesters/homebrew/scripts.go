@@ -46,9 +46,17 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 				}
 				appPath := appItem.String
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
-	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"
+	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp" || exit $?
 fi`, appPath)
-				sb.Copy(appPath, "$APPDIR")
+				sb.Writef(`if ! sudo cp -R "$TMPDIR/%[1]s" "$APPDIR"; then
+	# remove the partial copy so a failed install isn't inventoried as the new
+	# version, then restore the previous version if there was one
+	sudo rm -rf "$APPDIR/%[1]s"
+	if [ -d "$TMPDIR/%[1]s.bkp" ]; then
+		sudo mv "$TMPDIR/%[1]s.bkp" "$APPDIR/%[1]s"
+	fi
+	exit 1
+fi`, appPath)
 			}
 			// Relaunch the app if it was running before installation
 			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
@@ -389,12 +397,6 @@ hdiutil detach "$MOUNT_POINT" || true`)
 	}
 }
 
-// Copy writes a command to copy a file from the temporary directory to a
-// destination.
-func (s *scriptBuilder) Copy(file, dest string) {
-	s.Writef(`sudo cp -R "$TMPDIR/%s" "%s"`, file, dest)
-}
-
 // RemoveFile writes a command to remove a file or directory with sudo
 // privileges.
 func (s *scriptBuilder) RemoveFile(file string) {
@@ -410,7 +412,7 @@ func (s *scriptBuilder) RemoveFile(file string) {
 // Returns an error if generating the XML for choices fails.
 func (s *scriptBuilder) InstallPkg(pkg string, choices ...[]brewPkgConfig) error {
 	if len(choices) == 0 {
-		s.Writef(`sudo installer -pkg "$TMPDIR/%s" -target /`, pkg)
+		s.Writef(`sudo installer -pkg "$TMPDIR/%s" -target / || exit $?`, pkg)
 		return nil
 	}
 
@@ -426,7 +428,7 @@ cat << EOF > "$CHOICE_XML"
 %s
 EOF
 
-sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
+sudo installer -pkg "$TMPDIR/%s" -target / -applyChoiceChangesXML "$CHOICE_XML" || exit $?
 `, choiceXML, pkg)
 
 	return nil

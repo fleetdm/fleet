@@ -83,6 +83,13 @@
     align-items: center;
     gap: $gap-table-elements;
 
+    // Hide the header entirely when it has no visible content (no
+    // results count, no filter/action controls, and no search bar).
+    &:not(:has(.table-container__results-count)):not(:has(.controls
+          > *)):not(:has(.table-container__search)) {
+      display: none;
+    }
+
     &.stack-table-controls {
       align-items: start;
 

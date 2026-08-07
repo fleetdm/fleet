@@ -1242,6 +1242,38 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Run script")).toBeInTheDocument();
     });
 
+    it("renders the Run script action for Arch-based Linux distributions", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+            config: {
+              server_settings: {
+                scripts_disabled: false,
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          isConnectedToFleetMdm
+          hostPlatform="omarchy"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      expect(screen.getByText("Run script")).toBeInTheDocument();
+    });
+
     it("renders the Run script action as enabled when scripts_enabled is null", async () => {
       const render = createCustomRenderer({
         context: {
@@ -2235,7 +2267,7 @@ describe("Host Actions Dropdown", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("hides the action for non-macOS hosts", async () => {
+    it("hides the action for hosts that are neither macOS nor Windows", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -2255,7 +2287,7 @@ describe("Host Actions Dropdown", () => {
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
           isConnectedToFleetMdm
-          hostPlatform="windows"
+          hostPlatform="ubuntu"
           isManagedLocalAccountEnabled
         />
       );
@@ -2265,6 +2297,67 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show managed account")
       ).not.toBeInTheDocument();
+    });
+
+    // Windows hosts get a managed account from fleetd after any MDM enrollment.
+    it("shows the action for a Windows host that is not automatically enrolled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (manual)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          isManagedLocalAccountEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show managed account")).toBeInTheDocument();
+    });
+
+    it("shows the action for a Windows host with an existing account row even when the setting is off", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (manual)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          managedAccountStatus="verified"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show managed account")).toBeInTheDocument();
     });
 
     it("hides the action when host is not connected to Fleet MDM", async () => {
@@ -2409,6 +2502,50 @@ describe("Host Actions Dropdown", () => {
           screen.getByText(/The managed account failed to be/i)
         ).toBeInTheDocument();
       });
+    });
+
+    it("shows the reported reason instead of the generic copy when the host sent one", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const detail =
+        "this device's password policy rejected the generated 29-character password";
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (manual)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="failed"
+          managedAccountDetail={detail}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Show managed account");
+      expect(option).toHaveAttribute("aria-disabled", "true");
+
+      await user.hover(option);
+      await waitFor(() => {
+        expect(screen.getByText(detail)).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/The managed account failed to be/i)
+      ).not.toBeInTheDocument();
     });
 
     it("disables the action with 'next enrollment' tooltip when status is null (no record)", async () => {

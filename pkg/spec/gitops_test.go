@@ -5523,3 +5523,65 @@ policies:
 		})
 	}
 }
+
+func TestGitOpsProfileActivation(t *testing.T) {
+	writeConfig := func(t *testing.T, profileEntry string) (string, string) {
+		dir := t.TempDir()
+		libDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(libDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, "ddm.json"),
+			[]byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.cfg","Payload":{"Echo":"x"}}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, "ddm2.json"),
+			[]byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.cfg2","Payload":{"Echo":"x"}}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, "activation.json"),
+			[]byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act","Payload":{"StandardConfigurations":["com.fleet.cfg"]}}`), 0o644))
+
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  apple_settings:
+    configuration_profiles:
+` + profileEntry
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+		return dir, yamlPath
+	}
+
+	t.Run("activation path is resolved to an absolute path", func(t *testing.T) {
+		dir, yamlPath := writeConfig(t, "      - path: ./lib/ddm.json\n        activation: ./lib/activation.json\n")
+
+		gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+
+		macOSSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok, "unexpected type %T", gitops.Controls.MacOSSettings)
+		require.Len(t, macOSSettings.CustomSettings, 1)
+
+		// The resolved path must be absolute so gitops works from any directory.
+		got := macOSSettings.CustomSettings[0].Activation
+		require.True(t, filepath.IsAbs(got), "activation path should be absolute, got %q", got)
+		require.Equal(t, filepath.Join(dir, "lib", "activation.json"), got)
+	})
+
+	t.Run("activation with a glob is rejected", func(t *testing.T) {
+		dir, yamlPath := writeConfig(t, "      - paths: ./lib/*.json\n        activation: ./lib/activation.json\n")
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `cannot use "activation" with "paths"`)
+	})
+
+	t.Run("missing activation file errors", func(t *testing.T) {
+		dir, yamlPath := writeConfig(t, "      - path: ./lib/ddm.json\n        activation: ./lib/nope.json\n")
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to read activation file")
+	})
+}

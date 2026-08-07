@@ -174,15 +174,15 @@ re-downloaded. The server's value is authoritative and opaque; a local
 SHA-256 of the canonical (etag-less) body is compared only as a diagnostic
 (mismatches are counted but do not affect behavior).
 
-Stats logged every 10 seconds include:
+The stats logged every 10 seconds include a `[Config ETag]` section:
 
-- `config full responses`: full config responses received
-- `config not-modified responses`: `{"etag":"ok"}` responses received
-- `conditional config requests`: requests that echoed a non-empty etag
-- `config response body bytes`: total downloaded config body bytes
-- `estimated config body bytes avoided`: body bytes saved by not-modified responses
-- `estimated config body savings pct`: percentage of logical body bytes avoided
-- `config etag drift`: times the server's etag disagreed with the locally calculated hash
+- `full responses`: full config responses received
+- `not-modified`: `{"etag":"ok"}` responses received
+- `conditional reqs`: requests that echoed a non-empty etag
+- `body bytes`: total downloaded config body bytes
+- `bytes avoided`: body bytes saved by not-modified responses
+- `savings pct`: percentage of logical body bytes avoided
+- `etag drift`: times the server's etag disagreed with the locally calculated hash
 
 ### Example control/treatment run
 
@@ -203,6 +203,20 @@ from the stats logs. For a config-dominant profile, use:
 ```
 --orbit_prob 0.0 --mdm_prob 0.0 --config_interval 1m --query_interval 24h --logger_tls_period 24h
 ```
+
+### Synthetically reproducing MDM device protocol failures
+
+#### NotNow'ing profiles
+
+> Currently only supported for macOS and `InstallProfile` commands
+
+To force an osquery-perf agent to respond with `NotNow` once to an `InstallProfile` command, the payload has to contain `NotNow` anywhere in the profile. It will NotNow once, then acknowledge it on next check-in. To force a new `NotNow` response, you have to change the `ProfileIdentifier`.
+
+#### Forcing a certain error code and failure for InstallApplication
+
+> Currently only supported for macOS.
+
+To force a certain ErrorCode and failure for an `InstallApplication` command, the `iTunesStoreID` payload field has to have a value below 100_000. The agent will respond with a failure and the specified error code, which helps QA and repro logic scenarios on certain error codes.
 
 ## Installing software
 
