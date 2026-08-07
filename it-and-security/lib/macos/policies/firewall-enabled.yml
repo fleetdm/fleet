@@ -1,4 +1,4 @@
-- name: macOS - Application firewall enabled
+- name: Application firewall enabled
   query: SELECT 1 FROM alf WHERE global_state >= 1;
   critical: false
   description: |-

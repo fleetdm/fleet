@@ -590,6 +590,10 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 				if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
 				}
+				// Retire the escrowed managed local account password.
+				if err := softDeleteManagedLocalAccountPasswordDB(ctx, tx, hostUUID.String); err != nil {
+					return ctxerr.Wrap(ctx, err, "soft delete managed local account password on re-enrollment")
+				}
 			}
 
 		case sql.ErrNoRows:

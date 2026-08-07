@@ -691,6 +691,9 @@ type MDMProfileBatchPayload struct {
 	LabelsIncludeAny []string   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string   `json:"labels_exclude_any,omitempty"`
 	SecretsUpdatedAt *time.Time `json:"-"`
+
+	// Base64-encoded custom activation, only valid for Apple declarations.
+	Activation []byte `json:"activation,omitempty"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -779,6 +782,10 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 type MDMProfileSpec struct {
 	Path  string `json:"path,omitempty"`
 	Paths string `json:"paths,omitempty"`
+
+	// Activation is a path to a custom activation JSON file, only valid
+	// alongside an Apple declaration.
+	Activation string `json:"activation,omitempty"`
 
 	// Deprecated: the Labels field is now deprecated, it is superseded by
 	// LabelsIncludeAll, so any value set via this field will be transferred to

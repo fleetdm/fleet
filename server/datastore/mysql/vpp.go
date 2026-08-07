@@ -2726,6 +2726,12 @@ func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Contex
 		return nil, nil, ctxerr.New(ctx, fmt.Sprintf("softwareType %s not supported", softwareType))
 	}
 
+	// The activities returned to the caller are derived solely from failedCmds, which
+	// is scoped to still-pending installs (verification_failed_at IS NULL AND
+	// verification_at IS NULL AND canceled = 0). This makes the function idempotent for
+	// the Android DELETED path: a duplicate Pub/Sub DELETED delivery finds those rows
+	// already marked failed, so the SELECT returns an empty set and no duplicate
+	// failed-install activities are emitted.
 	const loadFailedCmdsStmt = `
 SELECT
 	command_uuid

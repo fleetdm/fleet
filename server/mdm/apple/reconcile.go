@@ -260,6 +260,16 @@ func ComputeDeclarationDeltas(
 				// so the per-host effective token changes and the host re-fetches,
 				// even though the declaration's own content/token is unchanged.
 				needsInstall = true
+			case d.ActivationUpdatedAt != nil && (c.ActivationUpdatedAt == nil || c.ActivationUpdatedAt.Before(*d.ActivationUpdatedAt)):
+				// Same, for an edited custom activation. Editing only its predicate
+				// leaves the declaration's own content untouched.
+				needsInstall = true
+			case d.ActivationUpdatedAt == nil && c.ActivationUpdatedAt != nil:
+				// The custom activation was removed. Unlike an asset reference, it
+				// lives in its own table, so the declaration's token is unchanged and
+				// nothing else here would notice; without this the host keeps the old
+				// activation and its predicate forever.
+				needsInstall = true
 			case c.OperationType == "" || c.OperationType == fleet.MDMOperationTypeRemove:
 				needsInstall = true
 			case c.OperationType == fleet.MDMOperationTypeInstall && c.Status == nil:
@@ -291,6 +301,9 @@ func ComputeDeclarationDeltas(
 			// and no needless re-delivery is triggered.
 			if d.AssetsUpdatedAt != nil {
 				row.AssetsUpdatedAt = d.AssetsUpdatedAt
+			}
+			if d.ActivationUpdatedAt != nil {
+				row.ActivationUpdatedAt = d.ActivationUpdatedAt
 			}
 			declRowsToWrite = append(declRowsToWrite, row)
 			markChanged(host.UUID, desiredScope)

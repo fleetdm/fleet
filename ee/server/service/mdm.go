@@ -1524,7 +1524,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		{LabelName: labelName, LabelID: lblIDs[labelName]},
 	}
 
-	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, usesFleetVars)
+	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, usesFleetVars, fleet.MDMAppleActivationKeep)
 	if err != nil {
 		return err
 	}

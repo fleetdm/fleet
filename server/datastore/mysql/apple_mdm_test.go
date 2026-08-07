@@ -95,6 +95,8 @@ func TestMDMApple(t *testing.T) {
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
 		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
 		{"MDMAppleCustomActivations", testMDMAppleCustomActivations},
+		{"MDMAppleActivationKeepLeavesItUntouched", testMDMAppleActivationKeepLeavesItUntouched},
+		{"MDMAppleBatchCustomActivations", testMDMAppleBatchCustomActivations},
 		{"NewMDMAppleDeclarationSoftwareUpdateTracking", testNewMDMAppleDeclarationSoftwareUpdateTracking},
 		{"SetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking", testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking},
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
@@ -6768,7 +6770,7 @@ func testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *
 		Name:       "su",
 		TeamID:     &tm.ID,
 		RawJSON:    suJSON("com.fleet.su", "2026-06-01T12:00:00"),
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Equal(t, decl.DeclarationUUID, updated.DeclarationUUID)
 	require.True(t, configured())
@@ -6780,7 +6782,7 @@ func testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *
 		Name:       "su",
 		TeamID:     &tm.ID,
 		RawJSON:    otherJSON("com.fleet.su"),
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.False(t, configured())
 
@@ -6790,7 +6792,7 @@ func testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *
 		Name:       "su",
 		TeamID:     &tm.ID,
 		RawJSON:    suJSON("com.fleet.su", "2027-01-01T12:00:00"),
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.True(t, configured())
 
@@ -6803,7 +6805,7 @@ func testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *
 		Name:       fleetmdm.FleetMacOSUpdatesProfileName,
 		TeamID:     &tm2.ID,
 		RawJSON:    suJSON("com.fleetdm.fleet.mdm.apple.osupdates", "2027-01-01T12:00:00"),
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	reservedConfigured, err := ds.HasAppleUpdateConfigProfileConfigured(ctx, tm2.ID)
 	require.NoError(t, err)
@@ -6905,7 +6907,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:       "d1",
 		TeamID:     &tm1.ID,
 		RawJSON:    json.RawMessage(`{"Identifier": "i1"}`),
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.NotEqual(t, d1.DeclarationUUID, d1tm1.DeclarationUUID)
 
@@ -6919,7 +6921,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:             "d1",
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Equal(t, d1.DeclarationUUID, d1Ori.DeclarationUUID)
 	require.NotEqual(t, d1.DeclarationUUID, d1tm1.DeclarationUUID)
@@ -6935,7 +6937,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:             "d1",
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l2.Name, LabelID: l2.ID}},
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Equal(t, d1.DeclarationUUID, d1Ori.DeclarationUUID)
 
@@ -6951,7 +6953,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		TeamID:           &tm1.ID,
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 	require.Equal(t, d1tm1B.DeclarationUUID, d1tm1.DeclarationUUID)
 
@@ -14086,7 +14088,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 		Identifier:              "com.fleet.act-test.custom",
 		RawJSON:                 editedAct,
 		ConfigurationIdentifier: "com.fleet.act-test",
-	}), nil)
+	}), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 
 	var count int
@@ -14114,7 +14116,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 		RawJSON:                 varAct,
 		ConfigurationIdentifier: "com.fleet.act-test",
 		FleetVariables:          []fleet.FleetVarName{fleet.FleetVarHostUUID},
-	}), nil)
+	}), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 
 	var activationUUID string
@@ -14145,7 +14147,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 			RawJSON:                 actRaw,
 			ConfigurationIdentifier: "com.fleet.act-test.other",
 		},
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.Error(t, err)
 	// A conflict rather than an exists error, so callers don't report it as a
 	// clash on the configuration profile's identifier.
@@ -14171,7 +14173,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 			RawJSON:                 []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act-test.other.custom","Payload":{"StandardConfigurations":["com.fleet.act-test.other"]}}`),
 			ConfigurationIdentifier: "com.fleet.act-test.other",
 		},
-	}, nil)
+	}, nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.DeleteMDMAppleDeclaration(ctx, otherActDecl.DeclarationUUID))
@@ -14191,7 +14193,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 
 	carriedAct := *carried.Activation
 	carriedAct.FleetVariables = []fleet.FleetVarName{fleet.FleetVarHostUUID}
-	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(&carriedAct), nil)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(&carriedAct), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
@@ -14200,7 +14202,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 
 	// Re-uploading the declaration without an activation removes it, and the
 	// FK cascade takes the variable association with it.
-	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil, fleet.MDMAppleActivationApply)
 	require.NoError(t, err)
 
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
@@ -14210,6 +14212,75 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
 		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
 	require.Zero(t, varCount)
+}
+
+func testMDMAppleActivationKeepLeavesItUntouched(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	declRaw := []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.leave-test","Payload":{"Echo":"foo"}}`)
+	actRaw := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.leave-test.custom","Payload":{"StandardConfigurations":["com.fleet.leave-test"],"Predicate":"$FLEET_VAR_HOST_HARDWARE_SERIAL == 'x'"}}`)
+
+	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.leave-test",
+		Name:       "leave-test",
+		RawJSON:    declRaw,
+		Activation: &fleet.MDMAppleCustomActivation{
+			Identifier:              "com.fleet.leave-test.custom",
+			RawJSON:                 actRaw,
+			ConfigurationIdentifier: "com.fleet.leave-test",
+			FleetVariables:          []fleet.FleetVarName{fleet.FleetVarHostHardwareSerial},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	var before struct {
+		ActivationUUID string    `db:"activation_uuid"`
+		UploadedAt     time.Time `db:"uploaded_at"`
+	}
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &before,
+		`SELECT activation_uuid, uploaded_at FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+
+	countVars := func() (n int) {
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n,
+			`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, before.ActivationUUID))
+		return n
+	}
+	require.Equal(t, 1, countVars(), "the activation's variable association should exist")
+
+	// A write that leaves the activation alone must not touch the row or its
+	// variable associations, even though the declaration itself is rewritten and
+	// the incoming struct carries no activation at all.
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.leave-test",
+		Name:       "leave-test",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.leave-test","Payload":{"Echo":"bar"}}`),
+	}, nil, fleet.MDMAppleActivationKeep)
+	require.NoError(t, err)
+
+	var after struct {
+		ActivationUUID string    `db:"activation_uuid"`
+		UploadedAt     time.Time `db:"uploaded_at"`
+		RawJSON        []byte    `db:"raw_json"`
+	}
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &after,
+		`SELECT activation_uuid, uploaded_at, raw_json FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.Equal(t, before.ActivationUUID, after.ActivationUUID)
+	require.True(t, before.UploadedAt.Equal(after.UploadedAt), "uploaded_at must not move")
+	require.JSONEq(t, string(actRaw), string(after.RawJSON))
+	require.Equal(t, 1, countVars(), "variable associations must survive")
+
+	// Apply with a nil activation is how removal is expressed.
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.leave-test",
+		Name:       "leave-test",
+		RawJSON:    declRaw,
+	}, nil, fleet.MDMAppleActivationApply)
+	require.NoError(t, err)
+
+	var remaining int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &remaining,
+		`SELECT COUNT(*) FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.Zero(t, remaining)
 }
 
 func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
@@ -14460,4 +14531,81 @@ func testAppleOSUpdateAssets(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, 0, deleted)
 		require.Len(t, listed()["ios"], 1)
 	})
+}
+
+func testMDMAppleBatchCustomActivations(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	declRaw := []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.batch.cfg","Payload":{"Echo":"foo"}}`)
+	actRaw := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.batch.act","Payload":{"StandardConfigurations":["com.fleet.batch.cfg"],"Predicate":"TRUEPREDICATE"}}`)
+
+	decl := func(activation *fleet.MDMAppleCustomActivation) *fleet.MDMAppleDeclaration {
+		return &fleet.MDMAppleDeclaration{
+			Identifier: "com.fleet.batch.cfg",
+			Name:       "batch-cfg",
+			RawJSON:    declRaw,
+			Activation: activation,
+		}
+	}
+	withActivation := func(raw []byte) *fleet.MDMAppleCustomActivation {
+		return &fleet.MDMAppleCustomActivation{
+			Identifier:              "com.fleet.batch.act",
+			RawJSON:                 raw,
+			ConfigurationIdentifier: "com.fleet.batch.cfg",
+		}
+	}
+
+	countActivations := func() int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM mdm_apple_ddm_activations`))
+		return n
+	}
+
+	updates, err := ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(actRaw))}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, updates.AppleDeclaration)
+	require.Equal(t, 1, countActivations())
+
+	var stored []byte
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stored,
+		`SELECT raw_json FROM mdm_apple_ddm_activations WHERE identifier = 'com.fleet.batch.act'`))
+	require.JSONEq(t, string(actRaw), string(stored))
+
+	// Changing only the activation must report an update, or the batch path
+	// won't emit an edited-declaration activity.
+	editedAct := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.batch.act","Payload":{"StandardConfigurations":["com.fleet.batch.cfg"],"Predicate":"FALSEPREDICATE"}}`)
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(editedAct))}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, updates.AppleDeclaration, "an activation-only change must count as an update")
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stored,
+		`SELECT raw_json FROM mdm_apple_ddm_activations WHERE identifier = 'com.fleet.batch.act'`))
+	require.JSONEq(t, string(editedAct), string(stored))
+	require.Equal(t, 1, countActivations(), "editing must reuse the row, not add one")
+
+	// Re-applying identical content must report no change, or every gitops run
+	// would emit an edited-declaration activity.
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(editedAct))}, nil, nil)
+	require.NoError(t, err)
+	require.False(t, updates.AppleDeclaration, "an unchanged re-apply must not count as an update")
+
+	// Dropping the activation key from GitOps YAML removes the stored one.
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(nil)}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, updates.AppleDeclaration)
+	require.Zero(t, countActivations())
+
+	// And removing the declaration entirely cascades.
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(actRaw))}, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, countActivations())
+
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil, []*fleet.MDMAppleDeclaration{}, nil, nil)
+	require.NoError(t, err)
+	require.Zero(t, countActivations())
 }
