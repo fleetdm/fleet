@@ -246,9 +246,10 @@ const AppleOSTargetForm = ({
           ? await configAPI.update(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
         notify.success("Successfully updated.");
-        // Only refetch on success: the refetch feeds the stored config back in as
-        // props, which resets the form. After a rejected save nothing changed on
-        // the server, so resetting would just discard what the user needs to fix.
+        // Only refetch on success: a rejected save leaves the stored config
+        // untouched, so there'd be nothing new to pull. This doesn't reset the
+        // form -- its state is initialised once and only re-initialises on
+        // remount, which PlatformTabs keys to the team.
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? refetchAppConfig()
           : refetchTeamConfig();
@@ -265,9 +266,9 @@ const AppleOSTargetForm = ({
   const handleTargetChange = (option: CustomOptionType | null) => {
     if (!option) return;
     setTarget(option.value as AppleOSTarget);
-    // Changing the target dismisses unsaved input, so the checkbox goes back to
-    // the persisted value rather than carrying over the previous selection's —
-    // "Latest version" forces it on, which isn't a choice the user made.
+    // "Latest version" forces the checkbox on, which isn't a choice the user
+    // made, so send it back to the persisted value rather than carrying the
+    // previous selection over. The text inputs keep whatever was typed.
     setUpdateNewHosts(defaultUpdateNewHosts || false);
     // The fields these belong to are about to unmount, and a stale message
     // would reappear if the user came back to this target.
