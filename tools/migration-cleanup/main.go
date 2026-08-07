@@ -210,7 +210,8 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 	}
 
 	var renames []migrationRename
-	if opts.branch != "" {
+	switch {
+	case opts.branch != "":
 		branch, err := resolveBranch(checkout, opts.branch)
 		if err != nil {
 			return exitError{code: exitGeneral, message: err.Error()}
@@ -245,7 +246,8 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 			}
 			renames = append(renames, rs...)
 		}
-	} else if opts.sinceCommit != "" {
+
+	case opts.sinceCommit != "":
 		resolvedSHA, err := resolveRef(checkout, opts.sinceCommit)
 		if err != nil {
 			return exitError{code: exitGeneral, message: err.Error()}
@@ -254,7 +256,26 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 			fmt.Fprintf(os.Stderr, "Resolved since-commit: %s\n", resolvedSHA)
 		}
 
-		commits, err := findRenameCommits(checkout, "origin/main", resolvedSHA)
+		mainRef, err := resolveMainRef(checkout)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+
+		if !isAncestor(checkout, resolvedSHA, mainRef) {
+			return exitError{code: exitGeneral, message: fmt.Sprintf("ERROR: %q is not an ancestor of %s", opts.sinceCommit, mainRef)}
+		}
+
+		// Include resolvedSHA itself in the scan, then scan descendants.
+		rs, err := extractRenames(checkout, resolvedSHA)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(resolvedSHA), len(rs))
+		}
+		renames = append(renames, rs...)
+
+		commits, err := findRenameCommits(checkout, mainRef, resolvedSHA)
 		if err != nil {
 			return exitError{code: exitGeneral, message: err.Error()}
 		}
@@ -272,7 +293,8 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 			}
 			renames = append(renames, rs...)
 		}
-	} else if opts.commit != "" {
+
+	case opts.commit != "":
 		resolvedSHA, err := resolveRef(checkout, opts.commit)
 		if err != nil {
 			return exitError{code: exitGeneral, message: err.Error()}
@@ -417,6 +439,21 @@ func resolveRef(checkout, ref string) (string, error) {
 		return "", fmt.Errorf("cannot resolve ref %q: %w", ref, err)
 	}
 	return strings.TrimSpace(out), nil
+}
+
+func resolveMainRef(checkout string) (string, error) {
+	for _, candidate := range []string{"origin/main", "main"} {
+		_, err := git(checkout, "rev-parse", "--verify", candidate)
+		if err == nil {
+			return candidate, nil
+		}
+	}
+	return "", errors.New("cannot resolve main ref (neither origin/main nor main exists)")
+}
+
+func isAncestor(checkout, ancestor, descendant string) bool {
+	_, err := git(checkout, "merge-base", "--is-ancestor", ancestor, descendant)
+	return err == nil
 }
 
 func resolveBranch(checkout, branch string) (string, error) {

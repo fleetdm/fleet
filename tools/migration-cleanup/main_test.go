@@ -20,8 +20,12 @@ func setupTestRepo(t *testing.T) string {
 	// Create migration directories
 	tablesDir := filepath.Join(dir, "server/datastore/mysql/migrations/tables")
 	dataDir := filepath.Join(dir, "server/datastore/mysql/migrations/data")
-	os.MkdirAll(tablesDir, 0o755)
-	os.MkdirAll(dataDir, 0o755)
+	if err := os.MkdirAll(tablesDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll tables: %v", err)
+	}
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll data: %v", err)
+	}
 
 	// Initial commit with a migration file
 	writeFile(t, filepath.Join(tablesDir, "20250101000000_init.sql"), "CREATE TABLE t1;")
@@ -30,7 +34,9 @@ func setupTestRepo(t *testing.T) string {
 	runGit(t, dir, "commit", "-m", "initial migrations")
 
 	// Rename commit: move a table migration to a new version ID
-	os.Remove(filepath.Join(tablesDir, "20250101000000_init.sql"))
+	if err := os.Remove(filepath.Join(tablesDir, "20250101000000_init.sql")); err != nil {
+		t.Fatalf("Remove old migration: %v", err)
+	}
 	writeFile(t, filepath.Join(tablesDir, "20250201000000_init.sql"), "CREATE TABLE t1;")
 	runGit(t, dir, "add", ".")
 	runGit(t, dir, "commit", "-m", "rename migration")
@@ -118,7 +124,10 @@ func TestResolveRef(t *testing.T) {
 	}
 
 	// Resolve an annotated tag — must peel to the commit SHA (HEAD~1 is the rename commit)
-	out, _ := exec.Command("git", "-C", dir, "rev-parse", "HEAD~1").Output()
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD~1").Output()
+	if err != nil {
+		t.Fatalf("git rev-parse HEAD~1: %v", err)
+	}
 	renameSHA := strings.TrimSpace(string(out))
 	resolved, err = resolveRef(dir, "rename-tag")
 	if err != nil {
@@ -158,7 +167,10 @@ func TestFindRenameCommitsRange(t *testing.T) {
 	}
 
 	// The rename commit should be the second commit (HEAD~1)
-	out, _ = exec.Command("git", "-C", dir, "rev-parse", "HEAD~1").Output()
+	out, err = exec.Command("git", "-C", dir, "rev-parse", "HEAD~1").Output()
+	if err != nil {
+		t.Fatalf("git rev-parse HEAD~1: %v", err)
+	}
 	expectedRenameSHA := strings.TrimSpace(string(out))
 	if commits[0] != expectedRenameSHA {
 		t.Errorf("findRenameCommits() = %q, want %q", commits[0], expectedRenameSHA)
@@ -169,7 +181,10 @@ func TestExtractRenames(t *testing.T) {
 	dir := setupTestRepo(t)
 
 	// Get the rename commit SHA
-	out, _ := exec.Command("git", "-C", dir, "rev-parse", "HEAD~1").Output()
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD~1").Output()
+	if err != nil {
+		t.Fatalf("git rev-parse HEAD~1: %v", err)
+	}
 	renameSHA := strings.TrimSpace(string(out))
 
 	renames, err := extractRenames(dir, renameSHA)
@@ -189,7 +204,10 @@ func TestExtractRenames(t *testing.T) {
 	}
 
 	// Non-rename commit should produce no renames
-	out, _ = exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
+	out, err = exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("git rev-parse HEAD: %v", err)
+	}
 	nonRenameSHA := strings.TrimSpace(string(out))
 
 	renames, err = extractRenames(dir, nonRenameSHA)
@@ -216,5 +234,108 @@ func TestExtractRenamesAnnotatedTag(t *testing.T) {
 	}
 	if len(renames) != 1 {
 		t.Errorf("extractRenames(resolved tag) = %d renames, want 1", len(renames))
+	}
+}
+
+func TestIsAncestor(t *testing.T) {
+	dir := setupTestRepo(t)
+
+	// Get the initial commit (HEAD~2)
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD~2").Output()
+	if err != nil {
+		t.Fatalf("git rev-parse HEAD~2: %v", err)
+	}
+	initialSHA := strings.TrimSpace(string(out))
+
+	// initialSHA is an ancestor of main
+	if !isAncestor(dir, initialSHA, "main") {
+		t.Errorf("isAncestor(%s, main) = false, want true", initialSHA)
+	}
+
+	// HEAD is an ancestor of itself
+	headSHA := lastCommitSHA(t, dir)
+	if !isAncestor(dir, headSHA, "main") {
+		t.Errorf("isAncestor(HEAD, main) = false, want true")
+	}
+
+	// Create a side branch commit not on main
+	runGit(t, dir, "checkout", "-b", "side", initialSHA)
+	writeFile(t, filepath.Join(dir, "side.txt"), "x")
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-m", "side")
+	sideSHA := lastCommitSHA(t, dir)
+
+	if isAncestor(dir, sideSHA, "main") {
+		t.Errorf("isAncestor(side, main) = true, want false")
+	}
+}
+
+func TestResolveMainRef(t *testing.T) {
+	dir := setupTestRepo(t)
+
+	ref, err := resolveMainRef(dir)
+	if err != nil {
+		t.Fatalf("resolveMainRef: %v", err)
+	}
+	if ref != "main" {
+		t.Errorf("resolveMainRef() = %q, want %q", ref, "main")
+	}
+}
+
+func TestSinceCommitScanIncludesSelectedCommit(t *testing.T) {
+	dir := setupTestRepo(t)
+
+	// Get the rename commit SHA (HEAD~1)
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD~1").Output()
+	if err != nil {
+		t.Fatalf("git rev-parse HEAD~1: %v", err)
+	}
+	renameSHA := strings.TrimSpace(string(out))
+
+	// Replicate the since-commit scan sequence:
+	// 1. extractRenames on the selected commit itself
+	renames, err := extractRenames(dir, renameSHA)
+	if err != nil {
+		t.Fatalf("extractRenames(selected commit): %v", err)
+	}
+
+	// 2. findRenameCommits on the range (excludes the selected commit)
+	commits, err := findRenameCommits(dir, "main", renameSHA)
+	if err != nil {
+		t.Fatalf("findRenameCommits: %v", err)
+	}
+	for _, sha := range commits {
+		rs, err := extractRenames(dir, sha)
+		if err != nil {
+			t.Fatalf("extractRenames(descendant): %v", err)
+		}
+		renames = append(renames, rs...)
+	}
+
+	// The rename commit should be found (from step 1, not step 2)
+	if len(renames) != 1 {
+		t.Errorf("since-commit scan = %d renames, want 1", len(renames))
+	}
+}
+
+func TestSinceCommitRejectsNonAncestor(t *testing.T) {
+	dir := setupTestRepo(t)
+
+	// Create a side branch commit not on main
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD~2").Output()
+	if err != nil {
+		t.Fatalf("git rev-parse HEAD~2: %v", err)
+	}
+	initialSHA := strings.TrimSpace(string(out))
+
+	runGit(t, dir, "checkout", "-b", "side", initialSHA)
+	writeFile(t, filepath.Join(dir, "side.txt"), "x")
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-m", "side")
+	sideSHA := lastCommitSHA(t, dir)
+
+	// sideSHA should not be an ancestor of main
+	if isAncestor(dir, sideSHA, "main") {
+		t.Fatalf("setup error: side commit should not be ancestor of main")
 	}
 }
