@@ -197,7 +197,7 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) ListEvents(timeMin, timeMax string
 			}
 			// Default maximum number of events returned is 250, which should be sufficient for most calendars.
 			return lowLevelAPI.service.Events.List(calendarID).
-				EventTypes("default").
+				EventTypes("default", "focusTime", "outOfOffice").
 				OrderBy("startTime").
 				SingleEvents(true).
 				TimeMin(timeMin).

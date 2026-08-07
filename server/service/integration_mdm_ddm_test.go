@@ -1830,8 +1830,8 @@ WHERE name = ?`
 
 	// Build expected declaration-items map with effective tokens (incorporating variables_updated_at)
 	declsByToken := map[string]fleet.MDMAppleDeclaration{
-		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID, nil):     {Identifier: "com.fleet.var.uuid"},
-		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial, nil): {Identifier: "com.fleet.var.serial"},
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID, nil, nil):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial, nil, nil): {Identifier: "com.fleet.var.serial"},
 		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
 	}
 
@@ -1873,8 +1873,8 @@ WHERE name = ?`
 	require.NotEmpty(t, lastSyncDeclToken)
 
 	declsByToken = map[string]fleet.MDMAppleDeclaration{
-		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID, nil):     {Identifier: "com.fleet.var.uuid"},
-		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial, nil): {Identifier: "com.fleet.var.serial"},
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID, nil, nil):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial, nil, nil): {Identifier: "com.fleet.var.serial"},
 		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
 		dbNewDecl.Token:   {Identifier: "com.fleet.new"},
 	}
@@ -1905,8 +1905,8 @@ WHERE name = ?`
 	checkNoCommands(mdmDevice2)
 
 	declsByToken = map[string]fleet.MDMAppleDeclaration{
-		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID, nil):     {Identifier: "com.fleet.var.uuid"},
-		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial, nil): {Identifier: "com.fleet.var.serial"},
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID, nil, nil):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial, nil, nil): {Identifier: "com.fleet.var.serial"},
 		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
 	}
 
@@ -2097,8 +2097,8 @@ WHERE name = ?`
 	// in the DeclarationsToken computation so that the token matches the
 	// SQL-computed token from the tokens endpoint.
 	declsByToken = map[string]fleet.MDMAppleDeclaration{
-		fleet.EffectiveDDMToken(dbDeclUUID.Token, latestVarsUpdatedUUID, nil):     {Identifier: "com.fleet.var.uuid"},
-		fleet.EffectiveDDMToken(dbDeclSerial.Token, latestVarsUpdatedSerial, nil): {Identifier: "com.fleet.var.serial"},
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, latestVarsUpdatedUUID, nil, nil):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, latestVarsUpdatedSerial, nil, nil): {Identifier: "com.fleet.var.serial"},
 		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
 	}
 
@@ -2403,6 +2403,61 @@ func (s *integrationMDMTestSuite) TestAppleDDMCustomActivations() {
 			patchBody.Bytes(), http.StatusUnprocessableEntity, patchHeaders)
 		require.Contains(t, extractServerErrorText(patchRes.Body),
 			"Activations are only supported for declaration (DDM) profiles")
+	})
+
+	t.Run("edit treats the activation as three states", func(t *testing.T) {
+		declIdent := "com.fleet.ddm.act.tristate"
+		content := declarationForTest(declIdent)
+		activation := activationForTest(declIdent+".custom", declIdent, "@status(os.version.major) >= 15")
+
+		res := uploadProfile(declIdent+".json", content, activation, http.StatusOK)
+		var uploadResp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&uploadResp))
+		t.Cleanup(func() {
+			var delResp deleteMDMConfigProfileResponse
+			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK, &delResp)
+		})
+
+		storedActivation := func() []byte {
+			getRes := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK)
+			var profResp getMDMConfigProfileResponse
+			require.NoError(t, json.NewDecoder(getRes.Body).Decode(&profResp))
+			return profResp.Activation
+		}
+		patch := func(extraFields map[string][]string, files map[string]multipartFile) {
+			body, headers := generateMultipartRequestWithFiles(t, "profile", "", nil, s.token, extraFields, files)
+			s.DoRawWithHeaders("PATCH",
+				fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID),
+				body.Bytes(), http.StatusOK, headers)
+		}
+
+		// 1. key absent -> untouched. Editing labels must not disturb it, and
+		// neither must replacing the declaration's own contents.
+		patch(map[string][]string{"labels_include_all": {}}, nil)
+		require.JSONEq(t, string(activation), string(storedActivation()),
+			"a labels-only edit must leave the activation alone")
+
+		patch(nil, map[string]multipartFile{
+			"profile": {fileName: declIdent + ".json", content: declarationForTest(declIdent)},
+		})
+		require.JSONEq(t, string(activation), string(storedActivation()),
+			"replacing the profile contents must leave the activation alone")
+
+		// 2. key present with a file -> replaced.
+		updated := activationForTest(declIdent+".custom", declIdent, "@status(os.version.major) >= 26")
+		patch(nil, map[string]multipartFile{"activation": {fileName: "activation.json", content: updated}})
+		require.JSONEq(t, string(updated), string(storedActivation()))
+
+		// 3. key present with no file -> removed. Multipart has no null, so an
+		// empty value stands in for one.
+		patch(map[string][]string{"activation": {""}}, nil)
+		require.Nil(t, storedActivation(), "an empty activation field must remove it")
+
+		// The declaration itself survives all of it.
+		decl, err := s.ds.GetMDMAppleDeclaration(context.Background(), uploadResp.ProfileUUID)
+		require.NoError(t, err)
+		require.JSONEq(t, string(content), string(decl.RawJSON))
+		require.Nil(t, decl.Activation)
 	})
 
 	t.Run("activation can be edited on its own", func(t *testing.T) {
