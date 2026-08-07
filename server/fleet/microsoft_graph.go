@@ -50,10 +50,6 @@ func (c MicrosoftGraphCredential) Equal(other MicrosoftGraphCredential) bool {
 
 // HostAutopilotDevice is the Windows-Autopilot-only metadata Fleet stores for a host, keyed by host ID so the group tag
 // survives the pending -> enrolled transition.
-//
-// This lives here, rather than alongside the Graph client, because it appears in the Datastore interface. Its Apple
-// analogue, HostDEPAssignment, lives in this package for the same reason. The Graph wire type it is built from is
-// msgraph.WindowsAutopilotDevice.
 type HostAutopilotDevice struct {
 	HostID            uint   `db:"host_id" json:"host_id"`
 	AutopilotDeviceID string `db:"autopilot_device_id" json:"autopilot_device_id"`

@@ -228,7 +228,7 @@ func testHostAutopilotDeviceUpsertAndGet(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Sales", got.GroupTag)
 
 	// A soft-deleted record reads as not found: the device left Autopilot and only the host survives.
-	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_autopilot_devices SET deleted_at = NOW() WHERE host_id = ?`, host.ID)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_autopilot_devices SET deleted_at = NOW(6) WHERE host_id = ?`, host.ID)
 	require.NoError(t, err)
 	_, err = ds.GetHostAutopilotDevice(ctx, host.ID)
 	require.Error(t, err)
@@ -265,7 +265,7 @@ func testHostAutopilotDeviceListByTenant(t *testing.T, ds *Datastore) {
 	assert.Equal(t, hostC.ID, devices[0].HostID)
 
 	// Soft-deleted records drop out of the listing.
-	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_autopilot_devices SET deleted_at = NOW() WHERE host_id = ?`, hostB.ID)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_autopilot_devices SET deleted_at = NOW(6) WHERE host_id = ?`, hostB.ID)
 	require.NoError(t, err)
 
 	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)

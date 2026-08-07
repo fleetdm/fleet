@@ -30,10 +30,10 @@ func Up_20260807130547(tx *sql.Tx) error {
 	    -- Set by the sync when the credential fails to authenticate or is denied, cleared on the next success. Drives
 	    -- the app-wide banner, as abm_tokens.token_invalid does.
 	    credential_invalid TINYINT(1) NOT NULL DEFAULT '0',
-	    last_synced_at TIMESTAMP NULL DEFAULT NULL,
+	    last_synced_at DATETIME(6) NULL DEFAULT NULL,
 	    last_sync_error TEXT COLLATE utf8mb4_unicode_ci,
-	    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 	    PRIMARY KEY (id),
 	    UNIQUE KEY idx_mdm_microsoft_graph_credentials_tenant_id (tenant_id)
 	) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
@@ -71,12 +71,11 @@ func Up_20260807130547(tx *sql.Tx) error {
 	    group_tag VARCHAR(2048) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 	    hardware_serial VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 	    tenant_id VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-	    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	    deleted_at TIMESTAMP NULL DEFAULT NULL,
+	    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+	    deleted_at DATETIME(6) NULL DEFAULT NULL,
 	    PRIMARY KEY (host_id),
-	    KEY idx_host_autopilot_hardware_serial (hardware_serial),
-	    KEY idx_host_autopilot_tenant_id (tenant_id)
+	    KEY idx_host_autopilot_hardware_serial (hardware_serial)
 	) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 	`)
 	if err != nil {
