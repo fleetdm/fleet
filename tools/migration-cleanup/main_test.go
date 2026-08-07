@@ -53,6 +53,7 @@ func setupTestRepo(t *testing.T) string {
 	return dir
 }
 
+// lastCommitSHA returns the full SHA of HEAD in the given git directory.
 func lastCommitSHA(t *testing.T, dir string) string {
 	t.Helper()
 	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
@@ -62,6 +63,7 @@ func lastCommitSHA(t *testing.T, dir string) string {
 	return strings.TrimSpace(string(out))
 }
 
+// writeFile writes content to path, failing the test on error.
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -69,6 +71,7 @@ func writeFile(t *testing.T, path, content string) {
 	}
 }
 
+// runGit executes a git command in dir, failing the test on error.
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
