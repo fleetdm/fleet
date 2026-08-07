@@ -16,7 +16,15 @@ const buildSoftwareItems = (
       label: "Software inventory",
       group: "Software" as const,
       path: withTeamId(paths.SOFTWARE_INVENTORY),
-      keywords: ["installed", "inventory", "software titles", "detected"],
+      keywords: [
+        "installed",
+        "inventory",
+        "software titles",
+        "detected",
+        "apps",
+        "applications",
+        "programs",
+      ],
       subItems: [
         {
           id: "software-versions",
@@ -53,7 +61,14 @@ const buildSoftwareItems = (
       label: "Vulnerabilities",
       group: "Software" as const,
       path: withTeamId(paths.SOFTWARE_VULNERABILITIES),
-      keywords: ["cve", "cvss", "exploit", "vulnerable software"],
+      keywords: [
+        "cve",
+        "cvss",
+        "exploit",
+        "vulnerable software",
+        "vulns",
+        "cves",
+      ],
     },
     // Library is available for any team including unassigned, but not "All fleets"
     ...(isPremiumTier && hasTeamOrUnassigned
@@ -69,6 +84,21 @@ const buildSoftwareItems = (
               "packages",
               "self-service",
               "library",
+            ],
+            subItems: [
+              {
+                id: "software-library-categories",
+                label: "Self-service categories",
+                path: withTeamId(paths.SOFTWARE_LIBRARY_CATEGORIES),
+                keywords: [
+                  "custom categories",
+                  "self service categories",
+                  "self-service category",
+                  "groups",
+                  "grouping",
+                  "install all",
+                ],
+              },
             ],
           },
         ]

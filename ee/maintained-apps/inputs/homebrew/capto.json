@@ -1,0 +1,10 @@
+{
+  "name": "Capto",
+  "unique_identifier": "com.globaldelight.Capto",
+  "token": "capto",
+  "installer_format": "dmg",
+  "slug": "capto/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

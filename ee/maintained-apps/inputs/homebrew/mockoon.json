@@ -1,0 +1,10 @@
+{
+  "name": "Mockoon",
+  "unique_identifier": "com.mockoon.app",
+  "token": "mockoon",
+  "installer_format": "dmg",
+  "slug": "mockoon/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

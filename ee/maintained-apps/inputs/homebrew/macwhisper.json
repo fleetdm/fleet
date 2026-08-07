@@ -1,0 +1,10 @@
+{
+  "name": "MacWhisper",
+  "unique_identifier": "com.goodsnooze.MacWhisper",
+  "token": "macwhisper",
+  "installer_format": "zip",
+  "slug": "macwhisper/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

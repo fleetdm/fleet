@@ -1,0 +1,10 @@
+{
+  "name": "Proton Mail Bridge",
+  "unique_identifier": "com.protonmail.bridge",
+  "token": "proton-mail-bridge",
+  "installer_format": "dmg",
+  "slug": "proton-mail-bridge/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

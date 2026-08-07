@@ -1,0 +1,14 @@
+{
+  "name": "Lenovo Dock Manager",
+  "slug": "lenovo-dock-manager/windows",
+  "package_identifier": "Lenovo.DockManager",
+  "unique_identifier": "Lenovo Dock Manager",
+  "fuzzy_match_name": true,
+  "program_publisher": "Lenovo",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/lenovo_dock_manager_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/lenovo_dock_manager_uninstall.ps1"
+}

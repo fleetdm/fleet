@@ -801,6 +801,20 @@ Setting to true will disable the origin check.
     websockets_allow_unsafe_origin: true
   ```
 
+### server_allow_private_network_integrations
+
+Allows Fleet's HTTP client to make outbound requests to RFC 1918 and other private network addresses. Enable this if  Fleet needs to reach an integration over HTTP. (Examples include SSO/IdP, EJBCA, Jira, or SCEP server, or an `HTTP_PROXY`/`HTTPS_PROXY` hosted on a private network.)
+
+This does not affect the always-blocked loopback (`127.0.0.0/8`) and cloud metadata (`169.254.0.0/16`) ranges.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_PRIVATE_NETWORK_INTEGRATIONS`
+- Config file format:
+```yaml
+server:
+  allow_private_network_integrations: true
+```
+
 ### server_force_h2c
 
 Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
@@ -964,6 +978,18 @@ When enabled, Fleet server will require HTTP message signatures for all incoming
   ```yaml
   auth:
     require_http_message_signature: true
+  ```
+
+### auth_sso_rate_limit_per_minute
+
+The number of requests per minute allowed to the [SSO callback endpoint](https://fleetdm.com/docs/rest-api/rest-api#sso-callback) (`/api/v1/fleet/sso/callback`).
+
+- Default value: 10
+- Environment variable: `FLEET_AUTH_SSO_RATE_LIMIT_PER_MINUTE`
+- Config file format:
+  ```yaml
+  auth:
+    sso_rate_limit_per_minute: 200
   ```
 
 ## App
@@ -1157,7 +1183,7 @@ Valid time units are `s`, `m`, `h`.
 This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, `splunk`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -1171,7 +1197,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, `splunk`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -1415,7 +1441,7 @@ This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
-Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), and `stdout` (no additional configuration needed).
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), [`splunk`](#splunk), and `stdout` (no additional configuration needed).
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
@@ -1501,6 +1527,37 @@ A comma-delimited set of log topics to disable. If a topic is included in both t
   ```yaml
   logging:
     disable_topics: deprecated-field-names
+  ```
+
+### logging_tracing_enabled
+
+Whether or not to enable tracing. When enabled, the Fleet server exports traces (and, when `logging_otel_logs_enabled` is also set, logs) to an [OpenTelemetry](https://opentelemetry.io/) collector over OTLP.
+
+The export destination and resource attributes are configured through the standard OpenTelemetry SDK environment variables, the most common being:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT` - the OTLP collector endpoint, e.g. `http://localhost:4317`.
+- `OTEL_SERVICE_NAME` - the service name reported with each span (defaults to `fleet`).
+
+See the [OpenTelemetry SDK environment variable reference](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) for the full list, and [Traces](https://fleetdm.com/docs/deploy/reference-architectures#traces) for how Fleet samples traces in production.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_TRACING_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    tracing_enabled: true
+  ```
+
+### logging_otel_logs_enabled
+
+Whether or not to export logs to an OpenTelemetry collector in addition to stderr. Requires `logging_tracing_enabled` to be `true` so that exported log records can be correlated with traces.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_OTEL_LOGS_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    otel_logs_enabled: true
   ```
 
 ## Filesystem
@@ -2484,6 +2541,106 @@ Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
     timeout: 1m
   ```
 
+## Splunk
+
+Fleet can send osquery logs directly to Splunk via the [HTTP Event Collector (HEC)](https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector) endpoint.
+
+### splunk_url
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The base URL of the Splunk HEC endpoint (e.g. `https://splunk.example.com:8088`).
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_URL`
+- Config file format:
+  ```yaml
+  splunk:
+    url: https://splunk.example.com:8088
+  ```
+
+### splunk_token
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The HEC authentication token.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_TOKEN`
+- Config file format:
+  ```yaml
+  splunk:
+    token: your-hec-token
+  ```
+
+### splunk_index
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The Splunk index to send events to. If empty, the HEC token's default index is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_INDEX`
+- Config file format:
+  ```yaml
+  splunk:
+    index: main
+  ```
+
+### splunk_source
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The source value for events sent to Splunk. If empty, the HEC token's default source is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_SOURCE`
+- Config file format:
+  ```yaml
+  splunk:
+    source: fleet
+  ```
+
+### splunk_source_type
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The sourcetype value for events sent to Splunk. If empty, the HEC token's default sourcetype is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_SOURCE_TYPE`
+- Config file format:
+  ```yaml
+  splunk:
+    source_type: fleet:json
+  ```
+
+### splunk_insecure_skip_verify
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+Skip TLS certificate verification when connecting to the Splunk HEC endpoint. Useful for development environments with self-signed certificates.
+
+- Default value: `false`
+- Environment variable: `FLEET_SPLUNK_INSECURE_SKIP_VERIFY`
+- Config file format:
+  ```yaml
+  splunk:
+    insecure_skip_verify: true
+  ```
+
 ## Email backend
 
 By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
@@ -2619,6 +2776,8 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
   ```
 
 ## S3
+
+> If you're hosting Fleet on Render (or any service that doesn't offer S3-compatible storage and is not a multi-container deployment) or building Fleet locally, use the `FLEET_SOFTWARE_INSTALLER_STORE_DIR` environment variable (no YAML or flag equivalent) to store software installers and bootstrap packages on local disk instead. If you're hosting Fleet in AWS, GCP or any other large-scale deployment, use an S3 compatible object store (below) because local storage won't work for multi-container deployments.
 
 ### s3_software_installers_bucket
 
@@ -2930,6 +3089,51 @@ On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identi
   ```yaml
   s3:
      carves_force_s3_path_style: false
+  ```
+
+### s3_carves_cleanup_disabled
+
+When `true`, the S3 carve store skips the periodic reconciliation that marks carves whose S3
+object no longer exists as expired. Set this if you rely solely on the bucket lifecycle policy
+to remove carve objects and do not need the `expired` flag reconciled. This applies only to the
+S3 carve store; it has no effect when carves are stored in MySQL.
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_DISABLED`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_disabled: true
+  ```
+
+### s3_carves_cleanup_max_per_run
+
+The maximum number of carves the S3 cleanup reconciles per run, which also bounds
+the number of S3 `HeadObject` requests a single run makes. A larger carve backlog
+is drained across subsequent runs. Raise this to drain a large backlog faster, at
+the cost of more work per run; lower it to reduce each run's impact on the shared
+cleanup schedule.
+
+- Default value: 1000
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_MAX_PER_RUN`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_max_per_run: 1000
+  ```
+
+### s3_carves_cleanup_concurrency
+
+The number of concurrent S3 `HeadObject` probes the carve cleanup performs. Kept
+modest by default to stay well under S3's per-prefix request rate; lower it if you
+observe throttling, or raise it to speed up a backlog's probe phase.
+
+- Default value: 32
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_CONCURRENCY`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_concurrency: 32
   ```
 
 ### s3_carves_region
@@ -3504,31 +3708,35 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
 
-### mdm.enable_custom_os_updates_and_filevault
+### mdm.enable_custom_disk_encryption
+
+> `mdm.enable_custom_filevault` is deprecated as of Fleet 4.90.0 and `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Both are maintained for backwards compatibility. Please use `mdm.enable_custom_disk_encryption` instead. As of Fleet 4.87.0, custom OS updates are enabled by default.
 
 *Available in Fleet Premium.*
 
-Allows users to add custom Apple MDM profiles for OS updates and FileVault management, including the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific), [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
+For macOS, allows users to add custom macOS [configuration profiles](https://fleetdm.com/guides/custom-os-settings) for FileVault, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles.
 
-> Enabling this option may cause conflicts between your custom OS update or FileVault configuration profiles and the profiles Fleet manages under the hood for these features.
+For Windows, allows users to add custom Windows profiles for BitLocker.
+
+> Enabling this option may cause conflicts between your custom disk encryption configuration profiles and the profiles Fleet manages under the hood when [Fleet's disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) is enabled.
 
 - Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_DISK_ENCRYPTION`
 - Config file format:
   ```yaml
   mdm:
-    enable_custom_os_updates_and_filevault: true
+    enable_custom_disk_encryption: false
   ```
 
 ### mdm.allow_all_declarations
 
-Allows all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) to be sent, bypassing all safety checks. By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
+> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations are [coming in Fleet 4.91.0](https://github.com/fleetdm/fleet/issues/48222).
 
-Currently, Fleet only supports device-scoped declarations. User-scoped declarations are [coming soon](https://github.com/fleetdm/fleet/issues/38986).
-
-> Enabling this option bypasses all safety checks for declarations, including checks for forbidden declaration types, reserved identifiers, and required prefixes. Only enable this when you need to deploy declarations that Fleet would otherwise block.
+If disabled (default), Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
 
 [Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
+
+Enabling this bypasses checks for forbidden declaration types, reserved identifiers, and required prefixes.
 
 - Default value: `false`
 - Environment variable: `FLEET_MDM_ALLOW_ALL_DECLARATIONS`
@@ -3536,6 +3744,22 @@ Currently, Fleet only supports device-scoped declarations. User-scoped declarati
   ```yaml
   mdm:
     allow_all_declarations: true
+  ```
+
+### mdm.allow_orbit_end_user_auth_bypass
+
+When a team requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet gates Linux and Windows Orbit enrollment on end user authentication. `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow, and installers built with `fleetctl package --bypass-end-user-auth` intentionally skip it.
+
+By default (`true`), Fleet allows those hosts to enroll into a team that requires end user authentication without completing it. Set this to `false` to strictly enforce end user authentication for all Orbit enrollments — hosts that do not complete end user authentication (including `--bypass-end-user-auth` installers and pre-end-user-auth agents) are then blocked.
+
+Hosts that already enrolled before end user authentication was enabled are always allowed to re-enroll regardless of this setting. Windows hosts that present a valid end-user-auth token from MDM enrollment always complete end user authentication regardless of this setting.
+
+- Default value: `true`
+- Environment variable: `FLEET_MDM_ALLOW_ORBIT_END_USER_AUTH_BYPASS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_orbit_end_user_auth_bypass: false
   ```
 
 ### fleet_allow_bootstrap_package_during_migration

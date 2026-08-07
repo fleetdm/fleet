@@ -1,0 +1,10 @@
+{
+  "name": "Shifty",
+  "unique_identifier": "io.natethompson.Shifty",
+  "token": "shifty",
+  "installer_format": "zip",
+  "slug": "shifty/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

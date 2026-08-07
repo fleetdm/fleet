@@ -1,1 +1,0 @@
-* Fixed an issue where updating the device mapping for a host with no user, or a non existent IdP user, would not resend config profiles using IdP variables.

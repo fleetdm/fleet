@@ -8,11 +8,16 @@
 
 ## License requirements
 
-Each user who enrolls a device needs **both** of the following:
-- **Microsoft Intune Plan 1** (for Autopilot device registration)
-- **Microsoft Entra ID P1** (for automatic MDM enrollment)
+- Each **end user who enrolls a device** needs a **Microsoft Entra ID P1** license (for automatic MDM enrollment). An Intune license is
+  NOT believed to be required for the end user.
+- The **admin** needs a **Microsoft Intune** license (e.g., Intune Plan 1) to register Autopilot devices and manage deployment profiles in
+  the Intune admin center, and to connect Entra to Fleet.
 
-The simplest option is **Enterprise Mobility + Security E3**, which bundles both.
+The simplest option for dev (where same account is both admin and end user) is **Enterprise Mobility + Security E3**, which bundles both Entra ID P1 and Intune Plan 1.
+
+Note: The end-user requirement above (Entra ID P1 only, no Intune license) is our current understanding as of June 2026.
+It has not been verified end to end. If enrollment fails with `binarySecurityToken is empty` for a user who has Entra ID P1, try adding
+an Intune license and update this doc with what you learn.
 
 To assign licenses:
 1. Go to [Microsoft 365 Admin Center](https://admin.microsoft.com) > Users > Active users > select your user
@@ -20,7 +25,7 @@ To assign licenses:
 3. Make sure **Usage location** is set (e.g., United States) -- license assignment fails without it
 4. If no licenses are available, check if other developers have unused ones that can be reassigned. Purchasing new licenses will be charged on Noah Talerman's (as of 24th February 2026) Brex card
 
-**Important:** The license must be assigned to the **user who signs in during enrollment**, not just to an admin account. Without a license, the MDM URL will be empty in `dsregcmd /status` and enrollment will fail silently.
+**Important:** The Entra ID P1 license must be assigned to the **user who signs in during enrollment**, not just to an admin account. Without a license, the MDM URL will be empty in `dsregcmd /status` and enrollment will fail silently.
 
 ## Entra tenant configuration
 
@@ -185,7 +190,7 @@ qm start <VMID>
 ```
 
 2. OOBE starts. Autopilot skips region/keyboard/network screens and goes straight to checking for updates, then shows your org branding and the Entra sign-in screen.
-3. Sign in with your Entra test user credentials (must have Intune + Entra P1 license assigned)
+3. Sign in with your Entra test user credentials (must have Entra ID P1 license assigned -- see [License requirements](#license-requirements))
 4. Device joins Entra and enrolls in Fleet MDM
 
 ### Subsequent test cycles
@@ -203,7 +208,7 @@ qm start <VMID>
 | OOBE shows unfamiliar org logo | Cross-tenant hash collision: another org registered a similar QEMU VM | Delete their registration or maximize VM uniqueness |
 | "Name your device" instead of Autopilot branding | Profile not assigned, or AUTOPILOT_MARKER missing | Verify Profile status = Assigned in Intune; re-register and re-sysprep |
 | `ZtdDeviceIsNotRegistered` in diagnostics (Ctrl+Shift+D) | Device hash not registered in any tenant | Upload hash to Intune and wait for Assigned |
-| `binarySecurityToken is empty` in Fleet logs | User's Intune/Entra P1 license not assigned, or Fleet MDM user scope = None | Assign license to the enrolling user; set Fleet MDM user scope to All in Entra Mobility |
+| `binarySecurityToken is empty` in Fleet logs | User's Entra ID P1 license not assigned, or Fleet MDM user scope = None | Assign license to the enrolling user; set Fleet MDM user scope to All in Entra Mobility |
 | `0x80180024` error during enrollment | Authentication failure -- often stale state from failed attempts | Restore clean snapshot and retry |
 | MDM URL empty in `dsregcmd /status` | License not assigned or not yet propagated, or Fleet MDM user scope = None | Assign license, set scope to All, wait 15-30 min, run `dsregcmd /refreshprt` |
 | Sysprep fails with BitLocker error | BitLocker auto-enabled during Windows install | Run `manage-bde -off C:` and wait for full decryption |

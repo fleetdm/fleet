@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext, useEffect, useMemo, useRef } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
 import { Ace } from "ace-builds";
@@ -9,15 +9,11 @@ import { size } from "lodash";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 import PATHS from "router/paths";
-import {
-  getCustomTargetOptions,
-  LabelScope,
-} from "components/TargetLabelSelector/labelScopes";
 import { getPathWithQueryParams } from "utilities/url";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
@@ -28,11 +24,14 @@ import {
   APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
-import { DEFAULT_POLICIES } from "pages/policies/constants";
+import {
+  DEFAULT_POLICIES,
+  POLICY_TARGET_EMPTY_STATE_DESCRIPTION,
+} from "pages/policies/constants";
 
 import {
-  DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
 
 import SQLEditor from "components/SQLEditor";
@@ -49,12 +48,7 @@ import Icon from "components/Icon/Icon";
 import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
-import TargetLabelSelector from "components/TargetLabelSelector";
-
-import labelsAPI, {
-  getCustomLabels,
-  ILabelsSummaryResponse,
-} from "services/entities/labels";
+import { TargetLabelSelector } from "components/TargetLabelSelector";
 
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
@@ -64,7 +58,15 @@ import PolicyAutomationsFields, {
   IPolicyAutomationsPayload,
 } from "pages/policies/components/PolicyAutomationsFields";
 import { PatchAutomationCta } from "pages/policies/components";
-import { useUpdatePolicyAutomations } from "pages/policies/hooks";
+import {
+  getPatchPolicyFlags,
+  PatchOption,
+  PatchOptionSelector,
+} from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
+import {
+  useUpdatePolicyAutomations,
+  usePolicyLabelTargets,
+} from "pages/policies/hooks";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 
@@ -137,14 +139,29 @@ const PolicyForm = ({
     false
   );
 
-  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
-    "labelsIncludeAny"
-  );
-  const [selectedLabels, setSelectedLabels] = useState({});
-
   const isPatchPolicy = storedPolicy?.type === "patch";
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
+  const [patchOption, setPatchOption] = useState<PatchOption>("manual");
+  const storedPatchPolicyId = storedPolicy?.id;
+  const storedPatchWhenClosed = storedPolicy?.patch_when_closed;
+  const storedInstallSoftwareId =
+    storedPolicy?.install_software?.software_title_id;
+
+  useEffect(() => {
+    if (!isPatchPolicy || !storedPatchPolicyId) return;
+    let nextPatchOption: PatchOption = "manual";
+    if (storedPatchWhenClosed) {
+      nextPatchOption = "closed";
+    } else if (storedInstallSoftwareId) {
+      nextPatchOption = "force";
+    }
+    setPatchOption(nextPatchOption);
+  }, [
+    isPatchPolicy,
+    storedPatchPolicyId,
+    storedPatchWhenClosed,
+    storedInstallSoftwareId,
+  ]);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -159,6 +176,7 @@ const PolicyForm = ({
     lastEditedQueryLabelsIncludeAny,
     lastEditedQueryLabelsIncludeAll,
     lastEditedQueryLabelsExcludeAny,
+    lastEditedQueryLabelsExcludeAll,
     defaultPolicy,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -168,20 +186,18 @@ const PolicyForm = ({
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
-  const onSelectLabel = ({
-    name: labelName,
-    value,
-  }: {
-    name: string;
-    value: boolean;
-  }) => {
-    setSelectedLabels({
-      ...selectedLabels,
-      [labelName]: value,
-    });
-  };
+  const {
+    selectorProps,
+    selectedTargetType,
+    hasCustomLabels,
+    getLabelsPayload,
+  } = usePolicyLabelTargets({
+    includeAny: lastEditedQueryLabelsIncludeAny,
+    includeAll: lastEditedQueryLabelsIncludeAll,
+    excludeAny: lastEditedQueryLabelsExcludeAny,
+    excludeAll: lastEditedQueryLabelsExcludeAll,
+  });
 
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
 
   const {
@@ -194,30 +210,6 @@ const PolicyForm = ({
     config,
     isFreeTier,
   } = useContext(AppContext);
-
-  const customTargetOptions = useMemo(
-    () => getCustomTargetOptions({ entity: "policy", isPremiumTier }),
-    [isPremiumTier]
-  );
-
-  const { data: { labels } = { labels: [] } } = useQuery<
-    ILabelsSummaryResponse,
-    Error
-  >(
-    ["custom_labels", currentTeam],
-    () => labelsAPI.summary(currentTeam?.id, true),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      // Wait for the current team to load from context before pulling labels, otherwise on a page load
-      // directly on the policies new/edit page this gets called with currentTeam not set, then again
-      // with the correct team value. If we don't trigger on currentTeam changes we'll just start with a
-      // null team ID here and never populate with the correct team unless we navigate from another page
-      // where team context is already set prior to navigation.
-      enabled: isPremiumTier && !!currentTeam,
-      staleTime: 10000,
-      select: (res) => ({ labels: getCustomLabels(res.labels) }),
-    }
-  );
 
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const aiFeaturesDisabled =
@@ -314,7 +306,7 @@ const PolicyForm = ({
     onSuccess: () => {
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
     },
-    onError: () => renderFlash("error", "Could not update policy automations."),
+    onError: () => notify.error("Could not update policy automations."),
   });
 
   /* - Observer/Observer+ and Technicians cannot edit existing policies
@@ -354,45 +346,6 @@ const PolicyForm = ({
     storedPolicy?.team_id,
     router,
     teamIdForApi,
-  ]);
-
-  useEffect(() => {
-    setSelectedTargetType(
-      !lastEditedQueryLabelsIncludeAny.length &&
-        !lastEditedQueryLabelsIncludeAll.length &&
-        !lastEditedQueryLabelsExcludeAny.length
-        ? "All hosts"
-        : "Custom"
-    );
-
-    let customTarget: LabelScope | undefined;
-    let activeLabels: typeof lastEditedQueryLabelsIncludeAny = [];
-    if (lastEditedQueryLabelsExcludeAny.length) {
-      customTarget = "labelsExcludeAny";
-      activeLabels = lastEditedQueryLabelsExcludeAny;
-    } else if (lastEditedQueryLabelsIncludeAll.length) {
-      customTarget = "labelsIncludeAll";
-      activeLabels = lastEditedQueryLabelsIncludeAll;
-    } else if (lastEditedQueryLabelsIncludeAny.length) {
-      customTarget = "labelsIncludeAny";
-      activeLabels = lastEditedQueryLabelsIncludeAny;
-    }
-    if (customTarget) {
-      setSelectedCustomTarget(customTarget);
-    }
-
-    setSelectedLabels(
-      activeLabels.reduce((acc, label) => {
-        return {
-          ...acc,
-          [label.name]: true,
-        };
-      }, {})
-    );
-  }, [
-    lastEditedQueryLabelsIncludeAny,
-    lastEditedQueryLabelsIncludeAll,
-    lastEditedQueryLabelsExcludeAny,
   ]);
 
   useEffect(() => {
@@ -450,9 +403,11 @@ const PolicyForm = ({
         software_title_id: storedPolicy.patch_software.software_title_id,
       });
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
-      renderFlash("success", "Automation added.");
-    } catch {
-      renderFlash("error", "Couldn't set automation. Please try again.");
+      notify.success("Automation added.");
+    } catch (e) {
+      notify.error("Couldn't set automation. Please try again.", {
+        response: e,
+      });
     } finally {
       setIsAddingAutomation(false);
     }
@@ -481,6 +436,19 @@ const PolicyForm = ({
     let automations: IPolicyAutomationsPayload | undefined;
     if (isEditMode) {
       automations = automationsRef.current?.getAutomationsPayload();
+      if (!automations && isPremiumTier && isPatchPolicy) {
+        automations = {
+          isValid: true,
+          isDirty: true,
+          policyUpdate: {
+            software_title_id:
+              patchOption === "manual"
+                ? null
+                : storedPolicy?.patch_software?.software_title_id ?? null,
+            ...getPatchPolicyFlags(patchOption),
+          },
+        };
+      }
       if (automations && !automations.isValid) {
         return;
       }
@@ -550,18 +518,7 @@ const PolicyForm = ({
         platform: newPlatformString,
       };
       if (isPremiumTier) {
-        const customLabelNames =
-          selectedTargetType === "Custom"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [];
-        payload.labels_include_any =
-          selectedCustomTarget === "labelsIncludeAny" ? customLabelNames : [];
-        payload.labels_include_all =
-          selectedCustomTarget === "labelsIncludeAll" ? customLabelNames : [];
-        payload.labels_exclude_any =
-          selectedCustomTarget === "labelsExcludeAny" ? customLabelNames : [];
+        Object.assign(payload, getLabelsPayload());
         payload.critical = lastEditedQueryCritical;
       }
       await onUpdate(payload);
@@ -573,11 +530,13 @@ const PolicyForm = ({
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
         {showOpenSchemaActionText && (
-          <Button variant="inverse" onClick={onOpenSchemaSidebar}>
-            <>
-              Schema
-              <Icon name="info" />
-            </>
+          <Button
+            variant="subdued"
+            onClick={onOpenSchemaSidebar}
+            icon="info"
+            iconPosition="right"
+          >
+            Schema
           </Button>
         )}
         {!policyIdForEdit && (
@@ -603,6 +562,7 @@ const PolicyForm = ({
           error={errors && errors.name}
           onChange={(value: string) => setLastEditedQueryName(value)}
           disabled={gitOpsModeEnabled}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
       );
     }
@@ -732,11 +692,31 @@ const PolicyForm = ({
       isAddingAutomation ||
       (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) ||
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
-      (selectedTargetType === "Custom" &&
-        !Object.entries(selectedLabels).some(([, value]) => {
-          return value;
-        })) ||
+      (selectedTargetType === "Custom" && !hasCustomLabels) ||
       errors.query === EMPTY_QUERY_ERR;
+
+    // Single source of truth: patchOptions renders inside this block (patchSlot)
+    // when shown, and standalone otherwise — the two must stay exact complements.
+    const showAutomationsBlock =
+      isEditMode && !!storedPolicy && !!automationsConfig;
+
+    // Patch radios for patch policies (Premium). Rendered inside the Automations
+    // block via patchSlot when it's shown, or standalone before the automations
+    // config loads so the option stays settable.
+    const patchOptions = isEditMode && isPremiumTier && isPatchPolicy && (
+      <div className="form-field">
+        <div className="form-field__label">Patch</div>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <PatchOptionSelector
+              patchOption={patchOption}
+              onSelectPatchOption={setPatchOption}
+              disabled={disableChildren}
+            />
+          )}
+        />
+      </div>
+    );
 
     return (
       <>
@@ -760,30 +740,24 @@ const PolicyForm = ({
           {isEditMode && !isPatchPolicy && platformSelector.render()}
           {isEditMode && isPremiumTier && !isPatchPolicy && (
             <TargetLabelSelector
-              selectedTargetType={selectedTargetType}
-              selectedCustomTarget={selectedCustomTarget}
-              customTargetOptions={customTargetOptions}
-              onSelectCustomTarget={(val) =>
-                setSelectedCustomTarget(val as LabelScope)
-              }
-              selectedLabels={selectedLabels}
+              {...selectorProps}
               className={`${baseClass}__target`}
-              onSelectTargetType={setSelectedTargetType}
-              onSelectLabel={onSelectLabel}
-              labels={labels || []}
+              emptyStateDescription={POLICY_TARGET_EMPTY_STATE_DESCRIPTION}
+              onAddLabel={() => router.push(PATHS.LABEL_NEW_DYNAMIC)}
               disableOptions={gitOpsModeEnabled}
-              suppressTitle
             />
           )}
-          {isEditMode && !!storedPolicy && !!automationsConfig && (
+          {showAutomationsBlock && (
             <div className="form-field">
               <div className="form-field__label">Automations</div>
-              <PatchAutomationCta
-                storedPolicy={storedPolicy}
-                canEditPolicy={isEditMode}
-                onAddAutomation={onAddPatchAutomation}
-                isAddingAutomation={isAddingAutomation}
-              />
+              {!(isPremiumTier && isPatchPolicy) && (
+                <PatchAutomationCta
+                  storedPolicy={storedPolicy}
+                  canEditPolicy={isEditMode}
+                  onAddAutomation={onAddPatchAutomation}
+                  isAddingAutomation={isAddingAutomation}
+                />
+              )}
               <PolicyAutomationsFields
                 key={storedPolicy.updated_at}
                 ref={automationsRef}
@@ -793,9 +767,14 @@ const PolicyForm = ({
                 automationsConfig={automationsConfig}
                 globalConfig={config ?? undefined}
                 fleetName={automationsFleetName}
+                patchOption={
+                  isPremiumTier && isPatchPolicy ? patchOption : undefined
+                }
+                patchSlot={patchOptions}
               />
             </div>
           )}
+          {!showAutomationsBlock && patchOptions}
           {isEditMode &&
             isPremiumTier &&
             !isPatchPolicy &&
@@ -891,9 +870,11 @@ const PolicyForm = ({
                     (isEditMode && !isAnyPlatformSelected) ||
                     disabledLiveQuery
                   }
-                  variant="inverse"
+                  variant="secondary"
+                  icon="run"
+                  iconPosition="right"
                 >
-                  Run policy <Icon name="run" />
+                  Run policy
                 </Button>
               </span>
             </TooltipWrapper>
@@ -913,12 +894,12 @@ const PolicyForm = ({
             isFetchingAutofillResolution={isFetchingAutofillResolution}
             onClickAutofillDescription={onClickAutofillDescription}
             onClickAutofillResolution={onClickAutofillResolution}
-            labels={labels}
             isGlobalPolicy={isGlobalPolicy}
             policyTeamId={automationsTeamId}
             automationsConfig={automationsConfig}
             globalConfig={config ?? undefined}
             fleetName={automationsFleetName}
+            router={router}
           />
         )}
       </>

@@ -1,0 +1,10 @@
+{
+  "name": "Rocket.Chat",
+  "unique_identifier": "chat.rocket",
+  "token": "rocket-chat",
+  "installer_format": "dmg",
+  "slug": "rocket-chat/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

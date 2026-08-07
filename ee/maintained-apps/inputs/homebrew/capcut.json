@@ -1,0 +1,8 @@
+{
+  "name": "CapCut",
+  "unique_identifier": "com.lemon.lvoverseas",
+  "token": "capcut",
+  "installer_format": "dmg",
+  "slug": "capcut/darwin",
+  "default_categories": ["Productivity"]
+}

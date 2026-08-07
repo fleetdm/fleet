@@ -340,7 +340,7 @@
         .hljs-selector-pseudo,
         .hljs-addition,
         .hljs-template-variable {
-          color: #4fd061;
+          color: @core-vibrant-green;
         }
         .hljs-comment,
         .hljs-deletion,
@@ -362,13 +362,13 @@
         font-weight: 400;
         line-height: 150%;
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
-          color: #515774;
+          color: #AE6DDF;
         }
         [purpose='line-break']:not(:first-of-type)::before {
           content: '\a';
         }
         .hljs-operator {
-          color: #3e999f;
+          color: #515774;
         }
 
         .hljs-attr { // For table and column names
@@ -388,13 +388,16 @@
           }
         }
         .hljs-number {
-          color: #f5871f;
+          color: @core-vibrant-green;
         }
         .hljs-string { // For words wrapped in quotation marks
-          color: #4fd061;
+          color: @core-vibrant-green;
           .hljs-keyword {
-            color: #4fd061;
+            color: @core-vibrant-green;
           }
+        }
+        .hljs-attr-column { // For recognized column names (not pilled, not a quoted string)
+          color: #515774;
         }
         background-color: @ui-off-white;
         border: none;

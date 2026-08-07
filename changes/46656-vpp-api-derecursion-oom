@@ -1,1 +1,0 @@
-* Fixed a server out-of-memory crash that could occur when Apple's VPP (App and Book Management) API repeatedly returned transient errors (HTTP 500 with Retry-After, or error 9646) during VPP API operations (e.g., app installs, user registration, license seat releases).

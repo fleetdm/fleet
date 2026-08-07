@@ -48,6 +48,11 @@ As soon as an offer is accepted, Fleet provides laptops for core team members to
 - Include delivery tracking information when closing the support request so the new employee can be notified.
 
 
+### Send Google login credentials to a new team member
+
+On the morning of a new team member's first day, IT sends them the Google Logins PDF sheet via email before their onboarding calls begin. This ensures they can access Gmail, Google Calendar, and other Google Workspace tools needed during onboarding.
+
+
 ### Process incoming equipment
 
 Upon receiving any device, follow these steps to process incoming equipment.

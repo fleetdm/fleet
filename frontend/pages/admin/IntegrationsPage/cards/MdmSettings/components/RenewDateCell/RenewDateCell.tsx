@@ -22,7 +22,7 @@ interface IRenewDateCellProps {
    * `statusConfig` currently this allows us to dynamically change the tooltip
    * text depending on the status of the date. Can be extended later if needed.
    */
-  statusConfig: IRenewDateCellStatusConfig;
+  statusConfig?: IRenewDateCellStatusConfig;
   className?: string;
 }
 
@@ -49,7 +49,7 @@ const RenewDateCell = ({
     indicatorStatus = "error";
   }
 
-  if (indicatorStatus !== "success") {
+  if (indicatorStatus !== "success" && statusConfig) {
     tooltipText = statusConfig[indicatorStatus].tooltipText;
   }
 

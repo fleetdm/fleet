@@ -115,6 +115,23 @@ export default {
     return sendRequest("POST", path);
   },
 
+  installAllSelfServiceSoftwareInCategory: (
+    deviceToken: string,
+    categoryId?: number,
+    query?: string
+  ) => {
+    const { DEVICE_SOFTWARE_INSTALL_ALL } = endpoints;
+    // `getPathWithQueryParams` drops undefined values, so an omitted
+    // `categoryId` means "install all categories" and an omitted `query`
+    // means "no name filter" — matching the endpoint's optional semantics.
+    // Callers are expected to hand a trimmed query (or an empty string).
+    const path = getPathWithQueryParams(
+      DEVICE_SOFTWARE_INSTALL_ALL(deviceToken),
+      { category_id: categoryId, query: query || undefined }
+    );
+    return sendRequest("POST", path);
+  },
+
   uninstallSelfServiceSoftware: (
     deviceToken: string,
     softwareTitleId: number

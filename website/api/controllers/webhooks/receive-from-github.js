@@ -82,7 +82,6 @@ module.exports = {
       'alexmitchelliii',
       'sampfluger88',
       'ireedy',
-      'mostlikelee',
       'AnthonySnyder8',
       'getvictor',
       'pintomi1989',
@@ -94,7 +93,6 @@ module.exports = {
       'tux234',
       'ksykulev',
       'mason-buettner',
-      'sgress454',
       'BCTBB',
       'kc9wwh',
       'JordanMontgomery',
@@ -382,7 +380,7 @@ module.exports = {
         }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
         // Create an array of paths that will determine if the "~ga4-annotation" label will be automatically added to this PR.
-        let CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS = [ 'website/views/pages/homepage.ejs', 'website/views/pages/pricing.ejs', 'website/views/partials/primary-tagline.partial.ejs'];
+        let CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS = [ 'website/views/pages/homepage.ejs', 'website/views/pages/pricing.ejs', 'website/views/partials/primary-tagline.partial.ejs', 'website/views/pages/contact.ejs'];
         let prShouldCreateGoogleAnalyticsAnnotation = false;
 
         // For each changed file, decide what reviewer to request, if any…
@@ -912,9 +910,14 @@ module.exports = {
           'Accept': 'application/vnd.github.v4+json',
           'User-Agent': 'Fleet-Engineering-Metrics'
         }
-      );
+      )
+      .tolerate((err)=>{
+        // If there is an error sending a request to the GitHub API, log a warning and return undefined.
+        sails.log.warn(`When the receive-from-github webhook sent a request to the GitHub API to look up an issue, an error occurred. Full error: ${require('util').inspect(err)}`);
+        return undefined;
+      });
 
-      if (!graphqlQueryResponse.data || !graphqlQueryResponse.data.node) {
+      if (!graphqlQueryResponse || !graphqlQueryResponse.data || !graphqlQueryResponse.data.node) {
         return;
       }
 

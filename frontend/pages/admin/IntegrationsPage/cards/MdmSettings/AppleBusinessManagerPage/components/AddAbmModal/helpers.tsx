@@ -8,7 +8,7 @@ const generateDuplicateMessage = (msg: string) => {
   const orgName = msg.split("'")[1];
   return (
     <>
-      Couldn&apos;t add. There&apos;s already an ABM connection for the{" "}
+      Couldn&apos;t add. There&apos;s already an AB connection for the{" "}
       <b>{orgName}</b> organization.
     </>
   );

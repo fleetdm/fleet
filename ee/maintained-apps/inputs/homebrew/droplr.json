@@ -1,0 +1,10 @@
+{
+  "name": "Droplr",
+  "unique_identifier": "com.droplr.droplr-mac",
+  "token": "droplr",
+  "installer_format": "zip",
+  "slug": "droplr/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

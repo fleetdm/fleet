@@ -1,0 +1,10 @@
+{
+  "name": "WhatRoute",
+  "unique_identifier": "net.whatroute.whatroute2",
+  "token": "whatroute",
+  "installer_format": "zip",
+  "slug": "whatroute/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

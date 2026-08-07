@@ -23,6 +23,12 @@
     align-items: baseline;
   }
 
+  &--multiline dd {
+    white-space: pre-wrap;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+
   &__horizontal {
     flex-direction: row;
   }

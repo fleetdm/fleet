@@ -119,6 +119,107 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	})
 }
 
+func TestAppleOSUpdatesLatestValidate(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		cases := []struct {
+			name string
+			m    AppleOSUpdateSettings
+		}{
+			{
+				"latest with deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					DeadlineDays:   optjson.SetInt(14),
+				},
+			},
+			{
+				"latest with deadline_days of 1",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					DeadlineDays:   optjson.SetInt(1),
+				},
+			},
+			{
+				"latest with explicitly empty deadline",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					Deadline:       optjson.SetString(""),
+					DeadlineDays:   optjson.SetInt(14),
+				},
+			},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				require.NoError(t, tc.m.Validate())
+			})
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		cases := []struct {
+			name string
+			m    AppleOSUpdateSettings
+		}{
+			{
+				"latest without deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+				},
+			},
+			{
+				"latest with null deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					DeadlineDays:   optjson.Int{Set: true, Valid: false},
+				},
+			},
+			{
+				"latest with deadline",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					Deadline:       optjson.SetString("2026-09-01"),
+					DeadlineDays:   optjson.SetInt(14),
+				},
+			},
+			{
+				"latest with zero deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					DeadlineDays:   optjson.SetInt(0),
+				},
+			},
+			{
+				"latest with negative deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					DeadlineDays:   optjson.SetInt(-1),
+				},
+			},
+			{
+				"specific version with deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("15.1"),
+					Deadline:       optjson.SetString("2026-09-01"),
+					DeadlineDays:   optjson.SetInt(14),
+				},
+			},
+			{
+				"deadline_days with no version",
+				AppleOSUpdateSettings{
+					DeadlineDays: optjson.SetInt(14),
+				},
+			},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				require.Error(t, tc.m.Validate())
+			})
+		}
+	})
+}
+
 func TestWindowsUpdatesValidate(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -174,24 +275,39 @@ func TestWindowsUpdatesEqual(t *testing.T) {
 }
 
 func TestMacOSUpdatesConfigured(t *testing.T) {
+	// nullDeadlineDays is what `"deadline_days": null` unmarshals to: the key was
+	// present but carried no value.
+	nullDeadlineDays := optjson.Int{Set: true, Valid: false}
+
 	cases := []struct {
-		version  string
-		deadline string
-		out      bool
+		name         string
+		version      string
+		deadline     string
+		deadlineDays optjson.Int
+		out          bool
 	}{
-		{"", "", false},
-		{"", "", false},
-		{"12.3", "", false},
-		{"", "12-03-2022", false},
-		{"12.3", "12-03-2022", true},
+		{"empty", "", "", optjson.Int{}, false},
+		{"version only", "12.3", "", optjson.Int{}, false},
+		{"deadline only", "", "12-03-2022", optjson.Int{}, false},
+		{"version and deadline", "12.3", "12-03-2022", optjson.Int{}, true},
+
+		// "latest" mode: DeadlineDays stands in for Deadline.
+		{"latest with deadline_days", AppleOSUpdateLatestVersion, "", optjson.SetInt(14), true},
+		{"latest without deadline_days", AppleOSUpdateLatestVersion, "", optjson.Int{}, false},
+		{"latest with null deadline_days", AppleOSUpdateLatestVersion, "", nullDeadlineDays, false},
+		{"latest with zero deadline_days", AppleOSUpdateLatestVersion, "", optjson.SetInt(0), false},
+		{"cleared", "", "", nullDeadlineDays, false},
 	}
 
 	for _, tc := range cases {
-		m := AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString(tc.version),
-			Deadline:       optjson.SetString(tc.deadline),
-		}
-		require.Equal(t, tc.out, m.Configured())
+		t.Run(tc.name, func(t *testing.T) {
+			m := AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(tc.version),
+				Deadline:       optjson.SetString(tc.deadline),
+				DeadlineDays:   tc.deadlineDays,
+			}
+			require.Equal(t, tc.out, m.Configured())
+		})
 	}
 }
 
@@ -849,4 +965,94 @@ func TestOrgInfoAbsolutizeLogoURLs(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestMacOSSetupValidate(t *testing.T) {
+	t.Run("validate", func(t *testing.T) {
+		cases := []struct {
+			name    string
+			m       MacOSSetup
+			wantErr *string
+		}{
+			{"empty", MacOSSetup{}, nil},
+			{"manual_agent_install without bootstrap package fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
+			{"manual_agent_install with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
+			{"end_user_local_account_type fails with non accepted value", MacOSSetup{EndUserLocalAccountType: optjson.SetString("invalid")}, new(`end_user_local_account_type only "admin", "standard", and "none" are supported`)},
+			{"end_user_local_account_type with accepted value succeeds", MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin")}, nil},
+			{"end_user_local_account_type none fails with enable_end_user_local_account false", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none"), EnableManagedLocalAccount: optjson.SetBool(false)}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},
+			{"end_user_local_account_type standard fails with enable_end_user_local_account false", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard"), EnableManagedLocalAccount: optjson.SetBool(false)}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "standard" for the end_user_local_account_type`)},
+			{"end_user_local_account_type none succeeds with enable_end_user_local_account true", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
+			{"end_user_local_account_type standard succeeds with enable_end_user_local_account true", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
+			{"end_user_local_account_type admin succeeds with enable_end_user_local_account false", MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin"), EnableManagedLocalAccount: optjson.SetBool(false)}, nil},
+			{"end_user_local_account_type admin succeeds with enable_end_user_local_account true", MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				if tc.wantErr != nil {
+					require.ErrorContains(t, tc.m.Validate(), *tc.wantErr)
+					return
+				}
+
+				require.NoError(t, tc.m.Validate())
+			})
+		}
+	})
+
+	t.Run("validate against", func(t *testing.T) {
+		cases := []struct {
+			name    string
+			m       MacOSSetup
+			against MacOSSetup
+			wantErr *string
+		}{
+			{"empty against empty", MacOSSetup{}, MacOSSetup{}, nil},
+			{"manual_agent_install enabled against empty fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, MacOSSetup{}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
+			{"manual_agent_install enabled with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, MacOSSetup{}, nil},
+			{"end_user_local_account_type none against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, MacOSSetup{}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},
+			{"end_user_local_account_type standard against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")}, MacOSSetup{}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "standard" for the end_user_local_account_type`)},
+			{"enable_end_user_local_account false against none user type fails", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},
+			{"enable_end_user_local_account false against standard user type fails", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "standard" for the end_user_local_account_type`)},
+			{"enable_end_user_local_account false against admin user type succeeds", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin")}, nil},
+			{"enable_end_user_local_account false against none user type succeeds when both are set", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false), EndUserLocalAccountType: optjson.SetString("admin")}, MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true), EndUserLocalAccountType: optjson.SetString("none")}, nil},
+			{"enable_end_user_local_account false against standard user type succeeds when both are set", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false), EndUserLocalAccountType: optjson.SetString("admin")}, MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true), EndUserLocalAccountType: optjson.SetString("standard")}, nil},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				if tc.wantErr != nil {
+					require.ErrorContains(t, tc.m.ValidateAgainst(tc.against), *tc.wantErr)
+					return
+				}
+
+				require.NoError(t, tc.m.ValidateAgainst(tc.against))
+			})
+		}
+	})
+}
+
+// TestManagedLocalAccountSettingsMarshalDefaults verifies every marshal/save path defaults the
+// Windows managed local account toggle to enabled: false and preserves a set value.
+func TestManagedLocalAccountSettingsMarshalDefaults(t *testing.T) {
+	windowsSettings := func(b []byte) any {
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		return out["mdm"].(map[string]any)["windows_settings"].(map[string]any)["managed_local_account_settings"]
+	}
+	marshaled := func(v any) any {
+		b, err := json.Marshal(v)
+		require.NoError(t, err)
+		return windowsSettings(b)
+	}
+
+	var ac AppConfig
+	require.Equal(t, map[string]any{"enabled": false}, marshaled(ac))
+	ac.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(true)
+	require.Equal(t, map[string]any{"enabled": true}, marshaled(ac))
+
+	team := Team{ID: 1, Name: "t1"}
+	require.Equal(t, map[string]any{"enabled": false}, marshaled(team))
+
+	// the DB save path (TeamConfig.Value) applies the same default
+	v, err := team.Config.Value()
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{"enabled": false}, windowsSettings(v.([]byte)))
 }

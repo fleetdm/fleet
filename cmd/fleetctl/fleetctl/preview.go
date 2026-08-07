@@ -406,11 +406,10 @@ func previewCommand() *cli.Command {
 				return fmt.Errorf("failed to apply starter library: %w", err)
 			}
 
-			// disable analytics collection and enable software inventory for preview
-			// TODO(roperzh): replace `host_settings` with `features` once the
-			// Docker image used for preview (fleetdm/fleetctl:latest) is released
+			// disable analytics collection and enable software inventory for preview,
+			// and preserve all other existing values.
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
-				"host_settings":   {"enable_software_inventory": true},
+				"features":        {"enable_software_inventory": true},
 				"server_settings": {"enable_analytics": false},
 			}, fleet.ApplySpecOptions{}); err != nil {
 				return fmt.Errorf("failed to apply updated app config: %w", err)

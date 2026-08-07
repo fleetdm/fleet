@@ -1,0 +1,10 @@
+{
+  "name": "Nitro PDF Pro",
+  "unique_identifier": "com.gonitro.NitroPDFPro",
+  "token": "nitro-pdf-pro",
+  "installer_format": "dmg",
+  "slug": "nitro-pdf-pro/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

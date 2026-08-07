@@ -1,0 +1,657 @@
+# Reusable workflow that installs and validates a set of Windows Fleet-maintained
+# apps on a runner whose native architecture matches the apps' installer
+# architecture (arm64 apps on windows-11-arm, x64/x86/neutral apps on the x64
+# runner). Called by test-fma-windows-pr-only.yml and test-fma-windows.yml with
+# a matrix produced by .github/scripts/partition-fma-apps.sh.
+name: Validate Fleet Maintained Apps - Windows
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Runner label matching the apps'' installer architecture (e.g. "windows-latest" for x64/x86, "windows-11-arm" for arm64)'
+        required: true
+        type: string
+      slugs:
+        description: 'JSON array of app slugs to validate (e.g. ["7-zip/windows"])'
+        required: true
+        type: string
+      log_level:
+        description: "Log level (debug, info, warn, error)"
+        required: false
+        type: string
+        default: "info"
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  LOG_LEVEL: ${{ inputs.log_level }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ${{ inputs.runner }}
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      # Changed-app detection and architecture partitioning happen in the
+      # calling workflow on a Linux runner, so no git history is needed here.
+      - name: Checkout Fleet
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          path: fleet
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: "fleet/go.mod"
+
+      - name: Determine pre-installed apps to remove
+        id: check-windows-apps
+        # Pass the slugs through env rather than expanding ${{ inputs.slugs }}
+        # into the script body (flagged by zizmor as template injection).
+        env:
+          SLUGS_JSON: ${{ inputs.slugs }}
+        run: |
+          # SLUGS_JSON is a JSON array; wrap in @() so a single slug still
+          # behaves as an array.
+          $slugs = @($env:SLUGS_JSON | ConvertFrom-Json)
+          Write-Host "Apps to validate on this $env:PROCESSOR_ARCHITECTURE runner:"
+          $slugs | ForEach-Object { Write-Host "  - $_" }
+
+          # The runner images ship with some of the apps we validate already
+          # installed; flag the ones present in this shard so the removal steps
+          # below start the validator from a clean state.
+          $flags = [ordered]@{
+            has_google_chrome = ("google-chrome/windows" -in $slugs)
+            has_7zip          = ("7-zip/windows" -in $slugs)
+            has_firefox       = (("firefox/windows" -in $slugs) -or ("firefox@esr/windows" -in $slugs))
+            has_nodejs        = ("nodejs/windows" -in $slugs)
+            has_powershell    = ("powershell/windows" -in $slugs)
+            has_r             = ("r/windows" -in $slugs)
+            has_git           = ("git/windows" -in $slugs)
+          }
+          foreach ($key in $flags.Keys) {
+            "$key=$($flags[$key].ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            if ($flags[$key]) { Write-Host "$key detected in this shard" }
+          }
+        shell: pwsh
+
+      - name: Install osquery windows
+        run: |
+          Write-Host "Runner architecture: $env:PROCESSOR_ARCHITECTURE"
+          # Use the native osquery build for the runner architecture. On
+          # windows-11-arm this picks the arm64 zip so osqueryi runs natively
+          # rather than under Prism emulation; x86_64 runners keep the x64 zip.
+          if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
+            $osqueryAsset = "osquery-5.18.1.windows_arm64.zip"
+          } else {
+            $osqueryAsset = "osquery-5.18.1.windows_x86_64.zip"
+          }
+          Write-Host "Downloading osquery asset: $osqueryAsset"
+          curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/$osqueryAsset"
+          Expand-Archive -Path osquery.zip -DestinationPath osquery
+          Get-ChildItem -Recurse osquery | Where-Object { $_.Name -like "*osquery*" -and $_.Extension -eq ".exe" }
+          $osqueryPath = (Get-ChildItem -Recurse osquery | Where-Object { $_.Name -eq "osqueryi.exe" }).Directory.FullName
+          echo "Adding to PATH: $osqueryPath"
+          echo $osqueryPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: pwsh
+
+      - name: Remove pre-installed google chrome
+        if: steps.check-windows-apps.outputs.has_google_chrome == 'true'
+        run: |
+          Write-Host "Listing all installed packages containing 'Chrome':"
+          Get-Package | Where-Object { $_.Name -like "*Chrome*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          $uninstallPath = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -like "*Google Chrome*" } | Select-Object -ExpandProperty UninstallString
+          if ($uninstallPath) {
+            Write-Host "Found Chrome uninstall path: $uninstallPath"
+            try {
+              $guid = ($uninstallPath -split "/X")[1]
+              Write-Host "Uninstalling Chrome MSI with GUID: $guid"
+              Start-Process -FilePath "msiexec.exe" -ArgumentList "/X$guid", "/quiet", "/norestart" -Wait -NoNewWindow
+              Write-Host "Successfully removed Google Chrome via MSI uninstaller"
+            } catch {
+              Write-Host "Failed to remove Chrome: $($_.Exception.Message)"
+            }
+          } else {
+            Write-Host "Chrome uninstall path not found in registry"
+          }
+        shell: pwsh
+
+      - name: Remove pre-installed 7-zip
+        if: steps.check-windows-apps.outputs.has_7zip == 'true'
+        run: |
+          Write-Host "Listing all installed packages containing '7-Zip':"
+          Get-Package | Where-Object { $_.Name -like "*7-Zip*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          # Check registry for 7-Zip uninstaller
+          $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $found = $false
+          foreach ($path in $uninstallPaths) {
+            $uninstallEntry = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "*7-Zip*" -and $_.Publisher -like "*Igor Pavlov*" }
+            if ($uninstallEntry) {
+              $found = $true
+              Write-Host "Found 7-Zip uninstall entry: $($uninstallEntry.DisplayName)"
+
+              # Try to get uninstall string
+              $uninstallString = if ($uninstallEntry.QuietUninstallString) {
+                $uninstallEntry.QuietUninstallString
+              } elseif ($uninstallEntry.UninstallString) {
+                $uninstallEntry.UninstallString
+              } else {
+                $null
+              }
+
+              if ($uninstallString) {
+                Write-Host "Found 7-Zip uninstall path: $uninstallString"
+                try {
+                  # Check if it's an MSI uninstall (contains /X or /I)
+                  if ($uninstallString -match "/X\{([A-F0-9\-]+)\}") {
+                    $guid = $matches[1]
+                    Write-Host "Uninstalling 7-Zip MSI with GUID: $guid"
+                    Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow
+                    Write-Host "Successfully removed 7-Zip via MSI uninstaller"
+                  } elseif ($uninstallString -match '"([^"]+)"') {
+                    # Extract executable path
+                    $exePath = $matches[1]
+                    Write-Host "Uninstalling 7-Zip via executable: $exePath"
+                    # 7-Zip typically uses /S for silent uninstall
+                    Start-Process -FilePath $exePath -ArgumentList "/S" -Wait -NoNewWindow
+                    Write-Host "Successfully removed 7-Zip via executable uninstaller"
+                  } else {
+                    Write-Host "Could not parse uninstall string format: $uninstallString"
+                  }
+                } catch {
+                  Write-Host "Failed to remove 7-Zip: $($_.Exception.Message)"
+                }
+              } else {
+                Write-Host "7-Zip uninstall string not found in registry entry"
+              }
+              break
+            }
+          }
+
+          if (-not $found) {
+            Write-Host "7-Zip uninstall path not found in registry"
+          }
+        shell: pwsh
+
+      - name: Remove pre-installed Firefox
+        if: steps.check-windows-apps.outputs.has_firefox == 'true'
+        run: |
+          Write-Host "Listing all installed packages containing 'Firefox':"
+          Get-Package | Where-Object { $_.Name -like "*Firefox*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $found = $false
+          foreach ($path in $uninstallPaths) {
+            $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "*Mozilla Firefox*" }
+            foreach ($entry in $entries) {
+              if (-not $entry) { continue }
+              $found = $true
+              Write-Host "Found Firefox: $($entry.DisplayName)"
+
+              $uninstallString = if ($entry.QuietUninstallString) {
+                $entry.QuietUninstallString
+              } elseif ($entry.UninstallString) {
+                $entry.UninstallString
+              } else {
+                $null
+              }
+
+              if ($uninstallString) {
+                Write-Host "Uninstall string: $uninstallString"
+                try {
+                  $splitArgs = $uninstallString.Split('"')
+                  if ($splitArgs.Length -ge 3) {
+                    $exePath = $splitArgs[1]
+                    Write-Host "Uninstalling Firefox via: $exePath /S"
+                    Start-Process -FilePath $exePath -ArgumentList "/S" -Wait -NoNewWindow
+                    Write-Host "Successfully removed $($entry.DisplayName)"
+                  } else {
+                    Write-Host "Uninstalling Firefox via: $uninstallString /S"
+                    Start-Process -FilePath $uninstallString -ArgumentList "/S" -Wait -NoNewWindow
+                    Write-Host "Successfully removed $($entry.DisplayName)"
+                  }
+                } catch {
+                  Write-Host "Failed to remove Firefox: $($_.Exception.Message)"
+                }
+              } else {
+                Write-Host "Firefox uninstall string not found in registry entry"
+              }
+            }
+          }
+
+          if (-not $found) {
+            Write-Host "Firefox not found in registry"
+          }
+
+          # Kill any lingering Firefox/Mozilla processes
+          Write-Host "Stopping any lingering Firefox processes..."
+          Get-Process -Name "firefox","plugin-container","updater","maintenanceservice*","helper" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "  Killing process: $($_.Name) (PID: $($_.Id))"
+            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+          }
+
+          Start-Sleep -Seconds 10
+
+          # Force-remove leftover Firefox directories from Program Files
+          $firefoxDirs = @(
+            "C:\Program Files\Mozilla Firefox",
+            "C:\Program Files (x86)\Mozilla Firefox",
+            "C:\Program Files\Mozilla Maintenance Service"
+          )
+          foreach ($dir in $firefoxDirs) {
+            if (Test-Path $dir) {
+              Write-Host "Removing leftover directory: $dir"
+              Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
+              if (Test-Path $dir) {
+                Write-Host "WARNING: Failed to fully remove $dir"
+              } else {
+                Write-Host "Removed $dir"
+              }
+            }
+          }
+        shell: pwsh
+
+      - name: Remove pre-installed Node.js
+        if: steps.check-windows-apps.outputs.has_nodejs == 'true'
+        run: |
+          Write-Host "Listing all installed packages containing 'Node':"
+          Get-Package | Where-Object { $_.Name -like "*Node*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          # Node.js installs via MSI and registers under "Node.js" / "Node.js Foundation".
+          $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $found = $false
+          foreach ($path in $uninstallPaths) {
+            $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "Node.js*" -and $_.Publisher -like "*Node.js Foundation*" }
+            foreach ($entry in $entries) {
+              if (-not $entry) { continue }
+              $found = $true
+              Write-Host "Found Node.js uninstall entry: $($entry.DisplayName) (Version: $($entry.DisplayVersion))"
+
+              $uninstallString = if ($entry.QuietUninstallString) {
+                $entry.QuietUninstallString
+              } elseif ($entry.UninstallString) {
+                $entry.UninstallString
+              } else {
+                $null
+              }
+
+              if ($uninstallString) {
+                Write-Host "Found Node.js uninstall path: $uninstallString"
+                try {
+                  # Node.js uses an MSI uninstaller (MsiExec.exe /X{GUID} or /I{GUID})
+                  if ($uninstallString -match "/[XI]\{([A-F0-9\-]+)\}") {
+                    $guid = $matches[1]
+                    Write-Host "Uninstalling Node.js MSI with GUID: $guid"
+                    Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow
+                    Write-Host "Successfully removed Node.js via MSI uninstaller"
+                  } else {
+                    Write-Host "Could not parse uninstall string format: $uninstallString"
+                  }
+                } catch {
+                  Write-Host "Failed to remove Node.js: $($_.Exception.Message)"
+                }
+              } else {
+                Write-Host "Node.js uninstall string not found in registry entry"
+              }
+            }
+          }
+
+          if (-not $found) {
+            Write-Host "Node.js uninstall path not found in registry"
+          }
+
+          # Force-remove leftover Node.js directory in case files remain after MSI removal
+          $nodeDir = "C:\Program Files\nodejs"
+          if (Test-Path $nodeDir) {
+            Write-Host "Removing leftover directory: $nodeDir"
+            Remove-Item -Path $nodeDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path $nodeDir) {
+              Write-Host "WARNING: Failed to fully remove $nodeDir"
+            } else {
+              Write-Host "Removed $nodeDir"
+            }
+          }
+        shell: pwsh
+
+      - name: Remove pre-installed PowerShell
+        if: steps.check-windows-apps.outputs.has_powershell == 'true'
+        # NOTE: this step (and the steps below) run under Windows PowerShell 5.1
+        # (shell: powershell), NOT pwsh. We are about to uninstall PowerShell 7, so we
+        # must not be executing inside pwsh.exe (it would be locked / unavailable).
+        run: |
+          Write-Host "Listing all installed packages containing 'PowerShell':"
+          Get-Package | Where-Object { $_.Name -like "*PowerShell*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          # PowerShell 7 installs via MSI and registers under "PowerShell 7-x64" /
+          # "Microsoft Corporation". GitHub-hosted windows runners ship with it
+          # pre-installed, which must be removed so the validator starts from a clean state.
+          $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $found = $false
+          foreach ($path in $uninstallPaths) {
+            $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "PowerShell 7*" -and $_.Publisher -like "*Microsoft Corporation*" }
+            foreach ($entry in $entries) {
+              if (-not $entry) { continue }
+              $found = $true
+              Write-Host "Found PowerShell uninstall entry: $($entry.DisplayName) (Version: $($entry.DisplayVersion))"
+
+              $uninstallString = if ($entry.QuietUninstallString) {
+                $entry.QuietUninstallString
+              } elseif ($entry.UninstallString) {
+                $entry.UninstallString
+              } else {
+                $null
+              }
+
+              if ($uninstallString) {
+                Write-Host "Found PowerShell uninstall path: $uninstallString"
+                try {
+                  # PowerShell 7 uses an MSI uninstaller (MsiExec.exe /X{GUID} or /I{GUID})
+                  if ($uninstallString -match "/[XI]\{([A-F0-9\-]+)\}") {
+                    $guid = $matches[1]
+                    Write-Host "Uninstalling PowerShell MSI with GUID: $guid"
+                    Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow
+                    Write-Host "Successfully removed PowerShell via MSI uninstaller"
+                  } else {
+                    Write-Host "Could not parse uninstall string format: $uninstallString"
+                  }
+                } catch {
+                  Write-Host "Failed to remove PowerShell: $($_.Exception.Message)"
+                }
+              } else {
+                Write-Host "PowerShell uninstall string not found in registry entry"
+              }
+            }
+          }
+
+          if (-not $found) {
+            Write-Host "PowerShell uninstall path not found in registry"
+          }
+
+          # Force-remove leftover PowerShell 7 directory in case files remain after MSI removal
+          $psDir = "C:\Program Files\PowerShell\7"
+          if (Test-Path $psDir) {
+            Write-Host "Removing leftover directory: $psDir"
+            Remove-Item -Path $psDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path $psDir) {
+              Write-Host "WARNING: Failed to fully remove $psDir"
+            } else {
+              Write-Host "Removed $psDir"
+            }
+          }
+        shell: powershell
+
+      - name: Remove pre-installed R
+        if: steps.check-windows-apps.outputs.has_r == 'true'
+        run: |
+          Write-Host "Listing all installed packages containing 'R for Windows':"
+          Get-Package | Where-Object { $_.Name -like "*R for Windows*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          # Stop any R processes so the uninstaller doesn't fail on locked files
+          Get-Process -Name "Rgui","Rterm","Rscript" -ErrorAction SilentlyContinue | ForEach-Object {
+            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+          }
+
+          # R for Windows installs via Inno Setup and registers under "R for Windows <ver>"
+          # / "R Core Team". The version is embedded in the DisplayName, so match by prefix
+          # and use the registry UninstallString (Inno has no MSI ProductCode).
+          $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $found = $false
+          foreach ($path in $uninstallPaths) {
+            $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "R for Windows*" -and $_.Publisher -like "*R Core Team*" }
+            foreach ($entry in $entries) {
+              if (-not $entry) { continue }
+              $found = $true
+              Write-Host "Found R uninstall entry: $($entry.DisplayName) (Version: $($entry.DisplayVersion))"
+
+              $uninstallString = if ($entry.QuietUninstallString) {
+                $entry.QuietUninstallString
+              } elseif ($entry.UninstallString) {
+                $entry.UninstallString
+              } else {
+                $null
+              }
+
+              if ($uninstallString) {
+                Write-Host "Found R uninstall path: $uninstallString"
+                try {
+                  # R uses an Inno Setup uninstaller (unins000.exe). Parse the exe path
+                  # (quoted or unquoted) and run it with silent Inno switches.
+                  $exePath = ""
+                  if ($uninstallString -match '^\s*"([^"]+)"') {
+                    $exePath = $matches[1]
+                  } elseif ($uninstallString -match '(?i)^\s*(.+?\.exe)') {
+                    $exePath = $matches[1]
+                  }
+                  if ($exePath) {
+                    Write-Host "Uninstalling R via: $exePath"
+                    Start-Process -FilePath $exePath -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -NoNewWindow
+                    Write-Host "Successfully removed R via Inno uninstaller"
+                  } else {
+                    Write-Host "Could not parse uninstall string format: $uninstallString"
+                  }
+                } catch {
+                  Write-Host "Failed to remove R: $($_.Exception.Message)"
+                }
+              } else {
+                Write-Host "R uninstall string not found in registry entry"
+              }
+            }
+          }
+
+          if (-not $found) {
+            Write-Host "R uninstall path not found in registry"
+          }
+
+          # Force-remove leftover R directory in case files remain after uninstall
+          $rDir = "C:\Program Files\R"
+          if (Test-Path $rDir) {
+            Write-Host "Removing leftover directory: $rDir"
+            Remove-Item -Path $rDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path $rDir) {
+              Write-Host "WARNING: Failed to fully remove $rDir"
+            } else {
+              Write-Host "Removed $rDir"
+            }
+          }
+        # Use Windows PowerShell 5.1 (not pwsh): the "Remove pre-installed PowerShell"
+        # step above may have uninstalled PowerShell 7, so pwsh.exe may be unavailable.
+        shell: powershell
+
+      # NOTE: filtering is split out from validation and runs BEFORE "Remove pre-installed
+      # Git" below. Git for Windows provides the Git Bash 'bash' that this step's
+      # filter-apps-json.sh call depends on; validation itself does not need bash.
+      - name: Filter apps.json to this shard's apps
+        # Pass the slugs through env rather than expanding ${{ inputs.slugs }}
+        # into the script body (flagged by zizmor as template injection).
+        env:
+          SLUGS_JSON: ${{ inputs.slugs }}
+        run: |
+          cd fleet
+          # Set GITHUB_WORKSPACE to current directory so scripts can find files
+          $env:GITHUB_WORKSPACE = (Get-Location).Path
+
+          # The shard's slugs arrive as a compact JSON array string built by the
+          # partition script, so no re-serialization is needed. Write it to a
+          # BOM-free file and pass the file PATH -- not the JSON string -- to the
+          # bash script: forwarding a quoted JSON string across the
+          # PowerShell -> bash argument boundary mangles the embedded quotes under
+          # Windows PowerShell 5.1, which breaks jq --argjson.
+          $windowsSlugsJson = $env:SLUGS_JSON
+          Write-Host "Filtering apps.json for slugs: $windowsSlugsJson"
+
+          $windowsSlugsFile = Join-Path $env:TEMP "windows-slugs-$(New-Guid).json"
+          Set-Content -Path $windowsSlugsFile -Value $windowsSlugsJson -Encoding ascii -NoNewline
+          # Use forward slashes so Git Bash reads the path reliably (it reads this arg as a file).
+          $windowsSlugsFileForBash = $windowsSlugsFile -replace '\\', '/'
+
+          # Backup original apps.json
+          Copy-Item -Path "ee\maintained-apps\outputs\apps.json" -Destination "ee\maintained-apps\outputs\apps.json.backup"
+
+          # Create filtered apps.json
+          # Use a fixed path for the temp file to avoid issues with bash
+          $filteredAppsJson = Join-Path $env:TEMP "filtered-apps-$(New-Guid).json"
+          bash .github/scripts/filter-apps-json.sh "$windowsSlugsFileForBash" "$filteredAppsJson"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error: filter-apps-json.sh failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
+          # Verify the filtered file was created
+          if (-not (Test-Path $filteredAppsJson)) {
+            Write-Host "Error: Filtered apps.json was not created at $filteredAppsJson"
+            exit 1
+          }
+
+          # Replace apps.json with filtered version
+          Move-Item -Path $filteredAppsJson -Destination "ee\maintained-apps\outputs\apps.json" -Force
+        # Use Windows PowerShell 5.1 (not pwsh): the "Remove pre-installed PowerShell"
+        # step above may have uninstalled PowerShell 7, so pwsh.exe may be unavailable.
+        shell: powershell
+
+      - name: Remove pre-installed Git
+        if: steps.check-windows-apps.outputs.has_git == 'true'
+        # IMPORTANT: this MUST run AFTER "Filter apps.json to this shard's apps" (which uses
+        # Git Bash) and BEFORE "Validate apps". Git for Windows provides the 'bash' the
+        # filter step relies on; validation runs 'go run -buildvcs=false' and needs no bash.
+        run: |
+          Write-Host "Listing all installed packages containing 'Git':"
+          Get-Package | Where-Object { $_.Name -like "*Git*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          # Stop Git-related processes so the uninstaller doesn't fail on locked files
+          Get-Process -Name "git","bash","sh","ssh-agent","gitk","wish" -ErrorAction SilentlyContinue | ForEach-Object {
+            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+          }
+
+          # Git for Windows installs via Inno Setup. Its registry DisplayName is not
+          # reliably "Git version <ver>" (the runner's pre-installed Git is listed as
+          # just "Git"), so anchor on the publisher -- which is unique to Git for
+          # Windows -- and loosely guard the DisplayName. Use the registry
+          # UninstallString (Inno has no MSI ProductCode).
+          $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $found = $false
+          foreach ($path in $uninstallPaths) {
+            $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "Git*" -and $_.Publisher -like "*The Git Development Community*" }
+            foreach ($entry in $entries) {
+              if (-not $entry) { continue }
+              $found = $true
+              Write-Host "Found Git uninstall entry: $($entry.DisplayName) (Version: $($entry.DisplayVersion))"
+
+              $uninstallString = if ($entry.QuietUninstallString) {
+                $entry.QuietUninstallString
+              } elseif ($entry.UninstallString) {
+                $entry.UninstallString
+              } else {
+                $null
+              }
+
+              if ($uninstallString) {
+                Write-Host "Found Git uninstall path: $uninstallString"
+                try {
+                  # Git for Windows uses an Inno Setup uninstaller (unins000.exe). Parse the
+                  # exe path (quoted or unquoted) and run it with silent Inno switches.
+                  $exePath = ""
+                  if ($uninstallString -match '^\s*"([^"]+)"') {
+                    $exePath = $matches[1]
+                  } elseif ($uninstallString -match '(?i)^\s*(.+?\.exe)') {
+                    $exePath = $matches[1]
+                  }
+                  if ($exePath) {
+                    Write-Host "Uninstalling Git via: $exePath"
+                    Start-Process -FilePath $exePath -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -NoNewWindow
+                    Write-Host "Successfully removed Git via Inno uninstaller"
+                  } else {
+                    Write-Host "Could not parse uninstall string format: $uninstallString"
+                  }
+                } catch {
+                  Write-Host "Failed to remove Git: $($_.Exception.Message)"
+                }
+              } else {
+                Write-Host "Git uninstall string not found in registry entry"
+              }
+            }
+          }
+
+          if (-not $found) {
+            Write-Host "Git uninstall path not found in registry"
+          }
+
+          # Force-remove leftover Git directory in case files remain after uninstall
+          $gitDir = "C:\Program Files\Git"
+          if (Test-Path $gitDir) {
+            Write-Host "Removing leftover directory: $gitDir"
+            Remove-Item -Path $gitDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path $gitDir) {
+              Write-Host "WARNING: Failed to fully remove $gitDir"
+            } else {
+              Write-Host "Removed $gitDir"
+            }
+          }
+        # Use Windows PowerShell 5.1 (not pwsh): the "Remove pre-installed PowerShell"
+        # step above may have uninstalled PowerShell 7, so pwsh.exe may be unavailable.
+        shell: powershell
+
+      - name: Validate apps
+        # -buildvcs=false so 'go run' does not invoke git for VCS stamping: the
+        # "Remove pre-installed Git" step above may have removed git from the runner.
+        run: |
+          cd fleet
+          $env:GITHUB_WORKSPACE = (Get-Location).Path
+
+          # Run validation
+          ls "C:\Program Files"
+          go run -buildvcs=false ./cmd/maintained-apps/validate
+
+          # Restore original apps.json
+          Move-Item -Path "ee\maintained-apps\outputs\apps.json.backup" -Destination "ee\maintained-apps\outputs\apps.json" -Force
+        # Use Windows PowerShell 5.1 (not pwsh): when validating the PowerShell FMA we
+        # uninstall PowerShell 7 in the step above, so pwsh.exe may not be available here.
+        shell: powershell

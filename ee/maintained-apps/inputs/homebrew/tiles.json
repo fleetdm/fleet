@@ -1,0 +1,10 @@
+{
+  "name": "Sempliva Tiles",
+  "unique_identifier": "com.sempliva.Tiles",
+  "token": "tiles",
+  "installer_format": "dmg",
+  "slug": "tiles/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Acorn",
+  "unique_identifier": "com.flyingmeat.Acorn8",
+  "token": "acorn",
+  "installer_format": "zip",
+  "slug": "acorn/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

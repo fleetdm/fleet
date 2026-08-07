@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -200,6 +202,134 @@ org_settings:
 	assert.Empty(t, enrolledSecrets)
 }
 
+func TestGitOpsGlobalGoogleWorkspaceRequiresPremium(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+
+	// Google Workspace IdP is premium-only. Applying it via GitOps on a free
+	// license must be rejected end to end (YAML parse -> PATCH /config ->
+	// ModifyAppConfig premium gate), and nothing must be persisted.
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+
+	setupEmptyGitOpsMocks(ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	saveCalled := false
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		saveCalled = true
+		return nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+
+	t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps GW Test
+  integrations:
+    google_workspace:
+      - domain: example.com
+        impersonated_user_email: admin@example.com
+        api_key_json:
+          client_email: sa@example.com
+          private_key: FAKE_PRIVATE_KEY
+  secrets:
+`)
+	require.NoError(t, err)
+
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "missing or invalid license")
+	assert.False(t, saveCalled, "config must not be saved when the premium gate rejects google_workspace")
+}
+
+func TestGitOpsGlobalGoogleWorkspaceCleared(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	// GitOps is declarative: a Google Workspace integration that is absent, set to
+	// empty, or has only empty fields must be cleared on the server. Clearing is
+	// allowed on a free license (the premium gate only blocks *setting* it).
+	existingGW := []*fleet.GoogleWorkspaceIntegration{{
+		Domain:                "example.com",
+		ImpersonatedUserEmail: "admin@example.com",
+		ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "sa@example.com",
+			fleet.GoogleCalendarPrivateKey: "k",
+		}},
+	}}
+
+	cases := []struct {
+		name         string
+		integrations string
+	}{
+		{"absent", "  integrations:"},
+		{"empty list", "  integrations:\n    google_workspace: []"},
+		{
+			"all empty fields",
+			"  integrations:\n    google_workspace:\n      - domain: \"\"\n        impersonated_user_email: \"\"\n        api_key_json: \"\"",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, ds := testing_utils.RunServerWithMockedDS(t)
+			setupEmptyGitOpsMocks(ds)
+
+			var savedAppConfig *fleet.AppConfig
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.Integrations.GoogleWorkspace = existingGW
+				return cfg, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+				savedAppConfig = config
+				return nil
+			}
+			ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+				return nil
+			}
+
+			t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			content := fmt.Sprintf(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps GW Clear Test
+%s
+  secrets:
+`, c.integrations)
+			_, err = tmpFile.WriteString(content)
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+
+			require.NotNil(t, savedAppConfig)
+			assert.Empty(t, savedAppConfig.Integrations.GoogleWorkspace, "google_workspace should be cleared")
+		})
+	}
+}
+
 func TestGitOpsQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
@@ -256,9 +386,9 @@ policies:
 agent_options:
 queries:
 labels:
-  - name: Test - Linux invalid platform
+  - name: Test - bados invalid platform
     query: SELECT 1;
-    platform: linux
+    platform: bados
 org_settings:
   server_settings:
     server_url: https://fleet.example.com
@@ -271,7 +401,7 @@ org_settings:
 
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	require.ErrorContains(t, err, "invalid platform")
-	require.ErrorContains(t, err, "linux")
+	require.ErrorContains(t, err, "bados")
 }
 
 func TestGitOpsBasicGlobalPremium(t *testing.T) {
@@ -570,6 +700,100 @@ software:
 	// assert.Equal(t, "hydrant2_secret", h2.ClientSecret)
 }
 
+func TestGitOpsMacOSUpdateNewHostsDefault(t *testing.T) {
+	cases := []struct {
+		name                          string
+		currentlyStoredUpdateNewHosts optjson.Bool
+		macOSUpdatesYAML              string
+		wantUpdateNewHosts            optjson.Bool
+	}{
+		{
+			name:                          "empty minimum_version and deadline default update_new_hosts to false",
+			currentlyStoredUpdateNewHosts: optjson.SetBool(true),
+			macOSUpdatesYAML: `
+  macos_updates:
+    deadline: ""
+    minimum_version: ""`,
+			wantUpdateNewHosts: optjson.SetBool(false),
+		},
+		{
+			name:                          "configured minimum_version and deadline default update_new_hosts to true",
+			currentlyStoredUpdateNewHosts: optjson.SetBool(false),
+			macOSUpdatesYAML: `
+  macos_updates:
+    deadline: "2024-03-03"
+    minimum_version: "14.6.1"`,
+			wantUpdateNewHosts: optjson.SetBool(true),
+		},
+		{
+			// "Update all new hosts to latest" with no minimum version is a valid config, so an
+			// explicit update_new_hosts: true must be honored even when version/deadline are empty.
+			name:                          "explicit update_new_hosts true is honored without minimum_version or deadline",
+			currentlyStoredUpdateNewHosts: optjson.SetBool(false),
+			macOSUpdatesYAML: `
+  macos_updates:
+    deadline: ""
+    minimum_version: ""
+    update_new_hosts: true`,
+			wantUpdateNewHosts: optjson.SetBool(true),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+			_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+				License:       license,
+				KeyValueStore: testing_utils.NewMemKeyValueStore(),
+			})
+
+			// Mock Apple GDMF API (required for validating OS update minimum version settings).
+			mdmtest.StartNewAppleGDMFTestServer(t)
+
+			setupEmptyGitOpsMocks(ds)
+
+			storedUpdateNewHosts := c.currentlyStoredUpdateNewHosts
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.MDM.MacOSUpdates.UpdateNewHosts = storedUpdateNewHosts
+				return cfg, nil
+			}
+			savedAppConfig := &fleet.AppConfig{}
+			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+				savedAppConfig = config
+				return nil
+			}
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
+
+			t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = tmpFile.WriteString(`
+controls:` + c.macOSUpdatesYAML + `
+queries:
+policies:
+labels:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps Test
+  secrets:
+software:
+`)
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+			require.Equal(t, c.wantUpdateNewHosts, savedAppConfig.MDM.MacOSUpdates.UpdateNewHosts)
+		})
+	}
+}
+
 // TestGitOpsWindowsEntraIDs verifies that Windows Entra tenant and application client IDs round-trip through a
 // `fleetctl gitops` apply (issue #46388). The client IDs include an upper-case GUID and a case-only duplicate of it,
 // which exercises server-side normalization: client IDs are authorized case-insensitively, so they are stored
@@ -586,10 +810,12 @@ func TestGitOpsWindowsEntraIDs(t *testing.T) {
 	)
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 
-	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	_, err = globalFile.WriteString(fmt.Sprintf(`
+	writeGlobalFile := func(extraControls string) string {
+		f, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = f.WriteString(fmt.Sprintf(`
 controls:
+%s
   windows_enabled_and_configured: true
   android_enabled_and_configured: true
   windows_entra_tenant_ids:
@@ -612,10 +838,18 @@ org_settings:
   secrets:
     - secret: globalSecret
 software:
-`, fleetServerURL, orgName))
-	require.NoError(t, err)
+`, extraControls, fleetServerURL, orgName))
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+		return f.Name()
+	}
 
-	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name()})
+	// include the Windows managed local account toggle in the applied controls
+	globalFile := writeGlobalFile(`  windows_settings:
+    managed_local_account_settings:
+      enabled: true`)
+
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile})
 
 	require.True(t, ds.SaveAppConfigFuncInvoked)
 	require.Equal(t, []string{"1a86b496-e2a4-43ef-ba00-20004e29b13b"}, (*savedAppConfigPtr).MDM.WindowsEntraTenantIDs.Value)
@@ -623,6 +857,11 @@ software:
 	require.Equal(t,
 		[]string{"abcdef12-3456-7890-abcd-ef1234567890", "11111111-2222-3333-4444-555555555555"},
 		(*savedAppConfigPtr).MDM.WindowsEntraClientIDs.Value)
+	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+
+	// gitops is declarative for the managed local account toggle: re-applying without the key disables it
+	_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile("")})
+	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
 }
 
 func TestGitOpsExceptionEnforcement(t *testing.T) {
@@ -640,6 +879,7 @@ func TestGitOpsExceptionEnforcement(t *testing.T) {
 	// Test: excepted keys present in YAML → error
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
 			GitOpsConfig: fleet.GitOpsConfig{
 				GitopsModeEnabled: true,
 				RepositoryURL:     "https://example.com/repo",
@@ -668,6 +908,7 @@ agent_options:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
+	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 
 	// Secrets excepted + present → error
 	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -688,7 +929,7 @@ agent_options:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"secrets" is excepted from GitOps management`)
-
+	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 	// Secrets excepted + present → error
 	tmpFile3, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -703,6 +944,7 @@ software:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"software" is excepted from GitOps management`)
+	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 
 	// Test: exceptions enforced even when GitOps mode is OFF (decoupled from UI mode)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1154,7 +1396,7 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 			},
 		}, 3, nil, nil
 	}
-	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 		return []fleet.MaintainedApp{
 			{ID: 100, Slug: "zoom/darwin"},
 		}, nil, nil
@@ -1846,11 +2088,11 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	policy.ID = 1
 	policy.Name = "Policy to delete"
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 		return []*fleet.Policy{&policy}, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
@@ -1933,11 +2175,20 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	}
 
 	// App config
+	appConfigSaved := false
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		if appConfigSaved {
+			// Return the config persisted earlier in the same GitOps run, as the real
+			// datastore would: profile validation re-reads the app config after
+			// org_settings has enabled Windows MDM.
+			config := *savedAppConfig
+			return &config, nil
+		}
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
+		appConfigSaved = true
 		return nil
 	}
 	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
@@ -1974,6 +2225,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			deletedLabels = nil
 			enrolledSecrets = nil
 			savedAppConfig = &fleet.AppConfig{}
+			appConfigSaved = false
 			policyDeleted = false
 			queryDeleted = false
 			deletedPolicyIDs = nil
@@ -2158,7 +2410,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -2228,7 +2480,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	policy.Name = "Policy to delete"
 	policy.TeamID = ptr.Uint(teamID)
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		if teamID != 0 {
 			return []*fleet.Policy{&policy}, nil, nil
@@ -2254,8 +2506,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
-		return nil
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) {
+		return true, nil
 	}
 	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 		return nil
@@ -2553,9 +2805,11 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
@@ -2657,8 +2911,11 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
 		return vppToken, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return nil, nil
 	}
 	testing_utils.StartAndServeVPPServer(t)
 
@@ -2784,11 +3041,9 @@ software:
 
 	// Dry run again (after team was created by real run)
 	ds.GetVPPTokenByTeamIDFuncInvoked = false
-	ds.GetSoftwareCategoryIDsFuncInvoked = false
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
 	// Dry run should attempt to get the VPP token when applying VPP apps (it may not exist), so we want to error to the user.
 	require.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
-	require.True(t, ds.GetSoftwareCategoryIDsFuncInvoked)
 
 	// Now, set  up a team to delete
 	teamToDeleteID := uint(999)
@@ -2891,9 +3146,11 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
@@ -3224,6 +3481,86 @@ software:
 	})
 }
 
+// TestGitOpsDDMAssetsNotAppliedOnFreeTier verifies that applying a GitOps
+// config that manages Apple DDM assets never calls the premium-only assets
+// batch endpoint on Fleet Free.
+func TestGitOpsDDMAssetsNotAppliedOnFreeTier(t *testing.T) {
+	// Cannot run t.Parallel() because runServerWithMockedDS sets environment variables.
+
+	server, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       &fleet.LicenseInfo{Tier: fleet.TierFree},
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+
+	// "No team" apply reads/writes the default team config and looks up team 0.
+	defaultTeamConfig := &fleet.TeamConfig{}
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return defaultTeamConfig, nil
+	}
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 0, Name: fleet.ReservedNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		job.ID = 1
+		return job, nil
+	}
+
+	// Count requests reaching the premium-only DDM assets batch endpoint.
+	var assetsBatchCalls atomic.Int32
+	base := server.Config.Handler
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/fleet/assets/batch") {
+			assetsBatchCalls.Add(1)
+		}
+		base.ServeHTTP(w, r)
+	})
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "GitOps Test"
+	)
+
+	// A global config that manages macos_settings and declares a DDM asset. A
+	// non-empty asset set forces the client down the (premium-gated) apply path.
+	dir := t.TempDir()
+	assetPath := filepath.Join(dir, "asset.json")
+	require.NoError(t, os.WriteFile(assetPath, []byte(`{
+  "Type": "com.apple.asset.credential.userpassword",
+  "Identifier": "com.fleetdm.asset.example",
+  "Payload": {"UserName": "admin"}
+}`), 0o600))
+
+	globalFilePath := filepath.Join(dir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFilePath, fmt.Appendf(nil, `
+controls:
+  macos_settings:
+    assets:
+      - path: ./asset.json
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+software:
+`, fleetServerURL, orgName), 0o600))
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", globalFilePath})
+	require.NoError(t, err, "free-tier GitOps with DDM assets must succeed; a non-zero call count means the premium-only batch endpoint was hit")
+	assert.Zero(t, assetsBatchCalls.Load(), "DDM assets batch endpoint must never be called on Fleet Free")
+}
+
 func createTeamFileBasic(t *testing.T, secret string) *os.File {
 	teamFileBasic, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -3378,14 +3715,17 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 		return nil, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
 	}
 	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
 		return nil
+	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return nil, nil
 	}
 
 	apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
@@ -3638,6 +3978,185 @@ software:
 		assert.Len(t, teamAppliedPoliceSpecs[1].LabelsExcludeAny, 0)
 		assert.Equal(t, teamAppliedPoliceSpecs[1].LabelsIncludeAny[0], "b")
 	})
+
+	// Reproduces issue #45661: apple_setup_assistant in unassigned.yml uses a
+	// relative path that climbs out of fleets/ into a sibling lib/ directory.
+	// Before the fix, the path resolved against the global file's baseDir and
+	// failed with "no such file or directory".
+	t.Run("unassigned.yml with apple_setup_assistant via ../ relative path", func(t *testing.T) {
+		ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+			return nil, nil
+		}
+
+		tmpDir := t.TempDir()
+
+		// lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+		depDir := filepath.Join(tmpDir, "lib", "macos", "enrollment-profiles")
+		require.NoError(t, os.MkdirAll(depDir, 0o755))
+		depPath := filepath.Join(depDir, "automatic-enrollment.dep.json")
+		require.NoError(t, os.WriteFile(depPath, []byte(`{"profile_name":"test"}`), 0o644))
+
+		// fleets/
+		fleetsDir := filepath.Join(tmpDir, "fleets")
+		require.NoError(t, os.MkdirAll(fleetsDir, 0o755))
+
+		unassignedFile := filepath.Join(fleetsDir, "unassigned.yml")
+		require.NoError(t, os.WriteFile(unassignedFile, []byte(`
+name: Unassigned
+policies:
+reports:
+agent_options:
+controls:
+  setup_experience:
+    apple_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+software:
+`), 0o644))
+
+		workstationsFile := filepath.Join(fleetsDir, "workstations.yml")
+		require.NoError(t, os.WriteFile(workstationsFile, []byte(`
+name: Workstations
+policies:
+reports:
+agent_options:
+controls:
+  setup_experience:
+    apple_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+settings:
+  secrets:
+    - secret: workstations-secret
+software:
+`), 0o644))
+
+		globalFile := filepath.Join(tmpDir, "default.yml")
+		require.NoError(t, os.WriteFile(globalFile, []byte(fmt.Sprintf(`
+agent_options:
+labels:
+policies:
+reports:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+    - secret: global-secret
+`, fleetServerURL, orgName)), 0o644))
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", unassignedFile, "-f", workstationsFile, "--dry-run"})
+		require.NoError(t, err, "gitops should succeed when apple_setup_assistant in unassigned.yml uses a relative path that climbs out of the fleets/ directory")
+	})
+
+	// Same-directory layout (default.yml and no-team.yml side by side, path into
+	// a sibling lib/no-team/...). Guards against the double-anchoring regression
+	// (generated/generated/...) where the applied no-team control path was joined
+	// once at extraction and again at apply.
+	t.Run("no-team.yml with apple_setup_assistant in the same dir as default.yml", func(t *testing.T) {
+		ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+			return nil, nil
+		}
+
+		tmpDir := t.TempDir()
+
+		depDir := filepath.Join(tmpDir, "lib", "no-team")
+		require.NoError(t, os.MkdirAll(depDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(depDir, "macos_enrollment.json"), []byte(`{"profile_name":"test"}`), 0o644))
+
+		noTeamFile := filepath.Join(tmpDir, "no-team.yml")
+		require.NoError(t, os.WriteFile(noTeamFile, []byte(`
+name: No team
+policies:
+reports:
+agent_options:
+controls:
+  setup_experience:
+    apple_setup_assistant: lib/no-team/macos_enrollment.json
+software:
+`), 0o644))
+
+		globalFile := filepath.Join(tmpDir, "default.yml")
+		require.NoError(t, os.WriteFile(globalFile, []byte(fmt.Sprintf(`
+agent_options:
+labels:
+policies:
+reports:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+    - secret: global-secret
+`, fleetServerURL, orgName)), 0o644))
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", noTeamFile, "--dry-run"})
+		require.NoError(t, err, "gitops should succeed when apple_setup_assistant in no-team.yml lives in the same dir as default.yml")
+	})
+}
+
+func TestGitOpsUnassignedRelativePathsFromWorkingDir(t *testing.T) {
+	// Cannot run t.Parallel(): SetupFullGitOpsPremiumServer sets env vars and we t.Chdir.
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+	testing_utils.StartSoftwareInstallerServer(t)
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
+	root := t.TempDir()
+	// Layout under a "generated" subdir so the working dir sits one level above it,
+	// mirroring running `fleetctl gitops -f generated/fleets/...` from build/.
+	fleetsDir := filepath.Join(root, "generated", "fleets")
+	require.NoError(t, os.MkdirAll(fleetsDir, 0o755))
+
+	depDir := filepath.Join(root, "generated", "lib", "macos", "enrollment-profiles")
+	require.NoError(t, os.MkdirAll(depDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(depDir, "automatic-enrollment.dep.json"), []byte(`{"profile_name":"test"}`), 0o644))
+
+	scriptsDir := filepath.Join(root, "generated", "lib", "unassigned", "scripts")
+	require.NoError(t, os.MkdirAll(scriptsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "turn-off-mdm.ps1"), []byte(`Write-Host "hi"`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "setup.sh"), []byte("#!/bin/sh\necho hi\n"), 0o644))
+
+	require.NoError(t, os.WriteFile(filepath.Join(fleetsDir, "unassigned.yml"), []byte(`
+name: Unassigned
+policies:
+reports:
+agent_options:
+controls:
+  setup_experience:
+    apple_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+    macos_script: ../lib/unassigned/scripts/setup.sh
+  scripts:
+    - path: ../lib/unassigned/scripts/turn-off-mdm.ps1
+software:
+`), 0o644))
+
+	require.NoError(t, os.WriteFile(filepath.Join(fleetsDir, "default.yml"), []byte(fmt.Sprintf(`
+agent_options:
+labels:
+policies:
+reports:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+    - secret: global-secret
+`, fleetServerURL, orgName)), 0o644))
+
+	// Working dir is the parent of generated/, and -f paths are relative.
+	t.Chdir(root)
+
+	_, err := runAppNoChecks([]string{
+		"gitops",
+		"-f", "generated/fleets/default.yml",
+		"-f", "generated/fleets/unassigned.yml",
+		"--dry-run",
+	})
+	require.NoError(t, err, "gitops should resolve unassigned.yml relative paths from fleets/, not double-anchor under the working dir")
 }
 
 func TestGitOpsCustomSettings(t *testing.T) {
@@ -3762,6 +4281,7 @@ software:
 	workstations := team("💻 Workstations")
 	iosTeam := team("📱🏢 Company-owned iPhones")
 	ipadTeam := team("🔳🏢 Company-owned iPads")
+	byodTeam := team("📱🔐 Personal mobile devices")
 
 	cases := []struct {
 		name             string
@@ -3817,12 +4337,14 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
@@ -3842,6 +4364,7 @@ software:
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 						},
 					},
 				)
@@ -3854,12 +4377,14 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
                                       ios_fleet: "📱🏢 Company-owned iPhones"
                                       ipados_fleet: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.NoError(t, err)
@@ -3876,6 +4401,7 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
@@ -3891,16 +4417,19 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Foo Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
@@ -3917,12 +4446,14 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
 						},
 						{
 							OrganizationName: "Foo Inc.",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
@@ -3939,12 +4470,14 @@ software:
                                   apple_bm_default_team: "💻 Workstations"
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
@@ -3961,16 +4494,17 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business_manager team \"📱🏢 Company-owned iPhones\" not found in team configs")
+				assert.ErrorContains(t, err, "apple_business team \"📱🏢 Company-owned iPhones\" not found in team configs")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business_manager team \"📱🏢 Company-owned iPhones\" not found in team configs")
+				assert.ErrorContains(t, err, "apple_business team \"📱🏢 Company-owned iPhones\" not found in team configs")
 			},
 		},
 		{
@@ -3979,6 +4513,7 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "No team"
                                       macos_team: "No team"
                                       ios_team: "No team"
                                       ipados_team: "No team"`),
@@ -3998,6 +4533,7 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
+							BYODTeam:         "No team",
 							MacOSTeam:        "No team",
 							IOSTeam:          "No team",
 							IpadOSTeam:       "No team",
@@ -4034,6 +4570,7 @@ software:
 							MacOSTeam:        "No team",
 							IOSTeam:          "",
 							IpadOSTeam:       "",
+							BYODTeam:         "",
 						},
 					},
 				)
@@ -4133,6 +4670,225 @@ software:
 			// Second real run, now that all the teams are saved
 			out, err = runAppNoChecks(args)
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
+		})
+	}
+}
+
+func TestGitOpsWindowsEnrollment(t *testing.T) {
+	global := func(mdm string) string {
+		return fmt.Sprintf(`
+controls:
+queries:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: "https://foo.example.com"
+  org_info:
+    org_name: GitOps Test
+  secrets:
+    - secret: "global"
+  mdm:
+    %s
+ `, mdm)
+	}
+
+	team := func(name string) string {
+		return fmt.Sprintf(`
+name: %s
+team_settings:
+  secrets:
+    - secret: "%s-secret"
+agent_options:
+controls:
+policies:
+queries:
+software:
+`, name, name)
+	}
+
+	workstations := team("💻 Workstations")
+
+	cases := []struct {
+		name             string
+		cfgs             []string
+		extraArgs        []string
+		seedTeamName     string
+		dryRunAssertion  func(t *testing.T, out string, defaultTeamID *uint, err error)
+		realRunAssertion func(t *testing.T, out string, defaultTeamID *uint, err error)
+	}{
+		{
+			name: "delete-other-fleets cannot delete the default fleet",
+			cfgs: []string{
+				global(`windows_enrollment:
+      default_fleet: "💻 Workstations"`),
+				team("Other team"),
+			},
+			extraArgs:    []string{"--delete-other-fleets"},
+			seedTeamName: "💻 Workstations",
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.ErrorContains(t, err, "windows_enrollment default_fleet 💻 Workstations cannot be deleted")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.ErrorContains(t, err, "windows_enrollment default_fleet 💻 Workstations cannot be deleted")
+			},
+		},
+		{
+			name: "fleet declared in the same run",
+			cfgs: []string{
+				global(`windows_enrollment:
+      default_fleet: "💻 Workstations"`),
+				workstations,
+			},
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Nil(t, defaultTeamID, "dry run must not persist the default fleet")
+				assert.Contains(t, out, "[!] would apply Windows enrollment default fleet")
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.NotNil(t, defaultTeamID)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "unknown fleet errors",
+			cfgs: []string{
+				global(`windows_enrollment:
+      default_fleet: "Ghosts"`),
+				workstations,
+			},
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.ErrorContains(t, err, `windows_enrollment default_fleet "Ghosts" not found in team configs`)
+				assert.Nil(t, defaultTeamID)
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.ErrorContains(t, err, `windows_enrollment default_fleet "Ghosts" not found in team configs`)
+				assert.Nil(t, defaultTeamID)
+			},
+		},
+		{
+			name: "empty value is accepted and clears",
+			cfgs: []string{
+				global(`windows_enrollment:
+      default_fleet: ""`),
+				workstations,
+			},
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Nil(t, defaultTeamID)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "omitted key is a no-op",
+			cfgs: []string{
+				global(""),
+				workstations,
+			},
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Nil(t, defaultTeamID)
+				assert.NotContains(t, out, "applying Windows enrollment default fleet")
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+				return nil, nil
+			}
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{}, nil
+			}
+			ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+				return 0, nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+				return nil
+			}
+			ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+				var res []*fleet.TeamSummary
+				for _, tm := range savedTeams {
+					res = append(res, &fleet.TeamSummary{Name: (*tm).Name, ID: (*tm).ID})
+				}
+				return res, nil
+			}
+			ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+				return nil
+			}
+			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+			}
+			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+				return nil, nil
+			}
+			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+				return nil
+			}
+
+			if tt.seedTeamName != "" {
+				seeded := &fleet.Team{ID: 99, Name: tt.seedTeamName}
+				savedTeams[tt.seedTeamName] = &seeded
+			}
+
+			// Track the persisted default fleet, overriding the helper's stateful default so the test can assert on it directly.
+			var defaultTeamID *uint
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				if defaultTeamID == nil {
+					return nil, "", nil
+				}
+				for _, tm := range savedTeams {
+					if (*tm).ID == *defaultTeamID {
+						return defaultTeamID, (*tm).Name, nil
+					}
+				}
+				return nil, "", nil
+			}
+			ds.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, teamID *uint) error {
+				defaultTeamID = teamID
+				return nil
+			}
+
+			args := []string{"gitops"}
+			for _, cfg := range tt.cfgs {
+				if cfg != "" {
+					tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+					require.NoError(t, err)
+					_, err = tmpFile.WriteString(cfg)
+					require.NoError(t, err)
+					args = append(args, "-f", tmpFile.Name())
+				}
+			}
+			args = append(args, tt.extraArgs...)
+
+			// Dry run
+			out, err := runAppNoChecks(append(args, "--dry-run"))
+			tt.dryRunAssertion(t, out.String(), defaultTeamID, err)
+			if t.Failed() {
+				t.FailNow()
+			}
+
+			// Real run
+			out, err = runAppNoChecks(args)
+			tt.realRunAssertion(t, out.String(), defaultTeamID, err)
+
+			// Second real run, now that all the teams are saved
+			out, err = runAppNoChecks(args)
+			tt.realRunAssertion(t, out.String(), defaultTeamID, err)
 		})
 	}
 }
@@ -4263,7 +5019,7 @@ func TestGitOpsGlobalWebhooksAndTicketsEnabled(t *testing.T) {
 		}
 		return nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 		return appliedPolicies, nil
 	}
 
@@ -4385,7 +5141,7 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 
 	// Override ListTeamPolicies to return the applied policies with IDs.
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string,
 	) (fleetPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return appliedPolicies, nil, nil
 	}
@@ -4478,7 +5234,7 @@ agent_options:
 		// Track how many times ListTeamPolicies is called.
 		listTeamPoliciesCalls := 0
 		ds.ListTeamPoliciesFunc = func(
-			ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
+			ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string,
 		) ([]*fleet.Policy, []*fleet.Policy, error) {
 			listTeamPoliciesCalls++
 			return appliedPolicies, nil, nil
@@ -5355,6 +6111,9 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 
 	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 		return 0, nil
+	}
+	ds.SetCertificateTemplateVariablesFunc = func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+		return nil
 	}
 
 	// Mock for looking up certificate template by team ID and name
@@ -6417,8 +7176,8 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 			CountryCode: "us",
 		}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 	ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
 		return &fleet.VPPAppStoreApp{
@@ -6592,9 +7351,6 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		Name:      localTeamName,
 	}
 
-	// Track calls to BulkSetPendingMDMHostProfiles.
-	var bulkSetPendingCalls int
-
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == localTeamName && savedTeam != nil {
 			return savedTeam, nil
@@ -6609,16 +7365,6 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		newTeam.ID = baseTeam.ID
 		savedTeam = newTeam
 		return newTeam, nil
-	}
-	// Only count calls that carry profile UUIDs — those originate from
-	// mdmAppleEditedAppleOSUpdates. The BatchSetMDMProfiles service method
-	// also calls BulkSetPendingMDMHostProfiles with empty slices (for
-	// Windows, Apple, and Android profiles), which we want to ignore here.
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
-		if len(profileUUIDs) > 0 {
-			bulkSetPendingCalls++
-		}
-		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		if savedTeam != nil && savedTeam.Filename != nil && *savedTeam.Filename == filename {
@@ -6647,7 +7393,7 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
@@ -6735,48 +7481,6 @@ software:
 	}
 
 	t.Run("macos_updates", func(t *testing.T) {
-		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "14.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
-		})
-
-		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-04-04", "14.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
-		})
-
-		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "13.6.9"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
-		})
-
 		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
 			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
 				return true, nil
@@ -6794,51 +7498,26 @@ software:
 				return false, nil
 			}
 		})
+
+		t.Run("update_new_hosts derives true in latest mode", func(t *testing.T) {
+			savedTeam = existingTeamWithMacOSUpdates("", "")
+
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			// "latest" has no deadline, so deriving from the deadline alone would
+			// leave new hosts unenforced.
+			_, err = teamFile.WriteString(teamYAML(
+				"  macos_updates:\n    minimum_version: \"latest\"\n    deadline_days: 7"))
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+
+			require.Equal(t, optjson.SetBool(true), savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts)
+			require.Equal(t, optjson.SetInt(7), savedTeam.Config.MDM.MacOSUpdates.DeadlineDays)
+		})
 	})
 
 	t.Run("ios_updates", func(t *testing.T) {
-		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
-		})
-
-		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-04-04", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
-		})
-
-		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
-		})
-
 		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
 			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
 				return true, nil
@@ -6859,48 +7538,6 @@ software:
 	})
 
 	t.Run("ipados_updates", func(t *testing.T) {
-		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
-		})
-
-		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-04-04", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
-		})
-
-		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
-		})
-
 		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
 			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
 				return true, nil
@@ -6918,6 +7555,330 @@ software:
 				return false, nil
 			}
 		})
+	})
+}
+
+func TestGitOpsHostNameTemplate(t *testing.T) {
+	// Cannot t.Parallel() — RunServerWithMockedDS sets environment variables.
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	opts := &service.TestServerOpts{
+		License:       license,
+		KeyValueStore: testing_utils.NewMemKeyValueStore(),
+	}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
+	setupEmptyGitOpsMocks(ds)
+
+	// Mock Apple GDMF API (required for validating OS update minimum version settings)
+	mdmtest.StartNewAppleGDMFTestServer(t)
+
+	const (
+		localTeamName  = "Team1"
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "GitOps Test"
+		template       = "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL"
+	)
+
+	var savedTeam *fleet.Team
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == localTeamName && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, tm *fleet.Team) (*fleet.Team, error) {
+		savedTeam = tm
+		return tm, nil
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = 1
+		savedTeam = newTeam
+		return newTeam, nil
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && savedTeam.Filename != nil && *savedTeam.Filename == filename {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	defaultTeamConfig := &fleet.TeamConfig{}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == 0 {
+			return &fleet.TeamLite{ID: 0, Name: fleet.ReservedNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
+		}
+		if tid == 1 && savedTeam != nil {
+			return savedTeam.ToTeamLite(), nil
+		}
+		return nil, nil
+	}
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) { return defaultTeamConfig, nil }
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{
+			fleet.BuiltinLabelMacOS14Plus: 1,
+			fleet.BuiltinLabelIOS:         2,
+			fleet.BuiltinLabelIPadOS:      3,
+		}, nil
+	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) { return false, nil }
+	ds.BulkUpsertHostDeviceNameEnforcementFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	ds.DeleteHostDeviceNameEnforcementForTeamFunc = func(ctx context.Context, teamID *uint) error { return nil }
+
+	// The "No team" / org-level template lives on the global app config, so track
+	// it through a mutable stored config for change detection and idempotency.
+	storedAppConfig := &fleet.AppConfig{}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return storedAppConfig.Copy(), nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		storedAppConfig = config
+		return nil
+	}
+
+	var emitted []activity_api.ActivityDetails
+	var emittedMu sync.Mutex
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
+		emittedMu.Lock()
+		defer emittedMu.Unlock()
+		emitted = append(emitted, a)
+		return nil
+	}
+	nameTemplateActivities := func() []fleet.ActivityTypeEditedHostNameTemplate {
+		emittedMu.Lock()
+		defer emittedMu.Unlock()
+		var out []fleet.ActivityTypeEditedHostNameTemplate
+		for _, a := range emitted {
+			if act, ok := a.(fleet.ActivityTypeEditedHostNameTemplate); ok {
+				out = append(out, act)
+			}
+		}
+		return out
+	}
+
+	writeYAML := func(t *testing.T, body string) string {
+		f, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = f.WriteString(body)
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+		return f.Name()
+	}
+	teamYAML := func(controlsSection string) string {
+		return fmt.Sprintf(`
+controls:
+%s
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets:
+    - secret: test
+software:
+`, controlsSection, localTeamName)
+	}
+
+	// 0. Dry-run validates but does not persist, and still enforces the
+	// fleets-only rule (GitOps CI runs --dry-run on every PR).
+	t.Run("dry run does not persist a valid template", func(t *testing.T) {
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		yml := writeYAML(t, teamYAML(fmt.Sprintf("  name_template: %q", template)))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml, "--dry-run"})
+
+		require.Nil(t, savedTeam)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.Empty(t, nameTemplateActivities())
+	})
+
+	t.Run("dry run accepts org-level template but does not persist", func(t *testing.T) {
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		ds.SaveAppConfigFuncInvoked = false
+		yml := writeYAML(t, fmt.Sprintf(`
+controls:
+  name_template: %q
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+software:
+`, template, fleetServerURL, orgName))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml, "--dry-run"})
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.Empty(t, nameTemplateActivities())
+	})
+
+	// 1. Setting the template on a fleet stores it and emits the activity.
+	t.Run("set template on fleet", func(t *testing.T) {
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		yml := writeYAML(t, teamYAML(fmt.Sprintf("  name_template: %q", template)))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		require.NotNil(t, savedTeam)
+		require.Equal(t, template, savedTeam.Config.MDM.HostNameTemplate)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+
+		acts := nameTemplateActivities()
+		require.Len(t, acts, 1)
+		require.NotNil(t, acts[0].HostNameTemplate)
+		require.Equal(t, template, *acts[0].HostNameTemplate)
+	})
+
+	// 2. Re-applying the same YAML is a no-op: no re-enqueue, no duplicate activity.
+	t.Run("idempotent re-apply", func(t *testing.T) {
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		yml := writeYAML(t, teamYAML(fmt.Sprintf("  name_template: %q", template)))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		require.Equal(t, template, savedTeam.Config.MDM.HostNameTemplate)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.Len(t, nameTemplateActivities(), 1) // still just the one from step 1
+	})
+
+	// 3. Removing the key clears the template (declarative) and emits a null activity.
+	t.Run("clear template", func(t *testing.T) {
+		ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked = false
+		yml := writeYAML(t, teamYAML(""))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		require.Empty(t, savedTeam.Config.MDM.HostNameTemplate)
+		require.True(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+
+		acts := nameTemplateActivities()
+		require.Len(t, acts, 2)
+		require.Nil(t, acts[1].HostNameTemplate) // cleared → null
+	})
+
+	// 4. An invalid variable surfaces the server's 422 validation message through fleetctl.
+	t.Run("invalid variable rejected", func(t *testing.T) {
+		yml := writeYAML(t, teamYAML(`  name_template: "$FLEET_VAR_NDES_SCEP_CHALLENGE"`))
+		_, err := runAppNoChecks([]string{"gitops", "-f", yml})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "is not supported in host name templates")
+	})
+
+	// 4b. A custom (secret) variable is allowed in name_template: GitOps preserves
+	// the placeholder (does not expand it) for the server to validate/expand, and
+	// uploads the referenced secret like any other GitOps secret.
+	t.Run("secret variable allowed and preserved", func(t *testing.T) {
+		t.Setenv("FLEET_SECRET_FOO", "someValue")
+		// The base mock provides ValidateEmbeddedSecretsFunc (used by scripts/batch),
+		// so leave it alone; only the secret-upload func needs a stub here.
+		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error) {
+			return nil, nil, nil
+		}
+		ds.UpsertSecretVariablesFuncInvoked = false
+
+		yml := writeYAML(t, teamYAML(`  name_template: "iPad $FLEET_SECRET_FOO"`))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		// the placeholder is stored on the team (not the expanded value)
+		require.Equal(t, "iPad $FLEET_SECRET_FOO", savedTeam.Config.MDM.HostNameTemplate)
+		// the referenced secret was collected from the env and uploaded
+		require.True(t, ds.UpsertSecretVariablesFuncInvoked)
+	})
+
+	// 4c. A secret referenced in name_template that isn't set in the environment
+	// fails during GitOps parsing (same as profiles/scripts).
+	t.Run("secret variable missing from env is rejected", func(t *testing.T) {
+		yml := writeYAML(t, teamYAML(`  name_template: "iPad $FLEET_SECRET_NOT_SET"`))
+		_, err := runAppNoChecks([]string{"gitops", "-f", yml})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "FLEET_SECRET_NOT_SET")
+	})
+
+	// 5. name_template in org-level controls sets the global ("No team") template.
+	t.Run("set template at org level", func(t *testing.T) {
+		before := len(nameTemplateActivities())
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		storedAppConfig = &fleet.AppConfig{}
+		yml := writeYAML(t, fmt.Sprintf(`
+controls:
+  name_template: %q
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+software:
+`, template, fleetServerURL, orgName))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		require.Equal(t, template, storedAppConfig.MDM.HostNameTemplate.Value)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+
+		acts := nameTemplateActivities()
+		require.Len(t, acts, before+1)
+		require.Nil(t, acts[len(acts)-1].FleetID, "No team activity carries a nil fleet_id")
+		require.NotNil(t, acts[len(acts)-1].HostNameTemplate)
+		require.Equal(t, template, *acts[len(acts)-1].HostNameTemplate)
+	})
+
+	// 6. name_template in no-team.yml controls sets the global ("No team") template
+	// via the same global-config merge disk encryption uses.
+	t.Run("set template for no team", func(t *testing.T) {
+		before := len(nameTemplateActivities())
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		storedAppConfig = &fleet.AppConfig{}
+		globalFile := createGlobalFileBasic(t, fleetServerURL, orgName)
+
+		// The file must be named exactly "no-team.yml".
+		noTeamPath := filepath.Join(t.TempDir(), "no-team.yml")
+		noTeamFile, err := os.Create(noTeamPath)
+		require.NoError(t, err)
+		_, err = noTeamFile.WriteString(fmt.Sprintf(`
+controls:
+  name_template: %q
+policies:
+name: No team
+software:
+`, template))
+		require.NoError(t, err)
+		require.NoError(t, noTeamFile.Close())
+
+		_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", noTeamPath})
+
+		require.Equal(t, template, storedAppConfig.MDM.HostNameTemplate.Value)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+
+		acts := nameTemplateActivities()
+		require.Len(t, acts, before+1)
+		require.Nil(t, acts[len(acts)-1].FleetID)
+	})
+
+	// 7. An invalid template in no-team.yml surfaces the server's 422 through fleetctl.
+	t.Run("invalid variable rejected for no team", func(t *testing.T) {
+		storedAppConfig = &fleet.AppConfig{}
+		globalFile := createGlobalFileBasic(t, fleetServerURL, orgName)
+		noTeamPath := filepath.Join(t.TempDir(), "no-team.yml")
+		require.NoError(t, os.WriteFile(noTeamPath, []byte(`
+controls:
+  name_template: "$FLEET_VAR_NDES_SCEP_CHALLENGE"
+policies:
+name: No team
+software:
+`), 0o600))
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamPath})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "is not supported in host name templates")
 	})
 }
 
@@ -6989,7 +7950,7 @@ func TestGitOpsWindowsOSUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
 	}
 	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
@@ -7301,18 +8262,64 @@ policies:
     query: SELECT 1
     resolution: ""
     platform: linux
-    labels_include_all:
+    labels_include_any:
       - lbl-a
-    labels_exclude_any:
+    labels_include_all:
       - lbl-b
 `)
 	require.NoError(t, err)
 
+	// A policy may combine one include scope with one exclude scope, but not two
+	// include scopes; this should be rejected before any API call is made.
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "bad-policy")
-	require.ErrorContains(t, err, "labels_include_all")
-	require.ErrorContains(t, err, "labels_exclude_any")
+	require.ErrorContains(t, err, "at most one of labels_include_any or labels_include_all")
+}
+
+func TestGitOpsPolicyLabelsExcludeAllRequiresPremium(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+queries:
+agent_options:
+labels:
+  - name: lbl-a
+    description: A
+    label_membership_type: dynamic
+    query: SELECT 1
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+policies:
+  - name: premium-policy
+    description: uses premium scope
+    query: SELECT 1
+    resolution: ""
+    platform: linux
+    labels_exclude_all:
+      - lbl-a
+`)
+	require.NoError(t, err)
+
+	// labels_exclude_all is a Premium-only scope for policies; a free-tier apply
+	// is rejected with a friendly pre-flight error before any policy is created.
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "premium-policy")
+	require.ErrorContains(t, err, "labels_exclude_all")
+	require.ErrorContains(t, err, "Fleet Premium")
 }
 
 func TestGitOpsScriptsLogging(t *testing.T) {
@@ -7596,4 +8603,525 @@ func TestGitOpsModeYamlFreeTierRejected(t *testing.T) {
 	// Saved AppConfig should not have been mutated since the PATCH was rejected.
 	saved := *savedAppConfigPtr
 	assert.False(t, saved.GitOpsConfig.GitopsModeEnabled)
+}
+
+func TestGitOpsSelfServiceCategoriesReconcile(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
+	setupEmptyGitOpsMocks(ds)
+	setupDefaultTeamConfigMocks(ds)
+
+	var (
+		existing      []fleet.SoftwareCategory
+		exceptions    fleet.GitOpsExceptions
+		added         []string
+		deleted       []uint
+		listedTeamIDs []uint
+		actions       []string // ordered "add"/"del" markers; only read by the first case
+	)
+	reset := func(e []fleet.SoftwareCategory, x fleet.GitOpsExceptions) {
+		existing, exceptions, added, deleted, listedTeamIDs = e, x, nil, nil, nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: exceptions}}, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, _ fleet.TeamFilter, _ fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Test Fleet" {
+			return &fleet.Team{ID: 1, Name: "Test Fleet"}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) { return id == 1, nil }
+	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+		listedTeamIDs = append(listedTeamIDs, teamID)
+		return slices.Clone(existing), nil
+	}
+	ds.BatchNewSoftwareCategoriesFunc = func(ctx context.Context, teamID uint, names []string) error {
+		added = append(added, names...)
+		actions = append(actions, "add")
+		return nil
+	}
+	ds.SoftwareCategoryFunc = func(ctx context.Context, id uint) (*fleet.SoftwareCategory, error) {
+		for _, c := range existing {
+			if c.ID == id {
+				return &c, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+	ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
+		deleted = append(deleted, id)
+		actions = append(actions, "del")
+		return nil
+	}
+
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte(`echo "hello"`), 0o600))
+
+	teamYAML := func(body string) []string {
+		path := filepath.Join(dir, "team.yml")
+		require.NoError(t, os.WriteFile(path, []byte("name: Test Fleet\nteam_settings:\n  secrets:\n"+body), 0o600))
+		return []string{"gitops", "-f", path}
+	}
+	unassignedYAML := func(body string) []string {
+		globalPath := filepath.Join(dir, "global.yml")
+		require.NoError(t, os.WriteFile(globalPath, []byte(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+    - secret: globalSecret
+software:
+`), 0o600))
+		unassignedPath := filepath.Join(dir, "unassigned.yml")
+		require.NoError(t, os.WriteFile(unassignedPath, []byte("name: Unassigned\ncontrols:\npolicies:\n"+body), 0o600))
+		return []string{"gitops", "-f", globalPath, "-f", unassignedPath}
+	}
+
+	teamExisting := []fleet.SoftwareCategory{
+		{ID: 100, Name: "🌎 Browsers", TeamID: 1},
+		{ID: 101, Name: "🖥️ Productivity", TeamID: 1},
+		{ID: 102, Name: "Stale Category", TeamID: 1},
+	}
+	noTeamExisting := []fleet.SoftwareCategory{
+		{ID: 200, Name: "🌎 Browsers", TeamID: 0},
+		{ID: 201, Name: "🖥️ Productivity", TeamID: 0},
+		{ID: 202, Name: "Stale No-team Category", TeamID: 0},
+	}
+
+	// categories derived from software items reconcile: add new, keep existing,
+	// delete stale, and all inserts run before any deletes (cascade safety).
+	reset(teamExisting, fleet.GitOpsExceptions{})
+	_, err := runAppNoChecks(teamYAML(`controls:
+policies:
+software:
+  packages:
+    - path: ./script.sh
+      self_service: true
+      categories:
+        - "🌎 Browsers"
+        - "💼 Engineering"
+`))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"💼 Engineering"}, added)
+	assert.ElementsMatch(t, []uint{101, 102}, deleted)
+	assert.Equal(t, []string{"add", "del", "del"}, actions, "all inserts must run before any deletes")
+
+	// software present with no referenced categories deletes all categories.
+	reset(teamExisting, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(teamYAML(`controls:
+policies:
+software:
+  packages: []
+`))
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.ElementsMatch(t, []uint{100, 101, 102}, deleted)
+
+	// With the `software:` key absent, software is still declaratively managed
+	// (and cleared), so the fleet's categories are pruned too. This is distinct
+	// from omitting an individual item's `categories:` field. The software
+	// exception is covered in TestGitOpsSelfServiceCategoriesSoftwareException.
+	reset(teamExisting, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(teamYAML(`controls:
+policies:
+`))
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.ElementsMatch(t, []uint{100, 101, 102}, deleted)
+
+	// legacy plain names are normalized to their canonical emoji form, so a
+	// plain and emoji reference to the same default category collapse to one.
+	reset(nil, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(teamYAML(`controls:
+policies:
+software:
+  packages:
+    - path: ./script.sh
+      self_service: true
+      categories:
+        - "SECURITY"
+        - "🔐 Security"
+`))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"🔐 Security"}, added)
+
+	// no-team categories reconcile under team_id = 0.
+	reset(noTeamExisting, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(unassignedYAML(`software:
+  packages:
+    - path: ./script.sh
+      self_service: true
+      categories:
+        - "🌎 Browsers"
+        - "💼 Engineering"
+`))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"💼 Engineering"}, added)
+	assert.ElementsMatch(t, []uint{201, 202}, deleted)
+	for _, id := range listedTeamIDs {
+		assert.EqualValues(t, 0, id, "no-team reconcile must list categories on team 0")
+	}
+
+	// no-team software present with no referenced categories deletes all.
+	reset(noTeamExisting, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(unassignedYAML(`software:
+  packages: []
+`))
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.ElementsMatch(t, []uint{200, 201, 202}, deleted)
+}
+
+func TestSelfServiceCategoriesPruneSkipped(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
+	setupEmptyGitOpsMocks(ds)
+	setupDefaultTeamConfigMocks(ds)
+
+	var deleted []uint
+	existing := []fleet.SoftwareCategory{{ID: 100, Name: "🌎 Browsers", TeamID: 1}, {ID: 102, Name: "Stale Category", TeamID: 1}}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: fleet.GitOpsExceptions{Software: true}}}, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, _ fleet.TeamFilter, _ fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Test Fleet" {
+			return &fleet.Team{ID: 1, Name: "Test Fleet"}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) { return id == 1, nil }
+	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+		return slices.Clone(existing), nil
+	}
+	ds.SoftwareCategoryFunc = func(ctx context.Context, id uint) (*fleet.SoftwareCategory, error) {
+		for _, c := range existing {
+			if c.ID == id {
+				return &c, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+	ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
+		deleted = append(deleted, id)
+		return nil
+	}
+
+	dir := t.TempDir()
+
+	t.Run("software excepted from gitops", func(t *testing.T) {
+		deleted = nil
+		path := filepath.Join(dir, "exception.yml")
+		require.NoError(t, os.WriteFile(path, []byte("name: Test Fleet\nteam_settings:\n  secrets:\ncontrols:\npolicies:\n"), 0o600))
+		_, err := runAppNoChecks([]string{"gitops", "-f", path})
+		require.NoError(t, err)
+		assert.Empty(t, deleted)
+	})
+
+	t.Run("non-gitops apply", func(t *testing.T) {
+		deleted = nil
+		path := filepath.Join(dir, "apply.yml")
+		require.NoError(t, os.WriteFile(path, []byte(`apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: Test Fleet
+    secrets:
+      - secret: AAA
+`), 0o600))
+		_, err := runAppNoChecks([]string{"apply", "-f", path})
+		require.NoError(t, err)
+		assert.Empty(t, deleted)
+	})
+}
+
+func TestValidateGitOpsGroupEUA(t *testing.T) {
+	t.Parallel()
+
+	premium := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	// Stored server state: pretend the IdP is fully configured (idp_name,
+	// entity_id, and a metadata source all present).
+	storedConfigured := &fleet.EnrichedAppConfig{
+		AppConfig: fleet.AppConfig{
+			MDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{
+					SSOProviderSettings: fleet.SSOProviderSettings{
+						EntityID:    "fleet",
+						IDPName:     "Okta",
+						MetadataURL: "https://idp.example.com/metadata",
+					},
+				},
+			},
+		},
+	}
+	storedConfigured.License = premium
+	storedEmpty := &fleet.EnrichedAppConfig{AppConfig: fleet.AppConfig{}}
+	storedEmpty.License = premium
+
+	// listTeams stubs.
+	noTeams := func(string) ([]fleet.Team, error) { return nil, nil }
+	teamWithEUA := func(name string) func(string) ([]fleet.Team, error) {
+		return func(string) ([]fleet.Team, error) {
+			tm := fleet.Team{Name: name}
+			tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+			return []fleet.Team{tm}, nil
+		}
+	}
+
+	// Helpers that build a parsed GitOps config with the bits we need.
+	globalConfig := func(orgSettings map[string]any) ConfigFile {
+		return ConfigFile{
+			Filename:       "default.yml",
+			IsGlobalConfig: true,
+			Config: &spec.GitOps{
+				OrgSettings: orgSettings,
+			},
+		}
+	}
+	// completeIdP is the org_settings.mdm shape for a fully-configured IdP.
+	completeIdP := map[string]any{
+		"mdm": map[string]any{
+			"end_user_authentication": map[string]any{
+				"idp_name":     "Okta",
+				"entity_id":    "fleet",
+				"metadata_url": "https://idp.example.com/metadata",
+			},
+		},
+	}
+	teamConfigNamed := func(filename, teamName string, euaEnabled bool) ConfigFile {
+		cf := ConfigFile{
+			Filename:       filename,
+			IsGlobalConfig: false,
+			Config: &spec.GitOps{
+				TeamName: &teamName,
+			},
+		}
+		if euaEnabled {
+			cf.Config.Controls.MacOSSetup = &fleet.MacOSSetup{
+				EnableEndUserAuthentication: true,
+			}
+		}
+		return cf
+	}
+	teamConfig := func(filename string, euaEnabled bool) ConfigFile {
+		return teamConfigNamed(filename, "TeamA", euaEnabled)
+	}
+
+	t.Run("no EUA enabled anywhere is accepted", func(t *testing.T) {
+		err := validateGitOpsGroupEUA([]ConfigFile{teamConfig("teams/a.yml", false)}, storedEmpty, noTeams, false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("team enables EUA, stored has IdP, no global file: accepted", func(t *testing.T) {
+		err := validateGitOpsGroupEUA([]ConfigFile{teamConfig("teams/a.yml", true)}, storedConfigured, noTeams, false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("team enables EUA, stored has no IdP, no global file: rejected", func(t *testing.T) {
+		err := validateGitOpsGroupEUA([]ConfigFile{teamConfig("teams/a.yml", true)}, storedEmpty, noTeams, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "teams/a.yml")
+		require.ErrorContains(t, err, "enable_end_user_authentication is true but the IdP is not fully configured")
+	})
+
+	t.Run("team enables EUA, global file adds complete IdP: accepted", func(t *testing.T) {
+		err := validateGitOpsGroupEUA([]ConfigFile{globalConfig(completeIdP), teamConfig("teams/a.yml", true)}, storedEmpty, noTeams, false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("team enables EUA, global file adds IdP missing entity_id: rejected", func(t *testing.T) {
+		// idp_name + metadata_url but no entity_id is not a complete IdP.
+		global := globalConfig(map[string]any{
+			"mdm": map[string]any{
+				"end_user_authentication": map[string]any{
+					"idp_name":     "Okta",
+					"metadata_url": "https://idp.example.com/metadata",
+				},
+			},
+		})
+		err := validateGitOpsGroupEUA([]ConfigFile{global, teamConfig("teams/a.yml", true)}, storedEmpty, noTeams, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "teams/a.yml")
+	})
+
+	t.Run("team enables EUA, global file omits IdP, stored has IdP: rejected (overwrite clears)", func(t *testing.T) {
+		// Global file in this run with no mdm.end_user_authentication block means
+		// overwrite mode would clear the stored IdP. With EUA enabled somewhere,
+		// that's the lockout scenario.
+		global := globalConfig(map[string]any{})
+		err := validateGitOpsGroupEUA([]ConfigFile{global, teamConfig("teams/a.yml", true)}, storedConfigured, noTeams, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "teams/a.yml")
+	})
+
+	t.Run("global file enables EUA at no-team and has complete IdP: accepted", func(t *testing.T) {
+		global := globalConfig(completeIdP)
+		global.Config.Controls.MacOSSetup = &fleet.MacOSSetup{EnableEndUserAuthentication: true}
+		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedEmpty, noTeams, false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("global file enables EUA at no-team and has empty IdP: rejected", func(t *testing.T) {
+		// This is the original issue #43371 scenario — `fleetctl generate-gitops`
+		// emits `metadata: # TODO: ...` which parses to empty, plus the user
+		// (perhaps inadvertently) has EUA enabled at no-team.
+		global := globalConfig(map[string]any{
+			"mdm": map[string]any{
+				"end_user_authentication": map[string]any{
+					"idp_name":     "Okta",
+					"entity_id":    "fleet",
+					"metadata":     "",
+					"metadata_url": "",
+				},
+			},
+		})
+		global.Config.Controls.MacOSSetup = &fleet.MacOSSetup{EnableEndUserAuthentication: true}
+		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedConfigured, noTeams, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "default.yml")
+	})
+
+	t.Run("global-only run degrades IdP while a stored team keeps EUA on: rejected (#43371)", func(t *testing.T) {
+		// The reported lockout: a global-only run keeps idp_name/entity_id but
+		// blanks metadata/metadata_url (so the server's IsEmpty() guard is
+		// dodged), while a team not in this run still has EUA enabled.
+		global := globalConfig(map[string]any{
+			"mdm": map[string]any{
+				"end_user_authentication": map[string]any{
+					"idp_name":     "Okta",
+					"entity_id":    "fleet",
+					"metadata":     "",
+					"metadata_url": "",
+				},
+			},
+		})
+		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedConfigured, teamWithEUA("Workstations"), false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Workstations")
+		require.ErrorContains(t, err, "has end user authentication enabled")
+	})
+
+	t.Run("global-only run degrades IdP, stored team keeps EUA, but --delete-other-fleets is set: accepted", func(t *testing.T) {
+		// Same shape as the #43371 case above, but with --delete-other-fleets the
+		// omitted team will be deleted, so it can't lock anyone out. The stored-team
+		// lookup must be skipped: ListTeams must not be consulted.
+		global := globalConfig(map[string]any{
+			"mdm": map[string]any{
+				"end_user_authentication": map[string]any{
+					"idp_name":     "Okta",
+					"entity_id":    "fleet",
+					"metadata":     "",
+					"metadata_url": "",
+				},
+			},
+		})
+		listTeamsCalled := false
+		listTeams := func(string) ([]fleet.Team, error) {
+			listTeamsCalled = true
+			tm := fleet.Team{Name: "Workstations"}
+			tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+			return []fleet.Team{tm}, nil
+		}
+		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedConfigured, listTeams, true)
+		require.NoError(t, err)
+		assert.False(t, listTeamsCalled, "ListTeams should not be consulted when --delete-other-fleets is set")
+	})
+
+	t.Run("global-only run degrades IdP but the team's in-run file disables EUA: accepted", func(t *testing.T) {
+		global := globalConfig(map[string]any{
+			"mdm": map[string]any{
+				"end_user_authentication": map[string]any{
+					"idp_name":     "Okta",
+					"entity_id":    "fleet",
+					"metadata":     "",
+					"metadata_url": "",
+				},
+			},
+		})
+		// In-run file for the same team disables EUA; its value wins over stored.
+		team := teamConfigNamed("teams/workstations.yml", "Workstations", false)
+		err := validateGitOpsGroupEUA([]ConfigFile{global, team}, storedConfigured, teamWithEUA("Workstations"), false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("EUA disabled everywhere: stored IdP empty is fine", func(t *testing.T) {
+		err := validateGitOpsGroupEUA([]ConfigFile{
+			globalConfig(map[string]any{}),
+			teamConfig("teams/a.yml", false),
+		}, storedEmpty, noTeams, false)
+		assert.NoError(t, err)
+	})
+}
+
+func TestGetLabelUsagePolicyScopes(t *testing.T) {
+	testCases := []struct {
+		name            string
+		policy          fleet.PolicySpec
+		wantErrContains string
+		wantLabels      []string // labels that must be tracked when no error is expected
+	}{
+		{
+			name:       "include_any + exclude_any combined",
+			policy:     fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsExcludeAny: []string{"b"}},
+			wantLabels: []string{"a", "b"},
+		},
+		{
+			name:       "include_all + exclude_all combined",
+			policy:     fleet.PolicySpec{Name: "p", LabelsIncludeAll: []string{"a"}, LabelsExcludeAll: []string{"b"}},
+			wantLabels: []string{"a", "b"},
+		},
+		{
+			name:            "two include scopes rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsIncludeAll: []string{"b"}},
+			wantErrContains: "at most one of labels_include_any or labels_include_all",
+		},
+		{
+			name:            "two exclude scopes rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsExcludeAny: []string{"a"}, LabelsExcludeAll: []string{"b"}},
+			wantErrContains: "at most one of labels_exclude_any or labels_exclude_all",
+		},
+		{
+			name:            "overlap between include and exclude rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsExcludeAll: []string{"a"}},
+			wantErrContains: `label "a" cannot appear in both an include and an exclude list`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			usage, err := getLabelUsage(&spec.GitOps{
+				Policies: []*spec.GitOpsPolicySpec{{PolicySpec: tc.policy}},
+			})
+			if tc.wantErrContains != "" {
+				require.ErrorContains(t, err, tc.wantErrContains)
+				return
+			}
+			require.NoError(t, err)
+			// Both include and exclude labels must be tracked as in-use so a
+			// referenced label can't be silently deleted.
+			for _, l := range tc.wantLabels {
+				require.Contains(t, usage, l)
+			}
+		})
+	}
 }

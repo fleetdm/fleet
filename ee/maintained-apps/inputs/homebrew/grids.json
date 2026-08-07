@@ -1,0 +1,10 @@
+{
+  "name": "Grids",
+  "unique_identifier": "com.thinktimecreations.Grids",
+  "token": "grids",
+  "installer_format": "zip",
+  "slug": "grids/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

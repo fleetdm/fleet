@@ -1,0 +1,10 @@
+{
+  "name": "Paletro",
+  "unique_identifier": "io.appmakes.Paletro",
+  "token": "paletro",
+  "installer_format": "dmg",
+  "slug": "paletro/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

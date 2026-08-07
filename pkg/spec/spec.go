@@ -320,6 +320,10 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 
 	s = escapeString(s, preventEscapingPrefix)
 	exclusionZones := getExclusionZones(s)
+	// Zones where a $FLEET_SECRET_ reference is allowed and must be preserved (not
+	// rejected, not expanded) so the server can validate and expand it — currently
+	// the host name template (controls.name_template).
+	fleetSecretAllowedZones := getFleetSecretAllowedZones(s)
 	trimmed := strings.TrimSpace(s)
 	documentIsXML := strings.HasPrefix(trimmed, "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
 	documentIsJSON := strings.HasPrefix(trimmed, "{")
@@ -365,6 +369,13 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 				// If secret not found, leave as-is for server to handle
 				return "", false
 			case secretsReject:
+				for _, z := range fleetSecretAllowedZones {
+					if startPos >= z[0] && endPos <= z[1] {
+						// Allowed here (e.g. controls.name_template): leave the
+						// placeholder for the server to validate and expand.
+						return "", false
+					}
+				}
 				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q",
 					fleet.ServerSecretPrefix, env))
 				return "", false
@@ -511,6 +522,24 @@ func getExclusionZones(s string) [][2]int {
 		for _, r := range result {
 			zones = append(zones, [2]int{r[0], r[1]})
 		}
+	}
+	return zones
+}
+
+// fleetSecretAllowedKeyPattern matches the single-line YAML value(s) where a
+// $FLEET_SECRET_ reference may appear in the main spec (outside profiles/scripts)
+// and must be preserved for the server rather than rejected. Currently only the
+// host name template (controls.name_template) qualifies.
+var fleetSecretAllowedKeyPattern = regexp.MustCompile(`(?m)^\s*name_template:.*$`)
+
+// getFleetSecretAllowedZones returns the byte ranges of values where a
+// $FLEET_SECRET_ reference is allowed and left as-is (the server validates and
+// expands it). The zones are matched against the same (escaped) string
+// expandEnv operates on, so callers can compare token positions directly.
+func getFleetSecretAllowedZones(s string) [][2]int {
+	var zones [][2]int
+	for _, r := range fleetSecretAllowedKeyPattern.FindAllStringIndex(s, -1) {
+		zones = append(zones, [2]int{r[0], r[1]})
 	}
 	return zones
 }

@@ -1,0 +1,10 @@
+{
+  "name": "Yattee",
+  "unique_identifier": "stream.yattee.app",
+  "token": "yattee",
+  "installer_format": "zip",
+  "slug": "yattee/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -28,6 +28,15 @@ func (e *AliasConflictError) Error() string {
 type AliasRule struct {
 	OldKey string
 	NewKey string
+	// Inline opts a renamed container into "merged" response duplication:
+	// instead of the default clean split (the old key holds an all-old subtree
+	// and the new key an all-new one), the old key's subtree also carries the
+	// new-named copies of any nested renamed containers — so both names appear
+	// together on the same object. Set via the `,inline` option on the
+	// `renameto` struct tag (e.g. `renameto:"ab_tokens,inline"`). It only
+	// affects response encoding (DuplicateJSONKeys); request decoding ignores
+	// it.
+	Inline bool
 }
 
 // JSONKeyRewriteReader is a streaming io.Reader that handles
@@ -153,6 +162,8 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]s
 func RewriteOldToNewKeys(data []byte, rules []AliasRule) ([]byte, error) {
 	reversed := make([]AliasRule, len(rules))
 	for i, r := range rules {
+		// Inline is intentionally not preserved: this only renames keys, it
+		// never duplicates them.
 		reversed[i] = AliasRule{OldKey: r.NewKey, NewKey: r.OldKey}
 	}
 	result, _, err := RewriteDeprecatedKeys(data, reversed)

@@ -1,0 +1,10 @@
+{
+  "name": "Filen",
+  "unique_identifier": "io.filen.desktop",
+  "token": "filen",
+  "installer_format": "dmg",
+  "slug": "filen/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

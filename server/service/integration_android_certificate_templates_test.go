@@ -1667,7 +1667,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 
 	// ---- Automatic retry tests (reusing same host/cert/CA setup) ----
 	t.Run("automatic retry", func(t *testing.T) {
-
 		// Reset the certificate to pending with retry_count=0 for a fresh retry test
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,

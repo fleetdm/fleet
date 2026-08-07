@@ -1,0 +1,10 @@
+{
+  "name": "XCA",
+  "unique_identifier": "de.hohnstaedt.xca",
+  "token": "xca",
+  "installer_format": "dmg",
+  "slug": "xca/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

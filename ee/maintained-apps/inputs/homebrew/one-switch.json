@@ -1,0 +1,10 @@
+{
+  "name": "One Switch",
+  "unique_identifier": "studio.fireball.OneSwitch",
+  "token": "one-switch",
+  "installer_format": "dmg",
+  "slug": "one-switch/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

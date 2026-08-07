@@ -4,7 +4,7 @@
       "version": "2025.2.6.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IntelliJ IDEA Community Edition %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IntelliJ IDEA Community Edition %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2025.2.6.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IntelliJ IDEA Community Edition %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '252.28539.54') < 0);"
       },
       "installer_url": "https://download.jetbrains.com/idea/ideaIC-2025.2.6.2.exe",
       "install_script_ref": "036a6387",

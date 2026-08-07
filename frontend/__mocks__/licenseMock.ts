@@ -4,7 +4,6 @@ const DEFAULT_LICENSE_MOCK = {
   expiration: "2050-01-01T00:00:00Z",
   note: "test license",
   organization: "test org",
-  managed_cloud: false,
   allow_disable_telemetry: false,
 };
 

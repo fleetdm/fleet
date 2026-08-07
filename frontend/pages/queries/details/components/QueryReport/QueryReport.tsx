@@ -1,8 +1,7 @@
-import React, { useState, useContext, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 
 import { Row, Column } from "react-table";
 import FileSaver from "file-saver";
-import { QueryContext } from "context/query";
 
 import {
   generateCSVFilename,
@@ -12,7 +11,6 @@ import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 import PATHS from "router/paths";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
@@ -25,6 +23,7 @@ import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 interface IQueryReportProps {
   queryReport?: IQueryReport;
   queryId: number;
+  queryName?: string;
   isClipped?: boolean;
   canLiveQuery?: boolean;
 }
@@ -49,11 +48,10 @@ const flattenResults = (results: IQueryReportResultRow[]) => {
 const QueryReport = ({
   queryReport,
   queryId,
+  queryName,
   isClipped,
   canLiveQuery,
 }: IQueryReportProps): JSX.Element => {
-  const { lastEditedQueryName } = useContext(QueryContext);
-
   const [filteredResults, setFilteredResults] = useState<Row[]>(
     flattenResults(queryReport?.results || [])
   );
@@ -72,7 +70,7 @@ const QueryReport = ({
     FileSaver.saveAs(
       generateCSVQueryResults(
         filteredResults,
-        generateCSVFilename(`${lastEditedQueryName || CSV_TITLE} - Report`),
+        generateCSVFilename(`${queryName || CSV_TITLE} - Report`),
         columnConfigs
       )
     );
@@ -84,12 +82,12 @@ const QueryReport = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="inverse"
+          variant="secondary"
+          size="small"
+          icon="download"
+          iconPosition="right"
         >
-          <>
-            Export results
-            <Icon name="download" color="ui-fleet-black-75" />
-          </>
+          Export results
         </Button>
       </div>
     );

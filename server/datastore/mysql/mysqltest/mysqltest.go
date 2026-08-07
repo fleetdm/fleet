@@ -512,6 +512,9 @@ func TruncateTables(t testing.TB, ds *mysql.Datastore, tables ...string) {
 		"osquery_options":                  true,
 		"software_categories":              true,
 	}
+	_, err := ds.TestWriter(context.Background()).ExecContext(context.Background(),
+		"DELETE FROM software_categories WHERE team_id != 0")
+	require.NoError(t, err)
 	testing_utils.TruncateTables(t, ds.TestWriter(context.Background()), ds.TestLogger(), nonEmptyTables, tables...)
 }
 
@@ -878,6 +881,12 @@ func (t *testingLookupService) GetActivitiesWebhookSettings(ctx context.Context)
 		return fleet.ActivitiesWebhookSettings{}, err
 	}
 	return appConfig.WebhookSettings.ActivitiesWebhook, nil
+}
+
+func (t *testingLookupService) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error) {
+	// Same resolution as production (server/service); no license gate because
+	// integration-test contexts carry no license.
+	return fleet.ResolveHostActivitiesWebhooks(ctx, t.ds, hostIDs)
 }
 
 func (t *testingLookupService) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {

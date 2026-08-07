@@ -1,0 +1,10 @@
+{
+  "name": "Node.js",
+  "slug": "nodejs/windows",
+  "package_identifier": "OpenJS.NodeJS",
+  "unique_identifier": "Node.js",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

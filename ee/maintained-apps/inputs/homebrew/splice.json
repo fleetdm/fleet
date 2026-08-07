@@ -1,0 +1,10 @@
+{
+  "name": "Splice",
+  "unique_identifier": "com.splice.Splice",
+  "token": "splice",
+  "installer_format": "zip",
+  "slug": "splice/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

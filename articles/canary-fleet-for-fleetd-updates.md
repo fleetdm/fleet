@@ -50,7 +50,7 @@ agent_options:
 ```
 
 You can apply this via the Fleet UI under **Settings > Fleets > [your fleet] >
-Agent options**, or with `fleetctl apply` if you're managing config as code.
+Agent options**, or add it to your fleet's yaml file if you're managing config as code.
 
 ### 3. Enroll test devices
 

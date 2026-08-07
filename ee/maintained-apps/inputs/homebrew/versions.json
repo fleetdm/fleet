@@ -1,0 +1,10 @@
+{
+  "name": "Versions",
+  "unique_identifier": "com.versionsapp.v2",
+  "token": "versions",
+  "installer_format": "zip",
+  "slug": "versions/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

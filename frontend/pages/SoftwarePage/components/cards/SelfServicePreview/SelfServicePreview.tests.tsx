@@ -14,6 +14,7 @@ describe("SelfServicePreview", () => {
         name="App name"
         displayName="Display name"
         versionLabel="1.2.3"
+        hasCategories={false}
         renderIcon={() => <MockIcon />}
       />
     );
@@ -35,6 +36,7 @@ describe("SelfServicePreview", () => {
         name="Fallback name"
         displayName=""
         versionLabel="1.2.3"
+        hasCategories={false}
         renderIcon={() => <div>Icon</div>}
       />
     );
@@ -42,7 +44,7 @@ describe("SelfServicePreview", () => {
     expect(screen.getByText("Fallback name")).toBeVisible();
   });
 
-  it("renders desktop preview with header, search field, categories menu, and table", () => {
+  it("renders desktop preview with the All dropdown when hasCategories is true", () => {
     const MockTable = () => <div>Mock table</div>;
 
     render(
@@ -52,6 +54,7 @@ describe("SelfServicePreview", () => {
         name="App name"
         displayName="Display name"
         versionLabel="1.2.3"
+        hasCategories
         renderIcon={() => <div>Icon</div>}
         renderTable={() => <MockTable />}
       />
@@ -59,7 +62,28 @@ describe("SelfServicePreview", () => {
 
     expect(screen.getByText(/Self-service/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search by name")).toBeInTheDocument();
-    expect(screen.getByText(/Browsers/i)).toBeInTheDocument();
+    expect(screen.getByText("All")).toBeInTheDocument();
+    expect(screen.getByText("Mock table")).toBeVisible();
+  });
+
+  it("hides the All dropdown when hasCategories is false", () => {
+    const MockTable = () => <div>Mock table</div>;
+
+    render(
+      <SelfServicePreview
+        isIosOrIpadosApp={false}
+        contactUrl="https://example.com/help"
+        name="App name"
+        displayName="Display name"
+        versionLabel="1.2.3"
+        hasCategories={false}
+        renderIcon={() => <div>Icon</div>}
+        renderTable={() => <MockTable />}
+      />
+    );
+
+    expect(screen.getByPlaceholderText("Search by name")).toBeInTheDocument();
+    expect(screen.queryByText("All")).not.toBeInTheDocument();
     expect(screen.getByText("Mock table")).toBeVisible();
   });
 });

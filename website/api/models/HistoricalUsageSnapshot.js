@@ -55,7 +55,10 @@ module.exports = {
     conditionalAccessEnabled: {required: true, type: 'boolean'},
     conditionalAccessBypassDisabled: {required: true, type: 'boolean'},
     entraConditionalAccessConfigured: {required: true, type: 'boolean'},
-
+    gitOpsModeEnabled: {required: true, type: 'boolean'},
+    gitOpsModeExceptions: {required: true, type: 'json'},
+    numHostsFleetMDMEnrolledMacOS: {required: true, type: 'number'},
+    numHostsFleetMDMEnrolledWindows: {required: true, type: 'number'},
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

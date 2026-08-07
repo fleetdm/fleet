@@ -1,13 +1,27 @@
 name: Close stale eng-initiated issues
 
-# This action will mark old engineering-initiated issues as stale.
-# If stale issues don't have activity after 14 days, they will be closed.
+# Marks open engineering-initiated issues (label `~engineering-initiated`) as stale after 365 days of
+# no activity, then closes them after 14 more days of inactivity once labeled stale. Activity (any
+# comment or update) bumps `updated_at` and resets both clocks, and removes the stale label.
+#
+# Runs the shared `stale-issues-core.js` engine via `stale-eng-issues.js`. This replaced the
+# off-the-shelf `actions/stale` action so the stale comment can @-mention the issue author, which
+# `actions/stale`'s static `stale-issue-message` cannot do.
 
 on:
   schedule:
     # Daily at 8:10pm CDT (1:10am UTC) -- run during off-hours to prevent hitting GitHub API rate limit
     - cron: "10 1 * * *"
   workflow_dispatch: # Manual
+    inputs:
+      dry_run:
+        description: 'If true, log candidates without writing labels, comments, or closing issues.'
+        type: boolean
+        default: true
+      max_operations:
+        description: 'Maximum GitHub API write operations per run. Each modified issue costs 2 writes (comment + label, or comment + close).'
+        type: number
+        default: 400
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -26,23 +40,28 @@ jobs:
   close-stale-issues:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       issues: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      - name: Close issues
-        uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
+
+      - name: Checkout repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          only-issue-labels: "~engineering-initiated" # comma separated labels that must ALL be present
-          days-before-issue-stale: 365
-          days-before-issue-close: 14
-          stale-issue-label: "stale"
-          stale-issue-message: "This issue is stale because it has been open for 365 days with no activity. Please update the issue if it is still relevant."
-          close-issue-message: "This issue was closed because it has been inactive for 14 days since being marked as stale."
-          days-before-pr-stale: -1 # Stale PRs not checked
-          days-before-pr-close: -1
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          debug-only: false
-          operations-per-run: 200 # This number has to be high enough to capture all the recent issues we want to process
+          persist-credentials: false
+
+      - name: Stale and close eng-initiated issues
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          # Schedule runs always run live. Manual runs honor the dry_run input (default true).
+          DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run == true) && 'true' || 'false' }}
+          # Forwarded verbatim so an explicit `0` (the no-writes kill switch) survives. On schedule
+          # runs the input is empty and parseMaxOps in the script applies the 400 default.
+          MAX_OPERATIONS: ${{ inputs.max_operations }}
+        with:
+          script: |
+            const run = require('./.github/scripts/stale-eng-issues.js');
+            await run({ github, context, core });

@@ -119,6 +119,7 @@ var allowedCategories = map[string]struct{}{
 	"Developer tools": {},
 	"Productivity":    {},
 	"Security":        {},
+	"Support":         {},
 	"Utilities":       {},
 }
 

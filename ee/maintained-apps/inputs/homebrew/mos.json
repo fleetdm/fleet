@@ -1,0 +1,10 @@
+{
+  "name": "Mos",
+  "unique_identifier": "com.caldis.Mos",
+  "token": "mos",
+  "installer_format": "zip",
+  "slug": "mos/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

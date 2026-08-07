@@ -61,6 +61,27 @@ describe("ScriptListItem", () => {
     expect(screen.getByText(/Windows/)).toBeInTheDocument();
   });
 
+  it("labels each action button with the script name for screen readers", () => {
+    render(
+      <ScriptListItem
+        script={MAC_SCRIPT}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onClickScript={onClickScript}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: `Edit ${MAC_SCRIPT.name}` })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `Download ${MAC_SCRIPT.name}` })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `Delete ${MAC_SCRIPT.name}` })
+    ).toBeInTheDocument();
+  });
+
   it("calls onClickScript when script name is clicked", async () => {
     const { user } = renderWithSetup(
       <ScriptListItem

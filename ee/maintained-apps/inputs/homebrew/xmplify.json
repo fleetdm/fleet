@@ -1,0 +1,10 @@
+{
+  "name": "Xmplify",
+  "unique_identifier": "au.com.moso.Xmplify",
+  "token": "xmplify",
+  "installer_format": "dmg",
+  "slug": "xmplify/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

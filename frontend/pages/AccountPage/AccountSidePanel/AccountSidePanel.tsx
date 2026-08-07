@@ -14,7 +14,16 @@ import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
-import { generateRole, generateTeam, readableDate } from "utilities/helpers";
+import {
+  generateRole,
+  generateRoleGroups,
+  generateTeam,
+  generateTeamNames,
+  readableDate,
+  ROLE_VARIOUS,
+  tooltipTextWithLineBreaks,
+} from "utilities/helpers";
+import TooltipWrapper from "components/TooltipWrapper";
 import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {
@@ -55,6 +64,21 @@ const AccountSidePanel = ({
     getVersionData();
   }, []);
 
+  // Keep the radio selection in sync when the theme is changed elsewhere
+  // (command palette "Toggle dark mode", OS media query when on system).
+  // utilities/theme dispatches `fleet-theme-change` on every applied
+  // change — re-read the mode rather than trusting `detail.dark`, since
+  // dark/light alone can't disambiguate "Dark" from "System (dark)".
+  useEffect(() => {
+    const onThemeChange = () => {
+      setThemeModeState(getThemeMode());
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () => {
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+    };
+  }, []);
+
   const {
     global_role: globalRole,
     updated_at: updatedAt,
@@ -64,6 +88,9 @@ const AccountSidePanel = ({
 
   const roleText = generateRole(teams, globalRole);
   const teamsText = generateTeam(teams, globalRole);
+
+  const teamNames = generateTeamNames(teams);
+  const roleGroups = generateRoleGroups(teams);
 
   const lastUpdatedAt = updatedAt && (
     <HumanTimeDiffWithDateTip timeString={updatedAt} />
@@ -110,8 +137,51 @@ const AccountSidePanel = ({
           onChange={onThemeSelect}
         />
       </div>
-      {isPremiumTier && <DataSet title="Fleets" value={teamsText} />}
-      <DataSet title="Role" value={roleText} />
+      {isPremiumTier && (
+        <DataSet
+          title="Fleets"
+          value={
+            teamNames.length > 1 ? (
+              <TooltipWrapper
+                tipContent={tooltipTextWithLineBreaks(teamNames)}
+                underline={false}
+                showArrow
+                position="top"
+                tipOffset={10}
+                fixedPositionStrategy
+              >
+                {teamsText}
+              </TooltipWrapper>
+            ) : (
+              teamsText
+            )
+          }
+        />
+      )}
+      <DataSet
+        title="Role"
+        value={
+          roleText === ROLE_VARIOUS ? (
+            <TooltipWrapper
+              tipContent={roleGroups.map(({ role, names }) => (
+                <span key={role}>
+                  <b>{role}:</b> {names.join(", ")}
+                  <br />
+                </span>
+              ))}
+              underline={false}
+              showArrow
+              position="top"
+              tipOffset={10}
+              fixedPositionStrategy
+            >
+              {roleText}
+            </TooltipWrapper>
+          ) : (
+            roleText
+          )
+        }
+      />
       {isPremiumTier && config && (
         <DataSet
           title="License expiration date"

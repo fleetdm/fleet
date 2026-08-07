@@ -302,12 +302,63 @@ describe("getAutomationsForPolicy", () => {
     });
   });
 
+  it("carries the custom icon_url onto the software automation", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: {
+        name: "Chrome.app",
+        software_title_id: 42,
+        icon_url: "/api/latest/fleet/software/titles/42/icon?fleet_id=1",
+      },
+    });
+    expect(result[0]).toMatchObject({
+      type: "software",
+      iconUrl: "/api/latest/fleet/software/titles/42/icon?fleet_id=1",
+    });
+  });
+
+  it("leaves iconUrl undefined when no custom icon exists", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: { name: "Chrome.app", software_title_id: 42 },
+    });
+    expect(result[0]).toMatchObject({ type: "software" });
+    expect((result[0] as { iconUrl?: string | null }).iconUrl).toBeUndefined();
+  });
+
   it("falls back to name when display_name is absent", () => {
     const result = getAutomationsForPolicy({
       ...basePolicy,
       install_software: { name: "Chrome.app", software_title_id: 42 },
     });
     expect(result[0].name).toBe("Chrome.app");
+  });
+
+  it("normalizes known awkward titles via getDisplayedSoftwareName", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: {
+        name: "Microsoft.CompanyPortal",
+        software_title_id: 42,
+      },
+    });
+    expect(result[0].name).toBe("Company Portal");
+  });
+
+  it("preserves the raw install_software.name as iconName for fallback icon matching (regression: #47123)", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: {
+        name: "Zoom",
+        display_name: "Custom Renamed App",
+        software_title_id: 42,
+      },
+    });
+    expect(result[0]).toMatchObject({
+      type: "software",
+      name: "Custom Renamed App",
+      iconName: "Zoom",
+    });
   });
 
   it("returns script automation with file name", () => {

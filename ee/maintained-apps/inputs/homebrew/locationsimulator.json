@@ -1,0 +1,10 @@
+{
+  "name": "LocationSimulator",
+  "unique_identifier": "com.schlaubi.LocationSimulator",
+  "token": "locationsimulator",
+  "installer_format": "zip",
+  "slug": "locationsimulator/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

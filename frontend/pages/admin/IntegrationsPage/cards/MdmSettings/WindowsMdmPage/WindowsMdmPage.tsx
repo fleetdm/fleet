@@ -1,9 +1,9 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import MainContent from "components/MainContent/MainContent";
@@ -11,55 +11,64 @@ import Button from "components/buttons/Button";
 import BackButton from "components/BackButton";
 import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
+import DropdownWrapper, {
+  CustomOptionType,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Radio from "components/forms/fields/Radio";
 import CustomLink from "components/CustomLink";
+import { notify } from "components/ToastNotification";
 
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "windows-mdm-page";
 
+const UNASSIGNED_FLEET = "";
+
 interface ISetWindowsMdmOptions {
   enableMdm: boolean;
   enableAutoMigration: boolean;
-  enrollmentType: "automatic" | "manual" | null;
+  turnOnProgrammatically: boolean;
+  defaultFleet: string;
   router: InjectedRouter;
 }
 
 const useSetWindowsMdm = ({
   enableMdm,
   enableAutoMigration,
-  enrollmentType,
+  turnOnProgrammatically,
+  defaultFleet,
   router,
 }: ISetWindowsMdmOptions) => {
-  const { setConfig } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
+  const { setConfig, isPremiumTier } = useContext(AppContext);
 
-  const turnOnWindowsMdm = async () => {
+  const updateWindowsMdm = async () => {
     try {
       const updatedConfig = await configAPI.updateMDMConfig(
         {
           enable_turn_on_windows_mdm_manually:
-            enrollmentType !== null && enrollmentType === "manual",
+            enableMdm && !turnOnProgrammatically,
           windows_enabled_and_configured: enableMdm,
-          windows_migration_enabled: enableAutoMigration,
+          // Migration only applies when MDM is on and enrollment is programmatic (the checkbox is hidden otherwise), so
+          // derive the value to avoid re-saving a stale "enabled" state.
+          windows_migration_enabled:
+            enableMdm && turnOnProgrammatically && enableAutoMigration,
+          // The default fleet for user-driven enrollment is Premium only; the backend rejects it otherwise.
+          ...(isPremiumTier && {
+            windows_enrollment: { default_fleet: defaultFleet },
+          }),
         },
         true
       );
       setConfig(updatedConfig);
-      renderFlash("success", "Windows MDM settings successfully updated.", {
-        persistOnPageChange: true,
-      });
+      notify.success("Windows MDM settings successfully updated.");
     } catch (e) {
-      renderFlash("error", getErrorMessage(e), {
-        persistOnPageChange: true,
-      });
+      notify.error(getErrorMessage(e), { response: e });
     }
 
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   };
 
-  return turnOnWindowsMdm;
+  return updateWindowsMdm;
 };
 
 interface IWindowsMdmPageProps {
@@ -67,7 +76,7 @@ interface IWindowsMdmPageProps {
 }
 
 const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier, availableTeams } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [mdmOn, setMdmOn] = useState(
@@ -76,48 +85,104 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   const [autoMigration, setAutoMigration] = useState(
     config?.mdm?.windows_migration_enabled ?? false
   );
-  const [enrollmentType, setEnrollmentType] = useState<
-    "automatic" | "manual" | null
-  >(() => {
-    if (!config?.mdm?.windows_enabled_and_configured) return null;
-    return config?.mdm?.enable_turn_on_windows_mdm_manually
-      ? "manual"
-      : "automatic";
-  });
+  const [turnOnProgrammatically, setTurnOnProgrammatically] = useState(
+    !(config?.mdm?.enable_turn_on_windows_mdm_manually ?? false)
+  );
+  const [defaultFleet, setDefaultFleet] = useState(
+    config?.mdm?.windows_enrollment?.default_fleet ?? UNASSIGNED_FLEET
+  );
+
+  const isConnectedToEntra = !!config?.mdm?.windows_entra_tenant_ids?.length;
 
   const updateWindowsMdm = useSetWindowsMdm({
     enableMdm: mdmOn,
     enableAutoMigration: autoMigration,
-    enrollmentType,
+    turnOnProgrammatically,
+    defaultFleet,
     router,
   });
 
   const onChangeMdmOn = () => {
     setMdmOn(!mdmOn);
-    // if we are toggling off mdm we want to clear enrollment type. If we are toggling
-    // it on, we want to set enrollment type to automatic by default
-    !mdmOn ? setEnrollmentType("automatic") : setEnrollmentType(null);
-
-    // if we are turning mdm off, also turn off auto migration
-    mdmOn && setAutoMigration(false);
+    // Turning MDM on defaults to programmatic enrollment; turning it off also turns off auto migration.
+    !mdmOn ? setTurnOnProgrammatically(true) : setAutoMigration(false);
   };
 
-  const onChangeEnrollmentType = (value: string) => {
-    setAutoMigration(false);
-    setEnrollmentType(value === "automaticEnrollment" ? "automatic" : "manual");
+  const onChangeTurnOnProgrammatically = () => {
+    // Auto migration only applies to programmatic enrollment.
+    turnOnProgrammatically && setAutoMigration(false);
+    setTurnOnProgrammatically(!turnOnProgrammatically);
   };
 
   const onChangeAutoMigration = () => {
     setAutoMigration(!autoMigration);
   };
 
+  const onChangeDefaultFleet = (option: SingleValue<CustomOptionType>) => {
+    setDefaultFleet(option?.value ?? UNASSIGNED_FLEET);
+  };
+
   const onSaveMdm = () => {
     updateWindowsMdm();
   };
 
-  const descriptionText = mdmOn
-    ? "Turns on MDM for Windows hosts that enroll to Fleet (excluding servers)."
-    : "Hosts with MDM already turned on will not have MDM removed.";
+  const fleetOptions: CustomOptionType[] = [
+    { label: "Unassigned", value: UNASSIGNED_FLEET },
+    ...(availableTeams ?? [])
+      .filter((t) => t.id > 0)
+      .map((t) => ({ label: t.name, value: t.name })),
+  ];
+
+  const defaultFleetDropdown = (
+    <DropdownWrapper
+      name="default-fleet"
+      label="Default fleet"
+      ariaLabel="Default fleet"
+      labelClassname={`${baseClass}__default-fleet-label`}
+      options={fleetOptions}
+      value={defaultFleet}
+      onChange={onChangeDefaultFleet}
+      isDisabled={!mdmOn || !isConnectedToEntra || gitOpsModeEnabled}
+      disabledTooltipContent={
+        !isConnectedToEntra ? (
+          <>
+            Fleet must be connected to Entra to set a default fleet.{" "}
+            <CustomLink
+              text="Learn more"
+              url={PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS}
+              newTab
+              variant="tooltip-link"
+            />
+          </>
+        ) : undefined
+      }
+      helpText={
+        <>
+          New hosts enrolled into MDM are automatically assigned to this fleet.{" "}
+          <CustomLink
+            text="Learn more"
+            url="https://fleetdm.com/learn-more-about/windows-default-fleet"
+            newTab
+          />
+        </>
+      }
+    />
+  );
+
+  const programmaticToggleTooltip = (
+    <>
+      When enabled, MDM is turned on when Fleet&apos;s agent is installed. When
+      disabled, end users turn on MDM manually in{" "}
+      <b>Settings &gt; Access work or school</b> (requires Microsoft Entra).
+      Only applies to manual enrollment.{" "}
+      <CustomLink
+        text="Learn more"
+        url="https://fleetdm.com/learn-more-about/mdm-enrollment"
+        newTab
+        variant="tooltip-link"
+      />
+    </>
+  );
 
   return (
     <MainContent className={baseClass}>
@@ -138,60 +203,35 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             onChange={onChangeMdmOn}
             disabled={gitOpsModeEnabled}
           />
-          {!isPremiumTier && <p>{descriptionText}</p>}
           {isPremiumTier && (
-            // NOTE: first time using fieldset and legend. if we use this more we should make
-            // a reusable component
-            <fieldset disabled={!mdmOn} className="form-field">
-              {/* NOTE: we use this wrapper div to style the legend since legend
-               does not work well with flexbox. the wrapper div helps the gap styling apply. */}
-              <div>
-                <legend className="form-field__label">
-                  End user experience
-                </legend>
-              </div>
-              <Radio
-                id="automatic-enrollment"
-                label="Automatic"
-                value="automaticEnrollment"
-                name="enrollmentType"
-                checked={enrollmentType === "automatic"}
-                onChange={onChangeEnrollmentType}
-                disabled={!mdmOn}
-                helpText="MDM is turned on when Fleet's agent is installed on Windows hosts (excluding servers)."
-              />
-              <Radio
-                id="manual-enrollment"
-                label="Manual"
-                value="manualEnrollment"
-                name="enrollmentType"
-                checked={enrollmentType === "manual"}
-                onChange={onChangeEnrollmentType}
-                disabled={!mdmOn}
-                helpText={
-                  <>
-                    Requires{" "}
-                    <CustomLink
-                      text="connecting Fleet to Microsoft Entra."
-                      url={
-                        PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS
-                      }
-                    />{" "}
-                    End users have to manually turn on MDM in{" "}
-                    <b>Settings &gt; Access work or school.</b>
-                  </>
-                }
-              />
-            </fieldset>
-          )}
-          {isPremiumTier && enrollmentType !== "manual" && (
-            <Checkbox
+            <Slider
+              value={turnOnProgrammatically}
+              activeText="Turn on MDM programmatically"
+              inactiveText="Turn on MDM programmatically"
+              labelTooltip={programmaticToggleTooltip}
+              onChange={onChangeTurnOnProgrammatically}
               disabled={!mdmOn || gitOpsModeEnabled}
-              value={autoMigration}
-              onChange={onChangeAutoMigration}
-            >
-              Automatically migrate hosts connected to another MDM solution
-            </Checkbox>
+            />
+          )}
+          {isPremiumTier && (
+            <div className={`${baseClass}__section`}>
+              <h2 className={`${baseClass}__section-title`}>
+                User driven enrollment
+              </h2>
+              {defaultFleetDropdown}
+            </div>
+          )}
+          {isPremiumTier && turnOnProgrammatically && (
+            <div className={`${baseClass}__section`}>
+              <h2 className={`${baseClass}__section-title`}>Migration</h2>
+              <Checkbox
+                disabled={!mdmOn || gitOpsModeEnabled}
+                value={autoMigration}
+                onChange={onChangeAutoMigration}
+              >
+                Automatically migrate hosts connected to another MDM solution
+              </Checkbox>
+            </div>
           )}
           <GitOpsModeTooltipWrapper
             tipOffset={8}

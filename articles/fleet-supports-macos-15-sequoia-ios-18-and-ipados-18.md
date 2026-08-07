@@ -1,9 +1,5 @@
 # Fleet supports Apple’s latest operating systems: macOS 15 Sequoia, iOS 18, and iPadOS 18 
 
-![Fleet supports Apple’s latest operating systems: macOS 15 Sequoia, iOS 18, and iPadOS 18](../website/assets/images/articles/fleet-supports-macos-15-sequoia-ios-18-and-ipados-18-1600x900@2x.jpg)
-
-_Photo by [aditya bhatia](https://www.pexels.com/photo/people-walking-on-a-bridge-between-trees-13809734/)_
-
 Fleet is pleased to announce full support for Apple’s newest operating systems, including macOS 15 Sequoia, iOS 18, and iPadOS 18. With these updates, Fleet ensures seamless management and security capabilities for organizations adopting the latest Apple technology across their device fleet. This release enables IT administrators to confidently manage devices running these new operating systems, leveraging Fleet's robust tools for device monitoring, policy enforcement, and configuration management.
 
 ## Noteworthy changes and known issues for macOS 15 Sequoia

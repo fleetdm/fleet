@@ -12,8 +12,12 @@ if (-not $completed) {
     Exit 1603  # ERROR_UNINSTALL_FAILURE
 }
 
+# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,
+# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.
+$successCodes = @(0, 3010, 1641)
+
 # Check exit code and output result
-if ($process.ExitCode -eq 0) {
+if ($successCodes -contains $process.ExitCode) {
     Write-Output "Exit 0"
     Exit 0
 } else {

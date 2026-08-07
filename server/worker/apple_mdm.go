@@ -268,7 +268,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		var password string
 		cmdUUID := uuid.New().String()
 		if managedAdminAccountEnabled {
-			password = apple_mdm.GenerateManagedAccountPassword()
+			password = fleet.GenerateManagedLocalAccountPassword(false)
 			passwordHash, err := apple_mdm.GenerateSaltedSHA512PBKDF2Hash(password)
 			if err != nil {
 				return err
@@ -515,14 +515,11 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		)
 	}
 
-	profilesMissingInstallation, err := a.Datastore.ListMDMAppleProfilesToInstall(ctx, args.HostUUID) // Get profiles that are missing to be installed on this host
+	profilesMissingInstallation, _, err := apple_mdm.PendingProfilesForHost(ctx, a.Datastore, args.HostUUID) // Get profiles that are missing to be installed on this host
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to list profiles missing installation")
 	}
 	profilesMissingInstallation = fleet.FilterOutUserScopedProfiles(profilesMissingInstallation)
-	if !isMacOS(args.Platform) {
-		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
-	}
 
 	if len(profilesMissingInstallation) > 0 {
 		a.Log.InfoContext(ctx, "re-enqueuing due to profiles missing installation", "host_uuid", args.HostUUID)
@@ -571,7 +568,7 @@ func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, 
 	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, manifestURL); err != nil {
 		return "", err
 	}
-	a.Log.InfoContext(ctx, "sent command to install fleetd", "host_uuid", hostUUID)
+	a.Log.InfoContext(ctx, "sent command to install fleetd", "host_uuid", hostUUID, "command_uuid", cmdUUID)
 	return cmdUUID, nil
 }
 
@@ -728,7 +725,7 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 	if err != nil {
 		return "", err
 	}
-	a.Log.InfoContext(ctx, "sent command to install bootstrap package", "host_uuid", hostUUID)
+	a.Log.InfoContext(ctx, "sent command to install bootstrap package", "host_uuid", hostUUID, "command_uuid", cmdUUID)
 	return cmdUUID, nil
 }
 

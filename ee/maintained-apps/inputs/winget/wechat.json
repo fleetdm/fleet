@@ -1,0 +1,12 @@
+{
+  "name": "WeChat",
+  "slug": "wechat/windows",
+  "package_identifier": "Tencent.WeChat",
+  "unique_identifier": "WeChat",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/wechat_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/wechat_uninstall.ps1",
+  "default_categories": ["Communication"]
+}

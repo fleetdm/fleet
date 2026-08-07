@@ -4,6 +4,7 @@ import helpers, {
   removeOSPrefix,
   compareVersions,
   willExpireWithinXDays,
+  humanLastSeen,
 } from "./helpers";
 
 describe("helpers utilities", () => {
@@ -76,6 +77,26 @@ describe("helpers utilities", () => {
 
       const fiftyDaysAgo = getPastDate(50);
       expect(willExpireWithinXDays(fiftyDaysAgo, 30)).toEqual(false);
+    });
+  });
+
+  describe("humanLastSeen function", () => {
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(new Date("2026-06-15T12:00:00Z"));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("uses days below the month threshold", () => {
+      expect(humanLastSeen(getPastDate(5))).toEqual("5 days ago");
+      expect(humanLastSeen(getPastDate(89))).toEqual("89 days ago");
+    });
+
+    it("uses months at or beyond 90 days", () => {
+      expect(humanLastSeen(getPastDate(90))).toEqual("3 months ago");
+      expect(humanLastSeen(getPastDate(100))).toEqual("3 months ago");
     });
   });
 

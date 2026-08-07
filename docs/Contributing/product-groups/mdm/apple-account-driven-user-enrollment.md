@@ -1,7 +1,6 @@
 # Account-driven user enrollment for Apple MDM
 
-Account-driven user enrollment better supports BYOD (Bring Your Own Device) scenarios while maintaining strong security and privacy boundaries between
-work and personal data.
+ADUE (Account-driven user enrollment) better supports BYOD (Bring Your Own Device) scenarios while maintaining strong security and privacy boundaries between work and personal data.
 
 ## Key differences from traditional MDM enrollment
 
@@ -12,9 +11,9 @@ work and personal data.
 - **Limited Management**: Provides specific restrictions on what MDM can manage, protecting user privacy
   - Profiles are user-scoped (not system-scoped)
 
-## Questions?
+## Limitations
 
-- Which fleet will the enrolling device be assigned to?
+- We only support simple authentication for ADUE, not the OAuth2 flow.
 
 ## Links
 
@@ -26,9 +25,9 @@ The enrollment process follows these main steps:
 
 1. User initiates enrollment on their iOS device
 2. Device contacts Fleet server for enrollment
-3. User authenticates via SSO (SAML or OAuth2)
+3. User authenticates via SSO (SAML)
 4. Fleet server validates authentication and provides the enrollment profile
-- Fleet server can link the SAML username/email to the device via the access-token it sends back to the device
+    - Fleet server can link the SAML username/email to the device via the access-token ADUE challenge it sends back to the device
 5. User authenticates with managed Apple ID
 6. Device gets SCEP certificate
 7. Device performs MDM check-in protocol steps
@@ -42,36 +41,36 @@ sequenceDiagram
     participant ios as iOS host
     participant fleet as Fleet server
     participant IdP
+    participant Apple
     activate ios
-    ios->>+fleet: POST /account_driven_enroll
-    fleet-->>-ios: 401 WWW-Authenticate
+    fleet->>fleet: Run service discovery cron to assign<br>unique token URL to each ABM token
+    ios->>+Apple: [Fallback]<br>GET /.well-known/com.apple.remotemanagement
+    Apple-->>-ios: OK<br>/mdm/apple/service_discovery/{token}
+    ios->>+fleet: GET /mdm/apple/service_discovery/{token}
+    fleet-->>-ios: 200 OK<br>Payload containing /api/mdm/apple/account_driven_enroll/{token}
+    ios->>+fleet: POST /api/mdm/apple/account_driven_enroll/{token}
+    fleet-->>-ios: 401 WWW-Authenticate<br>/mdm/apple/account_driven_enroll/sso/{token}
     alt SAML
-        ios->>+fleet: Fleet SSO URL
+        ios->>+fleet: /mdm/apple/account_driven_enroll/sso/{token}
         fleet-->>-ios: HTML page
-        ios->>+fleet: [HTML page]<br>POST /api/v1/fleet/mdm/sso
-        fleet-->>-ios: IdP URL (SAML request, HTTP redirect binding)
+        ios->>+fleet: [HTML page]<br>POST /api/v1/fleet/mdm/sso?initiator=account_driven_enroll:{token}
+        fleet-->>-ios: IdP URL (SAML request, HTTP redirect binding, with {token} in metadata)
         ios->>+IdP: SAML request
         IdP-->>-ios: IdP login page
         ios->>ios: Enter IdP credentials
         ios->>+IdP: IdP login
         IdP-->>-ios: SAML Response
         ios->>+fleet: [HTML page]<br>POST /api/v1/fleet/mdm/sso/callback<br>(SAML Response)
-        fleet-->>-ios: 308 (with access token)
-    else OAuth2
-        ios->>IdP: Authorization URL
-        ios->>ios: Enter IdP credentials
-        ios->>fleet: Token URL
-        activate fleet
-        fleet->>+IdP: Token URL (with client secret)
-        IdP-->>-fleet: Access token
-        fleet-->>ios: Forward access token
-        deactivate fleet
+        fleet->>fleet: Insert 1 hour lived challenge<br>Store IdP account ID, ABM token ID and expiration
+        fleet-->>-ios: 303 (with ADUE challenge)
     end
-    ios->>+fleet: POST /account_driven_enroll (with Bearer token)
+    ios->>+fleet: POST /api/mdm/apple/account_driven_enroll/{token} (with ADUE challenge as Bearer token)
+    fleet->>fleet: Checks expiration<br>If valid, consumes it.
     fleet-->>-ios: Enrollment profile
     ios->>ios: Enter Apple credentials
     ios->>fleet: Get SCEP certificate flow
     ios->>+fleet: PUT /mdm/apple/mdm<br/>[check-in protocol]<br/>MessageType: Authenticate
+    fleet->>fleet: Lookup Bearer token for ADUE challenge<br>and assign the host to the team referenced.
     fleet-->>-ios: OK
     ios->>+fleet: PUT /mdm/apple/mdm<br/>[check-in protocol]<br/>MessageType: TokenUpdate
     fleet-->>-ios: OK
@@ -80,10 +79,10 @@ sequenceDiagram
 
 ### Detailed example of SAML enrollment flow
 
-This example is based on the 2025/04/29 POC, so URLs and details may have changed.
+This example is based on the flow as of 2026/06/09, so URLs and details may have changed.
 
 ```
-POST /api/mdm/apple/enroll`
+POST /api/mdm/apple/account_driven_enroll`
 
 Headers
 Accept	*/*
@@ -105,11 +104,11 @@ Headers
 Content-Length	0
 Content-Type	application/json; charset=utf-8
 Date	Tue, 29 Apr 2025 18:58:21 GMT
-Www-Authenticate	Bearer method="apple-as-web" url="<Fleet server URL>/mdm/sso"
+Www-Authenticate	Bearer method="apple-as-web" url="<Fleet server URL>/mdm/apple/account_driven_enroll/sso"
 ```
 
 ```
-GET /mdm/sso
+GET /mdm/apple/account_driven_enroll/sso?user-identifier=<Managed Apple ID>
 
 Accept	text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 Accept-Encoding	gzip, deflate, br
@@ -144,7 +143,7 @@ Content-Type	application/json
 Host	<Fleet server>
 Origin	https://<Fleet server>
 Priority	u=3, i
-Referer	https://<Fleet server>/mdm/sso?user-identifier=<Managed Apple ID>
+Referer	https://<Fleet server>/mdm/apple/account_driven_enroll/sso?user-identifier=<Managed Apple ID>
 Sec-Fetch-Dest	empty
 Sec-Fetch-Mode	cors
 Sec-Fetch-Site	same-origin
@@ -192,23 +191,23 @@ SAMLResponse: <data>
 ```
 
 ```
-308 Permanent Redirect
+303 See Other
 
 Headers
 Content-Length	0
 Content-Type	application/json; charset=utf-8
 Date	Tue, 29 Apr 2025 18:58:58 GMT
-Location	apple-remotemanagement-user-login://authentication-results?access-token=cccca116-2527-11f0-a903-0242ac120002
+Location	apple-remotemanagement-user-login://authentication-results?access-token=<ADUE challenge>
 ```
 
 ```
-POST /api/mdm/apple/enroll
+POST /api/mdm/apple/account_driven_enroll
 
 Headers
 Accept	*/*
 Accept-Encoding	gzip, deflate, br
 Accept-Language	en-US,en;q=0.9
-Authorization	Bearer cccca116-2527-11f0-a903-0242ac120002
+Authorization	Bearer <ADUE challenge>
 Content-Length	3596
 Content-Type	application/pkcs7-signature
 Host	<Fleet server>
@@ -242,7 +241,7 @@ Headers
 Accept	*/*
 Accept-Encoding	gzip, deflate, br
 Accept-Language	en-US,en;q=0.9
-Authorization	Bearer cccca116-2527-11f0-a903-0242ac120002
+Authorization	Bearer <ADUE challenge>
 Cache-Control	no-cache
 Content-Length	570
 Content-Type	application/x-apple-aspen-mdm-checkin
@@ -290,7 +289,7 @@ Headers
 Accept	*/*
 Accept-Encoding	gzip, deflate, br
 Accept-Language	en-US,en;q=0.9
-Authorization	Bearer cccca116-2527-11f0-a903-0242ac120002
+Authorization	Bearer <ADUE Challenge>
 Cache-Control	no-cache
 Content-Length	621
 Content-Type	application/x-apple-aspen-mdm-checkin
@@ -340,7 +339,7 @@ Headers
 Accept	*/*
 Accept-Encoding	gzip, deflate, br
 Accept-Language	en-US,en;q=0.9
-Authorization	Bearer cccca116-2527-11f0-a903-0242ac120002
+Authorization	Bearer <ADUE challenge>
 Cache-Control	no-cache
 Content-Length	310
 Content-Type	application/x-apple-aspen-mdm
@@ -374,3 +373,5 @@ Date	Tue, 29 Apr 2025 19:00:00 GMT
 
 <InstallProfile command>
 ```
+
+> After the authenticate message, the Bearer authorization is no longer used, but from that point on we then rely on the MDM-Signature header and the certificate present on each request.

@@ -2,7 +2,6 @@ import React from "react";
 
 import { http, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
-import { ICertificate } from "services/entities/certificates";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 
@@ -11,9 +10,7 @@ import {
   CA_REQUIRED_MSG,
   INVALID_NAME_MSG,
   NAME_REQUIRED_MSG,
-  NAME_TOO_LONG_MSG,
   SUBJECT_NAME_REQUIRED_MSG,
-  USED_NAME_MSG,
 } from "./helpers";
 
 const mockOnExit = jest.fn();
@@ -53,26 +50,12 @@ const addCertHandler = http.post(
   }
 );
 
-const mockExistingCerts: ICertificate[] = [
-  {
-    id: 1,
-    name: "Existing Certificate",
-    certificate_authority_id: 1,
-    certificate_authority_name: "Test CA 1",
-    created_at: "2024-01-01T00:00:00Z",
-  },
-];
-
 // Renders the modal and waits for the form to be interactive (the Name input present).
 // Returns userEvent + the rendered scope.
-const renderModal = async ({ existingCerts = [] as ICertificate[] } = {}) => {
+const renderModal = async () => {
   const render = createCustomRenderer({ withBackendMock: true });
   const result = render(
-    <AddCertModal
-      existingCerts={existingCerts}
-      onExit={mockOnExit}
-      onSuccess={mockOnSuccess}
-    />
+    <AddCertModal onExit={mockOnExit} onSuccess={mockOnSuccess} />
   );
   await screen.findByPlaceholderText(NAME_PLACEHOLDER);
   return result;
@@ -102,12 +85,47 @@ describe("AddCertModal", () => {
     mockServer.resetHandlers();
   });
 
+  it("lists only custom SCEP CAs in the CA dropdown", async () => {
+    // Return a mix of CA types; only the custom SCEP CA should be selectable.
+    mockServer.use(
+      http.get(baseUrl("/certificate_authorities"), () => {
+        return HttpResponse.json({
+          certificate_authorities: [
+            { id: 1, name: "TEST_SCEP_CA", type: "custom_scep_proxy" },
+            { id: 2, name: "TEST_DIGICERT_CA", type: "digicert" },
+            { id: 3, name: "TEST_NDES_CA", type: "ndes_scep_proxy" },
+            { id: 4, name: "TEST_HYDRANT_CA", type: "hydrant" },
+          ],
+        });
+      })
+    );
+
+    const { user } = await renderModal();
+
+    await user.click(screen.getByText("Select certificate authority"));
+    await waitFor(() => {
+      expect(screen.getByText("TEST_SCEP_CA")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("TEST_DIGICERT_CA")).not.toBeInTheDocument();
+    expect(screen.queryByText("TEST_NDES_CA")).not.toBeInTheDocument();
+    expect(screen.queryByText("TEST_HYDRANT_CA")).not.toBeInTheDocument();
+  });
+
   it("renders the SAN field alongside the existing fields", async () => {
     await renderModal();
     expect(
       screen.getByText("Subject alternative name (SAN)")
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText(SAN_PLACEHOLDER)).toBeInTheDocument();
+  });
+
+  it("renders the Certificate authority field above the Name field", async () => {
+    await renderModal();
+    const caLabel = screen.getByText("Certificate authority (CA)");
+    const nameLabel = screen.getByText("Name");
+    expect(caLabel.compareDocumentPosition(nameLabel)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
   });
 
   it("clicking Add with all required fields empty shows three inline errors and does not call the API", async () => {
@@ -155,29 +173,13 @@ describe("AddCertModal", () => {
     });
   });
 
-  it("shows inline error for duplicate Name as user types", async () => {
-    const { user } = await renderModal({ existingCerts: mockExistingCerts });
+  it("caps the Name input at 255 characters (matches DB varchar(255))", async () => {
+    await renderModal();
 
-    await user.type(
-      screen.getByPlaceholderText(NAME_PLACEHOLDER),
-      "Existing Certificate"
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(USED_NAME_MSG)).toBeInTheDocument();
-    });
-  });
-
-  it("shows inline error for Name longer than 255 characters as user types", async () => {
-    const { user } = await renderModal();
-
-    // Paste rather than type to keep the test fast (256 simulated keypresses is slow).
-    await user.click(screen.getByPlaceholderText(NAME_PLACEHOLDER));
-    await user.paste("a".repeat(256));
-
-    await waitFor(() => {
-      expect(screen.getByText(NAME_TOO_LONG_MSG)).toBeInTheDocument();
-    });
+    const nameInput = screen.getByPlaceholderText(
+      NAME_PLACEHOLDER
+    ) as HTMLInputElement;
+    expect(nameInput.maxLength).toBe(255);
   });
 
   it("submits successfully without SAN (field omitted from request body)", async () => {

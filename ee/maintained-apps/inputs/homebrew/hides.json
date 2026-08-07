@@ -1,0 +1,10 @@
+{
+  "name": "Hides",
+  "unique_identifier": "com.sweetpproductions.Hides",
+  "token": "hides",
+  "installer_format": "dmg",
+  "slug": "hides/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

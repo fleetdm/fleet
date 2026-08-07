@@ -1,0 +1,10 @@
+{
+  "name": "WeekToDo",
+  "unique_identifier": "weektodo-app.netlify.app",
+  "token": "weektodo",
+  "installer_format": "dmg",
+  "slug": "weektodo/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

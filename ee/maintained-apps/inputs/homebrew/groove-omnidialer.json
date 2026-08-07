@@ -1,0 +1,8 @@
+{
+  "name": "Groove OmniDialer",
+  "unique_identifier": "com.electron.dialer",
+  "token": "groove-omnidialer",
+  "installer_format": "dmg",
+  "slug": "groove-omnidialer/darwin",
+  "default_categories": ["Communication"]
+}

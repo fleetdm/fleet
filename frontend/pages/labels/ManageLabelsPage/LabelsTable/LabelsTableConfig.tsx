@@ -4,6 +4,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsButton from "components/ViewAllHostsLink";
 import {
   isGlobalAdmin,
   isGlobalMaintainer,
@@ -15,8 +16,8 @@ import {
   isTeamTechnician,
 } from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
+import ActionsDropdown from "components/ActionsDropdown";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 interface IHeaderProps {
@@ -174,15 +175,21 @@ const generateTableHeaders = (
           labelsGitOpsManaged,
           repoURL
         );
+
+        if (
+          dropdownOptions.length === 1 &&
+          dropdownOptions[0].value === "view_hosts"
+        ) {
+          return <ViewAllHostsButton platformLabelId={label.id} rowHover />;
+        }
+
         return (
-          <ViewAllHostsLink
-            rowHover
-            noLink
-            excludeChevron
-            dropdown={{
-              options: dropdownOptions,
-              onChange: (value: string) => onClickAction(value, label),
-            }}
+          <ActionsDropdown
+            options={dropdownOptions}
+            onChange={(value: string) => onClickAction(value, label)}
+            placeholder="Actions"
+            menuAlign="right"
+            variant="secondary"
           />
         );
       },

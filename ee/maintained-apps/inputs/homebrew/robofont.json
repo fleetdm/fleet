@@ -1,0 +1,10 @@
+{
+  "name": "RoboFont",
+  "unique_identifier": "com.typemytype.robofont4",
+  "token": "robofont",
+  "installer_format": "dmg",
+  "slug": "robofont/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

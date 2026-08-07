@@ -1,0 +1,10 @@
+{
+  "name": "Pika",
+  "unique_identifier": "com.superhighfives.Pika",
+  "token": "pika",
+  "installer_format": "dmg",
+  "slug": "pika/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

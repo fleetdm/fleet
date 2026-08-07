@@ -1,0 +1,10 @@
+{
+  "name": "ClipBook",
+  "unique_identifier": "com.ikryanov.clipbook",
+  "token": "clipbook",
+  "installer_format": "dmg",
+  "slug": "clipbook/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

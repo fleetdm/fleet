@@ -1,5 +1,6 @@
 import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
@@ -15,6 +16,7 @@ import {
 import {
   HostPlatform,
   PLATFORM_DISPLAY_NAMES,
+  isMacOS,
   isVulnUnsupportedPlatform,
 } from "interfaces/platform";
 
@@ -22,7 +24,9 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import DropdownWrapper, {
+  CustomOptionType,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptyState from "components/EmptyState";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
@@ -73,6 +77,8 @@ interface IHostSoftwareTableProps {
   pagePath: string;
   vulnFilters: ISoftwareVulnFiltersParams;
   teamId?: number;
+  /** Current value of the macOS /Applications filter. Only defined for macOS hosts. */
+  macosApplicationsFilter?: boolean;
   onAddFiltersClick: () => void;
   isMyDevicePage?: boolean;
   onShowInventoryVersions: (software: IHostSoftware) => void;
@@ -91,6 +97,7 @@ const HostSoftwareTable = ({
   pagePath,
   vulnFilters,
   teamId,
+  macosApplicationsFilter,
   onAddFiltersClick,
   isMyDevicePage,
   onShowInventoryVersions,
@@ -124,11 +131,14 @@ const HostSoftwareTable = ({
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
         fleet_id: teamId,
+        ...(macosApplicationsFilter !== undefined && {
+          macos_applications: macosApplicationsFilter,
+        }),
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
       return newQueryParam;
     },
-    [vulnFilters]
+    [vulnFilters, teamId, macosApplicationsFilter]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -193,19 +203,77 @@ const HostSoftwareTable = ({
         disableTooltip={!hasVulnFilters}
       >
         <Button
-          variant="inverse"
+          variant="secondary"
           onClick={onAddFiltersClick}
           disabled={isTrulyEmpty}
+          icon="filter"
         >
-          <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
       </TooltipWrapper>
     );
   };
 
+  // The /Applications filter is only relevant for macOS hosts.
+  const showApplicationsFilter =
+    isMacOS(platform) && macosApplicationsFilter !== undefined;
+
+  const applicationsFilterOptions: CustomOptionType[] = [
+    { label: "Full inventory", value: "false" },
+    { label: "Applications", value: "true" },
+  ];
+
+  const onApplicationsFilterChange = (
+    newValue: SingleValue<CustomOptionType>
+  ) => {
+    if (!newValue) return;
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: pagePath,
+        routeTemplate: "",
+        queryParams: {
+          query: searchQuery,
+          order_direction: sortDirection,
+          order_key: sortHeader,
+          page: 0, // resets page index
+          fleet_id: teamId,
+          macos_applications: newValue.value,
+          ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+        },
+      })
+    );
+  };
+
+  const renderApplicationsFilter = () => (
+    <DropdownWrapper
+      name="host-software-applications-filter"
+      className={`${baseClass}__software-filter`}
+      options={applicationsFilterOptions}
+      value={macosApplicationsFilter ? "true" : "false"}
+      onChange={onApplicationsFilterChange}
+      variant="table-filter"
+      isSearchable={false}
+      iconName="filter-alt"
+    />
+  );
+
+  // Visual order is search, dropdown, filters button. The dropdown and filters
+  // button are rendered here in DOM order; the search (rendered by
+  // TableContainer after these controls) is moved ahead of them via CSS when
+  // the `--with-applications-filter` modifier is present.
+  const renderCustomControls = () => (
+    <>
+      {showApplicationsFilter && renderApplicationsFilter()}
+      {renderCustomFiltersButton()}
+    </>
+  );
+
   return (
-    <div className={baseClass}>
+    <div
+      className={`${baseClass}${
+        showApplicationsFilter ? ` ${baseClass}--with-applications-filter` : ""
+      }`}
+    >
       <TableContainer
         renderCount={memoizedSoftwareCount}
         columnConfigs={tableConfig}
@@ -233,9 +301,7 @@ const HostSoftwareTable = ({
             />
           )
         }
-        customControl={
-          showFilterHeaders ? renderCustomFiltersButton : undefined
-        }
+        customControl={showFilterHeaders ? renderCustomControls : undefined}
         stackControls
         showMarkAllPages={false}
         isAllPagesSelected={false}

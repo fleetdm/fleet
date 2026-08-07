@@ -18,11 +18,14 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:
         configuration_profiles: null
       windows_settings:
         configuration_profiles: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         configuration_profiles: null
         certificates: null
@@ -41,14 +44,17 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       windows_updates:
@@ -59,6 +65,7 @@ spec:
     webhook_settings:
       host_status_webhook: null
       failing_policies_webhook: null
+      host_activities_webhook: null
     name: tm1
   team:
     features:
@@ -76,11 +83,14 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
       windows_settings:
         custom_settings: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         custom_settings: null
         certificates: null
@@ -99,14 +109,17 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       windows_updates:
@@ -117,6 +130,7 @@ spec:
     webhook_settings:
       host_status_webhook: null
       failing_policies_webhook: null
+      host_activities_webhook: null
     name: tm1
 ---
 apiVersion: v1
@@ -138,11 +152,14 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:
         configuration_profiles: null
       windows_settings:
         configuration_profiles: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         configuration_profiles: null
         certificates: null
@@ -158,12 +175,15 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       windows_updates:
         deadline_days: null
@@ -189,11 +209,14 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
       windows_settings:
         custom_settings: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         custom_settings: null
         certificates: null
@@ -209,12 +232,15 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       windows_updates:
         deadline_days: null

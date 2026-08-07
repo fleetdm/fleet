@@ -1,0 +1,10 @@
+{
+  "name": "TIDAL",
+  "unique_identifier": "com.tidal.desktop",
+  "token": "tidal",
+  "installer_format": "zip",
+  "slug": "tidal/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

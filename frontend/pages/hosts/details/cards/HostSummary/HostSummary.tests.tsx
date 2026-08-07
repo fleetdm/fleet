@@ -6,6 +6,7 @@ import createMockUser from "__mocks__/userMock";
 import { createMockHostSummary } from "__mocks__/hostMock";
 
 import { BootstrapPackageStatus } from "interfaces/mdm";
+import { HostPlatform } from "interfaces/platform";
 import HostSummary from "./HostSummary";
 
 describe("Host Summary section", () => {
@@ -111,6 +112,68 @@ describe("Host Summary section", () => {
     });
   });
 
+  describe("OS settings indicator", () => {
+    const osSettingsWithHostName = {
+      disk_encryption: { status: null, detail: "" },
+      certificates: [],
+      host_name: { status: "pending" as const, detail: "" },
+    };
+
+    it("renders the OS settings indicator for an enrolled darwin host whose only setting is the host name", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = {
+        ...createMockHostSummary({ platform: "darwin" }),
+        mdm: { enrollment_status: "On (manual)" },
+      };
+
+      render(
+        <HostSummary
+          summaryData={summaryData}
+          hostSettings={[]}
+          osSettings={osSettingsWithHostName}
+          toggleOSSettingsModal={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("OS settings")).toBeInTheDocument();
+    });
+
+    it("does not render the OS settings indicator when the host is not enrolled in MDM", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = {
+        ...createMockHostSummary({ platform: "darwin" }),
+        mdm: { enrollment_status: "Off" },
+      };
+
+      render(
+        <HostSummary
+          summaryData={summaryData}
+          hostSettings={[]}
+          osSettings={osSettingsWithHostName}
+          toggleOSSettingsModal={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("OS settings")).not.toBeInTheDocument();
+    });
+  });
+
   describe("Maintenance window data", () => {
     it("renders maintenance window data with timezone", async () => {
       const render = createCustomRenderer({
@@ -136,6 +199,41 @@ describe("Host Summary section", () => {
       expect(screen.getByText("Scheduled maintenance")).toBeInTheDocument();
       expect(screen.getByText(prettyStartTime)).toBeInTheDocument();
     });
+  });
+
+  describe("Empty card", () => {
+    it.each<[string, HostPlatform, string]>([
+      ["Android", "android", "Android 14"],
+      ["iOS", "ios", "iOS 17.4"],
+      ["iPadOS", "ipados", "iPadOS 17.4"],
+    ])(
+      "does not render the summary card for a Free-tier %s host with no OS settings",
+      (_label, platform, os_version) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: false,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+        const summaryData = createMockHostSummary({
+          platform,
+          os_version,
+        });
+
+        const { container } = render(
+          <HostSummary
+            summaryData={summaryData}
+            isPremiumTier={false}
+            hostSettings={[]}
+          />
+        );
+
+        expect(container).toBeEmptyDOMElement();
+      }
+    );
   });
 
   describe("Bootstrap package data", () => {

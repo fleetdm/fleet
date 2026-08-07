@@ -1,0 +1,10 @@
+{
+  "name": "DbGate",
+  "unique_identifier": "org.dbgate",
+  "token": "dbgate",
+  "installer_format": "dmg",
+  "slug": "dbgate/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

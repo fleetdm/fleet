@@ -503,7 +503,7 @@ Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@late
 
 ### Measure intent signals
 
-Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily) to measure and process intent signals.
+Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market/go-to-market-strategy.md#daily) to measure and process intent signals.
 
 
 ### Manage duplicates in CRM
@@ -522,16 +522,6 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 6. YOU CAN NOT UNDO THIS NEXT PART! Click next, click merge. 
 7. Verify that the principal record details match exactly what is on LinkedIn.
 
-
-<!--
-### Send customer-preston weekly export
-
-Every Friday, the Head of GTM Architecture will send an export/email to customer-preston's CRO with a list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view).
-
-1. Export the list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view) from the CRM.
-2. Paste the values into the [SHARED EXTERNALLY - Leads for customer-preson](https://docs.google.com/spreadsheets/d/1bJt7e26gDqPbq5emM1Pn3yUWaFzUtXrqmAhS2p53_ws/edit?gid=0#gid=0) Google sheet.
-3. Email customer-preston's CRO and cc Zay Hanlon.
--->
 
 ### Grant role-specific license to a team member
 

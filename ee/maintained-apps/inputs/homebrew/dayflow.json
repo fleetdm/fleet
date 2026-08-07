@@ -1,0 +1,10 @@
+{
+  "name": "Dayflow",
+  "unique_identifier": "teleportlabs.com.Dayflow",
+  "token": "dayflow",
+  "installer_format": "dmg",
+  "slug": "dayflow/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -195,6 +195,7 @@ const Smtp = ({
           onBlur={onInputBlur}
           error={formErrors.user_name}
           blockAutoComplete
+          ignore1password={false}
         />
         <InputField
           label="SMTP password"
@@ -206,6 +207,7 @@ const Smtp = ({
           onBlur={onInputBlur}
           error={formErrors.password}
           blockAutoComplete
+          ignore1password={false}
         />
         <Dropdown
           label="Auth method"

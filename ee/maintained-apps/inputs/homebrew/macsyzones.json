@@ -1,0 +1,10 @@
+{
+  "name": "MacsyZones",
+  "unique_identifier": "com.macsyzones.MacsyZones",
+  "token": "macsyzones",
+  "installer_format": "zip",
+  "slug": "macsyzones/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

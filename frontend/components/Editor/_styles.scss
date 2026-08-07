@@ -29,8 +29,4 @@
     display: flex;
     align-items: center;
   }
-
-  &__copied-confirmation {
-    @include copy-message;
-  }
 }

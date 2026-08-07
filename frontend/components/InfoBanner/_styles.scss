@@ -14,6 +14,18 @@
     gap: $pad-small;
   }
 
+  // When a leading icon is rendered, group it with the copy on the left
+  // instead of pushing them to opposite edges with `space-between`.
+  &__icon {
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: $pad-small;
+  }
+
+  &__leading-icon {
+    flex-shrink: 0;
+  }
+
   &__info {
     // Do not use display flex as it will have adverse effects on spacing around HTML tags
     align-content: center;

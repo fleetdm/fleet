@@ -1,0 +1,10 @@
+{
+  "name": "WorkFlowy",
+  "unique_identifier": "com.workflowy.desktop",
+  "token": "workflowy",
+  "installer_format": "zip",
+  "slug": "workflowy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

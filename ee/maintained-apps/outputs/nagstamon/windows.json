@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "3.18.2",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Nagstamon' AND publisher = 'Henri Wahl';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Nagstamon' AND publisher = 'Henri Wahl' AND version_compare(version, '3.18.2') < 0);"
+      },
+      "installer_url": "https://github.com/HenriWahl/Nagstamon/releases/download/v3.18.2/Nagstamon-3.18.2-win64_setup.exe",
+      "install_script_ref": "886734d1",
+      "uninstall_script_ref": "9d713a4f",
+      "sha256": "a37a5b9a7b0844b378f91eafe30bdf4a856edb845dfb77e789ef11faf6d4ef86",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "886734d1": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Nagstamon uses an Inno Setup-based installer\n$processOptions = @{\n  FilePath     = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n  PassThru     = $true\n  Wait         = $true\n  NoNewWindow  = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "9d713a4f": "# Uninstall script for Nagstamon (Inno Setup)\n$softwareName = \"Nagstamon\"\n$publisher = \"Henri Wahl\"\n\n$hkcuKeys = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n$hklmKeys = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\n$exitCode = 0\n\ntry {\n\n$key = $null\nforeach ($scope in @($hkcuKeys, $hklmKeys)) {\n  $key = Get-ChildItem -Path $scope -ErrorAction SilentlyContinue |\n    ForEach-Object { Get-ItemProperty $_.PSPath } |\n    Where-Object {\n      ($_.DisplayName -eq $softwareName -or $_.DisplayName -like \"$softwareName*\") -and\n      ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n    } | Select-Object -First 1\n  if ($key) { break }\n}\n\nif (-not $key) {\n  Write-Host \"Uninstall entry not found for '$softwareName'\"\n  Exit 0\n}\n\n$uninstallString = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n\n$exePath = $null\nif ($uninstallString -match '^\"([^\"]+)\"') {\n  $exePath = $matches[1]\n} elseif ($uninstallString -match '^(.+?\\.exe)') {\n  $exePath = $matches[1]\n}\n\nif (-not $exePath) {\n  Write-Host \"Could not parse uninstall executable from: $uninstallString\"\n  Exit 1\n}\n\n$installDir = $key.InstallLocation\nif (-not $installDir -or -not (Test-Path $installDir)) {\n  $installDir = Split-Path -Parent $exePath\n}\n\n# Inno Setup silent uninstall\n$argumentList = @(\"/VERYSILENT\", \"/NORESTART\")\n\n$process = Start-Process -FilePath $exePath -ArgumentList $argumentList -Wait -PassThru -NoNewWindow\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\nif ($installDir -and (Test-Path $installDir)) {\n  Remove-Item -Path $installDir -Recurse -Force -ErrorAction SilentlyContinue\n}\n\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

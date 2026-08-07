@@ -1,0 +1,10 @@
+{
+  "name": "Whisky",
+  "unique_identifier": "com.isaacmarovitz.Whisky",
+  "token": "whisky",
+  "installer_format": "zip",
+  "slug": "whisky/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

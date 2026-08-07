@@ -1,0 +1,8 @@
+{
+  "name": "Claude DevTools",
+  "unique_identifier": "com.claudecode.context",
+  "token": "claude-devtools",
+  "installer_format": "dmg",
+  "slug": "claude-devtools/darwin",
+  "default_categories": ["Developer tools"]
+}

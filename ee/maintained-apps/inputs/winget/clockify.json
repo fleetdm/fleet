@@ -1,0 +1,11 @@
+{
+  "name": "Clockify Desktop",
+  "slug": "clockify/windows",
+  "package_identifier": "Clockify.Clockify",
+  "unique_identifier": "Clockify",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "program_publisher": "CAKE.com Inc.",
+  "default_categories": ["Productivity"]
+}

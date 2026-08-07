@@ -22,6 +22,25 @@ try {
   $result = Add-AppxProvisionedPackage -Online -PackagePath $msixPath -SkipLicense -Regions "all" -ErrorAction Stop
   $result | Out-String | Write-Host
 
+  # Claude's Cowork feature requires the Virtual Machine Platform optional feature. Enabling
+  # an optional feature requires administrator privileges, which standard users don't have,
+  # so it must be done here in the machine context (the Fleet agent runs as Local System) and
+  # not in the per-user scheduled task below. -NoRestart defers the reboot that may be needed
+  # for the feature to become fully active.
+  # See https://support.claude.com/en/articles/12622703-deploy-claude-desktop-for-windows
+  try {
+    $vmp = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction Stop
+    if ($vmp.State -eq "Enabled") {
+      Write-Host "Virtual Machine Platform already enabled (required for Cowork)."
+    } else {
+      Write-Host "Enabling Virtual Machine Platform (required for Cowork)..."
+      Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All -NoRestart -ErrorAction Stop | Out-Null
+      Write-Host "Virtual Machine Platform enabled; a restart may be required for Cowork to become available."
+    }
+  } catch {
+    Write-Host "Could not enable Virtual Machine Platform: $($_.Exception.Message). Cowork may be unavailable until it is enabled."
+  }
+
   # Win32_ComputerSystem.UserName returns the console user (DOMAIN\User) or null when no
   # interactive session is active. Other RDP/fast-user-switch sessions won't get the
   # immediate registration; those users will pick it up from the provisioned install at

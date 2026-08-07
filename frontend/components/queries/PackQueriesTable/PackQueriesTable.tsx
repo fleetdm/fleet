@@ -7,7 +7,6 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import EmptyState from "components/EmptyState";
-import Icon from "components/Icon/Icon";
 import {
   generateTableHeaders,
   generateDataSet,
@@ -94,15 +93,14 @@ const PackQueriesTable = ({
             name: "add query",
             buttonText: "Add query",
             iconSvg: "plus",
-            iconColor: "core-fleet-green",
-            variant: "brand-inverse-icon",
+            variant: "secondary",
             onClick: onAddPackQuery,
           }}
           primarySelectAction={{
             name: "remove query",
             buttonText: "Remove",
             iconSvg: "close",
-            variant: "inverse",
+            variant: "secondary",
             onClick: onRemovePackQueries,
           }}
           searchable
@@ -116,13 +114,11 @@ const PackQueriesTable = ({
           primaryButton={
             <Button
               onClick={onAddPackQuery}
-              variant="brand-inverse-icon"
-              iconStroke
+              variant="secondary"
+              icon="plus"
+              iconPosition="right"
             >
-              <>
-                Add report
-                <Icon name="plus" color="core-fleet-green" />
-              </>
+              Add report
             </Button>
           }
         />

@@ -1,0 +1,10 @@
+{
+  "name": "Kiro CLI",
+  "unique_identifier": "dev.kiro.cli",
+  "token": "kiro-cli",
+  "installer_format": "dmg",
+  "slug": "kiro-cli/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

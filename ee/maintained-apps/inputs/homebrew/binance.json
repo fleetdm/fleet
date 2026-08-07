@@ -1,0 +1,11 @@
+{
+  "name": "Binance",
+  "unique_identifier": "com.binance.BinanceDesktop",
+  "token": "binance",
+  "installer_format": "dmg",
+  "slug": "binance/darwin",
+  "default_categories": [
+    "Productivity"
+  ],
+  "frozen": true
+}

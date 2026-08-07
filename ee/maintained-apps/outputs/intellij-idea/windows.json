@@ -4,7 +4,7 @@
       "version": "2025.2.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IntelliJ IDEA %' AND name NOT LIKE 'IntelliJ IDEA Community%' AND name NOT LIKE 'IntelliJ IDEA Educational%' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IntelliJ IDEA %' AND name NOT LIKE 'IntelliJ IDEA Community%' AND name NOT LIKE 'IntelliJ IDEA Educational%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2025.2.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IntelliJ IDEA %' AND name NOT LIKE 'IntelliJ IDEA Community%' AND name NOT LIKE 'IntelliJ IDEA Educational%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '252.28238.7') < 0);"
       },
       "installer_url": "https://download.jetbrains.com/idea/ideaIU-2025.2.5.exe",
       "install_script_ref": "6284895d",

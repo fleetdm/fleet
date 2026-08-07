@@ -4,6 +4,8 @@
  * Non-mobile preview modal:
  * - uses HTML/CSS instead for maintainability as the self-service UI changes
  * - dynamic name/icon
+ * - shows a static "All" dropdown trigger when the fleet has categories, mirroring
+ *   the CategoryFilter on the real self-service page
  *
  * Mobile preview modal:
  * - uses a screenshot
@@ -13,11 +15,10 @@
 import React from "react";
 import { noop } from "lodash";
 import Card from "components/Card";
+import Icon from "components/Icon";
 import SearchField from "components/forms/fields/SearchField";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import CategoriesMenu from "pages/hosts/details/cards/Software/SelfService/components/CategoriesMenu";
 import SelfServiceHeader from "pages/hosts/details/cards/Software/SelfService/components/SelfServiceHeader";
-import { CATEGORIES_NAV_ITEMS } from "pages/hosts/details/cards/Software/SelfService/helpers";
 import PreviewSelfServiceMobileIcon from "../../../../../../assets/images/preview-self-service-mobile-icon.png";
 
 const baseClass = "self-service-preview";
@@ -30,6 +31,8 @@ interface ISelfServicePreviewProps {
   name: string;
   displayName: string;
   versionLabel: string;
+  /** Renders the static "All" dropdown trigger above the table (desktop only) */
+  hasCategories: boolean;
   /** What to render for the app icon in the list (img or <SoftwareIcon/>) */
   renderIcon: () => React.ReactNode;
   /** What to render as the “table” area for desktop (e.g. BasicSoftwareTable) */
@@ -42,6 +45,7 @@ const SelfServicePreview = ({
   name,
   displayName,
   versionLabel,
+  hasCategories,
   renderIcon,
   renderTable,
 }: ISelfServicePreviewProps) => {
@@ -94,21 +98,16 @@ const SelfServicePreview = ({
         borderRadiusSize="xxlarge"
       >
         <SelfServiceHeader contactUrl={contactUrl} variant="preview" />
-        <SearchField placeholder="Search by name" onChange={noop} disabled />
-        <div className={`${baseClass}__table`}>
-          <CategoriesMenu
-            categories={CATEGORIES_NAV_ITEMS}
-            queryParams={{
-              query: "",
-              order_direction: "asc",
-              order_key: "name",
-              page: 0,
-              per_page: 100,
-            }}
-            readOnly
-          />
-          {renderTable && renderTable()}
+        <div className={`${baseClass}__filter-row`}>
+          {hasCategories && (
+            <div className={`${baseClass}__static-dropdown`} aria-hidden="true">
+              <span className={`${baseClass}__static-dropdown-label`}>All</span>
+              <Icon name="chevron-down" color="ui-fleet-black-75" />
+            </div>
+          )}
+          <SearchField placeholder="Search by name" onChange={noop} disabled />
         </div>
+        {renderTable && renderTable()}
       </Card>
     </Card>
   );

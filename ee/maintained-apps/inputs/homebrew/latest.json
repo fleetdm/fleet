@@ -1,0 +1,10 @@
+{
+  "name": "Latest",
+  "unique_identifier": "com.max-langer.Latest",
+  "token": "latest",
+  "installer_format": "zip",
+  "slug": "latest/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

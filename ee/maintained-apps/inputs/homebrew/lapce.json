@@ -1,0 +1,10 @@
+{
+  "name": "Lapce",
+  "unique_identifier": "io.lapce",
+  "token": "lapce",
+  "installer_format": "dmg",
+  "slug": "lapce/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

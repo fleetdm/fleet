@@ -2,10 +2,15 @@
 import {
   HostMdmDeviceStatus,
   HostMdmPendingAction,
+  IHostMdmHostNameSetting,
+  IOSSettings,
   RecoveryLockPasswordStatus,
 } from "interfaces/host";
 import {
   IHostMdmProfile,
+  isEnrolledInMdm,
+  MdmEnrollmentStatus,
+  ProfilePlatform,
   WindowsDiskEncryptionStatus,
   MdmProfileStatus,
   LinuxDiskEncryptionStatus,
@@ -88,6 +93,56 @@ export const generateRecoveryLockPasswordSetting = (
     scope: null,
     managed_local_account: null,
   };
+};
+
+export const HOST_NAME_SYNTHETIC_PROFILE_UUID = "host_name_dummy";
+
+/**
+ * Manually generates a setting for the host name template status. We need this
+ * as the host name template is enforced via a one-off MDM command, so it does
+ * not appear in the `profiles` attribute of the GET /hosts/:id API response.
+ */
+const generateHostNameSetting = (
+  hostName: IHostMdmHostNameSetting,
+  platform: ProfilePlatform
+): IHostMdmProfile => {
+  return {
+    profile_uuid: HOST_NAME_SYNTHETIC_PROFILE_UUID,
+    platform,
+    name: "Host name",
+    status: hostName.status,
+    detail: hostName.detail,
+    operation_type: null,
+    scope: null,
+    managed_local_account: null,
+  };
+};
+
+/** Platforms that can enforce a host name template (Apple only). */
+const HOST_NAME_TEMPLATE_PLATFORMS = ["darwin", "ios", "ipados"];
+
+/**
+ * Returns the synthetic "Host name" row when the host is an Apple host enrolled
+ * in MDM and enforcing a host name template, otherwise null. Centralizes the
+ * eligibility rule shared by the OS settings modal table (generateTableData)
+ * and the host summary OS-settings indicator so they can't drift apart.
+ */
+export const generateHostNameSettingIfEligible = (
+  platform: string,
+  enrollmentStatus: MdmEnrollmentStatus | null,
+  osSettings?: IOSSettings
+): IHostMdmProfile | null => {
+  if (
+    HOST_NAME_TEMPLATE_PLATFORMS.includes(platform) &&
+    isEnrolledInMdm(enrollmentStatus) &&
+    osSettings?.host_name?.status
+  ) {
+    return generateHostNameSetting(
+      osSettings.host_name,
+      platform as ProfilePlatform
+    );
+  }
+  return null;
 };
 
 export type HostMdmDeviceStatusUIState =

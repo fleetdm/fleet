@@ -1,0 +1,10 @@
+{
+  "name": "Sound Control",
+  "unique_identifier": "com.staticz.SoundControl",
+  "token": "sound-control",
+  "installer_format": "dmg",
+  "slug": "sound-control/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

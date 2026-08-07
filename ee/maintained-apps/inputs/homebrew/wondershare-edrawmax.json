@@ -1,0 +1,10 @@
+{
+  "name": "EdrawMax",
+  "unique_identifier": "com.edrawsoft.edrawmax",
+  "token": "wondershare-edrawmax",
+  "installer_format": "zip",
+  "slug": "wondershare-edrawmax/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

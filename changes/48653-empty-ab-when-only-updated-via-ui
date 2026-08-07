@@ -1,0 +1,1 @@
+- Fixed an issue where `generate-gitops` would export an empty `apple_business` section, if the AB default fleets had only been set via the UI.

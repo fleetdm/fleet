@@ -1,0 +1,10 @@
+{
+  "name": "Shapr3D",
+  "unique_identifier": "com.shapr3d.shapr",
+  "token": "shapr3d",
+  "installer_format": "dmg",
+  "slug": "shapr3d/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

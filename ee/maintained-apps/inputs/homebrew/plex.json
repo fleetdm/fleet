@@ -1,0 +1,10 @@
+{
+  "name": "Plex",
+  "unique_identifier": "tv.plex.desktop",
+  "token": "plex",
+  "installer_format": "zip",
+  "slug": "plex/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

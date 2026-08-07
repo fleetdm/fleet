@@ -1,0 +1,10 @@
+{
+  "name": "DaisyDisk",
+  "unique_identifier": "com.daisydiskapp.DaisyDiskStandAlone",
+  "token": "daisydisk",
+  "installer_format": "zip",
+  "slug": "daisydisk/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

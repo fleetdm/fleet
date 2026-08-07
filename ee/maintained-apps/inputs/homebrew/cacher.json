@@ -1,0 +1,10 @@
+{
+  "name": "Cacher",
+  "unique_identifier": "net.PenguinLabs.Cacher",
+  "token": "cacher",
+  "installer_format": "zip",
+  "slug": "cacher/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

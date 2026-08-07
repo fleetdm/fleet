@@ -64,12 +64,12 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal {
 			return "", &fleet.BadRequestError{
 				Message: fleet.CantLockPersonalHostsMessage,
 			}
 		}
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" &&
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusManual &&
 			(host.FleetPlatform() == "ios" || host.FleetPlatform() == "ipados") {
 			return "", &fleet.BadRequestError{
 				Message: fleet.CantLockManualIOSIpadOSHostsMessage,
@@ -282,7 +282,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	var requireMDM bool
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal {
 			return &fleet.BadRequestError{
 				Message: fleet.CantWipePersonalHostsMessage,
 			}
@@ -322,18 +322,8 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 		}
 
 	case "android":
-		// Wipe is COBO-only for Android. BYO unenroll already runs an AMAPI WIPE under the hood (see UnenrollAndroidHost) and surfaces as
-		// the mdm_unenrolled activity; routing BYO hosts through the Wipe flow would be redundant + misleading.
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
-			return &fleet.BadRequestError{
-				Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
-			}
-		}
-		if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
-			if errors.Is(err, fleet.ErrAndroidMDMNotConfigured) {
-				err = fleet.NewInvalidArgumentError("host_id", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
-			}
-			return ctxerr.Wrap(ctx, err, "check android MDM enabled")
+		if err := fleet.ValidateAndroidWipeRequest(ctx, svc.ds, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "validate android wipe request")
 		}
 		requireMDM = true
 
@@ -767,9 +757,10 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	if !fleet.IsMacOSPlatform(host.Platform) {
+	isWindows := fleet.IsWindowsPlatform(host.Platform)
+	if !fleet.IsMacOSPlatform(host.Platform) && !isWindows {
 		return nil, &fleet.BadRequestError{
-			Message: "Host is not a macOS device.",
+			Message: "Host is not a macOS or Windows device.",
 		}
 	}
 
@@ -793,10 +784,12 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 		return nil, ctxerr.Wrap(ctx, err, "get host managed account password")
 	}
 
-	// Surface the rotation lifecycle alongside the password so the modal can
-	// render the auto-rotate / pending-rotation banner on first open without a
-	// separate host-details refetch round-trip.
-	pwd.PendingRotation = acct.PendingRotation
+	// Surface the rotation lifecycle alongside the password so the modal can render the auto-rotate / pending-rotation
+	// banner on first open without a separate host-details refetch round-trip. Windows accounts never rotate yet, so their
+	// response omits the rotation fields.
+	if !isWindows {
+		pwd.PendingRotation = acct.PendingRotation
+	}
 
 	// Log the activity before applying any view side-effects. If activity
 	// creation fails the endpoint returns an error and the password is not
@@ -808,6 +801,11 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 		HostDisplayName: host.DisplayName(),
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create viewed managed local account activity")
+	}
+
+	// Windows accounts do not auto-rotate, so viewing must not arm the rotate timer and AutoRotateAt stays nil.
+	if isWindows {
+		return pwd, nil
 	}
 
 	// Start the auto-rotation timer (no-op for views inside the existing window)
@@ -847,6 +845,9 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	// Authorize as "execute mdm_command", which is the correct access requirement.
 	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return err
+	}
+	if fleet.IsWindowsPlatform(host.Platform) {
+		return &fleet.BadRequestError{Message: "Password rotation is not available for Windows hosts."}
 	}
 	if !fleet.IsMacOSPlatform(host.Platform) {
 		return &fleet.BadRequestError{Message: "Host is not a macOS device."}

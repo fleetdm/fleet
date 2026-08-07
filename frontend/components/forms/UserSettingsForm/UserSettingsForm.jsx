@@ -56,6 +56,7 @@ class UserSettingsForm extends Component {
             label="Email (required)"
             helpText={renderEmailHelpText()}
             readOnly={!smtpConfigured}
+            ignore1password={false}
             tooltip={
               <>
                 Editing your email address requires that SMTP or SES is
@@ -77,7 +78,7 @@ class UserSettingsForm extends Component {
         />
         <InputField {...fields.position} label="Position" />
         <div className="button-wrap">
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
           <Button type="submit">Update</Button>

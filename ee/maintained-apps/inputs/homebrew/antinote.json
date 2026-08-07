@@ -1,0 +1,10 @@
+{
+  "name": "Antinote",
+  "unique_identifier": "com.chabomakers.Antinote",
+  "token": "antinote",
+  "installer_format": "dmg",
+  "slug": "antinote/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

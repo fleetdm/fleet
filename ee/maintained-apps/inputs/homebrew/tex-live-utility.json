@@ -1,0 +1,10 @@
+{
+  "name": "TeX Live Utility",
+  "unique_identifier": "com.googlecode.mactlmgr.tlu",
+  "token": "tex-live-utility",
+  "installer_format": "zip",
+  "slug": "tex-live-utility/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

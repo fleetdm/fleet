@@ -1,12 +1,14 @@
 .upload-list {
   border: 1px solid $ui-fleet-black-10;
-  border-radius: 4px;
+  border-radius: $border-radius;
 
   &__header {
     padding: $pad-medium $pad-large;
     font-size: $x-small;
     border-bottom: 1px solid $ui-fleet-black-10;
     background-color: $ui-off-white;
+    border-top-left-radius: $border-radius;
+    border-top-right-radius: $border-radius;
   }
 
   &__list {

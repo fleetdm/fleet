@@ -1,0 +1,10 @@
+{
+  "name": "DataSpell",
+  "unique_identifier": "com.jetbrains.dataspell",
+  "token": "dataspell",
+  "installer_format": "dmg",
+  "slug": "dataspell/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

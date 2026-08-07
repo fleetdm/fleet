@@ -31,16 +31,20 @@ controls:
   enable_recovery_lock_password: false
   ios_updates:
     deadline: "2021-12-31"
+    deadline_days:
     minimum_version: "98.1"
     update_new_hosts:
   ipados_updates:
     deadline: "2022-12-31"
+    deadline_days:
     minimum_version: "98.2"
     update_new_hosts:
   macos_updates:
     deadline: "2020-12-31"
+    deadline_days:
     minimum_version: "95.1"
     update_new_hosts: true
+  name_template: iPad $FLEET_VAR_HOST_HARDWARE_SERIAL
   scripts:
   - path: "../lib/team-a-👍/scripts/Script B.ps1"
   windows_enabled_and_configured: true
@@ -69,6 +73,7 @@ policies:
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
   name: Team patch policy
+  patch_when_closed: true
   platform: linux,windows
   resolution: Do a team thing
   type: patch
@@ -146,6 +151,9 @@ settings:
       destination_url: https://some-team-failing_policies-webhook.com
       enable_failing_policies_webhook: false
       host_batch_size: 4
+    host_activities_webhook:
+      destination_url: https://some-team-host-activities-webhook.com
+      enable_host_activities_webhook: true
     host_status_webhook:
       days_count: 3
       destination_url: https://some-team-host-status-webhook.com
@@ -209,8 +217,10 @@ software:
     - Label B
     self_service: true
     slug: fma2/windows
+    version: "10.0"
   - self_service: true
     slug: fma3/windows
+    version: "^123"
   packages:
   - categories:
     - Browsers

@@ -14,6 +14,11 @@ on:
         required: false
         type: string
         default: ''
+      redis:
+        description: 'Redis/Valkey Docker image (e.g., "redis:8.0", "valkey/valkey:8.0"). Leave empty to use the docker-compose default (redis:6.2).'
+        required: false
+        type: string
+        default: ''
       cover_pkg:
         description: 'Go coverage package pattern (e.g., "github.com/fleetdm/fleet/v4/server/activity/..."). Defaults to all fleet packages.'
         required: false
@@ -29,6 +34,13 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT:
+        description: 'GitHub PAT used as NETWORK_TEST_GITHUB_TOKEN for tests that hit the GitHub API.'
+        required: false
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL:
+        description: 'Slack webhook for notifying on scheduled (cron) run failures.'
+        required: false
 
 permissions:
   contents: read
@@ -52,7 +64,7 @@ jobs:
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
@@ -94,12 +106,19 @@ jobs:
 
     - name: Compute artifact prefix
       run: |
+        PREFIX="${{ inputs.suite }}"
         if [[ -n "${{ inputs.mysql }}" ]]; then
           MYSQL_ID=$(echo "${{ inputs.mysql }}" | tr -d ':')
-          echo "ARTIFACT_PREFIX=${{ inputs.suite }}-${MYSQL_ID}" >> $GITHUB_ENV
-        else
-          echo "ARTIFACT_PREFIX=${{ inputs.suite }}" >> $GITHUB_ENV
+          PREFIX="${PREFIX}-${MYSQL_ID}"
         fi
+        # Append the Redis/Valkey id only when an explicit image is requested, so the
+        # default callers keep their existing artifact names and matrix legs that vary
+        # only by Redis image don't collide on artifact upload.
+        if [[ -n "${{ inputs.redis }}" ]]; then
+          REDIS_ID=$(echo "${{ inputs.redis }}" | tr -d ':/')
+          PREFIX="${PREFIX}-${REDIS_ID}"
+        fi
+        echo "ARTIFACT_PREFIX=${PREFIX}" >> $GITHUB_ENV
 
     - name: Set Go race setting on schedule
       if: ${{ inputs.is_cron }}
@@ -109,6 +128,8 @@ jobs:
 
     - name: Checkout Code
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      with:
+        persist-credentials: false
 
     - name: Install Go
       uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -122,7 +143,7 @@ jobs:
     - name: Start Infra Dependencies
       if: ${{ env.NEED_DOCKER }}
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ inputs.mysql }} $DOCKER_COMMAND &
+      run: FLEET_REDIS_IMAGE=${{ inputs.redis }} FLEET_MYSQL_IMAGE=${{ inputs.mysql }} $DOCKER_COMMAND &
 
     - name: Add TLS certificate for SMTP Tests
       if: ${{ env.NEED_DOCKER }}
@@ -190,7 +211,7 @@ jobs:
           docker compose down
 
           echo "Restarting containers..."
-          FLEET_MYSQL_IMAGE=${{ inputs.mysql }} $DOCKER_COMMAND &
+          FLEET_REDIS_IMAGE=${{ inputs.redis }} FLEET_MYSQL_IMAGE=${{ inputs.mysql }} $DOCKER_COMMAND &
 
           # Give containers a moment to start
           sleep 10

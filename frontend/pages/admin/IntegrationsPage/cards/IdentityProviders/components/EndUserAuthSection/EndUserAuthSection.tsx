@@ -8,7 +8,6 @@ import { AxiosResponse } from "axios";
 
 import { expandErrorReasonRequired } from "interfaces/errors";
 import configAPI from "services/entities/config";
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import InputField from "components/forms/fields/InputField";
@@ -17,6 +16,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import CustomLink from "components/CustomLink";
+import { notify } from "components/ToastNotification";
 
 import {
   IFormDataIdp,
@@ -49,7 +49,6 @@ const EndUserAuthSection = ({
   const { config, isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
-  const { renderFlash } = useContext(NotificationContext);
   const [formErrors, setFormErrors] = useState<IFormErrorsIdp | null>(null);
 
   const isFormCleared =
@@ -107,7 +106,7 @@ const EndUserAuthSection = ({
             },
           },
         });
-        renderFlash("success", "Successfully updated end user authentication.");
+        notify.success("Successfully updated end user authentication.");
         originalFormData.current = { ...formData };
         setDirty(false);
         // Notify parent component of changes, since we're calling our own API
@@ -116,16 +115,15 @@ const EndUserAuthSection = ({
       } catch (err) {
         const ae = (typeof err === "object" ? err : {}) as AxiosResponse;
         if (ae.status === 422) {
-          renderFlash(
-            "error",
-            `Couldn't update: ${expandErrorReasonRequired(err)}.`
-          );
+          notify.error(`Couldn't update: ${expandErrorReasonRequired(err)}.`, {
+            response: err,
+          });
           return;
         }
-        renderFlash("error", "Couldn't update. Please try again.");
+        notify.error("Couldn't update. Please try again.", { response: err });
       }
     },
-    [formData, setFormData, renderFlash, setDirty]
+    [formData, setFormData, setDirty]
   );
 
   const renderContent = () => {

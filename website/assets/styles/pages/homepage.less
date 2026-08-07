@@ -31,7 +31,7 @@
     background: url('/images/homepage-hero-2500x420@2x.png');
     background-size: auto 329px;
     background-repeat: no-repeat;
-    background-position-x: calc(~'100% + -56%');
+    background-position-x: calc(~'100% + -50%');
     background-position-y: top;
   }
 
@@ -381,6 +381,17 @@
     }
 
   }
+  [purpose='section-buttons'] {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    align-items: center;
+    margin-top: 32px;
+    white-space: nowrap;
+    [purpose='platform-button'] {
+      margin-top: 0px;
+    }
+  }
   [purpose='platform-button'] {
     .cta-button();
     padding: 8px 16px;
@@ -421,7 +432,11 @@
         }
       }
     }
+    [purpose='feature-list'] {
+      max-width: 50%;
+    }
     [purpose='feature-text'] {
+
       h5 {
         color: #192147;
         font-size: 16px;
@@ -792,9 +807,6 @@
   }
 
 
-  [purpose='bottom-gradient'] {
-    background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
-  }
 
   [purpose='bottom-cta'] {
     h1 {
@@ -1036,7 +1048,16 @@
       margin-left: auto;
       margin-right: auto;
     }
-
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+      margin-top: 32px;
+      [purpose='platform-button'] {
+        margin-top: 0px;
+      }
+    }
     [purpose='hero-quote'] {
       display: flex;
       flex-direction: column;
@@ -1280,7 +1301,17 @@
     [purpose='page-section'] {
       margin-bottom: 80px;
     }
-
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: row;
+      gap: 24px;
+      align-items: center;
+      margin-top: 32px;
+      white-space: nowrap;
+      [purpose='platform-button'] {
+        margin-top: 0px;
+      }
+    }
     [purpose='feature-with-image'] {
       margin-bottom: 128px;
       // Between 576 and 768px, text sits above the image. The mixin's column
@@ -1288,6 +1319,9 @@
       flex-direction: column-reverse;
       &.reverse {
         flex-direction: column-reverse;
+      }
+      [purpose='feature-list'] {
+        max-width: unset;
       }
       [purpose='feature-list-block'] {
         flex-direction: column;
@@ -1504,6 +1538,18 @@
         font-size: 16px;
       }
     }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+      margin-top: 32px;
+      [purpose='platform-button'] {
+        margin-top: 0px;
+      }
+    }
+
+
     [purpose='feature-card'] {
       margin-left: 0px;
       &:last-of-type {

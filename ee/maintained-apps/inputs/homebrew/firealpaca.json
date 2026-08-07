@@ -1,0 +1,11 @@
+{
+  "name": "Fire Alpaca",
+  "unique_identifier": "com.firealpaca",
+  "token": "firealpaca",
+  "installer_format": "zip",
+  "slug": "firealpaca/darwin",
+  "default_categories": [
+    "Productivity"
+  ],
+  "frozen": true
+}

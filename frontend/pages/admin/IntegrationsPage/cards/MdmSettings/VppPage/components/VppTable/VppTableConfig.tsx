@@ -1,7 +1,7 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
+import { IMdmVppToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -141,13 +141,13 @@ export const generateTableConfig = (
             actionSelectHandler(value, cellProps.row.original)
           }
           placeholder="Actions"
-          variant="small-button"
+          variant="secondary"
         />
       ),
     },
   ];
 };
 
-export const generateTableData = (data: IMdmAbmToken[]) => {
+export const generateTableData = (data: IMdmVppToken[]) => {
   return data;
 };

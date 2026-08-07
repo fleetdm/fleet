@@ -1,0 +1,10 @@
+{
+  "name": "ChatWise",
+  "unique_identifier": "app.chatwise",
+  "token": "chatwise",
+  "installer_format": "dmg",
+  "slug": "chatwise/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

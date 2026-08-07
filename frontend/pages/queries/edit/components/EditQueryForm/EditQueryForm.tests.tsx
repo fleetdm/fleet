@@ -111,6 +111,69 @@ describe("EditQueryForm - component", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
+  it("caps the report name input at 255 characters in edit mode", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        query: {
+          lastEditedQueryId: mockQuery.id,
+          lastEditedQueryName: mockQuery.name,
+          lastEditedQueryDescription: mockQuery.description,
+          lastEditedQueryBody: mockQuery.query,
+          lastEditedQueryObserverCanRun: mockQuery.observer_can_run,
+          lastEditedQueryFrequency: mockQuery.interval,
+          lastEditedQueryAutomationsEnabled: mockQuery.automations_enabled,
+          lastEditedQueryPlatforms: mockQuery.platform,
+          lastEditedQueryMinOsqueryVersion: mockQuery.min_osquery_version,
+          lastEditedQueryLoggingType: mockQuery.logging,
+          setLastEditedQueryName: jest.fn(),
+          setLastEditedQueryDescription: jest.fn(),
+          setLastEditedQueryBody: jest.fn(),
+          setLastEditedQueryObserverCanRun: jest.fn(),
+          setLastEditedQueryFrequency: jest.fn(),
+          setLastEditedQueryAutomationsEnabled: jest.fn(),
+          setLastEditedQueryPlatforms: jest.fn(),
+          setLastEditedQueryMinOsqueryVersion: jest.fn(),
+          setLastEditedQueryLoggingType: jest.fn(),
+        },
+        app: {
+          currentUser: createMockUser(),
+          isGlobalObserver: false,
+          isGlobalAdmin: true,
+          isGlobalMaintainer: false,
+          isOnGlobalTeam: true,
+          isPremiumTier: false,
+          isSandboxMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    render(
+      <EditQueryForm
+        router={mockRouter}
+        location={mockLocation}
+        queryIdForEdit={1}
+        apiTeamIdForQuery={1}
+        showOpenSchemaActionText
+        storedQuery={createMockQuery()}
+        isStoredQueryLoading={false}
+        isQuerySaving={false}
+        isQueryUpdating={false}
+        onSubmitNewQuery={jest.fn()}
+        onOsqueryTableSelect={jest.fn()}
+        onUpdate={jest.fn()}
+        onOpenSchemaSidebar={jest.fn()}
+        renderLiveQueryWarning={jest.fn()}
+        backendValidators={{}}
+        showConfirmSaveChangesModal={false}
+        setShowConfirmSaveChangesModal={jest.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
+  });
+
   it("disables live query button for globally disabled live queries", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,

@@ -1,0 +1,10 @@
+{
+  "name": "NotchNook",
+  "unique_identifier": "lo.cafe.NotchNook",
+  "token": "notchnook",
+  "installer_format": "zip",
+  "slug": "notchnook/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

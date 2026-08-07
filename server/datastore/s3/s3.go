@@ -21,15 +21,24 @@ import (
 	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
-const awsRegionHint = "us-east-1"
+const (
+	awsRegionHint       = "us-east-1"
+	gcsReadWriteScope   = "https://www.googleapis.com/auth/devstorage.read_write"
+	signingMiddlewareID = "Signing"
+)
+
+var findDefaultGoogleCredentials = google.FindDefaultCredentials
 
 type s3store struct {
 	s3Client         *s3.Client
 	bucket           string
 	prefix           string
 	cloudFrontConfig *config.S3CloudFrontConfig
+	gcs              bool
 }
 
 type installerNotFoundError struct{}
@@ -47,6 +56,38 @@ func (p installerNotFoundError) IsNotFound() bool {
 // newS3Store initializes an S3 Datastore.
 func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 	var opts []func(*aws_config.LoadOptions) error
+	gcsEndpoint := cfg.EndpointURL != "" && isGCS(cfg.EndpointURL)
+
+	if cfg.GCSIAMAuth {
+		switch {
+		case cfg.EndpointURL == "":
+			return nil, errors.New("gcs iam auth requires endpoint_url to be set (e.g. https://storage.googleapis.com)")
+		case !gcsEndpoint:
+			return nil, fmt.Errorf("gcs iam auth requires endpoint_url to contain storage.googleapis.com (got %q)", cfg.EndpointURL)
+		}
+		if cfg.AccessKeyID != "" || cfg.SecretAccessKey != "" {
+			return nil, errors.New("gcs iam auth cannot be used with access key credentials")
+		}
+		if cfg.StsAssumeRoleArn != "" {
+			return nil, errors.New("gcs iam auth cannot be used with sts assume role")
+		}
+	}
+
+	var gcsTokenSource oauth2.TokenSource
+	if cfg.GCSIAMAuth {
+		creds, err := findDefaultGoogleCredentials(context.Background(), gcsReadWriteScope)
+		if err != nil {
+			return nil, fmt.Errorf("finding default google credentials: %w", err)
+		}
+		gcsTokenSource = creds.TokenSource
+		// Even with SigV4 middleware removed, AWS SDK may still resolve credentials.
+		// Set a local static provider to avoid IMDS/network credential lookups.
+		opts = append(opts, aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			"gcs-iam-auth",
+			"gcs-iam-auth",
+			"",
+		)))
+	}
 
 	// The service endpoint is deprecated in AWS, but required for S3 workalikes elsewhere
 	if cfg.EndpointURL != "" {
@@ -78,18 +119,23 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 	}
 
 	if cfg.Region == "" {
-		// Attempt to deduce region from bucket.
-		conf, err := aws_config.LoadDefaultConfig(context.Background(),
-			append(opts, aws_config.WithRegion(awsRegionHint))...,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create default config to get bucket region: %w", err)
+		if cfg.GCSIAMAuth {
+			// GCS doesn't expose AWS region APIs. Keep AWS SDK happy with a fixed hint.
+			cfg.Region = awsRegionHint
+		} else {
+			// Attempt to deduce region from bucket.
+			conf, err := aws_config.LoadDefaultConfig(context.Background(),
+				append(opts, aws_config.WithRegion(awsRegionHint))...,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create default config to get bucket region: %w", err)
+			}
+			bucketRegion, err := manager.GetBucketRegion(context.Background(), s3.NewFromConfig(conf), cfg.Bucket)
+			if err != nil {
+				return nil, fmt.Errorf("get bucket region: %w", err)
+			}
+			cfg.Region = bucketRegion
 		}
-		bucketRegion, err := manager.GetBucketRegion(context.Background(), s3.NewFromConfig(conf), cfg.Bucket)
-		if err != nil {
-			return nil, fmt.Errorf("get bucket region: %w", err)
-		}
-		cfg.Region = bucketRegion
 	}
 
 	opts = append(opts, aws_config.WithRegion(cfg.Region))
@@ -111,11 +157,16 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		// Apply workaround if using Google Cloud Storage (GCS) endpoint
 		// This fixes signature issues with AWS SDK v2 when using GCS
 		// See: https://github.com/aws/aws-sdk-go-v2/issues/1816#issuecomment-1927281540
-		if cfg.EndpointURL != "" && isGCS(cfg.EndpointURL) {
+		if gcsEndpoint && !cfg.GCSIAMAuth {
 			// GCS alters the Accept-Encoding header which breaks the request signature
 			ignoreSigningHeaders(o, []string{"Accept-Encoding"})
+		}
+		if gcsEndpoint {
 			// GCS also has issues with trailing checksums in UploadPart and PutObject operations
 			disableTrailingChecksumForGCS(o)
+		}
+		if cfg.GCSIAMAuth {
+			useGCSBearerAuth(o, gcsTokenSource)
 		}
 	})
 
@@ -124,7 +175,43 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		bucket:           cfg.Bucket,
 		prefix:           cfg.Prefix,
 		cloudFrontConfig: cfg.CloudFrontConfig,
+		gcs:              gcsEndpoint,
 	}, nil
+}
+
+func useGCSBearerAuth(o *s3.Options, tokenSource oauth2.TokenSource) {
+	o.APIOptions = append(o.APIOptions, func(stack *middleware.Stack) error {
+		if tokenSource == nil {
+			return errors.New("gcs bearer auth requested but no google token source was configured")
+		}
+
+		// Remove SigV4 signing. GCS IAM auth uses OAuth bearer tokens.
+		if _, err := stack.Finalize.Remove(signingMiddlewareID); err != nil {
+			return fmt.Errorf("removing signing middleware: %w", err)
+		}
+
+		return stack.Finalize.Add(gcsBearerTokenAuth(tokenSource), middleware.After)
+	})
+}
+
+func gcsBearerTokenAuth(tokenSource oauth2.TokenSource) middleware.FinalizeMiddleware {
+	return middleware.FinalizeMiddlewareFunc(
+		"GCSBearerTokenAuth",
+		func(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (out middleware.FinalizeOutput, metadata middleware.Metadata, err error) {
+			req, ok := in.Request.(*smithyhttp.Request)
+			if !ok {
+				return out, metadata, fmt.Errorf("(gcsBearerTokenAuth) unexpected request middleware type %T", in.Request)
+			}
+
+			token, err := tokenSource.Token()
+			if err != nil {
+				return out, metadata, fmt.Errorf("getting google access token: %w", err)
+			}
+
+			req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+			return next.HandleFinalize(ctx, in)
+		},
+	)
 }
 
 // CreateTestBucket creates a bucket with the provided name and a default
@@ -150,31 +237,36 @@ func (s *s3store) CreateTestBucket(ctx context.Context, name string) error {
 // store. Only recommended for local testing. If the bucket no longer exists,
 // it returns nil.
 func (s *s3store) CleanupTestBucket(ctx context.Context) error {
-	resp, err := s.s3Client.ListObjects(ctx, &s3.ListObjectsInput{
+	// Delete every object page-by-page (the SDK paginator handles continuation
+	// tokens) so buckets with more than one page of objects are fully emptied
+	// before DeleteBucket.
+	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
 		Bucket: &s.bucket,
 	})
-	var noSuchBucket *types.NoSuchBucket
-	if errors.As(err, &noSuchBucket) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	var objs []types.ObjectIdentifier
-	for _, o := range resp.Contents {
-		objs = append(objs, types.ObjectIdentifier{Key: o.Key})
-	}
-	if len(objs) > 0 {
-		if _, err := s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
-			Bucket: &s.bucket,
-			Delete: &types.Delete{Objects: objs},
-		}); err != nil {
+	for paginator.HasMorePages() {
+		resp, err := paginator.NextPage(ctx)
+		if _, ok := errors.AsType[*types.NoSuchBucket](err); ok {
+			return nil
+		}
+		if err != nil {
 			return err
+		}
+
+		var objs []types.ObjectIdentifier
+		for _, o := range resp.Contents {
+			objs = append(objs, types.ObjectIdentifier{Key: o.Key})
+		}
+		if len(objs) > 0 {
+			if _, err := s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+				Bucket: &s.bucket,
+				Delete: &types.Delete{Objects: objs},
+			}); err != nil {
+				return err
+			}
 		}
 	}
 
-	_, err = s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
+	_, err := s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: &s.bucket,
 	})
 	return err

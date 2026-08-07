@@ -240,6 +240,22 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Nil(t, createdCA)
 	})
 
+	t.Run("Batch apply errors when no private key is configured", func(t *testing.T) {
+		ds := new(mock.Store)
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		svc := &Service{
+			logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+			ds:     ds,
+			authz:  authorizer,
+		}
+		svc.config.Server.PrivateKey = ""
+		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		err = svc.BatchApplyCertificateAuthorities(ctx, fleet.GroupedCertificateAuthorities{}, fleet.BatchApplyCertificateAuthoritiesOpts{ViaGitOps: true})
+		require.EqualError(t, err, "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	})
+
 	t.Run("Create DigiCert CA - Happy path", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
 
@@ -394,6 +410,26 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.NotNil(t, createdCA.Challenge)
 		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.Challenge, *createdCA.Challenge)
 		verifyNilFieldsForType(t, createdCA)
+	})
+
+	t.Run("Create Custom SCEP CA - challenge with non-PrintableString characters is accepted", func(t *testing.T) {
+		// Regression test for the reverted PrintableString challenge validation (#49756): characters outside the
+		// ASN.1 PrintableString set (such as "_" and "@") must be accepted.
+		svc, ctx := baseSetupForCATests()
+
+		createRequest := fleet.CertificateAuthorityPayload{
+			CustomSCEPProxy: &fleet.CustomSCEPProxyCA{
+				Name:      "CustomSCEPWIFI",
+				URL:       "https://customscep.example.com",
+				Challenge: "base64url_style@challenge",
+			},
+		}
+
+		_, err := svc.NewCertificateAuthority(ctx, createRequest)
+		require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		require.Len(t, createdCAs, 1)
+		require.NotNil(t, createdCAs[0].Challenge)
+		assert.Equal(t, createRequest.CustomSCEPProxy.Challenge, *createdCAs[0].Challenge)
 	})
 
 	t.Run("Create NDES SCEP CA - Happy path", func(t *testing.T) {
@@ -1565,6 +1601,20 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			require.EqualError(t, err, "mock error to avoid NewActivity panic")
 		})
 
+		t.Run("Challenge with non-PrintableString characters is accepted", func(t *testing.T) {
+			// Regression test for the reverted PrintableString challenge validation (#49756).
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{
+					Challenge: new("updated_challenge@with_special_chars"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
+			require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		})
+
 		t.Run("Bad name", func(t *testing.T) {
 			svc, ctx := baseSetupForCATests()
 
@@ -1966,4 +2016,19 @@ func TestDeleteCertificateAuthority(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "certificate authority was not found")
 	})
+}
+
+// TestProcessCustomSCEPProxyCAsChallengeChars is a regression test for the reverted PrintableString challenge validation
+// (#49756): the GitOps/batch path must accept challenges containing characters outside the ASN.1 PrintableString set.
+func TestProcessCustomSCEPProxyCAsChallengeChars(t *testing.T) {
+	svc := &Service{
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		scepConfigService: &scep_mock.SCEPConfigService{
+			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
+		},
+	}
+
+	incoming := []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: "https://customscep.example.com", Challenge: "base64url_style@challenge"}}
+	err := svc.processCustomSCEPProxyCAs(t.Context(), &fleet.CertificateAuthoritiesBatchOperations{}, incoming, nil)
+	require.NoError(t, err)
 }

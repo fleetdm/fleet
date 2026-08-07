@@ -3,6 +3,7 @@ import React, { FormEvent, useState } from "react";
 import { IApiEndpointRef } from "interfaces/api_endpoint";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
@@ -243,6 +244,7 @@ const ApiUserForm = ({
             onBlur={onInputBlur}
             error={formErrors.name}
             autofocus
+            inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
           />
           {isPremiumTier ? renderPermissions() : renderGlobalRoleForm()}
           {isPremiumTier && (
@@ -255,7 +257,7 @@ const ApiUserForm = ({
             />
           )}
           <div className="user-management-form__footer">
-            <Button onClick={onCancel} variant="inverse">
+            <Button onClick={onCancel} variant="secondary">
               Cancel
             </Button>
             <Button

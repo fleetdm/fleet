@@ -1,0 +1,10 @@
+{
+  "name": "Dictionaries",
+  "unique_identifier": "io.dictionaries.Dictionaries",
+  "token": "dictionaries",
+  "installer_format": "zip",
+  "slug": "dictionaries/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -40,7 +40,7 @@ import {
 } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { getHostStatusTooltipText } from "../helpers";
+import { getHardwareModelDisplay, getHostStatusTooltipText } from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {
   // This is used to prevent these columns from being hidden. This will be
@@ -189,9 +189,21 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     ),
     accessor: "hardware_model",
     id: "hardware_model",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TooltipTruncatedTextCell value={cellProps.cell.value} className="w250" />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      const { value, tooltip, alwaysShowTooltip } = getHardwareModelDisplay(
+        cellProps.row.original.platform,
+        cellProps.cell.value,
+        cellProps.row.original.hardware_marketing_name
+      );
+      return (
+        <TooltipTruncatedTextCell
+          value={value}
+          tooltip={tooltip}
+          alwaysShowTooltip={alwaysShowTooltip}
+          className="w250"
+        />
+      );
+    },
   },
   // User email
   {
@@ -247,11 +259,12 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "hardware_serial",
     id: "hardware_serial",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      // TODO(android): is iOS/iPadOS supported?
+      // Personal (BYOD) devices don't report their serial numbers, so show
+      // "Not supported" for them. All other hosts, including managed Android
+      // devices, show the reported serial number.
       if (
-        isAndroid(cellProps.row.original.platform) ||
         isBYODAccountDrivenUserEnrollment(
-          cellProps.row.original.mdm.enrollment_status
+          cellProps.row.original.mdm?.enrollment_status ?? null
         )
       ) {
         return NotSupported;
@@ -384,26 +397,23 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // Status
   {
     title: "Status",
-    Header: (cellProps: IHostTableHeaderProps) => {
+    Header: () => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={
             <>
-              Online hosts will respond to a live report. Currently only
-              supported for macOS, Windows, and Linux.
+              Only supported on hosts that run Fleet&apos;s agent: macOS,
+              Windows, Linux, and ChromeOS.
             </>
           }
           className="status-header"
+          tooltipClass="host-table-header-tooltip"
+          fixedPositionStrategy
         >
           Status
         </TooltipWrapper>
       );
-      return (
-        <HeaderCell
-          value={cellProps.rows.length === 1 ? "Status" : titleWithToolTip}
-          disableSortBy
-        />
-      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
     accessor: "status",
@@ -460,13 +470,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Header: () => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={
-            <>
-              Settings can be updated remotely on hosts with MDM turned
-              <br />
-              on. To filter by MDM status, head to the Dashboard page.
-            </>
-          }
+          tipContent={<>To filter by MDM status, head to the Dashboard page.</>}
         >
           MDM status
         </TooltipWrapper>
@@ -582,22 +586,75 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       );
     },
   },
-  // Osquery
+  // Agent
   {
-    title: "Osquery",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="Osquery"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
-    accessor: "osquery_version",
-    id: "osquery_version",
+    title: "Agent",
+    Header: (cellProps: IHostTableHeaderProps) => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent="Only supported on hosts that run Fleet's agent: macOS, Windows, Linux, and ChromeOS."
+          tooltipClass="host-table-header-tooltip"
+          fixedPositionStrategy
+        >
+          Agent
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      );
+    },
+    accessor: (row) => row.orbit_version || row.osquery_version,
+    id: "agent",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
+      const {
+        platform,
+        orbit_version,
+        osquery_version,
+        fleet_desktop_version,
+      } = cellProps.row.original;
+
+      if (isMobilePlatform(platform)) {
         return NotSupported;
       }
-      return <TextCell value={cellProps.cell.value} />;
+
+      // Match the Host details Vitals card: treat a missing/empty orbit version
+      // (including the normalized "---" placeholder) as a vanilla osquery host.
+      const isChromeOrVanillaOsquery =
+        platform === "chrome" ||
+        !orbit_version ||
+        orbit_version === DEFAULT_EMPTY_CELL_VALUE;
+
+      if (isChromeOrVanillaOsquery) {
+        return <TextCell value={osquery_version} />;
+      }
+
+      return (
+        <TextCell
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  osquery: {osquery_version}
+                  <br />
+                  Orbit: {orbit_version}
+                  {fleet_desktop_version &&
+                    fleet_desktop_version !== DEFAULT_EMPTY_CELL_VALUE && (
+                      <>
+                        <br />
+                        Fleet Desktop: {fleet_desktop_version}
+                      </>
+                    )}
+                </>
+              }
+            >
+              {orbit_version}
+            </TooltipWrapper>
+          }
+        />
+      );
     },
   },
   // Last seen
@@ -640,12 +697,23 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // Last restarted
   {
     title: "Last restarted",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="Last restarted"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
+    Header: (cellProps: IHostTableHeaderProps) => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent="Only supported on macOS, Windows, and Linux, where Fleet's agent can measure system uptime."
+          tooltipClass="host-table-header-tooltip"
+          fixedPositionStrategy
+        >
+          Last restarted
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      );
+    },
     accessor: "last_restarted_at",
     id: "last_restarted_at",
     Cell: (cellProps: IHostTableStringCellProps) => {
@@ -664,6 +732,37 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       );
     },
   },
+  // Added to Fleet
+  {
+    title: "Added to Fleet",
+    Header: (cellProps: IHostTableHeaderProps) => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={
+            <>
+              The last time the <br /> host enrolled with Fleet.
+            </>
+          }
+        >
+          Added to Fleet
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      );
+    },
+    accessor: "last_enrolled_at",
+    id: "last_enrolled_at",
+    Cell: (cellProps: IHostTableStringCellProps) => (
+      <TextCell
+        value={{ timeString: cellProps.cell.value }}
+        formatter={HumanTimeDiffWithFleetLaunchCutoff}
+      />
+    ),
+  },
 ];
 
 const defaultHiddenColumns = [
@@ -672,6 +771,8 @@ const defaultHiddenColumns = [
   "device_mapping",
   "primary_mac",
   "public_ip",
+  "primary_ip",
+  "issues",
   "cpu_type",
   // TODO: should those be mdm.<blah>?
   "mdm.server_url",
@@ -682,6 +783,7 @@ const defaultHiddenColumns = [
   "seen_time",
   "hardware_model",
   "hardware_serial",
+  "last_enrolled_at",
 ];
 
 /**

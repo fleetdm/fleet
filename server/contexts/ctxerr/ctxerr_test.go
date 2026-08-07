@@ -316,6 +316,44 @@ func TestHandle(t *testing.T) {
 		ctx = NewContext(ctx, eh)
 		Handle(ctx, err)
 	})
+
+	t.Run("does not store client errors in the error handler", func(t *testing.T) {
+		cases := []struct {
+			name string
+			err  error
+		}{
+			{"NotFound", Wrap(context.Background(), &mockNotFoundError{notFound: true}, "wrap")},
+			{"Exists", Wrap(context.Background(), &mockExistsError{exists: true}, "wrap")},
+			{"Conflict", Wrap(context.Background(), &mockConflictError{conflict: true}, "wrap")},
+			{"IsClientError", Wrap(context.Background(), &mockClientError{isClient: true}, "wrap")},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				ctx := context.Background()
+				eh := MockHandler{}
+				eh.StoreImpl = func(serr error) {
+					t.Fatalf("Store should not be called for client errors, got: %v", serr)
+				}
+				ctx = NewContext(ctx, eh)
+				Handle(ctx, tc.err)
+			})
+		}
+	})
+
+	t.Run("stores server errors in the error handler", func(t *testing.T) {
+		ctx := context.Background()
+		eh := MockHandler{}
+		err := Wrap(ctx, errors.New("boom"), "wrap")
+		called := false
+		eh.StoreImpl = func(serr error) {
+			called = true
+			var ferr *FleetError
+			require.ErrorAs(t, serr, &ferr)
+		}
+		ctx = NewContext(ctx, eh)
+		Handle(ctx, err)
+		require.True(t, called, "Store must be called for server errors")
+	})
 }
 
 func TestAdditionalMetadata(t *testing.T) {
@@ -400,6 +438,24 @@ type mockStatusCoder struct{ code int }
 func (e *mockStatusCoder) Error() string   { return "status error" }
 func (e *mockStatusCoder) StatusCode() int { return e.code }
 
+// mockNotFoundError implements IsNotFound() for testing.
+type mockNotFoundError struct{ notFound bool }
+
+func (e *mockNotFoundError) Error() string    { return "not found" }
+func (e *mockNotFoundError) IsNotFound() bool { return e.notFound }
+
+// mockExistsError implements IsExists() for testing.
+type mockExistsError struct{ exists bool }
+
+func (e *mockExistsError) Error() string  { return "already exists" }
+func (e *mockExistsError) IsExists() bool { return e.exists }
+
+// mockConflictError implements IsConflict() for testing.
+type mockConflictError struct{ conflict bool }
+
+func (e *mockConflictError) Error() string    { return "conflict" }
+func (e *mockConflictError) IsConflict() bool { return e.conflict }
+
 func TestIsClientError(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -455,6 +511,41 @@ func TestIsClientError(t *testing.T) {
 			name:     "status coder 5xx",
 			err:      &mockStatusCoder{code: 500},
 			expected: false,
+		},
+		{
+			name:     "IsNotFound (no IsClientError)",
+			err:      &mockNotFoundError{notFound: true},
+			expected: true,
+		},
+		{
+			name:     "IsNotFound wrapped",
+			err:      fmt.Errorf("wrap: %w", &mockNotFoundError{notFound: true}),
+			expected: true,
+		},
+		{
+			name:     "IsNotFound returning false is not a client error",
+			err:      &mockNotFoundError{notFound: false},
+			expected: false,
+		},
+		{
+			name:     "IsExists (no IsClientError)",
+			err:      &mockExistsError{exists: true},
+			expected: true,
+		},
+		{
+			name:     "IsExists wrapped",
+			err:      fmt.Errorf("wrap: %w", &mockExistsError{exists: true}),
+			expected: true,
+		},
+		{
+			name:     "IsConflict (no IsClientError)",
+			err:      &mockConflictError{conflict: true},
+			expected: true,
+		},
+		{
+			name:     "IsConflict wrapped",
+			err:      fmt.Errorf("wrap: %w", &mockConflictError{conflict: true}),
+			expected: true,
 		},
 	}
 

@@ -1,0 +1,10 @@
+{
+  "name": "Surge",
+  "unique_identifier": "com.nssurge.surge-mac",
+  "token": "surge",
+  "installer_format": "zip",
+  "slug": "surge/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

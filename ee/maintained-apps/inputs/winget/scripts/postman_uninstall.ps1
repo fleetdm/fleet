@@ -1,87 +1,79 @@
-# Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
-# variable
-$softwareName = $PACKAGE_ID
+# Attempts to locate Postman's uninstaller from the registry and execute it silently.
+# Postman is a per-user (Squirrel) install, so check both the machine-wide and
+# per-user uninstall hives.
 
-# It is recommended to use exact software name here if possible to avoid
-# uninstalling unintended software.
-$softwareNameLike = "*$softwareName*"
+$displayName = "Postman"
+$publisher = "Postman"
 
-# Postman uninstaller supports --silent flag for silent uninstall
-$uninstallArgs = "--silent"
+$paths = @(
+  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKCU:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+)
 
-$userKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$uninstall = $null
+foreach ($p in $paths) {
+  $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
+    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like "$displayName*") -and ($publisher -eq "" -or $_.Publisher -eq $publisher)
+  }
+  if ($items) { $uninstall = $items | Select-Object -First 1; break }
+}
 
-$exitCode = 0
+if (-not $uninstall -or -not $uninstall.UninstallString) {
+  Write-Host "Uninstall entry not found"
+  Exit 0
+}
+
+# Kill any running Postman processes before uninstalling
+Stop-Process -Name "Postman" -Force -ErrorAction SilentlyContinue
+
+$uninstallString = $uninstall.UninstallString
+$exePath = ""
+$arguments = ""
+
+# Parse the uninstall string to extract executable path and existing arguments.
+# Handles both quoted and unquoted paths.
+if ($uninstallString -match '^"([^"]+)"(.*)') {
+    $exePath = $matches[1]
+    $arguments = $matches[2].Trim()
+} elseif ($uninstallString -match '^([^\s]+)(.*)') {
+    $exePath = $matches[1]
+    $arguments = $matches[2].Trim()
+} else {
+    Write-Host "Error: Could not parse uninstall string: $uninstallString"
+    Exit 1
+}
+
+# Build argument list array, preserving existing arguments and adding --silent
+$argumentList = @()
+if ($arguments -ne '') {
+    # Split existing arguments and add them
+    $argumentList += $arguments -split '\s+'
+}
+# Add --silent for silent uninstall if not already present
+if ($argumentList -notcontains "-s" -and $argumentList -notcontains "--silent") {
+    $argumentList += "--silent"
+}
+
+Write-Host "Uninstall executable: $exePath"
+Write-Host "Uninstall arguments: $($argumentList -join ' ')"
 
 try {
-
-[array]$uninstallKeys = Get-ChildItem `
-    -Path @($userKey) `
-    -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath }
-
-$foundUninstaller = $false
-foreach ($key in $uninstallKeys) {
-    # If needed, add -notlike to the comparison to exclude certain similar
-    # software
-    if ($key.DisplayName -like $softwareNameLike) {
-        $foundUninstaller = $true
-        # Get the uninstall command. Some uninstallers do not include
-        # 'QuietUninstallString' and require a flag to run silently.
-        $uninstallCommand = if ($key.QuietUninstallString) {
-            $key.QuietUninstallString
-        } else {
-            $key.UninstallString
-        }
-
-        # The uninstall command may contain command and args, like:
-        # "C:\Program Files\Software\uninstall.exe" --uninstall --silent
-        # Split the command and args
-        $splitArgs = $uninstallCommand.Split('"')
-        if ($splitArgs.Length -gt 1) {
-            if ($splitArgs.Length -eq 3) {
-                $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
-            } elseif ($splitArgs.Length -gt 3) {
-                Throw `
-                    "Uninstall command contains multiple quoted strings. " +
-                        "Please update the uninstall script.`n" +
-                        "Uninstall command: $uninstallCommand"
-            }
-            $uninstallCommand = $splitArgs[1]
-        }
-        Write-Host "Uninstall command: $uninstallCommand"
-        Write-Host "Uninstall args: $uninstallArgs"
-
-        $processOptions = @{
-            FilePath = $uninstallCommand
-            PassThru = $true
-            Wait = $true
-        }
-        if ($uninstallArgs -ne '') {
-            $processOptions.ArgumentList = "$uninstallArgs"
-        }
-
-        # Start process and track exit code
-        $process = Start-Process @processOptions
-        $exitCode = $process.ExitCode
-
-        # Prints the exit code
-        Write-Host "Uninstall exit code: $exitCode"
-        # Exit the loop once the software is found and uninstalled.
-        break
+    $processOptions = @{
+        FilePath = $exePath
+        ArgumentList = $argumentList
+        NoNewWindow = $true
+        PassThru = $true
+        Wait = $true
     }
-}
 
-if (-not $foundUninstaller) {
-    Write-Host "Uninstaller for '$softwareName' not found."
-    # Change exit code to 0 if you don't want to fail if uninstaller is not
-    # found. This could happen if program was already uninstalled.
-    $exitCode = 1
-}
+    $process = Start-Process @processOptions
+    $exitCode = $process.ExitCode
 
+    Write-Host "Uninstall exit code: $exitCode"
+    Exit $exitCode
 } catch {
-    Write-Host "Error: $_"
-    $exitCode = 1
+    Write-Host "Error running uninstaller: $_"
+    Exit 1
 }
-
-Exit $exitCode

@@ -4,7 +4,7 @@
       "version": "2025.2.6.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'PyCharm Community Edition %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PyCharm Community Edition %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2025.2.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PyCharm Community Edition %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '252.28539.58') < 0);"
       },
       "installer_url": "https://download.jetbrains.com/python/pycharm-community-2025.2.6.1.exe",
       "install_script_ref": "94c332f4",

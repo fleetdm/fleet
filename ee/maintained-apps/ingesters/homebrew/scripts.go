@@ -46,9 +46,17 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 				}
 				appPath := appItem.String
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
-	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"
+	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp" || exit $?
 fi`, appPath)
-				sb.Copy(appPath, "$APPDIR")
+				sb.Writef(`if ! sudo cp -R "$TMPDIR/%[1]s" "$APPDIR"; then
+	# remove the partial copy so a failed install isn't inventoried as the new
+	# version, then restore the previous version if there was one
+	sudo rm -rf "$APPDIR/%[1]s"
+	if [ -d "$TMPDIR/%[1]s.bkp" ]; then
+		sudo mv "$TMPDIR/%[1]s.bkp" "$APPDIR/%[1]s"
+	fi
+	exit 1
+fi`, appPath)
 			}
 			// Relaunch the app if it was running before installation
 			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
@@ -120,7 +128,7 @@ func uninstallScriptForApp(cask *brewCask) string {
 			if len(artifact.Binary) == 2 {
 				target := artifact.Binary[1].Other.Target
 				if !strings.Contains(target, "$HOMEBREW_PREFIX") {
-					sb.RemoveFile(fmt.Sprintf(`'%s'`, target))
+					sb.RemoveFile(shellSingleQuote(target))
 				}
 			}
 		case len(artifact.Uninstall) > 0:
@@ -197,6 +205,15 @@ func sortUninstall(artifacts []*brewUninstall) {
 	})
 }
 
+// shellSingleQuote wraps s in single quotes for safe use as a single shell
+// token, escaping any embedded single quote by closing the quote, emitting an
+// escaped quote, and reopening (the standard POSIX idiom). Cask-supplied paths
+// can contain apostrophes (e.g. "Cycling '74"), which would otherwise
+// prematurely close the quote and produce a syntax error.
+func shellSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
@@ -214,12 +231,12 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 
 	process(u.LaunchCtl, func(lc string) {
 		sb.AddFunction("remove_launchctl_service", removeLaunchctlServiceFunc)
-		sb.Writef("remove_launchctl_service '%s'", lc)
+		sb.Writef("remove_launchctl_service %s", shellSingleQuote(lc))
 	})
 
 	process(u.Quit, func(appName string) {
 		sb.AddFunction("quit_application", quitApplicationFunc)
-		sb.Writef("quit_application '%s'", appName)
+		sb.Writef("quit_application %s", shellSingleQuote(appName))
 		if appName == "com.docker.docker" {
 			sb.Writef("quit_application 'com.electron.dockerdesktop'")
 		}
@@ -230,7 +247,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	if u.Signal.IsOther && len(u.Signal.Other) == 2 {
 		addUserVar()
 		sb.AddFunction("send_signal", sendSignalFunc)
-		sb.Writef(`send_signal '%s' '%s' "$LOGGED_IN_USER"`, u.Signal.Other[0], u.Signal.Other[1])
+		sb.Writef(`send_signal %s %s "$LOGGED_IN_USER"`, shellSingleQuote(u.Signal.Other[0]), shellSingleQuote(u.Signal.Other[1]))
 	}
 
 	if u.Script.IsOther {
@@ -244,7 +261,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 
 		// Build the command with arguments if present
 		var cmdParts []string
-		cmdParts = append(cmdParts, fmt.Sprintf("'%s'", executable))
+		cmdParts = append(cmdParts, shellSingleQuote(executable))
 
 		// Handle args if present
 		if argsVal, hasArgs := u.Script.Other["args"]; hasArgs {
@@ -257,7 +274,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 				if !ok {
 					panic("all args must be strings")
 				}
-				cmdParts = append(cmdParts, fmt.Sprintf("'%s'", argStr))
+				cmdParts = append(cmdParts, shellSingleQuote(argStr))
 			}
 		}
 
@@ -302,22 +319,22 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 		sb.AddFunction("expand_pkgid_and_map", expandWildcardPkgs)
 		sb.AddFunction("remove_pkg_files", removePkgFiles)
 		sb.AddFunction("forget_pkg", forgetPkgFunc)
-		sb.Writef("remove_pkg_files '%s'", pkgID)
-		sb.Writef("forget_pkg '%s'", pkgID)
+		sb.Writef("remove_pkg_files %s", shellSingleQuote(pkgID))
+		sb.Writef("forget_pkg %s", shellSingleQuote(pkgID))
 	})
 
 	process(u.Delete, func(path string) {
-		sb.RemoveFile(fmt.Sprintf("'%s'", path))
+		sb.RemoveFile(shellSingleQuote(path))
 	})
 
 	process(u.RmDir, func(dir string) {
-		sb.Writef("sudo rmdir '%s'", dir)
+		sb.Writef("sudo rmdir %s", shellSingleQuote(dir))
 	})
 
 	process(u.Trash, func(path string) {
 		addUserVar()
 		sb.AddFunction("trash", trashFunc)
-		sb.Writef("trash $LOGGED_IN_USER '%s'", path)
+		sb.Writef("trash $LOGGED_IN_USER %s", shellSingleQuote(path))
 	})
 }
 
@@ -380,12 +397,6 @@ hdiutil detach "$MOUNT_POINT" || true`)
 	}
 }
 
-// Copy writes a command to copy a file from the temporary directory to a
-// destination.
-func (s *scriptBuilder) Copy(file, dest string) {
-	s.Writef(`sudo cp -R "$TMPDIR/%s" "%s"`, file, dest)
-}
-
 // RemoveFile writes a command to remove a file or directory with sudo
 // privileges.
 func (s *scriptBuilder) RemoveFile(file string) {
@@ -401,7 +412,7 @@ func (s *scriptBuilder) RemoveFile(file string) {
 // Returns an error if generating the XML for choices fails.
 func (s *scriptBuilder) InstallPkg(pkg string, choices ...[]brewPkgConfig) error {
 	if len(choices) == 0 {
-		s.Writef(`sudo installer -pkg "$TMPDIR/%s" -target /`, pkg)
+		s.Writef(`sudo installer -pkg "$TMPDIR/%s" -target / || exit $?`, pkg)
 		return nil
 	}
 
@@ -417,7 +428,7 @@ cat << EOF > "$CHOICE_XML"
 %s
 EOF
 
-sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
+sudo installer -pkg "$TMPDIR/%s" -target / -applyChoiceChangesXML "$CHOICE_XML" || exit $?
 `, choiceXML, pkg)
 
 	return nil
@@ -493,38 +504,63 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 
   echo "Removing launchctl service ${service}"
 
-  for should_sudo in "${booleans[@]}"; do
-    plist_status=$(launchctl list "${service}" 2>/dev/null)
-
-    if [[ $plist_status == \{* ]]; then
-      if [[ $should_sudo == "true" ]]; then
-        sudo launchctl remove "${service}"
-      else
-        launchctl remove "${service}"
-      fi
-      sleep 1
+  # A wildcard label can't be used with launchctl or as a plist name, so expand
+  # it to the labels of currently loaded services that match the pattern.
+  local services=("$service")
+  if [[ "$service" == *"*"* ]]; then
+    local regex
+    # Escape regex metacharacters, turn '*' into '.*', and anchor the pattern so
+    # it matches a full label rather than a substring.
+    regex=$(printf '%s' "$service" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
+    regex="^${regex}$"
+    services=()
+    local id
+    # Match every loaded job by label regardless of PID; launchctl list reports
+    # loaded-but-not-running jobs with a "-" in the PID column.
+    while read -r _ _ id; do
+      [[ "$id" =~ $regex ]] && services+=("$id")
+    done < <(launchctl list 2>/dev/null | tail -n +2)
+    if [[ ${#services[@]} -eq 0 ]]; then
+      echo "No loaded launchctl service matches ${service}"
+      return
     fi
+  fi
 
-    paths=(
-      "/Library/LaunchAgents/${service}.plist"
-      "/Library/LaunchDaemons/${service}.plist"
-    )
+  local service_label
+  for service_label in "${services[@]}"; do
+    for should_sudo in "${booleans[@]}"; do
+      plist_status=$(launchctl list "${service_label}" 2>/dev/null)
 
-    # if not using sudo, prepend the home directory to the paths
-    if [[ $should_sudo == "false" ]]; then
-      for i in "${!paths[@]}"; do
-        paths[i]="${HOME}${paths[i]}"
-      done
-    fi
-
-    for path in "${paths[@]}"; do
-      if [[ -e "$path" ]]; then
+      if [[ $plist_status == \{* ]]; then
         if [[ $should_sudo == "true" ]]; then
-          sudo rm -f -- "$path"
+          sudo launchctl remove "${service_label}"
         else
-          rm -f -- "$path"
+          launchctl remove "${service_label}"
         fi
+        sleep 1
       fi
+
+      paths=(
+        "/Library/LaunchAgents/${service_label}.plist"
+        "/Library/LaunchDaemons/${service_label}.plist"
+      )
+
+      # if not using sudo, prepend the home directory to the paths
+      if [[ $should_sudo == "false" ]]; then
+        for i in "${!paths[@]}"; do
+          paths[i]="${HOME}${paths[i]}"
+        done
+      fi
+
+      for path in "${paths[@]}"; do
+        if [[ -e "$path" ]]; then
+          if [[ $should_sudo == "true" ]]; then
+            sudo rm -f -- "$path"
+          else
+            rm -f -- "$path"
+          fi
+        fi
+      done
     done
   done
 }`

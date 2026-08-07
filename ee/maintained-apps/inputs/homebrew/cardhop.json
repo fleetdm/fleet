@@ -1,0 +1,10 @@
+{
+  "name": "Cardhop",
+  "unique_identifier": "com.flexibits.cardhop.mac",
+  "token": "cardhop",
+  "installer_format": "zip",
+  "slug": "cardhop/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

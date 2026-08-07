@@ -1,0 +1,10 @@
+{
+  "name": "TabTab",
+  "unique_identifier": "riccqi.TabTab",
+  "token": "tabtab",
+  "installer_format": "dmg",
+  "slug": "tabtab/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

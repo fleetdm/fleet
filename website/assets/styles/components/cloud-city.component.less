@@ -1,0 +1,47 @@
+
+/**
+ * <cloud-city>
+ *
+ * App-wide styles for our cloud city banner.
+ */
+
+[parasails-component='cloud-city'] {
+  background: linear-gradient(0deg, #E8F1F6 64.17%, #FFF 100%);
+  [purpose='static-cloud-city'] {
+    background-image: url('/images/cloud-city/cloud-city-banner-4925x480@2x.png');
+    background-size: auto 100%;
+    background-position: center bottom;
+    background-repeat: repeat-x;
+    height: 480px;
+  }
+  @media (max-width: 1200px) {
+    [purpose='static-cloud-city'] {
+      background-image: url('/images/cloud-city/cloud-city-xl-1200x456@2x.png');
+      height: 456px;
+      background-size: contain;
+    }
+  }
+  @media (max-width: 991px) {
+    [purpose='static-cloud-city'] {
+      background-image: url('/images/cloud-city/cloud-city-lg-992x350@2x.png');
+      height: 350px;
+    }
+  }
+  @media (max-width: 768px) {
+    [purpose='static-cloud-city'] {
+      background-image: url('/images/cloud-city/cloud-city-md-768x259@2x.png');
+      height: 259px;
+    }
+  }
+  @media (max-width: 575px) {
+    [purpose='static-cloud-city'] {
+      background-image: url('/images/cloud-city/cloud-city-sm-576x215@2x.png');
+      height: 215px;
+    }
+  }
+  @media (max-width: 375px) {
+    [purpose='static-cloud-city'] {
+      height: 153px;
+    }
+  }
+}

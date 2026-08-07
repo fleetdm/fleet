@@ -1,0 +1,10 @@
+{
+  "name": "Itsycal",
+  "unique_identifier": "com.mowglii.ItsycalApp",
+  "token": "itsycal",
+  "installer_format": "zip",
+  "slug": "itsycal/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

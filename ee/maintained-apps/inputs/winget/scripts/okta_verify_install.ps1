@@ -1,27 +1,30 @@
-# Learn more about .exe install scripts:
-# http://fleetdm.com/learn-more-about/exe-install-scripts
+# Okta Verify ships as a WiX Burn bootstrapper. Silent switches come from the
+# winget installer type convention for Burn bundles.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
+$expectedExitCodes = @(0, 1641, 3010)
 
 try {
+    if (-not (Test-Path $exeFilePath)) {
+        Write-Host "Error: Installer file not found at: $exeFilePath"
+        Exit 1
+    }
 
-# WiX Burn bootstrapper uses /quiet for silent installation
-$processOptions = @{
-  FilePath = "$exeFilePath"
-  ArgumentList = "/quiet /norestart"
-  PassThru = $true
-  Wait = $true
-}
+    $processOptions = @{
+        FilePath     = "$exeFilePath"
+        ArgumentList = "/quiet /norestart"
+        PassThru     = $true
+        Wait         = $true
+        NoNewWindow  = $true
+    }
 
-# Start process and track exit code
-$process = Start-Process @processOptions
-$exitCode = $process.ExitCode
+    $process = Start-Process @processOptions
+    $exitCode = $process.ExitCode
+    Write-Host "Install exit code: $exitCode"
 
-# Prints the exit code
-Write-Host "Install exit code: $exitCode"
-Exit $exitCode
-
+    if ($expectedExitCodes -contains $exitCode) { Exit 0 }
+    Exit $exitCode
 } catch {
-  Write-Host "Error: $_"
-  Exit 1
+    Write-Host "Error: $_"
+    Exit 1
 }
