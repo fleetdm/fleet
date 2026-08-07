@@ -46,6 +46,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          filter: blob:none
 
       # Set the Node.js version
       - name: Use Node.js ${{ matrix.node-version }}
