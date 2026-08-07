@@ -33,6 +33,7 @@ func TestManagedLocalAccount(t *testing.T) {
 		{"GetForAutoRotation", testManagedLocalAccountGetForAutoRotation},
 		{"GetByPendingCommandUUID", testManagedLocalAccountGetByPendingCommandUUID},
 		{"Escrow", testManagedLocalAccountEscrow},
+		{"SoftDeleteOnReenrollment", testManagedLocalAccountSoftDeleteOnReenrollment},
 	}
 
 	for _, c := range cases {
@@ -176,6 +177,28 @@ func testManagedLocalAccountUpsertOverwrites(t *testing.T, ds *Datastore) {
 	_, err = ds.GetManagedLocalAccountByCommandUUID(ctx, "cmd-old")
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
+
+	// A re-provision must clear rotation state left over from the previous enrollment: the staged pending password
+	// targets the account that enrollment created, so a later ack must not copy it over the one we just escrowed.
+	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, host.UUID, "account-uuid-upsert"))
+	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, host.UUID, "pending-pass", "cmd-pending-rotate"))
+	// Initiate clears auto_rotate_at, so arm it directly to cover that column too.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, host.UUID)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SaveHostManagedLocalAccount(ctx, host.UUID, "final-pass", "cmd-final"))
+
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.False(t, status.PendingRotation, "re-provision must drop the staged rotation")
+	assert.Nil(t, status.AutoRotateAt, "re-provision must disarm the auto-rotation deadline")
+
+	// The ack for the abandoned rotation must be rejected rather than overwrite the re-provisioned password.
+	require.Error(t, ds.CompleteManagedLocalAccountRotation(ctx, host.UUID, "cmd-pending-rotate"))
+	got, err = ds.GetHostManagedLocalAccountPassword(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, "final-pass", got.Password)
 }
 
 func testManagedLocalAccountNotFound(t *testing.T, ds *Datastore) {
@@ -490,6 +513,16 @@ func testManagedLocalAccountGetForAutoRotation(t *testing.T, ds *Datastore) {
 		`UPDATE host_managed_local_account_passwords SET account_uuid = NULL, auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, noUUID)
 	require.NoError(t, err)
 
+	// Ineligible: retired by a re-enrollment. auto_rotate_at is re-armed after the soft delete, which clears it, so
+	// the deleted filter is what has to exclude this row rather than a missing deadline.
+	softDeleted := newManagedLocalAccountTestHost(t, ds, "del00014")
+	require.NoError(t, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return softDeleteManagedLocalAccountPasswordDB(ctx, tx, softDeleted)
+	}))
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, softDeleted)
+	require.NoError(t, err)
+
 	// Ineligible: deferred-but-no-uuid path: even with auto_rotate_at in the past, missing
 	// account_uuid filters the row out (cron will pick up once UUID lands).
 	rows, err := ds.GetManagedLocalAccountsForAutoRotation(ctx)
@@ -505,12 +538,14 @@ func testManagedLocalAccountGetForAutoRotation(t *testing.T, ds *Datastore) {
 	_, hasPending := got[pending]
 	_, hasFailed := got[failed]
 	_, hasNoUUID := got[noUUID]
+	_, hasSoftDeleted := got[softDeleted]
 	assert.True(t, hasDue, "due host should be returned")
 	assert.False(t, hasNotViewed, "non-viewed host should not be returned")
 	assert.False(t, hasFuture, "future-rotation host should not be returned")
 	assert.False(t, hasPending, "host with pending rotation should not be returned")
 	assert.False(t, hasFailed, "failed host should not be returned")
 	assert.False(t, hasNoUUID, "host without account_uuid should not be returned")
+	assert.False(t, hasSoftDeleted, "soft-deleted host should not be returned")
 
 	// Confirm we surface initiated_by_fleet=true for view-driven rows.
 	for _, r := range rows {
@@ -594,4 +629,57 @@ func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
 	_, err = ds.GetHostManagedLocalAccountPassword(ctx, "win-escrow-err-only-host")
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
+}
+
+// The escrowed password survives host deletion on purpose, but must not survive the enrollment that produced it.
+func testManagedLocalAccountSoftDeleteOnReenrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := newManagedLocalAccountTestHost(t, ds, "del00015")
+
+	softDelete := func() {
+		require.NoError(t, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			return softDeleteManagedLocalAccountPasswordDB(ctx, tx, hostUUID)
+		}))
+	}
+	softDelete()
+
+	// Every read path must now behave as if the row is gone.
+	_, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	assert.True(t, fleet.IsNotFound(err), "password read: got %v", err)
+	_, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	assert.True(t, fleet.IsNotFound(err), "status read: got %v", err)
+	_, err = ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	assert.True(t, fleet.IsNotFound(err), "account uuid read: got %v", err)
+	// Rotation must report the row as absent, not as present-but-ineligible: the eligibility diagnostic runs only
+	// when the guarded UPDATE matches nothing, so it needs the same filter.
+	err = ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "ROTATE-PASS", "cmd-softdelete-rotate")
+	assert.True(t, fleet.IsNotFound(err), "rotation of a soft-deleted row: got %v", err)
+
+	// Retaining the password is the whole point of soft-deleting rather than deleting: an admin can still recover it.
+	assertPasswordRetained := func() {
+		t.Helper()
+		var stored []byte
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &stored,
+				`SELECT encrypted_password FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID)
+		})
+		assert.NotEmpty(t, stored, "the escrowed password must stay recoverable from the database")
+	}
+	assertPasswordRetained()
+
+	// Re-provisioning after the new enrollment revives the row with the new password.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "AFTER-REENROLL"))
+	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "AFTER-REENROLL", got.Password)
+
+	// A device-reported failure must revive the row too. The password stays in the database, and stays unreadable
+	// through the API because a failed status makes PasswordAvailable false.
+	softDelete()
+	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "policy rejected"))
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "policy rejected", status.Detail)
+	assert.False(t, status.PasswordAvailable, "a failed row must not offer its password")
+	assertPasswordRetained()
 }

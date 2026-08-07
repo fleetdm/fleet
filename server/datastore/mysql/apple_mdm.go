@@ -4675,6 +4675,11 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			if err := softDeleteHostRecoveryLockPassword(ctx, tx, hostUUID); err != nil {
 				return err
 			}
+
+			// Same reasoning for the managed local account password, as recovery lock password, which shares the escrow model
+			if err := softDeleteManagedLocalAccountPasswordDB(ctx, tx, hostUUID); err != nil {
+				return err
+			}
 		}
 
 		// reset the enrolled_from_migration value. We only get to this

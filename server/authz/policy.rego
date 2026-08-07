@@ -1192,10 +1192,20 @@ allow {
   action == write
 }
 
-# Any logged in user can read the manual enrollment profile data.
+# The manual enrollment profile embeds the SCEP challenge, so it is restricted
+# to the same roles as enroll secrets.
+
+# Global admins and maintainers can read the manual enrollment profile data.
 allow {
 	object.type == "mdm_apple_manual_enrollment_profile"
-	not is_null(subject)
+	subject.global_role == [admin, maintainer][_]
+	action == read
+}
+
+# Team admins and maintainers can read the manual enrollment profile data.
+allow {
+	object.type == "mdm_apple_manual_enrollment_profile"
+	team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
 	action == read
 }
 
