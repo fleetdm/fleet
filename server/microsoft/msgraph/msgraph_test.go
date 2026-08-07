@@ -39,14 +39,10 @@ func newGraphServer(t *testing.T, handler http.HandlerFunc) *graphServer {
 	gs.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/oauth2/v2.0/token") {
 			gs.tokenRequests.Add(1)
-			// The tenant must appear in the token URL: client credentials is tenant-scoped, and Microsoft rejects
-			// /common and /organizations for this flow.
+			// The tenant must appear in the token URL: client credentials is tenant-scoped
 			assert.Contains(t, r.URL.Path, testTenantID)
-			// Bound the body before parsing (gosec G120): unbounded ParseForm can be a memory-exhaustion vector.
-			// The token form is tiny, so 1 MiB is generous.
+			// Bound the body before parsing.
 			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-			// assert, not require: a failed require inside an HTTP handler would call t.FailNow off the test
-			// goroutine, which testify cannot do safely.
 			assert.NoError(t, r.ParseForm())
 			assert.Equal(t, "client_credentials", r.Form.Get("grant_type"))
 			assert.Equal(t, testClientID, r.Form.Get("client_id"))
@@ -83,6 +79,45 @@ func writeDevices(t *testing.T, w http.ResponseWriter, nextLink string, devices 
 	require.NoError(t, json.NewEncoder(w).Encode(body))
 }
 
+// newSingleHostClient points both the token endpoint and Graph at one server, for tests that need to control the
+// token response itself rather than just the Graph response.
+func newSingleHostClient(t *testing.T, handler http.HandlerFunc) Client {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	c, err := newClientWithHosts(&fleet.MicrosoftGraphCredential{
+		TenantID: testTenantID, ClientID: testClientID, ClientSecret: testSecret,
+	}, srv.URL, srv.URL)
+	require.NoError(t, err)
+	return c
+}
+
+// newPagedGraphServer serves the given pages in order, linking each to the next. Page N is requested with
+// ?$skiptoken=pageN, so the sequence is driven by the request rather than by call-order state.
+func newPagedGraphServer(t *testing.T, pages ...[]WindowsAutopilotDevice) *graphServer {
+	t.Helper()
+	var gs *graphServer
+	gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		i := 0
+		if tok := r.URL.Query().Get("$skiptoken"); tok != "" {
+			_, _ = fmt.Sscanf(tok, "page%d", &i)
+		}
+		// assert, not require: a failed require here would call t.FailNow off the test goroutine.
+		if !assert.Less(t, i, len(pages), "client requested a page past the end of the fixture") {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		var next string
+		if i+1 < len(pages) {
+			next = fmt.Sprintf("%s%s?$skiptoken=page%d", gs.URL, autopilotDevicesPath, i+1)
+		}
+		writeDevices(t, w, next, pages[i]...)
+	})
+	return gs
+}
+
 func device(id, serial, tag string) WindowsAutopilotDevice {
 	return WindowsAutopilotDevice{ID: id, SerialNumber: serial, GroupTag: tag, EntraDeviceID: "aad-" + id}
 }
@@ -98,76 +133,103 @@ func TestNewClientRequiresFullCredential(t *testing.T) {
 		{"missing tenant", &fleet.MicrosoftGraphCredential{ClientID: "c", ClientSecret: "s"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewClient(tc.cred)
+			c, err := NewClient(tc.cred)
 			require.Error(t, err)
+			assert.Nil(t, c, "a rejected credential must not yield a usable client")
+			assert.Contains(t, err.Error(), "not fully configured")
 		})
 	}
 }
 
-func TestListSinglePage(t *testing.T) {
-	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		writeDevices(t, w, "",
-			device("id-1", "SERIAL-1", "Engineering"),
-			device("id-2", "SERIAL-2", ""),
-		)
-	})
+func TestListPagination(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		pages   [][]WindowsAutopilotDevice
+		wantIDs []string
+	}{
+		{
+			name:    "single page",
+			pages:   [][]WindowsAutopilotDevice{{device("id-1", "SERIAL-1", "Engineering"), device("id-2", "SERIAL-2", "")}},
+			wantIDs: []string{"id-1", "id-2"},
+		},
+		{
+			// A tenant with no Autopilot registrations is a valid configuration, not a loop or an error.
+			name:    "empty tenant",
+			pages:   [][]WindowsAutopilotDevice{{}},
+			wantIDs: nil,
+		},
+		{
+			name: "multiple pages, order preserved",
+			pages: [][]WindowsAutopilotDevice{
+				{device("id-1", "SERIAL-1", "A")},
+				{device("id-2", "SERIAL-2", "B")},
+				{device("id-3", "SERIAL-3", "C")},
+			},
+			wantIDs: []string{"id-1", "id-2", "id-3"},
+		},
+		{
+			// Graph's cursor is inclusive, so the last device of a page reappears as the first of the next. Verified
+			// live: at $top=2 a five-device tenant returned seven rows.
+			name: "inclusive cursor repeats the boundary device",
+			pages: [][]WindowsAutopilotDevice{
+				{device("id-1", "SERIAL-1", "A"), device("id-2", "SERIAL-2", "B")},
+				{device("id-2", "SERIAL-2", "B"), device("id-3", "SERIAL-3", "C")},
+			},
+			wantIDs: []string{"id-1", "id-2", "id-3"},
+		},
+		{
+			name: "devices without an id are skipped",
+			pages: [][]WindowsAutopilotDevice{
+				{device("", "SERIAL-1", "A"), device("id-2", "SERIAL-2", "B")},
+			},
+			wantIDs: []string{"id-2"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gs := newPagedGraphServer(t, tc.pages...)
 
-	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.NoError(t, err)
-	require.Len(t, devices, 2)
+			devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+			require.NoError(t, err)
 
-	assert.Equal(t, "id-1", devices[0].ID)
-	assert.Equal(t, "SERIAL-1", devices[0].SerialNumber)
-	assert.Equal(t, "Engineering", devices[0].GroupTag)
-	assert.Equal(t, "aad-id-1", devices[0].EntraDeviceID)
-	// An empty group tag is the common real-world case and must survive as empty rather than being dropped.
-	assert.Empty(t, devices[1].GroupTag)
-
-	assert.Equal(t, int32(1), gs.tokenRequests.Load(), "token should be minted once")
+			gotIDs := make([]string, 0, len(devices))
+			for _, d := range devices {
+				gotIDs = append(gotIDs, d.ID)
+			}
+			assert.Equal(t, tc.wantIDs, nilIfEmpty(gotIDs), "each device exactly once, in page order")
+		})
+	}
 }
 
-func TestListFollowsNextLink(t *testing.T) {
-	var gs *graphServer
-	gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Query().Get("$skiptoken") {
-		case "":
-			writeDevices(t, w, gs.URL+autopilotDevicesPath+"?$skiptoken=page2", device("id-1", "SERIAL-1", "A"))
-		case "page2":
-			writeDevices(t, w, gs.URL+autopilotDevicesPath+"?$skiptoken=page3", device("id-2", "SERIAL-2", "B"))
-		default:
-			writeDevices(t, w, "", device("id-3", "SERIAL-3", "C"))
-		}
+func nilIfEmpty(s []string) []string {
+	if len(s) == 0 {
+		return nil
+	}
+	return s
+}
+
+// Field mapping is separate from pagination: it pins the Graph wire names onto our struct, including the two values
+// most likely to be mangled (an empty group tag, and one at Intune's 2048-character maximum).
+func TestListParsesDeviceFields(t *testing.T) {
+	maxTag := strings.Repeat("a", 2048)
+	gs := newPagedGraphServer(t, []WindowsAutopilotDevice{
+		device("id-1", "SERIAL-1", "Engineering"),
+		device("id-2", "VMware-56 4d 51 82", ""),
+		device("id-3", "SERIAL-3", maxTag),
 	})
 
 	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
 	require.NoError(t, err)
 	require.Len(t, devices, 3)
-	assert.Equal(t, []string{"id-1", "id-2", "id-3"}, []string{devices[0].ID, devices[1].ID, devices[2].ID})
-}
 
-// Graph's cursor is inclusive, so the last device of a page reappears as the first device of the next. Verified live:
-// at $top=2 a five-device tenant returned seven rows. Each device must still be emitted exactly once.
-func TestListDeduplicatesBoundaryDevice(t *testing.T) {
-	var gs *graphServer
-	gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("$skiptoken") == "" {
-			writeDevices(t, w, gs.URL+autopilotDevicesPath+"?$skiptoken=LastSerialNumber='SERIAL-2'",
-				device("id-1", "SERIAL-1", "A"), device("id-2", "SERIAL-2", "B"))
-			return
-		}
-		// The boundary device repeats here, exactly as the live service does.
-		writeDevices(t, w, "", device("id-2", "SERIAL-2", "B"), device("id-3", "SERIAL-3", "C"))
-	})
-
-	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.NoError(t, err)
-	require.Len(t, devices, 3, "the boundary device must be returned once, not twice")
-
-	ids := map[string]int{}
-	for _, d := range devices {
-		ids[d.ID]++
-	}
-	assert.Equal(t, map[string]int{"id-1": 1, "id-2": 1, "id-3": 1}, ids)
+	assert.Equal(t, "SERIAL-1", devices[0].SerialNumber)
+	assert.Equal(t, "Engineering", devices[0].GroupTag)
+	assert.Equal(t, "aad-id-1", devices[0].EntraDeviceID)
+	// Empty is the common real-world case and must survive as empty rather than being dropped.
+	assert.Empty(t, devices[1].GroupTag)
+	// Serials can carry spaces; they must not be trimmed or split.
+	assert.Equal(t, "VMware-56 4d 51 82", devices[1].SerialNumber)
+	assert.Len(t, devices[2].GroupTag, 2048, "Intune's maximum group tag must survive intact")
+	assert.Equal(t, maxTag, devices[2].GroupTag)
 }
 
 // The hang this guard exists for: at $top=1 the live service returns an @odata.nextLink byte-identical to the URL just
@@ -175,22 +237,15 @@ func TestListDeduplicatesBoundaryDevice(t *testing.T) {
 func TestListTerminatesOnSelfReferentialNextLink(t *testing.T) {
 	var gs *graphServer
 	gs = newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		selfLink := gs.URL + autopilotDevicesPath + "?$skiptoken=LastSerialNumber='SERIAL-1'"
-		if r.URL.Query().Get("$skiptoken") == "" {
-			writeDevices(t, w, selfLink, device("id-1", "SERIAL-1", "A"))
-			return
-		}
-		// Echo back the very same link forever.
-		writeDevices(t, w, selfLink, device("id-1", "SERIAL-1", "A"))
+		// Echo back the exact URL just requested, to simulate infinite loop.
+		writeDevices(t, w, gs.URL+r.URL.String(), device(fmt.Sprintf("id-%d", gs.graphRequests.Load()), "SERIAL-1", "A"))
 	})
 
 	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
 	require.Error(t, err)
-	// Either guard is an acceptable stop; what matters is that it stops, and that it does not hand back a partial list
-	// the sync would treat as authoritative.
-	assert.Contains(t, err.Error(), "aborting")
-	// It must give up almost immediately rather than grinding to the page cap and hammering Graph.
-	assert.Less(t, gs.graphRequests.Load(), int32(5))
+	// Assert the specific guard.
+	assert.Contains(t, err.Error(), "identical to the request URL")
+	assert.Less(t, gs.graphRequests.Load(), int32(5), "must give up immediately, not grind to the page cap")
 }
 
 // Because the cursor is keyed on serial number and serials are not unique, a run of devices sharing one serial stops
@@ -213,30 +268,6 @@ func TestListFailsWhenPageYieldsNothingNew(t *testing.T) {
 	assert.Contains(t, err.Error(), "stopped advancing")
 	assert.Nil(t, devices, "a partial list must not be returned; the sync would treat it as authoritative")
 	assert.Less(t, gs.graphRequests.Load(), int32(5))
-}
-
-func TestListSkipsDevicesWithoutID(t *testing.T) {
-	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		writeDevices(t, w, "", device("", "SERIAL-1", "A"), device("id-2", "SERIAL-2", "B"))
-	})
-
-	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.NoError(t, err)
-	require.Len(t, devices, 1)
-	assert.Equal(t, "id-2", devices[0].ID)
-}
-
-func TestListMaxLengthGroupTag(t *testing.T) {
-	maxTag := strings.Repeat("a", 2048)
-	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		writeDevices(t, w, "", device("id-1", "SERIAL-1", maxTag))
-	})
-
-	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.NoError(t, err)
-	require.Len(t, devices, 1)
-	assert.Len(t, devices[0].GroupTag, 2048, "Intune's maximum group tag must survive intact")
-	assert.Equal(t, maxTag, devices[0].GroupTag)
 }
 
 func TestListClassifiesErrors(t *testing.T) {
@@ -262,8 +293,7 @@ func TestListClassifiesErrors(t *testing.T) {
 			wantPerm: true, wantCode: "Forbidden",
 		},
 		{
-			// ...while directory endpoints answer the same cause with a different code. Classification keys on the
-			// status precisely so both land in the same bucket.
+			// ...while directory endpoints answer the same cause with a different code.
 			name: "forbidden directory", status: http.StatusForbidden,
 			body:     `{"error":{"code":"Authorization_RequestDenied","message":"Insufficient privileges."}}`,
 			wantPerm: true, wantCode: "Authorization_RequestDenied",
@@ -314,8 +344,7 @@ func TestVerifyCredential(t *testing.T) {
 			writeDevices(t, w, "", device("id-1", "SERIAL-1", "A"))
 		})
 		require.NoError(t, gs.client(t).VerifyCredential(t.Context()))
-		// Verification must stay cheap: one request, and one device rather than a full page. A 100k-device tenant
-		// would otherwise transfer a page of JSON on an interactive config write.
+		// Verification must stay cheap: one request, and one device rather than a full page.
 		assert.Equal(t, int32(1), gs.graphRequests.Load())
 		assert.Equal(t, strconv.Itoa(verifyPageSize), gotTop)
 		assert.Equal(t, 1, verifyPageSize)
@@ -340,27 +369,6 @@ func TestVerifyCredential(t *testing.T) {
 		require.True(t, ok)
 		assert.True(t, graphErr.IsPermissionError())
 	})
-}
-
-func TestTokenAcquisitionFailureSurfaces(t *testing.T) {
-	// A wrong or expired client secret fails at the token endpoint, before Graph is ever reached. The error has to
-	// reach the caller rather than being swallowed as an empty device list, which would look like "tenant has no
-	// devices" and silently delete pending hosts downstream.
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"error":"invalid_client","error_description":"AADSTS7000215: Invalid client secret provided."}`))
-	}))
-	t.Cleanup(srv.Close)
-
-	c, err := newClientWithHosts(&fleet.MicrosoftGraphCredential{
-		TenantID: testTenantID, ClientID: testClientID, ClientSecret: "wrong",
-	}, srv.URL, srv.URL)
-	require.NoError(t, err)
-
-	_, err = c.ListWindowsAutopilotDevices(t.Context())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "AADSTS7000215")
 }
 
 // A next link is a URL chosen by the remote service, and the oauth2 transport attaches the access token to whatever we
@@ -397,19 +405,13 @@ func TestListRejectsRelativeNextLink(t *testing.T) {
 // A wrong or expired client secret fails at Entra's token endpoint, before Graph is reached, so it never becomes a
 // Graph response. It still has to classify as an auth failure, or the admin is told it's a connection problem.
 func TestTokenEndpointInvalidClientClassifiesAsAuthError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	c := newSingleHostClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"error":"invalid_client","error_description":"AADSTS7000215: Invalid client secret provided."}`))
-	}))
-	t.Cleanup(srv.Close)
+	})
 
-	c, err := newClientWithHosts(&fleet.MicrosoftGraphCredential{
-		TenantID: testTenantID, ClientID: testClientID, ClientSecret: "wrong",
-	}, srv.URL, srv.URL)
-	require.NoError(t, err)
-
-	_, err = c.ListWindowsAutopilotDevices(t.Context())
+	_, err := c.ListWindowsAutopilotDevices(t.Context())
 	require.Error(t, err)
 
 	graphErr, ok := errors.AsType[*Error](err)
@@ -421,23 +423,20 @@ func TestTokenEndpointInvalidClientClassifiesAsAuthError(t *testing.T) {
 	assert.Contains(t, graphErr.Message, "AADSTS7000215")
 }
 
-// Token acquisition must inherit the caller's context. clientcredentials.Config.Client bakes the context into its
-// token source, so a client built once at construction would fetch tokens under a background context and keep waiting
-// after the caller had cancelled.
+// Token acquisition must inherit the caller's context.
 func TestTokenAcquisitionHonorsCallerContext(t *testing.T) {
 	release := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Hang the token endpoint until the test releases it.
+	// defer, not t.Cleanup: cleanups run LIFO, so the server's Close would run first and block forever waiting on a
+	// handler that is itself blocked on this channel. A deferred close runs before any cleanup and breaks that
+	// deadlock, which matters precisely when the test fails and you want a readable failure instead of a hang.
+	defer close(release)
+
+	c := newSingleHostClient(t, func(w http.ResponseWriter, r *http.Request) {
+		// Hang the token endpoint until the test returns.
 		<-release
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"access_token":"t","token_type":"Bearer","expires_in":3599}`))
-	}))
-	t.Cleanup(func() { close(release); srv.Close() })
-
-	c, err := newClientWithHosts(&fleet.MicrosoftGraphCredential{
-		TenantID: testTenantID, ClientID: testClientID, ClientSecret: testSecret,
-	}, srv.URL, srv.URL)
-	require.NoError(t, err)
+	})
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -448,7 +447,7 @@ func TestTokenAcquisitionHonorsCallerContext(t *testing.T) {
 	select {
 	case err := <-done:
 		require.Error(t, err, "a cancelled caller must abort the pending token fetch")
-	case <-time.After(10 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("token acquisition ignored the cancelled caller context and kept waiting")
 	}
 }
@@ -473,9 +472,7 @@ func TestListMintsOneTokenPerOperation(t *testing.T) {
 	assert.Equal(t, int32(1), gs.tokenRequests.Load(), "all pages must share one token")
 }
 
-// The page size is sent explicitly rather than relying on Graph's default, because the number of round trips for a
-// 100k-device tenant depends entirely on it: ~100 requests at 1000/page versus ~1000 at an unpinned default of 100,
-// which would exceed maxPages and risk throttling.
+// The page size is sent explicitly rather than relying on Graph's default.
 func TestListRequestsExplicitPageSize(t *testing.T) {
 	var gotTop string
 	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -492,8 +489,7 @@ func TestListRequestsExplicitPageSize(t *testing.T) {
 }
 
 // Empty pages carrying a non-empty nextLink are the one loop shape the identical-URL guard cannot see, because the URL
-// keeps changing. The no-progress guard has to catch it, and has to catch it immediately: before this was tightened the
-// walk ran all the way to maxPages, making 1000 requests against Graph before giving up.
+// keeps changing. The no-progress guard has to catch it.
 func TestListFailsFastOnEmptyPagesWithAdvancingCursor(t *testing.T) {
 	var gs *graphServer
 	pages := 0
@@ -509,20 +505,8 @@ func TestListFailsFastOnEmptyPagesWithAdvancingCursor(t *testing.T) {
 	assert.LessOrEqual(t, pages, 2, "must stop on the first unproductive page, not grind to maxPages")
 }
 
-// An empty tenant is a valid configuration, not a loop: no devices and no nextLink returns cleanly.
-func TestListEmptyTenantIsNotAnError(t *testing.T) {
-	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
-		writeDevices(t, w, "")
-	})
-
-	devices, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
-	require.NoError(t, err)
-	assert.Empty(t, devices)
-}
-
 func TestErrorUnwrapsUnderlyingCause(t *testing.T) {
-	// A token-endpoint failure must keep the oauth2 error reachable. Discarding it would make errors.Is/As against
-	// anything in the oauth2 chain fail, and lose detail beyond the fields we copy out.
+	// A token-endpoint failure must keep the oauth2 error reachable.
 	retrieveErr := &oauth2.RetrieveError{
 		ErrorCode:        "invalid_client",
 		ErrorDescription: "AADSTS7000215: Invalid client secret provided.",
@@ -534,7 +518,8 @@ func TestErrorUnwrapsUnderlyingCause(t *testing.T) {
 	assert.True(t, graphErr.IsAuthError())
 
 	var gotRetrieve *oauth2.RetrieveError
-	require.True(t, errors.As(wrapped, &gotRetrieve), "the oauth2 cause must survive wrapping")
+	require.ErrorAs(t, wrapped, &gotRetrieve, "the oauth2 cause must survive wrapping")
+	require.NotNil(t, gotRetrieve)
 	assert.Equal(t, "invalid_client", gotRetrieve.ErrorCode)
 }
 
