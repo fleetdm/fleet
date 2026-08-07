@@ -64,12 +64,14 @@ type sqlStatements struct {
 }
 
 type options struct {
-	checkout string
-	branch   string
-	output   string
-	dryRun   bool
-	apply    bool
-	verbose  bool
+	checkout    string
+	branch      string
+	sinceCommit string
+	commit      string
+	output      string
+	dryRun      bool
+	apply       bool
+	verbose     bool
 
 	dbHost     string
 	dbPort     int
@@ -130,6 +132,8 @@ func newRootCmd(opts *options) *cobra.Command {
 	cmd.PersistentFlags().String("config", "", "Path to a Fleet configuration file")
 	cmd.Flags().StringVarP(&opts.checkout, "checkout", "c", ".", "Path to fleetdm/fleet git checkout")
 	cmd.Flags().StringVarP(&opts.branch, "branch", "b", "", "Branch name")
+	cmd.Flags().StringVarP(&opts.sinceCommit, "since-commit", "", "", "Scan main from this commit forward (hash or short ref)")
+	cmd.Flags().StringVarP(&opts.commit, "commit", "", "", "Inspect a single commit for renames")
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "Write SQL to file instead of stdout")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Connect to MySQL, simulate the SQL, and verify the final state")
 	cmd.Flags().BoolVar(&opts.apply, "apply", false, "Execute SQL against the database in a transaction")
@@ -177,8 +181,8 @@ func hideUnneededFleetConfigFlags(cmd *cobra.Command) {
 }
 
 func run(ctx context.Context, configManager configpkg.Manager, opts options) error {
-	if opts.branch == "" {
-		return exitError{code: exitGeneral, message: "ERROR: --branch is required"}
+	if countModeFlags(opts) != 1 {
+		return exitError{code: exitGeneral, message: "ERROR: exactly one of --branch, --since-commit, or --commit is required"}
 	}
 	if opts.dryRun && opts.apply {
 		return exitError{code: exitGeneral, message: "ERROR: --dry-run and --apply are mutually exclusive"}
@@ -205,43 +209,87 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 		return exitError{code: exitGeneral, message: err.Error()}
 	}
 
-	branch, err := resolveBranch(checkout, opts.branch)
-	if err != nil {
-		return exitError{code: exitGeneral, message: err.Error()}
-	}
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "Resolved branch: %s\n", branch)
-	}
-
-	mergeBase, err := getMergeBase(checkout, branch)
-	if err != nil {
-		return exitError{code: exitGeneral, message: err.Error()}
-	}
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "Merge base: %s\n", mergeBase)
-	}
-
-	commits, err := findRenameCommits(checkout, branch, mergeBase)
-	if err != nil {
-		return exitError{code: exitGeneral, message: err.Error()}
-	}
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "Rename commits found: %d\n", len(commits))
-	}
-
 	var renames []migrationRename
-	for _, sha := range commits {
-		rs, err := extractRenames(checkout, sha)
+	if opts.branch != "" {
+		branch, err := resolveBranch(checkout, opts.branch)
 		if err != nil {
 			return exitError{code: exitGeneral, message: err.Error()}
 		}
 		if opts.verbose {
-			fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(sha), len(rs))
+			fmt.Fprintf(os.Stderr, "Resolved branch: %s\n", branch)
 		}
-		renames = append(renames, rs...)
+
+		mergeBase, err := getMergeBase(checkout, branch)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Merge base: %s\n", mergeBase)
+		}
+
+		commits, err := findRenameCommits(checkout, branch, mergeBase)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Rename commits found: %d\n", len(commits))
+		}
+
+		for _, sha := range commits {
+			rs, err := extractRenames(checkout, sha)
+			if err != nil {
+				return exitError{code: exitGeneral, message: err.Error()}
+			}
+			if opts.verbose {
+				fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(sha), len(rs))
+			}
+			renames = append(renames, rs...)
+		}
+	} else if opts.sinceCommit != "" {
+		resolvedSHA, err := resolveRef(checkout, opts.sinceCommit)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Resolved since-commit: %s\n", resolvedSHA)
+		}
+
+		commits, err := findRenameCommits(checkout, "origin/main", resolvedSHA)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Rename commits found: %d\n", len(commits))
+		}
+
+		for _, sha := range commits {
+			rs, err := extractRenames(checkout, sha)
+			if err != nil {
+				return exitError{code: exitGeneral, message: err.Error()}
+			}
+			if opts.verbose {
+				fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(sha), len(rs))
+			}
+			renames = append(renames, rs...)
+		}
+	} else if opts.commit != "" {
+		resolvedSHA, err := resolveRef(checkout, opts.commit)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Resolved commit: %s\n", resolvedSHA)
+		}
+
+		rs, err := extractRenames(checkout, resolvedSHA)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		renames = rs
 	}
+
 	if len(renames) == 0 {
-		fmt.Println("No migration renumbering detected on this branch.")
+		fmt.Println("No migration renumbering detected in the selected scope.")
 		return nil
 	}
 	renames = dedupeRenames(renames)
@@ -347,6 +395,28 @@ func git(checkout string, args ...string) (string, error) {
 		return "", fmt.Errorf("git %s failed: %w", strings.Join(args, " "), err)
 	}
 	return string(out), nil
+}
+
+func countModeFlags(opts options) int {
+	n := 0
+	if opts.branch != "" {
+		n++
+	}
+	if opts.sinceCommit != "" {
+		n++
+	}
+	if opts.commit != "" {
+		n++
+	}
+	return n
+}
+
+func resolveRef(checkout, ref string) (string, error) {
+	out, err := git(checkout, "rev-parse", "--verify", ref+"^{commit}")
+	if err != nil {
+		return "", fmt.Errorf("cannot resolve ref %q: %w", ref, err)
+	}
+	return strings.TrimSpace(out), nil
 }
 
 func resolveBranch(checkout, branch string) (string, error) {
