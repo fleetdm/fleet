@@ -3,6 +3,7 @@ package ide
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
@@ -32,8 +33,15 @@ func TestScanVSCodeFamily(t *testing.T) {
 	write(t, filepath.Join(extDir, ".obsolete"), `{"old.ext-0.0.1": true}`)
 
 	got := Scan(homes.Home{Dir: home, Username: "tester"})
+	// Scan also reports extensions bundled inside applications installed on the
+	// host, which is outside this fixture. Keep only rows from the fake home so
+	// the assertions below don't depend on what the machine has installed —
+	// TestScanVSCodeBuiltins covers the bundled path with its own fixture.
 	by := map[string]Plugin{}
 	for _, p := range got {
+		if !strings.HasPrefix(p.InstallPath, home) {
+			continue
+		}
 		by[p.PluginID] = p
 	}
 
