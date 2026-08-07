@@ -81,15 +81,32 @@ foreach ($key in $uninstallKeys) {
             $deadline = (Get-Date).AddSeconds(300)
             do {
                 Start-Sleep -Seconds 5
-                $stillInstalled = Get-ChildItem `
-                    -Path @($machineKey, $machineKey32on64) `
-                    -ErrorAction SilentlyContinue |
-                        ForEach-Object { Get-ItemProperty $_.PSPath } |
-                        Where-Object { $_.DisplayName -like $softwareNameLike }
+                # Fail closed: only an enumeration that actually succeeds may
+                # be read as proof of removal. If the query itself fails, the
+                # empty result says nothing about whether Evernote is gone,
+                # so keep the previous "still installed" answer rather than
+                # reporting a successful uninstall. Individual keys are still
+                # read leniently: the uninstaller deletes keys while we walk
+                # them, and those transient misses resolve on the next pass.
+                $stillInstalled = $true
+                try {
+                    $stillInstalled = [bool](Get-ChildItem `
+                        -Path @($machineKey, $machineKey32on64) `
+                        -ErrorAction Stop |
+                            ForEach-Object {
+                                Get-ItemProperty $_.PSPath `
+                                    -ErrorAction SilentlyContinue
+                            } |
+                            Where-Object {
+                                $_.DisplayName -like $softwareNameLike
+                            })
+                } catch {
+                    Write-Host "Could not query the uninstall registry: $_"
+                }
             } while ($stillInstalled -and (Get-Date) -lt $deadline)
 
             if ($stillInstalled) {
-                Write-Host "'$softwareName' is still registered after waiting."
+                Write-Host "Could not confirm '$softwareName' was removed."
                 $exitCode = 1
             } else {
                 Write-Host "'$softwareName' was removed."
