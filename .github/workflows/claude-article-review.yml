@@ -25,7 +25,7 @@ jobs:
           fetch-depth: 0 # full history so `git diff` against main works, as the formatting skills expect
           persist-credentials: false
 
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@c038e4dcdedfbbca18dfb17df35a17e40ded4ddc # v1.0
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           use_sticky_comment: true
