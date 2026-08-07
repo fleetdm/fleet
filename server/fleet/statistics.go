@@ -21,6 +21,11 @@ type StatisticsPayload struct {
 	NumSoftwareCVEs                int    `json:"numSoftwareCVEs"`
 	NumTeams                       int    `json:"numTeams"` //nolint:apiparamcheck // don't want to break analytics ingestion
 	NumPolicies                    int    `json:"numPolicies"`
+	// NumPoliciesAutomationEnabledSoftware is the number of policies with a software
+	// automation, using the same definition as the public automation_type=software
+	// filter: the policy installs software, or it is a patch policy. Kept in sync with
+	// policiesSoftwareAutomationClause in server/datastore/mysql/policies.go.
+	NumPoliciesAutomationEnabledSoftware int `json:"numPoliciesAutomationEnabledSoftware"`
 	NumQueries                     int    `json:"numQueries"` //nolint:apiparamcheck // don't want to break analytics ingestion
 	NumLabels                      int    `json:"numLabels"`
 	SoftwareInventoryEnabled       bool   `json:"softwareInventoryEnabled"`
@@ -63,10 +68,10 @@ type StatisticsPayload struct {
 	GoogleWorkspaceConfigured bool `json:"googleWorkspaceConfigured"`
 	// The number of hosts with Fleet desktop installed.
 	NumHostsFleetDesktopEnabled int `json:"numHostsFleetDesktopEnabled"`
-	// FleetMaintainedAppsMacOS is an array of Fleet-maintained app slugs being used on macOS
-	FleetMaintainedAppsMacOS []string `json:"fleetMaintainedAppsMacOS,omitempty"`
-	// FleetMaintainedAppsWindows is an array of Fleet-maintained app slugs being used on Windows
-	FleetMaintainedAppsWindows []string `json:"fleetMaintainedAppsWindows,omitempty"`
+	// FleetMaintainedAppsMacOS is the set of Fleet-maintained apps being used on macOS
+	FleetMaintainedAppsMacOS []FleetMaintainedAppUsage `json:"fleetMaintainedAppsMacOS,omitempty"`
+	// FleetMaintainedAppsWindows is the set of Fleet-maintained apps being used on Windows
+	FleetMaintainedAppsWindows []FleetMaintainedAppUsage `json:"fleetMaintainedAppsWindows,omitempty"`
 
 	// ConditionalAccessEnabled indicates whether any team has conditional access enabled.
 	ConditionalAccessEnabled bool `json:"conditionalAccessEnabled"`
@@ -87,6 +92,18 @@ type StatisticsPayload struct {
 	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
 	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM
 	NumHostsFleetMDMEnrolledWindows int `json:"numHostsFleetMDMEnrolledWindows"`
+}
+
+// FleetMaintainedAppUsage reports a Fleet-maintained app in use, whether a patch policy
+// covers it, and whether that patch policy carries a software automation.
+//
+// The patch policy is matched on the app's software title, so two slugs that share a title
+// (Firefox GA and ESR) report the same patch policy.
+type FleetMaintainedAppUsage struct {
+	// Name is the Fleet-maintained app slug, e.g. "1password/darwin".
+	Name               string `json:"name" db:"name"`
+	PatchPolicy        bool   `json:"patchPolicy" db:"patch_policy"`
+	SoftwareAutomation bool   `json:"softwareAutomation" db:"software_automation"`
 }
 
 type HostsCountByOrbitVersion struct {

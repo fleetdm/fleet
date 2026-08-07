@@ -70,6 +70,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount policies")
 		}
+		amountPoliciesAutomationEnabledSoftware, err := amountPoliciesAutomationEnabledSoftwareDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount policies with software automation")
+		}
 		amountLabels, err := amountLabelsDB(ctx, ds.reader(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount labels")
@@ -130,6 +134,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumSoftwareCVEs = amountSoftwareCves
 		stats.NumTeams = amountTeams
 		stats.NumPolicies = amountPolicies
+		stats.NumPoliciesAutomationEnabledSoftware = amountPoliciesAutomationEnabledSoftware
 		stats.NumLabels = amountLabels
 		stats.SoftwareInventoryEnabled = appConfig.Features.EnableSoftwareInventory
 		stats.VulnDetectionEnabled = config.Vulnerabilities.DatabasesPath != "" || appConfig.VulnerabilitySettings.DatabasesPath != ""
@@ -290,35 +295,50 @@ func (ds *Datastore) getTableRowCountsViaInformationSchema(ctx context.Context) 
 	return byName, nil
 }
 
-// fleetMaintainedAppsInUseDB returns arrays of Fleet-maintained app slugs grouped by platform (darwin for macOS, windows for Windows)
-func fleetMaintainedAppsInUseDB(ctx context.Context, db sqlx.QueryerContext) (macOSApps []string, windowsApps []string, err error) {
+// fleetMaintainedAppsInUseDB returns the Fleet-maintained apps in use grouped by platform
+// (darwin for macOS, windows for Windows), along with whether a patch policy covers each app
+// and whether that patch policy carries a software automation.
+func fleetMaintainedAppsInUseDB(ctx context.Context, db sqlx.QueryerContext) (macOSApps []fleet.FleetMaintainedAppUsage, windowsApps []fleet.FleetMaintainedAppUsage, err error) {
+	// One slug backs several software_installers rows (one per team, plus cached versions), so
+	// aggregate per slug: without the GROUP BY, rows whose booleans differ by team would emit
+	// the same slug more than once.
 	const query = `
-		SELECT DISTINCT fma.slug, fma.platform
+		SELECT
+			fma.slug AS name,
+			fma.platform,
+			MAX(p.id IS NOT NULL) AS patch_policy,
+			MAX(p.id IS NOT NULL AND (p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL)) AS software_automation
 		FROM software_installers si
 		INNER JOIN fleet_maintained_apps fma ON si.fleet_maintained_app_id = fma.id
+		LEFT JOIN policies p
+			ON p.patch_software_title_id = si.title_id
+			AND p.type = ?
+			AND si.global_or_team_id = COALESCE(p.team_id, 0)
 		WHERE si.fleet_maintained_app_id IS NOT NULL AND fma.platform IN ('darwin', 'windows')
+		GROUP BY fma.slug, fma.platform
 		ORDER BY fma.platform, fma.slug
 	`
 
 	type appResult struct {
-		Slug     string `db:"slug"`
+		fleet.FleetMaintainedAppUsage
 		Platform string `db:"platform"`
 	}
 
 	var results []appResult
-	if err := sqlx.SelectContext(ctx, db, &results, query); err != nil {
+	if err := sqlx.SelectContext(ctx, db, &results, query, fleet.PolicyTypePatch); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "selecting fleet maintained apps in use")
 	}
 
 	// Initialize as empty slices (not nil) so they serialize as [] instead of null
-	macOSApps = make([]string, 0)
-	windowsApps = make([]string, 0)
+	macOSApps = make([]fleet.FleetMaintainedAppUsage, 0)
+	windowsApps = make([]fleet.FleetMaintainedAppUsage, 0)
 
 	for _, app := range results {
-		if app.Platform == "darwin" {
-			macOSApps = append(macOSApps, app.Slug)
-		} else if app.Platform == "windows" {
-			windowsApps = append(windowsApps, app.Slug)
+		switch app.Platform {
+		case "darwin":
+			macOSApps = append(macOSApps, app.FleetMaintainedAppUsage)
+		case "windows":
+			windowsApps = append(windowsApps, app.FleetMaintainedAppUsage)
 		}
 	}
 
