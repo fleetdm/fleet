@@ -26,13 +26,11 @@ Make only the change required to resolve the urgent issue. Since this change isn
 
 As soon as you can, commit the same change to your GitOps repository. This keeps your repository and your live Fleet instance in sync, so the next GitOps run doesn't undo the fix you just made.
 
-> **Note:** If CI is still down, you can commit the change to your repository now and run `fleetctl gitops` manually once you're able to, or wait until CI recovers. Either way, don't turn GitOps mode back on until the repository reflects the change.
+> **Note:** If CI is still down, you can commit the change to your repository now and run `fleetctl gitops` manually once you're able to, or wait until CI recovers.
 
 ## Verify GitOps is applying successfully
 
 Before you turn GitOps mode back on, confirm that a GitOps run has completed successfully with your mirrored change, either through CI or by running `fleetctl gitops` manually. Check the run's output for errors, and confirm the change is still in place in the Fleet UI.
-
-If the run didn't succeed, leave GitOps mode off until it does. You can always turn it back on once you've confirmed the pipeline is working again.
 
 ## Turn GitOps mode back on
 
