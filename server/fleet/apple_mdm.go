@@ -1082,9 +1082,9 @@ const MDMAppleActivationTypePrefix = "com.apple.activation."
 type MDMAppleActivationAction int
 
 const (
-	// MDMAppleActivationLeave leaves any stored activation untouched, including
-	// its Fleet variable associations.
-	MDMAppleActivationLeave MDMAppleActivationAction = iota
+	// MDMAppleActivationKeep keeps the currently stored activation untouched,
+	// including its Fleet variable associations.
+	MDMAppleActivationKeep MDMAppleActivationAction = iota
 	// MDMAppleActivationApply writes declaration.Activation, removing the stored
 	// one when it is nil.
 	MDMAppleActivationApply

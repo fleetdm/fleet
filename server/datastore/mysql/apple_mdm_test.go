@@ -95,7 +95,7 @@ func TestMDMApple(t *testing.T) {
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
 		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
 		{"MDMAppleCustomActivations", testMDMAppleCustomActivations},
-		{"MDMAppleActivationLeaveIsUntouched", testMDMAppleActivationLeaveIsUntouched},
+		{"MDMAppleActivationKeepLeavesItUntouched", testMDMAppleActivationKeepLeavesItUntouched},
 		{"MDMAppleBatchCustomActivations", testMDMAppleBatchCustomActivations},
 		{"NewMDMAppleDeclarationSoftwareUpdateTracking", testNewMDMAppleDeclarationSoftwareUpdateTracking},
 		{"SetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking", testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking},
@@ -14079,7 +14079,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 	require.Zero(t, varCount)
 }
 
-func testMDMAppleActivationLeaveIsUntouched(t *testing.T, ds *Datastore) {
+func testMDMAppleActivationKeepLeavesItUntouched(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	declRaw := []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.leave-test","Payload":{"Echo":"foo"}}`)
@@ -14119,7 +14119,7 @@ func testMDMAppleActivationLeaveIsUntouched(t *testing.T, ds *Datastore) {
 		Identifier: "com.fleet.leave-test",
 		Name:       "leave-test",
 		RawJSON:    []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.leave-test","Payload":{"Echo":"bar"}}`),
-	}, nil, fleet.MDMAppleActivationLeave)
+	}, nil, fleet.MDMAppleActivationKeep)
 	require.NoError(t, err)
 
 	var after struct {

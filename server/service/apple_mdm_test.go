@@ -1538,7 +1538,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		require.NotNil(t, updated)
 		// The datastore is told to leave it alone rather than being handed a copy,
 		// so nothing can drop it or its variable associations.
-		assert.Equal(t, fleet.MDMAppleActivationLeave, gotAction,
+		assert.Equal(t, fleet.MDMAppleActivationKeep, gotAction,
 			"labels-only edit must not touch the activation")
 	})
 
@@ -1566,7 +1566,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, updated)
-		assert.Equal(t, fleet.MDMAppleActivationLeave, gotAction,
+		assert.Equal(t, fleet.MDMAppleActivationKeep, gotAction,
 			"an edit that doesn't mention the activation must leave it alone")
 	})
 

@@ -1286,10 +1286,10 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		decl.LabelsExcludeAny = excludeLabels
 	}
 
-	// Three states: an edit that doesn't mention the activation leaves the stored
-	// one alone, an empty one removes it, and content replaces it. The datastore
-	// write is a full replace, so "leave alone" has to be said explicitly.
-	activationAction := fleet.MDMAppleActivationLeave
+	// Three states: an edit that doesn't mention the activation keeps the stored
+	// one, an empty one removes it, and content replaces it. The datastore write
+	// is a full replace, so keeping it has to be said explicitly.
+	activationAction := fleet.MDMAppleActivationKeep
 	if activationSet {
 		activationAction = fleet.MDMAppleActivationApply
 		if len(activation) > 0 {
