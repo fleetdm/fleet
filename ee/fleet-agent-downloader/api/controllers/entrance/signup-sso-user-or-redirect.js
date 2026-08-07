@@ -28,6 +28,10 @@ module.exports = {
     }
 
     let ssoUserInfo = this.req.session.passport.user.userinfo;
+    if (!ssoUserInfo || !ssoUserInfo.email || !ssoUserInfo.name) {
+      sails.log.warn('SSO login missing required userinfo claims (email/name).');
+      throw {redirect: '/login'};
+    }
     let possibleUserRecordForThisSsoUser = await User.findOne({emailAddress: ssoUserInfo.email});
 
     if(possibleUserRecordForThisSsoUser) {
