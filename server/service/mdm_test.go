@@ -1982,6 +1982,27 @@ func TestUpdateMDMConfigProfileDecodeActivationFile(t *testing.T) {
 		require.NotNil(t, decoded.Activation)
 	})
 
+	t.Run("a file and a value together are rejected", func(t *testing.T) {
+		// Contradictory: one says replace, the other says remove. Picking either
+		// silently would be a guess.
+		var buf bytes.Buffer
+		w := multipart.NewWriter(&buf)
+		fw, err := w.CreateFormFile("activation", "activation.json")
+		require.NoError(t, err)
+		_, err = fw.Write([]byte(`{"Type":"com.apple.activation.simple"}`))
+		require.NoError(t, err)
+		require.NoError(t, w.WriteField("activation", ""))
+		require.NoError(t, w.Close())
+
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
+		req.Header.Set("Content-Type", w.FormDataContentType())
+		req = mux.SetURLVars(req, map[string]string{"profile_uuid": "abc-123"})
+
+		_, err = updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), ActivationConflictingPartsErrorMsg)
+	})
+
 	t.Run("a zero-byte file is rejected", func(t *testing.T) {
 		// Otherwise a failed upload silently deletes the stored activation.
 		// Removal has to go through the explicit empty field.

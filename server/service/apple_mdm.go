@@ -69,6 +69,7 @@ const (
 	ActivationUnsupportedProfileErrorMsg    = "Activations are only supported for declaration (DDM) profiles."
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
 	ActivationEmptyFileErrorMsg             = "Activation must contain a declaration. To remove the activation, send an empty activation field."
+	ActivationConflictingPartsErrorMsg      = "Send either an activation file to replace it or an empty activation field to remove it, not both."
 )
 
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,

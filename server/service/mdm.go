@@ -1934,7 +1934,18 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 	// that empty value, since anything else is more likely a malformed upload
 	// than a request to delete.
 	// Enforced by the service, which resolves the profile type from its UUID.
+	// Text values are checked first so a request that carries both a file and a
+	// value is rejected rather than silently resolved in favour of one of them.
+	activationValues, hasActivationValue := r.MultipartForm.Value["activation"]
+	for _, v := range activationValues {
+		if strings.TrimSpace(v) != "" {
+			return nil, fleet.NewInvalidArgumentError("activation", ActivationEmptyFileErrorMsg)
+		}
+	}
 	if fhs, ok := r.MultipartForm.File["activation"]; ok && len(fhs) > 0 {
+		if hasActivationValue {
+			return nil, fleet.NewInvalidArgumentError("activation", ActivationConflictingPartsErrorMsg)
+		}
 		decoded.Activation = fhs[0]
 		decoded.ActivationSet = true
 		switch {
@@ -1943,12 +1954,7 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 		case decoded.Activation.Size > fleet.MaxProfileSize:
 			return nil, fleet.NewInvalidArgumentError("activation", fleet.MaxProfileSizeErrMsg)
 		}
-	} else if vals, ok := r.MultipartForm.Value["activation"]; ok {
-		for _, v := range vals {
-			if strings.TrimSpace(v) != "" {
-				return nil, fleet.NewInvalidArgumentError("activation", ActivationEmptyFileErrorMsg)
-			}
-		}
+	} else if hasActivationValue {
 		decoded.ActivationSet = true
 	}
 
