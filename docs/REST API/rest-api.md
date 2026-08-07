@@ -1810,7 +1810,11 @@ None.
     "windows_entra_client_ids": [
       "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
-    "windows_entra_graph_api_token": "********",
+    "microsoft_graph_credentials": {
+      "tenant_id": 4e342a0d-ec1a-4353-bdeb-785542e0a8fb,
+      "client_id": 122349c0-9b2c-4d3e-8f10-aabbccddeeff,
+      "client_secret": $MICROSOFT_GRAPH_CLIENT_SECRET
+    },
     "enable_turn_on_windows_mdm_manually": false,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
@@ -2187,7 +2191,11 @@ Modifies the Fleet's configuration with the supplied information.
     "windows_entra_client_ids": [
       "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
-    "windows_entra_graph_api_token": "********",
+    "microsoft_graph_credentials": {
+      "tenant_id": 4e342a0d-ec1a-4353-bdeb-785542e0a8fb,
+      "client_id": 122349c0-9b2c-4d3e-8f10-aabbccddeeff,
+      "client_secret": $MICROSOFT_GRAPH_CLIENT_SECRET
+    },
     "enable_turn_on_windows_mdm_manually": false,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
@@ -2850,7 +2858,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
-| windows_entra_graph_api_token     | string | _Available in Fleet Premium._ Microsoft Graph API client secret used to authenticate requests to Microsoft Graph API to sync Windows Autopilot devices as pending hosts in Fleet. Set this when you use Windows Autopilot: Fleet uses it to query Microsoft Graph for Autopilot-registered devices so they appear in Fleet before they enroll. Find your **Client secret** on [**Microsoft Entra ID > App registrations > your MDM application > Certificates & secrets > New client secret**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade). Masked as "********" in `GET` responses. |
+| microsoft_graph_credentials     | object | See [`mdm.microsoft_graph_credentials`](#mdm-microsoft-graph-credentials). |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
@@ -2869,6 +2877,24 @@ When updating conditional access config, all `conditional_access` fields must ei
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
 > Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, macOS Apple Silicon hosts will not be able to enroll.
+
+<br/>
+
+##### mdm.microsoft_graph_credentials
+
+_Available in Fleet Premium._
+
+`mdm.microsoft_graph_credentials` is a list of Microsoft Graph API client credentials used to authenticate requests to the Microsoft Graph API. Fleet uses these to sync Windows Autopilot-registered devices so they appear as pending hosts before they enroll.
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| tenant_id                   | string  | The Microsoft Entra tenant ID. Must match one of the `windows_entra_tenant_ids` above (default: `""`). |
+| client_id                          | string  | The application (client) ID of the Entra app registration (default: `""`). |
+| client_secret                          | string  | The client secret for the Entra app registration (default: `""`). |
+
+> Can only be configured for "All fleets" (`default.yml`). Configure this in
+**Settings > Integrations > MDM > Microsoft Entra**. Find your credentials on
+[Microsoft Entra ID > App registrations > your MDM application](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
 
 <br/>
 
