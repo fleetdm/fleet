@@ -1206,7 +1206,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 50, finalConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 }
 
-
 func testTeamLitesByIDs(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "lites-a"})
