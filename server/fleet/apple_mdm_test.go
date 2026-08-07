@@ -1282,6 +1282,32 @@ func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
 			wantErr:     true,
 			errContains: `Expected "com.fleet.cfg.passcode", got "com.fleet.cfg.firewall".`,
 		},
+		{
+			name: "valid predicate",
+			activation: withPredicate(rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
+				configIdentifier), `@status(device.model.family) == "Mac"`),
+		},
+		{
+			// Fleet variables are expanded at delivery, after this validation
+			// runs; unexpanded they parse as NSPredicate $variables.
+			name: "predicate with an unexpanded Fleet variable",
+			activation: withPredicate(rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
+				configIdentifier), `@property(host_uuid) == '$FLEET_VAR_HOST_UUID'`),
+		},
+		{
+			name: "malformed predicate",
+			activation: withPredicate(rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
+				configIdentifier), `@status(device.model.family) ==`),
+			wantErr:     true,
+			errContains: "invalid predicate",
+		},
+		{
+			name: "explicitly empty predicate",
+			activation: withPredicate(rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
+				configIdentifier), ""),
+			wantErr:     true,
+			errContains: "empty predicate",
+		},
 	}
 
 	for _, c := range cases {
@@ -1312,5 +1338,10 @@ func rawActivation(declType, identifier string, standardConfigurations ...string
 	act.Type = declType
 	act.Identifier = identifier
 	act.Payload.StandardConfigurations = standardConfigurations
+	return act
+}
+
+func withPredicate(act MDMAppleRawActivation, predicate string) MDMAppleRawActivation {
+	act.Payload.Predicate = &predicate
 	return act
 }
