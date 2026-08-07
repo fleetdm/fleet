@@ -896,8 +896,11 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	// ██ THE SHORT CIRCUIT ██ One Redis MGET; zero database reads on a hit.
 	// Gated on a non-empty client etag: an agent that did not opt in (nil)
 	// or holds no validator yet ("") always gets a full build, and can never
-	// be answered "unchanged".
-	if clientETag != nil && *clientETag != "" {
+	// be answered "unchanged". The store != nil guard is technically implied
+	// (mode can only be shared/host when a store was selected above) but is
+	// stated here so the invariant is local — for nilaway, and for anyone
+	// who later reorders the mode selection.
+	if store != nil && clientETag != nil && *clientETag != "" {
 		switch mode {
 		case configETagModeShared:
 			storedETag, valid, err := store.GetValid(ctx, scope, host.Platform)
@@ -965,7 +968,9 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	//     quarantine additionally suppresses publication right after that
 	//     host's own label invalidation (stale membership reads / replica
 	//     lag).
-	if !usedLegacyPacks {
+	// The store != nil guard mirrors the short-circuit gate above: publish
+	// modes imply a store, but the invariant is kept local and provable.
+	if store != nil && !usedLegacyPacks {
 		var (
 			stored     bool
 			publishErr error
