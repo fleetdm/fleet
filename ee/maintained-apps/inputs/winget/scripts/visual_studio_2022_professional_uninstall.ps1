@@ -1,20 +1,13 @@
-# Visual Studio has no normal UninstallString - it's removed through the
-# shared Visual Studio Installer, which needs the specific instance's install
-# path. All three editions (Community/Professional/Enterprise) can be
-# installed side by side on one host, each with its own sibling script, so
-# vswhere is scoped to this edition's product ID only.
-#
-# -version is required as well as -products: product IDs are not version
-# specific, so an unscoped query also matches Visual Studio 2026 (major
-# version 18) and would uninstall the wrong product on a host that has both.
+# Visual Studio has no UninstallString; it's removed through the shared Visual
+# Studio Installer, which needs the specific instance's install path. -version
+# is required as well as -products, since product IDs are not version specific
+# and an unscoped query also matches a side-by-side Visual Studio 2026.
 
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe"
 
 try {
 
-# The Visual Studio Installer is absent, so no edition is installed and there
-# is nothing to remove. Uninstall is idempotent, so report success.
 if (-not (Test-Path $vswhere) -or -not (Test-Path $vsInstaller)) {
   Write-Host "Visual Studio Installer not present, nothing to uninstall"
   Exit 0
@@ -22,9 +15,8 @@ if (-not (Test-Path $vswhere) -or -not (Test-Path $vsInstaller)) {
 
 $installPath = & $vswhere -products Microsoft.VisualStudio.Product.Professional -version "[17.0,18.0)" -property installationPath
 
-# vswhere reports failure through the exit code rather than by throwing. Without
-# this check a failed query looks identical to "no instance installed", and the
-# script would exit 0 leaving an install in place.
+# vswhere reports failure through the exit code rather than by throwing, so
+# without this check a failed query looks like "no instance installed".
 if ($LASTEXITCODE -ne 0) {
   Write-Host "vswhere.exe failed with exit code $LASTEXITCODE"
   Exit 1
@@ -39,12 +31,8 @@ if (-not $installPath) {
 
 Write-Host "Found Visual Studio Professional 2022 at: $installPath"
 
-# The install path always contains spaces, and Start-Process joins an
-# -ArgumentList array with spaces without quoting the elements, so the path
-# has to be quoted here or the installer parses it as several arguments.
-#
-# No --wait either: it's a bootstrapper-only switch and the installer rejects
-# it. Start-Process -Wait already blocks until the uninstall exits.
+# The install path always contains spaces, so it has to be quoted here. No
+# --wait: it's bootstrapper-only, and Start-Process -Wait already blocks.
 $processOptions = @{
   FilePath = $vsInstaller
   ArgumentList = "uninstall --installPath `"$installPath`" --quiet --norestart"
@@ -55,14 +43,11 @@ $processOptions = @{
 $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 
-# 3010/1641: uninstall succeeded but a reboot is pending/was triggered. Fleet
-# treats any nonzero exit as failed, so map these to success.
 if ($exitCode -eq 3010 -or $exitCode -eq 1641) {
   Write-Host "Uninstall exit code: $exitCode (succeeded, reboot required to finish)"
   Exit 0
 }
 
-# 1001/1618: another Visual Studio Installer operation is already running.
 if ($exitCode -eq 1001 -or $exitCode -eq 1618) {
   Write-Host "Uninstall failed: another Visual Studio Installer operation is already in progress (exit code $exitCode)"
   Exit 1
