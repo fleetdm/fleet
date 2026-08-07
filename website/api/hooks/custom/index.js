@@ -139,7 +139,7 @@ will be disabled and/or hidden in the UI.
       // ... Any other app-specific setup code that needs to run on lift,
       // even in production, goes here ...
 
-      // Initialize an Android Management API) request counter. Each android-proxy
+      // Initialize an Android Management API request counter. Each android-proxy
       // endpoint (api/controllers/android-proxy/*) increments this every time it makes a request to
       // Google, and the repeating timer below logs the count and resets it once a minute so we can monitor the number of requests the proxy is making.
       sails.androidProxyApiRequestCount = 0;
