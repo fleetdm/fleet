@@ -95,7 +95,7 @@ Because the task runs inside the user's session, plain `winget.exe` resolves thr
 $WingetArgs = "uninstall --id $StoreId --accept-source-agreements --disable-interactivity"
 ```
 
-Two honest limits come with this approach. It needs somebody logged in, which is reasonable for self-service, since a user is clicking the tile. And the scheduled task's exit code doesn't come back to your script, so the script reports success as long as the task ran, whether or not winget did anything. That second one is why the next section isn't optional.
+There are two limitations to be aware of with this approach. It needs somebody logged in, which is reasonable for self-service, since a user is clicking the tile. And the scheduled task's exit code doesn't come back to your script, so the script reports success as long as the task ran, whether or not winget did anything. That second one is why the next section isn't optional.
 
 ## Verify against the MSIX world, not the registry
 
@@ -137,7 +137,7 @@ Then provision it on the host, which does work as SYSTEM:
 Add-AppxProvisionedPackage -Online -PackagePath .\app.msixbundle -LicensePath .\9WZDNCRFJ3PZ_License.xml
 ```
 
-Two costs come with this. Downloading a Store package's license file [requires Entra ID authentication](https://learn.microsoft.com/en-us/windows/package-manager/winget/download) by an account holding Global Administrator, User Administrator, or License Administrator. And you now have a file to get onto the host, which means a Fleet custom package rather than a script-only one, and the "nothing to host" property of this whole approach is gone. Worth it for a handful of apps everyone needs, not for a self-service catalog.
+There is one important detail to keep in mind with this approach. Downloading a Store package's license file [requires Entra ID authentication](https://learn.microsoft.com/en-us/windows/package-manager/winget/download) by an account holding Global Administrator, User Administrator, or License Administrator. And you now have a file to get onto the host, which means a Fleet custom package rather than a script-only one, and the "nothing to host" property of this whole approach is gone. Worth it for a handful of apps everyone needs, not for a self-service catalog.
 
 ## Wire it into GitOps
 
