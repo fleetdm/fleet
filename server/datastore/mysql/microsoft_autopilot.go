@@ -33,8 +33,7 @@ func (r microsoftGraphCredentialRow) toCredential(secret string) *fleet.Microsof
 	}
 }
 
-// ListMicrosoftGraphCredentials returns every stored Graph credential with its client secret decrypted. Callers that
-// serialize the result must mask the secret first; AppConfig.Obfuscate does this for the config API.
+// ListMicrosoftGraphCredentials returns every stored Graph credential with its client secret decrypted.
 func (ds *Datastore) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
 	const stmt = `
 SELECT tenant_id, client_id, client_secret, credential_invalid, last_synced_at, last_sync_error
@@ -57,12 +56,7 @@ ORDER BY tenant_id`
 	return creds, nil
 }
 
-// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets, and without
-// decrypting anything.
-//
-// The config API uses this rather than ListMicrosoftGraphCredentials because it masks the secret immediately anyway.
-// Decrypting there would be wasted work on a hot path, and worse, it would make a missing or rotated server private
-// key fail the entire GET /config rather than just the credential feature.
+// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets.
 func (ds *Datastore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
 	const stmt = `
 SELECT tenant_id, client_id, credential_invalid, last_synced_at, last_sync_error
@@ -98,12 +92,7 @@ WHERE tenant_id = ?`
 	return row.toCredential(string(secret)), nil
 }
 
-// UpsertMicrosoftGraphCredential stores a credential, encrypting the client secret with the server private key exactly
-// as abm_tokens.token is. The row is keyed on tenant_id, which is the credential's identity: the Autopilot registry is
-// scoped to the tenant rather than to the application, so one credential per tenant is both necessary and sufficient.
-//
-// The sync-status columns are deliberately left alone on update. A config write replaces the credential, not the
-// record of how the last sync went; only the sync itself moves those.
+// UpsertMicrosoftGraphCredential stores a credential, encrypting the client secret with the server private key.
 func (ds *Datastore) UpsertMicrosoftGraphCredential(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
 	encryptedSecret, err := encrypt([]byte(cred.ClientSecret), ds.serverPrivateKey)
 	if err != nil {
@@ -123,8 +112,7 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-// DeleteMicrosoftGraphCredential removes the credential for a tenant. Deleting a credential does not touch that
-// tenant's already-synced hosts; the sync sub-issue owns host removal.
+// DeleteMicrosoftGraphCredential removes the credential for a tenant.
 func (ds *Datastore) DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error {
 	const stmt = `DELETE FROM mdm_microsoft_graph_credentials WHERE tenant_id = ?`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, tenantID); err != nil {
@@ -133,9 +121,7 @@ func (ds *Datastore) DeleteMicrosoftGraphCredential(ctx context.Context, tenantI
 	return nil
 }
 
-// SetMicrosoftGraphCredentialInvalid flips the flag that drives the app-wide "credential needs attention" banner,
-// mirroring SetABMTokenInvalidForOrgName. It reports whether the flag actually changed, so the caller can avoid
-// emitting a notification on every sync cycle while a credential stays broken.
+// SetMicrosoftGraphCredentialInvalid flips the flag that drives the app-wide "credential needs attention" banner.
 func (ds *Datastore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (bool, error) {
 	const stmt = `UPDATE mdm_microsoft_graph_credentials SET credential_invalid = ? WHERE tenant_id = ? AND credential_invalid != ?`
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, invalid, tenantID, invalid)
