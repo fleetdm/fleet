@@ -95,6 +95,7 @@ func TestMDMApple(t *testing.T) {
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
 		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
 		{"MDMAppleCustomActivations", testMDMAppleCustomActivations},
+		{"MDMAppleBatchCustomActivations", testMDMAppleBatchCustomActivations},
 		{"NewMDMAppleDeclarationSoftwareUpdateTracking", testNewMDMAppleDeclarationSoftwareUpdateTracking},
 		{"SetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking", testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking},
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
@@ -14325,4 +14326,81 @@ func testAppleOSUpdateAssets(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, 0, deleted)
 		require.Len(t, listed()["ios"], 1)
 	})
+}
+
+func testMDMAppleBatchCustomActivations(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	declRaw := []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.batch.cfg","Payload":{"Echo":"foo"}}`)
+	actRaw := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.batch.act","Payload":{"StandardConfigurations":["com.fleet.batch.cfg"],"Predicate":"TRUEPREDICATE"}}`)
+
+	decl := func(activation *fleet.MDMAppleCustomActivation) *fleet.MDMAppleDeclaration {
+		return &fleet.MDMAppleDeclaration{
+			Identifier: "com.fleet.batch.cfg",
+			Name:       "batch-cfg",
+			RawJSON:    declRaw,
+			Activation: activation,
+		}
+	}
+	withActivation := func(raw []byte) *fleet.MDMAppleCustomActivation {
+		return &fleet.MDMAppleCustomActivation{
+			Identifier:              "com.fleet.batch.act",
+			RawJSON:                 raw,
+			ConfigurationIdentifier: "com.fleet.batch.cfg",
+		}
+	}
+
+	countActivations := func() int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM mdm_apple_ddm_activations`))
+		return n
+	}
+
+	updates, err := ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(actRaw))}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, updates.AppleDeclaration)
+	require.Equal(t, 1, countActivations())
+
+	var stored []byte
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stored,
+		`SELECT raw_json FROM mdm_apple_ddm_activations WHERE identifier = 'com.fleet.batch.act'`))
+	require.JSONEq(t, string(actRaw), string(stored))
+
+	// Changing only the activation must report an update, or the batch path
+	// won't emit an edited-declaration activity.
+	editedAct := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.batch.act","Payload":{"StandardConfigurations":["com.fleet.batch.cfg"],"Predicate":"FALSEPREDICATE"}}`)
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(editedAct))}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, updates.AppleDeclaration, "an activation-only change must count as an update")
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stored,
+		`SELECT raw_json FROM mdm_apple_ddm_activations WHERE identifier = 'com.fleet.batch.act'`))
+	require.JSONEq(t, string(editedAct), string(stored))
+	require.Equal(t, 1, countActivations(), "editing must reuse the row, not add one")
+
+	// Re-applying identical content must report no change, or every gitops run
+	// would emit an edited-declaration activity.
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(editedAct))}, nil, nil)
+	require.NoError(t, err)
+	require.False(t, updates.AppleDeclaration, "an unchanged re-apply must not count as an update")
+
+	// Dropping the activation key from GitOps YAML removes the stored one.
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(nil)}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, updates.AppleDeclaration)
+	require.Zero(t, countActivations())
+
+	// And removing the declaration entirely cascades.
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil,
+		[]*fleet.MDMAppleDeclaration{decl(withActivation(actRaw))}, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, countActivations())
+
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil, []*fleet.MDMAppleDeclaration{}, nil, nil)
+	require.NoError(t, err)
+	require.Zero(t, countActivations())
 }

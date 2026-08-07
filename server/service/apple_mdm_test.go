@@ -356,22 +356,30 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	_, err = svc.NewMDMAppleDEPKeyPair(ctx)
 	require.NoError(t, err)
 
-	// Should work for all user types
+	// The manual enrollment profile embeds the SCEP challenge, so only global
+	// and team admins and maintainers can read it (same roles as enroll secrets).
 	for _, user := range []*fleet.User{
 		test.UserAdmin,
 		test.UserMaintainer,
-		test.UserObserver,
-		test.UserObserverPlus,
 		test.UserTeamAdminTeam1,
-		test.UserTeamGitOpsTeam1,
-		test.UserGitOps,
 		test.UserTeamMaintainerTeam1,
-		test.UserTeamObserverTeam1,
-		test.UserTeamObserverPlusTeam1,
 	} {
 		usrctx := test.UserContext(ctx, user)
 		_, err = svc.GetMDMManualEnrollmentProfile(usrctx, false)
 		require.NoError(t, err)
+	}
+	for _, user := range []*fleet.User{
+		test.UserNoRoles,
+		test.UserObserver,
+		test.UserObserverPlus,
+		test.UserGitOps,
+		test.UserTeamObserverTeam1,
+		test.UserTeamObserverPlusTeam1,
+		test.UserTeamGitOpsTeam1,
+	} {
+		usrctx := test.UserContext(ctx, user)
+		_, err = svc.GetMDMManualEnrollmentProfile(usrctx, false)
+		checkAuthErr(t, err, true)
 	}
 
 	// Must be device-authenticated, should fail
