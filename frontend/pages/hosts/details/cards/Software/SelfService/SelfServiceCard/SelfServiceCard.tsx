@@ -24,6 +24,7 @@ import {
   countUninstalledForInstallAll,
   filterCategoriesWithSoftware,
   filterSoftwareByCustomCategory,
+  filterSoftwareByQuery,
   hasInProgressInstallAllItems,
 } from "../helpers";
 
@@ -112,14 +113,24 @@ const SelfServiceCard = ({
     [enhancedSoftware, visibleCategories, queryParams.category_id]
   );
 
+  // #50528: the install-all button count and target must match what's on
+  // screen. Layer the search filter on top of the category filter so
+  // `uninstalledCount` and the request sent to install_all both reflect the
+  // filtered subset.
+  const softwareInSelectedCategoryMatchingQuery = useMemo(
+    () => filterSoftwareByQuery(softwareInSelectedCategory, queryParams.query),
+    [softwareInSelectedCategory, queryParams.query]
+  );
+
   const uninstalledCount = useMemo(
-    () => countUninstalledForInstallAll(softwareInSelectedCategory),
-    [softwareInSelectedCategory]
+    () =>
+      countUninstalledForInstallAll(softwareInSelectedCategoryMatchingQuery),
+    [softwareInSelectedCategoryMatchingQuery]
   );
 
   const hasInProgress = useMemo(
-    () => hasInProgressInstallAllItems(softwareInSelectedCategory),
-    [softwareInSelectedCategory]
+    () => hasInProgressInstallAllItems(softwareInSelectedCategoryMatchingQuery),
+    [softwareInSelectedCategoryMatchingQuery]
   );
 
   const onClientSidePaginationChange = useCallback(
@@ -243,11 +254,7 @@ const SelfServiceCard = ({
 
   // Search query filter required for mobile view only ( desktop view has filter built into TableContainer)
   const filteredSoftware = isMobileView
-    ? softwareInSelectedCategory.filter((software) => {
-        const query = queryParams.query?.toLowerCase().trim() ?? "";
-        if (!query) return true;
-        return software.name.toLowerCase().includes(query);
-      })
+    ? softwareInSelectedCategoryMatchingQuery
     : softwareInSelectedCategory;
 
   // The button is shown on desktop ONLY when a specific category is selected
@@ -262,6 +269,7 @@ const SelfServiceCard = ({
         hasInProgressInCategory={hasInProgress}
         deviceToken={deviceToken}
         categoryId={queryParams.category_id}
+        query={queryParams.query}
         onSuccess={() => onInstallAllSuccess?.()}
       />
     ) : null;

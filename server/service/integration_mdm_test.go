@@ -25706,6 +25706,29 @@ func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
 		require.Equal(t, []string{"chrome", "slack", "zoom"}, macQueued)
 	})
 
+	// #50528: with a search query on the self-service page, install_all should
+	// queue only the titles whose name matches — matching what the user sees
+	// on screen.
+	t.Run("scopes to the query parameter when provided", func(t *testing.T) {
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		host := createOrbitEnrolledHost(t, "ubuntu", "ia-q", s.ds)
+		token := "ia-q-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		newInstaller("q-apple", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("q-banana", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("q-cherry", &team.ID, true, fleet.LabelIdentsWithScope{})
+
+		installAll(token, http.StatusAccepted, "query", "ban")
+		require.Equal(t, []string{"q-banana"}, queuedTitles(host.ID))
+
+		// blank query behaves like no query — all three queue
+		installAll(token, http.StatusAccepted, "query", "")
+		require.ElementsMatch(t, []string{"q-banana", "q-apple", "q-cherry"}, queuedTitles(host.ID))
+	})
+
 	t.Run("coexists with existing and incoming activities", func(t *testing.T) {
 		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 		require.NoError(t, err)

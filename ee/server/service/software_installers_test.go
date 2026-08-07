@@ -2553,7 +2553,7 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 
 	setup := func(fail failures) (*Service, *strings.Builder) {
 		ds := new(mock.Store)
-		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
 			if fail.getTitles != nil {
 				return nil, nil, fail.getTitles
 			}
@@ -2593,13 +2593,13 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 
 	t.Run("returns the error when listing titles fails", func(t *testing.T) {
 		svc, _ := setup(failures{getTitles: errors.New("boom")})
-		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil, "")
 		require.ErrorContains(t, err, "get software titles for install all")
 	})
 
 	t.Run("logs per-title failures and continues instead of aborting the batch", func(t *testing.T) {
 		svc, logs := setup(failures{installTitle: errors.New("lookup failed")})
-		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil, "")
 		require.NoError(t, err) // a per-title failure is logged, not returned
 		// both titles were attempted (the loop continued past the first failure) and logged
 		require.Contains(t, logs.String(), "title_id=10")
@@ -2608,8 +2608,20 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 
 	t.Run("returns the error when the roll-up activity fails", func(t *testing.T) {
 		svc, _ := setup(failures{newActivity: errors.New("activity failed")})
-		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil, "")
 		require.ErrorContains(t, err, "creating installed all self-service software activity")
+	})
+
+	t.Run("passes the match query through to the datastore", func(t *testing.T) {
+		var seenMatch string
+		ds := new(mock.Store)
+		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+			seenMatch = matchQuery
+			return nil, nil, nil
+		}
+		svc, _ := newTestServiceWithMock(t, ds)
+		require.NoError(t, svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil, "zoom"))
+		require.Equal(t, "zoom", seenMatch)
 	})
 }
 

@@ -979,6 +979,10 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 type fleetSelfServiceSoftwareInstallAllRequest struct {
 	Token      string `url:"token"`
 	CategoryID *uint  `query:"category_id,optional"`
+	// Query mirrors the `query` param on the self-service list endpoint. When
+	// set, only titles whose name matches are queued — so the button installs
+	// exactly what the user sees on screen (#50528).
+	Query string `query:"query,optional"`
 }
 
 func (r *fleetSelfServiceSoftwareInstallAllRequest) deviceAuthToken() string {
@@ -1000,14 +1004,14 @@ func submitSelfServiceSoftwareInstallAll(ctx context.Context, request any, svc f
 	}
 
 	req := request.(*fleetSelfServiceSoftwareInstallAllRequest)
-	if err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, req.CategoryID); err != nil {
+	if err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, req.CategoryID, req.Query); err != nil {
 		return submitSelfServiceSoftwareInstallAllResponse{Err: err}, nil
 	}
 
 	return submitSelfServiceSoftwareInstallAllResponse{}, nil
 }
 
-func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint) error {
+func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

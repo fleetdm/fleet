@@ -404,6 +404,101 @@ describe("SelfServiceCard", () => {
     expect(button).toBeEnabled();
   });
 
+  // #50528: with a search query active, the install-all count and the
+  // request sent to the BE must match the visible (filtered) subset — not
+  // the entire category.
+  it("scopes the install-all count to the search query when both a category and a query are active", async () => {
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 1, query: "fox" },
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({
+            name: "Firefox",
+            software_package: browserPackage,
+          }),
+          ui_status: "uninstalled",
+        },
+        {
+          ...createMockDeviceSoftware({
+            name: "Google Chrome",
+            software_package: browserPackage,
+          }),
+          ui_status: "uninstalled",
+        },
+        {
+          ...createMockDeviceSoftware({
+            name: "Opera",
+            software_package: browserPackage,
+          }),
+          ui_status: "uninstalled",
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(<SelfServiceCard {...props} />);
+
+    // Only Firefox matches "fox".
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Install all \(1\)/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("forwards the search query to install_all so the request matches the visible subset", async () => {
+    let installAllUrl = "";
+    mockServer.use(
+      http.post(
+        baseUrl("/device/:token/software/install_all"),
+        ({ request }) => {
+          installAllUrl = request.url;
+          return new HttpResponse(null, { status: 202 });
+        }
+      )
+    );
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 1, query: "fox" },
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({
+            name: "Firefox",
+            software_package: browserPackage,
+          }),
+          ui_status: "uninstalled",
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+    const user = userEvent.setup();
+
+    render(<SelfServiceCard {...props} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /Install all \(1\)/i })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /^Install all$/i })
+    );
+
+    await waitFor(() => {
+      expect(installAllUrl).toContain("query=fox");
+    });
+    expect(installAllUrl).toContain("category_id=1");
+  });
+
   it("posts to install_all and fires onInstallAllSuccess when the confirm modal is submitted", async () => {
     let installAllCalled = false;
     let installAllUrl = "";
