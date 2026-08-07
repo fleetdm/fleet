@@ -3,9 +3,13 @@
 # path. All three editions (Community/Professional/Enterprise) can be
 # installed side by side on one host, each with its own sibling script, so
 # vswhere is scoped to this edition's product ID only.
+#
+# -version is required as well as -products: product IDs are not version
+# specific, so an unscoped query also matches Visual Studio 2026 (major
+# version 18) and would uninstall the wrong product on a host that has both.
 
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-$vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+$vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe"
 
 try {
 
@@ -14,7 +18,12 @@ if (-not (Test-Path $vswhere)) {
   Exit 1
 }
 
-$installPath = & $vswhere -products Microsoft.VisualStudio.Product.Community -property installationPath
+if (-not (Test-Path $vsInstaller)) {
+  Write-Host "setup.exe not found at $vsInstaller - Visual Studio Installer is not present"
+  Exit 1
+}
+
+$installPath = & $vswhere -products Microsoft.VisualStudio.Product.Community -version "[17.0,18.0)" -property installationPath
 $installPath = ($installPath | Select-Object -First 1)
 
 if (-not $installPath) {
@@ -35,6 +44,19 @@ $processOptions = @{
 
 $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
+
+# TEMP DIAGNOSTICS - remove before merge.
+if ($exitCode -ne 0) {
+  Write-Host "----- Visual Studio Installer logs -----"
+  Get-ChildItem "$env:TEMP\dd_*.log" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 3 |
+    ForEach-Object {
+      Write-Host "--- $($_.Name) ---"
+      Get-Content $_.FullName -Tail 40 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_ }
+    }
+  Write-Host "----------------------------------------"
+}
 
 # 3010/1641: uninstall succeeded but a reboot is pending/was triggered. Fleet
 # treats any nonzero exit as failed, so map these to success.
