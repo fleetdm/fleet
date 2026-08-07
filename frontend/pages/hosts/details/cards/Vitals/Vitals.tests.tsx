@@ -746,11 +746,15 @@ describe("Custom host vitals", () => {
       await user.hover(screen.getByText("macOS 26.5"));
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/Minimum version required: 26\.6/i)
-        ).toBeVisible();
-        expect(screen.getByText(/Deadline: 2026-07-30/i)).toBeVisible();
+        const tooltip = screen.getByText(/Minimum version required:/i);
+        expect(tooltip).toBeVisible();
+        expect(tooltip).toHaveTextContent("Minimum version required: 26.6");
+        expect(tooltip).toHaveTextContent("Deadline: 2026-07-30");
       });
+
+      // The values are bolded, the labels aren't.
+      expect(screen.getByText("26.6").tagName).toBe("B");
+      expect(screen.getByText("2026-07-30").tagName).toBe("B");
     });
 
     it("shows Pending while the target is still being resolved", async () => {
@@ -770,10 +774,10 @@ describe("Custom host vitals", () => {
       await user.hover(screen.getByText("macOS 26.5"));
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/Minimum version required: Pending/i)
-        ).toBeVisible();
-        expect(screen.getByText(/Deadline: Pending/i)).toBeVisible();
+        const tooltip = screen.getByText(/Minimum version required:/i);
+        expect(tooltip).toBeVisible();
+        expect(tooltip).toHaveTextContent("Minimum version required: Pending");
+        expect(tooltip).toHaveTextContent("Deadline: Pending");
       });
     });
 

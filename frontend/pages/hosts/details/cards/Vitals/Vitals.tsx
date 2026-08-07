@@ -567,9 +567,9 @@ const Vitals = ({
                   className={`${baseClass}__os-version-tooltip`}
                   tipContent={
                     <>
-                      Minimum version required: {osUpdateMinimumVersion}
+                      Minimum version required: <b>{osUpdateMinimumVersion}</b>
                       <br />
-                      Deadline: {osUpdateDeadline}
+                      Deadline: <b>{osUpdateDeadline}</b>
                     </>
                   }
                 >
