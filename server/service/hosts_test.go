@@ -3618,6 +3618,10 @@ func TestOSVersionsOrderByVersion(t *testing.T) {
 	// Mixes dot-separated numeric versions with differing digit counts, a
 	// Windows feature-update codename, and a non-numeric version (Arch
 	// Linux's "rolling") to exercise every branch of compareOSVersions.
+	// IDs 4, 8, and 9 share the "22H1" version across different editions
+	// (a realistic tie: distinct NameOnly values, since the datastore
+	// already aggregates same NameOnly+Version rows into one), to exercise
+	// the OSVersionID tie-breaker.
 	testVersions := []fleet.OSVersion{
 		{OSVersionID: 1, NameOnly: "Windows 11 Pro", Platform: "windows", Version: "10.0.9200.100"},
 		{OSVersionID: 2, NameOnly: "Windows 11 Pro", Platform: "windows", Version: "10.0.26200.8875"},
@@ -3626,6 +3630,8 @@ func TestOSVersionsOrderByVersion(t *testing.T) {
 		{OSVersionID: 5, NameOnly: "macOS", Platform: "darwin", Version: "26.6"},
 		{OSVersionID: 6, NameOnly: "macOS", Platform: "darwin", Version: "26.10"},
 		{OSVersionID: 7, NameOnly: "Arch Linux", Platform: "arch", Version: "rolling"},
+		{OSVersionID: 8, NameOnly: "Windows 10 Enterprise", Platform: "windows", Version: "22H1"},
+		{OSVersionID: 9, NameOnly: "Windows 10 Education", Platform: "windows", Version: "22H1"},
 	}
 
 	now := time.Now()
@@ -3645,49 +3651,54 @@ func TestOSVersionsOrderByVersion(t *testing.T) {
 	// descending version sort (latest first): non-numeric "rolling" sorts
 	// last; "10.0.26200.8875" sorts above "10.0.9200.100" (not a string
 	// comparison, which would get this backwards); "22H1" above "21H2";
-	// "26.10" above "26.6".
+	// "26.10" above "26.6"; the "22H1" tie (IDs 4, 8, 9) breaks by
+	// OSVersionID ascending regardless of the primary sort direction.
+	wantDescending := []uint{6, 5, 4, 8, 9, 3, 2, 1, 7}
+	wantAscending := []uint{7, 1, 2, 3, 4, 8, 9, 5, 6}
+
 	opts := fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderDescending}
 	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
-	require.Len(t, vers.OSVersions, 7)
-	assert.Equal(t, uint(6), vers.OSVersions[0].OSVersionID) // macOS 26.10
-	assert.Equal(t, uint(5), vers.OSVersions[1].OSVersionID) // macOS 26.6
-	assert.Equal(t, uint(4), vers.OSVersions[2].OSVersionID) // Windows 22H1
-	assert.Equal(t, uint(3), vers.OSVersions[3].OSVersionID) // Windows 21H2
-	assert.Equal(t, uint(2), vers.OSVersions[4].OSVersionID) // Windows 10.0.26200.8875
-	assert.Equal(t, uint(1), vers.OSVersions[5].OSVersionID) // Windows 10.0.9200.100
-	assert.Equal(t, uint(7), vers.OSVersions[6].OSVersionID) // Arch Linux "rolling"
+	require.Len(t, vers.OSVersions, len(wantDescending))
+	for i, wantID := range wantDescending {
+		assert.Equal(t, wantID, vers.OSVersions[i].OSVersionID, "descending index %d", i)
+	}
 
-	// ascending version sort: reverse order
+	// ascending version sort: reverse order, but the tied trio keeps the
+	// same relative (OSVersionID-ascending) order as in the descending case.
 	opts = fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderAscending}
 	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
-	require.Len(t, vers.OSVersions, 7)
-	assert.Equal(t, uint(7), vers.OSVersions[0].OSVersionID) // Arch Linux "rolling"
-	assert.Equal(t, uint(1), vers.OSVersions[1].OSVersionID) // Windows 10.0.9200.100
-	assert.Equal(t, uint(2), vers.OSVersions[2].OSVersionID) // Windows 10.0.26200.8875
-	assert.Equal(t, uint(3), vers.OSVersions[3].OSVersionID) // Windows 21H2
-	assert.Equal(t, uint(4), vers.OSVersions[4].OSVersionID) // Windows 22H1
-	assert.Equal(t, uint(5), vers.OSVersions[5].OSVersionID) // macOS 26.6
-	assert.Equal(t, uint(6), vers.OSVersions[6].OSVersionID) // macOS 26.10
+	require.Len(t, vers.OSVersions, len(wantAscending))
+	for i, wantID := range wantAscending {
+		assert.Equal(t, wantID, vers.OSVersions[i].OSVersionID, "ascending index %d", i)
+	}
 
-	// pagination + descending version sort stays deterministic across pages
-	opts = fleet.ListOptions{Page: 0, PerPage: 3, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	// pagination + descending version sort stays deterministic across pages,
+	// including across a page boundary that splits the tied "22H1" trio
+	// (IDs 4, 8 land on page 0; ID 9 lands on page 1).
+	opts = fleet.ListOptions{Page: 0, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
 	page0, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
-	require.Len(t, page0.OSVersions, 3)
+	require.Len(t, page0.OSVersions, 4)
 
-	opts = fleet.ListOptions{Page: 1, PerPage: 3, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	opts = fleet.ListOptions{Page: 1, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
 	page1, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
-	require.Len(t, page1.OSVersions, 3)
+	require.Len(t, page1.OSVersions, 4)
 
-	assert.Equal(t, uint(6), page0.OSVersions[0].OSVersionID)
-	assert.Equal(t, uint(5), page0.OSVersions[1].OSVersionID)
-	assert.Equal(t, uint(4), page0.OSVersions[2].OSVersionID)
-	assert.Equal(t, uint(3), page1.OSVersions[0].OSVersionID)
-	assert.Equal(t, uint(2), page1.OSVersions[1].OSVersionID)
-	assert.Equal(t, uint(1), page1.OSVersions[2].OSVersionID)
+	opts = fleet.ListOptions{Page: 2, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	page2, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, page2.OSVersions, 1)
+
+	gotPaged := make([]uint, 0, len(wantDescending))
+	for _, page := range []*fleet.OSVersions{page0, page1, page2} {
+		for _, v := range page.OSVersions {
+			gotPaged = append(gotPaged, v.OSVersionID)
+		}
+	}
+	assert.Equal(t, wantDescending, gotPaged, "paginated results must match the unpaginated descending order")
 
 	// invalid order key
 	opts = fleet.ListOptions{OrderKey: "nameonly"}
