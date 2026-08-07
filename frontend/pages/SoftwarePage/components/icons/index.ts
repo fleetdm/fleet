@@ -857,6 +857,7 @@ import RemoteBuddy from "./RemoteBuddy";
 import RemoteDesktopManager from "./RemoteDesktopManager";
 import Reqable from "./Reqable";
 import Requestly from "./Requestly";
+import Resharper from "./Resharper";
 import Retcon from "./Retcon";
 import Retroarch from "./Retroarch";
 import Retrobatch from "./Retrobatch";
@@ -2028,6 +2029,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "remote desktop manager": RemoteDesktopManager,
   reqable: Reqable,
   requestly: Requestly,
+  resharper: Resharper,
   retcon: Retcon,
   retroarch: Retroarch,
   retrobatch: Retrobatch,
