@@ -1374,7 +1374,9 @@ type SetMicrosoftGraphCredentialInvalidFunc func(ctx context.Context, tenantID s
 
 type RecordMicrosoftGraphSyncResultFunc func(ctx context.Context, tenantID string, syncErr *string) error
 
-type UpsertHostAutopilotDeviceFunc func(ctx context.Context, dev *fleet.HostAutopilotDevice) error
+type BatchUpsertHostAutopilotDevicesFunc func(ctx context.Context, devices []*fleet.HostAutopilotDevice) error
+
+type BatchSoftDeleteHostAutopilotDevicesFunc func(ctx context.Context, hostIDs []uint) error
 
 type ListHostAutopilotDevicesFunc func(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error)
 
@@ -4348,8 +4350,11 @@ type DataStore struct {
 	RecordMicrosoftGraphSyncResultFunc        RecordMicrosoftGraphSyncResultFunc
 	RecordMicrosoftGraphSyncResultFuncInvoked bool
 
-	UpsertHostAutopilotDeviceFunc        UpsertHostAutopilotDeviceFunc
-	UpsertHostAutopilotDeviceFuncInvoked bool
+	BatchUpsertHostAutopilotDevicesFunc        BatchUpsertHostAutopilotDevicesFunc
+	BatchUpsertHostAutopilotDevicesFuncInvoked bool
+
+	BatchSoftDeleteHostAutopilotDevicesFunc        BatchSoftDeleteHostAutopilotDevicesFunc
+	BatchSoftDeleteHostAutopilotDevicesFuncInvoked bool
 
 	ListHostAutopilotDevicesFunc        ListHostAutopilotDevicesFunc
 	ListHostAutopilotDevicesFuncInvoked bool
@@ -10498,11 +10503,18 @@ func (s *DataStore) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID
 	return s.RecordMicrosoftGraphSyncResultFunc(ctx, tenantID, syncErr)
 }
 
-func (s *DataStore) UpsertHostAutopilotDevice(ctx context.Context, dev *fleet.HostAutopilotDevice) error {
+func (s *DataStore) BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
 	s.mu.Lock()
-	s.UpsertHostAutopilotDeviceFuncInvoked = true
+	s.BatchUpsertHostAutopilotDevicesFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpsertHostAutopilotDeviceFunc(ctx, dev)
+	return s.BatchUpsertHostAutopilotDevicesFunc(ctx, devices)
+}
+
+func (s *DataStore) BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.BatchSoftDeleteHostAutopilotDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSoftDeleteHostAutopilotDevicesFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error) {

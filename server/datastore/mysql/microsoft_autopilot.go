@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -142,14 +145,20 @@ func (ds *Datastore) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantI
 	return nil
 }
 
-// UpsertHostAutopilotDevice stores the Autopilot metadata for a host. Re-inserting after a soft delete clears
+const hostAutopilotDeviceColumns = 6
+
+// hostAutopilotDeviceBatchSize is how many devices go into one INSERT statement. At 6 placeholders each that is 6k per
+// statement, well under MySQL's 65535 limit. A var so tests can shrink it and exercise the batch boundary.
+var hostAutopilotDeviceBatchSize = 1000
+
+// BatchUpsertHostAutopilotDevices stores the Autopilot metadata for many hosts. Re-inserting after a soft delete clears
 // deleted_at, so a device that leaves and later rejoins the Autopilot list becomes live again rather than staying
 // invisible behind a stale tombstone.
-func (ds *Datastore) UpsertHostAutopilotDevice(ctx context.Context, dev *fleet.HostAutopilotDevice) error {
+func (ds *Datastore) BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
 	const stmt = `
 INSERT INTO host_autopilot_devices
 	(host_id, autopilot_device_id, entra_device_id, group_tag, hardware_serial, tenant_id)
-VALUES (?, ?, ?, ?, ?, ?)
+VALUES %s
 ON DUPLICATE KEY UPDATE
 	autopilot_device_id = VALUES(autopilot_device_id),
 	entra_device_id = VALUES(entra_device_id),
@@ -158,12 +167,43 @@ ON DUPLICATE KEY UPDATE
 	tenant_id = VALUES(tenant_id),
 	deleted_at = NULL`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
-		dev.HostID, dev.AutopilotDeviceID, dev.EntraDeviceID, dev.GroupTag, dev.HardwareSerial, dev.TenantID,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert host autopilot device")
-	}
-	return nil
+	err := common_mysql.BatchProcessSimple(devices, hostAutopilotDeviceBatchSize, func(batch []*fleet.HostAutopilotDevice) error {
+		args := make([]any, 0, len(batch)*hostAutopilotDeviceColumns)
+		for _, dev := range batch {
+			args = append(args, dev.HostID, dev.AutopilotDeviceID, dev.EntraDeviceID, dev.GroupTag, dev.HardwareSerial, dev.TenantID)
+		}
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?),", len(batch)), ",")
+
+		if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "exec batch")
+		}
+		return nil
+	})
+
+	return ctxerr.Wrap(ctx, err, "batch upsert host autopilot devices")
+}
+
+// BatchSoftDeleteHostAutopilotDevices tombstones the Autopilot records for the given hosts, marking the devices as no
+// longer present in the tenant's Autopilot registry. The host row itself is untouched: a device that is deregistered
+// from Autopilot stops being a pending host, but an already-enrolled host keeps reporting in.
+func (ds *Datastore) BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error {
+	const stmt = `
+UPDATE host_autopilot_devices
+SET deleted_at = NOW(6)
+WHERE deleted_at IS NULL AND host_id IN (?)`
+
+	err := common_mysql.BatchProcessSimple(hostIDs, hostAutopilotDeviceBatchSize, func(batch []uint) error {
+		expanded, args, err := sqlx.In(stmt, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build IN clause")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, expanded, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "exec batch")
+		}
+		return nil
+	})
+
+	return ctxerr.Wrap(ctx, err, "batch soft delete host autopilot devices")
 }
 
 // ListHostAutopilotDevices returns the live (not soft-deleted) Autopilot records for a tenant.

@@ -2290,8 +2290,14 @@ type Datastore interface {
 	// previous error.
 	RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error
 
-	// UpsertHostAutopilotDevice stores the Windows Autopilot metadata for a host, clearing any soft deletion.
-	UpsertHostAutopilotDevice(ctx context.Context, dev *HostAutopilotDevice) error
+	// BatchUpsertHostAutopilotDevices stores the Windows Autopilot metadata for many hosts, clearing any soft
+	// deletion. A tenant can register 100k+ Autopilot devices, so writes go through this batch path rather than a
+	// per-device call. Callers should pass only the devices whose values changed.
+	BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
+
+	// BatchSoftDeleteHostAutopilotDevices tombstones the Autopilot records for the given hosts, for devices that are
+	// no longer present in the tenant's Autopilot registry. The host rows themselves are untouched.
+	BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error
 
 	// ListHostAutopilotDevices returns the live Autopilot records for an Entra tenant.
 	ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*HostAutopilotDevice, error)
