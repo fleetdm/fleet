@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed
+Approved
 
 ## Date
 
-2026-08-05
+2026-08-07
 
 ## Context
 
