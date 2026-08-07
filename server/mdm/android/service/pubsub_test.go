@@ -851,6 +851,9 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		policyRequestUUID := uuid.NewString()
 
 		const staleDetail = "\"passwordPolicies\" setting couldn't apply to a host.\nReason: USER_ACTION. Other settings are applied."
+		// The message the status report below must produce for the profile that
+		// is still failing.
+		const freshDetail = "\"cameraDisabled\" setting couldn't apply to a host.\nReason: USER_ACTION. Other settings are applied."
 
 		// Both profiles failed on an earlier status report, so the stored rows
 		// still carry the failure message.
@@ -919,7 +922,9 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 					require.Empty(t, profile.Detail)
 				case stillFailingProfile.ProfileUUID:
 					require.Equal(t, fleet.MDMDeliveryFailed, *profile.Status)
-					require.NotEmpty(t, profile.Detail)
+					// Rebuilt from the current report rather than carried over
+					// from the previous failure.
+					require.Equal(t, freshDetail, profile.Detail)
 				default:
 					require.Fail(t, "unexpected profile upserted")
 				}
