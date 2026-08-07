@@ -1845,6 +1845,32 @@ func TestUpdateMDMConfigProfileDecodeRequest(t *testing.T) {
 			fileContent: oversizedFile,
 			wantErr:     "maximum configuration profile file size is 1 MB",
 		},
+		{
+			// The only way to say "remove the activation": multipart has no null.
+			name:        "empty activation value marks it for removal",
+			profileUUID: "abc-123",
+			fields:      map[string][]string{"activation": {""}},
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.True(t, req.ActivationSet)
+				assert.Nil(t, req.Activation)
+			},
+		},
+		{
+			// More likely a malformed upload than a request to delete.
+			name:        "nonempty activation value is rejected",
+			profileUUID: "abc-123",
+			fields:      map[string][]string{"activation": {"com.apple.activation.simple"}},
+			wantErr:     ActivationEmptyFileErrorMsg,
+		},
+		{
+			name:        "activation not mentioned leaves it untouched",
+			profileUUID: "abc-123",
+			fields:      map[string][]string{"labels_include_all": {"Label A"}},
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.False(t, req.ActivationSet)
+				assert.Nil(t, req.Activation)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1930,6 +1956,62 @@ func TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestUpdateMDMConfigProfileDecodeActivationFile(t *testing.T) {
+	build := func(t *testing.T, content []byte) *http.Request {
+		t.Helper()
+		var buf bytes.Buffer
+		w := multipart.NewWriter(&buf)
+		fw, err := w.CreateFormFile("activation", "activation.json")
+		require.NoError(t, err)
+		_, err = fw.Write(content)
+		require.NoError(t, err)
+		require.NoError(t, w.Close())
+
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
+		req.Header.Set("Content-Type", w.FormDataContentType())
+		return mux.SetURLVars(req, map[string]string{"profile_uuid": "abc-123"})
+	}
+
+	t.Run("a file replaces the activation", func(t *testing.T) {
+		result, err := updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(),
+			build(t, []byte(`{"Type":"com.apple.activation.simple"}`)))
+		require.NoError(t, err)
+		decoded, ok := result.(*updateMDMConfigProfileRequest)
+		require.True(t, ok)
+		assert.True(t, decoded.ActivationSet)
+		require.NotNil(t, decoded.Activation)
+	})
+
+	t.Run("a file and a value together are rejected", func(t *testing.T) {
+		// Contradictory: one says replace, the other says remove. Picking either
+		// silently would be a guess.
+		var buf bytes.Buffer
+		w := multipart.NewWriter(&buf)
+		fw, err := w.CreateFormFile("activation", "activation.json")
+		require.NoError(t, err)
+		_, err = fw.Write([]byte(`{"Type":"com.apple.activation.simple"}`))
+		require.NoError(t, err)
+		require.NoError(t, w.WriteField("activation", ""))
+		require.NoError(t, w.Close())
+
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
+		req.Header.Set("Content-Type", w.FormDataContentType())
+		req = mux.SetURLVars(req, map[string]string{"profile_uuid": "abc-123"})
+
+		_, err = updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), ActivationConflictingPartsErrorMsg)
+	})
+
+	t.Run("a zero-byte file is rejected", func(t *testing.T) {
+		// Otherwise a failed upload silently deletes the stored activation.
+		// Removal has to go through the explicit empty field.
+		_, err := updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(), build(t, nil))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), ActivationEmptyFileErrorMsg)
+	})
+}
+
 func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
@@ -1945,14 +2027,33 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 		return nil, errors.New("simulated declaration lookup error")
 	}
 
-	err := svc.UpdateMDMConfigProfile(ctx, declUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
+	err := svc.UpdateMDMConfigProfile(ctx, declUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.ErrorContains(t, err, "simulated declaration lookup error")
 	require.True(t, ds.GetMDMAppleDeclarationFuncInvoked)
 
 	// an unrecognized profile UUID prefix still falls through to "not supported".
-	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, nil)
+	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "updating this profile type is not yet supported")
+
+	// Clearing an activation is as meaningless as setting one on a profile that
+	// can't have one, so both are rejected -- keyed on the field being present,
+	// not on whether it carried content.
+	for _, prefix := range []string{"a", "w", "g"} {
+		for _, tc := range []struct {
+			name       string
+			activation []byte
+		}{
+			{"with content", []byte(`{"Type":"com.apple.activation.simple"}`)},
+			{"explicitly emptied", nil},
+		} {
+			t.Run(prefix+" "+tc.name, func(t *testing.T) {
+				err := svc.UpdateMDMConfigProfile(ctx, prefix+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.SetSlice(tc.activation))
+				require.Error(t, err)
+				assert.ErrorContains(t, err, ActivationUnsupportedProfileErrorMsg)
+			})
+		}
+	}
 }
 
 func TestMDMBatchSetProfiles(t *testing.T) {
@@ -4223,7 +4324,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		assert.Empty(t, updated.RawJSON)
@@ -4256,7 +4357,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		assert.Equal(t, existing.Name, updated.Name)
@@ -4286,7 +4387,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.NotNil(t, updated.TeamID)
@@ -4315,7 +4416,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.Len(t, updated.LabelsIncludeAny, 1)
@@ -4337,7 +4438,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		invalidContent := []byte(`{"notARealAndroidPolicyField": true}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "Invalid JSON payload")
 	})
@@ -4354,7 +4455,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, `label "label1" cannot appear in both include and exclude lists`)
 	})
@@ -4371,7 +4472,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -4383,7 +4484,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -4400,7 +4501,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
 
@@ -4409,7 +4510,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 	})
 
@@ -4430,14 +4531,14 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"name": "$FLEET_VAR_HOST_UUID"}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarHostUUID)
 
 		// labels-only edit passes no variables -- the datastore leaves the
 		// existing associations untouched when no content is provided
 		capturedVars = []fleet.FleetVarName{fleet.FleetVarName("sentinel")}
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Empty(t, capturedVars)
 	})
@@ -4458,10 +4559,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -4514,10 +4615,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 
 				// profile content and labels are deliberately nil/empty here --
 				// this isolates the authz checks from content/label validation.
-				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailGlobal)
 
-				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, nil)
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailTeam)
 			})
 		}
