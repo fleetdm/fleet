@@ -32,7 +32,7 @@ As soon as you can, commit the same change to your GitOps repository. This keeps
 
 Before you turn GitOps mode back on, confirm that a GitOps run has completed successfully with your mirrored change, either through CI or by running `fleetctl gitops` manually. Check the run's output for errors, and confirm the change is still in place in the Fleet UI.
 
-If you turn GitOps mode back on before confirming this, you lock the UI while the pipeline may still be broken, leaving you with no way to make further changes until it's fixed.
+If the run didn't succeed, leave GitOps mode off until it does. You can always turn it back on once you've confirmed the pipeline is working again.
 
 ## Turn GitOps mode back on
 
