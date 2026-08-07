@@ -63,6 +63,7 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -111,6 +112,18 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if mockDS.GetWindowsEnrollmentDefaultFleetFunc == nil {
 			mockDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 				return nil, "", nil
+			}
+		}
+		// Config reads also hydrate Microsoft Graph credentials from their own table, since they are never stored in
+		// the app config JSON. Default to none configured so tests that don't care don't panic on a nil mock.
+		if mockDS.ListMicrosoftGraphCredentialsFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.ListMicrosoftGraphCredentialMetadataFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+				return nil, nil
 			}
 		}
 	}
@@ -262,6 +275,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	orgLogoStore, err := filesystem.NewOrgLogoStore(t.TempDir())
 	require.NoError(t, err)
 
+	// Config writes that carry a new credential verify it against Entra and Graph, so default to a no-op factory and
+	// let tests inject their own when they assert on verification.
+	msGraphClientFactory := msgraph.ClientFactory(NoopMicrosoftGraphClientFactory)
+	if len(opts) > 0 && opts[0].MicrosoftGraphClientFactory != nil {
+		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -289,6 +309,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore,
 		androidService,
 		orgLogoStore,
+		msGraphClientFactory,
 	)
 	if err != nil {
 		panic(err)

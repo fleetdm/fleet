@@ -187,6 +187,9 @@ type GitOpsControls struct {
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
+	// MicrosoftGraphCredentials are the outbound Entra app-registration credentials Fleet authenticates with when
+	// reading Windows Autopilot devices, as opposed to the two inbound enrollment allowlists above.
+	MicrosoftGraphCredentials any `json:"microsoft_graph_credentials"`
 
 	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
 	AndroidSettings             any `json:"android_settings"`
@@ -211,6 +214,7 @@ func (c GitOpsControls) Set() bool {
 		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
+		c.MicrosoftGraphCredentials != nil ||
 		c.AppleAccountProvisioning != nil ||
 		c.NameTemplate != nil
 }

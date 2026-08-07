@@ -2466,6 +2466,12 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.WindowsEntraClientIDs == nil {
 			mdmAppConfig["windows_entra_client_ids"] = []any{}
 		}
+		// An absent key clears the stored Graph credentials, matching how the Entra allowlists above behave: GitOps is
+		// declarative, so what is not in the YAML is not configured.
+		mdmAppConfig["microsoft_graph_credentials"] = incoming.Controls.MicrosoftGraphCredentials
+		if incoming.Controls.MicrosoftGraphCredentials == nil {
+			mdmAppConfig["microsoft_graph_credentials"] = []any{}
+		}
 		// Put in default values for enable_turn_on_windows_mdm_manually
 		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
 		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {

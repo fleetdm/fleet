@@ -1360,6 +1360,26 @@ type SetABMTokenInvalidForOrgNameFunc func(ctx context.Context, orgName string, 
 
 type IsABMTokenInvalidForOrgNameFunc func(ctx context.Context, orgName string) (bool, error)
 
+type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
+type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
+type GetMicrosoftGraphCredentialFunc func(ctx context.Context, tenantID string) (*fleet.MicrosoftGraphCredential, error)
+
+type UpsertMicrosoftGraphCredentialFunc func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error
+
+type DeleteMicrosoftGraphCredentialFunc func(ctx context.Context, tenantID string) error
+
+type SetMicrosoftGraphCredentialInvalidFunc func(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
+
+type RecordMicrosoftGraphSyncResultFunc func(ctx context.Context, tenantID string, syncErr *string) error
+
+type UpsertHostAutopilotDeviceFunc func(ctx context.Context, dev *fleet.HostAutopilotDevice) error
+
+type ListHostAutopilotDevicesFunc func(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error)
+
+type GetHostAutopilotDeviceFunc func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error)
+
 type InsertABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error)
 
 type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
@@ -4306,6 +4326,36 @@ type DataStore struct {
 
 	IsABMTokenInvalidForOrgNameFunc        IsABMTokenInvalidForOrgNameFunc
 	IsABMTokenInvalidForOrgNameFuncInvoked bool
+
+	ListMicrosoftGraphCredentialsFunc        ListMicrosoftGraphCredentialsFunc
+	ListMicrosoftGraphCredentialsFuncInvoked bool
+
+	ListMicrosoftGraphCredentialMetadataFunc        ListMicrosoftGraphCredentialMetadataFunc
+	ListMicrosoftGraphCredentialMetadataFuncInvoked bool
+
+	GetMicrosoftGraphCredentialFunc        GetMicrosoftGraphCredentialFunc
+	GetMicrosoftGraphCredentialFuncInvoked bool
+
+	UpsertMicrosoftGraphCredentialFunc        UpsertMicrosoftGraphCredentialFunc
+	UpsertMicrosoftGraphCredentialFuncInvoked bool
+
+	DeleteMicrosoftGraphCredentialFunc        DeleteMicrosoftGraphCredentialFunc
+	DeleteMicrosoftGraphCredentialFuncInvoked bool
+
+	SetMicrosoftGraphCredentialInvalidFunc        SetMicrosoftGraphCredentialInvalidFunc
+	SetMicrosoftGraphCredentialInvalidFuncInvoked bool
+
+	RecordMicrosoftGraphSyncResultFunc        RecordMicrosoftGraphSyncResultFunc
+	RecordMicrosoftGraphSyncResultFuncInvoked bool
+
+	UpsertHostAutopilotDeviceFunc        UpsertHostAutopilotDeviceFunc
+	UpsertHostAutopilotDeviceFuncInvoked bool
+
+	ListHostAutopilotDevicesFunc        ListHostAutopilotDevicesFunc
+	ListHostAutopilotDevicesFuncInvoked bool
+
+	GetHostAutopilotDeviceFunc        GetHostAutopilotDeviceFunc
+	GetHostAutopilotDeviceFuncInvoked bool
 
 	InsertABMTokenFunc        InsertABMTokenFunc
 	InsertABMTokenFuncInvoked bool
@@ -10397,6 +10447,76 @@ func (s *DataStore) IsABMTokenInvalidForOrgName(ctx context.Context, orgName str
 	s.IsABMTokenInvalidForOrgNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsABMTokenInvalidForOrgNameFunc(ctx, orgName)
+}
+
+func (s *DataStore) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialsFunc(ctx)
+}
+
+func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialMetadataFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialMetadataFunc(ctx)
+}
+
+func (s *DataStore) GetMicrosoftGraphCredential(ctx context.Context, tenantID string) (*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.GetMicrosoftGraphCredentialFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMicrosoftGraphCredentialFunc(ctx, tenantID)
+}
+
+func (s *DataStore) UpsertMicrosoftGraphCredential(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
+	s.mu.Lock()
+	s.UpsertMicrosoftGraphCredentialFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertMicrosoftGraphCredentialFunc(ctx, cred)
+}
+
+func (s *DataStore) DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error {
+	s.mu.Lock()
+	s.DeleteMicrosoftGraphCredentialFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMicrosoftGraphCredentialFunc(ctx, tenantID)
+}
+
+func (s *DataStore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error) {
+	s.mu.Lock()
+	s.SetMicrosoftGraphCredentialInvalidFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMicrosoftGraphCredentialInvalidFunc(ctx, tenantID, invalid)
+}
+
+func (s *DataStore) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error {
+	s.mu.Lock()
+	s.RecordMicrosoftGraphSyncResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordMicrosoftGraphSyncResultFunc(ctx, tenantID, syncErr)
+}
+
+func (s *DataStore) UpsertHostAutopilotDevice(ctx context.Context, dev *fleet.HostAutopilotDevice) error {
+	s.mu.Lock()
+	s.UpsertHostAutopilotDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertHostAutopilotDeviceFunc(ctx, dev)
+}
+
+func (s *DataStore) ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error) {
+	s.mu.Lock()
+	s.ListHostAutopilotDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAutopilotDevicesFunc(ctx, tenantID)
+}
+
+func (s *DataStore) GetHostAutopilotDevice(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+	s.mu.Lock()
+	s.GetHostAutopilotDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostAutopilotDeviceFunc(ctx, hostID)
 }
 
 func (s *DataStore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {

@@ -100,6 +100,8 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		// nil Graph client factory: NewService falls back to the real client, which this test never exercises.
+		nil,
 	)
 	if err != nil {
 		panic(err)

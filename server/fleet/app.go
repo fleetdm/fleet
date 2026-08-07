@@ -266,6 +266,18 @@ type MDM struct {
 	// Windows automatic enrollment.
 	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
 
+	// MicrosoftGraphCredentials holds the Entra app-registration credentials Fleet authenticates with when calling
+	// Microsoft Graph to read Windows Autopilot device identities. Unlike the two allowlists above, which validate
+	// inbound enrollment JWTs, these are outbound credentials.
+	//
+	// It is a list because an Autopilot device registry is scoped to a single Entra tenant, so surfacing more than one
+	// tenant's devices requires one credential per tenant. Validation currently caps it at one entry; the list shape
+	// exists so that raising the cap is a validation change rather than an API break.
+	//
+	// Each entry's client secret is stored encrypted in the mdm_microsoft_graph_credentials table, never in this JSON;
+	// the field carries the masked value in API responses and the caller-supplied value on writes.
+	MicrosoftGraphCredentials optjson.Slice[MicrosoftGraphCredential] `json:"microsoft_graph_credentials"`
+
 	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the
 	// source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
 	WindowsEnrollment optjson.Any[WindowsEnrollment] `json:"windows_enrollment"`
@@ -887,6 +899,11 @@ func (c *AppConfig) Obfuscate() {
 	if c.MDM.AppleAccountProvisioning.Configured() || c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value != "" {
 		c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.SetString(MaskedPassword)
 	}
+	// Microsoft Graph client secrets live in mdm_microsoft_graph_credentials, never in the AppConfig JSON. Surface the
+	// masked value for every stored credential so the API signals the secret is set without leaking it.
+	for i := range c.MDM.MicrosoftGraphCredentials.Value {
+		c.MDM.MicrosoftGraphCredentials.Value[i].ClientSecret = MaskedPassword
+	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
 	// if c.Integrations.NDESSCEPProxy.Valid {
 	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
@@ -1081,6 +1098,22 @@ func (c *AppConfig) Copy() *AppConfig {
 		copy(clone.MDM.WindowsEntraTenantIDs.Value, c.MDM.WindowsEntraTenantIDs.Value)
 	}
 
+	if c.MDM.MicrosoftGraphCredentials.Set {
+		clone.MDM.MicrosoftGraphCredentials = optjson.SetSlice(make([]MicrosoftGraphCredential, len(c.MDM.MicrosoftGraphCredentials.Value)))
+		copy(clone.MDM.MicrosoftGraphCredentials.Value, c.MDM.MicrosoftGraphCredentials.Value)
+		// LastSyncedAt/LastSyncError are pointers; deep-copy them so the clone shares no state with the original.
+		// Note &*p is just p in Go, so the pointed-to value has to be copied into a local first.
+		for i, cred := range c.MDM.MicrosoftGraphCredentials.Value {
+			if cred.LastSyncedAt != nil {
+				syncedAt := *cred.LastSyncedAt
+				clone.MDM.MicrosoftGraphCredentials.Value[i].LastSyncedAt = &syncedAt
+			}
+			if cred.LastSyncError != nil {
+				syncErr := *cred.LastSyncError
+				clone.MDM.MicrosoftGraphCredentials.Value[i].LastSyncError = &syncErr
+			}
+		}
+	}
 	if c.MDM.WindowsEntraClientIDs.Set {
 		clone.MDM.WindowsEntraClientIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraClientIDs.Value)))
 		copy(clone.MDM.WindowsEntraClientIDs.Value, c.MDM.WindowsEntraClientIDs.Value)
