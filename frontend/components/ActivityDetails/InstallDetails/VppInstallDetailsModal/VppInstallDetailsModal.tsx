@@ -231,7 +231,7 @@ export const getStatusMessage = ({
     );
   }
 
-  if (displayStatus === "failed_install" && isAndroid(platform)) {
+  if (displayStatus === "failed_install" && isAndroid(platform || "")) {
     if (isMyDevicePage) {
       return (
         <>
