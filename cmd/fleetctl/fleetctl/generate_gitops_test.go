@@ -35,6 +35,14 @@ type MockClient struct {
 	WithoutMDM       bool
 	WithoutVPP       bool
 	WithAssets       bool
+	WithActivations  bool
+}
+
+func (c MockClient) GetProfileActivation(profileID string) ([]byte, error) {
+	if !c.WithActivations || profileID != "team-declaration-profile-uuid" {
+		return nil, nil
+	}
+	return []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.example.team-declaration.activation","Payload":{"StandardConfigurations":["com.example.team-declaration"]}}`), nil
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -168,14 +176,23 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 		}, nil
 	}
 	if *teamID == 1 {
-		return []*fleet.MDMConfigProfilePayload{
+		profiles := []*fleet.MDMConfigProfilePayload{
 			{
 				ProfileUUID: "test-mobileconfig-profile-uuid",
 				Name:        "Team MacOS MobileConfig Profile",
 				Platform:    "darwin",
 				Identifier:  "com.example.team-macos-mobileconfig-profile",
 			},
-		}, nil
+		}
+		if c.WithActivations {
+			profiles = append(profiles, &fleet.MDMConfigProfilePayload{
+				ProfileUUID: "team-declaration-profile-uuid",
+				Name:        "Team Declaration",
+				Platform:    "darwin",
+				Identifier:  "com.example.team-declaration",
+			})
+		}
+		return profiles, nil
 	}
 	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 || *teamID == 6 {
 		return nil, nil
@@ -228,6 +245,8 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 		return []byte(`{"name": "Global Android Profile", "cameraDisabled": true}`), nil
 	case "test-mobileconfig-profile-uuid":
 		return []byte("<xml>test mobileconfig profile</xml>"), nil
+	case "team-declaration-profile-uuid":
+		return []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.example.team-declaration","Payload":{}}`), nil
 	}
 	return nil, errors.New("profile not found")
 }
@@ -1111,6 +1130,56 @@ func TestGenerateGitopsWithAssets(t *testing.T) {
 	}))
 	require.True(t, sawAssetsSection, "expected an assets: section referencing an assets/ path")
 	require.True(t, sawAssetFile, "expected a DDM asset json file to be written")
+}
+
+func TestGenerateGitopsWithActivations(t *testing.T) {
+	configureFMAManifestServer(t)
+	// Plain team name: the emoji one slugs the directory but not the YAML
+	// reference, which would break the resolve check below for unrelated reasons.
+	fleetClient := &MockClient{WithActivations: true, TeamNameOverride: "team-a"}
+	action := createGenerateGitopsAction(fleetClient)
+	buf := new(bytes.Buffer)
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
+	cliContext := cli.NewContext(&cli.App{
+		Name:      "test",
+		Usage:     "test",
+		Writer:    buf,
+		ErrWriter: buf,
+	}, flagSet, nil)
+	require.NoError(t, action(cliContext), buf.String())
+	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+
+	// The emitted path is relative to the YAML holding it, so resolving it from
+	// there is what proves gitops can read back what generate-gitops wrote.
+	var refs int
+	require.NoError(t, filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || filepath.Ext(path) != ".yml" {
+			return err
+		}
+		b, err := os.ReadFile(path) //nolint:gosec // reading files under a temp dir created by this test
+		if err != nil {
+			return err
+		}
+		for line := range strings.SplitSeq(string(b), "\n") {
+			_, ref, found := strings.Cut(strings.TrimSpace(line), "activation:")
+			if !found {
+				continue
+			}
+			ref = strings.TrimSpace(ref)
+			require.Contains(t, ref, "/activations/", "activation should live in its own directory")
+
+			resolved := filepath.Join(filepath.Dir(path), ref)
+			contents, err := os.ReadFile(resolved) //nolint:gosec // path derived from the temp dir above
+			require.NoError(t, err, "activation %q referenced by %s does not resolve", ref, path)
+			require.Contains(t, string(contents), "com.apple.activation.simple")
+			refs++
+		}
+		return nil
+	}))
+	require.Equal(t, 1, refs, "expected the declaration's activation to be referenced exactly once")
 }
 
 func TestGenerateGitopsWithoutMDM(t *testing.T) {

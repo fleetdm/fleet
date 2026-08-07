@@ -2125,8 +2125,14 @@ type Datastore interface {
 	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID
 	// on the given channel (scope).
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string, scope PayloadScope) ([]MDMAppleDDMDeclarationItem, error)
+
+	// ListCustomActivationsForDeclarations returns the custom activations
+	// attached to the given declarations. Declarations without one are absent
+	// from the result.
+	ListCustomActivationsForDeclarations(ctx context.Context, declUUIDs []string) ([]*MDMAppleDDMActivationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDeclaration, error)
+	MDMAppleDDMActivationResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDDMActivationForDelivery, error)
 
 	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync,
 	// partitioned by channel (device vs user) so the reconciler only pokes the
@@ -2689,7 +2695,7 @@ type Datastore interface {
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
-	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
+	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName, activationAction MDMAppleActivationAction) (*MDMAppleDeclaration, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
@@ -3886,6 +3892,19 @@ type AndroidDatastore interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error)
+	// SetAndroidHostEnrolled flips host_mdm back to enrolled for an Android host
+	// that is currently marked unenrolled, recovering a host wrongly unenrolled by
+	// an out-of-order Pub/Sub DELETED delivery. Returns false (no-op) when the host
+	// is already enrolled or has no host_mdm row. It preserves the existing
+	// is_personal_enrollment classification.
+	SetAndroidHostEnrolled(ctx context.Context, hostID uint) (bool, error)
+	// GetAndroidPubSubDedupState returns the last-processed Google Pub/Sub messageId
+	// and AMAPI event timestamp recorded for the host, for dropping duplicate and
+	// stale AMAPI notification deliveries.
+	GetAndroidPubSubDedupState(ctx context.Context, hostID uint) (messageID string, eventTime *time.Time, err error)
+	// SetAndroidPubSubDedupState records the last-processed Google Pub/Sub messageId
+	// and AMAPI event timestamp for the host after a notification is handled.
+	SetAndroidPubSubDedupState(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)

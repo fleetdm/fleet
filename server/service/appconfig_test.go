@@ -1755,7 +1755,7 @@ func TestModifyAppConfigClearsStaleAppleOSUpdateDeadline(t *testing.T) {
 			}
 			return ids, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			return d, nil
 		}
 		ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {

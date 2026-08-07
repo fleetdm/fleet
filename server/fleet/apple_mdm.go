@@ -561,6 +561,9 @@ type AppleDeclarationForReconcile struct {
 	// effective token and re-syncs the host, even when the declaration's own
 	// content/token is unchanged. Mirrors HasFleetVariables/VariablesUpdatedAt.
 	AssetsUpdatedAt *time.Time
+
+	// uploaded_at of the custom activation attached to this declaration, if any.
+	ActivationUpdatedAt *time.Time
 }
 
 // AppleLabeledEntity implementation.
@@ -952,24 +955,22 @@ type MDMAppleDeclaration struct {
 	// Nil removes any stored activation on write, which is how one is cleared.
 	Activation *MDMAppleCustomActivation `db:"-" json:"-"`
 
-	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
-	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
-	SecretsUpdatedAt   *time.Time `db:"secrets_updated_at" json:"-"`
-	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
-	AssetsUpdatedAt    *time.Time `db:"assets_updated_at" json:"-"`
+	CreatedAt           time.Time  `db:"created_at" json:"created_at"`
+	UploadedAt          time.Time  `db:"uploaded_at" json:"uploaded_at"`
+	SecretsUpdatedAt    *time.Time `db:"secrets_updated_at" json:"-"`
+	VariablesUpdatedAt  *time.Time `db:"variables_updated_at" json:"-"`
+	AssetsUpdatedAt     *time.Time `db:"assets_updated_at" json:"-"`
+	ActivationUpdatedAt *time.Time `db:"activation_updated_at" json:"-"`
 }
 
-// EffectiveDDMToken computes the per-declaration token that incorporates the
-// static content hash together with the host-specific variables_updated_at
-// and/or assets_updated_at timestamps. When both are nil (the declaration
-// references no Fleet variables or DDM assets), the effective token equals
-// the static token unchanged.
-func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time, assetsUpdatedAt *time.Time) string {
-	if variablesUpdatedAt == nil && assetsUpdatedAt == nil {
+// Folds host-specific timestamps into the static content hash so a change to
+// anything the declaration depends on moves the token.
+func EffectiveDDMToken(staticToken string, variablesUpdatedAt, assetsUpdatedAt, activationUpdatedAt *time.Time) string {
+	if variablesUpdatedAt == nil && assetsUpdatedAt == nil && activationUpdatedAt == nil {
 		return staticToken
 	}
-	// Must match MySQL's DATETIME(6) string representation used in
-	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '') and IFNULL(hmad.assets_updated_at, '').
+	// Order and format must match MDMAppleDDMDeclarationsToken's CONCAT exactly,
+	// or every host re-syncs on every check-in.
 	hasher := md5.New() // nolint:gosec // used for declarative management token
 	hasher.Write([]byte(staticToken))
 	if variablesUpdatedAt != nil {
@@ -977,6 +978,9 @@ func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time, assets
 	}
 	if assetsUpdatedAt != nil {
 		hasher.Write([]byte(assetsUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	}
+	if activationUpdatedAt != nil {
+		hasher.Write([]byte(activationUpdatedAt.Format("2006-01-02 15:04:05.000000")))
 	}
 	return hex.EncodeToString(hasher.Sum(nil))
 }
@@ -1072,6 +1076,20 @@ const MDMAppleActivationTypePrefix = "com.apple.activation."
 
 // A custom activation stored against the configuration declaration it
 // activates. Not to be confused with MDMAppleDDMActivation, Apple's wire format.
+// MDMAppleActivationAction tells SetOrUpdateMDMAppleDeclaration what to do with
+// the declaration's activation. The write is otherwise a full replace, so
+// without this an edit that doesn't mention the activation would delete it.
+type MDMAppleActivationAction int
+
+const (
+	// MDMAppleActivationKeep keeps the currently stored activation untouched,
+	// including its Fleet variable associations.
+	MDMAppleActivationKeep MDMAppleActivationAction = iota
+	// MDMAppleActivationApply writes declaration.Activation, removing the stored
+	// one when it is nil.
+	MDMAppleActivationApply
+)
+
 type MDMAppleCustomActivation struct {
 	ActivationUUID          string          `db:"activation_uuid"`
 	TeamID                  uint            `db:"team_id"`
@@ -1184,6 +1202,10 @@ type MDMAppleHostDeclaration struct {
 	// were last computed. Non-null only for declarations that use Fleet assets.
 	AssetsUpdatedAt *time.Time `db:"assets_updated_at" json:"-"`
 
+	// ActivationUpdatedAt tracks the uploaded_at of this declaration's custom
+	// activation. Non-null only for declarations that have one.
+	ActivationUpdatedAt *time.Time `db:"activation_updated_at" json:"-"`
+
 	// Scope is the channel this declaration is delivered on for the host,
 	// mirrored from the declaration's scope so the DDM serving queries can
 	// filter per channel. "System" (default) is the device channel, "User" the
@@ -1196,6 +1218,7 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
 	varsEqual := p.VariablesUpdatedAt == nil && other.VariablesUpdatedAt == nil || p.VariablesUpdatedAt != nil && other.VariablesUpdatedAt != nil && p.VariablesUpdatedAt.Equal(*other.VariablesUpdatedAt)
 	assetsEqual := p.AssetsUpdatedAt == nil && other.AssetsUpdatedAt == nil || p.AssetsUpdatedAt != nil && other.AssetsUpdatedAt != nil && p.AssetsUpdatedAt.Equal(*other.AssetsUpdatedAt)
+	activationEqual := p.ActivationUpdatedAt == nil && other.ActivationUpdatedAt == nil || p.ActivationUpdatedAt != nil && other.ActivationUpdatedAt != nil && p.ActivationUpdatedAt.Equal(*other.ActivationUpdatedAt)
 	return statusEqual &&
 		p.HostUUID == other.HostUUID &&
 		p.DeclarationUUID == other.DeclarationUUID &&
@@ -1207,7 +1230,8 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.Scope == other.Scope &&
 		secretsEqual &&
 		varsEqual &&
-		assetsEqual
+		assetsEqual &&
+		activationEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
@@ -1221,6 +1245,26 @@ func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ide
 
 	return &decl
 }
+
+// MDMAppleDDMActivationForDelivery is a stored custom activation together with
+// the per-host timestamps needed to compute its ServerToken.
+type MDMAppleDDMActivationForDelivery struct {
+	// Nil when the host asked for an activation Fleet synthesizes; the LEFT
+	// JOIN yields NULL there, which json.RawMessage can't scan.
+	RawJSON                 []byte `db:"raw_json"`
+	ConfigurationIdentifier string `db:"configuration_identifier"`
+	Token                   string `db:"token"`
+	// ActivationToken is the custom activation's own token, empty when Fleet
+	// synthesizes the activation. Must match what the manifest advertised.
+	ActivationToken     *string    `db:"activation_token"`
+	VariablesUpdatedAt  *time.Time `db:"variables_updated_at"`
+	AssetsUpdatedAt     *time.Time `db:"assets_updated_at"`
+	ActivationUpdatedAt *time.Time `db:"activation_updated_at"`
+	DeclarationUUID     string     `db:"declaration_uuid"`
+}
+
+// Suffix Fleet appends to a declaration's UUID when synthesizing an activation.
+const MDMAppleGeneratedActivationSuffix = ".activation"
 
 // MDMAppleDDMTokensResponse is the response from the DDM tokens endpoint.
 //
@@ -1283,12 +1327,30 @@ type MDMAppleDDMDeclarationItem struct {
 	// AssetsUpdatedAt is not part of the DDM profile, but part of the host-ddm tuple, as the assets'
 	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
 	// ServerToken field is just for the static token of the DDM.
-	AssetsUpdatedAt *time.Time `db:"assets_updated_at"`
+	AssetsUpdatedAt     *time.Time `db:"assets_updated_at"`
+	ActivationUpdatedAt *time.Time `db:"activation_updated_at"`
+	DeclarationType     *string    `db:"declaration_type"`
 	// RawJSON is conditionally loaded only for declarations that use Fleet
 	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
 	// so that handleDeclarationItems can check variable resolution without an
 	// extra query.
 	RawJSON *json.RawMessage `db:"raw_json"`
+}
+
+// MDMAppleDDMActivationItem is a custom activation as the manifest needs it:
+// its own identifier and token, plus enough to know whether its Fleet variables
+// resolve for a host. Kept apart from MDMAppleDDMDeclarationItem so the
+// activation section of the manifest is built from activation data rather than
+// columns carried along on each declaration row.
+type MDMAppleDDMActivationItem struct {
+	DeclarationUUID string `db:"declaration_uuid"`
+	Identifier      string `db:"identifier"`
+	// Token is the activation's own token, hex-encoded.
+	Token   string `db:"token"`
+	RawJSON []byte `db:"raw_json"`
+	// HasFleetVariables covers both recorded Fleet variables and custom host
+	// vitals, which are only detectable by scanning the body.
+	HasFleetVariables bool `db:"has_fleet_variables"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
@@ -1379,6 +1441,12 @@ type MDMAppleDDMErrors struct {
 	// Reasons is an array of reasons for the error.
 	Reasons []MDMAppleDDMStatusErrorReason `json:"Reasons"`
 }
+
+// Reason codes Apple returns for activation predicates.
+const (
+	MDMAppleDDMReasonPredicate        = "Info.Predicate"
+	MDMAppleDDMReasonActivationFailed = "Error.ActivationFailed"
+)
 
 // A status report that contains details about an error.
 //

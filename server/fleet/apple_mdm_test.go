@@ -694,6 +694,8 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].AssetsUpdatedAt = items[0].AssetsUpdatedAt
 	fieldsInEqualMethod++
+	items[1].ActivationUpdatedAt = items[0].ActivationUpdatedAt
+	fieldsInEqualMethod++
 	items[1].Scope = items[0].Scope
 	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
@@ -725,27 +727,27 @@ func TestEffectiveDDMToken(t *testing.T) {
 	const layout = "2006-01-02 15:04:05.000000"
 
 	t.Run("no vars, no assets returns static token unchanged", func(t *testing.T) {
-		require.Equal(t, staticToken, EffectiveDDMToken(staticToken, nil, nil))
+		require.Equal(t, staticToken, EffectiveDDMToken(staticToken, nil, nil, nil))
 	})
 
 	t.Run("only variables", func(t *testing.T) {
-		require.Equal(t, md5Hex(staticToken, vars.Format(layout)), EffectiveDDMToken(staticToken, &vars, nil))
+		require.Equal(t, md5Hex(staticToken, vars.Format(layout)), EffectiveDDMToken(staticToken, &vars, nil, nil))
 	})
 
 	t.Run("only assets", func(t *testing.T) {
-		got := EffectiveDDMToken(staticToken, nil, &assets)
+		got := EffectiveDDMToken(staticToken, nil, &assets, nil)
 		require.Equal(t, md5Hex(staticToken, assets.Format(layout)), got)
 		// An asset update must change the effective token away from the static one.
 		require.NotEqual(t, staticToken, got)
 	})
 
 	t.Run("both variables and assets, order is static+vars+assets", func(t *testing.T) {
-		require.Equal(t, md5Hex(staticToken, vars.Format(layout), assets.Format(layout)), EffectiveDDMToken(staticToken, &vars, &assets))
+		require.Equal(t, md5Hex(staticToken, vars.Format(layout), assets.Format(layout)), EffectiveDDMToken(staticToken, &vars, &assets, nil))
 	})
 
 	t.Run("different asset timestamps yield different tokens", func(t *testing.T) {
 		later := assets.Add(time.Second)
-		require.NotEqual(t, EffectiveDDMToken(staticToken, nil, &assets), EffectiveDDMToken(staticToken, nil, &later))
+		require.NotEqual(t, EffectiveDDMToken(staticToken, nil, &assets, nil), EffectiveDDMToken(staticToken, nil, &later, nil))
 	})
 }
 
