@@ -14,7 +14,6 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -3575,27 +3574,36 @@ func (svc *Service) OSVersions(
 var numericVersionPattern = regexp.MustCompile(`^\d+(\.\d+)*$`)
 var windowsFeatureUpdatePattern = regexp.MustCompile(`^(\d{2})H([12])$`)
 
-// versionSegments returns the numeric segments used to order a version
-// string, and whether it could be parsed. Handles dot-separated numeric
-// versions (e.g. "26.5.2", "10.0.26200.8875") and Windows feature-update
-// codenames (e.g. "21H2", "23H1", ordered as [year, half]) — fleet.OSVersion's
-// Version field documents both as valid ("e.g., '21H2', '20.4.0', or '12.5'").
-// Other formats (e.g. Arch Linux's "rolling") aren't comparable this way.
-func versionSegments(version string) ([]int, bool) {
+// versionSegments returns the segments used to order a version string, and
+// whether it could be parsed. Handles dot-separated numeric versions (e.g.
+// "26.5.2", "10.0.26200.8875") and Windows feature-update codenames (e.g.
+// "21H2", "23H1", ordered as [year, half]) — fleet.OSVersion's Version field
+// documents both as valid ("e.g., '21H2', '20.4.0', or '12.5'"). Other
+// formats (e.g. Arch Linux's "rolling") aren't comparable this way. Segments
+// are kept as digit strings rather than parsed to int, so a segment larger
+// than int can hold still compares correctly instead of silently overflowing.
+func versionSegments(version string) ([]string, bool) {
 	if numericVersionPattern.MatchString(version) {
-		parts := strings.Split(version, ".")
-		segments := make([]int, len(parts))
-		for i, p := range parts {
-			segments[i], _ = strconv.Atoi(p) // safe: numericVersionPattern pre-validated digits-only
-		}
-		return segments, true
+		return strings.Split(version, "."), true
 	}
 	if m := windowsFeatureUpdatePattern.FindStringSubmatch(version); m != nil {
-		year, _ := strconv.Atoi(m[1])
-		half, _ := strconv.Atoi(m[2])
-		return []int{year, half}, true
+		return []string{m[1], m[2]}, true
 	}
 	return nil, false
+}
+
+// compareDigitStrings compares two non-negative integer strings of
+// arbitrary length (e.g. a version segment too large for strconv.Atoi, like
+// "9223372036854775808"). Strips leading zeros to get each string's
+// significant digit count; more significant digits means a larger number,
+// and equal-length digit strings sort correctly with a plain string compare.
+func compareDigitStrings(a, b string) int {
+	aSig := strings.TrimLeft(a, "0")
+	bSig := strings.TrimLeft(b, "0")
+	if len(aSig) != len(bSig) {
+		return cmp.Compare(len(aSig), len(bSig))
+	}
+	return cmp.Compare(aSig, bSig)
 }
 
 // compareOSVersions compares version strings by numeric segment (e.g.
@@ -3630,14 +3638,14 @@ func compareOSVersions(a, b string) int {
 	maxLen := max(len(aSegments), len(bSegments))
 
 	for i := range maxLen {
-		var aPart, bPart int
+		aPart, bPart := "0", "0"
 		if i < len(aSegments) {
 			aPart = aSegments[i]
 		}
 		if i < len(bSegments) {
 			bPart = bSegments[i]
 		}
-		if c := cmp.Compare(aPart, bPart); c != 0 {
+		if c := compareDigitStrings(aPart, bPart); c != 0 {
 			return c
 		}
 	}

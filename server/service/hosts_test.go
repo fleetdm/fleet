@@ -3406,6 +3406,12 @@ func TestCompareOSVersions(t *testing.T) {
 		{"numeric sorts after non-numeric", "26.6", "rolling", 1},
 		{"two non-numeric versions are equal", "rolling", "rolling", 0},
 		{"empty string sorts before numeric", "", "26.6", -1},
+		// Segments beyond what strconv.Atoi can hold must still order
+		// correctly instead of overflowing/tying (see versionSegments).
+		{"segment one past int64 max orders correctly", "9223372036854775807", "9223372036854775808", -1},
+		{"arbitrarily large segment orders by significant digits", "31415926535897932384626", "9223372036854775808", 1},
+		{"leading zeros don't inflate significant digit count", "007", "12", -1},
+		{"all-zero segments of differing width are equal", "000", "0", 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
