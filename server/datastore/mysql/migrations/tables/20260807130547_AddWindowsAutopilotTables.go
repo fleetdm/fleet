@@ -51,7 +51,7 @@ func Up_20260807130547(tx *sql.Tx) error {
 	// (see handbook/engineering/scaling-fleet.md#foreign-keys-and-locking, enforced by CI). Cleanup on host deletion
 	// is handled by adding this table to hostRefs in server/datastore/mysql/hosts.go instead.
 	//
-	// autopilot_device_id is the Graph resource id of the Autopilot registration, distinct from azure_ad_device_id
+	// autopilot_device_id is the Graph resource id of the Autopilot registration, distinct from entra_device_id
 	// (the Entra device object). It is recorded because it is the one stable, unique identifier Graph gives us:
 	// serial numbers are neither (Graph paginates this collection on serial, and placeholder serials such as
 	// "Default string" ship on real hardware), which is why the Graph client deduplicates its pages by this id.
@@ -67,7 +67,7 @@ func Up_20260807130547(tx *sql.Tx) error {
 	CREATE TABLE IF NOT EXISTS host_autopilot_devices (
 	    host_id INT UNSIGNED NOT NULL,
 	    autopilot_device_id VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-	    azure_ad_device_id VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+	    entra_device_id VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 	    group_tag VARCHAR(2048) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 	    hardware_serial VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 	    tenant_id VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',

@@ -45,6 +45,24 @@ const (
 	requestTimeout = 60 * time.Second
 )
 
+// WindowsAutopilotDevice is a Windows Autopilot device identity as returned by Microsoft Graph from
+// /deviceManagement/windowsAutopilotDeviceIdentities.
+//
+// This is a wire type, which is why it lives here rather than in the fleet package: the field names and JSON tags are
+// Graph's, not Fleet's. Callers map it onto fleet.HostAutopilotDevice.
+//
+// ID is the Graph resource id of the Autopilot registration. It is the identity to reconcile on: it is unique and
+// stable for the life of the registration, whereas SerialNumber is neither (Graph paginates this collection on serial,
+// and placeholder serials such as "Default string" ship on real hardware).
+type WindowsAutopilotDevice struct {
+	ID           string `json:"id"`
+	SerialNumber string `json:"serialNumber"`
+	GroupTag     string `json:"groupTag"`
+	// The JSON tag is Graph's and must stay as-is: Microsoft rebranded Azure AD to Entra ID but never renamed this
+	// API field, so it is still azureActiveDirectoryDeviceId on the wire. The Go name follows Fleet's convention.
+	EntraDeviceID string `json:"azureActiveDirectoryDeviceId"`
+}
+
 // Client reads Windows Autopilot data from Microsoft Graph.
 type Client interface {
 	// VerifyCredential mints a token and lists a single page to confirm the credential works. Used to reject a bad
@@ -52,7 +70,7 @@ type Client interface {
 	VerifyCredential(ctx context.Context) error
 	// ListWindowsAutopilotDevices returns all Autopilot device identities for the credential's tenant, deduplicated by
 	// device ID.
-	ListWindowsAutopilotDevices(ctx context.Context) ([]fleet.WindowsAutopilotDevice, error)
+	ListWindowsAutopilotDevices(ctx context.Context) ([]WindowsAutopilotDevice, error)
 }
 
 // ClientFactory builds a Client for a credential. It is injected so callers (notably the sync cron) do not import the
@@ -116,12 +134,12 @@ func (c *client) VerifyCredential(ctx context.Context) error {
 	return nil
 }
 
-func (c *client) ListWindowsAutopilotDevices(ctx context.Context) ([]fleet.WindowsAutopilotDevice, error) {
+func (c *client) ListWindowsAutopilotDevices(ctx context.Context) ([]WindowsAutopilotDevice, error) {
 	// One client for the whole walk, so every page shares a single access token.
 	httpClient := c.httpClientFor(ctx)
 
 	var (
-		devices  []fleet.WindowsAutopilotDevice
+		devices  []WindowsAutopilotDevice
 		seen     = make(map[string]struct{})
 		nextURL  = c.graphHost + autopilotDevicesPath
 		pageNum  int
@@ -208,12 +226,12 @@ func (c *client) assertGraphOrigin(link string) error {
 }
 
 type autopilotDevicesResponse struct {
-	Value    []fleet.WindowsAutopilotDevice `json:"value"`
-	NextLink string                         `json:"@odata.nextLink"`
+	Value    []WindowsAutopilotDevice `json:"value"`
+	NextLink string                   `json:"@odata.nextLink"`
 }
 
 // getPage performs one Graph GET and returns the devices plus the next link, if any.
-func (c *client) getPage(ctx context.Context, httpClient *http.Client, requestURL string) ([]fleet.WindowsAutopilotDevice, string, error) {
+func (c *client) getPage(ctx context.Context, httpClient *http.Client, requestURL string) ([]WindowsAutopilotDevice, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "build microsoft graph request")

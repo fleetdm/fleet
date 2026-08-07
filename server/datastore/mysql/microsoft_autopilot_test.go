@@ -208,7 +208,7 @@ func testHostAutopilotDeviceUpsertAndGet(t *testing.T, ds *Datastore) {
 	dev := &fleet.HostAutopilotDevice{
 		HostID:            host.ID,
 		AutopilotDeviceID: "747c1c60-fecb-4533-a5de-81c3068091d8",
-		AzureADDeviceID:   "261b8f91-f3fb-4f3d-bc31-de657b7f002b",
+		EntraDeviceID:     "261b8f91-f3fb-4f3d-bc31-de657b7f002b",
 		GroupTag:          "Engineering",
 		HardwareSerial:    "VICTOR1776257483",
 		TenantID:          testTenantA,

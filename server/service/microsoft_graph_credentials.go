@@ -20,7 +20,7 @@ type NoopMicrosoftGraphClient struct{}
 
 func (NoopMicrosoftGraphClient) VerifyCredential(context.Context) error { return nil }
 
-func (NoopMicrosoftGraphClient) ListWindowsAutopilotDevices(context.Context) ([]fleet.WindowsAutopilotDevice, error) {
+func (NoopMicrosoftGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgraph.WindowsAutopilotDevice, error) {
 	return nil, nil
 }
 

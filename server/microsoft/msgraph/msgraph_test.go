@@ -70,7 +70,7 @@ func (gs *graphServer) client(t *testing.T) Client {
 	return c
 }
 
-func writeDevices(t *testing.T, w http.ResponseWriter, nextLink string, devices ...fleet.WindowsAutopilotDevice) {
+func writeDevices(t *testing.T, w http.ResponseWriter, nextLink string, devices ...WindowsAutopilotDevice) {
 	t.Helper()
 	body := map[string]any{"value": devices}
 	if nextLink != "" {
@@ -80,8 +80,8 @@ func writeDevices(t *testing.T, w http.ResponseWriter, nextLink string, devices 
 	require.NoError(t, json.NewEncoder(w).Encode(body))
 }
 
-func device(id, serial, tag string) fleet.WindowsAutopilotDevice {
-	return fleet.WindowsAutopilotDevice{ID: id, SerialNumber: serial, GroupTag: tag, AzureADDeviceID: "aad-" + id}
+func device(id, serial, tag string) WindowsAutopilotDevice {
+	return WindowsAutopilotDevice{ID: id, SerialNumber: serial, GroupTag: tag, EntraDeviceID: "aad-" + id}
 }
 
 func TestNewClientRequiresFullCredential(t *testing.T) {
@@ -116,7 +116,7 @@ func TestListSinglePage(t *testing.T) {
 	assert.Equal(t, "id-1", devices[0].ID)
 	assert.Equal(t, "SERIAL-1", devices[0].SerialNumber)
 	assert.Equal(t, "Engineering", devices[0].GroupTag)
-	assert.Equal(t, "aad-id-1", devices[0].AzureADDeviceID)
+	assert.Equal(t, "aad-id-1", devices[0].EntraDeviceID)
 	// An empty group tag is the common real-world case and must survive as empty rather than being dropped.
 	assert.Empty(t, devices[1].GroupTag)
 

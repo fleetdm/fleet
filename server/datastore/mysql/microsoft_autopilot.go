@@ -162,18 +162,18 @@ func (ds *Datastore) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantI
 func (ds *Datastore) UpsertHostAutopilotDevice(ctx context.Context, dev *fleet.HostAutopilotDevice) error {
 	const stmt = `
 INSERT INTO host_autopilot_devices
-	(host_id, autopilot_device_id, azure_ad_device_id, group_tag, hardware_serial, tenant_id)
+	(host_id, autopilot_device_id, entra_device_id, group_tag, hardware_serial, tenant_id)
 VALUES (?, ?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
 	autopilot_device_id = VALUES(autopilot_device_id),
-	azure_ad_device_id = VALUES(azure_ad_device_id),
+	entra_device_id = VALUES(entra_device_id),
 	group_tag = VALUES(group_tag),
 	hardware_serial = VALUES(hardware_serial),
 	tenant_id = VALUES(tenant_id),
 	deleted_at = NULL`
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
-		dev.HostID, dev.AutopilotDeviceID, dev.AzureADDeviceID, dev.GroupTag, dev.HardwareSerial, dev.TenantID,
+		dev.HostID, dev.AutopilotDeviceID, dev.EntraDeviceID, dev.GroupTag, dev.HardwareSerial, dev.TenantID,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "upsert host autopilot device")
 	}
@@ -183,7 +183,7 @@ ON DUPLICATE KEY UPDATE
 // ListHostAutopilotDevices returns the live (not soft-deleted) Autopilot records for a tenant.
 func (ds *Datastore) ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error) {
 	const stmt = `
-SELECT host_id, autopilot_device_id, azure_ad_device_id, group_tag, hardware_serial, tenant_id
+SELECT host_id, autopilot_device_id, entra_device_id, group_tag, hardware_serial, tenant_id
 FROM host_autopilot_devices
 WHERE tenant_id = ? AND deleted_at IS NULL
 ORDER BY host_id`
@@ -199,7 +199,7 @@ ORDER BY host_id`
 // reads as not found: the device has left Autopilot, and only the host survives.
 func (ds *Datastore) GetHostAutopilotDevice(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
 	const stmt = `
-SELECT host_id, autopilot_device_id, azure_ad_device_id, group_tag, hardware_serial, tenant_id
+SELECT host_id, autopilot_device_id, entra_device_id, group_tag, hardware_serial, tenant_id
 FROM host_autopilot_devices
 WHERE host_id = ? AND deleted_at IS NULL`
 
