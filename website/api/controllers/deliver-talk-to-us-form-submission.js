@@ -107,7 +107,7 @@ Only include a key when you are confident of its value. Omit any key you are uns
       locationGuessFromEmailDomain: async()=>{
         return await sails.helpers.ai.prompt.with({
           prompt: locationGuessPrompt,
-          baseModel: 'gpt-5-nano-2025-08-07',
+          baseModel: 'claude-haiku-4-5',
           expectJson: true,
           systemPrompt: locationGuessSystemPrompt,
         }).tolerate((err)=>{

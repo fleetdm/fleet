@@ -485,6 +485,11 @@ type Service interface {
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
 	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
 
+	// EscrowWindowsManagedLocalAccountPassword stores the device-generated password that Windows fleetd escrows after
+	// creating the managed local admin account. When clientError is set no password is stored; the account is marked failed
+	// and the device-reported reason is recorded on it.
+	EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error
+
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
 	// If a host is already a member of one of the labels then this operation will only
@@ -542,6 +547,8 @@ type Service interface {
 	AppConfigObfuscated(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
+	// MaxInstallerSizeBytes returns the configured maximum size for software installer uploads.
+	MaxInstallerSizeBytes() int64
 	AppConfigUrls(ctx context.Context) (urls *AppConfigUrls, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -932,7 +939,9 @@ type Service interface {
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleDeclaration, error)
+	// activation is an optional custom activation declaration to attach to the
+	// declaration; nil or empty means Fleet generates the activation.
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -1238,6 +1247,11 @@ type Service interface {
 	// unsupported extension is uploaded.
 	NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error
 
+	// Called when an activation is uploaded alongside a profile that isn't an
+	// Apple declaration. Exists, like the two below, so the error goes through
+	// an authorization check.
+	NewMDMActivationUnsupportedProfile(ctx context.Context, teamID uint) error
+
 	// NewMDMInvalidJSONConfigProfile is called when a JSON profile is uploaded with contents that
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
@@ -1246,7 +1260,7 @@ type Service interface {
 	// contents and/or label targeting in place. Supported for Apple
 	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and
 	// Android profiles.
-	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) error
+	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)

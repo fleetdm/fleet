@@ -17,6 +17,7 @@ import Adguard from "./Adguard";
 import Adlock from "./Adlock";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
+import AdobePlugin from "./AdobePlugin";
 import AdvancedInstaller from "./AdvancedInstaller";
 import AdvancedRenamer from "./AdvancedRenamer";
 import Affinity from "./Affinity";
@@ -241,6 +242,7 @@ import CriblEdge from "./CriblEdge";
 import Crisisgo from "./Crisisgo";
 import Crossover from "./Crossover";
 import Cryptomator from "./Cryptomator";
+import Crystaldiskmark from "./Crystaldiskmark";
 import Crystalfetch from "./Crystalfetch";
 import CubeBrowser from "./CubeBrowser";
 import Cursor from "./Cursor";
@@ -274,6 +276,7 @@ import Deezer from "./Deezer";
 import DefaultFolderX from "./DefaultFolderX";
 import DelineaConnectionManager from "./DelineaConnectionManager";
 import DellCommandUpdate from "./DellCommandUpdate";
+import DellDisplayAndPeripheralManager from "./DellDisplayAndPeripheralManager";
 import Descript from "./Descript";
 import Deskpad from "./Deskpad";
 import Desktime from "./Desktime";
@@ -374,7 +377,6 @@ import Fastscripts from "./Fastscripts";
 import Fellow from "./Fellow";
 import Ferdium from "./Ferdium";
 import FetchApp from "./FetchApp";
-import Fig from "./Fig";
 import Figma from "./Figma";
 import Filebeat from "./Filebeat";
 import FileJuicer from "./FileJuicer";
@@ -417,8 +419,6 @@ import Freefilesync from "./Freefilesync";
 import Front from "./Front";
 import Fsmonitor from "./Fsmonitor";
 import Funter from "./Funter";
-import GadwinPrintscreen from "./GadwinPrintscreen";
-import GadwinPrintscreenPro from "./GadwinPrintscreenPro";
 import GalaxyModeler from "./GalaxyModeler";
 import GarminBasecamp from "./GarminBasecamp";
 import GarminExpress from "./GarminExpress";
@@ -645,6 +645,7 @@ import MicrosoftAzureStorageExplorer from "./MicrosoftAzureStorageExplorer";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOdbcDriver17 from "./MicrosoftOdbcDriver17";
+import MicrosoftOdbcDriver18 from "./MicrosoftOdbcDriver18";
 import MicrosoftOffice from "./MicrosoftOffice";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
@@ -715,6 +716,7 @@ import Novabench from "./Novabench";
 import Nucleo from "./Nucleo";
 import Nudge from "./Nudge";
 import Numi from "./Numi";
+import Nvda from "./Nvda";
 import NvidiaGeforceNow from "./NvidiaGeforceNow";
 import Obs from "./Obs";
 import Obsidian from "./Obsidian";
@@ -827,6 +829,7 @@ import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
 import Python313 from "./Python313";
 import Python314 from "./Python314";
+import Qemu from "./Qemu";
 import Qlab from "./Qlab";
 import Qlmarkdown from "./Qlmarkdown";
 import QspacePro from "./QspacePro";
@@ -1395,6 +1398,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   crisisgo: Crisisgo,
   crossover: Crossover,
   cryptomator: Cryptomator,
+  crystaldiskmark: Crystaldiskmark,
   crystalfetch: Crystalfetch,
   "cube browser": CubeBrowser,
   cursor: Cursor,
@@ -1432,6 +1436,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "default folder x": DefaultFolderX,
   "delinea connection manager": DelineaConnectionManager,
   "dell command update": DellCommandUpdate,
+  "dell display and peripheral manager": DellDisplayAndPeripheralManager,
   descript: Descript,
   deskpad: Deskpad,
   desktime: Desktime,
@@ -1534,7 +1539,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   fellow: Fellow,
   ferdium: Ferdium,
   fetch: FetchApp,
-  fig: Fig,
   figma: Figma,
   "file juicer": FileJuicer,
   filebeat: Filebeat,
@@ -1570,8 +1574,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   front: Front,
   fsmonitor: Fsmonitor,
   funter: Funter,
-  "gadwin printscreen": GadwinPrintscreen,
-  "gadwin printscreen pro": GadwinPrintscreenPro,
   "galaxy modeler": GalaxyModeler,
   "garmin basecamp": GarminBasecamp,
   "garmin express": GarminExpress,
@@ -1802,6 +1804,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft edge": Edge,
   "microsoft excel": Excel,
   "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
+  "microsoft odbc driver 18 for sql server": MicrosoftOdbcDriver18,
   "microsoft office": MicrosoftOffice,
   "microsoft onenote": MicrosoftOneNote,
   "microsoft outlook": MicrosoftOutlook,
@@ -1882,6 +1885,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nucleo: Nucleo,
   nudge: Nudge,
   numi: Numi,
+  nvda: Nvda,
   "nvidia geforce now": NvidiaGeforceNow,
   obs: Obs,
   obsidian: Obsidian,
@@ -1994,6 +1998,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pycharm ce": PyCharmCe,
   "python 3.13": Python313,
   "python 3.14": Python314,
+  qemu: Qemu,
   qlab: Qlab,
   "qspace pro": QspacePro,
   quip: Quip,
@@ -2347,6 +2352,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   pkg_packages: Package,
   vscode_extensions: Extension,
   jetbrains_plugins: Extension,
+  adobe_plugins: AdobePlugin,
 } as const;
 
 /**
@@ -2375,6 +2381,16 @@ const matchStrictNameSourceToIcon = ({
 };
 
 /**
+ * Sources whose own icon wins over any name match, strict or loose, because their names
+ * collide with the application they extend. An Adobe plugin named "Adobe Creative Cloud
+ * Libraries" is a plugin, not Creative Cloud, and one named "Zoom" is a plugin, not Zoom,
+ * so showing the other application's icon would misrepresent the row. Other extension
+ * sources keep matching on name first, so e.g. a VSCode extension named "Docker" still
+ * gets the Docker icon.
+ */
+const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins"];
+
+/**
  * This returns the icon component for a given software name and source. If a strict match is found,
  * it will be returned, otherwise it will fall back to loose matching on name and source prefixes.
  * If no match is found, the default package icon will be returned.
@@ -2385,11 +2401,21 @@ export const getMatchedSoftwareIcon = ({
 }: Pick<ISoftware, "name" | "source">) => {
   // Strip non-ascii, and non-printable characters
   name = name.replace(/[^\x20-\x7E]/g, "");
-  // first, try strict matching on name and source
-  let Icon = matchStrictNameSourceToIcon({
-    name,
-    source,
-  });
+
+  // for a few sources, the source icon wins over every name match below
+  const overriddenSource = SOURCE_ICON_OVERRIDES_NAME.includes(
+    source.trim().toLowerCase()
+  )
+    ? matchLoosePrefixToKey(SOFTWARE_SOURCE_TO_ICON_MAP, source)
+    : undefined;
+
+  // otherwise, try strict matching on name and source
+  let Icon = overriddenSource
+    ? SOFTWARE_SOURCE_TO_ICON_MAP[overriddenSource]
+    : matchStrictNameSourceToIcon({
+        name,
+        source,
+      });
 
   // if no match, try loose matching on name prefixes
   if (!Icon) {
