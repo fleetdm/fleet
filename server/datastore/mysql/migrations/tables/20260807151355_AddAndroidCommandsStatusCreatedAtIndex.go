@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260806213109, Down_20260806213109)
+	MigrationClient.AddMigration(Up_20260807151355, Down_20260807151355)
 }
 
 // Up_20260805182836 adds an index supporting the Android command reconciler's batch query
@@ -24,7 +24,7 @@ func init() {
 // index, so this also satisfies the ORDER BY and the LIMIT can stop early instead of sorting.
 //
 // ALGORITHM=INPLACE, LOCK=NONE so the index builds without blocking command inserts.
-func Up_20260806213109(tx *sql.Tx) error {
+func Up_20260807151355(tx *sql.Tx) error {
 	stmt := `ALTER TABLE mdm_android_commands
 		ADD INDEX idx_mdm_android_commands_status_created_at (status, created_at),
 		ALGORITHM=INPLACE, LOCK=NONE`
@@ -34,6 +34,6 @@ func Up_20260806213109(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260806213109(tx *sql.Tx) error {
+func Down_20260807151355(tx *sql.Tx) error {
 	return nil
 }

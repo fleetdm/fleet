@@ -12,6 +12,7 @@ import { COLORS } from "styles/var/colors";
 import classnames from "classnames";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { IconNames } from "components/icons";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -33,6 +34,10 @@ interface IActionsDropdownProps {
    *  Default: "subdued" */
   variant?: "primary" | "secondary" | "subdued";
   buttonLabel?: string;
+  /** Renders an icon-only trigger button (e.g. a settings gear) instead of the
+   * text control, following the same Control-replacement mechanism as the
+   * primary variant. `placeholder` becomes the button's accessible label. */
+  triggerIcon?: IconNames;
 }
 
 const getOptionBackgroundColor = (state: { isFocused: boolean }) => {
@@ -135,6 +140,7 @@ const ActionsDropdown = ({
   menuPlacement,
   variant = "subdued",
   buttonLabel,
+  triggerIcon,
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
@@ -202,6 +208,37 @@ const ActionsDropdown = ({
   }, [menuIsOpen]);
 
   const isPrimary = variant === "primary";
+  const hasIconTrigger = !!triggerIcon;
+
+  const toggleMenu = () => setMenuIsOpen((isOpen) => !isOpen);
+
+  // Same Control-replacement approach as the primary variant: the trigger is a
+  // real Button so it gets Fleet's button styles — including the square
+  // icon-only treatment for a lone Icon child — and focus handling for free.
+  const renderIconTriggerButton = () => (
+    <Button
+      type="button"
+      variant="secondary"
+      onClick={toggleMenu}
+      // Button also invokes onClick from its own Enter-keydown handler, and
+      // the native <button> fires a click on Enter — a toggle would run twice
+      // and the menu would stay closed. preventDefault suppresses the native
+      // click so Enter toggles exactly once.
+      customOnKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          toggleMenu();
+        }
+      }}
+      className={`${baseClass}__icon-trigger`}
+      disabled={disabled}
+      ariaHasPopup="listbox"
+      ariaExpanded={menuIsOpen}
+      ariaLabel={placeholder}
+    >
+      {triggerIcon && <Icon name={triggerIcon} />}
+    </Button>
+  );
 
   // CustomControl rerenders on state change, preventing arrow animation
   // Render primary button outside of CustomControl instead
@@ -335,6 +372,7 @@ const ActionsDropdown = ({
       left: getLeftMenuAlign(menuAlign),
       right: getRightMenuAlign(menuAlign),
       animation: "fade-in 150ms ease-out",
+      ...(hasIconTrigger && { marginTop: "4px" }),
     }),
     // zIndex 999 (document-portal tier) so the portaled menu clears
     // .site-nav-container and Modal — ActionsDropdown can render inside a
@@ -359,6 +397,8 @@ const ActionsDropdown = ({
       fontSize: "13px",
       backgroundColor: getOptionBackgroundColor(state),
       whiteSpace: "nowrap",
+      // Match DropdownWrapper's option cursor treatment.
+      cursor: state.isDisabled ? "not-allowed" : "pointer",
       "&:hover": {
         backgroundColor: state.isDisabled
           ? "transparent"
@@ -379,10 +419,11 @@ const ActionsDropdown = ({
   return (
     <div className={`${baseClass}__wrapper`} ref={wrapperRef}>
       {isPrimary && renderPrimaryButton()}
+      {hasIconTrigger && renderIconTriggerButton()}
       <Select<IDropdownOption, false>
         ref={selectRef}
         options={options}
-        placeholder={isPrimary ? "" : placeholder}
+        placeholder={isPrimary || hasIconTrigger ? "" : placeholder}
         onChange={handleChange}
         isDisabled={disabled}
         isSearchable={isSearchable}
@@ -396,7 +437,7 @@ const ActionsDropdown = ({
           Option: CustomOption,
           SingleValue: () => null, // Doesn't replace placeholder text with selected text
           // Note: react-select doesn't support skipping disabled options when keyboarding through
-          ...(isPrimary && { Control: () => null }), // Remove Control entirely and renderPrimaryButton instead
+          ...((isPrimary || hasIconTrigger) && { Control: () => null }), // Remove Control entirely and render a custom trigger button instead
         }}
         controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
         isOptionSelected={() => false} // Hides any styling on selected option

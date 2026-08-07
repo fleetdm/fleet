@@ -64,6 +64,7 @@ spec:
     webhook_settings:
       host_status_webhook: null
       failing_policies_webhook: null
+      host_activities_webhook: null
     name: tm1
   team:
     features:
@@ -128,4 +129,5 @@ spec:
     webhook_settings:
       host_status_webhook: null
       failing_policies_webhook: null
+      host_activities_webhook: null
     name: tm1
