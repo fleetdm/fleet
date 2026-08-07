@@ -4,7 +4,8 @@
       "version": "6.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nssurge.surge-mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nssurge.surge-mac' AND version_compare(bundle_short_version, '6.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nssurge.surge-mac' AND version_compare(bundle_short_version, '6.7.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.nssurge.surge-mac');"
       },
       "installer_url": "https://dl.nssurge.com/mac/v6/Surge-6.7.0-11730-0a67faa98116f98471bc09b946def542.zip",
       "install_script_ref": "591d4936",

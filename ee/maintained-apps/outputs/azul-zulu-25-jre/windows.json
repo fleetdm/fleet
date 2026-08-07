@@ -4,7 +4,8 @@
       "version": "25.36.15",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Azul Zulu JRE %' AND publisher = 'Azul Systems, Inc.' AND version LIKE '25.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Azul Zulu JRE %' AND publisher = 'Azul Systems, Inc.' AND version LIKE '25.%' AND version_compare(version, '25.36.15') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Azul Zulu JRE %' AND publisher = 'Azul Systems, Inc.' AND version LIKE '25.%' AND version_compare(version, '25.36.15') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'azul zulu jre 25.exe');"
       },
       "installer_url": "https://cdn.azul.com/zulu/bin/zulu25.36.15-ca-jre25.0.4-win_x64.msi",
       "install_script_ref": "22e48c46",

@@ -4,7 +4,8 @@
       "version": "18.4-2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'PostgreSQL 18' AND publisher = 'PostgreSQL Global Development Group';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PostgreSQL 18' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '18.4-2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PostgreSQL 18' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '18.4-2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'postgresql 18.exe');"
       },
       "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-18.4-2-windows-x64.exe",
       "install_script_ref": "bc68ad4d",

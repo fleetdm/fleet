@@ -4,7 +4,8 @@
       "version": "1.49.14.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'MongoDB Compass' AND publisher = 'MongoDB Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'MongoDB Compass' AND publisher = 'MongoDB Inc' AND version_compare(version, '1.49.14.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'MongoDB Compass' AND publisher = 'MongoDB Inc' AND version_compare(version, '1.49.14.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mongodb compass.exe');"
       },
       "installer_url": "https://github.com/mongodb-js/compass/releases/download/v1.49.14/mongodb-compass-1.49.14-win32-x64.msi",
       "install_script_ref": "22e48c46",

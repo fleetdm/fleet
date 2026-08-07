@@ -4,7 +4,8 @@
       "version": "7.2.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.dbgate';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.dbgate' AND version_compare(bundle_short_version, '7.2.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.dbgate' AND version_compare(bundle_short_version, '7.2.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.dbgate');"
       },
       "installer_url": "https://github.com/dbgate/dbgate/releases/download/v7.2.4/dbgate-7.2.4-mac_universal.dmg",
       "install_script_ref": "6185e1ae",

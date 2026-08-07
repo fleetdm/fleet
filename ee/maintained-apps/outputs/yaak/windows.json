@@ -4,7 +4,8 @@
       "version": "2026.5.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Yaak' AND publisher = 'Yaak';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Yaak' AND publisher = 'Yaak' AND version_compare(version, '2026.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Yaak' AND publisher = 'Yaak' AND version_compare(version, '2026.5.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'yaak.exe');"
       },
       "installer_url": "https://github.com/mountain-loop/yaak/releases/download/v2026.5.0/Yaak_2026.5.0_x64-setup.exe",
       "install_script_ref": "64dd4e97",

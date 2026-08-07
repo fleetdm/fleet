@@ -4,7 +4,8 @@
       "version": "3.14.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Python 3.14.% (64-bit)' AND publisher = 'Python Software Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.14.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.14.6150.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.14.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.14.6150.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'python 3.14.exe');"
       },
       "installer_url": "https://www.python.org/ftp/python/3.14.6/python-3.14.6-amd64.exe",
       "install_script_ref": "8272e48d",

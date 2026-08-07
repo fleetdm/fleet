@@ -4,7 +4,8 @@
       "version": "5.7.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Fellow' AND publisher = 'Fellow Insights Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Fellow' AND publisher = 'Fellow Insights Inc.' AND version_compare(version, '5.7.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Fellow' AND publisher = 'Fellow Insights Inc.' AND version_compare(version, '5.7.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'fellow.exe');"
       },
       "installer_url": "https://cdn.fellow.app/desktop/5.7.2/win32/stable/x64/Fellow-5.7.2.exe",
       "install_script_ref": "66645abc",

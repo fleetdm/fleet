@@ -4,7 +4,8 @@
       "version": "2026.2.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'WebStorm %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WebStorm %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.9437.145') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WebStorm %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.9437.145') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('webstorm.exe','webstorm64.exe'));"
       },
       "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2026.2.1.exe",
       "install_script_ref": "68119c0c",

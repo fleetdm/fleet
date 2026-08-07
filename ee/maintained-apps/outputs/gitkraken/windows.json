@@ -4,7 +4,8 @@
       "version": "12.4.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GitKraken' AND publisher = 'GitKraken';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitKraken' AND publisher = 'GitKraken' AND version_compare(version, '12.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitKraken' AND publisher = 'GitKraken' AND version_compare(version, '12.4.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gitkraken.exe');"
       },
       "installer_url": "https://api.gitkraken.dev/releases/production/windows/x64/12.4.0/GitKrakenSetup.exe",
       "install_script_ref": "c85d5da1",

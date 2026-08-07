@@ -4,7 +4,8 @@
       "version": "0.86.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Portfolio Performance' AND publisher = 'Andreas Buchen';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Portfolio Performance' AND publisher = 'Andreas Buchen' AND version_compare(version, '0.86.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Portfolio Performance' AND publisher = 'Andreas Buchen' AND version_compare(version, '0.86.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'portfolioperformance.exe');"
       },
       "installer_url": "https://github.com/portfolio-performance/portfolio/releases/download/0.86.0/PortfolioPerformance-0.86.0-setup.exe",
       "install_script_ref": "efa25f6a",

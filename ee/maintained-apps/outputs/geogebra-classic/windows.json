@@ -4,7 +4,8 @@
       "version": "6.0.927",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GeoGebra Classic' AND publisher = 'International GeoGebra Institute';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GeoGebra Classic' AND publisher = 'International GeoGebra Institute' AND version_compare(version, '6.0.927') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GeoGebra Classic' AND publisher = 'International GeoGebra Institute' AND version_compare(version, '6.0.927') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'geogebra classic.exe');"
       },
       "installer_url": "https://download.geogebra.org/installers/6.0/GeoGebra-Windows-Installer-6-0-927-1.msi",
       "install_script_ref": "d43086d9",
