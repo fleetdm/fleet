@@ -21,6 +21,7 @@ func TestHostMDMAppleDeviceVitals(t *testing.T) {
 		{"NullHandling", testHostMDMAppleDeviceVitalsNullHandling},
 		{"ServiceSubscriptionsReplace", testHostMDMAppleDeviceVitalsServiceSubscriptionsReplace},
 		{"ResubmitIdenticalPayload", testHostMDMAppleDeviceVitalsResubmitIdenticalPayload},
+		{"ChangeDetection", testHostMDMAppleDeviceVitalsChangeDetection},
 		{"Load", testLoadHostMDMAppleDeviceVitalsDB},
 		{"LoadPartial", testLoadHostMDMAppleDeviceVitalsDBPartial},
 		{"LoadNoRow", testLoadHostMDMAppleDeviceVitalsDBNoRow},
@@ -168,6 +169,81 @@ func testHostMDMAppleDeviceVitalsResubmitIdenticalPayload(t *testing.T, ds *Data
 	require.Equal(t, 1, count)
 }
 
+func testHostMDMAppleDeviceVitalsChangeDetection(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "vitals-change-detect-host", "1.1.1.10", "vitals-change-detect-host-key", "vitals-change-detect-host-uuid", time.Now(), test.WithPlatform("ios"))
+
+	lastBackup := time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
+	vitals := fleet.MDMAppleDeviceVitals{
+		UDID:                new("00008030-DDD"),
+		BatteryLevel:        new(0.50),
+		LastCloudBackupDate: &lastBackup,
+		AccessibilitySettings: &fleet.MDMAppleAccessibilitySettings{
+			VoiceOverEnabled: new(true),
+			ZoomEnabled:      new(false),
+		},
+	}
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals))
+
+	// An identical resubmission must report no change, even though what's
+	// stored for AccessibilitySettings differs byte-for-byte from a fresh
+	// marshal of the same Go value (MySQL's JSON key reordering).
+	row, err := newDeviceVitalsRow(ctx, host.UUID, vitals)
+	require.NoError(t, err)
+	changed, err := deviceVitalsChanged(ctx, ds.writer(ctx), host.UUID, row)
+	require.NoError(t, err)
+	require.False(t, changed, "identical vitals must not be reported as changed")
+
+	// A genuinely different JSON field must be detected.
+	changedVitals := vitals
+	changedAccessibility := *vitals.AccessibilitySettings
+	changedAccessibility.ZoomEnabled = new(true)
+	changedVitals.AccessibilitySettings = &changedAccessibility
+	row, err = newDeviceVitalsRow(ctx, host.UUID, changedVitals)
+	require.NoError(t, err)
+	changed, err = deviceVitalsChanged(ctx, ds.writer(ctx), host.UUID, row)
+	require.NoError(t, err)
+	require.True(t, changed, "a changed JSON field must be reported as changed")
+
+	// A battery level delta under 5 percentage points must not be reported as
+	// changed.
+	changedVitals = vitals
+	changedVitals.BatteryLevel = new(0.53)
+	row, err = newDeviceVitalsRow(ctx, host.UUID, changedVitals)
+	require.NoError(t, err)
+	changed, err = deviceVitalsChanged(ctx, ds.writer(ctx), host.UUID, row)
+	require.NoError(t, err)
+	require.False(t, changed, "a battery level delta under 5 points must not be reported as changed")
+
+	// A battery level delta of 5 points or more must be reported as changed.
+	changedVitals = vitals
+	changedVitals.BatteryLevel = new(0.1)
+	row, err = newDeviceVitalsRow(ctx, host.UUID, changedVitals)
+	require.NoError(t, err)
+	changed, err = deviceVitalsChanged(ctx, ds.writer(ctx), host.UUID, row)
+	require.NoError(t, err)
+	require.True(t, changed, "a battery level delta of 5 points or more must be reported as changed")
+
+	// A genuinely different LastCloudBackupDate must be detected.
+	changedVitals = vitals
+	changedBackup := lastBackup.Add(time.Hour)
+	changedVitals.LastCloudBackupDate = &changedBackup
+	row, err = newDeviceVitalsRow(ctx, host.UUID, changedVitals)
+	require.NoError(t, err)
+	changed, err = deviceVitalsChanged(ctx, ds.writer(ctx), host.UUID, row)
+	require.NoError(t, err)
+	require.True(t, changed, "a changed last cloud backup date must be reported as changed")
+
+	// Actually persisting the changed vitals, then resubmitting them, must
+	// again report no change against the newly-stored data.
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, changedVitals))
+	row, err = newDeviceVitalsRow(ctx, host.UUID, changedVitals)
+	require.NoError(t, err)
+	changed, err = deviceVitalsChanged(ctx, ds.writer(ctx), host.UUID, row)
+	require.NoError(t, err)
+	require.False(t, changed, "resubmitting the just-stored vitals must not be reported as changed")
+}
+
 func testLoadHostMDMAppleDeviceVitalsDB(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "vitals-load-host", "1.1.1.4", "vitals-load-host-key", "vitals-load-host-uuid", time.Now(), test.WithPlatform("ios"))
@@ -298,4 +374,71 @@ func testLoadHostMDMAppleDeviceVitalsDBNoRow(t *testing.T, ds *Datastore) {
 	require.Nil(t, loaded.BatteryLevel)
 	require.Nil(t, loaded.AccessibilitySettings)
 	require.Empty(t, loaded.ServiceSubscriptions)
+}
+
+func TestBatteryLevelPtrEqual(t *testing.T) {
+	a, b := 0.50, 0.50
+	require.True(t, batteryLevelPtrEqual(&a, &b), "identical values must be equal")
+
+	withinTolerance := 0.53
+	require.True(t, batteryLevelPtrEqual(&a, &withinTolerance), "a delta under 5 points must be equal")
+
+	atTolerance := 0.55
+	require.False(t, batteryLevelPtrEqual(&a, &atTolerance), "a delta of exactly 5 points must not be equal")
+
+	// 0.45-0.40 is a binary floating-point value just under 0.05 (not exactly
+	// 0.05), so this regresses a naive `diff < 0.05` comparison misreading an
+	// exact 5-point delta as unchanged.
+	lower, upper := 0.40, 0.45
+	require.False(t, batteryLevelPtrEqual(&lower, &upper), "a 0.40 vs 0.45 delta must not be equal despite float rounding")
+
+	different := 0.1
+	require.False(t, batteryLevelPtrEqual(&a, &different))
+
+	require.True(t, batteryLevelPtrEqual(nil, nil))
+	require.False(t, batteryLevelPtrEqual(&a, nil))
+	require.False(t, batteryLevelPtrEqual(nil, &a))
+}
+
+func TestTimePtrEqual(t *testing.T) {
+	instant := time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
+	// time.Now() (monotonic reading attached) representing the same instant
+	// in a different location, to exercise why reflect.DeepEqual is unsafe
+	// for time.Time: these are `time.Time.Equal`, not identical internally.
+	sameInstantElsewhere := instant.In(time.FixedZone("UTC+2", 2*60*60))
+	require.True(t, timePtrEqual(&instant, &sameInstantElsewhere))
+
+	later := instant.Add(time.Hour)
+	require.False(t, timePtrEqual(&instant, &later))
+
+	require.True(t, timePtrEqual(nil, nil))
+	require.False(t, timePtrEqual(&instant, nil))
+	require.False(t, timePtrEqual(nil, &instant))
+}
+
+func TestJSONColumnsEqual(t *testing.T) {
+	// Same content, different key order -- simulates comparing a fresh
+	// Go-marshaled value (struct field order) against what MySQL's JSON
+	// column type returns (its own internal key ordering).
+	a := []byte(`{"a": true, "b": false}`)
+	b := []byte(`{"b": false, "a": true}`)
+	equal, err := jsonColumnsEqual(a, b)
+	require.NoError(t, err)
+	require.True(t, equal)
+
+	c := []byte(`{"a": true, "b": true}`)
+	equal, err = jsonColumnsEqual(a, c)
+	require.NoError(t, err)
+	require.False(t, equal)
+
+	equal, err = jsonColumnsEqual(nil, nil)
+	require.NoError(t, err)
+	require.True(t, equal)
+
+	equal, err = jsonColumnsEqual(a, nil)
+	require.NoError(t, err)
+	require.False(t, equal)
+
+	_, err = jsonColumnsEqual([]byte(`not json`), a)
+	require.Error(t, err)
 }
