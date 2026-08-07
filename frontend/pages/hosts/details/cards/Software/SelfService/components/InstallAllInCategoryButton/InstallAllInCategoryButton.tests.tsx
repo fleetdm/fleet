@@ -193,13 +193,7 @@ describe("InstallAllInCategoryButton", () => {
     expect(requestedUrl).toContain("category_id=1");
   });
 
-  // Whitespace-only queries don't filter the visible list, so they must also
-  // be dropped from the outgoing request; otherwise the BE and the on-screen
-  // count would disagree.
-  it.each([
-    ["empty", ""],
-    ["whitespace-only", "   "],
-  ])("omits the query param when the search query is %s", async (_, q) => {
+  it("omits the query param when the caller passes an empty search", async () => {
     let requestedUrl = "";
     mockServer.use(
       http.post(
@@ -212,7 +206,7 @@ describe("InstallAllInCategoryButton", () => {
     );
     const render = createCustomRenderer({ withBackendMock: true });
     const user = userEvent.setup();
-    render(<InstallAllInCategoryButton {...baseProps} query={q} />);
+    render(<InstallAllInCategoryButton {...baseProps} query="" />);
 
     await user.click(
       screen.getByRole("button", { name: /Install all \(3\)/i })
@@ -224,37 +218,6 @@ describe("InstallAllInCategoryButton", () => {
     await waitFor(() => {
       expect(requestedUrl).not.toContain("query=");
     });
-  });
-
-  it("trims whitespace on the outgoing query param", async () => {
-    // Users type "  fox " on-screen; the visible filter trims before matching,
-    // so the outgoing query must trim too — otherwise the BE runs
-    // `LIKE '%  fox %'` and queues zero while the count says otherwise.
-    let requestedUrl = "";
-    mockServer.use(
-      http.post(
-        baseUrl("/device/:token/software/install_all"),
-        ({ request }) => {
-          requestedUrl = request.url;
-          return new HttpResponse(null, { status: 202 });
-        }
-      )
-    );
-    const render = createCustomRenderer({ withBackendMock: true });
-    const user = userEvent.setup();
-    render(<InstallAllInCategoryButton {...baseProps} query="  fox  " />);
-
-    await user.click(
-      screen.getByRole("button", { name: /Install all \(3\)/i })
-    );
-    await user.click(
-      await screen.findByRole("button", { name: /^Install all$/i })
-    );
-
-    await waitFor(() => {
-      expect(requestedUrl).toContain("query=fox");
-    });
-    expect(requestedUrl).not.toContain("query=%20");
   });
 
   it("omits category_id when categoryId is undefined ('All' selected)", async () => {

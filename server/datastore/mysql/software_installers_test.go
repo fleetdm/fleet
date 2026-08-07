@@ -6922,6 +6922,12 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"failed", "failed-uninstall"}, names(got))
 
+	// whitespace-only match query is treated as no filter (defense against
+	// direct API callers that bypass the UI's normalization).
+	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, nil, "   ")
+	require.NoError(t, err)
+	require.Equal(t, []string{"available", "failed", "failed-uninstall", "label-in", "uninstalled"}, names(got))
+
 	// category + query stack: only titles that satisfy both
 	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &cat.ID, "avail")
 	require.NoError(t, err)

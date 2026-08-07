@@ -113,12 +113,19 @@ const SelfServiceCard = ({
     [enhancedSoftware, visibleCategories, queryParams.category_id]
   );
 
+  // Trim the URL-supplied search once here so the desktop table filter, mobile
+  // list, install-all count, and install-all POST all share identical
+  // semantics. Without this, a deep-linked or trailing-space query like
+  // `?query=%20fox%20` would leave react-table matching the raw value while
+  // the helper/API used the trimmed one, contradicting the on-screen count.
+  const normalizedQuery = queryParams.query?.trim() ?? "";
+
   // The install-all button count and target must match what's on screen. Layer
   // the search filter on top of the category filter so `uninstalledCount` and
   // the request sent to install_all both reflect the filtered subset.
   const softwareInSelectedCategoryMatchingQuery = useMemo(
-    () => filterSoftwareByQuery(softwareInSelectedCategory, queryParams.query),
-    [softwareInSelectedCategory, queryParams.query]
+    () => filterSoftwareByQuery(softwareInSelectedCategory, normalizedQuery),
+    [softwareInSelectedCategory, normalizedQuery]
   );
 
   const uninstalledCount = useMemo(
@@ -268,7 +275,7 @@ const SelfServiceCard = ({
         hasInProgressInCategory={hasInProgress}
         deviceToken={deviceToken}
         categoryId={queryParams.category_id}
-        query={queryParams.query}
+        query={normalizedQuery}
         onSuccess={() => onInstallAllSuccess?.()}
       />
     ) : null;
@@ -325,7 +332,7 @@ const SelfServiceCard = ({
         <SelfServiceTable
           baseClass={baseClass}
           contactUrl={contactUrl}
-          queryParams={queryParams}
+          queryParams={{ ...queryParams, query: normalizedQuery }}
           enhancedSoftware={filteredSoftware}
           selfServiceData={selfServiceData}
           tableConfig={tableConfig}

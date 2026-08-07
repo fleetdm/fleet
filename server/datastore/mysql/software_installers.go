@@ -4666,8 +4666,10 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 	}
 	opts.ListOptions.OrderKey = "name"
 	// Match the same MatchQuery semantics as the self-service list endpoint so
-	// "Install all" queues exactly what the user sees on screen.
-	opts.ListOptions.MatchQuery = matchQuery
+	// "Install all" queues exactly what the user sees on screen. Trim so a
+	// whitespace-only query (e.g. from a direct API caller who bypassed the
+	// UI's normalization) is treated as no filter rather than as `LIKE '% %'`.
+	opts.ListOptions.MatchQuery = strings.TrimSpace(matchQuery)
 
 	software, _, err := ds.ListHostSoftware(ctx, host, opts)
 	if err != nil {
