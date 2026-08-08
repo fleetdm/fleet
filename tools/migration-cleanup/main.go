@@ -66,6 +66,7 @@ type sqlStatements struct {
 type options struct {
 	checkout string
 	branch   string
+	base     string
 	output   string
 	dryRun   bool
 	apply    bool
@@ -130,6 +131,7 @@ func newRootCmd(opts *options) *cobra.Command {
 	cmd.PersistentFlags().String("config", "", "Path to a Fleet configuration file")
 	cmd.Flags().StringVarP(&opts.checkout, "checkout", "c", ".", "Path to fleetdm/fleet git checkout")
 	cmd.Flags().StringVarP(&opts.branch, "branch", "b", "", "Branch name")
+	cmd.Flags().StringVar(&opts.base, "base", "main", "Base ref to compare against (branch name or SHA)")
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "Write SQL to file instead of stdout")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Connect to MySQL, simulate the SQL, and verify the final state")
 	cmd.Flags().BoolVar(&opts.apply, "apply", false, "Execute SQL against the database in a transaction")
@@ -213,7 +215,15 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 		fmt.Fprintf(os.Stderr, "Resolved branch: %s\n", branch)
 	}
 
-	mergeBase, err := getMergeBase(checkout, branch)
+	base, err := resolveBranch(checkout, opts.base)
+	if err != nil {
+		return exitError{code: exitGeneral, message: err.Error()}
+	}
+	if opts.verbose {
+		fmt.Fprintf(os.Stderr, "Resolved base: %s\n", base)
+	}
+
+	mergeBase, err := getMergeBase(checkout, base, branch)
 	if err != nil {
 		return exitError{code: exitGeneral, message: err.Error()}
 	}
@@ -367,8 +377,8 @@ func resolveBranch(checkout, branch string) (string, error) {
 	return "", fmt.Errorf("ERROR: cannot resolve branch %q", branch)
 }
 
-func getMergeBase(checkout, branch string) (string, error) {
-	out, err := git(checkout, "merge-base", "main", branch)
+func getMergeBase(checkout, base, branch string) (string, error) {
+	out, err := git(checkout, "merge-base", base, branch)
 	return strings.TrimSpace(out), err
 }
 
