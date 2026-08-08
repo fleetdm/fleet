@@ -99,7 +99,9 @@ func TestDebugHandlerAuthenticationFailsDueToRole(t *testing.T) {
 	}
 }
 
-func TestDebugHandlerAuthenticationSucceeds(t *testing.T) {
+func TestDebugHandlerAuthenticationFailsForRestrictedAPIOnlyUser(t *testing.T) {
+	// A global-admin API-only token scoped to an endpoint allowlist must not reach the debug
+	// routes: those routes are not in the public API catalog, so they can never be allowlisted.
 	svc := &mockService{}
 	svc.On(
 		"GetSessionByKey",
@@ -110,7 +112,11 @@ func TestDebugHandlerAuthenticationSucceeds(t *testing.T) {
 		"UserUnauthorized",
 		mock.Anything,
 		uint(42),
-	).Return(&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}, nil)
+	).Return(&fleet.User{
+		GlobalRole:   ptr.String(fleet.RoleAdmin),
+		APIOnly:      true,
+		APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
+	}, nil)
 
 	handler := MakeDebugHandler(svc, testConfig, nil, nil, nil)
 
@@ -119,5 +125,38 @@ func TestDebugHandlerAuthenticationSucceeds(t *testing.T) {
 	res := httptest.NewRecorder()
 
 	handler.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusForbidden, res.Code)
+}
+
+func TestDebugHandlerAuthenticationSucceeds(t *testing.T) {
+	// An unrestricted API-only admin (empty APIEndpoints) retains full access, matching the main
+	// API path where APIOnlyEndpointCheck is a no-op for tokens with no endpoint restrictions.
+	for test, user := range map[string]fleet.User{
+		"admin session":            {GlobalRole: ptr.String(fleet.RoleAdmin)},
+		"unrestricted api-only":    {GlobalRole: ptr.String(fleet.RoleAdmin), APIOnly: true},
+		"api-only empty allowlist": {GlobalRole: ptr.String(fleet.RoleAdmin), APIOnly: true, APIEndpoints: []fleet.APIEndpointRef{}},
+	} {
+		t.Run(test, func(t *testing.T) {
+			svc := &mockService{}
+			svc.On(
+				"GetSessionByKey",
+				mock.Anything,
+				"fake_session_key",
+			).Return(&fleet.Session{UserID: 42, ID: 1}, nil)
+			svc.On(
+				"UserUnauthorized",
+				mock.Anything,
+				uint(42),
+			).Return(&user, nil)
+
+			handler := MakeDebugHandler(svc, testConfig, nil, nil, nil)
+
+			req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/cmdline", nil)
+			req.Header.Add("Authorization", "BEARER fake_session_key")
+			res := httptest.NewRecorder()
+
+			handler.ServeHTTP(res, req)
+			assert.Equal(t, http.StatusOK, res.Code)
+		})
+	}
 }
