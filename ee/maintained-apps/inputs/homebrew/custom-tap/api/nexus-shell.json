@@ -6,7 +6,7 @@
   ],
   "desc": "Native SwiftUI SSH client with terminal, SFTP, Docker, and key management",
   "homepage": "https://nexusshell.app/",
-  "url": "https://releases.nexusshell.app/Nexus-Shell-v1.6.9.dmg",
+  "url": "https://github.com/viewer12/Nexus-Shell-Releases/releases/download/v1.6.9/Nexus-Shell-v1.6.9.dmg",
   "url_specs": {},
   "version": "1.6.9",
   "autobump": true,
@@ -83,6 +83,6 @@
   "languages": [],
   "ruby_source_path": "Casks/nexus-shell.rb",
   "ruby_source_checksum": {
-    "sha256": "4aaaedcdeff93d1b14d8b1b3b419196a70b4f5d38a94bb3fa628489cd024aaa3"
+    "sha256": "2d80d013742b76e7d569bf80bbb8e85a6f2fb55dd43ba1b43bf5cf37fcea3901"
   }
 }
