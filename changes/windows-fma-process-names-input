@@ -1,0 +1,1 @@
+- Added a `process_names` field to Windows Fleet-maintained app inputs, so an app's "app open" pre-install check is built from the executables verified in its installer instead of a guessed `<name>.exe`.

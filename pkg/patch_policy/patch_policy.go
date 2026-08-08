@@ -151,15 +151,42 @@ func defaultWindowsQuery(softwareTitle string, version string) string {
 }
 
 // GenerateOpenQuery returns a pre-install query that returns a row only when the app is closed.
-func GenerateOpenQuery(platform string, bundleIdentifier string, softwareTitle string) string {
+//
+// processNames holds the process names verified from the app's installer (see the winget input
+// field of the same name). It is only used on windows, where there is no reliable way to derive
+// the running process from the installed app; darwin resolves it from the bundle identifier.
+func GenerateOpenQuery(platform string, bundleIdentifier string, softwareTitle string, processNames []string) string {
 	switch platform {
 	case "darwin":
 		return defaultMacOSOpenQuery(bundleIdentifier)
 	case "windows":
-		return defaultWindowsOpenQuery(softwareTitle)
+		return defaultWindowsOpenQuery(softwareTitle, processNames)
 	default:
 		return ""
 	}
+}
+
+// ValidateProcessNames checks author-supplied Windows process names before they're baked into an
+// open query. A malformed name yields a query that never matches a running process, which makes
+// the "patch when closed" gate silently pass while the app is open, so this rejects rather than
+// best-effort corrects.
+func ValidateProcessNames(processNames []string) error {
+	for _, name := range processNames {
+		trimmed := strings.TrimSpace(name)
+		switch {
+		case trimmed == "":
+			return errors.New("process name cannot be empty")
+		case trimmed == "*":
+			return errors.New(`process name cannot be "*": it matches every process, so the app would always look open`)
+		case strings.ContainsAny(trimmed, `\/`):
+			return fmt.Errorf("process name %q cannot contain a path: osquery's processes.name is a bare file name", name)
+		case strings.Contains(trimmed, "%"):
+			return fmt.Errorf(`process name %q cannot contain "%%": use a trailing "*" for a prefix match`, name)
+		case !strings.HasSuffix(strings.ToLower(trimmed), ".exe") && !strings.HasSuffix(trimmed, "*"):
+			return fmt.Errorf(`process name %q must end in ".exe", or in "*" for a prefix match`, name)
+		}
+	}
+	return nil
 }
 
 func defaultMacOSOpenQuery(bundleIdentifier string) string {
@@ -173,18 +200,80 @@ func defaultMacOSOpenQuery(bundleIdentifier string) string {
 	return fmt.Sprintf(openTemplate, escapeSQLLiteral(bundleIdentifier))
 }
 
-func defaultWindowsOpenQuery(softwareTitle string) string {
-	if query, ok := windowsOpenQueryOverrides[softwareTitle]; ok {
-		windowsOpenQueryPrefix := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) %s);"
-		return fmt.Sprintf(windowsOpenQueryPrefix, query)
+const windowsOpenTemplate = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE %s);"
+
+func defaultWindowsOpenQuery(softwareTitle string, processNames []string) string {
+	// Process names verified from the installer win: they're per-app data reviewed alongside the
+	// rest of the app's identity fields, unlike the two fallbacks below.
+	if condition := processNameCondition(processNames); condition != "" {
+		return fmt.Sprintf(windowsOpenTemplate, condition)
 	}
 
-	// Match a process named "<title>.exe"
+	if query, ok := windowsOpenQueryOverrides[softwareTitle]; ok {
+		return fmt.Sprintf(windowsOpenTemplate, "LOWER(name) "+query)
+	}
+
+	// Multi-word catalog names ("Mozilla Firefox", "XnSoft XnConvert", "Microsoft
+	// Visual C++ 2015-2022 Redistributable (x64)") almost never equal the process
+	// image name — vendor prefixes, editions, and version suffixes produce a query
+	// that can never match, which silently defeats the app-open gate. Runtime,
+	// driver, and redistributable packages have no user-facing process at all.
+	// Emit no open query rather than a wrong one; set process_names on the app's
+	// input (or add a windowsOpenQueryOverrides entry) when the real binary name is known.
+	if strings.Contains(softwareTitle, " ") {
+		return ""
+	}
+
+	// Match a process named "<title>.exe". This is still a guess, and a wrong one is invisible:
+	// the query matches nothing, so the app always looks closed. Prefer process_names.
 	// alternatives considered:
 	// - join programs.install_location with processes.path - install_location is unreliable (especially for MSI installers)
 	executable := strings.ToLower(softwareTitle) + ".exe"
-	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '%s');"
-	return fmt.Sprintf(openTemplate, escapeSQLLiteral(executable))
+	return fmt.Sprintf(windowsOpenTemplate, "LOWER(name) = '"+escapeSQLLiteral(executable)+"'")
+}
+
+// processNameCondition builds the processes.name predicate for a set of verified process names,
+// or "" if none were supplied. An entry ending in "*" becomes a prefix match, for apps that spawn
+// a fleet of differently-named helpers (e.g. "1password*"); every other entry matches exactly.
+func processNameCondition(processNames []string) string {
+	var exact, prefixes []string
+	seen := make(map[string]struct{}, len(processNames))
+	for _, name := range processNames {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name == "" {
+			continue
+		}
+		if _, dup := seen[name]; dup {
+			continue
+		}
+		seen[name] = struct{}{}
+
+		if prefix, isPrefix := strings.CutSuffix(name, "*"); isPrefix {
+			prefixes = append(prefixes, "LOWER(name) LIKE '"+escapeSQLLiteral(prefix)+"%'")
+			continue
+		}
+		exact = append(exact, "'"+escapeSQLLiteral(name)+"'")
+	}
+
+	var clauses []string
+	switch len(exact) {
+	case 0:
+	case 1:
+		clauses = append(clauses, "LOWER(name) = "+exact[0])
+	default:
+		clauses = append(clauses, "LOWER(name) IN ("+strings.Join(exact, ",")+")")
+	}
+	clauses = append(clauses, prefixes...)
+
+	switch len(clauses) {
+	case 0:
+		return ""
+	case 1:
+		return clauses[0]
+	default:
+		// Parenthesized so the ORs stay grouped if this predicate ever gains a sibling clause.
+		return "(" + strings.Join(clauses, " OR ") + ")"
+	}
 }
 
 func escapeSQLLiteral(s string) string {
