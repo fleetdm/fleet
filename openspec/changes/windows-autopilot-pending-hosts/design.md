@@ -33,9 +33,35 @@ controls:
       client_secret: $WINDOWS_ENTRA_CLIENT_SECRET_ACME
 ```
 
-API surface is `mdm.microsoft_graph_credentials` on `GET`/`PATCH /config`. The `$VAR` is ordinary GitOps environment interpolation
-(`ExpandEnv`, `pkg/spec/spec.go:301`), deliberately not a `$FLEET_SECRET_*` variable, since those are host-delivery variables and this value
-never leaves the server.
+The `$VAR` is ordinary GitOps environment interpolation (`ExpandEnv`, `pkg/spec/spec.go:301`), deliberately not a `$FLEET_SECRET_*`
+variable, since those are host-delivery variables and this value never leaves the server.
+
+### API surface is a dedicated resource, not a config field
+
+**[revised during implementation]** An earlier draft put the credential on `mdm.microsoft_graph_credentials` in `GET`/`PATCH /config`. It
+was built that way and then moved, because the config field cannot carry it cleanly:
+
+- The client secret is encrypted at rest, so it can never live in the `app_config_json` blob. The field therefore had to be hydrated from
+  the credentials table on **every** config read, which then needed a `cached_mysql` entry to pay for it, which then needed the sync cron to
+  invalidate that entry. All of that machinery existed only to make the field's location work.
+- No comparable feature does this. ABM, VPP, and certificate authorities all keep the credential **and** its per-instance status behind their
+  own endpoints; `grep CertificateAuthorities server/fleet/app.go` returns zero. What AppConfig carries for ABM and VPP is *assignment* data
+  (org name to fleet, location to fleets) with no runtime status, and that data lives in the blob, so it needs no hydration.
+- GitOps does not require an AppConfig field. `org_settings.certificate_authorities` is fully GitOps-managed and is applied through its own
+  endpoint, so the YAML contract is independent of where the data lives.
+
+| | |
+|---|---|
+| `GET /api/v1/fleet/microsoft_graph_credentials` | list credentials with per-tenant sync status; `client_secret` masked |
+| `PUT /api/v1/fleet/microsoft_graph_credentials` | declarative reconcile; accepts `dry_run` |
+
+`PUT` is declarative: a tenant absent from the body is deleted, and an empty list clears everything. There is no `DELETE`. Both endpoints
+authorize against `&fleet.AppConfig{}`, so the credential keeps exactly the permissions it had as a config field.
+
+The GitOps key stays `controls.microsoft_graph_credentials`. `DoGitOps` lifts it out of controls, decodes it, and `ApplyGroup` sends it to
+the endpoint, following `certificate_authorities`. The decode helper is deliberately **not** named `...Spec`: "spec" means `fleetctl apply`
+in this codebase, which was additive and could not remove, and this is the opposite. `fleetctl apply` does not manage this key at all, and
+the field on `spec.Group` is a pointer precisely so that an apply of a partial file leaves it nil and cannot delete a working credential.
 
 ### One credential per tenant
 
@@ -68,20 +94,29 @@ already been through this transition twice: `MDMAssetABMTokenDeprecated` (`serve
 Follow `abm_tokens` / `vpp_tokens` instead: a dedicated table with an encrypted secret column keyed on the external identity.
 
 ```sql
-CREATE TABLE `microsoft_graph_credentials` (
+CREATE TABLE `mdm_microsoft_graph_credentials` (
   `id`             int unsigned NOT NULL AUTO_INCREMENT,
   `tenant_id`      varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `client_id`      varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `client_secret`  blob NOT NULL,             -- encrypted with the server private key, as abm_tokens.token
-  `credential_invalid` tinyint(1) NOT NULL DEFAULT '0',   -- drives the app-wide banner, as abm_tokens.token_invalid
-  `last_synced_at` timestamp NULL DEFAULT NULL,
+  `credential_invalid` tinyint(1) NOT NULL DEFAULT '0',   -- feeds the app-wide banner, as abm_tokens.token_invalid
+  `last_synced_at` datetime(6) NULL DEFAULT NULL,
   `last_sync_error` text COLLATE utf8mb4_unicode_ci,
-  `created_at`     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at`     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_at`     datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at`     datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_microsoft_graph_credentials_tenant_id` (`tenant_id`)
+  UNIQUE KEY `idx_mdm_microsoft_graph_credentials_tenant_id` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
+
+The `mdm_` prefix matches `mdm_apple_*`: that slot holds a vendor name, and there is no product called "Windows Graph". Timestamps are
+`datetime(6)` throughout rather than `timestamp`.
+
+**Storing a credential resets all of its sync state** (`credential_invalid = 0`, `last_sync_error = NULL`, `last_synced_at = NULL`). The
+service verifies before it stores and skips the write entirely when nothing changed, so reaching the upsert means the credential was just
+proven good. Carrying the old state over would keep the banner up and display "client secret expired" beside the secret that just replaced
+the expired one. Clearing `last_synced_at` too means a rotated credential reads as "never synced" until the next cycle, which is accurate:
+the previous sync described a different credential.
 
 ### Validation, masking, premium
 
@@ -92,8 +127,9 @@ config-adjacent secret:
 - Premium gate: reject writes with `ErrMissingLicense` when not premium, alongside the existing `windows_entra_*` gates
   (`server/service/appconfig.go:2033-2038`).
 - Require `server.PrivateKey` to be configured when a new secret is supplied, matching `appconfig.go:831`.
-- Mask on read: extend `AppConfig.Obfuscate()` (`server/fleet/app.go:867`) to replace each entry's `client_secret` with
-  `fleet.MaskedPassword`. On write, an incoming value equal to the mask preserves the stored secret.
+- Mask on read: the list endpoint replaces each entry's `client_secret` with `fleet.MaskedPassword`. The read path uses a metadata query
+  that never decrypts, so a missing or rotated server private key cannot fail it. On write, an incoming value equal to the mask (or an
+  omitted secret) preserves the stored secret.
 - On a new or changed credential, call `VerifyCredential` (one token mint plus one page) and return `NewInvalidArgumentError` on failure,
   matching how Jira/Zendesk credentials are validated on config write.
 - Activities `added_`/`edited_`/`deleted_microsoft_graph_credential`, written through the activity service, never `ds.NewActivity` directly.
@@ -125,10 +161,20 @@ Requirements:
 
 1. Deduplicate by the Autopilot `id` while paging. `id` is the registration's own identifier and is distinct from
    `azureActiveDirectoryDeviceId`.
-2. Carry an explicit loop guard: stop when `nextLink` equals the URL just requested, when a page yields no previously unseen `id`, or on a
-   hard page cap. Log when a guard fires.
-3. Do not set a small `$top`. Use the service default.
-4. Never assume serial ordering or uniqueness anywhere in reconciliation.
+2. Carry an explicit loop guard for each observed failure: a `nextLink` equal to the URL just requested, a page that yields no previously
+   unseen `id`, and a hard page cap as a backstop.
+3. **[revised during implementation] A non-advancing cursor returns an error, it does not stop gracefully.** An earlier draft said "stop".
+   That is wrong, and dangerously so: stopping quietly hands the sync a silently truncated list, and the sync deletes the hosts that are
+   missing from what it is given. A tenant that trips the guard would lose pending hosts with no error anywhere. Failing the walk leaves the
+   existing hosts untouched, which is the safe direction. The sync must therefore not swallow this error or fall back to a partial list.
+4. **[revised during implementation] Pin `$top=1000` rather than using the service default.** An earlier draft said not to set `$top` at all.
+   Pinning it makes the round-trip count a property of Fleet's code instead of an undocumented service default Microsoft can change: at 1000
+   per page, a 100k-device tenant is ~101 requests, roughly 30-60s and ~25MB. The original concern was that a *small* `$top` aggravates the
+   inclusive-cursor duplication, which remains true.
+5. Never assume serial ordering or uniqueness anywhere in reconciliation.
+6. **[added during implementation] Validate that `@odata.nextLink` stays on the Graph origin.** The oauth2 transport attaches the bearer
+   token to whatever URL is requested, so a malformed or hostile next link is a token-exfiltration vector. This was not in the original
+   design and is not hypothetical hardening: the client follows a URL chosen by the remote service.
 
 ### Response shape
 
@@ -172,7 +218,7 @@ The precedent is exact and should be mirrored rather than reinvented:
 | `abm_tokens.token_invalid` (migration `20260721090128`) | `microsoft_graph_credentials.credential_invalid` |
 | `SetABMTokenInvalidForOrgName` / `IsABMTokenInvalidForOrgName` (`apple_mdm.go:6608`, `:6627`) | same pair keyed on `tenant_id` |
 | `ABMToken.TokenInvalid` json `token_invalid` (`server/fleet/mdm.go:200`) | `credential_invalid` on the credential response |
-| `hasInvalidABMToken` computed in `App.tsx:150` | same shape for the Graph credential |
+| `hasInvalidABMToken` computed in `App.tsx:150` | **not needed**: the server aggregates it into `mdm.microsoft_graph_credential_invalid` |
 | `<AppleBMTokenInvalidMessage orgNames={...} />` in the `MainContent.tsx` priority chain | new banner component in the same chain |
 
 `MainContent.tsx:59-83` shows exactly one banner at a time in a fixed priority order, and every banner except the APNs one sits inside the
@@ -180,8 +226,22 @@ The precedent is exact and should be mirrored rather than reinvented:
 placing it after the VPP banner and before the license-expiry banner is the natural default, since it is narrower in blast radius than the
 Apple MDM banners above it.
 
-The flag is set by the sync, not at config-write time. A credential is verified on write (see section 1), so it is valid when stored; it goes
-bad later through expiry, revocation, or a permission change. Set `credential_invalid = 1` on an authentication or authorization failure
+**[revised during implementation] The banner reads one stored boolean on the app config, not a computed scan of the credential list.**
+`mdm.microsoft_graph_credential_invalid` is a server-computed aggregate: true as soon as any tenant's credential is unhealthy, false once all
+are healthy. It lives on the app config because the banner is app-wide and the frontend already loads the config on every page, whereas the
+credentials endpoint is not on that path. It mirrors `AppleBMTermsExpired`, including the PATCH carry-over that makes it unsettable by a
+client.
+
+It is **stored** rather than derived on read, specifically so `GET /config` never joins the credentials table. The consequence is that it is
+only as fresh as its last recomputation, so **every path that can change a credential's health must recompute it**: the credential write
+paths do so directly, and the sync must do so after marking a credential invalid or clearing it. Miss that call and the table is correct, the
+credentials endpoint is correct, and the banner simply never appears — nothing errors. This is the one cross-subtask contract in the change.
+
+Only `credential_invalid` feeds the aggregate, never `last_sync_error`, for the same outage reason given below.
+
+The flag is set by the sync, not at write time. A credential is verified before it is stored (see section 1), so it is valid when saved; it
+goes bad later through expiry, revocation, or a permission change. Two consequences worth stating: saving a working credential clears the
+banner with no explicit dismiss affordance, and the banner can lag a real failure by up to one sync interval (default 5 minutes). Set `credential_invalid = 1` on an authentication or authorization failure
 (token-endpoint `AADSTS*` errors, Graph 401, Graph 403) and clear it on the next successful sync. Do **not** set it for transient 429 or 5xx,
 or a Microsoft outage would raise a credential alarm across every deployment.
 
@@ -234,7 +294,8 @@ New datastore method `IngestWindowsAutopilotDevices`, modeled on `IngestMDMApple
   instead.
 - "All Hosts" and "MS Windows" builtin label membership, so the host appears in host lists before osquery ever runs. Mirror
   `upsertMDMAppleHostLabelMembershipDB` (`apple_mdm.go:2120`), which looks labels up by name and tolerates their absence.
-- `host_autopilot_devices` row carrying the group tag, Autopilot `id`, AAD device ID, serial, and tenant.
+- `host_autopilot_devices` row carrying the group tag, Autopilot `id`, `entra_device_id`, serial, and tenant, written through
+  `BatchUpsertHostAutopilotDevices`.
 
 ### Removal
 
@@ -306,7 +367,7 @@ Consequences:
 - This retroactively strengthens the "separate table, not a column on `hosts`" decision. An 8 KB-capable column on Fleet's hottest table
   would be a genuine cost; in `host_autopilot_devices` it is not.
 
-`host_autopilot_devices` gains the Autopilot `id` alongside the AAD device ID, and reconciliation keys on `id`, which is stable for the life
+`host_autopilot_devices` gains the Autopilot `id` alongside `entra_device_id`, and reconciliation keys on `id`, which is stable for the life
 of the registration and unique, unlike the serial.
 
 Expose `group_tag` on both `GET /hosts` (list) and `GET /hosts/:id` (detail) via

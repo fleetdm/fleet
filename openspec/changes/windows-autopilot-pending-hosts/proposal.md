@@ -16,17 +16,21 @@ automation has something to key on.
 
 ## What changes
 
-- A new **`mdm.microsoft_graph_credentials`** config: a list of `{tenant_id, client_id, client_secret}` entries, one per Entra tenant, that
-  Fleet uses to authenticate to Microsoft Graph. **Capped at one entry for this release**; the list shape exists so lifting the cap later is
-  a validation change rather than an API break. Premium only. Secrets stored encrypted and masked on read.
-- An **app-wide banner** when the stored credential goes bad, mirroring the existing invalid-ABM-token banner.
+- A new **`/microsoft_graph_credentials`** resource (`GET` to read, declarative `PUT` to reconcile): a list of
+  `{tenant_id, client_id, client_secret}` entries, one per Entra tenant, that Fleet uses to authenticate to Microsoft Graph. **Capped at one
+  entry for this release**; the list shape exists so lifting the cap later is a validation change rather than an API break. Premium only.
+  Secrets stored encrypted in a dedicated table and masked on read. It is deliberately **not** a field on `AppConfig` — see `design.md`
+  section 1.
+- An **app-wide banner** when a stored credential goes bad, mirroring the existing invalid-ABM-token banner, driven by a single
+  server-computed `mdm.microsoft_graph_credential_invalid` boolean on the app config.
 - A **Microsoft Graph client** that mints app-only tokens via OAuth2 client credentials and lists Windows Autopilot device identities.
 - A **periodic sync cron** that reconciles each tenant's Autopilot registrations into pending Windows hosts, and removes hosts that leave
   the Autopilot list.
 - **Enrollment reconciliation** so a pending host is reused, not duplicated, when the device actually enrolls, across all three entry points
   that can arrive first.
 - **`group_tag`** exposed on the host list and host detail API responses, and shown read-only on host details.
-- **GitOps** support for the credential list under `controls`, with `generate-gitops` emitting a secret placeholder.
+- **GitOps** support for the credential list under `controls`, applied through the new endpoint rather than the app config (the
+  `certificate_authorities` pattern), with `generate-gitops` emitting a secret placeholder.
 
 ## What does not change
 
@@ -37,7 +41,8 @@ automation has something to key on.
 
 ## Deviations from the issue as written
 
-Both need product sign-off before the docs subtask (#48852) lands.
+Items 1 and 2 need product sign-off before the docs subtask (#48852) lands. Items 3 and 4 are engineering decisions recorded here for
+review, not sign-off gates.
 
 1. **The credential is a list, not a single token, even though only one is supported today.** The merged docs PRs
    ([#50518](https://github.com/fleetdm/fleet/pull/50518), [#50519](https://github.com/fleetdm/fleet/pull/50519)) define a scalar
@@ -52,7 +57,15 @@ Both need product sign-off before the docs subtask (#48852) lands.
    information once "graph" is present, and worse, visually groups an outbound credential with the two inbound allowlists it must be
    distinguished from. The value is a client secret, which PR #50519's own prose already calls it while the key said "token".
 
-3. **The auth model is client credentials, not a pasted token.** The story says "UI field for user to provide Microsoft Graph API
+3. **The credential is a dedicated resource, not a config field.** An earlier draft of this proposal put it on `GET`/`PATCH /config`. It was
+   built that way and then moved during implementation. The client secret is encrypted at rest, so it cannot live in `app_config_json`, which
+   meant the config field had to be hydrated from the credentials table on every config read, which needed a cache, which needed the sync to
+   invalidate that cache — machinery that existed only to hold the field in the wrong place. ABM, VPP, and certificate authorities all keep
+   the credential and its per-instance status behind their own endpoints, and `certificate_authorities` shows a key can stay in the GitOps
+   YAML while being applied through its own endpoint. The GitOps contract is unchanged; only the HTTP surface moved. This does **not** need
+   product sign-off, since the YAML the docs describe is unaffected, but the REST API doc must describe endpoints instead of config fields.
+
+4. **The auth model is client credentials, not a pasted token.** The story says "UI field for user to provide Microsoft Graph API
    authentication token". A Graph access token expires in ~60 minutes (measured: `expires_in: 3599`), so a pasted token breaks within the
    hour. Fleet stores an app-registration credential and mints tokens on demand.
 

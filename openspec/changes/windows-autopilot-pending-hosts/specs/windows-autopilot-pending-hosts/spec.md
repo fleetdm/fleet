@@ -2,8 +2,18 @@
 
 ### Requirement: Microsoft Graph credentials are configured per Entra tenant
 
-Fleet SHALL expose `microsoft_graph_credentials` under `AppConfig.MDM`, a list whose entries each contain `tenant_id`, `client_id`, and
-`client_secret`. Fleet SHALL use each entry to obtain app-only Microsoft Graph tokens via the OAuth2 client-credentials grant against
+Fleet SHALL expose Microsoft Graph credentials through a dedicated resource, `GET` and `PUT /microsoft_graph_credentials`, whose body is a
+list whose entries each contain `tenant_id`, `client_id`, and `client_secret`. The credential SHALL NOT be a field on `AppConfig`, because
+the client secret is encrypted at rest and so cannot live in `app_config_json`; carrying it on the config would require joining the
+credentials table on every config read. This follows ABM, VPP, and certificate authorities, which all keep the credential and its
+per-instance status behind their own endpoints.
+
+`PUT` SHALL be declarative: a tenant absent from the body SHALL be deleted, and an empty list SHALL clear all stored credentials. There SHALL
+be no separate delete endpoint. `PUT` SHALL accept `dry_run`, validating and verifying without persisting.
+
+Both endpoints SHALL authorize against the app config subject, so the credential retains the permissions it had when it was a config field.
+
+Fleet SHALL use each entry to obtain app-only Microsoft Graph tokens via the OAuth2 client-credentials grant against
 `https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token` with scope `https://graph.microsoft.com/.default`.
 
 `tenant_id` and `client_id` SHALL be validated as GUIDs. The feature SHALL be Fleet Premium only.
@@ -14,21 +24,21 @@ credentials from them. A Graph `client_id` SHALL NOT be required to appear in `w
 #### Scenario: Premium instance stores a credential
 
 - **GIVEN** a Fleet Premium instance with Windows MDM enabled
-- **WHEN** an admin sends `PATCH /config` with one `mdm.microsoft_graph_credentials` entry containing valid GUIDs and a working secret
+- **WHEN** an admin sends `PUT /microsoft_graph_credentials` with one entry containing valid GUIDs and a working secret
 - **THEN** the credential SHALL be stored
 - **AND** an `added_microsoft_graph_credential` activity SHALL be recorded
 
 #### Scenario: Fleet Free rejects the write
 
 - **GIVEN** a Fleet Free instance
-- **WHEN** an admin sends `PATCH /config` with any `mdm.microsoft_graph_credentials` entry
+- **WHEN** an admin sends `PUT /microsoft_graph_credentials` with any entry
 - **THEN** the request SHALL be rejected with `ErrMissingLicense`
 
 #### Scenario: Malformed GUID is rejected
 
 - **GIVEN** a Fleet Premium instance
 - **WHEN** an admin sends a credential whose `tenant_id` is not a GUID
-- **THEN** the request SHALL be rejected with a validation error naming `mdm.microsoft_graph_credentials`
+- **THEN** the request SHALL be rejected with a validation error naming `microsoft_graph_credentials`
 
 #### Scenario: Credential is verified before it is stored
 
@@ -36,6 +46,20 @@ credentials from them. A Graph `client_id` SHALL NOT be required to appear in `w
 - **WHEN** Fleet cannot obtain a token or cannot list a first page with it
 - **THEN** the request SHALL be rejected with an invalid-argument error
 - **AND** no credential SHALL be stored
+
+#### Scenario: An absent tenant is deleted
+
+- **GIVEN** a stored credential for one tenant
+- **WHEN** an admin sends `PUT /microsoft_graph_credentials` with an empty list
+- **THEN** the credential SHALL be deleted
+- **AND** a `deleted_microsoft_graph_credential` activity SHALL be recorded
+
+#### Scenario: A dry run validates without persisting
+
+- **GIVEN** a Fleet Premium instance with no stored credential
+- **WHEN** an admin sends a valid entry with `dry_run` set
+- **THEN** the credential SHALL be verified against Microsoft Graph
+- **AND** nothing SHALL be stored
 
 ### Requirement: At most one credential per tenant
 
@@ -46,13 +70,13 @@ identical data while doubling API calls and making per-tenant failure reporting 
 #### Scenario: Duplicate tenant is rejected
 
 - **GIVEN** a Fleet Premium instance
-- **WHEN** an admin sends `mdm.microsoft_graph_credentials` containing two entries with the same `tenant_id` and different `client_id` values
+- **WHEN** an admin sends two entries with the same `tenant_id` and different `client_id` values
 - **THEN** the request SHALL be rejected with a validation error
 - **AND** neither entry SHALL be stored
 
 ### Requirement: At most one credential is accepted in this release
 
-Fleet SHALL reject a configuration containing more than one `microsoft_graph_credentials` entry. The field SHALL remain a list so that
+Fleet SHALL reject a request containing more than one `microsoft_graph_credentials` entry. The body SHALL remain a list so that
 raising this cap later requires only a validation change, with no rename, no scalar-to-list type change, no API break, and no migration.
 Storage, the sync loop, per-credential failure handling, and `host_autopilot_devices.tenant_id` SHALL all be implemented for the multi-entry
 case regardless of the cap.
@@ -60,7 +84,7 @@ case regardless of the cap.
 #### Scenario: A second credential is rejected
 
 - **GIVEN** a Fleet Premium instance
-- **WHEN** an admin sends `mdm.microsoft_graph_credentials` containing two entries with different `tenant_id` values
+- **WHEN** an admin sends two entries with different `tenant_id` values
 - **THEN** the request SHALL be rejected with a validation error explaining that only one credential is supported
 - **AND** neither entry SHALL be stored
 
@@ -75,21 +99,32 @@ case regardless of the cap.
 
 Fleet SHALL store each `client_secret` encrypted at rest in a dedicated table rather than in `app_config_json` and rather than in
 `mdm_config_assets`. Fleet SHALL require a configured server private key before accepting a new secret. Fleet SHALL replace every
-`client_secret` with the masked value on read.
+`client_secret` with the masked value on read, and the read path SHALL NOT decrypt, so that a missing or rotated server private key cannot
+fail it.
+
+Storing a credential SHALL reset that credential's sync state: its invalid flag, its last sync error, and its last sync time. A credential is
+verified before it is stored and an unchanged credential is not written at all, so a stored credential has just been proven good and any
+recorded failure describes the credential it replaced.
 
 #### Scenario: Secret is masked on read
 
 - **GIVEN** a stored credential
-- **WHEN** an admin calls `GET /config`
+- **WHEN** an admin calls `GET /microsoft_graph_credentials`
 - **THEN** the entry's `client_secret` SHALL be `********`
 - **AND** the plaintext secret SHALL NOT appear anywhere in the response
 
 #### Scenario: Resending the mask preserves the stored secret
 
 - **GIVEN** a stored credential
-- **WHEN** an admin sends `PATCH /config` with that entry's `client_secret` set to `********` and another field changed
+- **WHEN** an admin re-sends that entry with `client_secret` set to `********`
 - **THEN** the stored secret SHALL be unchanged
 - **AND** no `edited_microsoft_graph_credential` activity SHALL be recorded for the secret alone
+
+#### Scenario: Rotating a credential clears its recorded failure
+
+- **GIVEN** a stored credential marked invalid with a recorded sync error
+- **WHEN** an admin stores a working replacement secret
+- **THEN** the invalid flag, the last sync error, and the last sync time SHALL all be cleared
 
 #### Scenario: Missing server private key blocks a new secret
 
@@ -100,18 +135,30 @@ Fleet SHALL store each `client_secret` encrypted at rest in a dedicated table ra
 ### Requirement: Graph pagination terminates and yields each device once
 
 Fleet SHALL NOT implement pagination as an unguarded "follow `@odata.nextLink` until absent" loop. Fleet SHALL deduplicate results by the
-Autopilot device `id`, SHALL terminate when `@odata.nextLink` equals the URL just requested or when a page yields no previously unseen `id`,
-and SHALL apply a hard page cap. Fleet SHALL NOT assume that serial numbers are unique or that results are ordered by anything it relies on.
+Autopilot device `id`, SHALL detect a non-advancing cursor when `@odata.nextLink` equals the URL just requested or when a page yields no
+previously unseen `id`, and SHALL apply a hard page cap. Fleet SHALL NOT assume that serial numbers are unique or that results are ordered by
+anything it relies on.
+
+A non-advancing cursor SHALL cause the listing to **return an error**, not to return the devices gathered so far. A partial list is
+indistinguishable from a shrunken tenant to the caller, and the sync deletes hosts that are absent from the list it is given, so returning
+early would silently delete pending hosts. Failing leaves the tenant's existing hosts untouched. Callers SHALL NOT substitute a partial list
+when this error occurs.
+
+Fleet SHALL request an explicit page size rather than relying on the service default, so that the number of round trips is a property of
+Fleet's own code rather than of an undocumented default.
+
+Fleet SHALL reject an `@odata.nextLink` that does not resolve to the Microsoft Graph origin, and SHALL NOT issue a request to it. The OAuth2
+transport attaches the bearer token to whatever URL is requested, so a next link pointing elsewhere would disclose the token to that host.
 
 This is because the Autopilot device identities collection paginates with an inclusive `$skiptoken=LastSerialNumber='<serial>'` cursor ordered
 by serial number. Serial numbers are not unique, and the service can return an `@odata.nextLink` identical to the URL just requested.
 
-#### Scenario: A self-referential nextLink terminates the walk
+#### Scenario: A self-referential nextLink fails the walk
 
 - **GIVEN** Graph returns a page whose `@odata.nextLink` is identical to the URL just requested
 - **WHEN** the client walks pages
-- **THEN** the walk SHALL terminate
-- **AND** the client SHALL log that a pagination guard fired
+- **THEN** the walk SHALL return an error identifying the non-advancing cursor
+- **AND** it SHALL NOT return a partial device list
 
 #### Scenario: A device repeated across page boundaries is returned once
 
@@ -126,6 +173,13 @@ by serial number. Serial numbers are not unique, and the service can return an `
 - **WHEN** the client walks pages
 - **THEN** the walk SHALL terminate
 - **AND** every distinct device `id` SHALL appear in the result
+
+#### Scenario: A nextLink on another origin is refused
+
+- **GIVEN** Graph returns an `@odata.nextLink` pointing at a host other than the Graph origin
+- **WHEN** the client walks pages
+- **THEN** the walk SHALL return an error
+- **AND** no request carrying the access token SHALL be sent to that host
 
 ### Requirement: The sync reconciles Autopilot devices into pending Windows hosts
 
@@ -186,6 +240,10 @@ authorization failure (missing permission or admin consent) from a transient fai
 rather than a single error-code string, because Graph returns different codes for the same 403 cause. In no failure case SHALL Fleet remove
 that tenant's pending hosts.
 
+A listing that fails, including one that fails because the pagination cursor stopped advancing, SHALL abort that tenant's reconciliation.
+Fleet SHALL NOT treat a failed or partial listing as an authoritative device list, because reconciliation deletes hosts absent from the list
+it is given.
+
 #### Scenario: An expired secret is reported as a credential problem
 
 - **GIVEN** a credential whose client secret has expired
@@ -200,6 +258,13 @@ that tenant's pending hosts.
 - **THEN** the credential's last sync error SHALL identify it as a permission or consent problem
 - **AND** detection SHALL NOT depend on which error code string Graph returned
 
+#### Scenario: A non-advancing cursor does not delete hosts
+
+- **GIVEN** a tenant with existing pending Autopilot hosts
+- **WHEN** the listing fails because the pagination cursor stopped advancing
+- **THEN** that tenant's reconciliation SHALL be abandoned
+- **AND** none of its pending hosts SHALL be removed
+
 #### Scenario: A transient failure is retried quietly
 
 - **GIVEN** Graph responds 429 with `Retry-After`
@@ -212,6 +277,15 @@ that tenant's pending hosts.
 Fleet SHALL mark a credential invalid when a sync fails to authenticate or is denied authorization, and SHALL surface that state as an
 app-wide banner, matching the existing invalid-ABM-token treatment. The flag SHALL be cleared on the next successful sync. Fleet SHALL NOT
 mark a credential invalid for transient failures, so that a Microsoft outage does not raise a credential alarm.
+
+Fleet SHALL expose the banner state as `mdm.microsoft_graph_credential_invalid` on the app config: a single server-computed aggregate, true
+when any stored credential is invalid and false once all are healthy. It lives on the app config rather than behind the credentials endpoint
+because the banner is app-wide and the frontend already loads the config on every page. It SHALL NOT be settable through `PATCH /config`; a
+value supplied there SHALL be ignored rather than rejected, so that `fleetctl get config` output remains valid input.
+
+The aggregate SHALL be stored rather than computed on read, so that a config read never queries the credentials table. Consequently Fleet
+SHALL recompute it on every path that can change a credential's health: storing, editing, or deleting a credential, and the sync marking a
+credential invalid or clearing it. Only the per-credential invalid flag SHALL feed the aggregate; a recorded sync error SHALL NOT.
 
 The banner SHALL only render for Fleet Premium, consistent with every other MDM banner in the single-banner priority chain.
 
@@ -236,12 +310,25 @@ The banner SHALL only render for Fleet Premium, consistent with every other MDM 
 - **THEN** the credential SHALL NOT be marked invalid
 - **AND** no banner SHALL be shown
 
-#### Scenario: Fixing the credential clears the banner
+#### Scenario: Fixing the credential clears the banner immediately
 
 - **GIVEN** a credential marked invalid
-- **WHEN** an admin stores a working secret and the next sync succeeds
+- **WHEN** an admin stores a working secret
 - **THEN** the credential SHALL no longer be marked invalid
-- **AND** the banner SHALL no longer be shown
+- **AND** `mdm.microsoft_graph_credential_invalid` SHALL become false without waiting for the next sync
+
+#### Scenario: Deleting the last unhealthy credential clears the banner
+
+- **GIVEN** a single stored credential marked invalid
+- **WHEN** an admin deletes it
+- **THEN** `mdm.microsoft_graph_credential_invalid` SHALL become false
+
+#### Scenario: A client cannot raise the banner
+
+- **GIVEN** a Fleet instance with no unhealthy credential
+- **WHEN** an admin sends `PATCH /config` setting `mdm.microsoft_graph_credential_invalid` to true
+- **THEN** the stored value SHALL remain false
+- **AND** the request SHALL NOT be rejected
 
 ### Requirement: A pending Autopilot host is reused when the device enrolls
 
