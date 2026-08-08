@@ -39,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	logtestutils "github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -14138,7 +14139,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
 			ID: osqueryInfoQuery.ID,
 			QueryPayload: fleet.QueryPayload{
-				Platform: ptr.String("linux"),
+				Platform: new("linux"),
 			},
 		},
 		http.StatusOK,
@@ -14161,7 +14162,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
 			ID: osqueryInfoQuery.ID,
 			QueryPayload: fleet.QueryPayload{
-				Platform: ptr.String("linux"),
+				Platform: new("linux"),
 			},
 		},
 		http.StatusOK,
@@ -14176,7 +14177,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
 			ID: osqueryInfoQuery.ID,
 			QueryPayload: fleet.QueryPayload{
-				MinOsqueryVersion: ptr.String("5.9.1"),
+				MinOsqueryVersion: new("5.9.1"),
 			},
 		},
 		http.StatusOK,
@@ -14199,7 +14200,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
 			ID: osqueryInfoQuery.ID,
 			QueryPayload: fleet.QueryPayload{
-				MinOsqueryVersion: ptr.String("5.11.0"),
+				MinOsqueryVersion: new("5.11.0"),
 			},
 		},
 		http.StatusOK,
@@ -14221,7 +14222,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
 			ID: osqueryInfoQuery.ID,
 			QueryPayload: fleet.QueryPayload{
-				MinOsqueryVersion: ptr.String("5.11.0"),
+				MinOsqueryVersion: new("5.11.0"),
 			},
 		},
 		http.StatusOK,
@@ -17091,11 +17092,14 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	s.Run("endpoint_request_size_overrides wins over the osquery per-route default in body-auth mode", func() {
 		const overrideLimit = 15 * units.MiB
 
-		cfg := config.TestConfig()
-		cfg.Server.EndpointRequestSizeOverrides = map[string]int64{
+		oldOverrides := platform_http.EndpointRequestSizeOverrides
+		s.T().Cleanup(func() { platform_http.EndpointRequestSizeOverrides = oldOverrides })
+		platform_http.EndpointRequestSizeOverrides = map[string]int64{
 			"/api/osquery/log":               overrideLimit,
 			"/api/osquery/distributed/write": overrideLimit,
 		}
+
+		cfg := config.TestConfig()
 		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
 			FleetConfig:         &cfg,
 			SkipCreateTestUsers: true,
@@ -17132,12 +17136,16 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 			overrideLimit   = 15 * units.MiB
 		)
 
-		cfg := config.TestConfig()
-		cfg.Server.EndpointRequestSizeOverrides = map[string]int64{
+		oldOverrides := platform_http.EndpointRequestSizeOverrides
+		s.T().Cleanup(func() { platform_http.EndpointRequestSizeOverrides = oldOverrides })
+		platform_http.EndpointRequestSizeOverrides = map[string]int64{
 			"/api/osquery/log":               overrideLimit,
 			"/api/osquery/distributed/write": overrideLimit,
 		}
+
+		cfg := config.TestConfig()
 		cfg.Osquery.MaxLogWriteBodySize = deprecatedLimit
+		cfg.Osquery.MaxDistributedWriteBodySize = deprecatedLimit
 
 		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
 			FleetConfig:         &cfg,
@@ -17167,7 +17175,7 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 			http.StatusRequestEntityTooLarge)
 	})
 
-	s.Run("an explicitly configured osquery_max_*_body_size wins when larger than endpoint_request_size_overrides", func() {
+	s.Run("explicitly configured osquery_max_*_body_size wins when larger than endpoint_request_size_overrides", func() {
 		// Reverse of above test.
 		// A smaller override must not shrink the effective limit below an explicitly configured (larger) deprecated setting for the same path.
 		const (
@@ -17175,12 +17183,16 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 			overrideLimit   = 5 * units.MiB
 		)
 
-		cfg := config.TestConfig()
-		cfg.Server.EndpointRequestSizeOverrides = map[string]int64{
+		oldOverrides := platform_http.EndpointRequestSizeOverrides
+		s.T().Cleanup(func() { platform_http.EndpointRequestSizeOverrides = oldOverrides })
+		platform_http.EndpointRequestSizeOverrides = map[string]int64{
 			"/api/osquery/log":               overrideLimit,
 			"/api/osquery/distributed/write": overrideLimit,
 		}
+
+		cfg := config.TestConfig()
 		cfg.Osquery.MaxLogWriteBodySize = deprecatedLimit
+		cfg.Osquery.MaxDistributedWriteBodySize = deprecatedLimit
 
 		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
 			FleetConfig:         &cfg,
@@ -17216,11 +17228,14 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 		// so a configured override for the same path must not reintroduce a limit there.
 		const overrideLimit = 2 * units.MiB // well below the 12MiB body sent below
 
-		cfg := config.TestConfig()
-		cfg.Server.EndpointRequestSizeOverrides = map[string]int64{
+		oldOverrides := platform_http.EndpointRequestSizeOverrides
+		s.T().Cleanup(func() { platform_http.EndpointRequestSizeOverrides = oldOverrides })
+		platform_http.EndpointRequestSizeOverrides = map[string]int64{
 			"/api/osquery/log":               overrideLimit,
 			"/api/osquery/distributed/write": overrideLimit,
 		}
+
+		cfg := config.TestConfig()
 		cfg.Osquery.AllowBodyAuthFallback = false
 
 		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
