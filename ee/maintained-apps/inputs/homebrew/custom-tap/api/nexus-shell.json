@@ -1,0 +1,88 @@
+{
+  "token": "nexus-shell",
+  "old_tokens": [],
+  "name": [
+    "Nexus Shell"
+  ],
+  "desc": "SwiftUI SSH client with terminal, SFTP, Docker and key management",
+  "homepage": "https://nexusshell.app/",
+  "url": "https://releases.nexusshell.app/Nexus-Shell-v1.6.9.dmg",
+  "url_specs": {},
+  "version": "1.6.9",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "sha256": "088938eb901760a3123be7c8df18a41d480f234358a3a56f248de88bcc83a61d",
+  "artifacts": [
+    {
+      "uninstall": [
+        {
+          "quit": "sameral.Nexus-Shell"
+        }
+      ]
+    },
+    {
+      "app": [
+        "Nexus Shell.app"
+      ],
+      "target": "/Applications/Nexus Shell.app"
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "~/Library/Application Scripts/sameral.Nexus-Shell",
+            "~/Library/Application Support/Nexus Shell",
+            "~/Library/Caches/sameral.Nexus-Shell",
+            "~/Library/Containers/sameral.Nexus-Shell",
+            "~/Library/HTTPStorages/sameral.Nexus-Shell",
+            "~/Library/HTTPStorages/sameral.Nexus-Shell.binarycookies",
+            "~/Library/Preferences/sameral.Nexus-Shell.plist",
+            "~/Library/Saved Application State/sameral.Nexus-Shell.savedState",
+            "~/Library/WebKit/sameral.Nexus-Shell"
+          ]
+        }
+      ]
+    }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+    "arch": [
+      {
+        "type": "arm",
+        "bits": 64
+      }
+    ],
+    "macos": {
+      ">=": [
+        "14"
+      ]
+    }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/nexus-shell.rb",
+  "ruby_source_checksum": {
+    "sha256": "5655b89e9a43cc24094e09d50f41f9b340b841c9a7f95637c2ae97c33b00637e"
+  }
+}

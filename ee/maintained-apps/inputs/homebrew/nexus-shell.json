@@ -1,0 +1,9 @@
+{
+  "name": "Nexus Shell",
+  "unique_identifier": "sameral.Nexus-Shell",
+  "token": "nexus-shell",
+  "installer_format": "dmg",
+  "slug": "nexus-shell/darwin",
+  "default_categories": ["Developer tools"],
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/nexus-shell.json"
+}
