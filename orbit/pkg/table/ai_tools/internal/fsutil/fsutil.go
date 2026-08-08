@@ -1,6 +1,7 @@
-// Package fsutil holds small, dependency-free filesystem helpers shared across
-// collectors: content hashing (a diffable integrity fingerprint) and POSIX
-// permission inspection (used to flag world-readable secret-bearing files).
+// Package fsutil holds small filesystem helpers shared across collectors:
+// content hashing (a diffable integrity fingerprint) and permission inspection
+// (used to flag world-readable secret-bearing files and world-writable
+// instruction files) from POSIX mode bits or a Windows DACL.
 //
 // These never execute a discovered file — they only stat and read it — so they
 // preserve the extension's no-exec security posture.
@@ -12,7 +13,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 )
@@ -116,30 +116,21 @@ func SHA256Bytes(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Perm describes the POSIX permission posture of a file. Known is false on
-// platforms where Unix mode bits are not meaningful (Windows), so callers don't
-// emit false "world-readable" signals there.
+// Perm describes how widely a file is readable or writable. "World" means the
+// POSIX group/other bits on macOS and Linux, and a DACL grant to a well-known
+// everyone-style SID on Windows. Known is false when the posture could not be
+// determined at all (an unreadable path, or a DACL we could not parse), so
+// callers don't emit a risk signal they haven't actually established.
 type Perm struct {
-	WorldReadable bool // group OR other has read
-	WorldWritable bool // group OR other has write
+	WorldReadable bool
+	WorldWritable bool
 	Known         bool
 }
 
-// Stat returns the permission posture of path. On Windows, Known is false.
+// Stat returns the permission posture of path. The per-platform reader lives in
+// perm_unix.go and perm_windows.go.
 func Stat(path string) Perm {
-	if runtime.GOOS == "windows" {
-		return Perm{}
-	}
-	fi, err := os.Lstat(path)
-	if err != nil {
-		return Perm{}
-	}
-	m := fi.Mode().Perm()
-	return Perm{
-		WorldReadable: m&0o044 != 0,
-		WorldWritable: m&0o022 != 0,
-		Known:         true,
-	}
+	return statPerm(path)
 }
 
 // Exists reports whether path is an existing regular file. It uses Lstat and
