@@ -1,0 +1,1 @@
+- Added curated process-name mappings for 33 Fleet-maintained Windows apps (Mozilla Firefox, VLC media player, SQL Server Management Studio, Visual Studio 2022, Power BI, Docker Desktop, GitHub Desktop, and others) so their "app open" pre-install check matches the app's real process instead of a name derived from the catalog title.
