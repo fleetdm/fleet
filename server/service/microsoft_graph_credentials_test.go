@@ -21,7 +21,7 @@ const (
 	graphClientA = "7f6b1665-51f5-48de-a9b6-ac17539583fb"
 )
 
-// fakeGraphClient stands in for a real Graph client so config-write validation never reaches the network.
+// fakeGraphClient stands in for a real Graph client so credential validation never reaches the network.
 type fakeGraphClient struct {
 	verifyErr error
 }
@@ -114,15 +114,15 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 	return env, calls
 }
 
-func TestModifyAppConfigMicrosoftGraphCredentials(t *testing.T) {
-	validPayload := `{"mdm":{"microsoft_graph_credentials":[{"tenant_id":"` + graphTenantA +
-		`","client_id":"` + graphClientA + `","client_secret":"secret-a"}]}}`
+func TestApplyMicrosoftGraphCredentials(t *testing.T) {
+	validCred := []fleet.MicrosoftGraphCredential{
+		{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "secret-a"},
+	}
 
 	t.Run("stores a credential on premium", func(t *testing.T) {
 		env, calls := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(validPayload), fleet.ApplySpecOptions{})
-		require.NoError(t, err)
+		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, validCred, false))
 
 		require.Len(t, env.stored, 1)
 		stored := env.stored[graphTenantA]
@@ -135,7 +135,7 @@ func TestModifyAppConfigMicrosoftGraphCredentials(t *testing.T) {
 	t.Run("rejects on Fleet Free", func(t *testing.T) {
 		env, _ := setupGraphCredsTest(t, fleet.TierFree, "test-private-key", nil)
 
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(validPayload), fleet.ApplySpecOptions{})
+		err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, validCred, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), ErrMissingLicense.Error())
 		assert.Empty(t, env.stored)
@@ -144,11 +144,10 @@ func TestModifyAppConfigMicrosoftGraphCredentials(t *testing.T) {
 	t.Run("rejects a second credential", func(t *testing.T) {
 		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 
-		payload := `{"mdm":{"microsoft_graph_credentials":[` +
-			`{"tenant_id":"` + graphTenantA + `","client_id":"` + graphClientA + `","client_secret":"a"},` +
-			`{"tenant_id":"` + graphTenantB + `","client_id":"` + graphClientA + `","client_secret":"b"}]}}`
-
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(payload), fleet.ApplySpecOptions{})
+		err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
+			{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "a"},
+			{TenantID: graphTenantB, ClientID: graphClientA, ClientSecret: "b"},
+		}, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Only 1 Microsoft Graph credential can be configured")
 		assert.Empty(t, env.stored, "neither entry is stored when the list is rejected")
@@ -157,10 +156,9 @@ func TestModifyAppConfigMicrosoftGraphCredentials(t *testing.T) {
 	t.Run("rejects a malformed GUID", func(t *testing.T) {
 		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 
-		payload := `{"mdm":{"microsoft_graph_credentials":[{"tenant_id":"not-a-guid","client_id":"` +
-			graphClientA + `","client_secret":"a"}]}}`
-
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(payload), fleet.ApplySpecOptions{})
+		err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
+			{TenantID: "not-a-guid", ClientID: graphClientA, ClientSecret: "a"},
+		}, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid Entra tenant ID")
 		assert.Empty(t, env.stored)
@@ -169,7 +167,7 @@ func TestModifyAppConfigMicrosoftGraphCredentials(t *testing.T) {
 	t.Run("rejects a new secret when no server private key is configured", func(t *testing.T) {
 		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "", nil)
 
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(validPayload), fleet.ApplySpecOptions{})
+		err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, validCred, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Missing required private key")
 		assert.Empty(t, env.stored)
@@ -179,7 +177,7 @@ func TestModifyAppConfigMicrosoftGraphCredentials(t *testing.T) {
 		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key",
 			&msgraph.Error{StatusCode: http.StatusForbidden, Code: "Forbidden"})
 
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(validPayload), fleet.ApplySpecOptions{})
+		err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, validCred, false)
 		require.Error(t, err)
 		// The message has to tell the admin what to actually do, since a 403 here means a missing permission or
 		// missing admin consent rather than a bad secret.
@@ -191,7 +189,7 @@ func TestModifyAppConfigMicrosoftGraphCredentials(t *testing.T) {
 		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key",
 			&msgraph.Error{StatusCode: http.StatusUnauthorized, Code: "InvalidAuthenticationToken"})
 
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(validPayload), fleet.ApplySpecOptions{})
+		err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, validCred, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rejected the credential")
 	})
@@ -202,68 +200,132 @@ func TestModifyAppConfigMicrosoftGraphCredentials(t *testing.T) {
 			TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret",
 		}
 
-		payload := `{"mdm":{"microsoft_graph_credentials":[{"tenant_id":"` + graphTenantA +
-			`","client_id":"` + graphClientA + `","client_secret":"` + fleet.MaskedPassword + `"}]}}`
-
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(payload), fleet.ApplySpecOptions{})
-		require.NoError(t, err)
+		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
+			{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: fleet.MaskedPassword},
+		}, false))
 
 		assert.Equal(t, "stored-secret", env.stored[graphTenantA].ClientSecret)
 		// Nothing changed, so no network call and no write.
 		assert.Equal(t, 0, *calls, "an unchanged credential is not re-verified")
 	})
 
-	t.Run("omitting the key leaves stored credentials alone", func(t *testing.T) {
+	t.Run("is declarative: an absent tenant is deleted", func(t *testing.T) {
 		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 		env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
 			TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret",
 		}
 
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(`{"org_info":{"org_name":"Renamed"}}`), fleet.ApplySpecOptions{})
-		require.NoError(t, err)
-
-		require.Len(t, env.stored, 1, "a PATCH that does not mention credentials must not clear them")
-		assert.Empty(t, env.deleted)
-	})
-
-	t.Run("an explicit empty list clears the credential", func(t *testing.T) {
-		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
-		env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
-			TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret",
-		}
-
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(`{"mdm":{"microsoft_graph_credentials":[]}}`), fleet.ApplySpecOptions{})
-		require.NoError(t, err)
+		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{}, false))
 
 		assert.Empty(t, env.stored)
 		assert.Equal(t, []string{graphTenantA}, env.deleted)
 	})
 
-	t.Run("the secret never lands in the saved app config", func(t *testing.T) {
-		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
+	t.Run("a dry run validates without persisting", func(t *testing.T) {
+		env, calls := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 
-		// Snapshot the count at save time rather than holding the pointer: the mock hands back the same *AppConfig on
-		// the later read, so a retained pointer would observe the response hydration instead of what was persisted.
-		savedCredCount := -1
-		env.ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
-			savedCredCount = len(conf.MDM.MicrosoftGraphCredentials.Value)
-			return nil
+		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, validCred, true))
+		assert.Empty(t, env.stored)
+		assert.Equal(t, 1, *calls, "a dry run still verifies, which is the point of running it")
+	})
+}
+
+// The banner is an app-wide aggregate stored on the app config, so it has to be recomputed on every path that can
+// change a credential's health. Storing it instead of deriving it on read is what keeps GET /config off the
+// credentials table.
+func TestMicrosoftGraphCredentialBanner(t *testing.T) {
+	t.Run("clears when a credential is replaced with a working one", func(t *testing.T) {
+		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
+		env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
+			TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "expired", CredentialInvalid: true,
+		}
+		ac, err := env.ds.AppConfig(env.ctx)
+		require.NoError(t, err)
+		ac.MDM.MicrosoftGraphCredentialInvalid = true
+		require.NoError(t, env.ds.SaveAppConfig(env.ctx, ac))
+
+		// A rotated secret is verified before storage, and the upsert clears the per-tenant flag.
+		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
+			{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "rotated"},
+		}, false))
+
+		ac, err = env.ds.AppConfig(env.ctx)
+		require.NoError(t, err)
+		assert.False(t, ac.MDM.MicrosoftGraphCredentialInvalid,
+			"rotating to a verified credential must take the banner down")
+	})
+
+	t.Run("clears when the last unhealthy credential is deleted", func(t *testing.T) {
+		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
+		env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
+			TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "expired", CredentialInvalid: true,
+		}
+		ac, err := env.ds.AppConfig(env.ctx)
+		require.NoError(t, err)
+		ac.MDM.MicrosoftGraphCredentialInvalid = true
+		require.NoError(t, env.ds.SaveAppConfig(env.ctx, ac))
+
+		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{}, false))
+
+		ac, err = env.ds.AppConfig(env.ctx)
+		require.NoError(t, err)
+		assert.False(t, ac.MDM.MicrosoftGraphCredentialInvalid,
+			"a deleted credential can no longer need attention")
+	})
+
+	t.Run("raises when a stored credential is unhealthy", func(t *testing.T) {
+		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
+		env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
+			TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret", CredentialInvalid: true,
 		}
 
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(validPayload), fleet.ApplySpecOptions{})
-		require.NoError(t, err)
+		// Re-applying the identical credential writes nothing, but the banner must still reflect the stored health.
+		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
+			{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret"},
+		}, false))
 
-		assert.Equal(t, 0, savedCredCount,
-			"credentials belong to their own table; persisting them in app_config_json would store the secret in plaintext")
+		ac, err := env.ds.AppConfig(env.ctx)
+		require.NoError(t, err)
+		assert.True(t, ac.MDM.MicrosoftGraphCredentialInvalid)
 	})
 
-	t.Run("a dry run validates without persisting", func(t *testing.T) {
+	t.Run("cannot be set through PATCH /config", func(t *testing.T) {
 		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 
-		_, err := env.svc.ModifyAppConfig(env.ctx, []byte(validPayload), fleet.ApplySpecOptions{DryRun: true})
+		modified, err := env.svc.ModifyAppConfig(env.ctx,
+			[]byte(`{"mdm":{"microsoft_graph_credential_invalid":true}}`), fleet.ApplySpecOptions{})
 		require.NoError(t, err)
-		assert.Empty(t, env.stored)
+
+		assert.False(t, modified.MDM.MicrosoftGraphCredentialInvalid,
+			"the banner is server-computed; a client must not be able to raise it")
+		ac, err := env.ds.AppConfig(env.ctx)
+		require.NoError(t, err)
+		assert.False(t, ac.MDM.MicrosoftGraphCredentialInvalid)
 	})
+}
+
+// The list endpoint must use the metadata query, which decrypts nothing. Using the secret-bearing list would make a
+// missing or rotated server private key fail the read rather than just the sync.
+func TestListMicrosoftGraphCredentials(t *testing.T) {
+	env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
+	env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
+		TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret", CredentialInvalid: true,
+	}
+
+	creds, err := env.svc.ListMicrosoftGraphCredentials(env.ctx)
+	require.NoError(t, err)
+
+	require.Len(t, creds, 1)
+	assert.Equal(t, graphTenantA, creds[0].TenantID)
+	assert.Equal(t, graphClientA, creds[0].ClientID)
+	assert.Equal(t, fleet.MaskedPassword, creds[0].ClientSecret)
+	// Per-tenant status is the whole reason this endpoint exists; it is no longer on the app config.
+	assert.True(t, creds[0].CredentialInvalid)
+
+	assert.True(t, env.ds.ListMicrosoftGraphCredentialMetadataFuncInvoked,
+		"the read must go through the metadata query")
+	assert.False(t, env.ds.ListMicrosoftGraphCredentialsFuncInvoked,
+		"the read must not decrypt secrets it is about to mask")
 }
 
 func TestMicrosoftGraphVerifyMessage(t *testing.T) {
@@ -283,44 +345,40 @@ func TestMicrosoftGraphVerifyMessage(t *testing.T) {
 	}
 }
 
-// The PATCH response is built from a re-read of the app config JSON, which never carries credentials. Without explicit
-// hydration it would report an empty list right after storing one, and a UI that renders the response would show the
-// credential as removed until the next config read.
-func TestModifyAppConfigMicrosoftGraphCredentialsResponse(t *testing.T) {
+// These credentials used to be a field on the app config, so they must keep exactly the permissions they had there:
+// writes for global admin and gitops, reads for anyone who can read the config. Without this, moving them to their own
+// endpoint would silently widen or narrow access.
+func TestMicrosoftGraphCredentialsAuth(t *testing.T) {
 	env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 
-	payload := `{"mdm":{"microsoft_graph_credentials":[{"tenant_id":"` + graphTenantA +
-		`","client_id":"` + graphClientA + `","client_secret":"secret-a"}]}}`
+	for _, tc := range []struct {
+		name            string
+		user            *fleet.User
+		shouldFailWrite bool
+		shouldFailRead  bool
+	}{
+		{"global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false, false},
+		{"global gitops", &fleet.User{GlobalRole: new(fleet.RoleGitOps)}, false, false},
+		{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, true, false},
+		{"global observer", &fleet.User{GlobalRole: new(fleet.RoleObserver)}, true, false},
+		{"team admin", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, true, false},
+		{"team observer", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}, true, false},
+		// Every authenticated role may read the config, so an anonymous caller is the only case that distinguishes
+		// "read is authorized" from "read skips authorization entirely".
+		{"no user", nil, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := viewer.NewContext(env.ctx, viewer.Viewer{User: tc.user})
 
-	modified, err := env.svc.ModifyAppConfig(env.ctx, []byte(payload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
+			_, err := env.svc.ListMicrosoftGraphCredentials(ctx)
+			checkAuthErr(t, tc.shouldFailRead, err)
 
-	require.Len(t, modified.MDM.MicrosoftGraphCredentials.Value, 1,
-		"the PATCH response must report the credential it just stored")
-	got := modified.MDM.MicrosoftGraphCredentials.Value[0]
-	assert.Equal(t, graphTenantA, got.TenantID)
-	assert.Equal(t, graphClientA, got.ClientID)
-	// Masked, never the plaintext the caller sent.
-	assert.Equal(t, fleet.MaskedPassword, got.ClientSecret)
-}
-
-// The config read must use the metadata query, which decrypts nothing. Using the secret-bearing list would make a
-// missing or rotated server private key fail the whole of GET /config rather than just this feature.
-func TestAppConfigObfuscatedUsesMetadataRead(t *testing.T) {
-	env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
-	env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
-		TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret",
+			// A dry run exercises the authorization check without depending on the datastore mocks, so an authorized
+			// role that would fail later for an unrelated reason cannot be mistaken for a permission failure.
+			err = env.svc.ApplyMicrosoftGraphCredentials(ctx, []fleet.MicrosoftGraphCredential{
+				{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "secret-a"},
+			}, true)
+			checkAuthErr(t, tc.shouldFailWrite, err)
+		})
 	}
-
-	ac, err := env.svc.AppConfigObfuscated(env.ctx)
-	require.NoError(t, err)
-
-	require.Len(t, ac.MDM.MicrosoftGraphCredentials.Value, 1)
-	assert.Equal(t, graphTenantA, ac.MDM.MicrosoftGraphCredentials.Value[0].TenantID)
-	assert.Equal(t, fleet.MaskedPassword, ac.MDM.MicrosoftGraphCredentials.Value[0].ClientSecret)
-
-	assert.True(t, env.ds.ListMicrosoftGraphCredentialMetadataFuncInvoked,
-		"the config read must go through the metadata query")
-	assert.False(t, env.ds.ListMicrosoftGraphCredentialsFuncInvoked,
-		"the config read must not decrypt secrets it is about to mask")
 }

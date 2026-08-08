@@ -963,6 +963,10 @@ type UpdateCertificateAuthorityFunc func(ctx context.Context, id uint, p fleet.C
 
 type RequestCertificateFunc func(ctx context.Context, p fleet.RequestCertificatePayload) (*string, error)
 
+type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
+type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error
+
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, groupedCAs fleet.GroupedCertificateAuthorities, opts fleet.BatchApplyCertificateAuthoritiesOpts) error
 
 type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
@@ -2406,6 +2410,12 @@ type Service struct {
 
 	RequestCertificateFunc        RequestCertificateFunc
 	RequestCertificateFuncInvoked bool
+
+	ListMicrosoftGraphCredentialsFunc        ListMicrosoftGraphCredentialsFunc
+	ListMicrosoftGraphCredentialsFuncInvoked bool
+
+	ApplyMicrosoftGraphCredentialsFunc        ApplyMicrosoftGraphCredentialsFunc
+	ApplyMicrosoftGraphCredentialsFuncInvoked bool
 
 	BatchApplyCertificateAuthoritiesFunc        BatchApplyCertificateAuthoritiesFunc
 	BatchApplyCertificateAuthoritiesFuncInvoked bool
@@ -5750,6 +5760,20 @@ func (s *Service) RequestCertificate(ctx context.Context, p fleet.RequestCertifi
 	s.RequestCertificateFuncInvoked = true
 	s.mu.Unlock()
 	return s.RequestCertificateFunc(ctx, p)
+}
+
+func (s *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialsFunc(ctx)
+}
+
+func (s *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error {
+	s.mu.Lock()
+	s.ApplyMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyMicrosoftGraphCredentialsFunc(ctx, creds, dryRun)
 }
 
 func (s *Service) BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs fleet.GroupedCertificateAuthorities, opts fleet.BatchApplyCertificateAuthoritiesOpts) error {

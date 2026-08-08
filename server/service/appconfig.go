@@ -303,12 +303,6 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		}
 	}
 
-	// The mdm_microsoft_graph_credentials table is the source of truth for Graph credentials; they are never stored in
-	// the app config JSON because the client secret must be encrypted at rest, so hydrate them before masking.
-	if err := svc.hydrateMicrosoftGraphCredentials(ctx, ac); err != nil {
-		return nil, err
-	}
-
 	ac.Obfuscate()
 
 	return ac, nil
@@ -859,27 +853,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			"oauth_idp_token_url, oauth_idp_client_id, and oauth_idp_client_secret must all be set together, or all be empty")
 	}
 
-	// Microsoft Graph credentials: neither the credential nor its secret is persisted in the AppConfig JSON. The
-	// mdm_microsoft_graph_credentials table owns them, so capture the incoming list here, validate it, and strip it from
-	// the config that gets saved. A payload that omits the key leaves stored credentials alone (PATCH semantics);
-	// sending an explicit empty list clears them, which is how GitOps removes a credential.
-	graphCredsProvided := newAppConfig.MDM.MicrosoftGraphCredentials.Set
-	incomingGraphCreds := newAppConfig.MDM.MicrosoftGraphCredentials.Value
-	appConfig.MDM.MicrosoftGraphCredentials = optjson.Slice[fleet.MicrosoftGraphCredential]{}
-
-	var resolvedGraphCreds []fleet.MicrosoftGraphCredential
-	if graphCredsProvided {
-		resolvedGraphCreds, err = svc.resolveMicrosoftGraphCredentials(ctx, incomingGraphCreds, lic, invalid)
-		if err != nil {
-			return nil, err
-		}
-		if !invalid.HasErrors() {
-			if err := svc.verifyMicrosoftGraphCredentials(ctx, resolvedGraphCreds, invalid); err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	// this is to handle the case where `apple_enable_release_device_manually: null` is
 	// passed in the request payload, which should be treated as "not present/not
 	// changed" by the PATCH. We should really try to find a more general way to
@@ -1098,6 +1071,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
 	// ignore MDM.AndroidEnabledAndConfigured because it is set by the server only
 	appConfig.MDM.AndroidEnabledAndConfigured = oldAppConfig.MDM.AndroidEnabledAndConfigured
+	// ignore MDM.MicrosoftGraphCredentialInvalid because the server recomputes it from the credentials table
+	appConfig.MDM.MicrosoftGraphCredentialInvalid = oldAppConfig.MDM.MicrosoftGraphCredentialInvalid
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
@@ -1363,20 +1338,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// Reconcile Microsoft Graph credentials to the incoming list. This runs after SaveAppConfig so a failure to save
-	// the rest of the config does not leave a credential stored for a config that was never persisted.
-	if graphCredsProvided {
-		addedGraphCreds, editedGraphCreds, deletedGraphCreds, err := svc.persistMicrosoftGraphCredentials(ctx, resolvedGraphCreds)
-		if err != nil {
-			return nil, err
-		}
-		for _, act := range newMicrosoftGraphCredentialActivities(addedGraphCreds, editedGraphCreds, deletedGraphCreds) {
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
-			}
-		}
-	}
-
 	// Persist the Windows enrollment default fleet to its config row and log the change.
 	if windowsEnrollmentDefined {
 		oldWindowsEnrollmentTeamID, _, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
@@ -1515,11 +1476,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// retrieve new app config with obfuscated secrets
 	obfuscatedAppConfig, err := svc.ds.AppConfig(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
-		return nil, err
-	}
-	// The re-read JSON never carries Graph credentials, so without this the PATCH response would report an empty list
-	// immediately after storing one, and a UI that renders the response would show the credential as removed.
-	if err := svc.hydrateMicrosoftGraphCredentials(ctx, obfuscatedAppConfig); err != nil {
 		return nil, err
 	}
 	obfuscatedAppConfig.Obfuscate()

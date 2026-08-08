@@ -2,9 +2,7 @@ package fleet
 
 import (
 	"testing"
-	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,44 +47,59 @@ func TestMicrosoftGraphCredentialEqual(t *testing.T) {
 	}
 }
 
-func TestAppConfigMicrosoftGraphCredentialsObfuscate(t *testing.T) {
-	ac := &AppConfig{}
-	ac.MDM.MicrosoftGraphCredentials = optjson.SetSlice([]MicrosoftGraphCredential{
-		{TenantID: "tenant-a", ClientID: "client-a", ClientSecret: "super-secret"},
-	})
-
-	ac.Obfuscate()
-
-	require.Len(t, ac.MDM.MicrosoftGraphCredentials.Value, 1)
-	assert.Equal(t, MaskedPassword, ac.MDM.MicrosoftGraphCredentials.Value[0].ClientSecret)
-	// The non-secret fields still round-trip so the UI can show which app registration is configured.
-	assert.Equal(t, "tenant-a", ac.MDM.MicrosoftGraphCredentials.Value[0].TenantID)
-	assert.Equal(t, "client-a", ac.MDM.MicrosoftGraphCredentials.Value[0].ClientID)
-}
-
-func TestAppConfigMicrosoftGraphCredentialsClone(t *testing.T) {
-	syncedAt := time.Date(2026, 8, 6, 12, 0, 0, 0, time.UTC)
-	syncErrMsg := "boom"
-	ac := &AppConfig{}
-	ac.MDM.MicrosoftGraphCredentials = optjson.SetSlice([]MicrosoftGraphCredential{
+// GitOps hands the credentials over as an untyped value decoded from YAML, and an absent key has to mean "clear them"
+// rather than "leave them alone" -- GitOps is declarative, so the nil case is the one that matters most here.
+func TestParseMicrosoftGraphCredentials(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		raw     any
+		want    []MicrosoftGraphCredential
+		wantErr bool
+	}{
 		{
-			TenantID:      "tenant-a",
-			ClientID:      "client-a",
-			LastSyncedAt:  &syncedAt,
-			LastSyncError: &syncErrMsg,
+			name: "absent key clears credentials",
+			raw:  nil,
+			want: []MicrosoftGraphCredential{},
 		},
-	})
-
-	clone := ac.Copy()
-	require.NotNil(t, clone)
-	require.Len(t, clone.MDM.MicrosoftGraphCredentials.Value, 1)
-
-	// Mutating the clone must not reach back into the original: the slice, and both pointer fields, are copied.
-	clone.MDM.MicrosoftGraphCredentials.Value[0].TenantID = "mutated"
-	*clone.MDM.MicrosoftGraphCredentials.Value[0].LastSyncedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	*clone.MDM.MicrosoftGraphCredentials.Value[0].LastSyncError = "mutated"
-
-	assert.Equal(t, "tenant-a", ac.MDM.MicrosoftGraphCredentials.Value[0].TenantID)
-	assert.Equal(t, syncedAt, *ac.MDM.MicrosoftGraphCredentials.Value[0].LastSyncedAt)
-	assert.Equal(t, "boom", *ac.MDM.MicrosoftGraphCredentials.Value[0].LastSyncError)
+		{
+			name: "explicit empty list clears credentials",
+			raw:  []any{},
+			want: []MicrosoftGraphCredential{},
+		},
+		{
+			name: "one credential",
+			raw: []any{map[string]any{
+				"tenant_id": "tenant-a", "client_id": "client-a", "client_secret": "secret-a",
+			}},
+			want: []MicrosoftGraphCredential{{TenantID: "tenant-a", ClientID: "client-a", ClientSecret: "secret-a"}},
+		},
+		{
+			name: "server-computed status in the payload is accepted and ignored on the way in",
+			raw: []any{map[string]any{
+				"tenant_id": "tenant-a", "client_id": "client-a", "client_secret": "secret-a",
+				"credential_invalid": true,
+			}},
+			// It decodes onto the struct, but nothing downstream reads it: the datastore writes only the three input
+			// columns. Round-tripping a generated file must not fail.
+			want: []MicrosoftGraphCredential{{
+				TenantID: "tenant-a", ClientID: "client-a", ClientSecret: "secret-a", CredentialInvalid: true,
+			}},
+		},
+		{
+			name:    "wrong shape is rejected rather than silently dropped",
+			raw:     map[string]any{"tenant_id": "tenant-a"},
+			wantErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ParseMicrosoftGraphCredentials(tc.raw)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, got, "a nil slice would be indistinguishable from \"not provided\" downstream")
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }

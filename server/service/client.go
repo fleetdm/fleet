@@ -633,6 +633,15 @@ func (c *Client) ApplyGroup(
 		}
 	}
 
+	if specs.MicrosoftGraphCredentials != nil {
+		if err := c.ApplyMicrosoftGraphCredentials(*specs.MicrosoftGraphCredentials, opts.ApplySpecOptions.DryRun); err != nil {
+			if err.Error() == "missing or invalid license" && viaGitOps && filename != nil {
+				return nil, nil, nil, nil, fmt.Errorf("Couldn't edit \"%s\" at \"microsoft_graph_credentials\": Missing or invalid license. Microsoft Graph credentials are available in Fleet Premium only.", *filename)
+			}
+			return nil, nil, nil, nil, fmt.Errorf("applying microsoft graph credentials: %w", err)
+		}
+	}
+
 	if specs.CertificateAuthorities != nil {
 		// In GitOps, skip deletes here. CA deletions are deferred to a post-op so that team configs
 		// can clean up certificate templates (which have FK references to CAs) first.
@@ -2466,12 +2475,14 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.WindowsEntraClientIDs == nil {
 			mdmAppConfig["windows_entra_client_ids"] = []any{}
 		}
-		// An absent key clears the stored Graph credentials, matching how the Entra allowlists above behave: GitOps is
+		// Microsoft Graph credentials are applied through their own endpoint, not the app config, so lift them out of
+		// controls here. An absent key clears them, matching how the Entra allowlists above behave: GitOps is
 		// declarative, so what is not in the YAML is not configured.
-		mdmAppConfig["microsoft_graph_credentials"] = incoming.Controls.MicrosoftGraphCredentials
-		if incoming.Controls.MicrosoftGraphCredentials == nil {
-			mdmAppConfig["microsoft_graph_credentials"] = []any{}
+		graphCreds, err := fleet.ParseMicrosoftGraphCredentials(incoming.Controls.MicrosoftGraphCredentials)
+		if err != nil {
+			return nil, fmt.Errorf("invalid microsoft_graph_credentials: %w", err)
 		}
+		group.MicrosoftGraphCredentials = &graphCreds
 		// Put in default values for enable_turn_on_windows_mdm_manually
 		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
 		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {

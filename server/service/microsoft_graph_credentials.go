@@ -6,17 +6,18 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 )
 
 // NoopMicrosoftGraphClient accepts any credential without touching the network.
 //
-// Credential verification runs on every config write that carries a new or changed credential, so a test server built
-// without an injected factory would reach the real login.microsoftonline.com and graph.microsoft.com. Test harnesses
-// inject this instead.
+// Credential verification runs on every write that carries a new or changed credential, so a test server built without
+// an injected factory would reach the real login.microsoftonline.com and graph.microsoft.com. Test harnesses inject
+// this instead.
 type NoopMicrosoftGraphClient struct{}
 
 func (NoopMicrosoftGraphClient) VerifyCredential(context.Context) error { return nil }
@@ -38,12 +39,166 @@ func NoopMicrosoftGraphClientFactory(*fleet.MicrosoftGraphCredential) (msgraph.C
 // break, and no migration.
 const maxMicrosoftGraphCredentials = 1
 
+/////////////////////////////////////////////////////////////////////////////////
+// GET /microsoft_graph_credentials
+/////////////////////////////////////////////////////////////////////////////////
+
+type listMicrosoftGraphCredentialsRequest struct{}
+
+type listMicrosoftGraphCredentialsResponse struct {
+	MicrosoftGraphCredentials []*fleet.MicrosoftGraphCredential `json:"microsoft_graph_credentials"`
+	Err                       error                             `json:"error,omitempty"`
+}
+
+func (r listMicrosoftGraphCredentialsResponse) Error() error { return r.Err }
+
+func listMicrosoftGraphCredentialsEndpoint(ctx context.Context, _ any, svc fleet.Service) (fleet.Errorer, error) {
+	creds, err := svc.ListMicrosoftGraphCredentials(ctx)
+	if err != nil {
+		return listMicrosoftGraphCredentialsResponse{Err: err}, nil
+	}
+	return listMicrosoftGraphCredentialsResponse{MicrosoftGraphCredentials: creds}, nil
+}
+
+// ListMicrosoftGraphCredentials returns the stored credentials with their per-tenant sync status. Client secrets are
+// never decrypted on this path: the metadata read leaves them out entirely, so a rotated or missing server private key
+// cannot fail it.
+func (svc *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	// Authorizing against AppConfig keeps these credentials on exactly the permissions they had when they were a config
+	// field: global admins write, and anyone who can read the config can read them.
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	creds, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
+	}
+	for _, cred := range creds {
+		// Signal that a secret is set without leaking it. The metadata read never loads the encrypted blob, so this is
+		// a display value rather than a masked real one.
+		cred.ClientSecret = fleet.MaskedPassword
+	}
+	return creds, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// PUT /microsoft_graph_credentials
+/////////////////////////////////////////////////////////////////////////////////
+
+type applyMicrosoftGraphCredentialsRequest struct {
+	MicrosoftGraphCredentials []fleet.MicrosoftGraphCredential `json:"microsoft_graph_credentials"`
+	DryRun                    bool                             `json:"dry_run"`
+}
+
+type applyMicrosoftGraphCredentialsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r applyMicrosoftGraphCredentialsResponse) Error() error { return r.Err }
+
+func applyMicrosoftGraphCredentialsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*applyMicrosoftGraphCredentialsRequest)
+	if err := svc.ApplyMicrosoftGraphCredentials(ctx, req.MicrosoftGraphCredentials, req.DryRun); err != nil {
+		return applyMicrosoftGraphCredentialsResponse{Err: err}, nil
+	}
+	return applyMicrosoftGraphCredentialsResponse{}, nil
+}
+
+// ApplyMicrosoftGraphCredentials reconciles the stored credentials to match the supplied list. It is declarative: a
+// tenant absent from the list is deleted, which is how GitOps removes a credential and how an empty list clears them
+// all.
+//
+// Every credential that is new or whose values changed is verified against Graph before anything is written, so a bad
+// credential is rejected at write time instead of failing silently on the next sync. Unchanged credentials are skipped
+// entirely: re-applying an identical GitOps config makes no network call, performs no write, and emits no activity.
+func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming []fleet.MicrosoftGraphCredential, dryRun bool) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	licChecker, _ := license.FromContext(ctx)
+	lic, _ := licChecker.(*fleet.LicenseInfo)
+	invalid := &fleet.InvalidArgumentError{}
+
+	resolved, err := svc.resolveMicrosoftGraphCredentials(ctx, incoming, lic, invalid)
+	if err != nil {
+		return err
+	}
+	if !invalid.HasErrors() {
+		if err := svc.verifyMicrosoftGraphCredentials(ctx, resolved, invalid); err != nil {
+			return err
+		}
+	}
+	if invalid.HasErrors() {
+		return ctxerr.Wrap(ctx, invalid)
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	added, edited, deleted, err := svc.persistMicrosoftGraphCredentials(ctx, resolved)
+	if err != nil {
+		return err
+	}
+
+	for _, act := range newMicrosoftGraphCredentialActivities(added, edited, deleted) {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return ctxerr.Wrap(ctx, err, "create microsoft graph credential activity")
+		}
+	}
+
+	// A credential that was just verified is healthy, and a deleted one can no longer be unhealthy, so the banner has to
+	// be recomputed after any change.
+	return svc.refreshMicrosoftGraphCredentialBanner(ctx)
+}
+
+// refreshMicrosoftGraphCredentialBanner recomputes the app-wide banner flag from the stored credentials and saves the
+// app config only when it actually changed.
+//
+// The flag is stored rather than derived on read so that GET /config does not have to join the credentials table on
+// every page load. That means it can only be as fresh as its last recomputation, so every path that can change a
+// credential's health must call this: credential writes and deletes here, and the Autopilot sync when it marks a
+// credential invalid or clears it.
+//
+// Only CredentialInvalid feeds the banner. Throttling and 5xx are recorded in LastSyncError but must never raise a
+// credential alarm, or a Microsoft outage would light up the banner on every Fleet deployment at once.
+func (svc *Service) refreshMicrosoftGraphCredentialBanner(ctx context.Context) error {
+	stored, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
+	}
+
+	var anyInvalid bool
+	for _, cred := range stored {
+		if cred.CredentialInvalid {
+			anyInvalid = true
+			break
+		}
+	}
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+	if appCfg.MDM.MicrosoftGraphCredentialInvalid == anyInvalid {
+		return nil
+	}
+
+	appCfg.MDM.MicrosoftGraphCredentialInvalid = anyInvalid
+	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+		return ctxerr.Wrap(ctx, err, "save app config with microsoft graph banner flag")
+	}
+	return nil
+}
+
 // resolveMicrosoftGraphCredentials validates the incoming credential list and returns it with every client secret
 // resolved to a usable value.
 //
-// A caller that already has a stored credential may send back the masked placeholder (the UI round-trips what
-// GET /config returned) or omit the secret entirely; both mean "keep the stored secret". A genuinely new secret
-// requires the server private key, since it is encrypted at rest.
+// A caller that already has a stored credential may send back the masked placeholder (the UI round-trips what the list
+// endpoint returned) or omit the secret entirely; both mean "keep the stored secret". A genuinely new secret requires
+// the server private key, since it is encrypted at rest.
 //
 // Validation failures are accumulated on invalid rather than returned, so one bad entry does not mask another. The
 // returned slice only contains entries that validated.
@@ -58,12 +213,12 @@ func (svc *Service) resolveMicrosoftGraphCredentials(
 	}
 
 	if lic == nil || !lic.IsPremium() {
-		invalid.Append("mdm.microsoft_graph_credentials", ErrMissingLicense.Error())
+		invalid.Append("microsoft_graph_credentials", ErrMissingLicense.Error())
 		return nil, nil
 	}
 
 	if len(incoming) > maxMicrosoftGraphCredentials {
-		invalid.Append("mdm.microsoft_graph_credentials",
+		invalid.Append("microsoft_graph_credentials",
 			fmt.Sprintf("Only %d Microsoft Graph credential can be configured.", maxMicrosoftGraphCredentials))
 		return nil, nil
 	}
@@ -84,17 +239,17 @@ func (svc *Service) resolveMicrosoftGraphCredentials(
 		cred.ClientSecret = strings.TrimSpace(cred.ClientSecret)
 
 		if !windowsEntraGUIDRegex.MatchString(cred.TenantID) {
-			invalid.Append("mdm.microsoft_graph_credentials.tenant_id", fmt.Sprintf("Invalid Entra tenant ID: %s", cred.TenantID))
+			invalid.Append("microsoft_graph_credentials.tenant_id", fmt.Sprintf("Invalid Entra tenant ID: %s", cred.TenantID))
 			continue
 		}
 		if !windowsEntraGUIDRegex.MatchString(cred.ClientID) {
-			invalid.Append("mdm.microsoft_graph_credentials.client_id", fmt.Sprintf("Invalid Entra client ID: %s", cred.ClientID))
+			invalid.Append("microsoft_graph_credentials.client_id", fmt.Sprintf("Invalid Entra client ID: %s", cred.ClientID))
 			continue
 		}
 		if _, dup := seen[cred.TenantID]; dup {
 			// Two credentials for one tenant would read an identical Autopilot list, because the registry is scoped to
 			// the tenant and not to the application.
-			invalid.Append("mdm.microsoft_graph_credentials.tenant_id",
+			invalid.Append("microsoft_graph_credentials.tenant_id",
 				fmt.Sprintf("Duplicate Entra tenant ID: %s. Only one credential per tenant is supported.", cred.TenantID))
 			continue
 		}
@@ -103,13 +258,13 @@ func (svc *Service) resolveMicrosoftGraphCredentials(
 		if cred.ClientSecret == "" || cred.ClientSecret == fleet.MaskedPassword {
 			existing, ok := storedByTenant[cred.TenantID]
 			if !ok || existing.ClientSecret == "" {
-				invalid.Append("mdm.microsoft_graph_credentials.client_secret",
+				invalid.Append("microsoft_graph_credentials.client_secret",
 					"client_secret must be provided when adding a Microsoft Graph credential")
 				continue
 			}
 			cred.ClientSecret = existing.ClientSecret
 		} else if svc.config.Server.PrivateKey == "" {
-			invalid.Append("mdm.microsoft_graph_credentials",
+			invalid.Append("microsoft_graph_credentials",
 				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 			continue
 		}
@@ -144,11 +299,11 @@ func (svc *Service) verifyMicrosoftGraphCredentials(
 
 		client, err := svc.msGraphClientFactory(&cred)
 		if err != nil {
-			invalid.Append("mdm.microsoft_graph_credentials", fmt.Sprintf("Couldn't use Microsoft Graph credential: %s", err))
+			invalid.Append("microsoft_graph_credentials", fmt.Sprintf("Couldn't use Microsoft Graph credential: %s", err))
 			continue
 		}
 		if err := client.VerifyCredential(ctx); err != nil {
-			invalid.Append("mdm.microsoft_graph_credentials", microsoftGraphVerifyMessage(err))
+			invalid.Append("microsoft_graph_credentials", microsoftGraphVerifyMessage(err))
 			continue
 		}
 	}
@@ -179,9 +334,6 @@ func microsoftGraphVerifyMessage(err error) string {
 
 // persistMicrosoftGraphCredentials reconciles stored credentials to match the supplied list, and reports which tenants
 // were added, edited, or deleted so the caller can emit one activity apiece.
-//
-// The credentials are not part of the AppConfig JSON, so a change here is invisible in the saved-config diff and has to
-// be tracked explicitly.
 func (svc *Service) persistMicrosoftGraphCredentials(
 	ctx context.Context,
 	creds []fleet.MicrosoftGraphCredential,
@@ -222,31 +374,6 @@ func (svc *Service) persistMicrosoftGraphCredentials(
 	}
 
 	return added, edited, deleted, nil
-}
-
-// hydrateMicrosoftGraphCredentials populates ac.MDM.MicrosoftGraphCredentials from the credentials table.
-//
-// Both the GET and PATCH config responses need this: the credentials are not part of the AppConfig JSON, so a config
-// read (or the re-read that builds the PATCH response) carries nothing unless it is filled in here. Callers must still
-// call Obfuscate afterwards to mask the secrets.
-//
-// When nothing is configured the field is left untouched rather than set to an empty list, mirroring the conditional
-// hydration of MDM.WindowsEnrollment in AppConfigObfuscated. Unconditionally setting it would change the marshalled
-// config for every deployment that has never configured the feature, which is the overwhelming majority.
-func (svc *Service) hydrateMicrosoftGraphCredentials(ctx context.Context, ac *fleet.AppConfig) error {
-	stored, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
-	}
-	if len(stored) == 0 && !ac.MDM.MicrosoftGraphCredentials.Set {
-		return nil
-	}
-	creds := make([]fleet.MicrosoftGraphCredential, 0, len(stored))
-	for _, cred := range stored {
-		creds = append(creds, *cred)
-	}
-	ac.MDM.MicrosoftGraphCredentials = optjson.SetSlice(creds)
-	return nil
 }
 
 func (svc *Service) storedMicrosoftGraphCredentialsByTenant(ctx context.Context) (map[string]*fleet.MicrosoftGraphCredential, error) {

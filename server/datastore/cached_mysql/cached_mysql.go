@@ -39,7 +39,6 @@ const (
 	appConfigKey                       = "AppConfig:%s"
 	defaultAppConfigExpiration         = 1 * time.Second
 	windowsEnrollmentDefaultFleetKey   = "WindowsEnrollmentDefaultFleet"
-	microsoftGraphCredentialsKey       = "MicrosoftGraphCredentials"
 	packsHostKey                       = "Packs:host:%d"
 	defaultPacksExpiration             = 1 * time.Minute
 	scheduledQueriesKey                = "ScheduledQueries:pack:%d"
@@ -295,65 +294,6 @@ func (ds *cachedMysql) SetWindowsEnrollmentDefaultFleet(ctx context.Context, fle
 		return err
 	}
 	ds.c.Delete(windowsEnrollmentDefaultFleetKey)
-	return nil
-}
-
-// ListMicrosoftGraphCredentialMetadata is cached because every config read hydrates the credentials from this table
-// (they are never stored in the app config JSON), which puts it on the same hot path as AppConfig itself. It shares
-// the app config expiration for the same reason.
-//
-// The secret-bearing ListMicrosoftGraphCredentials is deliberately not cached: it is only used by config writes and
-// the sync, both rare, and keeping decrypted secrets out of the cache is worth the extra query.
-func (ds *cachedMysql) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
-	if x, found := ds.c.Get(ctx, microsoftGraphCredentialsKey); found {
-		if v, ok := x.(microsoftGraphCredentialsList); ok {
-			return v, nil
-		}
-	}
-
-	creds, err := ds.Datastore.ListMicrosoftGraphCredentialMetadata(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	ds.c.Set(ctx, microsoftGraphCredentialsKey, microsoftGraphCredentialsList(creds), ds.appConfigExp)
-
-	return creds, nil
-}
-
-func (ds *cachedMysql) UpsertMicrosoftGraphCredential(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
-	if err := ds.Datastore.UpsertMicrosoftGraphCredential(ctx, cred); err != nil {
-		return err
-	}
-	ds.c.Delete(microsoftGraphCredentialsKey)
-	return nil
-}
-
-func (ds *cachedMysql) DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error {
-	if err := ds.Datastore.DeleteMicrosoftGraphCredential(ctx, tenantID); err != nil {
-		return err
-	}
-	ds.c.Delete(microsoftGraphCredentialsKey)
-	return nil
-}
-
-// SetMicrosoftGraphCredentialInvalid and RecordMicrosoftGraphSyncResult both mutate columns that the cached list
-// carries (credential_invalid, last_synced_at, last_sync_error), so they invalidate too. Without this the banner would
-// keep reading a stale "valid" credential after a sync failed.
-func (ds *cachedMysql) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (bool, error) {
-	wasSet, err := ds.Datastore.SetMicrosoftGraphCredentialInvalid(ctx, tenantID, invalid)
-	if err != nil {
-		return false, err
-	}
-	ds.c.Delete(microsoftGraphCredentialsKey)
-	return wasSet, nil
-}
-
-func (ds *cachedMysql) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error {
-	if err := ds.Datastore.RecordMicrosoftGraphSyncResult(ctx, tenantID, syncErr); err != nil {
-		return err
-	}
-	ds.c.Delete(microsoftGraphCredentialsKey)
 	return nil
 }
 

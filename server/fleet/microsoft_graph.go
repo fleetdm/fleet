@@ -1,6 +1,8 @@
 package fleet
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -57,4 +59,31 @@ type HostAutopilotDevice struct {
 	GroupTag          string `db:"group_tag" json:"group_tag"`
 	HardwareSerial    string `db:"hardware_serial" json:"hardware_serial"`
 	TenantID          string `db:"tenant_id" json:"tenant_id"`
+}
+
+// ParseMicrosoftGraphCredentials decodes the raw GitOps `controls.microsoft_graph_credentials` value into a typed list.
+//
+// A nil or absent key yields an empty list rather than nil, and an empty list clears the stored credentials: GitOps is
+// declarative, so what is not in the YAML is not configured. That is the opposite of the additive `fleetctl apply`
+// behaviour, which is why nothing here is called a spec.
+//
+// This only decodes. Everything that can reject a credential -- the license check, GUID format, duplicate tenants, the
+// one-credential cap, and verification against Graph -- happens server-side, so a hand-edited YAML file and a direct
+// API call are held to the same rules.
+func ParseMicrosoftGraphCredentials(raw any) ([]MicrosoftGraphCredential, error) {
+	if raw == nil {
+		return []MicrosoftGraphCredential{}, nil
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("marshal microsoft graph credentials: %w", err)
+	}
+	var creds []MicrosoftGraphCredential
+	if err := json.Unmarshal(encoded, &creds); err != nil {
+		return nil, fmt.Errorf("unmarshal microsoft graph credentials: %w", err)
+	}
+	if creds == nil {
+		creds = []MicrosoftGraphCredential{}
+	}
+	return creds, nil
 }

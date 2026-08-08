@@ -53,7 +53,7 @@ spec:
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
     windows_entra_client_ids: null
-    microsoft_graph_credentials: null
+    microsoft_graph_credential_invalid: false
     apple_require_hardware_attestation: false
     macos_migration:
       enable: false

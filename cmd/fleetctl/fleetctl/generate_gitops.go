@@ -94,6 +94,7 @@ type generateGitopsClient interface {
 	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
+	GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
@@ -1462,17 +1463,22 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && len(cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value) > 0 {
 				result[jsonFieldName(mdmT, "WindowsEntraTenantIDs")] = cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value
 			}
-			if len(cmd.AppConfig.MDM.MicrosoftGraphCredentials.Value) > 0 {
+			// Graph credentials are no longer part of the app config; they come from their own endpoint.
+			graphCreds, err := cmd.Client.GetMicrosoftGraphCredentials()
+			if err != nil {
+				return nil, err
+			}
+			if len(graphCreds) > 0 {
 				credT := reflect.TypeFor[fleet.MicrosoftGraphCredential]()
 				controlsFile := "default.yml"
 				if teamId != nil {
 					controlsFile = "fleets/" + teamName + ".yml"
 				}
-				// The client secret is never readable from the API (GET /config masks it), so emit a placeholder and
-				// warn, exactly as apple_account_provisioning.oauth_idp_client_secret does. Emitting the mask verbatim
-				// would round-trip a literal "********" back into the config on the next apply.
-				creds := make([]map[string]any, 0, len(cmd.AppConfig.MDM.MicrosoftGraphCredentials.Value))
-				for _, cred := range cmd.AppConfig.MDM.MicrosoftGraphCredentials.Value {
+				// The client secret is never readable from the API, so emit a placeholder and warn, exactly as
+				// apple_account_provisioning.oauth_idp_client_secret does. Emitting the mask verbatim would round-trip a
+				// literal "********" back into the config on the next apply.
+				creds := make([]map[string]any, 0, len(graphCreds))
+				for _, cred := range graphCreds {
 					creds = append(creds, map[string]any{
 						jsonFieldName(credT, "TenantID"):     cred.TenantID,
 						jsonFieldName(credT, "ClientID"):     cred.ClientID,
@@ -1483,7 +1489,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 						Key:      "microsoft_graph_credentials.client_secret",
 					})
 				}
-				result[jsonFieldName(mdmT, "MicrosoftGraphCredentials")] = creds
+				result["microsoft_graph_credentials"] = creds
 			}
 			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && len(cmd.AppConfig.MDM.WindowsEntraClientIDs.Value) > 0 {
 				result[jsonFieldName(mdmT, "WindowsEntraClientIDs")] = cmd.AppConfig.MDM.WindowsEntraClientIDs.Value
