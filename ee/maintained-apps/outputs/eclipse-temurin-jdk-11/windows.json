@@ -4,7 +4,8 @@
       "version": "11.0.32.9",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '11.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '11.%' AND version_compare(version, '11.0.32.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '11.%' AND version_compare(version, '11.0.32.9') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'eclipse temurin jdk 11.exe');"
       },
       "installer_url": "https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.32+9/OpenJDK11U-jdk_x64_windows_hotspot_11.0.32_9.msi",
       "install_script_ref": "22e48c46",

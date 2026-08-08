@@ -4,7 +4,8 @@
       "version": "4.7.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Weasis' AND publisher = 'Weasis Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Weasis' AND publisher = 'Weasis Team' AND version_compare(version, '4.7.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Weasis' AND publisher = 'Weasis Team' AND version_compare(version, '4.7.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'weasis.exe');"
       },
       "installer_url": "https://github.com/nroduit/Weasis/releases/download/v4.7.2/Weasis-4.7.2-x86-64.msi",
       "install_script_ref": "22e48c46",

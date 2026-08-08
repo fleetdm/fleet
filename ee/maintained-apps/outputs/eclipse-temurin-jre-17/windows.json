@@ -4,7 +4,8 @@
       "version": "17.0.20.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE%' AND publisher = 'Eclipse Adoptium' AND version LIKE '17.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE%' AND publisher = 'Eclipse Adoptium' AND version LIKE '17.%' AND version_compare(version, '17.0.20.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE%' AND publisher = 'Eclipse Adoptium' AND version LIKE '17.%' AND version_compare(version, '17.0.20.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'eclipse temurin jre 17.exe');"
       },
       "installer_url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20+8/OpenJDK17U-jre_x64_windows_hotspot_17.0.20_8.msi",
       "install_script_ref": "22e48c46",

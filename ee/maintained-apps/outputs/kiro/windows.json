@@ -4,7 +4,8 @@
       "version": "1.0.288",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Kiro (User)' AND publisher = 'Amazon Web Services';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Kiro (User)' AND publisher = 'Amazon Web Services' AND version_compare(version, '1.0.288') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Kiro (User)' AND publisher = 'Amazon Web Services' AND version_compare(version, '1.0.288') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'kiro.exe');"
       },
       "installer_url": "https://prod.download.desktop.kiro.dev/releases/stable/win32-x64/signed/1.0.288/kiro-ide-1.0.288-stable-win32-x64.exe",
       "install_script_ref": "c5bc3c21",

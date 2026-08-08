@@ -4,7 +4,8 @@
       "version": "0.11.20",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Readest' AND publisher = 'bilingify';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Readest' AND publisher = 'bilingify' AND version_compare(version, '0.11.20') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Readest' AND publisher = 'bilingify' AND version_compare(version, '0.11.20') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'readest.exe');"
       },
       "installer_url": "https://github.com/readest/readest/releases/download/v0.11.20/Readest_0.11.20_x64-setup.exe",
       "install_script_ref": "2b4dd196",

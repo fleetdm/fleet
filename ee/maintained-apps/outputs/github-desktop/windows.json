@@ -4,7 +4,8 @@
       "version": "3.6.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.' AND version_compare(version, '3.6.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.' AND version_compare(version, '3.6.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'github desktop.exe');"
       },
       "installer_url": "https://desktop.githubusercontent.com/releases/3.6.3-931da4a1/GitHubDesktopSetup-x64.msi",
       "install_script_ref": "22e48c46",

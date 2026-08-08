@@ -4,7 +4,8 @@
       "version": "0.367.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Loom' AND publisher = 'Loom, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Loom' AND publisher = 'Loom, Inc.' AND version_compare(version, '0.367.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Loom' AND publisher = 'Loom, Inc.' AND version_compare(version, '0.367.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'loom.exe');"
       },
       "installer_url": "https://cdn.loom.com/desktop-packages/Loom%20Setup%200.367.1.exe",
       "install_script_ref": "77327cbf",

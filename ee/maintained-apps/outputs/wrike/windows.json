@@ -4,7 +4,8 @@
       "version": "4.6.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Wrike for Windows (64 bit)' AND publisher = 'Wrike.com';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Wrike for Windows (64 bit)' AND publisher = 'Wrike.com' AND version_compare(version, '4.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Wrike for Windows (64 bit)' AND publisher = 'Wrike.com' AND version_compare(version, '4.6.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'wrike.exe');"
       },
       "installer_url": "https://dl.wrike.com/download/WrikeDesktopApp_64.v4.6.1.msi",
       "install_script_ref": "22e48c46",

@@ -4,7 +4,8 @@
       "version": "5.6.277",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GDevelop' AND publisher = 'GDevelop Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GDevelop' AND publisher = 'GDevelop Team' AND version_compare(version, '5.6.277') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GDevelop' AND publisher = 'GDevelop Team' AND version_compare(version, '5.6.277') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gdevelop.exe');"
       },
       "installer_url": "https://github.com/4ian/GDevelop/releases/download/v5.6.277/GDevelop-5-Setup-5.6.277.exe",
       "install_script_ref": "01cf10cc",

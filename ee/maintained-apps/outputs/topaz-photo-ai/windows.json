@@ -4,7 +4,8 @@
       "version": "4.0.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Topaz Photo AI' AND publisher = 'Topaz Labs LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Topaz Photo AI' AND publisher = 'Topaz Labs LLC' AND version_compare(version, '4.0.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Topaz Photo AI' AND publisher = 'Topaz Labs LLC' AND version_compare(version, '4.0.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'topaz photo ai.exe');"
       },
       "installer_url": "https://downloads.topazlabs.com/deploy/TopazPhotoAI/4.0.4/TopazPhotoAI-4.0.4.msi",
       "install_script_ref": "22e48c46",
