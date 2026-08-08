@@ -203,6 +203,17 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/aikido-tickets` | `/aikido-tickets` | Creates GitHub issues in `fleetdm/confidential` from Aikido pen test PDF reports. Reads findings, synthesizes attack path and fix recommendations, preserves full Aikido evidence in a collapsible section. Supports batch creation via parallel agents. Requires `gh` with `project` scope for board placement. |
 | `/openspec-*` | `/openspec-propose` | OpenSpec spec-driven workflow for larger changes (explore → propose → apply → archive). Four skills: `openspec-explore`, `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`. Vendored by the `openspec` CLI — see `openspec/README.md`. |
 
+### Global user skills
+
+These are installed per-user (in `~/.claude/skills/`) and not part of this repo. Install with `/find-skills` or copy from a teammate.
+
+| Skill | What it does |
+|-------|-------------|
+| `/find-skills` | Discover and install new Claude Code skills from the marketplace |
+| `/playwright-best-practices` | Best practices for Playwright tests: POM, CI, mocking, a11y, visual, security |
+| `/playwright-cli` | Automate browser interactions and work with Playwright tests |
+| `/playwright-generate-test` | Generate a Playwright test from a scenario using Playwright MCP |
+
 ### Using `/project` for workstream context
 
 The `/project` skill builds a personal knowledge base for areas of the codebase you work in repeatedly. Use it at the start of a session to load context from previous sessions.
