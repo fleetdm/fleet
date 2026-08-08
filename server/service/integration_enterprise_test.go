@@ -67,6 +67,7 @@ import (
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -31520,6 +31521,14 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
 	})
 
+	// requireRestrictionDeniedBody asserts the 403 body carries the distinct
+	// endpoint-restriction message, distinguishing it from role-based denials.
+	requireRestrictionDeniedBody := func(t *testing.T, res *http.Response) {
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Contains(t, string(body), auth.EndpointRestrictionDeniedMessage)
+	}
+
 	// For api-only users with restrictions, requests to paths not in the API
 	// endpoint catalog are rejected by the middleware before reaching the
 	// service layer.
@@ -31527,7 +31536,8 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.token = createAPIOnlyUser("api-only-mw-non-catalog-restricted", []map[string]any{
 			{"method": "GET", "path": "/api/v1/fleet/version"},
 		})
-		s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+		res := s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+		requireRestrictionDeniedBody(t, res)
 	})
 
 	// With endpoint restrictions, only explicitly allowed endpoints are reachable.
@@ -31540,8 +31550,10 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
 
 		// These are in the catalog but not in the user's allow list.
-		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
-		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden)
+		res := s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
+		requireRestrictionDeniedBody(t, res)
+		res = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden)
+		requireRestrictionDeniedBody(t, res)
 	})
 
 	// Non-api-only users must not be affected by the middleware at all.

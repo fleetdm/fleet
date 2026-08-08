@@ -340,6 +340,11 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 				routeTpl:   muxTemplate("fleet/scripts/run"),
 				wantReason: "endpoint not in user's allowed API endpoints",
 			},
+			{
+				name:       "route template missing from context",
+				routeTpl:   "", // RouteTemplateRequestFunc not wired
+				wantReason: "request method or route template missing from request context",
+			},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
@@ -347,7 +352,9 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 				lc := &logging.LoggingContext{}
 				ctx := logging.NewContext(t.Context(), lc)
 				ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, "POST")
-				ctx = eu.WithRouteTemplate(ctx, c.routeTpl)
+				if c.routeTpl != "" {
+					ctx = eu.WithRouteTemplate(ctx, c.routeTpl)
+				}
 				ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
 					APIOnly:      true,
 					APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
@@ -383,6 +390,21 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, *called)
 	})
+}
+
+// TestEndpointRestrictionDeniedEncoding pins the HTTP response an
+// endpoint-restriction denial encodes to: 403 with the distinct message in the
+// body. This guards the UserMessageError wrapping — a bare PermissionError's
+// message is discarded by the encoder and rendered as a generic "Permission
+// Denied" body.
+func TestEndpointRestrictionDeniedEncoding(t *testing.T) {
+	err := endpointRestrictionDenied(t.Context(), muxTemplate("fleet/hosts"), "endpoint not in user's allowed API endpoints")
+
+	rec := httptest.NewRecorder()
+	eu.EncodeError(t.Context(), err, rec, nil)
+
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	require.Contains(t, rec.Body.String(), EndpointRestrictionDeniedMessage)
 }
 
 func TestRouteTemplateRequestFunc(t *testing.T) {

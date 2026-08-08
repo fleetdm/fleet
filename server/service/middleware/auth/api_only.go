@@ -57,6 +57,13 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 		requestMethod, _ := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
 		routeTemplate, _ := eu.RouteTemplateFromContext(ctx)
 
+		// A missing method or route template means the transport wasn't wired
+		// with RouteTemplateRequestFunc; fail closed with a reason that points
+		// at the misconfiguration instead of a misleading catalog miss.
+		if requestMethod == "" || routeTemplate == "" {
+			return nil, endpointRestrictionDenied(ctx, routeTemplate, "request method or route template missing from request context")
+		}
+
 		fp := fleet.NewAPIEndpointFromTpl(requestMethod, routeTemplate).Fingerprint()
 
 		if !isInCatalog(fp) {
