@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	servicemock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 )
 
@@ -247,6 +248,47 @@ func TestCleanupStaleOVALVulnerabilities(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rhelVulns[host.ID], 1)
 		require.Equal(t, "CVE-2024-0005", rhelVulns[host.ID][0].CVE)
+	})
+}
+
+func TestCleanupExpiredHostsCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("passes bounded context and drains until empty", func(t *testing.T) {
+		svc := &servicemock.Service{}
+		calls := 0
+		svc.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+			calls++
+			deadline, ok := ctx.Deadline()
+			require.True(t, ok)
+			require.Positive(t, time.Until(deadline))
+			require.LessOrEqual(t, time.Until(deadline), time.Minute)
+			if calls == 1 {
+				return []fleet.DeletedHostDetails{{ID: 1}}, nil
+			}
+			return nil, nil
+		}
+
+		err := cleanupExpiredHostsCronJob(context.Background(), svc, logger, time.Minute)
+		require.NoError(t, err)
+		require.Equal(t, 2, calls)
+	})
+
+	t.Run("stops between batches when runtime budget expires", func(t *testing.T) {
+		svc := &servicemock.Service{}
+		calls := 0
+		svc.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+			calls++
+			deadline, ok := ctx.Deadline()
+			require.True(t, ok)
+			require.Positive(t, time.Until(deadline))
+			time.Sleep(60 * time.Millisecond)
+			return []fleet.DeletedHostDetails{{ID: 1}}, nil
+		}
+
+		err := cleanupExpiredHostsCronJob(context.Background(), svc, logger, 50*time.Millisecond)
+		require.NoError(t, err)
+		require.Equal(t, 1, calls)
 	})
 }
 
