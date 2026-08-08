@@ -1,0 +1,10 @@
+{
+  "name": "Open Sound Meter",
+  "unique_identifier": "com.opensoundmeter.OpenSoundMeter",
+  "token": "opensoundmeter",
+  "installer_format": "dmg",
+  "slug": "opensoundmeter/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
