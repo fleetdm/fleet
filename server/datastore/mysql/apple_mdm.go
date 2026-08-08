@@ -2028,6 +2028,11 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 			added_at = CURRENT_TIMESTAMP,
 			deleted_at = NULL,
 			abm_token_id = VALUES(abm_token_id),
+			mdm_migration_completed = IF(
+				mdm_migration_completed IS NOT NULL AND mdm_migration_completed >= mdm_migration_deadline,
+				VALUES(mdm_migration_deadline),
+				mdm_migration_completed
+			),
 			mdm_migration_deadline = VALUES(mdm_migration_deadline),
 			hardware_serial = VALUES(hardware_serial)`
 

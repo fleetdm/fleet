@@ -5678,6 +5678,16 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, depHostID, hdepa.HostID)
 		require.Nil(t, hdepa.DeletedAt)
 		require.Equal(t, depAssignment.AddedAt, hdepa.AddedAt)
+
+		// Regression: re-syncing with a new migration deadline after migration was
+		// completed should preserve the completed state (not re-open the migration).
+		newDeadline := migrationDeadline.Add(48 * time.Hour).Truncate(time.Millisecond)
+		n, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial, MDMMigrationDeadline: &newDeadline}}, abmToken.ID, nil, nil, nil)
+		require.NoError(t, err)
+
+		checkinInfo, err = ds.GetHostMDMCheckinInfo(ctx, depUUID)
+		require.NoError(t, err)
+		require.False(t, checkinInfo.MigrationInProgress, "re-sync with new deadline should not re-open a completed migration")
 	})
 
 	t.Run("manual enrollment", func(t *testing.T) {
