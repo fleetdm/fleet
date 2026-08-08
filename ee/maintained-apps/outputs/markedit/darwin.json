@@ -4,7 +4,8 @@
       "version": "1.33.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.cyan.markedit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.cyan.markedit' AND version_compare(bundle_short_version, '1.33.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.cyan.markedit' AND version_compare(bundle_short_version, '1.33.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'app.cyan.markedit');"
       },
       "installer_url": "https://github.com/MarkEdit-app/MarkEdit/releases/download/v1.33.1/MarkEdit-1.33.1.dmg",
       "install_script_ref": "d9059f8f",

@@ -4,7 +4,8 @@
       "version": "02.07.01.62",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bambulab.bambu-studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bambulab.bambu-studio' AND version_compare(bundle_short_version, '02.07.01.62') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bambulab.bambu-studio' AND version_compare(bundle_short_version, '02.07.01.62') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.bambulab.bambu-studio');"
       },
       "installer_url": "https://github.com/bambulab/BambuStudio/releases/download/v02.07.01.62/Bambu_Studio_mac-v02.07.01.62-20260616174358.dmg",
       "install_script_ref": "747183ad",

@@ -4,7 +4,8 @@
       "version": "5.0.30.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'dnGrep %' AND publisher = 'dnGrep Community Contributors';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'dnGrep %' AND publisher = 'dnGrep Community Contributors' AND version_compare(version, '5.0.30.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'dnGrep %' AND publisher = 'dnGrep Community Contributors' AND version_compare(version, '5.0.30.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dngrep.exe');"
       },
       "installer_url": "https://github.com/dnGrep/dnGrep/releases/download/v5.0.30.0/dnGREP.5.0.30.x64.msi",
       "install_script_ref": "22e48c46",

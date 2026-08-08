@@ -4,7 +4,8 @@
       "version": "1.32.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Linear %' AND publisher = 'Linear Orbit, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Linear %' AND publisher = 'Linear Orbit, Inc.' AND version_compare(version, '1.32.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Linear %' AND publisher = 'Linear Orbit, Inc.' AND version_compare(version, '1.32.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'linear.exe');"
       },
       "installer_url": "https://releases.linear.app/Linear%20Setup%201.32.1.exe",
       "install_script_ref": "166c7345",

@@ -4,7 +4,8 @@
       "version": "3.3.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'iMazing' AND publisher = 'DigiDNA';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iMazing' AND publisher = 'DigiDNA' AND version_compare(version, '3.3.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iMazing' AND publisher = 'DigiDNA' AND version_compare(version, '3.3.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'imazing.exe');"
       },
       "installer_url": "https://downloads.imazing.com/windows/iMazing/3.3.1/iMazing_3.3.1.exe",
       "install_script_ref": "145b29b1",

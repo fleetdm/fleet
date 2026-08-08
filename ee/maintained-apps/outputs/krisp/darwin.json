@@ -4,7 +4,8 @@
       "version": "3.14.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.krisp.krispMac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.krisp.krispMac' AND version_compare(bundle_short_version, '3.14.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.krisp.krispMac' AND version_compare(bundle_short_version, '3.14.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'ai.krisp.krispMac');"
       },
       "installer_url": "https://cdn.krisp.ai/mp/mn/3.14/mac/Krisp_3.14.6_arm64.pkg",
       "install_script_ref": "8eee0d6d",

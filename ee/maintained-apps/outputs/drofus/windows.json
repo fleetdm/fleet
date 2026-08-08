@@ -4,7 +4,8 @@
       "version": "2.18.12.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'dRofus %' AND publisher = 'dRofus AS';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'dRofus %' AND publisher = 'dRofus AS' AND version_compare(version, '2.18.12.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'dRofus %' AND publisher = 'dRofus AS' AND version_compare(version, '2.18.12.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'drofus.exe');"
       },
       "installer_url": "https://deploy.drofus.com/stable/drofus-setup-2.18.12.msi",
       "install_script_ref": "22e48c46",

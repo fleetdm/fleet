@@ -4,7 +4,8 @@
       "version": "3.6.27",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf' AND version_compare(bundle_short_version, '3.6.27') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf' AND version_compare(bundle_short_version, '3.6.27') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.exafunction.windsurf');"
       },
       "installer_url": "https://windsurf-stable.codeiumdata.com/darwin-arm64-dmg/stable/0becb483ee8498d49deadf6aefe8c24f58b8007e/Devin-darwin-arm64-3.6.27.dmg",
       "install_script_ref": "cea2287e",

@@ -4,7 +4,8 @@
       "version": "6.12.5.2659",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Enpass' AND publisher = 'Enpass Technologies Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Enpass' AND publisher = 'Enpass Technologies Inc.' AND version_compare(version, '6.12.5.2659') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Enpass' AND publisher = 'Enpass Technologies Inc.' AND version_compare(version, '6.12.5.2659') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'enpass.exe');"
       },
       "installer_url": "https://dl.enpass.io/stable/windows/setup/x64/6.12.5.2659/Enpass-setup.exe",
       "install_script_ref": "e75b1371",

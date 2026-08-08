@@ -4,7 +4,8 @@
       "version": "26.6.880.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cloudflare One Client' AND publisher = 'Cloudflare, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cloudflare One Client' AND publisher = 'Cloudflare, Inc.' AND version_compare(version, '26.6.880.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cloudflare One Client' AND publisher = 'Cloudflare, Inc.' AND version_compare(version, '26.6.880.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cloudflare one.exe');"
       },
       "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2026.6.880.0",
       "install_script_ref": "22e48c46",

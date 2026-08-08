@@ -4,7 +4,8 @@
       "version": "3.14.27",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere' AND version_compare(version, '3.14.27') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere' AND version_compare(version, '3.14.27') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cursor.exe');"
       },
       "installer_url": "https://downloads.cursor.com/production/047548b00c1a079373d74d00183f32510a4a41e1/win32/x64/system-setup/CursorSetup-x64-3.14.27.exe",
       "install_script_ref": "03589b5e",

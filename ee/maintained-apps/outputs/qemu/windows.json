@@ -4,7 +4,8 @@
       "version": "11.0.50",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'QEMU';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'QEMU' AND version_compare(version, '11.0.50') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'QEMU' AND version_compare(version, '11.0.50') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'qemu.exe');"
       },
       "installer_url": "https://qemu.weilnetz.de/w64/2026/qemu-w64-setup-20260501.exe",
       "install_script_ref": "3e305bc7",

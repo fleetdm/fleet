@@ -4,7 +4,8 @@
       "version": "2.2.2.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Dell Display and Peripheral Manager' AND publisher = 'Dell Technologies';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dell Display and Peripheral Manager' AND publisher = 'Dell Technologies' AND version_compare(version, '2.2.2.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dell Display and Peripheral Manager' AND publisher = 'Dell Technologies' AND version_compare(version, '2.2.2.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dell display and peripheral manager.exe');"
       },
       "installer_url": "https://dl.dell.com/FOLDER14474164M/1/DDPM-Setup_2.2.2.8.exe",
       "install_script_ref": "56cc0c50",

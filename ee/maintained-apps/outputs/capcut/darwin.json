@@ -4,7 +4,8 @@
       "version": "9.2.0.4444",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemon.lvoverseas';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemon.lvoverseas' AND version_compare(bundle_short_version, '9.2.0.4444') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemon.lvoverseas' AND version_compare(bundle_short_version, '9.2.0.4444') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.lemon.lvoverseas');"
       },
       "installer_url": "https://sf16-web-tos-buz.capcutstatic.com/obj/capcut-web-buz-sg/packages/CapCut_9_2_0_4444_capcutpc_0_creatortool.dmg",
       "install_script_ref": "6c43d082",
