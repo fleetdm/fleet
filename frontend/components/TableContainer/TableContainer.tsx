@@ -199,10 +199,14 @@ const TableContainer = <T,>({
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 
   // If using a clientside search query outside of TableContainer,
-  // we need to set the searchQuery state to the controlledSearchQuery prop anytime it changes
+  // we need to set the searchQuery state to the controlledSearchQuery prop anytime it changes.
+  // Also clear the stale client filter count so the debounced re-filter (see
+  // DataTable's 300ms debounce) doesn't briefly render EmptyComponent while
+  // `clientFilterCount === 0` from the previous search.
   useEffect(() => {
     if (isControlledSearchQuery) {
       setSearchQuery(controlledSearchQuery);
+      setClientFilterCount(undefined);
     }
   }, [controlledSearchQuery, isControlledSearchQuery]);
 
@@ -247,6 +251,7 @@ const TableContainer = <T,>({
 
   const onSearchQueryChange = (value: string) => {
     setSearchQuery(value.trim());
+    setClientFilterCount(undefined);
   };
 
   const onPaginationChange = useCallback(
