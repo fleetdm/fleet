@@ -23,7 +23,6 @@ interface IScriptsProps {
   currentUser: IUser | null;
   host: IHost;
   onCloseScriptModalGroup: () => void;
-  teamIdForApi?: number;
 }
 
 enum ModalGroupOption {
@@ -38,7 +37,6 @@ const ScriptModalGroup = ({
   currentUser,
   host,
   onCloseScriptModalGroup,
-  teamIdForApi,
 }: IScriptsProps) => {
   const [previousModal, setPreviousModal] = useState<ModalGroupOption | null>(
     null
@@ -222,7 +220,6 @@ const ScriptModalGroup = ({
         isScriptContentError={isSelectedScriptContentError}
         isHidden={currentModal !== ModalGroupOption.ViewScriptDetails}
         showHostScriptActions
-        teamIdForApi={teamIdForApi}
       />
       <DeleteScriptModal
         scriptId={selectedScript?.script_id || 1}

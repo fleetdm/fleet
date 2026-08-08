@@ -1094,7 +1094,7 @@ const HostDetailsPage = ({
         isManagedLocalAccountEnabled={
           host.platform === "windows"
             ? mdmConfig?.windows_settings?.managed_local_account_settings
-                ?.enabled ?? false
+              ?.enabled ?? false
             : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
         }
         managedAccountStatus={
@@ -1212,22 +1212,22 @@ const HostDetailsPage = ({
     // Only include Reports for supported platforms
     ...(showReportsTab
       ? [
-          {
-            name: "Reports",
-            title: "reports",
-            pathname: PATHS.HOST_REPORTS(hostIdFromURL),
-          },
-        ]
+        {
+          name: "Reports",
+          title: "reports",
+          pathname: PATHS.HOST_REPORTS(hostIdFromURL),
+        },
+      ]
       : []),
     ...(showPoliciesTab
       ? [
-          {
-            name: "Policies",
-            title: "policies",
-            pathname: PATHS.HOST_POLICIES(hostIdFromURL),
-            count: failingPoliciesCount,
-          },
-        ]
+        {
+          name: "Policies",
+          title: "policies",
+          pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+          count: failingPoliciesCount,
+        },
+      ]
       : []),
   ];
 
@@ -1560,7 +1560,7 @@ const HostDetailsPage = ({
                     activeActivityTab === "past"
                       ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
                       : upcomingActivitiesIsFetching ||
-                        upcomingMDMCommandsIsFetching
+                      upcomingMDMCommandsIsFetching
                   }
                   isError={
                     activeActivityTab === "past"
@@ -1741,7 +1741,6 @@ const HostDetailsPage = ({
               host={host}
               currentUser={currentUser}
               onCloseScriptModalGroup={onCloseScriptModalGroup}
-              teamIdForApi={currentTeam?.id}
             />
           )}
           {!!host && showTransferHostModal && (
@@ -1772,9 +1771,9 @@ const HostDetailsPage = ({
                 if (host.mdm.enrollment_status === "Pending") {
                   router.push(
                     filteredHostsPath ||
-                      getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
-                        fleet_id: location.query.fleet_id,
-                      })
+                    getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                      fleet_id: location.query.fleet_id,
+                    })
                   );
                   return;
                 }
@@ -1934,8 +1933,8 @@ const HostDetailsPage = ({
                 );
                 const timeAgoText = result.updated_at
                   ? ` (${timeAgo(new Date(result.updated_at), {
-                      addSuffix: true,
-                    })})`
+                    addSuffix: true,
+                  })})`
                   : "";
                 return (
                   <IconStatusMessage

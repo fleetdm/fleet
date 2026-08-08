@@ -5,7 +5,6 @@ import classnames from "classnames";
 
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import RunScriptHelpText from "pages/hosts/components/ScriptDetailsModal/RunScriptHelpText";
 import scriptAPI from "services/entities/scripts";
 import useGitOpsMode from "hooks/useGitOpsMode";
 
@@ -86,17 +85,12 @@ const EditScriptModal = ({
   onExit,
 }: IEditScriptModal) => {
   const {
-    currentTeam,
     isGlobalAdmin,
     isAnyTeamAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainer,
-    isTeamTechnician,
-    isGlobalTechnician,
   } = useContext(AppContext);
   const { gitOpsModeEnabled } = useGitOpsMode();
-
-  const isTechnician = !!isTeamTechnician || !!isGlobalTechnician;
 
   const canRunScripts = !!(
     isGlobalAdmin ||
@@ -197,12 +191,6 @@ const EditScriptModal = ({
             onChange={onChange}
             value={scriptFormData}
             readOnly={gitOpsModeEnabled}
-          />
-          <RunScriptHelpText
-            className="form-field__help-text"
-            isTechnician={isTechnician}
-            canRunScripts={canRunScripts}
-            teamId={currentTeam?.id}
           />
         </form>
         {canRunScripts && (
