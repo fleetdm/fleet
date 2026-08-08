@@ -69,6 +69,7 @@ Historical runs live under `runs/`, grouped by what the load test exercised:
 | **Baseline** — per-release branch load test | `runs/baseline/`  | `<version>loadtest`            | `486loadtest` |
 | **Migration** — n-1 → n schema migration    | `runs/migration/` | `<n-1>to<n>mig`                | `485to486mig` |
 | **MDM** — platform-specific MDM load test   | `runs/mdm/`       | `<version><platform>` / `<platform>-release` | `483applemdm`, `486-windows` |
+| **Historical** — backfilled from the manual results spreadsheet (4.63–4.85) | `runs/historical/` | as recorded in the sheet | `4630loadtestbl` — see [runs/historical/README.md](runs/historical/README.md) |
 
 The category subfolder is purely for human organization; the scripts don't depend on it.
 Keeping workspace names to these conventions is what makes `--filter` a reliable category
