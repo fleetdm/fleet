@@ -68,3 +68,77 @@ func TestTransformVuln(t *testing.T) {
 		})
 	}
 }
+
+func TestAppendUbuntuBinaryPackages(t *testing.T) {
+	affected := Affected{
+		Package: Package{
+			Ecosystem: "Ubuntu:26.04:LTS",
+			Name:      "libssh2",
+		},
+		EcosystemSpecific: &EcosystemSpecific{
+			Binaries: []UbuntuBinary{
+				{
+					BinaryName:    "libssh2-1t64",
+					BinaryVersion: "1.11.1-1ubuntu0.26.04.2",
+				},
+			},
+		},
+	}
+
+	packages := appendUbuntuBinaryPackages(
+		[]string{"libssh2", "libssh2"},
+		affected,
+	)
+
+	require.Equal(
+		t,
+		[]string{"libssh2", "libssh2-1t64"},
+		packages,
+	)
+}
+
+func TestAppendUbuntuBinaryPackagesWithNilEcosystemSpecific(t *testing.T) {
+	affected := Affected{
+		Package: Package{
+			Name: "libssh2",
+		},
+	}
+
+	packages := appendUbuntuBinaryPackages(
+		[]string{"libssh2"},
+		affected,
+	)
+
+	require.Equal(
+		t,
+		[]string{"libssh2"},
+		packages,
+	)
+}
+
+func TestAppendUbuntuBinaryPackagesDeduplicatesNames(t *testing.T) {
+	affected := Affected{
+		Package: Package{
+			Name: "libssh2",
+		},
+		EcosystemSpecific: &EcosystemSpecific{
+			Binaries: []UbuntuBinary{
+				{BinaryName: "libssh2"},
+				{BinaryName: "libssh2-1t64"},
+				{BinaryName: "libssh2-1t64"},
+				{BinaryName: ""},
+			},
+		},
+	}
+
+	packages := appendUbuntuBinaryPackages(
+		[]string{"libssh2"},
+		affected,
+	)
+
+	require.Equal(
+		t,
+		[]string{"libssh2", "libssh2-1t64"},
+		packages,
+	)
+}

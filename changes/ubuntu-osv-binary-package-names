@@ -1,0 +1,1 @@
+* Fixed Ubuntu vulnerability detection for installed binary packages whose names differ from their source package names.
