@@ -77,14 +77,6 @@ export interface IUserUpdateFormData {
   id: number;
 }
 
-export interface IUserFormErrors {
-  email?: string | null;
-  name?: string | null;
-  password?: string | null;
-  sso_enabled?: boolean | null;
-  api_endpoints?: string | null;
-  teams?: string | null;
-}
 export interface IResetPasswordFormErrors {
   new_password?: string | null;
   new_password_confirmation?: string | null;
