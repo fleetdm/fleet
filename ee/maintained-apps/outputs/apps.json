@@ -5903,6 +5903,13 @@
       "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
     },
     {
+      "name": "Nexus Shell",
+      "slug": "nexus-shell/darwin",
+      "platform": "darwin",
+      "unique_identifier": "sameral.Nexus-Shell",
+      "description": "Nexus Shell is a native macOS SSH client that combines a terminal, SFTP file transfers, Docker container management, SSH key management, and live server monitoring in one window."
+    },
+    {
       "name": "Nightfall",
       "slug": "nightfall/darwin",
       "platform": "darwin",
