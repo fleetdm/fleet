@@ -77,6 +77,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("dscl", dscl.Columns(), dscl.Generate),
 		table.NewPlugin("apfs_volumes", apfs.VolumesColumns(), apfs.VolumesGenerate),
 		table.NewPlugin("apfs_physical_stores", apfs.PhysicalStoresColumns(), apfs.PhysicalStoresGenerate),
+		table.NewPlugin("apfs_crypto_users", apfs.CryptoUsersColumns(), apfs.CryptoUsersGenerate),
 		table.NewPlugin("corestorage_logical_volumes", corestorage.LogicalVolumesColumns(), corestorage.LogicalVolumesGenerate),
 		table.NewPlugin("corestorage_logical_volume_families", corestorage.LogicalVolumeFamiliesColumns(), corestorage.LogicalVolumeFamiliesGenerate),
 		table.NewPlugin("filevault_prk", filevault_prk.Columns(), filevault_prk.Generate),

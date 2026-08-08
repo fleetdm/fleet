@@ -482,6 +482,50 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/alf_explicit_auths.yml"
   },
   {
+    "name": "apfs_crypto_users",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "APFS cryptographic users for each APFS container, from the `diskutil apfs listCryptoUsers -plist <device>` command.\nCryptographic users include local user accounts that hold a Secure Token, the personal recovery key, and the MDM bootstrap token.\nThe `volume_owner` column reports whether each cryptographic user is an APFS volume owner. A host where no `LocalOpenDirectory` user is a volume owner has a user who cannot authorize macOS updates.",
+    "examples": "Find hosts where no local user account owns the APFS volume (e.g. a delayed first-login flow left the user without a Secure Token). Scope this as a policy to macOS hosts; hosts that return no rows fail the policy.\n\n```\nSELECT 1 FROM apfs_crypto_users WHERE type = 'LocalOpenDirectory' AND volume_owner = 1;\n```",
+    "columns": [
+      {
+        "name": "device_identifier",
+        "type": "text",
+        "required": false,
+        "description": "The device identifier of the Data volume (e.g. \"disk3s5\"). Joins to `apfs_volumes.device_identifier`."
+      },
+      {
+        "name": "volume_uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the APFS volume."
+      },
+      {
+        "name": "crypto_user_uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the cryptographic user."
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "required": false,
+        "description": "The type of cryptographic user, e.g. \"LocalOpenDirectory\" (a local user account with a Secure Token),\n\"PersonalRecovery\" (the personal recovery key), or \"MDMRecovery\" (the MDM bootstrap token)."
+      },
+      {
+        "name": "volume_owner",
+        "type": "integer",
+        "required": false,
+        "description": "Whether this cryptographic user is an APFS volume owner (1) or not (0)."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/apfs_crypto_users",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_crypto_users.yml"
+  },
+  {
     "name": "apfs_physical_stores",
     "platforms": [
       "darwin"
