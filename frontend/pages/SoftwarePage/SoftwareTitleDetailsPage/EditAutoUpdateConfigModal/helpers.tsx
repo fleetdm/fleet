@@ -9,7 +9,6 @@ export interface ISoftwareAutoUpdateConfigFormValidation {
   isValid: boolean;
   autoUpdateStartTime?: ISoftwareAutoUpdateConfigInputValidation;
   autoUpdateEndTime?: ISoftwareAutoUpdateConfigInputValidation;
-  targets?: ISoftwareAutoUpdateConfigInputValidation;
   windowLength?: ISoftwareAutoUpdateConfigInputValidation;
 }
 
@@ -116,20 +115,6 @@ const FORM_VALIDATIONS: IFormValidations = {
       },
     ],
   },
-  targets: {
-    validations: [
-      {
-        name: "custom_labels_selected",
-        isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
-          return (
-            formData.targetType !== "Custom" ||
-            Object.values(formData.labelTargets).filter((v) => v).length > 0
-          );
-        },
-        message: `At least one label target must be selected`,
-      },
-    ],
-  },
   windowLength: {
     validations: [
       {
@@ -160,7 +145,7 @@ export const validateFormData = (
   };
   // If auto updates are not enabled, skip further validations.
   Object.keys(FORM_VALIDATIONS).forEach((key) => {
-    if (!formData.autoUpdateEnabled && key !== "targets") {
+    if (!formData.autoUpdateEnabled) {
       return;
     }
     const objKey = key as keyof typeof FORM_VALIDATIONS;
