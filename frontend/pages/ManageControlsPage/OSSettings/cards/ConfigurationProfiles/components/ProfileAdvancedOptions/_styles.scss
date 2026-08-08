@@ -1,0 +1,46 @@
+.profile-advanced-options {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $pad-large;
+
+  // renders the toggle as a section heading rather than a button, matching the
+  // form field labels it sits alongside in the modal.
+  &__toggle {
+    padding: 0;
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+    line-height: $line-height;
+
+    // the toggle reads as a heading, so drop the button's hover/active
+    // background wash. :focus-visible is left alone so keyboard focus stays
+    // visible.
+    &:hover,
+    &:hover:active {
+      background-color: transparent;
+    }
+  }
+
+  &__custom-activation {
+    width: 100%;
+
+    // ace boxes the matching brace pair whenever the cursor sits next to one.
+    // There's no option to turn it off in ace 1.4.14, and it's visual noise on
+    // a snippet this short. Scoped here so other editors keep the behaviour.
+    .ace_marker-layer .ace_bracket {
+      display: none;
+    }
+
+    // ace's placeholder defaults to arial at 0.9 scale with a 10px side margin,
+    // so it renders ragged, smaller and further right than the text that
+    // replaces it as soon as the user types. The gutter is hidden on this
+    // editor, so the text layer starts flush and the margin has to go too.
+    // Scoped so any future editor keeps ace's defaults.
+    .ace_placeholder {
+      font-family: inherit;
+      transform: none;
+      margin: 0;
+    }
+  }
+}

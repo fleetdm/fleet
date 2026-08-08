@@ -29,11 +29,16 @@ import {
   TargetType,
 } from "components/TargetLabelSelector";
 
+import ProfileAdvancedOptions from "../ProfileAdvancedOptions";
+
 import {
+  decodeCustomActivation,
+  EXAMPLE_CUSTOM_ACTIVATION,
   generateCustomTargetLabelKey,
   getErrorMessage,
   IParseFileResult,
   parseFile,
+  validateCustomActivation,
 } from "../ProfileUploader/helpers";
 
 const baseClass = "edit-profile-modal";
@@ -126,6 +131,25 @@ const EditProfileModal = ({
   const [selectedExcludeLabels, setSelectedExcludeLabels] = useState(() =>
     labelsToSelection(initialExcludeLabels)
   );
+  // seeded from the stored activation, not left empty: the API deletes any
+  // stored activation when a write omits one, so the current value has to be
+  // resent even when the admin only changes the labels or the file.
+  const [customActivation, setCustomActivation] = useState(() =>
+    decodeCustomActivation(profile.activation)
+  );
+  const [customActivationError, setCustomActivationError] = useState<
+    string | null
+  >(null);
+
+  // NOTE: validating per keystroke deviates from the validation pattern in
+  // frontend/docs/patterns.md#data-validation, which says to re-validate on
+  // blur. Approved for this field and kept consistent with the add modal, where
+  // the reasoning is written out in full. To be raised with the frontend leads
+  // for a wider decision.
+  const onChangeCustomActivation = (value: string) => {
+    setCustomActivation(value);
+    setCustomActivationError(validateCustomActivation(value));
+  };
 
   const fileRef = useRef<File | null>(null);
 
@@ -149,6 +173,10 @@ const EditProfileModal = ({
   );
 
   const acceptedExtensions = getAcceptedExtensions(profile);
+
+  // custom activations only apply to Apple DDM declarations, and are a Premium
+  // feature -- matching the add modal.
+  const showAdvancedOptions = isPremiumTier && isDDMProfile(profile);
 
   const onFileSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) {
@@ -183,6 +211,9 @@ const EditProfileModal = ({
         profileUUID: profile.profile_uuid,
         profile: fileRef.current ?? undefined,
         ...labelKey,
+        // only declarations carry one, and the activation uses replace
+        // semantics, so the editor's current contents go with every update.
+        customActivation: showAdvancedOptions ? customActivation : undefined,
       });
       notify.success("Successfully updated profile.");
       onUpdate();
@@ -275,6 +306,17 @@ const EditProfileModal = ({
                   />
                 </div>
               )}
+            />
+          )}
+          {showAdvancedOptions && (
+            <ProfileAdvancedOptions
+              customActivation={customActivation}
+              onChangeCustomActivation={onChangeCustomActivation}
+              placeholder={EXAMPLE_CUSTOM_ACTIVATION}
+              error={customActivationError}
+              // the section still expands in GitOps mode so the stored
+              // activation stays readable, it just can't be edited.
+              readOnly={gitOpsModeEnabled}
             />
           )}
           <div className={`${baseClass}__button-wrap`}>

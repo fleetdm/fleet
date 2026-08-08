@@ -189,6 +189,10 @@ export interface IMdmProfile {
   // otherwise. Note this differs from the host details endpoint, which reports
   // the derived channel as lowercase "user"/"device" (see ProfileScope).
   scope?: PayloadScope | null;
+  /** Base64-encoded raw JSON of a declaration's custom activation. Absent for
+   * non-DDM profiles and for declarations using Fleet's generated activation.
+   * Decode with `decodeCustomActivation` before displaying. */
+  activation?: string;
 }
 
 /** An Apple DDM asset (com.apple.asset.*) that declarations can reference. */

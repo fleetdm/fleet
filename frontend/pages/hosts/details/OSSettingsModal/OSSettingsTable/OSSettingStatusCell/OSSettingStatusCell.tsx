@@ -16,6 +16,8 @@ import {
   RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
 import TooltipWrapper from "components/TooltipWrapper";
+import { isAppleDevice } from "interfaces/platform";
+import { isDDMProfile } from "services/entities/mdm";
 
 import {
   IHostMdmProfileWithAddedStatus,
@@ -141,11 +143,26 @@ const OSSettingStatusCell = ({
     // "Enforcing" tooltip.
     const pendingDetailTooltip =
       profile?.status === "pending" && profile.detail ? profile.detail : null;
+    // Apple declarations can be verified while their activation predicate
+    // evaluated to false, meaning the settings were not applied. The backend
+    // explains this in the detail, so prefer it over the generic "Verified"
+    // tooltip.
+    const verifiedDetailTooltip =
+      isAppleDevice(hostPlatform) &&
+      profile?.status === "verified" &&
+      isDDMProfile(profile) &&
+      profile.detail.includes("predicate")
+        ? profile.detail
+        : null;
 
     let tipContent: React.ReactNode;
     if (pendingDetailTooltip) {
       tipContent = (
         <span className="tooltip__tooltip-text">{pendingDetailTooltip}</span>
+      );
+    } else if (verifiedDetailTooltip) {
+      tipContent = (
+        <span className="tooltip__tooltip-text">{verifiedDetailTooltip}</span>
       );
     } else if (tooltip) {
       if (status !== "action_required") {

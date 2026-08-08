@@ -30,6 +30,10 @@ interface IEditorProps {
   /** Sets the default value of the input. Use this if you'd like the editor
    * to be an uncontrolled component */
   defaultValue?: string;
+  /** Greyed-out text shown while the editor is empty. Prefer this over seeding
+   * `value` when the content is only an example, so nothing is submitted unless
+   * the user types it. Ace styles this with `.ace_placeholder`. */
+  placeholder?: string;
   /** Enable copying the value of the editor.
    * @default false
    */
@@ -49,6 +53,12 @@ interface IEditorProps {
    * @default true
    */
   isFormField?: boolean;
+  /** Height the editor keeps while its content is shorter. Raise it when a
+   * `placeholder` needs room: an empty editor would otherwise collapse and clip
+   * the placeholder.
+   * @default 2
+   */
+  minLines?: number;
   maxLines?: number;
   className?: string;
   onChange?: (value: string, event?: Ace.Delta) => void;
@@ -72,12 +82,14 @@ const Editor = ({
   focus,
   value,
   defaultValue,
+  placeholder,
   readOnly = false,
   enableCopy = false,
   wrapEnabled = false,
   name = "editor",
   mode,
   isFormField = true,
+  minLines = 2,
   maxLines = 20,
   className,
   onChange,
@@ -160,11 +172,12 @@ const Editor = ({
         theme="fleet"
         width="100%"
         readOnly={readOnly}
-        minLines={2}
+        minLines={minLines}
         maxLines={maxLines}
         editorProps={{ $blockScrolling: Infinity }}
         value={value}
         defaultValue={defaultValue}
+        placeholder={placeholder}
         tabSize={2}
         focus={focus}
         onChange={onChange}

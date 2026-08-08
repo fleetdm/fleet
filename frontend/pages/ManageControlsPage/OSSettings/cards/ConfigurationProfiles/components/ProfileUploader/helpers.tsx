@@ -13,7 +13,90 @@ export interface IParseFileResult {
   name: string;
   platform: string;
   ext: string;
+  /** For .json uploads, whether the contents look like an Apple DDM
+   * declaration rather than an Android configuration profile. Always false for
+   * other extensions. */
+  isAppleDeclaration: boolean;
+  /** The declaration's `Identifier`, when the upload is an Apple DDM
+   * declaration that declares one. */
+  declarationIdentifier?: string;
 }
+
+const readFileAsText = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+
+interface IAppleDeclarationDetails {
+  isAppleDeclaration: boolean;
+  declarationIdentifier?: string;
+}
+
+const NOT_A_DECLARATION: IAppleDeclarationDetails = {
+  isAppleDeclaration: false,
+};
+
+/** Distinguishes an Apple DDM declaration from an Android configuration
+ * profile, both of which upload as .json. Follows the backend's
+ * `DetermineJSONConfigType` (server/mdm/mdm.go): a declaration is keyed in
+ * PascalCase and carries "Type" and "Payload", an Android profile uses
+ * camelCase keys.
+ *
+ * This only decides whether to offer the DDM-only activation UI -- the backend
+ * is still the authority on whether the file is valid, so contents we can't
+ * make sense of are reported as "not a declaration" rather than throwing. */
+const parseAppleDeclaration = async (
+  file: File
+): Promise<IAppleDeclarationDetails> => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFileAsText(file));
+  } catch {
+    return NOT_A_DECLARATION;
+  }
+
+  // `typeof [] === "object"`, so arrays need excluding explicitly.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return NOT_A_DECLARATION;
+  }
+
+  const contents = parsed as Record<string, unknown>;
+
+  // a declaration always names an Apple type; Android profiles have no
+  // equivalent key, so this is a positive signal rather than an inference from
+  // what the other keys look like.
+  if (
+    typeof contents.Type !== "string" ||
+    !contents.Type.startsWith("com.apple.")
+  ) {
+    return NOT_A_DECLARATION;
+  }
+
+  // arrays need excluding here too, for the same reason as the parsed value
+  // above.
+  if (
+    typeof contents.Payload !== "object" ||
+    contents.Payload === null ||
+    Array.isArray(contents.Payload)
+  ) {
+    return NOT_A_DECLARATION;
+  }
+
+  // Android's camelCase keys are the backend's discriminator, so a lower-case
+  // top-level key means this won't be accepted as a declaration.
+  if (Object.keys(contents).some((key) => /^[a-z]/.test(key))) {
+    return NOT_A_DECLARATION;
+  }
+
+  return {
+    isAppleDeclaration: true,
+    declarationIdentifier:
+      typeof contents.Identifier === "string" ? contents.Identifier : undefined,
+  };
+};
 
 export const parseFile = async (file: File): Promise<IParseFileResult> => {
   // get the file name and extension
@@ -27,18 +110,114 @@ export const parseFile = async (file: File): Promise<IParseFileResult> => {
         name,
         platform: "Windows",
         ext,
+        isAppleDeclaration: false,
       };
     }
     case "mobileconfig": {
-      return { name, platform: "macOS, iOS, iPadOS", ext };
+      return {
+        name,
+        platform: "macOS, iOS, iPadOS",
+        ext,
+        isAppleDeclaration: false,
+      };
     }
     case "json": {
-      return { name, platform: "Android or macOS(DDM)", ext };
+      return {
+        name,
+        platform: "Android or macOS(DDM)",
+        ext,
+        ...(await parseAppleDeclaration(file)),
+      };
     }
     default: {
       throw new Error(`Invalid file type: ${ext}`);
     }
   }
+};
+
+/** The example activation shown as the custom activation editor's placeholder,
+ * matching the design. A placeholder rather than a seeded value: the identifiers
+ * are illustrative, and `StandardConfigurations` has to name the uploaded
+ * declaration's identifier, so submitting this as-is would be rejected.
+ *
+ * Built via JSON.stringify so it can't drift into invalid JSON. */
+export const EXAMPLE_CUSTOM_ACTIVATION = JSON.stringify(
+  {
+    Type: "com.apple.activation.simple",
+    Identifier: "01234567-ABCD-EFGH-IJKL-0123456789AB",
+    Payload: {
+      StandardConfigurations: ["01234567-ABCD-EFGH-IJKL-0123456789YZ"],
+    },
+  },
+  null,
+  2
+);
+
+/** Decodes the `activation` a profile is returned with. The API sends it as
+ * base64-encoded raw JSON rather than an inline object, so it has to be decoded
+ * before it can be shown in the editor.
+ *
+ * Decoded via TextDecoder rather than atob alone: atob yields a binary string,
+ * which mangles any non-ASCII character in an identifier or predicate. The
+ * contents are returned as uploaded, so the admin's own formatting survives a
+ * round trip.
+ *
+ * Returns an empty string when there's nothing to decode, which is also what
+ * the API sends for a declaration using Fleet's generated activation. */
+export const decodeCustomActivation = (encoded?: string): string => {
+  if (!encoded) {
+    return "";
+  }
+  const binary = atob(encoded);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder("utf-8").decode(bytes);
+};
+
+/** Validates the custom activation JSON, returning the first problem found or
+ * null when it's usable. An empty value is valid: Fleet synthesizes a simple
+ * activation when the admin doesn't supply one.
+ *
+ * Type and Identifier are required by Apple's activation declaration, so an
+ * activation missing either is rejected on upload — worth catching before the
+ * request. See MDMAppleDDMActivation in server/fleet/apple_mdm.go. */
+export const validateCustomActivation = (value: string): string | null => {
+  if (!value.trim()) {
+    return null;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return "Enter valid JSON";
+  }
+
+  // JSON.parse accepts bare scalars and arrays, neither of which can carry the
+  // required keys.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return "Enter a JSON object";
+  }
+
+  const activation = parsed as Record<string, unknown>;
+
+  if (!activation.Type) {
+    return "Missing Type key";
+  }
+
+  // Only activation declarations belong here — a configuration or asset type
+  // would be accepted as JSON but rejected by Apple.
+  if (
+    typeof activation.Type !== "string" ||
+    !activation.Type.startsWith("com.apple.activation.")
+  ) {
+    return "Type is invalid (must be com.apple.activation.*)";
+  }
+
+  if (!activation.Identifier) {
+    return "Missing Identifier key";
+  }
+
+  return null;
 };
 
 interface IGenerateCustomTargetLabelKeyArgs {
@@ -301,6 +480,14 @@ export const getErrorMessage = (
   }
 
   if (apiReason.includes("Configuration profiles can't be signed")) {
+    return generateGenericLearnMoreErrMsg(apiReason);
+  }
+
+  // custom activation errors already read as complete sentences, so they pass
+  // through unprefixed. This one carries a trailing link to render.
+  if (
+    apiReason.includes("can only have one referenced configuration profile")
+  ) {
     return generateGenericLearnMoreErrMsg(apiReason);
   }
 

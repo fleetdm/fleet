@@ -175,6 +175,108 @@ describe("OS setting status cell", () => {
     });
   });
 
+  it("Shows the profile detail in the tooltip when a verified Apple profile has a predicate detail", async () => {
+    const customRender = createCustomRenderer();
+
+    const detailMessage =
+      'Fleet verified, but predicate (status.device.model.family == "AppleTV") evaluated to false and settings were not applied to this host.';
+
+    const profile = createMockHostMdmProfile({
+      profile_uuid: "d999270d7-f4bc-42d3-b1ae-6fe131d93b81",
+      name: "Software Update settings",
+      platform: "darwin",
+      operation_type: "install",
+      status: "verified",
+      detail: detailMessage,
+    });
+
+    const { user } = customRender(
+      <OSSettingStatusCell
+        profileName={profile.name}
+        status="verified"
+        operationType="install"
+        hostPlatform="darwin"
+        profileUUID={profile.profile_uuid}
+        profile={profile}
+      />
+    );
+
+    const statusText = screen.getByText("Verified");
+    expect(statusText).toBeInTheDocument();
+
+    await user.hover(statusText);
+    await waitFor(() => {
+      expect(screen.getByText(detailMessage)).toBeInTheDocument();
+    });
+  });
+
+  it("Shows the standard tooltip when a verified Apple profile has no predicate detail", async () => {
+    const customRender = createCustomRenderer();
+
+    const profile = createMockHostMdmProfile({
+      profile_uuid: "d999270d7-f4bc-42d3-b1ae-6fe131d93b81",
+      platform: "darwin",
+      operation_type: "install",
+      status: "verified",
+      detail: "This is verified",
+    });
+
+    const { user } = customRender(
+      <OSSettingStatusCell
+        profileName={profile.name}
+        status="verified"
+        operationType="install"
+        hostPlatform="darwin"
+        profileUUID={profile.profile_uuid}
+        profile={profile}
+      />
+    );
+
+    const statusText = screen.getByText("Verified");
+    expect(statusText).toBeInTheDocument();
+
+    await user.hover(statusText);
+    await waitFor(() => {
+      expect(
+        screen.getByText(/The host applied the setting. Fleet verified./)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("Shows the standard tooltip when a verified non-DDM Apple profile has a predicate detail", async () => {
+    const customRender = createCustomRenderer();
+
+    const profile = createMockHostMdmProfile({
+      profile_uuid: "a999270d7-f4bc-42d3-b1ae-6fe131d93b81",
+      platform: "darwin",
+      operation_type: "install",
+      status: "verified",
+      detail:
+        'Fleet verified, but predicate (status.device.model.family == "AppleTV") evaluated to false and settings were not applied to this host.',
+    });
+
+    const { user } = customRender(
+      <OSSettingStatusCell
+        profileName={profile.name}
+        status="verified"
+        operationType="install"
+        hostPlatform="darwin"
+        profileUUID={profile.profile_uuid}
+        profile={profile}
+      />
+    );
+
+    const statusText = screen.getByText("Verified");
+    expect(statusText).toBeInTheDocument();
+
+    await user.hover(statusText);
+    await waitFor(() => {
+      expect(
+        screen.getByText(/The host applied the setting. Fleet verified./)
+      ).toBeInTheDocument();
+    });
+  });
+
   it("Displays Pending UI for 'delivered' status with optype 'remove'", async () => {
     const customRender = createCustomRenderer();
 
