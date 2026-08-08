@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/ddmpredicate"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
@@ -1105,7 +1106,8 @@ type MDMAppleCustomActivation struct {
 }
 
 // The fields of an activation declaration used for validation. Everything
-// else, Payload.Predicate included, is stored and served verbatim.
+// else is stored and served verbatim. Predicate is also stored verbatim; it
+// is parsed here only to reject malformed predicates at upload.
 type MDMAppleRawActivation struct {
 	Type       string `json:"Type"`
 	Identifier string `json:"Identifier"`
@@ -1113,6 +1115,7 @@ type MDMAppleRawActivation struct {
 		// Apple allows several; Fleet allows exactly the configuration the
 		// activation is uploaded with.
 		StandardConfigurations []string `json:"StandardConfigurations"`
+		Predicate              *string  `json:"Predicate"`
 	} `json:"Payload"`
 }
 
@@ -1151,6 +1154,12 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 		invalid.Append("StandardConfigurations", fmt.Sprintf(
 			"The custom activation must reference the identifier of the configuration profile used to upload it. Expected %q, got %q.",
 			configurationIdentifier, configs[0]))
+	}
+
+	if r.Payload.Predicate != nil {
+		if _, err := ddmpredicate.Parse(*r.Payload.Predicate); err != nil {
+			invalid.Append("Predicate", err.Error())
+		}
 	}
 
 	if invalid.HasErrors() {
