@@ -70,7 +70,9 @@ func GetIssuesByMilestoneLimited(title string, limit int) ([]Issue, bool, error)
 
 // AddLabelToIssue adds a label to an issue.
 func AddLabelToIssue(issueNumber int, label string) error {
-	command := fmt.Sprintf("gh issue edit %d --add-label %s", issueNumber, label)
+	// Quote the label: it runs through `bash -c`, and labels like "#g-byod" would
+	// otherwise be swallowed as a comment (leaving --add-label without an argument).
+	command := fmt.Sprintf("gh issue edit %d --add-label %q", issueNumber, label)
 	_, err := RunCommandAndReturnOutput(command)
 	if err != nil {
 		return err
@@ -80,7 +82,7 @@ func AddLabelToIssue(issueNumber int, label string) error {
 
 // RemoveLabelFromIssue removes a label from an issue.
 func RemoveLabelFromIssue(issueNumber int, label string) error {
-	command := fmt.Sprintf("gh issue edit %d --remove-label %s", issueNumber, label)
+	command := fmt.Sprintf("gh issue edit %d --remove-label %q", issueNumber, label)
 	_, err := RunCommandAndReturnOutput(command)
 	if err != nil {
 		return err
@@ -100,7 +102,7 @@ func CloseIssue(issueNumber int) error {
 
 // SetMilestoneToIssue sets a milestone for an issue.
 func SetMilestoneToIssue(issueNumber int, milestone string) error {
-	command := fmt.Sprintf("gh issue edit %d --milestone %s", issueNumber, milestone)
+	command := fmt.Sprintf("gh issue edit %d --milestone %q", issueNumber, milestone)
 	_, err := RunCommandAndReturnOutput(command)
 	if err != nil {
 		return err
