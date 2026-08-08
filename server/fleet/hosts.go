@@ -1498,6 +1498,7 @@ const (
 	WellKnownMDMSimpleMDM = "SimpleMDM"
 	WellKnownMDMFleet     = "Fleet"
 	WellKnownMDMMosyle    = "Mosyle"
+	WellKnownMDMZentral   = "Zentral"
 )
 
 // mdmNameFromServerURLChecks maps URL substrings to well-known MDM solution names.
@@ -1519,6 +1520,7 @@ var mdmNameFromServerURLChecks = []struct {
 	{"simplemdm", WellKnownMDMSimpleMDM},
 	{"fleetdm", WellKnownMDMFleet},
 	{"mosyle", WellKnownMDMMosyle},
+	{"zentral", WellKnownMDMZentral},
 }
 
 // MDMNameFromServerURL returns the MDM solution name corresponding to the
