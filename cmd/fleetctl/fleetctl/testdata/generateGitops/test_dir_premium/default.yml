@@ -253,3 +253,8 @@ reports:
   observer_can_run: false
   platform: darwin
   query: SELECT * FROM users;
+controls:
+  windows_enabled_and_configured: true
+  android_enabled_and_configured: false
+  windows_migration_enabled: false
+  enable_turn_on_windows_mdm_manually: false
