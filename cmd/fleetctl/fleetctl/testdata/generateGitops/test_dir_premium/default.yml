@@ -12,6 +12,60 @@ agent_options:
       logger_tls_endpoint: /api/osquery/log
       logger_tls_period: 10
       pack_delimiter: /
+controls:
+  android_enabled_and_configured: true
+  android_settings:
+    configuration_profiles:
+    - path: ./lib/profiles/global-android-profile.json
+  apple_require_hardware_attestation: false
+  apple_settings:
+    configuration_profiles:
+    - labels_include_all:
+      - Label A
+      - Label B
+      path: ./lib/profiles/global-macos-mobileconfig-profile.mobileconfig
+    - labels_exclude_any:
+      - Label C
+      path: ./lib/profiles/global-macos-json-profile.json
+  enable_disk_encryption: true
+  enable_recovery_lock_password: false
+  enable_turn_on_windows_mdm_manually: false
+  ios_updates:
+    deadline: "2025-12-31"
+    deadline_days:
+    minimum_version: "18.1"
+    update_new_hosts:
+  ipados_updates:
+    deadline: "2026-12-31"
+    deadline_days:
+    minimum_version: "18.2"
+    update_new_hosts:
+  macos_migration:
+    enable: true
+    mode: voluntary
+    webhook_url: https://some-macos-migration-webhook-url.com
+  macos_updates:
+    deadline: "2024-12-31"
+    deadline_days:
+    minimum_version: "15.1"
+    update_new_hosts: true
+  name_template: No team Mac $FLEET_VAR_HOST_UUID
+  windows_enabled_and_configured: true
+  windows_entra_client_ids:
+  - 7c1de9aa-9b2c-4d3e-8f10-2233445566aa
+  windows_entra_tenant_ids:
+  - 5b84b6dd-d257-415e-b8b4-0240666ba4d4
+  - 9d30f55f-d117-4574-acf0-ff593e3e06e3
+  windows_migration_enabled: true
+  windows_require_bitlocker_pin: false
+  windows_settings:
+    configuration_profiles:
+    - labels_include_any:
+      - Label D
+      path: ./lib/profiles/global-windows-profile.xml
+  windows_updates:
+    deadline_days: 5
+    grace_period_days: 2
 custom_host_vitals:
 - name: Asset tag
 - name: Department
@@ -253,8 +307,3 @@ reports:
   observer_can_run: false
   platform: darwin
   query: SELECT * FROM users;
-controls:
-  windows_enabled_and_configured: true
-  android_enabled_and_configured: false
-  windows_migration_enabled: false
-  enable_turn_on_windows_mdm_manually: false
