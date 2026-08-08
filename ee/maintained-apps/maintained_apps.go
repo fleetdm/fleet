@@ -19,7 +19,7 @@ const OutputPath = "ee/maintained-apps/outputs"
 type FMAQueries struct {
 	Exists  string `json:"exists"`
 	Patched string `json:"patched"`
-	Open    string `json:"open"`
+	Open    string `json:"open,omitempty"`
 }
 
 type FMAManifestApp struct {

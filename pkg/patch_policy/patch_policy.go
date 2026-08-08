@@ -179,6 +179,17 @@ func defaultWindowsOpenQuery(softwareTitle string) string {
 		return fmt.Sprintf(windowsOpenQueryPrefix, query)
 	}
 
+	// Multi-word catalog names ("Mozilla Firefox", "XnSoft XnConvert", "Microsoft
+	// Visual C++ 2015-2022 Redistributable (x64)") almost never equal the process
+	// image name — vendor prefixes, editions, and version suffixes produce a query
+	// that can never match, which silently defeats the app-open gate. Runtime,
+	// driver, and redistributable packages have no user-facing process at all.
+	// Emit no open query rather than a wrong one; add a windowsOpenQueryOverrides
+	// entry when the real binary name is known.
+	if strings.Contains(softwareTitle, " ") {
+		return ""
+	}
+
 	// Match a process named "<title>.exe"
 	// alternatives considered:
 	// - join programs.install_location with processes.path - install_location is unreliable (especially for MSI installers)

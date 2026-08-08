@@ -99,6 +99,12 @@ func TestGenerateOpenQuery(t *testing.T) {
 	got = patch_policy.GenerateOpenQuery("windows", "", "Microsoft Teams")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('teams.exe','ms-teams.exe'));", got)
 
+	// A multi-word title without an override yields no query: the derived
+	// "<title>.exe" ("xnsoft xnconvert.exe") would never match a real process,
+	// silently defeating the app-open gate.
+	require.Empty(t, patch_policy.GenerateOpenQuery("windows", "", "XnSoft XnConvert"))
+	require.Empty(t, patch_policy.GenerateOpenQuery("windows", "", "Microsoft Visual C++ 2015-2022 Redistributable (x64)"))
+
 	// Unknown platform yields no query.
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }
