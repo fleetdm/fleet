@@ -4,8 +4,7 @@
       "version": "14.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.freefilesync.FreeFileSync';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.freefilesync.FreeFileSync' AND version_compare(bundle_short_version, '14.10') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.freefilesync.FreeFileSync');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.freefilesync.FreeFileSync' AND version_compare(bundle_short_version, '14.10') < 0);"
       },
       "installer_url": "https://freefilesync.org/download/FreeFileSync_14.10_macOS.zip",
       "install_script_ref": "480e99f2",
