@@ -42,7 +42,28 @@ examples: |-
   ```
   SELECT name, identifier, source, risk_flags FROM ai_tools WHERE type = 'browser_extension';
   ```
-notes: The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\Users\*`), not just the daemon account's. Running as root provides full visibility across all users.
+notes: |-
+  The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\Users\*`), not just the daemon account's. Running as root provides full visibility across all users.
+
+  #### Which columns apply to which type
+
+  Common columns are shared field slots, but only some are populated per `type` — the rest are empty for that row. Type-specific data lives in `detail` instead.
+
+  | Column | `mcp_server` | `ide_plugins` | `agents` | `apps` | `agent_instruction` | `browser_extension` | `sockets` |
+  |---|---|---|---|---|---|---|---|
+  | `name` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+  | `identifier` | server name | plugin id | binary | bundle id | tool | extension id | service |
+  | `category` | `mcp-server` | AI category | agent category | — | `agent-instruction` | ✓ | ✓ |
+  | `location` | local/remote | `local` | `local` | `local` | `local` | `local` | local/remote |
+  | `source` | client | editor | install method | platform source | tool | browser | direction |
+  | `version` | — | ✓ | ✓ | ✓ | — | ✓ | — |
+  | `path` | config path | install path | ✓ | ✓ | ✓ | ✓ | process path |
+  | `endpoint` | remote URL | — | — | — | — | — | remote `addr:port` |
+  | `running`, `pid` | ✓ | — | ✓ | ✓ | — | — | ✓ |
+  | `port` | listening port | — | — | API port | — | — | local port |
+  | `risk_flags` | ✓ | — | ✓ | — | ✓ | ✓ | — |
+  | `sha256` | ✓ | — | ✓ | ✓ | ✓ | ✓ | — |
+  | `uid`, `username` | ✓ | ✓ | ✓ | — | ✓ | ✓ | username only |
 columns:
   - name: type
     description: "Options are `mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, `agent_instruction`, or `browser_extension`."
