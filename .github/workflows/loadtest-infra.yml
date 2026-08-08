@@ -65,6 +65,11 @@ on:
         type: string
         default: "redis7"
         required: false
+      fleet_mysql_max_open_conns:
+        description: "Max open MySQL connections per Fleet container (applied to writer and read-replica pools)"
+        type: string
+        default: "10"
+        required: false
       terraform_action:
         description: Dry run only? No "terraform apply"
         type: choice
@@ -100,6 +105,7 @@ env:
   TF_VAR_redis_engine: "${{ inputs.fleet_redis_engine }}"
   TF_VAR_redis_engine_version: "${{ inputs.fleet_redis_engine_version }}"
   TF_VAR_redis_parameter_group_family: "${{ inputs.fleet_redis_parameter_group_family }}"
+  TF_VAR_mysql_max_open_conns: "${{ inputs.fleet_mysql_max_open_conns || '10' }}"
 
 permissions:
   id-token: write
