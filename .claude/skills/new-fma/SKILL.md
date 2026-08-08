@@ -31,6 +31,8 @@ Real examples from this codebase where the metadata lied:
 
 ```bash
 brew install msitools          # provides msiinfo for MSI inspection (macOS dev box)
+brew install sevenzip          # provides 7zz, for listing NSIS installer payloads
+brew install innoextract       # Inno installers — only supports up to Inno 6.0.5, see toolkit #4
 gh auth status                 # gh CLI for reading winget-pkgs manifests
 ```
 
@@ -76,7 +78,44 @@ hdiutil detach "$MP" >/dev/null; rm -f app.dmg
 ```
 (For pkg-format casks, the bundle id is harder to read offline — the cask `zap`/`uninstall` `pkgutil`/`launchctl`/`savedState` paths are strong hints, e.g. `<bundleid>.savedState`.)
 
-### 4. Silent install/uninstall flags — use documented sources, never guess
+### 4. Capture the process names (Windows only) — for the `open` query
+
+Windows FMAs need `process_names`: the executables the app runs as. Fleet uses them to build the `open` query that stops a patch from landing on top of a running app. **macOS needs nothing here** — its open query joins `apps.path` to `processes.path`, so the bundle id already covers it. Windows has no equivalent (`programs.install_location` is unreliable), so the names must be captured by hand.
+
+Get them from the installer you already downloaded for identity verification, by installer type:
+
+```bash
+# msi — Shortcut table names the primary exe; File table lists all of them
+msiinfo export app.msi Shortcut | awk -F'\t' '{print $3"\t"$5}'   # → "7-Zip File Manager  [#_7zFM.exe]"
+msiinfo export app.msi File | awk -F'\t' 'tolower($3) ~ /\.exe/ {print $3"\t"$4}' | sort -k2 -rn
+
+# msix — AppxManifest is authoritative (msix is a zip). Check content-length first, these are big.
+unzip -p app.msix AppxManifest.xml | tr '>' '>\n' | grep -i "<Application .*Executable="
+
+# exe / nullsoft (NSIS)
+7zz l app.exe | grep -iE '\.exe$'
+
+# exe / inno
+innoextract -l -m app.exe | grep -iE '\.exe$'
+
+# zip / portable — read NestedInstallerFiles in the winget manifest, or just list it
+unzip -l app.zip | grep -iE '\.exe$'
+```
+
+Verified behavior of each (don't re-derive):
+| Type | Tool | Notes |
+|------|------|-------|
+| msi | `msiinfo` | Reliable. `Shortcut.Target` (`[#_7zFM.exe]`) is the user-facing exe; `File` catches helpers. |
+| msix | `unzip` | Reliable and exact — `Executable="app\Slack.exe"`. Installers are often 100 MB+. |
+| exe (nullsoft) | `7zz` | Works. `7zz`, not `7z` — the Homebrew formula is `sevenzip`. |
+| exe (inno) | `innoextract` | **Only up to Inno 6.0.5.** 1.9 is the current Homebrew version and fails on Inno 6.3 ("Unexpected setup data version") — which most current installers are. `7zz` can't read Inno either. |
+| exe (burn/bootstrapper) | — | Not readable offline; the payload is a nested MSI chain. |
+
+When the installer won't open (modern Inno, burn, or a download too large to justify), don't guess. Either use the vendor's docs, or ship without `process_names` and read the primary exe off the validator run — it installs the app on a real Windows host, so the ARP `DisplayIcon` and the contents of `InstallLocation` are visible in its log.
+
+Picking names once you have the list: include what the **user** has open (the GUI exe, plus separately-named variants like `Code - Insiders.exe`), not every helper. Background updaters (`GUP.exe`) and short-lived CLIs (`7z.exe`) are noise — they'd make the app look permanently open. If an app spawns a swarm of same-prefixed helpers, use one prefix entry: `"1password*"`.
+
+### 5. Silent install/uninstall flags — use documented sources, never guess
 - The winget installer manifest's `InstallerSwitches` (`Silent`, `Custom`) is the first source.
 - **silentinstallhq.com** has per-app guides with the exact switches (e.g. GoToMeeting uses `/silent`, not `/S`). Use `WebFetch` on `https://silentinstallhq.com/<app>-silent-install-how-to-guide/`.
 - Cross-check the vendor's own docs.
@@ -92,12 +131,14 @@ hdiutil detach "$MP" >/dev/null; rm -f app.dmg
 ### Windows (winget)
 1. Read the winget manifests (toolkit #1). Pick **machine** scope, **x64** (or the only arch available — some apps are x86-only).
 2. **Inspect the MSI** (toolkit #2) to confirm DisplayName, Publisher, version, codes, and to detect bootstrappers.
-3. Create `ee/maintained-apps/inputs/winget/<slug-name>.json`:
+3. **Capture the process names** (toolkit #4) from the same installer, while you have it.
+4. Create `ee/maintained-apps/inputs/winget/<slug-name>.json`:
    - `name` (catalog display, can be friendly), `slug` (`<app>/windows`), `package_identifier`, `unique_identifier` (= verified DisplayName), `installer_arch`, `installer_type`, `installer_scope`, `default_categories`.
+   - `process_names` (verified in step 3).
    - `program_publisher` if registry Publisher ≠ winget locale Publisher.
    - `fuzzy_match_name` / `exists_query` as needed (below).
    - `install_script_path` / `uninstall_script_path` for any non-MSI-machine installer.
-4. Generate, add description, check icon.
+5. Generate, add description, check icon.
 
 ### Installer type mapping (winget `InstallerType` → FMA `installer_type` + silent flags)
 | winget type | FMA type | install silent | uninstall |
@@ -129,6 +170,7 @@ go run cmd/maintained-apps/main.go --slug="<app>/<platform>" --debug
 | `program_publisher` (winget) | Overrides the exists-query publisher when registry Publisher ≠ winget locale Publisher. |
 | `fuzzy_match_name` (winget) | `true` → `name LIKE '<unique_identifier> %'`. A string → `name LIKE '<that string>'` verbatim (e.g. `"Mozilla Firefox % ESR %"`, `"IntelliJ IDEA 20%"`). |
 | `exists_query` (winget) | Replaces the generated exists query verbatim. The patched query is DERIVED from it (appends `AND version_compare(...) < 0`). |
+| `process_names` (winget) | Executables the app runs as, e.g. `["7zFM.exe","7zG.exe"]`. Builds the `open` query. An entry may end in `*` for a prefix match (`"1password*"`). Every entry must end in `.exe` or `*`, with no path — the ingester hard-errors otherwise. Windows only; darwin derives it from the bundle id. |
 | `installer_scope` | Must match the winget manifest's Scope — you can't pick machine if only user exists. |
 
 `patch_policy_path` exists in the input struct but is **dead code** (unused since the patched query became auto-generated). Don't use it; there is no patched-query override other than shaping `exists_query` or a hard-coded per-app branch in the ingester (Docker Desktop precedent).
@@ -158,11 +200,16 @@ if ($u -match '^\s*"([^"]+)"\s*(.*)$') {            # quoted
 - Corretto 21 and 25 both register as `Amazon Corretto (x64)` — pin each with `exists_query ... AND version LIKE '<major>.%'`.
 - IntelliJ Ultimate's DisplayName `IntelliJ IDEA <ver>` also matches Community's `IntelliJ IDEA Community Edition <ver>` — exclude siblings in `exists_query` (`AND name NOT LIKE 'IntelliJ IDEA Community%'`) or use a custom `fuzzy_match_name` pattern.
 
-**7. Non-pinned installer URLs.** Some manifests point at a "latest" redirect (e.g. `link.gotomeeting.com/latest-msi`). The pinned SHA drifts when the vendor ships a new build, breaking Fleet installs until the FMA auto-update bumps it. Note this in the PR.
+**7. A wrong process name fails green.** The open query is `SELECT 1 WHERE NOT EXISTS (... FROM processes WHERE <name predicate>)`. If the predicate names a process that never exists, `NOT EXISTS` is always true, so the app always reads as "closed" and the patch installs over a running app — no error, anywhere. That's why `process_names` is worth the extra minute with the installer, and why the ingester rejects malformed entries instead of correcting them.
+
+The `<name>.exe` fallback only fires for **single-word** catalog names; a multi-word name with no `process_names` and no override emits **no open query at all** (better no gate than a fake one). So for any app whose name contains a space, `process_names` is the only way it gets this feature.
+
+**8. Non-pinned installer URLs.** Some manifests point at a "latest" redirect (e.g. `link.gotomeeting.com/latest-msi`). The pinned SHA drifts when the vendor ships a new build, breaking Fleet installs until the FMA auto-update bumps it. Note this in the PR.
 
 ## Pre-ship checklist
 - [ ] Identity fields verified against the real installer (MSI Property table / Info.plist), not guessed.
 - [ ] `unique_identifier` = registry DisplayName / bundle id; `program_publisher` set if needed.
+- [ ] Windows: `process_names` captured from the installer (toolkit #4), or its absence explained in the PR.
 - [ ] Silent install/uninstall flags from winget `InstallerSwitches` or silentinstallhq, not invented.
 - [ ] Custom uninstall (non-MSI-machine) uses the defensive UninstallString parser.
 - [ ] Version reconciles with osquery (or a documented validator exception applies — not a blanket skip).

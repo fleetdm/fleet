@@ -293,7 +293,9 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		}
 	}
 
-	out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", out.UniqueIdentifier, "")
+	// Process names are a windows-only input: darwin resolves running processes from the app
+	// bundle's install path, so it needs no per-app data.
+	out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", out.UniqueIdentifier, "", nil)
 
 	return out, nil
 }

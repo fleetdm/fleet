@@ -85,6 +85,10 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 			return nil, ctxerr.NewWithData(ctx, "missing package identifier for app", map[string]any{"file_name": f.Name()})
 		}
 
+		if err := patch_policy.ValidateProcessNames(input.ProcessNames); err != nil {
+			return nil, ctxerr.WrapWithData(ctx, err, "invalid process_names for app", map[string]any{"file_name": f.Name()})
+		}
+
 		if slugFilter != "" && !strings.Contains(input.Slug, slugFilter) {
 			continue
 		}
@@ -479,7 +483,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 	}
 
-	out.Queries.Open = patch_policy.GenerateOpenQuery("windows", "", out.Name)
+	out.Queries.Open = patch_policy.GenerateOpenQuery("windows", "", out.Name, input.ProcessNames)
 
 	return &out, nil
 }
@@ -654,6 +658,13 @@ type inputApp struct {
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
 	PatchPolicyPath   string   `json:"patch_policy_path"`
+	// ProcessNames lists the executables the app runs as, verified from the installer (MSI File
+	// or Shortcut table, MSIX AppxManifest, Inno/NSIS header). It drives the "open" query that
+	// gates patching a running app. An entry may end in "*" for a prefix match, for apps with
+	// many helper processes (e.g. "1password*"). When unset, the app falls back to the curated
+	// overrides, then to guessing "<name>.exe" for single-word names only — so a multi-word app
+	// with no process_names gets no gate at all.
+	ProcessNames []string `json:"process_names,omitempty"`
 	// RequiresClientOS marks installers that refuse to run on Windows Server
 	// SKUs (e.g. Dell Display and Peripheral Manager). The ingester ignores it;
 	// CI (.github/scripts/partition-fma-apps.sh) reads it to route validation to
