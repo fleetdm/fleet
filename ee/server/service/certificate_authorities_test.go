@@ -1736,6 +1736,47 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			require.EqualError(t, err, "Couldn't edit certificate authority. \"password\" must be set when modifying an existing certificate authority: NDES")
 		})
 
+		t.Run("Empty admin URL", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					AdminURL: new(""),
+					Password: new("updated-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid NDES SCEP admin URL. Please correct and try again.")
+		})
+
+		t.Run("Empty username", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					Username: new(""),
+					Password: new("updated-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid NDES SCEP username. Please correct and try again.")
+		})
+
+		t.Run("Empty password", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					Password: new(""),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid NDES SCEP password. Please correct and try again.")
+		})
+
 		t.Run("Bad admin URL generic error", func(t *testing.T) {
 			svc, ctx := baseSetupForCATests()
 

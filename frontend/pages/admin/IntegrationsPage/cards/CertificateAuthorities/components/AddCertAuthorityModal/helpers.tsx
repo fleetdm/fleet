@@ -231,7 +231,9 @@ export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
     message = PRIVATE_KEY_NOT_CONFIGURED_ERROR;
   } else if (reason.includes("invalid scep url")) {
     message = INVALID_SCEP_URL_ERROR;
-  } else if (reason.includes("invalid admin url or credentials")) {
+    // the server names the CA type in this message, e.g. "Invalid NDES SCEP admin URL or
+    // credentials", so match on the part that doesn't vary
+  } else if (reason.includes("admin url or credentials")) {
     message = INVALID_ADMIN_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("password cache is full")) {
     message = NDES_PASSWORD_CACHE_FULL_ERROR;
