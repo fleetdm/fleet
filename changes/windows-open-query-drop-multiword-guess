@@ -1,0 +1,1 @@
+- Fixed Fleet-maintained apps on Windows generating an "app open" pre-install check that could never match: multi-word app names without a known process name (e.g. "Mozilla Firefox", "Microsoft Visual C++ 2015-2022 Redistributable (x64)") no longer produce a guessed `<name>.exe` process check. Apps with a curated process-name mapping keep their check.
