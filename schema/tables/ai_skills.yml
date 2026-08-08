@@ -1,0 +1,81 @@
+name: ai_skills
+description: |-
+  Inventories individual AI capabilities via Skills. Each skill is a discrete capability that can be invoked by an AI tool or agent. Skills are extracted from MCP server manifests, agent instruction files, and IDE plugin manifests. Each row represents a single capability. Join against ai_tools via parent_identifier for tool-level context.
+platforms:
+  - darwin
+  - windows
+  - linux
+evented: false
+examples: |-
+  List all skills that can execute shell commands.
+
+  ```
+  SELECT skill_name, category, source, parent_identifier FROM ai_skills WHERE capability_tags LIKE '%shell_exec%';
+  ```
+
+  Skills exposed per MCP server.
+
+  ```
+  SELECT t.name, s.skill_name, s.capability_tags FROM ai_tools t LEFT JOIN ai_skills s ON t.identifier = s.parent_identifier WHERE t.type = 'mcp_server';
+  ```
+
+  High-danger skills running on the fleet.
+
+  ```
+  SELECT skill_name, danger_level, source, username FROM ai_skills WHERE danger_level IN ('high', 'critical');
+  ```
+
+  Who has credential access capabilities?
+
+  ```
+  SELECT username, skill_name, source, path FROM ai_skills WHERE category = 'credential_access';
+  ```
+columns:
+  - name: identifier
+    description: "Globally unique skill identifier (e.g. `mcp:files:read`, `agent:hermes:terminal`)."
+    type: text
+    required: true
+  - name: skill_name
+    description: Human-readable name of the skill/capability.
+    type: text
+    required: false
+  - name: category
+    description: "Semantic category: file_ops, shell_exec, network_egress, data_read, data_write, code_gen, browser_ctrl, email_ops, credential_access, system_config, unknown."
+    type: text
+    required: false
+  - name: capability_tags
+    description: "Comma-separated fine-grained capability tokens (e.g. `read_fs`,`write_fs`,`exec_shell`,`network_request`,`api_call`)."
+    type: text
+    required: false
+  - name: source
+    description: "Parent tool type that exposes this skill: mcp_server, ide_plugin, agent, app, browser_extension, instruction_file."
+    type: text
+    required: false
+  - name: parent_identifier
+    description: FK-style reference to ai_tools.identifier for the parent tool/agent that provides this skill.
+    type: text
+    required: false
+  - name: danger_level
+    description: "Pre-classified risk band: low, medium, high, critical. Based on capability category and observed data access patterns."
+    type: text
+    required: false
+  - name: parameters_json
+    description: "Compact JSON of the skill's input schema — argument names, types, required flags."
+    type: text
+    required: false
+  - name: path
+    description: File path where the skill definition lives (MCP config, plugin manifest, instruction file).
+    type: text
+    required: false
+  - name: uid
+    description: User ID of the owner.
+    type: text
+    required: false
+  - name: username
+    description: Username of the owner.
+    type: text
+    required: false
+  - name: enabled
+    description: Whether the skill is currently enabled/active (1 = yes, 0 = no).
+    type: integer
+    required: false
