@@ -4,7 +4,8 @@
       "version": "2024.3.6.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '243.26574.109') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '243.26574.109') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('pycharm.exe','pycharm64.exe'));"
       },
       "installer_url": "https://download.jetbrains.com/python/pycharm-professional-2024.3.6.1.exe",
       "install_script_ref": "60d9c96b",

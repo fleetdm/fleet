@@ -4,7 +4,8 @@
       "version": "4.14",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Proxifier' AND publisher = 'VentoByte SL';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Proxifier' AND publisher = 'VentoByte SL' AND version_compare(version, '4.14') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Proxifier' AND publisher = 'VentoByte SL' AND version_compare(version, '4.14') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'proxifier.exe');"
       },
       "installer_url": "https://www.proxifier.com/download/ProxifierSetup.exe",
       "install_script_ref": "9a226383",

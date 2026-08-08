@@ -4,7 +4,8 @@
       "version": "9.28.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'alfaview msi version %' AND publisher = 'alfaview Video Conferencing Systems GmbH & Co. KG';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'alfaview msi version %' AND publisher = 'alfaview Video Conferencing Systems GmbH & Co. KG' AND version_compare(version, '9.28.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'alfaview msi version %' AND publisher = 'alfaview Video Conferencing Systems GmbH & Co. KG' AND version_compare(version, '9.28.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'alfaview.exe');"
       },
       "installer_url": "https://assets.alfaview.com/stable/win/alfaview-setup-win-production-9.28.1.msi",
       "install_script_ref": "22e48c46",

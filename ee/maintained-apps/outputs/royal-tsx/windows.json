@@ -4,7 +4,8 @@
       "version": "7.4.50721.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Royal TS V7' AND publisher = 'Royal Apps GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Royal TS V7' AND publisher = 'Royal Apps GmbH' AND version_compare(version, '7.4.50721.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Royal TS V7' AND publisher = 'Royal Apps GmbH' AND version_compare(version, '7.4.50721.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'royal tsx.exe');"
       },
       "installer_url": "https://download.royalapps.com/royalts/royaltsinstaller_7.04.50721.0_x64.msi",
       "install_script_ref": "22e48c46",

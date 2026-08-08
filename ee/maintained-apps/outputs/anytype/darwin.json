@@ -4,7 +4,8 @@
       "version": "0.56.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.anytype.anytype';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anytype.anytype' AND version_compare(bundle_short_version, '0.56.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anytype.anytype' AND version_compare(bundle_short_version, '0.56.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.anytype.anytype');"
       },
       "installer_url": "https://anytype-release.fra1.cdn.digitaloceanspaces.com/Anytype-0.56.1-mac-arm64.dmg",
       "install_script_ref": "a0aaeeef",

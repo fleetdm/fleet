@@ -4,7 +4,8 @@
       "version": "1.165.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'AWS SAM Command Line Interface' AND publisher = 'AWS Serverless Applications';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AWS SAM Command Line Interface' AND publisher = 'AWS Serverless Applications' AND version_compare(version, '1.165.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AWS SAM Command Line Interface' AND publisher = 'AWS Serverless Applications' AND version_compare(version, '1.165.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'aws sam command line interface.exe');"
       },
       "installer_url": "https://github.com/aws/aws-sam-cli/releases/download/v1.165.0/AWS_SAM_CLI_64_PY3.msi",
       "install_script_ref": "22e48c46",

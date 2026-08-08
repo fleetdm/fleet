@@ -4,7 +4,8 @@
       "version": "2.1.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'balenaEtcher' AND publisher = 'Balena Ltd. <hello@balena.io>';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'balenaEtcher' AND publisher = 'Balena Ltd. <hello@balena.io>' AND version_compare(version, '2.1.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'balenaEtcher' AND publisher = 'Balena Ltd. <hello@balena.io>' AND version_compare(version, '2.1.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'balenaetcher.exe');"
       },
       "installer_url": "https://github.com/balena-io/etcher/releases/download/v2.1.6/balenaEtcher-2.1.6.Setup.exe",
       "install_script_ref": "523d9090",

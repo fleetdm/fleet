@@ -4,7 +4,8 @@
       "version": "1.0.9197.28092",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Jami' AND publisher = 'Savoir-Faire Linux';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Jami' AND publisher = 'Savoir-Faire Linux' AND version_compare(version, '1.0.9197.28092') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Jami' AND publisher = 'Savoir-Faire Linux' AND version_compare(version, '1.0.9197.28092') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'jami.exe');"
       },
       "installer_url": "https://dl.jami.net/windows/archive/jami_x86_64-202503061740.msi",
       "install_script_ref": "22e48c46",

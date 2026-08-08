@@ -4,7 +4,8 @@
       "version": "10.4.5647",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.emclient.mail.client';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.emclient.mail.client' AND version_compare(bundle_short_version, '10.4.5647') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.emclient.mail.client' AND version_compare(bundle_short_version, '10.4.5647') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.emclient.mail.client');"
       },
       "installer_url": "https://cdn-dist.emclient.com/dist/v10.4.5647_Mac/setup.pkg",
       "install_script_ref": "b0719a50",

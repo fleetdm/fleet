@@ -4,7 +4,8 @@
       "version": "2.5.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mixxx' AND publisher = 'Mixxx Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mixxx' AND publisher = 'Mixxx Project' AND version_compare(version, '2.5.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mixxx' AND publisher = 'Mixxx Project' AND version_compare(version, '2.5.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mixxx.exe');"
       },
       "installer_url": "https://downloads.mixxx.org/releases/2.5.6/mixxx-2.5.6-win64.msi",
       "install_script_ref": "22e48c46",

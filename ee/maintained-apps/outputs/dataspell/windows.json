@@ -4,7 +4,8 @@
       "version": "2026.1.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DataSpell %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DataSpell %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '261.26222.84') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DataSpell %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '261.26222.84') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('dataspell.exe','dataspell64.exe'));"
       },
       "installer_url": "https://download.jetbrains.com/python/dataspell-2026.1.3.exe",
       "install_script_ref": "ba6bf684",

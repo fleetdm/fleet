@@ -4,7 +4,8 @@
       "version": "3.6.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.cozic.joplin-desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.cozic.joplin-desktop' AND version_compare(bundle_short_version, '3.6.15') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.cozic.joplin-desktop' AND version_compare(bundle_short_version, '3.6.15') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'net.cozic.joplin-desktop');"
       },
       "installer_url": "https://github.com/laurent22/joplin/releases/download/v3.6.15/Joplin-3.6.15-arm64.DMG",
       "install_script_ref": "a14de727",
