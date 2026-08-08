@@ -2,9 +2,12 @@ package auth
 
 import (
 	"context"
+	"log/slog"
+	"net/http"
 
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -34,9 +37,12 @@ var RouteTemplateRequestFunc = eu.RouteTemplateRequestFunc
 // For API-only users with a non-empty restriction list (rows in
 // user_api_endpoints), two checks are applied in order:
 //  1. The requested route must appear in the API endpoint catalog. If not, a
-//     permission error (403) is returned.
+//     403 with EndpointRestrictionDeniedMessage is returned.
 //  2. The route must match one of the user's allowed endpoints. If not, a
-//     permission error (403) is returned.
+//     403 with EndpointRestrictionDeniedMessage is returned.
+//
+// Both denials are logged at info level with the route template and denial
+// reason so they can be distinguished from role-based permission denials.
 func APIOnlyEndpointCheck(next endpoint.Endpoint) endpoint.Endpoint {
 	return apiOnlyEndpointCheck(apiendpoints.IsInCatalog, next)
 }
@@ -51,10 +57,17 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 		requestMethod, _ := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
 		routeTemplate, _ := eu.RouteTemplateFromContext(ctx)
 
+		// A missing method or route template means the transport wasn't wired
+		// with RouteTemplateRequestFunc; fail closed with a reason that points
+		// at the misconfiguration instead of a misleading catalog miss.
+		if requestMethod == "" || routeTemplate == "" {
+			return nil, endpointRestrictionDenied(ctx, routeTemplate, "request method or route template missing from request context")
+		}
+
 		fp := fleet.NewAPIEndpointFromTpl(requestMethod, routeTemplate).Fingerprint()
 
 		if !isInCatalog(fp) {
-			return nil, permissionDenied(ctx)
+			return nil, endpointRestrictionDenied(ctx, routeTemplate, "endpoint not in API endpoint catalog")
 		}
 
 		// Check whether the requested endpoint matches any of the user's allowed endpoints.
@@ -64,13 +77,39 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 			}
 		}
 
-		return nil, permissionDenied(ctx)
+		return nil, endpointRestrictionDenied(ctx, routeTemplate, "endpoint not in user's allowed API endpoints")
 	}
 }
 
-func permissionDenied(ctx context.Context) error {
+// EndpointRestrictionDeniedMessage is returned in the 403 response body when a
+// request is denied by an API-only user's endpoint restrictions, so callers
+// can tell these denials apart from role-based permission denials. The
+// restriction list is not secret from the caller (they hold a valid token), so
+// naming the gate here discloses nothing.
+const EndpointRestrictionDeniedMessage = "endpoint not permitted for this API-only user"
+
+// endpointRestrictionDenied rejects the request with a 403 that identifies the
+// endpoint restriction (rather than the user's role) as the gate. The denial
+// is surfaced on the request log line at info level — role-based 403s log at
+// debug, which is how endpoint-restriction denials went unnoticed during
+// debugging. The user email and request method are already logged on that
+// line; the route template and denial reason are added as extras.
+func endpointRestrictionDenied(ctx context.Context, routeTemplate, reason string) error {
 	if ac, ok := authz.FromContext(ctx); ok {
 		ac.SetChecked()
 	}
-	return fleet.NewPermissionError("forbidden")
+	logging.WithLevel(ctx, slog.LevelInfo)
+	logging.WithExtras(ctx,
+		"denied_by", "api_only_endpoint_restriction",
+		"denial_reason", reason,
+		"route", routeTemplate,
+	)
+	// PermissionError alone won't do: the error encoder discards its message
+	// and renders a generic "Permission Denied" body. Wrapping it in a
+	// UserMessageError routes it through the encoder branch that includes the
+	// message in the response.
+	return fleet.NewUserMessageError(
+		fleet.NewPermissionError(EndpointRestrictionDeniedMessage),
+		http.StatusForbidden,
+	)
 }
