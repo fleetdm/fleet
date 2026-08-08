@@ -99,6 +99,18 @@ func TestGenerateOpenQuery(t *testing.T) {
 	got = patch_policy.GenerateOpenQuery("windows", "", "Microsoft Teams")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('teams.exe','ms-teams.exe'));", got)
 
+	// Multi-word titles whose real process name differs from the derived
+	// "<title>.exe" rely on overrides ("Mozilla Firefox" runs firefox.exe, not
+	// "mozilla firefox.exe").
+	got = patch_policy.GenerateOpenQuery("windows", "", "Mozilla Firefox")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');", got)
+
+	got = patch_policy.GenerateOpenQuery("windows", "", "Adobe Acrobat Reader")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('acrord32.exe','acrobat.exe'));", got)
+
+	got = patch_policy.GenerateOpenQuery("windows", "", "Visual Studio Community 2022")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'devenv.exe');", got)
+
 	// Unknown platform yields no query.
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }
