@@ -143,15 +143,20 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 		return err
 	}
 
+	// A credential that was just verified is healthy, and a deleted one can no longer be unhealthy, so the banner has to
+	// be recomputed after any change. This runs before the activity feed on purpose: activity creation reads webhook
+	// config and can fail, and a failure there must not leave the banner reporting a credential that no longer exists.
+	if err := svc.refreshMicrosoftGraphCredentialBanner(ctx); err != nil {
+		return err
+	}
+
 	for _, act := range newMicrosoftGraphCredentialActivities(added, edited, deleted) {
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create microsoft graph credential activity")
 		}
 	}
 
-	// A credential that was just verified is healthy, and a deleted one can no longer be unhealthy, so the banner has to
-	// be recomputed after any change.
-	return svc.refreshMicrosoftGraphCredentialBanner(ctx)
+	return nil
 }
 
 // refreshMicrosoftGraphCredentialBanner recomputes the app-wide banner flag from the stored credentials and saves the
@@ -334,13 +339,30 @@ func microsoftGraphVerifyMessage(err error) string {
 
 // persistMicrosoftGraphCredentials reconciles stored credentials to match the supplied list, and reports which tenants
 // were added, edited, or deleted so the caller can emit one activity apiece.
+//
+// Deletions are computed from the metadata read, which decrypts nothing. Only the "has this credential changed?"
+// comparison needs the stored secret, so an empty incoming list never decrypts. That keeps the recovery path open: if
+// the server private key is missing or has been rotated, the stored secrets cannot be read, and deleting the
+// unreadable credential is exactly what an admin needs to do.
 func (svc *Service) persistMicrosoftGraphCredentials(
 	ctx context.Context,
 	creds []fleet.MicrosoftGraphCredential,
 ) (added, edited, deleted []string, err error) {
-	storedByTenant, err := svc.storedMicrosoftGraphCredentialsByTenant(ctx)
+	storedMeta, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
+	}
+	storedTenants := make(map[string]struct{}, len(storedMeta))
+	for _, cred := range storedMeta {
+		storedTenants[strings.ToLower(cred.TenantID)] = struct{}{}
+	}
+
+	storedByTenant := map[string]*fleet.MicrosoftGraphCredential{}
+	if len(creds) > 0 {
+		storedByTenant, err = svc.storedMicrosoftGraphCredentialsByTenant(ctx)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 	}
 
 	incomingByTenant := make(map[string]struct{}, len(creds))
@@ -363,7 +385,7 @@ func (svc *Service) persistMicrosoftGraphCredentials(
 		}
 	}
 
-	for tenantID := range storedByTenant {
+	for tenantID := range storedTenants {
 		if _, ok := incomingByTenant[tenantID]; ok {
 			continue
 		}

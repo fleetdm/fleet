@@ -842,6 +842,34 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	}
 	orgSettings["certificate_authorities"] = certificateAuthorities // TODO(hca): Ask Scott about jsonFieldName usage
 
+	// Microsoft Graph credentials come from their own endpoint, not the app config. They belong in org_settings rather
+	// than controls because that is where every other GitOps-managed credential lives, and because controls are not
+	// generated for the global file on Premium -- emitting them there would put the credential in the Unassigned file,
+	// where apply ignores it, and an apply of the resulting default.yml would then delete the stored credential.
+	graphCreds, err := cmd.Client.GetMicrosoftGraphCredentials()
+	if err != nil {
+		return nil, err
+	}
+	if len(graphCreds) > 0 {
+		credT := reflect.TypeFor[fleet.MicrosoftGraphCredential]()
+		// The client secret is never readable from the API, so emit a placeholder and warn, exactly as
+		// certificate_authorities and apple_account_provisioning do. Emitting the mask verbatim would round-trip a
+		// literal "********" back into the config on the next apply.
+		creds := make([]map[string]any, 0, len(graphCreds))
+		for _, cred := range graphCreds {
+			creds = append(creds, map[string]any{
+				jsonFieldName(credT, "TenantID"):     cred.TenantID,
+				jsonFieldName(credT, "ClientID"):     cred.ClientID,
+				jsonFieldName(credT, "ClientSecret"): cmd.AddComment("default.yml", "TODO: Add your Microsoft Graph client secret here"),
+			})
+			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "microsoft_graph_credentials.client_secret",
+			})
+		}
+		orgSettings["microsoft_graph_credentials"] = creds
+	}
+
 	mdm, err := cmd.generateMDM(&cmd.AppConfig.MDM)
 	if err != nil {
 		return nil, err
@@ -1462,34 +1490,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result[jsonFieldName(mdmT, "EnableTurnOnWindowsMDMManually")] = cmd.AppConfig.MDM.EnableTurnOnWindowsMDMManually
 			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && len(cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value) > 0 {
 				result[jsonFieldName(mdmT, "WindowsEntraTenantIDs")] = cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value
-			}
-			// Graph credentials are no longer part of the app config; they come from their own endpoint.
-			graphCreds, err := cmd.Client.GetMicrosoftGraphCredentials()
-			if err != nil {
-				return nil, err
-			}
-			if len(graphCreds) > 0 {
-				credT := reflect.TypeFor[fleet.MicrosoftGraphCredential]()
-				controlsFile := "default.yml"
-				if teamId != nil {
-					controlsFile = "fleets/" + teamName + ".yml"
-				}
-				// The client secret is never readable from the API, so emit a placeholder and warn, exactly as
-				// apple_account_provisioning.oauth_idp_client_secret does. Emitting the mask verbatim would round-trip a
-				// literal "********" back into the config on the next apply.
-				creds := make([]map[string]any, 0, len(graphCreds))
-				for _, cred := range graphCreds {
-					creds = append(creds, map[string]any{
-						jsonFieldName(credT, "TenantID"):     cred.TenantID,
-						jsonFieldName(credT, "ClientID"):     cred.ClientID,
-						jsonFieldName(credT, "ClientSecret"): cmd.AddComment(controlsFile, "TODO: Add your Microsoft Graph client secret here"),
-					})
-					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
-						Filename: controlsFile,
-						Key:      "microsoft_graph_credentials.client_secret",
-					})
-				}
-				result["microsoft_graph_credentials"] = creds
 			}
 			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && len(cmd.AppConfig.MDM.WindowsEntraClientIDs.Value) > 0 {
 				result[jsonFieldName(mdmT, "WindowsEntraClientIDs")] = cmd.AppConfig.MDM.WindowsEntraClientIDs.Value

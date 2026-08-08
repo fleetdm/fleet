@@ -107,8 +107,18 @@ func newClientWithHosts(cred *fleet.MicrosoftGraphCredential, loginHost, graphHo
 }
 
 // httpClientFor builds an HTTP client whose token acquisition inherits ctx.
+//
+// Redirects are refused. Go strips Authorization on a cross-domain redirect, but that only helps when the header is set
+// on the request: the oauth2 transport adds the bearer token inside RoundTrip, which runs again for every hop, so a
+// Graph 3xx would hand the token to the redirect target. assertGraphOrigin cannot help here either, since it validates
+// the next link we choose to follow, not one the HTTP client follows on its own.
 func (c *client) httpClientFor(ctx context.Context) *http.Client {
-	return c.cfg.Client(context.WithValue(ctx, oauth2.HTTPClient, c.baseClient))
+	httpClient := c.cfg.Client(context.WithValue(ctx, oauth2.HTTPClient, c.baseClient))
+	httpClient.CheckRedirect = func(req *http.Request, _ []*http.Request) error {
+		return fmt.Errorf("microsoft graph redirected to %s://%s, refusing to follow and disclose the access token",
+			req.URL.Scheme, req.URL.Host)
+	}
+	return httpClient
 }
 
 func (c *client) VerifyCredential(ctx context.Context) error {
@@ -230,13 +240,20 @@ func (c *client) getPage(ctx context.Context, httpClient *http.Client, requestUR
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		// Bound the read rather than truncating afterwards: an edge proxy can answer a 5xx with a very large HTML page,
+		// and reading it in full to then keep 512 bytes would allocate the whole thing. One byte over the limit is read
+		// so truncateBody can still mark the message as truncated.
+		body, err := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes+1))
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "read microsoft graph error response")
+		}
+		return nil, "", ctxerr.Wrap(ctx, newGraphError(resp, body), "microsoft graph request failed")
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "read microsoft graph response")
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, "", ctxerr.Wrap(ctx, newGraphError(resp, body), "microsoft graph request failed")
 	}
 
 	var parsed autopilotDevicesResponse

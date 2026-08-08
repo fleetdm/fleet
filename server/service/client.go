@@ -635,7 +635,10 @@ func (c *Client) ApplyGroup(
 
 	if specs.MicrosoftGraphCredentials != nil {
 		if err := c.ApplyMicrosoftGraphCredentials(*specs.MicrosoftGraphCredentials, opts.ApplySpecOptions.DryRun); err != nil {
-			if err.Error() == "missing or invalid license" && viaGitOps && filename != nil {
+			// Substring, not equality: unlike the certificate-authorities path below, which returns a bare
+			// ErrMissingLicense, this one surfaces the license failure inside an InvalidArgumentError that formats as
+			// "validation failed: microsoft_graph_credentials missing or invalid license". An exact match is dead code.
+			if strings.Contains(err.Error(), fleet.ErrMissingLicense.Error()) && viaGitOps && filename != nil {
 				return nil, nil, nil, nil, fmt.Errorf("Couldn't edit \"%s\" at \"microsoft_graph_credentials\": Missing or invalid license. Microsoft Graph credentials are available in Fleet Premium only.", *filename)
 			}
 			return nil, nil, nil, nil, fmt.Errorf("applying microsoft graph credentials: %w", err)
@@ -2292,6 +2295,16 @@ func (c *Client) DoGitOps(
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
+		// Microsoft Graph credentials are applied through their own endpoint too, so they are lifted out of
+		// OrgSettings for the same reason and must not reach the AppConfig PATCH. An absent key clears them: GitOps is
+		// declarative, so what is not in the YAML is not configured.
+		graphCreds, err := fleet.ParseMicrosoftGraphCredentials(incoming.OrgSettings["microsoft_graph_credentials"])
+		if err != nil {
+			return nil, fmt.Errorf("invalid microsoft_graph_credentials: %w", err)
+		}
+		group.MicrosoftGraphCredentials = &graphCreds
+		delete(incoming.OrgSettings, "microsoft_graph_credentials")
+
 		// Plan PUT uploads and strip the gitops-only `path` keys, which
 		// aren't part of fleet.OrgInfo. URL changes ride on the PATCH.
 		orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, baseDir, dryRun, logFn)
@@ -2475,14 +2488,6 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.WindowsEntraClientIDs == nil {
 			mdmAppConfig["windows_entra_client_ids"] = []any{}
 		}
-		// Microsoft Graph credentials are applied through their own endpoint, not the app config, so lift them out of
-		// controls here. An absent key clears them, matching how the Entra allowlists above behave: GitOps is
-		// declarative, so what is not in the YAML is not configured.
-		graphCreds, err := fleet.ParseMicrosoftGraphCredentials(incoming.Controls.MicrosoftGraphCredentials)
-		if err != nil {
-			return nil, fmt.Errorf("invalid microsoft_graph_credentials: %w", err)
-		}
-		group.MicrosoftGraphCredentials = &graphCreds
 		// Put in default values for enable_turn_on_windows_mdm_manually
 		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
 		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {

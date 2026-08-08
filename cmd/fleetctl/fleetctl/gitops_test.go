@@ -9150,6 +9150,17 @@ func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
 		}
 		return out, nil
 	}
+	// Deletions are computed from the metadata read (which decrypts nothing), so both reads must be backed by the same
+	// store or a removed key looks like "nothing was configured".
+	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+		out := make([]*fleet.MicrosoftGraphCredential, 0, len(stored))
+		for _, c := range stored {
+			meta := *c
+			meta.ClientSecret = ""
+			out = append(out, &meta)
+		}
+		return out, nil
+	}
 	ds.UpsertMicrosoftGraphCredentialFunc = func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
 		copied := *cred
 		stored[cred.TenantID] = &copied
@@ -9161,17 +9172,19 @@ func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
 		return nil
 	}
 
-	writeGlobalFile := func(extraControls string) string {
+	// The credential lives under org_settings, next to certificate_authorities and every other GitOps-managed
+	// credential, not under controls.
+	writeGlobalFile := func(extraOrgSettings string) string {
 		f, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
 		_, err = f.WriteString(fmt.Sprintf(`
 controls:
-%s
   windows_enabled_and_configured: true
 queries:
 policies:
 agent_options:
 org_settings:
+%s
   server_settings:
     server_url: %s
   org_info:
@@ -9182,7 +9195,7 @@ org_settings:
   secrets:
     - secret: globalSecret
 software:
-`, extraControls, fleetServerURL, orgName))
+`, extraOrgSettings, fleetServerURL, orgName))
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		return f.Name()

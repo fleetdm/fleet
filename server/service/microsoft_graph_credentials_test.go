@@ -221,6 +221,23 @@ func TestApplyMicrosoftGraphCredentials(t *testing.T) {
 		assert.Equal(t, []string{graphTenantA}, env.deleted)
 	})
 
+	// Deleting must not require decrypting. A missing or rotated server private key is exactly the situation where an
+	// admin needs to remove the unreadable credential, so making deletion depend on reading the secret would close the
+	// only recovery path.
+	t.Run("clears credentials even when the stored secret cannot be decrypted", func(t *testing.T) {
+		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
+		env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
+			TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "unreadable",
+		}
+		env.ds.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+			return nil, errors.New("decrypt microsoft graph client secret: cipher: message authentication failed")
+		}
+
+		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{}, false))
+		assert.Empty(t, env.stored)
+		assert.Equal(t, []string{graphTenantA}, env.deleted)
+	})
+
 	t.Run("a dry run validates without persisting", func(t *testing.T) {
 		env, calls := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 

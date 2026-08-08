@@ -1,6 +1,7 @@
 package msgraph
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -491,4 +492,60 @@ func TestListRequestShape(t *testing.T) {
 	assert.GreaterOrEqual(t, pageSize, 1000,
 		"lowering the page size multiplies round trips and inclusive-cursor duplicates for large tenants")
 	assert.Equal(t, int32(1), gs.tokenRequests.Load(), "all pages must share one token")
+}
+
+// A Graph 3xx must not be followed. Go strips Authorization across domains only when the header is on the request; the
+// oauth2 transport sets it inside RoundTrip, which runs again per hop, so following a redirect would hand the token to
+// whatever host Graph names. assertGraphOrigin does not cover this, because the client would follow it internally.
+func TestListRefusesRedirects(t *testing.T) {
+	var attackerHits atomic.Int32
+	attacker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			attackerHits.Add(1)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"value":[]}`))
+	}))
+	defer attacker.Close()
+
+	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, attacker.URL, http.StatusFound)
+	})
+
+	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "refusing to follow")
+	assert.Zero(t, attackerHits.Load(), "the access token must never reach the redirect target")
+}
+
+// The error path must bound what it reads, not read everything and then truncate: an edge proxy can answer a 5xx with a
+// very large body, and this message ends up in logs and in the sync error shown to the admin.
+func TestErrorBodyIsBoundedBeforeReading(t *testing.T) {
+	const huge = 5 << 20 // 5MB
+	var served atomic.Int64
+	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		chunk := bytes.Repeat([]byte("x"), 64<<10)
+		for written := 0; written < huge; written += len(chunk) {
+			n, err := w.Write(chunk)
+			served.Add(int64(n))
+			if err != nil {
+				return
+			}
+		}
+	})
+
+	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+	require.Error(t, err)
+
+	graphErr, ok := errors.AsType[*Error](err)
+	require.True(t, ok, "a 502 must surface as a *msgraph.Error")
+	assert.LessOrEqual(t, len(graphErr.Message), maxErrorBodyBytes+len("... (truncated)"),
+		"the retained message must stay bounded")
+	assert.Contains(t, graphErr.Message, "truncated")
+
+	// The retained message is bounded either way, because truncateBody trims it after the fact. What distinguishes a
+	// bounded read is that the client stops pulling, so the server never gets to write the whole body.
+	assert.Less(t, served.Load(), int64(huge),
+		"the client must stop reading rather than allocate the entire error body")
 }
