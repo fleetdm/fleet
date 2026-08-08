@@ -39,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	logtestutils "github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -2242,7 +2243,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	globalPolicy0, err := s.ds.NewGlobalPolicy(
 		context.Background(), &user1.ID, fleet.PolicyPayload{
 			QueryID: &q.ID,
-		})
+		},
+	)
 	require.NoError(t, err)
 
 	require.NoError(
@@ -5654,7 +5656,8 @@ func (s *integrationTestSuite) TestLabels() {
 			_, err := db.ExecContext(
 				context.Background(),
 				`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
-				lbl2Hosts[0].ID, "a@b.c", "src1")
+				lbl2Hosts[0].ID, "a@b.c", "src1",
+			)
 
 			return err
 		})
@@ -6164,7 +6167,8 @@ func (s *integrationTestSuite) TestLabels() {
 		// Set columns not handled by NewHost via direct UPDATEs.
 		for i, h := range sortHosts {
 			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-				_, err := db.ExecContext(ctx, `
+				_, err := db.ExecContext(
+					ctx, `
 					UPDATE hosts SET
 						created_at = ?,
 						updated_at = ?,
@@ -6492,17 +6496,18 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	name := strings.ReplaceAll(t.Name(), "/", "_")
 	// apply an invalid label spec - dynamic membership with host specified
 	var applyResp fleet.ApplyLabelSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
-		Specs: []*fleet.LabelSpec{
-			{
-				Name:                name,
-				Query:               "select 1",
-				Platform:            "linux",
-				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
-				Hosts:               []string{"abc"},
+	s.DoJSON(
+		"POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                name,
+					Query:               "select 1",
+					Platform:            "linux",
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+					Hosts:               []string{"abc"},
+				},
 			},
-		},
-	}, http.StatusUnprocessableEntity, &applyResp,
+		}, http.StatusUnprocessableEntity, &applyResp,
 	)
 
 	// apply an invalid label spec - invalid platform
@@ -6542,14 +6547,15 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	)
 
 	// apply a valid label spec - manual membership without hosts specified (preserves existing membership)
-	s.DoJSON("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
-		Specs: []*fleet.LabelSpec{
-			{
-				Name:                name,
-				LabelMembershipType: fleet.LabelMembershipTypeManual,
+	s.DoJSON(
+		"POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                name,
+					LabelMembershipType: fleet.LabelMembershipTypeManual,
+				},
 			},
-		},
-	}, http.StatusOK, &applyResp,
+		}, http.StatusOK, &applyResp,
 	)
 
 	// apply an invalid label spec - builtin label type
@@ -10018,7 +10024,8 @@ func (s *integrationTestSuite) TestSearchHosts() {
 		_, err := db.ExecContext(
 			context.Background(),
 			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
-			hosts[0].ID, "a@b.c", "src1")
+			hosts[0].ID, "a@b.c", "src1",
+		)
 
 		return err
 	})
@@ -10474,7 +10481,8 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	oldActivitiesCount := len(activitiesResp.Activities)
 
 	// Login with invalid passwordm, should fail.
-	res := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+	res := s.DoRawNoAuth(
+		"POST", "/api/latest/fleet/login",
 		jsonMustMarshal(t, fleet.LoginRequest{Email: u.Email, Password: test.GoodPassword2}),
 		http.StatusUnauthorized,
 	)
@@ -10497,7 +10505,8 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	require.Equal(t, actDetails.Email, "foobar@example.com")
 
 	// login with good password, should succeed
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+	res = s.DoRawNoAuth(
+		"POST", "/api/latest/fleet/login",
 		jsonMustMarshal(t, fleet.LoginRequest{
 			Email:    u.Email,
 			Password: test.GoodPassword,
@@ -12503,7 +12512,8 @@ type validationErrResp struct {
 
 func setOrbitEnrollment(t *testing.T, h *fleet.Host, ds fleet.Datastore) string {
 	orbitKey := uuid.New().String()
-	_, err := ds.EnrollOrbit(context.Background(),
+	_, err := ds.EnrollOrbit(
+		context.Background(),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   *h.OsqueryHostID,
 			HardwareSerial: h.HardwareSerial,
@@ -13031,7 +13041,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	// Check that the received stats were stored in the DB as expected.
 	var scheduledQueriesStats []fleet.ScheduledQueryStats
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(context.Background(), q, &scheduledQueriesStats,
+		return sqlx.SelectContext(
+			context.Background(), q, &scheduledQueriesStats,
 			`SELECT
 				scheduled_query_id, q.name AS scheduled_query_name, average_memory, denylisted,
 				executions, q.schedule_interval, last_executed,
@@ -13108,7 +13119,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	// Check that the received stats were stored in the DB as expected.
 	scheduledQueriesStats = []fleet.ScheduledQueryStats{}
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(context.Background(), q, &scheduledQueriesStats,
+		return sqlx.SelectContext(
+			context.Background(), q, &scheduledQueriesStats,
 			`SELECT
 				scheduled_query_id, q.name AS scheduled_query_name, average_memory, denylisted,
 				executions, q.schedule_interval, last_executed,
@@ -14286,12 +14298,13 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Len(t, gqrr.Results, 1)
 
 	// now update the platform and verify that results are deleted
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
-		ID: osqueryInfoQuery.ID,
-		QueryPayload: fleet.QueryPayload{
-			Platform: ptr.String("linux"),
+	s.DoJSON(
+		"PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
+			ID: osqueryInfoQuery.ID,
+			QueryPayload: fleet.QueryPayload{
+				Platform: new("linux"),
+			},
 		},
-	},
 		http.StatusOK,
 		&modifyQueryResp,
 	)
@@ -14308,12 +14321,13 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	// now update the platform to the same value and verify that results are not deleted
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
-		ID: osqueryInfoQuery.ID,
-		QueryPayload: fleet.QueryPayload{
-			Platform: ptr.String("linux"),
+	s.DoJSON(
+		"PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
+			ID: osqueryInfoQuery.ID,
+			QueryPayload: fleet.QueryPayload{
+				Platform: new("linux"),
+			},
 		},
-	},
 		http.StatusOK,
 		&modifyQueryResp,
 	)
@@ -14322,12 +14336,13 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Len(t, gqrr.Results, 1)
 
 	// now update the min_osquery_version and verify that results are deleted
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
-		ID: osqueryInfoQuery.ID,
-		QueryPayload: fleet.QueryPayload{
-			MinOsqueryVersion: ptr.String("5.9.1"),
+	s.DoJSON(
+		"PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
+			ID: osqueryInfoQuery.ID,
+			QueryPayload: fleet.QueryPayload{
+				MinOsqueryVersion: new("5.9.1"),
+			},
 		},
-	},
 		http.StatusOK,
 		&modifyQueryResp,
 	)
@@ -14344,12 +14359,13 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	// now update the min_osquery_version to another value and verify that results are deleted
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
-		ID: osqueryInfoQuery.ID,
-		QueryPayload: fleet.QueryPayload{
-			MinOsqueryVersion: ptr.String("5.11.0"),
+	s.DoJSON(
+		"PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
+			ID: osqueryInfoQuery.ID,
+			QueryPayload: fleet.QueryPayload{
+				MinOsqueryVersion: new("5.11.0"),
+			},
 		},
-	},
 		http.StatusOK,
 		&modifyQueryResp,
 	)
@@ -14365,12 +14381,13 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	// now update the min_osquery_version to the same value and verify that results are not deleted
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
-		ID: osqueryInfoQuery.ID,
-		QueryPayload: fleet.QueryPayload{
-			MinOsqueryVersion: ptr.String("5.11.0"),
+	s.DoJSON(
+		"PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{
+			ID: osqueryInfoQuery.ID,
+			QueryPayload: fleet.QueryPayload{
+				MinOsqueryVersion: new("5.11.0"),
+			},
 		},
-	},
 		http.StatusOK,
 		&modifyQueryResp,
 	)
@@ -15200,7 +15217,8 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 
 	// No labels or empty labels is a no-op.
 	var addLabelsToHostResp addLabelsToHostResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID),
+	s.DoJSON(
+		"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID),
 		json.RawMessage(`{}`), http.StatusOK, &addLabelsToHostResp,
 	)
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
@@ -15646,7 +15664,8 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.NoError(t, err)
 
 	getHostSoftwareResp := getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID),
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID),
 		nil, http.StatusOK, &getHostSoftwareResp,
 		"per_page", "5", "page", "0", "order_key", "name", "order_direction", "desc",
 	)
@@ -15934,7 +15953,8 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.NotZero(t, firstVariableID)
 
 	// Create Apple configuration profile in "No team" that uses the variable.
-	appleProfile, err := s.ds.NewMDMAppleConfigProfile(ctx,
+	appleProfile, err := s.ds.NewMDMAppleConfigProfile(
+		ctx,
 		fleet.MDMAppleConfigProfile{
 			Name:         "Name0",
 			Identifier:   "Identifier0",
@@ -15946,7 +15966,8 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 
 	res := s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
 	errorMsg := extractServerErrorText(res.Body)
-	require.Contains(t,
+	require.Contains(
+		t,
 		errorMsg,
 		"Couldn't delete. NAME1 is used by the \"Name0\" configuration profile in the \"No team\" team. Please delete the configuration profile and try again.",
 	)
@@ -15965,7 +15986,8 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 
 	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
 	errorMsg = extractServerErrorText(res.Body)
-	require.Contains(t,
+	require.Contains(
+		t,
 		errorMsg,
 		"Couldn't delete. NAME1 is used by the \"decl-1\" configuration profile in the \"Foobar\" team. Please delete the configuration profile and try again.",
 	)
@@ -15983,7 +16005,8 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 
 	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
 	errorMsg = extractServerErrorText(res.Body)
-	require.Contains(t,
+	require.Contains(
+		t,
 		errorMsg,
 		"Couldn't delete. NAME1 is used by the \"zoo\" configuration profile in the \"Foobar\" team. Please delete the configuration profile and try again.",
 	)
@@ -16000,7 +16023,8 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 
 	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
 	errorMsg = extractServerErrorText(res.Body)
-	require.Contains(t,
+	require.Contains(
+		t,
 		errorMsg,
 		"Couldn't delete. NAME1 is used by the \"foobar.sh\" script in the \"No team\" team. Please edit or delete the script and try again.",
 	)
@@ -16438,7 +16462,8 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 			NodeKey: *h.NodeKey,
 			Results: map[string]json.RawMessage{
 				hostDetailQueryPrefix + "google_chrome_profiles": json.RawMessage(fmt.Sprintf(
-					`[{"email": "%s"}]`, fmt.Sprintf("user%d@example.com", i))),
+					`[{"email": "%s"}]`, fmt.Sprintf("user%d@example.com", i),
+				)),
 			},
 			Statuses: map[string]interface{}{
 				hostDistributedQueryPrefix + "google_chrome_profiles": 0,
@@ -17226,6 +17251,177 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 			http.StatusOK,
 			map[string]string{"Authorization": "NodeKey " + *host.NodeKey})
 	})
+
+	s.Run("endpoint_request_size_overrides wins over the osquery per-route default in body-auth mode", func() {
+		const overrideLimit = 15 * units.MiB
+
+		oldOverrides := platform_http.EndpointRequestSizeOverrides
+		s.T().Cleanup(func() { platform_http.EndpointRequestSizeOverrides = oldOverrides })
+		platform_http.EndpointRequestSizeOverrides = map[string]int64{
+			"/api/osquery/log":               overrideLimit,
+			"/api/osquery/distributed/write": overrideLimit,
+		}
+
+		cfg := config.TestConfig()
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		// Above the osquery route's own default (10MiB) but within the override (15MiB).
+		// It must succeed, proving the override raised the effective limit.
+		betweenPad := logLimit + 2*int(units.MiB) + 1 - len(logPrefix) - len(logSuffix)
+		ts.DoRawNoAuth("POST", "/api/osquery/log",
+			[]byte(logPrefix+strings.Repeat("x", betweenPad)+logSuffix),
+			http.StatusOK)
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write",
+			[]byte(logPrefix+strings.Repeat("x", betweenPad)+logSuffix),
+			http.StatusOK)
+
+		// Above the override itself. It must be rejected.
+		aboveOverridePad := int(overrideLimit) + 1 - len(logPrefix) - len(logSuffix)
+		ts.DoRawNoAuth("POST", "/api/osquery/log",
+			[]byte(logPrefix+strings.Repeat("x", aboveOverridePad)+logSuffix),
+			http.StatusRequestEntityTooLarge)
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write",
+			[]byte(logPrefix+strings.Repeat("x", aboveOverridePad)+logSuffix),
+			http.StatusRequestEntityTooLarge)
+	})
+
+	s.Run("endpoint_request_size_overrides wins over an explicitly configured osquery_max_*_body_size  when larger", func() {
+		// osquery_max_log_write_body_size & osquery_max_distributed_write_body_size (deprecated but supported) are explicitly set.
+		// The override must still win over it when larger, proving the two config sources compose via the same "largest wins" comparison.
+		const (
+			deprecatedLimit = 5 * units.MiB
+			overrideLimit   = 15 * units.MiB
+		)
+
+		oldOverrides := platform_http.EndpointRequestSizeOverrides
+		s.T().Cleanup(func() { platform_http.EndpointRequestSizeOverrides = oldOverrides })
+		platform_http.EndpointRequestSizeOverrides = map[string]int64{
+			"/api/osquery/log":               overrideLimit,
+			"/api/osquery/distributed/write": overrideLimit,
+		}
+
+		cfg := config.TestConfig()
+		cfg.Osquery.MaxLogWriteBodySize = deprecatedLimit
+		cfg.Osquery.MaxDistributedWriteBodySize = deprecatedLimit
+
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		// Above the explicit deprecated-config limit (5MiB) but within the override (15MiB)
+		// It must succeed.
+		aboveDeprecatedPad := int(deprecatedLimit) + int(units.MiB) + 1 - len(logPrefix) - len(logSuffix)
+		ts.DoRawNoAuth("POST", "/api/osquery/log",
+			[]byte(logPrefix+strings.Repeat("x", aboveDeprecatedPad)+logSuffix),
+			http.StatusOK)
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write",
+			[]byte(logPrefix+strings.Repeat("x", aboveDeprecatedPad)+logSuffix),
+			http.StatusOK)
+
+		// Above the override itself. It must be rejected.
+		aboveOverridePad := int(overrideLimit) + 1 - len(logPrefix) - len(logSuffix)
+		ts.DoRawNoAuth("POST", "/api/osquery/log",
+			[]byte(logPrefix+strings.Repeat("x", aboveOverridePad)+logSuffix),
+			http.StatusRequestEntityTooLarge)
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write",
+			[]byte(logPrefix+strings.Repeat("x", aboveOverridePad)+logSuffix),
+			http.StatusRequestEntityTooLarge)
+	})
+
+	s.Run("explicitly configured osquery_max_*_body_size wins when larger than endpoint_request_size_overrides", func() {
+		// Reverse of above test.
+		// A smaller override must not shrink the effective limit below an explicitly configured (larger) deprecated setting for the same path.
+		const (
+			deprecatedLimit = 15 * units.MiB
+			overrideLimit   = 5 * units.MiB
+		)
+
+		oldOverrides := platform_http.EndpointRequestSizeOverrides
+		s.T().Cleanup(func() { platform_http.EndpointRequestSizeOverrides = oldOverrides })
+		platform_http.EndpointRequestSizeOverrides = map[string]int64{
+			"/api/osquery/log":               overrideLimit,
+			"/api/osquery/distributed/write": overrideLimit,
+		}
+
+		cfg := config.TestConfig()
+		cfg.Osquery.MaxLogWriteBodySize = deprecatedLimit
+		cfg.Osquery.MaxDistributedWriteBodySize = deprecatedLimit
+
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		// Above the (smaller) override but within the explicit deprecated limit.
+		// It must succeed, proving the override didn't shrink it.
+		aboveOverridePad := int(overrideLimit) + int(units.MiB) + 1 - len(logPrefix) - len(logSuffix)
+		ts.DoRawNoAuth("POST", "/api/osquery/log",
+			[]byte(logPrefix+strings.Repeat("x", aboveOverridePad)+logSuffix),
+			http.StatusOK)
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write",
+			[]byte(logPrefix+strings.Repeat("x", aboveOverridePad)+logSuffix),
+			http.StatusOK)
+
+		// Above the deprecated limit itself. It must be rejected.
+		aboveDeprecatedPad := int(deprecatedLimit) + 1 - len(logPrefix) - len(logSuffix)
+		s.Require().Positive(aboveDeprecatedPad)
+		ts.DoRawNoAuth("POST", "/api/osquery/log",
+			[]byte(logPrefix+strings.Repeat("x", aboveDeprecatedPad)+logSuffix),
+			http.StatusRequestEntityTooLarge)
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write",
+			[]byte(logPrefix+strings.Repeat("x", aboveDeprecatedPad)+logSuffix),
+			http.StatusRequestEntityTooLarge)
+	})
+
+	s.Run("endpoint_request_size_overrides does not apply in header-auth mode", func() {
+		// Header-auth routes opt out of the size-limiting mechanism entirely (SkipRequestBodySizeLimit),
+		// so a configured override for the same path must not reintroduce a limit there.
+		const overrideLimit = 2 * units.MiB // well below the 12MiB body sent below
+
+		oldOverrides := platform_http.EndpointRequestSizeOverrides
+		s.T().Cleanup(func() { platform_http.EndpointRequestSizeOverrides = oldOverrides })
+		platform_http.EndpointRequestSizeOverrides = map[string]int64{
+			"/api/osquery/log":               overrideLimit,
+			"/api/osquery/distributed/write": overrideLimit,
+		}
+
+		cfg := config.TestConfig()
+		cfg.Osquery.AllowBodyAuthFallback = false
+
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		oversizedLog, err := json.Marshal(submitLogsRequest{
+			NodeKey: *host.NodeKey,
+			LogType: "status",
+			Data:    []json.RawMessage{json.RawMessage(`"` + strings.Repeat("x", 12*1024*1024) + `"`)},
+		})
+		s.Require().NoError(err)
+		ts.DoRawWithHeaders("POST", "/api/osquery/log", oversizedLog,
+			http.StatusOK,
+			map[string]string{"Authorization": "NodeKey " + *host.NodeKey})
+		ts.DoRawWithHeaders("POST", "/api/osquery/distributed/write", oversizedLog,
+			http.StatusOK,
+			map[string]string{"Authorization": "NodeKey " + *host.NodeKey})
+	})
 }
 
 func (s *integrationTestSuite) TestListHostReports() {
@@ -17899,7 +18095,8 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 
 	retrievedActivity := fleet.ActivityTypeRetrievedHostMyDeviceURL{}.ActivityName()
 	expectedActivityDetails := fmt.Sprintf(
-		`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName())
+		`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName(),
+	)
 
 	// Case 1: host has a fresh token → it should be reused as-is.
 	var resp getHostDeviceURLResponse
