@@ -261,6 +261,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	// Configure default max request body size based on config
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
+	platform_http.EndpointRequestSizeOverrides = config.Server.EndpointRequestSizeOverrides
 
 	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
 	if mds == nil {
@@ -295,7 +296,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		return
 	}
 
-	resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
+	resultStore := pubsub.NewRedisQueryResults(
+		redisPool, config.Redis.DuplicateResults,
 		logger.With("component", "query-results"),
 	)
 	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration,
@@ -1257,12 +1259,14 @@ func getTLSConfig(profile string) *tls.Config {
 	switch profile {
 	case configpkg.TLSProfileModern:
 		cfg.MinVersion = tls.VersionTLS13
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
+		cfg.CurvePreferences = append(
+			cfg.CurvePreferences,
 			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
 		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
+		cfg.CipherSuites = append(
+			cfg.CipherSuites,
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
 			tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -1274,12 +1278,14 @@ func getTLSConfig(profile string) *tls.Config {
 		)
 	case configpkg.TLSProfileIntermediate:
 		cfg.MinVersion = tls.VersionTLS12
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
+		cfg.CurvePreferences = append(
+			cfg.CurvePreferences,
 			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
 		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
+		cfg.CipherSuites = append(
+			cfg.CipherSuites,
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
 			tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -1391,7 +1397,8 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 	if err := softwareInstallerStore.CreateTestBucket(ctx, config.S3.SoftwareInstallersBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		logger.InfoContext(ctx, "failed to create test software installer bucket",
+		logger.InfoContext(
+			ctx, "failed to create test software installer bucket",
 			"err", err,
 			"name", config.S3.SoftwareInstallersBucket,
 		)
@@ -1402,7 +1409,8 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 	if err := carveStore.CreateTestBucket(ctx, config.S3.CarvesBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		logger.InfoContext(ctx, "failed to create test carve bucket",
+		logger.InfoContext(
+			ctx, "failed to create test carve bucket",
 			"err", err,
 			"name", config.S3.CarvesBucket,
 		)
