@@ -50,9 +50,13 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		inHouseAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("iha.global_or_team_id = %d", *teamID)
 	} else {
 		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "sthc")
-		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
-		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
-		inHouseAppsTeamsGlobalOrTeamIDFilter = "TRUE"
+		// A nil teamID means "every fleet the caller can see", not "every fleet".
+		// These joins decide whether the title row exists at all, so leaving them
+		// unfiltered confirms titles that exist only in a fleet the caller has no
+		// access to. Same boundary the host-counts filter above already applies.
+		softwareInstallerGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "si.global_or_team_id")
+		vppAppsTeamsGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "vat.global_or_team_id")
+		inHouseAppsTeamsGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "iha.global_or_team_id")
 	}
 
 	// Select software title but filter out if the software has zero host counts
@@ -1216,7 +1220,8 @@ func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *
 			COALESCE(usc.contents, '') AS uninstall_script,
 			COALESCE(si.pre_install_query, '') AS pre_install_query,
 			si.upgrade_code,
-			si.patch_query
+			si.patch_query,
+			si.app_open_query
 		FROM software_installers si
 		LEFT JOIN script_contents isc ON isc.id = si.install_script_content_id
 		LEFT JOIN script_contents usc ON usc.id = si.uninstall_script_content_id

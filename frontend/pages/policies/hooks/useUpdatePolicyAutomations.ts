@@ -18,6 +18,7 @@ export type IPolicyAutomationUpdate = Pick<
   | "calendar_events_enabled"
   | "conditional_access_enabled"
   | "continuous_automations_enabled"
+  | "patch_when_closed"
 >;
 
 export interface IUpdatePolicyAutomationsVars {

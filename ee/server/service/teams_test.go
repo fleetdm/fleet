@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1598,6 +1599,394 @@ func TestDeleteTeamWindowsEnrollmentDefaultFleet(t *testing.T) {
 				require.False(t, ds.SetWindowsEnrollmentDefaultFleetFuncInvoked)
 				require.NotContains(t, activities, clearedActivity)
 			}
+		})
+	}
+}
+
+func TestModifyTeamOSUpdatesDeadlineDays(t *testing.T) {
+	// A deadline_days-only edit must be treated as a change: the setting has to be
+	// stored and the OS update declaration regenerated. Before deadline_days was
+	// part of the change detection, both were silently skipped.
+	testCases := []struct {
+		name         string
+		storedDays   optjson.Int
+		payloadDays  optjson.Int
+		wantSaved    int
+		wantRedeploy bool
+	}{
+		{
+			name:         "deadline_days changed",
+			storedDays:   optjson.SetInt(14),
+			payloadDays:  optjson.SetInt(21),
+			wantSaved:    21,
+			wantRedeploy: true,
+		},
+		{
+			name:         "deadline_days set from unset",
+			storedDays:   optjson.Int{},
+			payloadDays:  optjson.SetInt(14),
+			wantSaved:    14,
+			wantRedeploy: true,
+		},
+		{
+			name:         "deadline_days unchanged",
+			storedDays:   optjson.SetInt(14),
+			payloadDays:  optjson.SetInt(14),
+			wantSaved:    14,
+			wantRedeploy: false,
+		},
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotActivities []fleet.ActivityDetails
+			mockSvc := &svcmock.Service{}
+			mockSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, a fleet.ActivityDetails) error {
+				gotActivities = append(gotActivities, a)
+				return nil
+			}
+
+			ds := new(mock.Store)
+			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+			}
+			ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+				return &fleet.Team{ID: tid, Name: "team-1", Config: fleet.TeamConfig{
+					MDM: fleet.TeamMDM{
+						MacOSUpdates: fleet.AppleOSUpdateSettings{
+							MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+							DeadlineDays:   tc.storedDays,
+						},
+					},
+				}}, nil
+			}
+			var savedTeam *fleet.Team
+			ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+				savedTeam = team
+				return team, nil
+			}
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(_ context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
+			ds.LabelIDsByNameFunc = func(_ context.Context, names []string, _ fleet.TeamFilter) (map[string]uint, error) {
+				ids := make(map[string]uint, len(names))
+				for i, name := range names {
+					ids[name] = uint(i + 1) //nolint:gosec
+				}
+				return ids, nil
+			}
+			var gotDecl *fleet.MDMAppleDeclaration
+			var gotVars []fleet.FleetVarName
+			ds.SetOrUpdateMDMAppleDeclarationFunc = func(_ context.Context, decl *fleet.MDMAppleDeclaration,
+				usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction,
+			) (*fleet.MDMAppleDeclaration, error) {
+				gotDecl = decl
+				gotVars = usesFleetVars
+				decl.DeclarationUUID = "decl-uuid"
+				return decl, nil
+			}
+
+			svc := &Service{
+				Service: mockSvc,
+				ds:      ds,
+				config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+				authz:   authorizer,
+			}
+
+			payload := fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+				MacOSUpdates: &fleet.AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+					DeadlineDays:   tc.payloadDays,
+				},
+			}}
+			team, err := svc.ModifyTeam(ctx, 1, payload)
+			require.NoError(t, err)
+			require.NotNil(t, team)
+
+			// The outer Set guard also controls whether the value is stored at all.
+			require.NotNil(t, savedTeam)
+			require.Equal(t, tc.wantSaved, savedTeam.Config.MDM.MacOSUpdates.DeadlineDays.Value)
+
+			require.Equal(t, tc.wantRedeploy, ds.SetOrUpdateMDMAppleDeclarationFuncInvoked,
+				"declaration regeneration must follow the change detection")
+			if tc.wantRedeploy {
+				require.NotNil(t, gotDecl)
+				require.Contains(t, string(gotDecl.RawJSON), "$FLEET_VAR_HOST_TARGET_OS_VERSION")
+				require.Len(t, gotVars, 2)
+			}
+
+			// The activity feed renders "updated macOS version to latest" from
+			// minimum_version, so the payload has to carry the sentinel through.
+			// Deadline stays empty in latest mode, which is what makes the
+			// renderer drop its "(deadline: ...)" clause.
+			var osUpdateActivities []fleet.ActivityTypeEditedMacOSMinVersion
+			for _, a := range gotActivities {
+				if edited, ok := a.(fleet.ActivityTypeEditedMacOSMinVersion); ok {
+					osUpdateActivities = append(osUpdateActivities, edited)
+				}
+			}
+			if !tc.wantRedeploy {
+				require.Empty(t, osUpdateActivities, "an unchanged setting must not emit an activity")
+				return
+			}
+			require.Len(t, osUpdateActivities, 1)
+			require.Equal(t, fleet.AppleOSUpdateLatestVersion, osUpdateActivities[0].MinimumVersion)
+			require.Empty(t, osUpdateActivities[0].Deadline)
+			require.NotNil(t, osUpdateActivities[0].TeamID)
+			require.Equal(t, uint(1), *osUpdateActivities[0].TeamID)
+		})
+	}
+}
+
+// ModifyTeam validates the incoming payload and then replaces the whole
+// AppleOSUpdateSettings struct, so a stored deadline field can't leak into the
+// validated value. ModifyAppConfig merges the payload over the stored config
+// instead, which is why it needed clearStaleAppleOSUpdateDeadline and this
+// doesn't. These cases lock that in for both directions: a sparse PATCH that
+// switches mode must succeed and must not persist the outgoing mode's deadline.
+func TestModifyTeamSwitchingOSUpdateModes(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	storedLatest := fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+		DeadlineDays:   optjson.SetInt(14),
+	}
+
+	setup := func(t *testing.T, stored fleet.AppleOSUpdateSettings) (*Service, func() *fleet.Team) {
+		// ModifyTeam checks minimum_version against GDMF, so serve Apple's asset
+		// list from the local fixture rather than reaching out to Apple.
+		mdmtest.StartNewAppleGDMFTestServer(t)
+
+		mockSvc := &svcmock.Service{}
+		mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+			return nil
+		}
+
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: tid, Name: "team-1", Config: fleet.TeamConfig{
+				MDM: fleet.TeamMDM{MacOSUpdates: stored},
+			}}, nil
+		}
+		var savedTeam *fleet.Team
+		ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+			savedTeam = team
+			return team, nil
+		}
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(context.Context, uint) (bool, error) {
+			return false, nil
+		}
+		ds.LabelIDsByNameFunc = func(_ context.Context, names []string, _ fleet.TeamFilter) (map[string]uint, error) {
+			ids := make(map[string]uint, len(names))
+			for i, name := range names {
+				ids[name] = uint(i + 1) //nolint:gosec // G115: small test values
+			}
+			return ids, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(_ context.Context, decl *fleet.MDMAppleDeclaration,
+			_ []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction,
+		) (*fleet.MDMAppleDeclaration, error) {
+			decl.DeclarationUUID = "decl-uuid"
+			return decl, nil
+		}
+		ds.DeleteMDMAppleDeclarationByNameFunc = func(context.Context, *uint, string) error {
+			return nil
+		}
+
+		return &Service{
+			Service: mockSvc,
+			ds:      ds,
+			config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+			authz:   authorizer,
+		}, func() *fleet.Team { return savedTeam }
+	}
+
+	t.Run("switching to a specific version", func(t *testing.T) {
+		svc, saved := setup(t, storedLatest)
+
+		// deadline_days is deliberately absent, as a sparse PATCH would leave it.
+		_, err := svc.ModifyTeam(ctx, 1, fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("14.6.1"),
+				Deadline:       optjson.SetString("2026-09-01"),
+			},
+		}})
+		require.NoError(t, err)
+
+		require.NotNil(t, saved())
+		require.Equal(t, "14.6.1", saved().Config.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.False(t, saved().Config.MDM.MacOSUpdates.DeadlineDays.Valid,
+			"the stored deadline_days must not survive the mode change")
+	})
+
+	t.Run("clearing enforcement entirely", func(t *testing.T) {
+		svc, saved := setup(t, storedLatest)
+
+		_, err := svc.ModifyTeam(ctx, 1, fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(""),
+				Deadline:       optjson.SetString(""),
+			},
+		}})
+		require.NoError(t, err)
+
+		require.NotNil(t, saved())
+		require.Empty(t, saved().Config.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.False(t, saved().Config.MDM.MacOSUpdates.DeadlineDays.Valid)
+	})
+
+	t.Run("switching into latest mode from a specific version", func(t *testing.T) {
+		// the mirror direction: a stored deadline is the stale field here, and the
+		// wholesale replace has to drop it just the same.
+		svc, saved := setup(t, fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("14.6.1"),
+			Deadline:       optjson.SetString("2026-09-01"),
+		})
+
+		// deadline is deliberately absent, as a sparse PATCH would leave it.
+		_, err := svc.ModifyTeam(ctx, 1, fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(14),
+			},
+		}})
+		require.NoError(t, err)
+
+		require.NotNil(t, saved())
+		require.Equal(t, fleet.AppleOSUpdateLatestVersion, saved().Config.MDM.MacOSUpdates.MinimumVersion.Value)
+		require.Equal(t, 14, saved().Config.MDM.MacOSUpdates.DeadlineDays.Value)
+		require.Empty(t, saved().Config.MDM.MacOSUpdates.Deadline.Value,
+			"the stored deadline must not survive the mode change")
+	})
+}
+
+func TestApplyTeamSpecsOSUpdatesValidation(t *testing.T) {
+	// GitOps applies team settings through editTeamFromSpec, which validates each
+	// Apple platform's OS update settings. All three must reject invalid settings,
+	// keyed by the platform that is at fault.
+	latest := func(days optjson.Int) fleet.AppleOSUpdateSettings {
+		return fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+			DeadlineDays:   days,
+		}
+	}
+	valid := latest(optjson.SetInt(14))
+	missingDays := latest(optjson.Int{})
+
+	testCases := []struct {
+		name    string
+		mdm     fleet.TeamSpecMDM
+		wantErr string
+	}{
+		{
+			name: "all platforms valid",
+			mdm:  fleet.TeamSpecMDM{MacOSUpdates: valid, IOSUpdates: valid, IPadOSUpdates: valid},
+		},
+		{
+			name:    "macos missing deadline_days",
+			mdm:     fleet.TeamSpecMDM{MacOSUpdates: missingDays},
+			wantErr: "macos_updates",
+		},
+		{
+			name:    "ios missing deadline_days",
+			mdm:     fleet.TeamSpecMDM{IOSUpdates: missingDays},
+			wantErr: "ios_updates",
+		},
+		{
+			name:    "ipados missing deadline_days",
+			mdm:     fleet.TeamSpecMDM{IPadOSUpdates: missingDays},
+			wantErr: "ipados_updates",
+		},
+		{
+			name:    "macos deadline with latest",
+			mdm:     fleet.TeamSpecMDM{MacOSUpdates: fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion), Deadline: optjson.SetString("2026-09-01"), DeadlineDays: optjson.SetInt(14)}},
+			wantErr: "macos_updates",
+		},
+		{
+			// Not a "latest" case: a half-configured block was accepted before iOS
+			// was validated here, then enforced nothing because Configured() needs
+			// both fields. Existing fleet files like this now fail the apply.
+			name:    "ios version without deadline",
+			mdm:     fleet.TeamSpecMDM{IOSUpdates: fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("17.5")}},
+			wantErr: "ios_updates",
+		},
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockSvc := &svcmock.Service{}
+			mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+				return nil
+			}
+
+			ds := new(mock.Store)
+			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+			}
+			ds.TeamByNameFunc = func(_ context.Context, name string) (*fleet.Team, error) {
+				return &fleet.Team{ID: 1, Name: name}, nil
+			}
+			ds.TeamConflictsWithNameFunc = func(context.Context, string, uint) (*fleet.Team, error) {
+				return nil, nil
+			}
+			ds.IsEnrollSecretAvailableFunc = func(context.Context, string, bool, *uint) (bool, error) {
+				return true, nil
+			}
+			ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+				return team, nil
+			}
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(context.Context, uint) (bool, error) {
+				return false, nil
+			}
+			ds.LabelIDsByNameFunc = func(_ context.Context, names []string, _ fleet.TeamFilter) (map[string]uint, error) {
+				ids := make(map[string]uint, len(names))
+				for i, name := range names {
+					ids[name] = uint(i + 1) //nolint:gosec
+				}
+				return ids, nil
+			}
+			ds.SetOrUpdateMDMAppleDeclarationFunc = func(_ context.Context, decl *fleet.MDMAppleDeclaration,
+				_ []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction,
+			) (*fleet.MDMAppleDeclaration, error) {
+				decl.DeclarationUUID = "decl-uuid"
+				return decl, nil
+			}
+
+			svc := &Service{
+				Service: mockSvc,
+				ds:      ds,
+				config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+				authz:   authorizer,
+			}
+
+			_, err := svc.ApplyTeamSpecs(ctx,
+				[]*fleet.TeamSpec{{Name: "team-1", MDM: tc.mdm}},
+				fleet.ApplyTeamSpecOptions{})
+
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.ErrorContains(t, err, tc.wantErr,
+				"the error must name the platform whose settings are invalid")
+			require.False(t, ds.SaveTeamFuncInvoked, "an invalid spec must not be persisted")
 		})
 	}
 }

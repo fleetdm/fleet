@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.2",
+      "version": "2026.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rustrover';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rustrover' AND version_compare(bundle_short_version, '2026.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rustrover' AND version_compare(bundle_short_version, '2026.2.1') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/rustrover/RustRover-2026.2-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/rustrover/RustRover-2026.2.1-aarch64.dmg",
       "install_script_ref": "60ccf7c0",
       "uninstall_script_ref": "ae06496f",
-      "sha256": "fdc76f5dfd2a617c60222fae87d3ba23428800e57b67b410fa5579636c54372d",
+      "sha256": "bf3ec363e0608cb608044e4a50227b02e66d313a6912e1e671324e393f849513",
       "default_categories": [
         "Developer tools"
       ]

@@ -37,6 +37,10 @@ type commonFileStore struct {
 	fileLabel  string // how to call the file in error messages
 }
 
+// isGCS reports whether the endpoint targets Google Cloud Storage. The loose
+// substring match is deliberate: the GCS workarounds it gates must also apply to
+// the local mock servers in the tests. Presigning is separate and validates the
+// hostname strictly in ValidateSoftwareInstallersSignedURL.
 func isGCS(endpointURL string) bool {
 	return strings.Contains(endpointURL, "storage.googleapis.com")
 }
@@ -190,19 +194,36 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 }
 
 func (s *commonFileStore) Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
-	if s.cloudFrontConfig == nil {
-		return "", ctxerr.Wrapf(ctx, fleet.ErrNotConfigured, "signing %s URL in S3 store", s.fileLabel)
+	// Preferred: CloudFront signed URL (AWS), when configured.
+	if s.cloudFrontConfig != nil {
+		urlToAccess, err := url.JoinPath(s.cloudFrontConfig.BaseURL, s.keyForFile(fileID))
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "building URL for %s with ID %s in S3 store", s.fileLabel, fileID)
+		}
+		signer := sign.NewURLSigner(s.cloudFrontConfig.SigningPublicKeyID, s.cloudFrontConfig.Signer)
+		signedURL, err := signer.Sign(urlToAccess, time.Now().Add(expiresIn))
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "signing %s URL %s in S3 store", s.fileLabel, urlToAccess)
+		}
+		return signedURL, nil
 	}
-	urlToAccess, err := url.JoinPath(s.cloudFrontConfig.BaseURL, s.keyForFile(fileID))
-	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "building URL for %s  with ID %s in S3 store", s.fileLabel, fileID)
+
+	// GCS: hand out a presigned GET URL generated with this store's own
+	// client/credentials, so clients download directly from the bucket instead
+	// of proxying the bytes through Fleet.
+	if s.signedURL {
+		key := s.keyForFile(fileID)
+		req, err := s.presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+			Bucket: &s.bucket,
+			Key:    &key,
+		}, s3.WithPresignExpires(expiresIn))
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "presigning %s URL in S3 store", s.fileLabel)
+		}
+		return req.URL, nil
 	}
-	signer := sign.NewURLSigner(s.cloudFrontConfig.SigningPublicKeyID, s.cloudFrontConfig.Signer)
-	signedURL, err := signer.Sign(urlToAccess, time.Now().Add(expiresIn))
-	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "signing %s URL %s in S3 store", s.fileLabel, urlToAccess)
-	}
-	return signedURL, nil
+
+	return "", ctxerr.Wrapf(ctx, fleet.ErrNotConfigured, "signing %s URL in S3 store", s.fileLabel)
 }
 
 // keyForFile builds an S3 key to identify the file.

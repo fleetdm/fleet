@@ -4,7 +4,7 @@
 <meta name="authorFullName" value="">
 <meta name="authorGitHubUsername" value="">
 <meta name="publishedOn" value="YYYY-MM-DD">
-<meta name="description" value="">
+<meta name="description" value="[1-2 sentences. 150 chars max, enforced by the website build. Factual, benefit-driven, no filler.]">
 
 # Title (sentence case, outcome-led)
 

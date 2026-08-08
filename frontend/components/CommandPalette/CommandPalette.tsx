@@ -224,6 +224,12 @@ const CommandPalette = (): JSX.Element | null => {
   // current one — they'd land on Reports and see no button.
   const canManageReportAutomations = isGlobalAdmin || isTeamAdmin;
 
+  // Host activity automations: per-fleet setting on the Hosts page, admin
+  // only (mirrors ManageHostsPage's canManageHostActivityAutomations). The
+  // destination opens the modal from `?manage_automations=1` and re-checks
+  // the same gate.
+  const canManageHostActivityAutomations = isGlobalAdmin || isTeamAdmin;
+
   const canAccessSettings = isGlobalAdmin;
 
   // Whether a specific team is selected (not "All teams")
@@ -430,6 +436,7 @@ const CommandPalette = (): JSX.Element | null => {
         canManagePolicyAutomations,
         canManageSoftwareAutomations,
         canManageReportAutomations,
+        canManageHostActivityAutomations,
         canEditCustomVariable,
         canAddSoftware,
         isAdminOrMaintainer,
@@ -467,6 +474,7 @@ const CommandPalette = (): JSX.Element | null => {
       canManagePolicyAutomations,
       canManageSoftwareAutomations,
       canManageReportAutomations,
+      canManageHostActivityAutomations,
       canEditCustomVariable,
       canAddSoftware,
       isAdminOrMaintainer,

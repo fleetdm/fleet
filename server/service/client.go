@@ -471,6 +471,18 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 			}
 			extByName[name] = ext
 
+			var activationContents []byte
+			if profile.Activation != "" {
+				if platform != "macos" || ext != ".json" {
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg,
+						"activation is only supported for declaration (DDM) profiles.")
+				}
+				activationContents, err = os.ReadFile(resolveApplyRelativePath(baseDir, profile.Activation))
+				if err != nil {
+					return nil, fmt.Errorf("%s: reading activation: %w", prefixErrMsg, err)
+				}
+			}
+
 			result = append(result, fleet.MDMProfileBatchPayload{
 				Name:             name,
 				Contents:         fileContents,
@@ -478,6 +490,7 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 				LabelsIncludeAll: profile.LabelsIncludeAll,
 				LabelsIncludeAny: profile.LabelsIncludeAny,
 				LabelsExcludeAny: profile.LabelsExcludeAny,
+				Activation:       activationContents,
 			})
 
 		}
@@ -2571,6 +2584,15 @@ func (c *Client) DoGitOps(
 			failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"] = false
 		}
 
+		hostActivitiesWebhook, ok := webhookSettings.(map[string]any)["host_activities_webhook"]
+		if !ok || hostActivitiesWebhook == nil {
+			hostActivitiesWebhook = map[string]any{}
+			webhookSettings.(map[string]any)["host_activities_webhook"] = hostActivitiesWebhook
+		}
+		if _, ok := hostActivitiesWebhook.(map[string]any)["enable_host_activities_webhook"]; !ok {
+			hostActivitiesWebhook.(map[string]any)["enable_host_activities_webhook"] = false
+		}
+
 		team["webhook_settings"] = webhookSettings
 
 		// Features
@@ -2666,6 +2688,12 @@ func (c *Client) DoGitOps(
 		if deadline, ok := macOSUpdates["deadline"]; !ok || deadline == nil {
 			macOSUpdates["deadline"] = ""
 		}
+		// Send an explicit null when the file omits deadline_days, otherwise the
+		// PATCH would leave a previously stored value in place and the YAML would
+		// stop being the source of truth.
+		if _, ok := macOSUpdates["deadline_days"]; !ok {
+			macOSUpdates["deadline_days"] = nil
+		}
 
 		// When update_new_hosts isn't explicitly set, derive it from whether OS updates
 		// are configured: default to true when both minimum_version and deadline are set
@@ -2673,7 +2701,13 @@ func (c *Client) DoGitOps(
 		// updates aren't configured prevents a previously stored "true" from sticking
 		// around once minimum_version/deadline are cleared.
 		if macOSUpdates["update_new_hosts"] == nil {
-			macOSUpdates["update_new_hosts"] = macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != ""
+			// "latest" mode has no deadline — deadline_days replaces it — so the
+			// deadline check alone would read as "not configured" and silently
+			// leave new hosts unenforced.
+			enforcingLatest := macOSUpdates["minimum_version"] == fleet.AppleOSUpdateLatestVersion &&
+				macOSUpdates["deadline_days"] != nil
+			macOSUpdates["update_new_hosts"] = enforcingLatest ||
+				(macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "")
 		}
 
 		// Put in default values for ios_updates
@@ -2688,6 +2722,9 @@ func (c *Client) DoGitOps(
 		}
 		if deadline, ok := iOSUpdates["deadline"]; !ok || deadline == nil {
 			iOSUpdates["deadline"] = ""
+		}
+		if _, ok := iOSUpdates["deadline_days"]; !ok {
+			iOSUpdates["deadline_days"] = nil
 		}
 		// update_new_hosts is only used for macOS so ignore any values posted for iOS
 		iOSUpdates["update_new_hosts"] = nil
@@ -2704,6 +2741,9 @@ func (c *Client) DoGitOps(
 		}
 		if deadline, ok := iPadOSUpdates["deadline"]; !ok || deadline == nil {
 			iPadOSUpdates["deadline"] = ""
+		}
+		if _, ok := iPadOSUpdates["deadline_days"]; !ok {
+			iPadOSUpdates["deadline_days"] = nil
 		}
 		// update_new_hosts is only used for macOS so ignore any values posted for iPadOS
 		iPadOSUpdates["update_new_hosts"] = nil
@@ -3189,6 +3229,27 @@ func extractFailingPoliciesWebhook(webhookSettings interface{}) fleet.FailingPol
 	return ws.FailingPoliciesWebhook
 }
 
+func extractHostActivitiesWebhook(webhookSettings any) *fleet.HostActivitiesWebhookSettings {
+	disabled := &fleet.HostActivitiesWebhookSettings{Enable: false}
+
+	jsonBytes, err := json.Marshal(webhookSettings)
+	if err != nil {
+		return disabled
+	}
+
+	var ws struct {
+		HostActivitiesWebhook *fleet.HostActivitiesWebhookSettings `json:"host_activities_webhook"`
+	}
+	if err := json.Unmarshal(jsonBytes, &ws); err != nil {
+		return disabled
+	}
+	if ws.HostActivitiesWebhook == nil {
+		return disabled
+	}
+
+	return ws.HostActivitiesWebhook
+}
+
 func (c *Client) doGitOpsNoTeamWebhookSettings(
 	config *spec.GitOps,
 	appCfg *fleet.EnrichedAppConfig,
@@ -3201,10 +3262,13 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	}
 
 	// Apply webhook settings for "No Team"
-	// If webhook_settings are not specified, they will be applied as nil to clear existing settings
+	// If webhook_settings are not specified, they will be applied as disabled to clear existing settings
 	teamPayload := fleet.TeamPayload{
 		WebhookSettings: &fleet.TeamWebhookSettings{
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable: false,
+			},
+			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 				Enable: false,
 			},
 		},
@@ -3215,6 +3279,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
 			fpw := extractFailingPoliciesWebhook(webhookSettings)
 			teamPayload.WebhookSettings.FailingPoliciesWebhook = fpw
+			teamPayload.WebhookSettings.HostActivitiesWebhook = extractHostActivitiesWebhook(webhookSettings)
 		}
 	}
 

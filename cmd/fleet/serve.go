@@ -219,7 +219,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		platform_logging.DisableTopic(topic)
 	}
 
-	if dev_mode.IsEnabled {
+	if dev_mode.IsEnabled && useS3DevConfig() {
 		createTestBuckets(cmd.Context(), &config, logger)
 	}
 
@@ -532,6 +532,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			}
 			// Extract the CloudFront URL signer before creating the S3 stores.
 			config.S3.ValidateCloudFrontURL(initFatal)
+			config.S3.ValidateSoftwareInstallersSignedURL(initFatal)
 			if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
 				// Strip newlines from private key
 				signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
@@ -1388,6 +1389,12 @@ var _ push.Pusher = nopPusher{}
 // Push implements push.Pusher.
 func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, error) {
 	return nil, nil
+}
+
+// useS3DevConfig determines usage of local S3 test buckets for software and carve storage.
+// By default, they are allowed unless explicitly disabled by setting FLEET_DEV_SKIP_S3_CONFIG to "1".
+func useS3DevConfig() bool {
+	return dev_mode.Env("FLEET_DEV_SKIP_S3_CONFIG") != "1"
 }
 
 func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logger *slog.Logger) {
