@@ -77,6 +77,14 @@ type Stats struct {
 	pssoKeyExchanges               int
 	pssoErrors                     int
 
+	// ETag / conditional config stats
+	configFullResponses       int64
+	configNotModified         int64
+	configConditionalRequests int64
+	configResponseBodyBytes   int64
+	configEstimatedSavedBytes int64
+	configETagDrift           int64
+
 	l sync.Mutex
 }
 
@@ -481,6 +489,67 @@ func (s *Stats) IncrementPSSOErrors() {
 	s.pssoErrors++
 }
 
+func (s *Stats) RecordFullConfigResponse(bodyBytes int64, conditional bool) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configFullResponses++
+	s.configResponseBodyBytes += bodyBytes
+	if conditional {
+		s.configConditionalRequests++
+	}
+}
+
+func (s *Stats) RecordConfigNotModified(lastBodyBytes int64) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configNotModified++
+	s.configConditionalRequests++
+	s.configEstimatedSavedBytes += lastBodyBytes
+}
+
+func (s *Stats) IncrementConfigETagDrift() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configETagDrift++
+}
+
+// Getters for ETag stats (used by tests)
+func (s *Stats) ConfigFullResponses() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configFullResponses
+}
+
+func (s *Stats) ConfigNotModified() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configNotModified
+}
+
+func (s *Stats) ConfigConditionalRequests() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configConditionalRequests
+}
+
+func (s *Stats) ConfigResponseBodyBytes() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configResponseBodyBytes
+}
+
+func (s *Stats) ConfigEstimatedSavedBytes() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configEstimatedSavedBytes
+}
+
+func (s *Stats) ConfigETagDrift() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configETagDrift
+}
+
 func (s *Stats) Log() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -488,6 +557,13 @@ func (s *Stats) Log() {
 	var errorRate float64
 	if s.osqueryEnrollments > 0 {
 		errorRate = float64(s.errors) / float64(s.osqueryEnrollments)
+	}
+
+	// Calculate estimated config body savings percentage
+	var configSavingsPct float64
+	baseline := s.configResponseBodyBytes + s.configEstimatedSavedBytes
+	if baseline > 0 {
+		configSavingsPct = float64(s.configEstimatedSavedBytes) / float64(baseline) * 100.0
 	}
 
 	var b strings.Builder
@@ -542,8 +618,18 @@ func (s *Stats) Log() {
 
 	fmt.Fprintf(&b, "    android:             enrolls=%d status reports=%d command acks=%d cert verifications=%d errors=%d\n",
 		s.androidEnrollments, s.androidStatusReports, s.androidCommandAcks, s.androidCertVerifications, s.androidErrors)
-	fmt.Fprintf(&b, "    psso:                registrations=%d logins=%d key requests=%d key exchanges=%d errors=%d",
+	fmt.Fprintf(&b, "    psso:                registrations=%d logins=%d key requests=%d key exchanges=%d errors=%d\n",
 		s.pssoRegistrations, s.pssoLogins, s.pssoKeyRequests, s.pssoKeyExchanges, s.pssoErrors)
+
+	// --- Config ETag (conditional config requests) ----------------------------
+	b.WriteString("  [Config ETag]\n")
+	fmt.Fprintf(&b, "    full responses:      %d\n", s.configFullResponses)
+	fmt.Fprintf(&b, "    not-modified:        %d\n", s.configNotModified)
+	fmt.Fprintf(&b, "    conditional reqs:    %d\n", s.configConditionalRequests)
+	fmt.Fprintf(&b, "    body bytes:          %d\n", s.configResponseBodyBytes)
+	fmt.Fprintf(&b, "    bytes avoided:       %d\n", s.configEstimatedSavedBytes)
+	fmt.Fprintf(&b, "    savings pct:         %.1f\n", configSavingsPct)
+	fmt.Fprintf(&b, "    etag drift:          %d", s.configETagDrift)
 
 	log.Print(b.String())
 }
