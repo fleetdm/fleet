@@ -24,6 +24,13 @@ exported `Columns()`/`Generate()` wrappers used to register the table in
 
 - **Lint compliance** with Fleet's linters (set types, modernize idioms,
   defensive nil guards); all behavior-preserving.
+- **Windows app detection** rewritten for a daemon running as SYSTEM, where
+  upstream's `HKEY_CURRENT_USER` read resolves to SYSTEM's own empty hive and
+  finds nothing: the apps collector walks real users' loaded hives under
+  `HKEY_USERS` for per-user uninstall entries, and additionally scans the
+  MSIX/Appx install root and per-user package directories, which no uninstall
+  key covers and which are read redundantly so that one being unreadable still
+  yields a row.
 - **Security hardening** for running in-process in the root/SYSTEM orbit daemon:
   regular-file-only reads that never follow symlinks or block on FIFOs/devices
   (`internal/fsutil`), path-traversal containment for attacker-controlled
