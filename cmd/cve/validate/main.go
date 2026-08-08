@@ -1,7 +1,9 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/osv"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 )
 
@@ -32,6 +35,7 @@ func main() {
 	vulnPath := *dbDir
 	checkNVDVulnerabilities(vulnPath, logger)
 	checkGovalDictionaryVulnerabilities(vulnPath)
+	checkOSVVulnerabilities(vulnPath, logger)
 }
 
 func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
@@ -139,6 +143,93 @@ func checkGovalDictionaryVulnerabilities(vulnPath string) {
 		if err != nil {
 			panic(fmt.Sprintf("failed to move file from %s/%s to %s/%s: %v", vulnPath, destFilename, vulnPath, filename, err))
 		}
+	}
+}
+
+func checkOSVVulnerabilities(vulnPath string, logger *slog.Logger) {
+	entries, err := os.ReadDir(vulnPath)
+	if err != nil {
+		panic(fmt.Sprintf("failed to read vuln path for OSV validation: %v", err))
+	}
+
+	var osvFiles []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, osv.OSVFilePrefix) && strings.HasSuffix(name, ".json.gz") && !strings.Contains(name, "delta") {
+			osvFiles = append(osvFiles, name)
+		}
+	}
+
+	if len(osvFiles) == 0 {
+		logger.Warn("no OSV artifact files found in vuln path, skipping OSV validation")
+		return
+	}
+
+	logger.Info("validating OSV artifacts", "count", len(osvFiles))
+
+	for _, fileName := range osvFiles {
+		filePath := filepath.Join(vulnPath, fileName)
+
+		f, err := os.Open(filePath)
+		if err != nil {
+			panic(fmt.Sprintf("failed to open OSV artifact %s: %v", fileName, err))
+		}
+
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			f.Close()
+			panic(fmt.Sprintf("failed to create gzip reader for %s: %v", fileName, err))
+		}
+
+		var artifact osv.OSVArtifact
+		if err := json.NewDecoder(gz).Decode(&artifact); err != nil {
+			gz.Close()
+			f.Close()
+			panic(fmt.Sprintf("failed to decode OSV artifact %s: %v", fileName, err))
+		}
+		gz.Close()
+		f.Close()
+
+		// Validate required fields
+		if artifact.SchemaVersion == "" {
+			panic(fmt.Sprintf("OSV artifact %s has empty schema_version", fileName))
+		}
+		if artifact.UbuntuVersion == "" {
+			panic(fmt.Sprintf("OSV artifact %s has empty ubuntu_version", fileName))
+		}
+		if artifact.TotalCVEs == 0 {
+			panic(fmt.Sprintf("OSV artifact %s has zero total_cves", fileName))
+		}
+		if artifact.TotalPackages == 0 {
+			panic(fmt.Sprintf("OSV artifact %s has zero total_packages", fileName))
+		}
+		if len(artifact.Vulnerabilities) == 0 {
+			panic(fmt.Sprintf("OSV artifact %s has empty vulnerabilities map", fileName))
+		}
+
+		// Validate that at least one vulnerability entry has a CVE
+		foundCVE := false
+		for _, vulns := range artifact.Vulnerabilities {
+			for _, v := range vulns {
+				if strings.HasPrefix(v.CVE, "CVE-") {
+					foundCVE = true
+					break
+				}
+			}
+			if foundCVE {
+				break
+			}
+		}
+		if !foundCVE {
+			panic(fmt.Sprintf("OSV artifact %s has no entries with valid CVE identifiers", fileName))
+		}
+
+		logger.Info("OSV artifact validated",
+			"file", fileName,
+			"ubuntu_version", artifact.UbuntuVersion,
+			"total_cves", artifact.TotalCVEs,
+			"total_packages", artifact.TotalPackages,
+		)
 	}
 }
 
