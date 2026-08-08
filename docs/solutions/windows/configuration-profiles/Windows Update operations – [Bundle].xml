@@ -1,0 +1,192 @@
+<Replace>
+  <!-- WU-OPS-001 AllowMUUpdateService (value 1 = allow) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/AllowMUUpdateService</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-002 ExcludeWUDriversInQualityUpdate (value 1 = exclude) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ExcludeWUDriversInQualityUpdate</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-003 ConfigureDeadlineGracePeriod (value 2 = 2 days) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineGracePeriod</LocURI>
+    </Target>
+    <Data>2</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-004 ConfigureDeadlineForQualityUpdates (value 5 = 5 days) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForQualityUpdates</LocURI>
+    </Target>
+    <Data>5</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-005 ConfigureDeadlineNoAutoRebootForQualityUpdates (value 1 = disable auto-reboot) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForQualityUpdates</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-006 ConfigureDeadlineForFeatureUpdates (value 5 = 5 days) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForFeatureUpdates</LocURI>
+    </Target>
+    <Data>5</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-007 ConfigureDeadlineNoAutoRebootForFeatureUpdates (value 1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-008 ConfigureFeatureUpdateUninstallPeriod (value 10 = 10 days) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureFeatureUpdateUninstallPeriod</LocURI>
+    </Target>
+    <Data>10</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-009 TargetReleaseVersion (value 1 = enable) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/TargetReleaseVersion</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-010 ProductVersion (value "Windows 11") -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ProductVersion</LocURI>
+    </Target>
+    <Data>Windows 11</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-013 AutoRestartNotificationSchedule (value 15 = 15 min warning) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/AutoRestartNotificationSchedule</LocURI>
+    </Target>
+    <Data>15</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-014 DetectionFrequency (value 22 = 22 hours) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/DetectionFrequency</LocURI>
+    </Target>
+    <Data>22</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-015 ScheduledInstallTime (value 3 = 3:00 AM) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ScheduledInstallTime</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-016 SetActiveHours (value 1 = enable active hours) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/SetActiveHours</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-017 ActiveHoursStart (value 8 = 8:00 AM) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursStart</LocURI>
+    </Target>
+    <Data>8</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- WU-OPS-018 ActiveHoursEnd (value 17 = 5:00 PM) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursEnd</LocURI>
+    </Target>
+    <Data>17</Data>
+  </Item>
+</Replace>
