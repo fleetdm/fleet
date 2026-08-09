@@ -8097,6 +8097,14 @@ func (ds *Datastore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID s
 			return ctxerr.Wrap(ctx, err, "restore builtin label memberships for mdm reset", "host_uuid", hostUUID)
 		}
 
+		// Reset label_updated_at to the "never" sentinel (2000-01-01 UTC) so the
+		// exclude-any dynamic-label guard treats the cleared memberships as
+		// not-yet-reported instead of trusting them until the next label report.
+		if _, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id = ?`,
+			common_mysql.GetDefaultNonZeroTime(), host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset label_updated_at for mdm reset", "host_uuid", hostUUID)
+		}
+
 		// Clear the PSSO registration (keys cascade) so an ADE re-enrollment
 		// starts from fresh device keys.
 		if _, err := tx.ExecContext(ctx, "DELETE FROM mdm_apple_psso_devices WHERE host_uuid = ?", hostUUID); err != nil {
