@@ -1,13 +1,13 @@
 {
   "versions": [
     {
-      "version": "2.10.2",
+      "version": "3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.shinystone.OKJSON';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.shinystone.OKJSON' AND version_compare(bundle_short_version, '2.10.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.shinystone.OKJSON' AND version_compare(bundle_short_version, '3.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'net.shinystone.OKJSON');"
       },
-      "installer_url": "https://okjson.app/download/okjson-latest.zip",
+      "installer_url": "https://okjson.app/download/okjson-latest.dmg",
       "install_script_ref": "4f7c5083",
       "uninstall_script_ref": "d7538dde",
       "sha256": "no_check",
