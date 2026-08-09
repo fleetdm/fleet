@@ -1506,6 +1506,30 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.NotEmpty(t, payload.StorageID)
 	})
 
+	t.Run("powershell script with CRLF line endings is preserved", func(t *testing.T) {
+		// Unlike sh/py, ps1 scripts run via powershell.exe on Windows,
+		// where CRLF is the native line ending. They must not be normalized to LF.
+		scriptContents := "Write-Host 'Installing software'\r\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
+	})
+
 	t.Run("valid python script", func(t *testing.T) {
 		scriptContents := "#!/usr/bin/env python3\nprint('Installing software')\n"
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.py")

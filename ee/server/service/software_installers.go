@@ -2673,7 +2673,12 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		return ctxerr.Wrap(ctx, err, "resetting script file reader")
 	}
 
-	scriptContents := file.Dos2UnixNewlines(string(scriptBytes))
+	scriptContents := string(scriptBytes)
+	if extension != "ps1" {
+		// sh/py scripts run via the kernel's shebang mechanism (e.g. /usr/bin/env python3): stray \r breaks the interpreter lookup.
+		// ps1 runs through powershell.exe on Windows, where CRLF is the native line ending and must be preserved as-is.
+		scriptContents = file.Dos2UnixNewlines(scriptContents)
+	}
 
 	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
 		return &fleet.BadRequestError{
