@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.6.25",
+      "version": "26.8.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.meltytech.Shotcut';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.meltytech.Shotcut' AND version_compare(bundle_short_version, '26.6.25') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.meltytech.Shotcut' AND version_compare(bundle_short_version, '26.8.1') < 0);"
       },
-      "installer_url": "https://github.com/mltframework/shotcut/releases/download/v26.6.25/shotcut-macos-26.6.25.dmg",
+      "installer_url": "https://github.com/mltframework/shotcut/releases/download/v26.8.1/shotcut-macos-26.8.1.dmg",
       "install_script_ref": "569ddb04",
       "uninstall_script_ref": "7a77ca77",
-      "sha256": "630dcb251915f0ceaf9344b5fd4213cfda162ccef2ae00215bdf4de79d3e5c69",
+      "sha256": "7bab10bd96fe3590bb3ba0461d21d3022681574b324bb1c21366d5432cac5657",
       "default_categories": [
         "Developer tools"
       ]

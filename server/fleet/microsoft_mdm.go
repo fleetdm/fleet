@@ -907,6 +907,8 @@ type MDMWindowsHostConfigState struct {
 	// the orbit-config endpoint. GetOrbitConfig reads it to write-on-change; the OMA-DM management session (which has no capability header)
 	// reads it to gate poll relaxation.
 	FleetdSyncCapable bool
+	// ManagedLocalAccountEscrowed is true once the device has escrowed a managed local account password for this enrollment.
+	ManagedLocalAccountEscrowed bool
 }
 
 type MDMWindowsEnrolledDevice struct {
@@ -937,9 +939,31 @@ type MDMWindowsEnrolledDevice struct {
 	// HasPendingCommands is the denormalized pending-commands flag as loaded at session start. The management session uses it to gate the
 	// per-session refresh: when it is already false and the pending fetch is empty, the refresh is skipped so idle check-ins do zero
 	// writer-side statements.
-	HasPendingCommands bool      `db:"has_pending_commands"`
-	CreatedAt          time.Time `db:"created_at"`
-	UpdatedAt          time.Time `db:"updated_at"`
+	HasPendingCommands bool `db:"has_pending_commands"`
+	// HardwareSerial is the SMBIOS serial the device reported over OMA-DM (DevDetail), persisted while the enrollment
+	// is still unlinked so the orbit enrollment path can reverse-link it.
+	HardwareSerial *string   `db:"hardware_serial"`
+	CreatedAt      time.Time `db:"created_at"`
+	UpdatedAt      time.Time `db:"updated_at"`
+}
+
+// WindowsEnrollmentDefaultFleet is the cacheable shape of Datastore.GetWindowsEnrollmentDefaultFleet (see the cached_mysql
+// layer). Nil FleetID and empty FleetName mean no default is configured.
+type WindowsEnrollmentDefaultFleet struct {
+	FleetID   *uint
+	FleetName string
+}
+
+func (w *WindowsEnrollmentDefaultFleet) Clone() (Cloner, error) {
+	return w.Copy(), nil
+}
+
+func (w *WindowsEnrollmentDefaultFleet) Copy() *WindowsEnrollmentDefaultFleet {
+	clone := *w
+	if w.FleetID != nil {
+		clone.FleetID = new(*w.FleetID)
+	}
+	return &clone
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {

@@ -6,6 +6,35 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * ComposeTarget is one server's docker compose stack to tear down on quit:
+ * its worktree dir and compose project name.
+ */
+export class ComposeTarget {
+    "cwd": string;
+    "project": string;
+
+    /** Creates a new ComposeTarget instance. */
+    constructor($$source: Partial<ComposeTarget> = {}) {
+        if (!("cwd" in $$source)) {
+            this["cwd"] = "";
+        }
+        if (!("project" in $$source)) {
+            this["project"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ComposeTarget instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ComposeTarget {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ComposeTarget($$parsedSource as Partial<ComposeTarget>);
+    }
+}
+
+/**
  * ContainerState is one docker compose service's state.
  */
 export class ContainerState {

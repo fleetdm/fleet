@@ -44,14 +44,17 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       windows_updates:
@@ -105,14 +108,17 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       windows_updates:
@@ -167,12 +173,15 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       windows_updates:
         deadline_days: null
@@ -222,12 +231,15 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
       windows_updates:
         deadline_days: null

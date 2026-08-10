@@ -2,8 +2,6 @@
 
 This guide provides instructions for migrating devices from your current MDM solution to Fleet. There are two different workflows to migrate your devices.
 
-> For seamless MDM migration, [view this guide](https://fleetdm.com/guides/seamless-mdm-migration).
-
 > For Apple's native MDM migration support for AB-registered devices running macOS, iOS or iPadOS 26, [consult Apple's documentation](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web)
 
 ## Requirements

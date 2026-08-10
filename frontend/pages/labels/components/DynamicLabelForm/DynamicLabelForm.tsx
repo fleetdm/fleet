@@ -5,7 +5,6 @@ import { Ace } from "ace-builds";
 import { validateQuery } from "components/forms/validators/validate_query";
 import SQLEditor from "components/SQLEditor";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 
 import { LabelPlatform } from "interfaces/label";
 
@@ -86,9 +85,13 @@ const DynamicLabelForm = ({
     }
 
     return (
-      <Button variant="subdued" onClick={onOpenSidebar}>
+      <Button
+        variant="subdued"
+        onClick={onOpenSidebar}
+        icon="info"
+        iconPosition="right"
+      >
         Schema
-        <Icon name="info" size="small" />
       </Button>
     );
   };

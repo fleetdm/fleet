@@ -7,6 +7,7 @@ Shell (`.sh`) and Python (`.py`) scripts are supported on macOS and Linux.
 By default, shell scripts will run in the host's (root) shell (`/bin/sh`). To run a shell script in `/bin/zsh` or `/bin/bash`, add a shebang as the first line (for example, `#!/bin/zsh` or `#!/bin/bash`).
 
 Python scripts must start with a Python shebang as the first line (for example, `#!/usr/bin/env python3` or `#!/usr/bin/python3`).
+> Python must be installed on the target host before running `.py` scripts. If you're deploying a script-only package that uses Python, ensure Python is present (e.g., via a prerequisite software package or a shell script that installs it first).
 
 PowerShell scripts are supported on Windows. Other types of scripts are not supported yet.
 

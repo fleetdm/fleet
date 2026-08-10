@@ -61,7 +61,9 @@ If software installs fail, Fleet automatically retries. Learn more in the [setup
 To replace the Fleet logo with your organization's logo:
 
 1. Go to **Settings** > **Organization settings** > **Organization info**
+
 2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields
+
 3. Press **Save**
 
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
@@ -85,9 +87,13 @@ For Windows hosts enrolling through Autopilot or Entra OOBE, you can configure F
 To enable for a team:
 
 1. Select the team you're configuring (or **No team**) from the team dropdown.
+
 2. Go to **Controls** > **Setup experience** > **Install software**.
+
 3. Click the **Windows** tab.
+
 4. Switch on **Cancel setup if software fails**.
+
 5. Press **Save**.
 
 The setting only applies to Autopilot and Entra-join-during-OOBE enrollments. On those paths, when a setup-experience software install fails, Fleet does the following:
@@ -109,8 +115,11 @@ On Autopilot or Entra-OOBE, the device shows "Working on it..." for roughly a mi
 Add setup experience software setup experience:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **3. Install software**.
+
 2. Click on the tab corresponding to the operating system (e.g. Linux).
+
 3. Click **Add software**, then select or search for the software you want installed during the setup experience.
+
 4. Press **Save** to save your selection.
 
 Fleet also provides a API endpoints for managing setup experience software programmatically. Learn more in Fleet's [API reference](https://fleetdm.com/docs/rest-api/rest-api#update-software-setup-experience).
@@ -229,8 +238,11 @@ Restart-Computer -Force
 To run it:
 
 1. Change `StrongPassword123!` to a password your organization controls.
+
 2. Go to **Controls** > **Scripts** and upload the script, or open the host's detail page and select **Actions** > **Run script** to paste it inline.
+
 3. Run the script against the locked-out host.
+
 4. The host's orbit agent picks up the script within a few seconds and runs it as SYSTEM. The host reboots automatically as the last step.
 
 After the reboot, the device leaves the failure screen on its own and arrives at a Windows sign-in screen.

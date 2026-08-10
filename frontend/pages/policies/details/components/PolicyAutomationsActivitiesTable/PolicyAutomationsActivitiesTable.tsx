@@ -25,7 +25,6 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyState from "components/EmptyState";
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import SearchField from "components/forms/fields/SearchField";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -225,9 +224,13 @@ const PolicyAutomationsActivitiesTable = ({
           )}
           <div className={`${baseClass}__controls`}>
             {canResetPolicy && (
-              <Button variant="subdued" onClick={onClickResetPolicy}>
+              <Button
+                variant="subdued"
+                onClick={onClickResetPolicy}
+                icon="refresh"
+                iconPosition="right"
+              >
                 Reset policy
-                <Icon name="refresh" />
               </Button>
             )}
             {showControls && (
@@ -256,6 +259,13 @@ const PolicyAutomationsActivitiesTable = ({
       <TableContainer
         columnConfigs={columnConfigs}
         data={data?.activities ?? []}
+        // Each row is one (activity, host) pair, so batch automations (e.g.
+        // one webhook POST covering many hosts) return multiple rows sharing
+        // the same activity id. The default row id (row.id) would collapse
+        // them into a single rendered row.
+        getRowId={(row: IPolicyAutomationActivity) =>
+          `${row.id}-${row.host_id}`
+        }
         isLoading={isLoading}
         manualSortBy
         pageIndex={page}

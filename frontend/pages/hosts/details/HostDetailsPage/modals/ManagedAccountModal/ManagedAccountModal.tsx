@@ -10,7 +10,6 @@ import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { monthDayTimeFormat } from "utilities/date_format";
@@ -99,18 +98,19 @@ const ManagedAccountModal = ({
               value={managedAccountData?.password ?? ""}
               name="Password"
             />
-            {showPendingRotationBanner ? (
-              <InfoBanner color="yellow">
-                Password will rotate once the host acknowledges the request.
-              </InfoBanner>
-            ) : (
-              autoRotateAt && (
+            {canRotatePassword &&
+              (showPendingRotationBanner ? (
                 <InfoBanner color="yellow">
-                  Password rotates automatically after{" "}
-                  {monthDayTimeFormat(autoRotateAt)}.
+                  Password will rotate once the host acknowledges the request.
                 </InfoBanner>
-              )
-            )}
+              ) : (
+                autoRotateAt && (
+                  <InfoBanner color="yellow">
+                    Password rotates automatically after{" "}
+                    {monthDayTimeFormat(autoRotateAt)}.
+                  </InfoBanner>
+                )
+              ))}
             <div className="modal-cta-wrap">
               <Button onClick={onCancel}>Close</Button>
               {canRotatePassword && (
@@ -119,8 +119,8 @@ const ManagedAccountModal = ({
                   onClick={onRotatePassword}
                   disabled={isRotating}
                   className={`${baseClass}__rotate-button`}
+                  icon="refresh"
                 >
-                  <Icon name="refresh" />
                   {isRotating ? "Rotating..." : "Rotate password"}
                 </Button>
               )}

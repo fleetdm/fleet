@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.6.0",
+      "version": "1.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bome.network';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bome.network' AND version_compare(bundle_short_version, '1.6.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bome.network' AND version_compare(bundle_short_version, '1.7.0') < 0);"
       },
-      "installer_url": "https://download.bome.com/BomeNet1.6.0_macOS.dmg",
+      "installer_url": "https://download.bome.com/BomeNet1.7.0_macOS.dmg",
       "install_script_ref": "f614c9b5",
       "uninstall_script_ref": "647d1ff7",
-      "sha256": "24f99bdf3356bf1218c65b315ca63085d8d41cd21f73a67c374cd73acf02d959",
+      "sha256": "0c2f6d336c227f1dfcc9c6db88e8daa2de7503f3931fae0868f06630d3215ce3",
       "default_categories": [
         "Productivity"
       ]
