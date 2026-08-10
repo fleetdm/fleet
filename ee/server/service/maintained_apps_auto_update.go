@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -271,7 +270,7 @@ func downloadNewVersionIfEligible(
 		TeamID:          c.TeamID,
 		Version:         version,
 		Filename:        filename,
-		Extension:       strings.TrimLeft(filepath.Ext(filename), "."),
+		Extension:       extensionFromFilename(filename),
 		StorageID:       storageID,
 		URL:             app.InstallerURL,
 		UpgradeCode:     upgradeCode,

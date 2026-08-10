@@ -1454,6 +1454,31 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.Equal(t, "sh", payload.Extension)
 	})
 
+	// addMetadataToSoftwarePayload picks the script-package branch off the
+	// filename's extension, so an uppercase one has to route there too.
+	t.Run("uppercase extension still routes to script package", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString("#!/bin/bash\necho 'Installing software'\n")
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.SH",
+		}
+
+		ext, err := svc.addMetadataToSoftwarePayload(ctx, payload, false)
+		require.NoError(t, err)
+		require.Equal(t, "sh", ext)
+		require.Equal(t, "sh_packages", payload.Source)
+		require.Equal(t, "linux", payload.Platform)
+	})
+
 	t.Run("valid powershell script", func(t *testing.T) {
 		scriptContents := "Write-Host 'Installing software'\n"
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
@@ -1826,10 +1851,38 @@ func TestInstallerCompatibleWithHost(t *testing.T) {
 		{".deb on darwin", installer("installer.deb", "linux"), host("darwin"), false},
 		{".pkg on darwin", installer("app.pkg", "darwin"), host("darwin"), true},
 		{".pkg on ubuntu", installer("app.pkg", "darwin"), host("ubuntu"), false},
+		// uppercase filenames resolve the same as lowercase ones
+		{".EXE on windows, no stored platform", installer("setup.EXE", ""), host("windows"), true},
+		{".PKG on darwin, no stored platform", installer("app.PKG", ""), host("darwin"), true},
+		{".PY on darwin", installer("script.PY", "linux"), host("darwin"), true},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, installerCompatibleWithHost(tt.installer, tt.host))
+		})
+	}
+}
+
+func TestExtensionFromFilename(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		filename string
+		want     string
+	}{
+		{"lowercase exe", "setup.exe", "exe"},
+		{"uppercase exe", "BANDIVIEW-SETUP-X64.EXE", "exe"},
+		{"uppercase dmg", "Joplin-3.6.15-arm64.DMG", "dmg"},
+		{"mixed case msi", "Installer.MsI", "msi"},
+		{"no extension", "installer", ""},
+		{"dots in name", "Dell-Command-Update_5.7.0_A00.EXE", "exe"},
+		{"tarball gives back only the last part", "package.tar.gz", "gz"},
+		{"uppercase tarball", "PACKAGE.TAR.GZ", "gz"},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, extensionFromFilename(tt.filename))
 		})
 	}
 }
