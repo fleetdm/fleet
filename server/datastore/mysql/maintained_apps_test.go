@@ -1420,8 +1420,9 @@ func addDarwinFMAInstaller(t *testing.T, ds *Datastore, userID uint, teamID *uin
 }
 
 // testReconcileSoftwareNamesOrphanedInstaller: an installer whose title was deleted has a
-// NULL title_id. The installer-link lookup must skip it rather than fail the whole pass --
-// title_id is scanned into a non-nullable uint, so a NULL group would error out.
+// NULL title_id. The installer-link pass must skip it -- its catalog subquery filters out
+// the NULL group rather than carrying a group no title can join -- while the
+// bundle-identifier pass still applies the canonical name.
 func testReconcileSoftwareNamesOrphanedInstaller(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 

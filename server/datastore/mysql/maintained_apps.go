@@ -140,7 +140,7 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 				ID   uint   `db:"id"`
 				Name string `db:"name"`
 			}
-			if err := sqlx.SelectContext(ctx, ds.reader(primaryCtx), &rows, step.selectStmt, maintainedAppNameReconcileDiscoveryLimit); err != nil {
+			if err := sqlx.SelectContext(primaryCtx, ds.reader(primaryCtx), &rows, step.selectStmt, maintainedAppNameReconcileDiscoveryLimit); err != nil {
 				return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: find %s", step.label)
 			}
 			if len(rows) == 0 {
