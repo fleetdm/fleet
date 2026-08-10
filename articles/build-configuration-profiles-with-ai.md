@@ -322,5 +322,5 @@ WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\dev
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-08-03">
+<meta name="publishedOn" value="2026-08-10">
 <meta name="description" value="Describe a profile in a sentence and let an AI agent generate, validate, and ship it through Fleet GitOps on Apple, Windows, and Android.">
