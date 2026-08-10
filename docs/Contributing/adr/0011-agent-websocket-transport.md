@@ -298,6 +298,17 @@ Redis pub/sub is used only for live query wake-ups: the campaign is created on w
 
 The feature flag gives us full control over when and where WebSocket transport is enabled. The proposed rollout is incremental, with validation at each stage before moving to the next.
 
+### Load testing (osquery-perf)
+
+`osquery-perf` (`cmd/osquery-perf`), Fleet's host-simulation tool, only speaks the HTTP polling protocol today. Before any rollout stage, it must be extended to simulate the new transport:
+
+- Open and hold a WebSocket per simulated host, including the reconnection behavior (jitter, exponential backoff, fallback to polling).
+- Respond to server pings so keepalive and liveness handling can be exercised.
+- Act on "check now" nudges by issuing the corresponding `distributed/read` (and `distributed/write`) calls.
+- Support mixed fleets (a percentage of old polling agents alongside WebSocket agents) to simulate partial upgrades.
+
+This is what lets us validate the numbers in this ADR at scale before Dogfood: connection density per instance, thundering herd behavior on restart, nudge pacing, the interval check job, and the projected cost savings.
+
 ### Proposed rollout order
 
 **Stage 1: Dogfood.** Enable the feature flag on Fleet's internal Dogfood server. Validate stability, connection behavior, keepalive, reconnection, and fallback. This is a low-risk environment where we can observe the feature under real (but internal) usage.
