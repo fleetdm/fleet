@@ -4,7 +4,8 @@
       "version": "1.123.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Canva' AND publisher = 'Canva Pty Ltd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Canva' AND publisher = 'Canva Pty Ltd' AND version_compare(version, '1.123.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Canva' AND publisher = 'Canva Pty Ltd' AND version_compare(version, '1.123.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'canva.exe');"
       },
       "installer_url": "https://desktop-release.canva.com/Canva%20Setup%201.123.1.exe",
       "install_script_ref": "af334744",

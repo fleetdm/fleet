@@ -360,6 +360,184 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
 }
 
+// TestUninstallSoftwareTitleSelfServiceScope covers the My Device uninstall path
+// resolving its package the same way the self-service install path does, while
+// callers acting with a role keep the unscoped lookup.
+func TestUninstallSoftwareTitleSelfServiceScope(t *testing.T) {
+	t.Parallel()
+
+	const (
+		selfServiceInstallerID    = uint(1)
+		notSelfServiceInstallerID = uint(2)
+	)
+
+	deviceContext := func() context.Context {
+		authzCtx := &authz_ctx.AuthorizationContext{}
+		authzCtx.SetAuthnMethod(authz_ctx.AuthnDeviceToken)
+		return authz_ctx.NewContext(context.Background(), authzCtx)
+	}
+	adminContext := func() context.Context {
+		return viewer.NewContext(context.Background(), viewer.Viewer{
+			User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+		})
+	}
+	pkg := func(id uint, selfService bool) *fleet.SoftwareInstaller {
+		return &fleet.SoftwareInstaller{
+			InstallerID: id,
+			Name:        "installer.pkg",
+			Platform:    "darwin",
+			TeamID:      new(uint(1)),
+			SelfService: selfService,
+		}
+	}
+
+	testCases := []struct {
+		name string
+		// packages of the title, first-added first.
+		packages []*fleet.SoftwareInstaller
+		// inScope reports label scoping per installer ID; missing means in scope.
+		outOfScope map[uint]bool
+		asAdmin    bool
+
+		wantErrContains string
+		wantInstallerID uint
+	}{
+		{
+			name:            "device, self-service and in scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(selfServiceInstallerID, true)},
+			wantInstallerID: selfServiceInstallerID,
+		},
+		{
+			name:            "device, not self-service",
+			packages:        []*fleet.SoftwareInstaller{pkg(notSelfServiceInstallerID, false)},
+			wantErrContains: "not available through self-service",
+		},
+		{
+			name:            "device, self-service but out of label scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(selfServiceInstallerID, true)},
+			outOfScope:      map[uint]bool{selfServiceInstallerID: true},
+			wantErrContains: "isn't member of the labels",
+		},
+		{
+			name:            "device, not self-service and out of label scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(notSelfServiceInstallerID, false)},
+			outOfScope:      map[uint]bool{notSelfServiceInstallerID: true},
+			wantErrContains: "isn't member of the labels",
+		},
+		{
+			name:            "device, title has no packages",
+			packages:        []*fleet.SoftwareInstaller{},
+			wantErrContains: "not available for uninstall",
+		},
+		{
+			// First-added wins on the install path, so it has to win here too.
+			name: "device, several eligible packages",
+			packages: []*fleet.SoftwareInstaller{
+				pkg(selfServiceInstallerID, true),
+				pkg(notSelfServiceInstallerID+1, true),
+			},
+			wantInstallerID: selfServiceInstallerID,
+		},
+		{
+			// The first-added package is ineligible, so the next one is used.
+			name: "device, first-added package not self-service",
+			packages: []*fleet.SoftwareInstaller{
+				pkg(notSelfServiceInstallerID, false),
+				pkg(notSelfServiceInstallerID+1, true),
+			},
+			wantInstallerID: notSelfServiceInstallerID + 1,
+		},
+		{
+			name: "device, first-added package out of scope",
+			packages: []*fleet.SoftwareInstaller{
+				pkg(selfServiceInstallerID, true),
+				pkg(notSelfServiceInstallerID+1, true),
+			},
+			outOfScope:      map[uint]bool{selfServiceInstallerID: true},
+			wantInstallerID: notSelfServiceInstallerID + 1,
+		},
+		{
+			// A role-bearing caller can still remove ineligible software.
+			name:            "admin, not self-service and out of label scope",
+			packages:        []*fleet.SoftwareInstaller{pkg(notSelfServiceInstallerID, false)},
+			outOfScope:      map[uint]bool{notSelfServiceInstallerID: true},
+			asAdmin:         true,
+			wantInstallerID: notSelfServiceInstallerID,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{}, nil
+			}
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:           id,
+					OrbitNodeKey: new("orbit_key"),
+					Platform:     "darwin",
+					TeamID:       new(uint(1)),
+				}, nil
+			}
+			ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+				return tt.packages, nil
+			}
+			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint,
+				withScriptContents bool,
+			) (*fleet.SoftwareInstaller, error) {
+				if len(tt.packages) == 0 {
+					return nil, &notFoundError{}
+				}
+				return tt.packages[0], nil
+			}
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+				return !tt.outOfScope[installerID], nil
+			}
+			ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+				return nil, nil
+			}
+			ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return []byte("script"), nil
+			}
+			var gotInstallerID uint
+			var gotSelfService bool
+			ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint,
+				selfService bool,
+			) error {
+				gotInstallerID = softwareInstallerID
+				gotSelfService = selfService
+				return nil
+			}
+
+			ctx := deviceContext()
+			if tt.asAdmin {
+				ctx = adminContext()
+			}
+
+			err := svc.UninstallSoftwareTitle(ctx, 1, 10)
+
+			// The unscoped lookup ignores self-service and label scope, so a My
+			// Device caller must never reach it, whatever the outcome.
+			require.Equal(t, tt.asAdmin, ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked)
+
+			if tt.wantErrContains != "" {
+				require.ErrorContains(t, err, tt.wantErrContains)
+				require.False(t, ds.InsertSoftwareUninstallRequestFuncInvoked)
+				return
+			}
+
+			require.NoError(t, err)
+			require.True(t, ds.InsertSoftwareUninstallRequestFuncInvoked)
+			require.Equal(t, tt.wantInstallerID, gotInstallerID)
+			require.Equal(t, !tt.asAdmin, gotSelfService)
+		})
+	}
+}
+
 func TestInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
@@ -965,6 +1143,16 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 		require.NotEqual(t, storageID, updated.StorageID)
 		require.Equal(t, "1.0.0", updated.Version)
 		require.True(t, state.ds.SaveInstallerUpdatesFuncInvoked)
+	})
+
+	t.Run("rejects patch controls on a non-FMA installer", func(t *testing.T) {
+		state := setup(t, "Dummy App", "dummy_installer.pkg", "pkg", "darwin", "dummy-storage", []string{"com.example.dummy"}, false)
+		_, err := state.svc.UpdateSoftwareInstaller(state.ctx, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID: titleID,
+			TeamID:  &state.teamID,
+			Patch:   new(true),
+		})
+		require.ErrorContains(t, err, "Fleet-maintained apps")
 	})
 
 	t.Run("upgrade code allows a different title name", func(t *testing.T) {
@@ -2375,7 +2563,7 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 
 	setup := func(fail failures) (*Service, *strings.Builder) {
 		ds := new(mock.Store)
-		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
 			if fail.getTitles != nil {
 				return nil, nil, fail.getTitles
 			}
@@ -2415,13 +2603,13 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 
 	t.Run("returns the error when listing titles fails", func(t *testing.T) {
 		svc, _ := setup(failures{getTitles: errors.New("boom")})
-		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil, "")
 		require.ErrorContains(t, err, "get software titles for install all")
 	})
 
 	t.Run("logs per-title failures and continues instead of aborting the batch", func(t *testing.T) {
 		svc, logs := setup(failures{installTitle: errors.New("lookup failed")})
-		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil, "")
 		require.NoError(t, err) // a per-title failure is logged, not returned
 		// both titles were attempted (the loop continued past the first failure) and logged
 		require.Contains(t, logs.String(), "title_id=10")
@@ -2430,8 +2618,20 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 
 	t.Run("returns the error when the roll-up activity fails", func(t *testing.T) {
 		svc, _ := setup(failures{newActivity: errors.New("activity failed")})
-		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil, "")
 		require.ErrorContains(t, err, "creating installed all self-service software activity")
+	})
+
+	t.Run("passes the match query through to the datastore", func(t *testing.T) {
+		var seenMatch string
+		ds := new(mock.Store)
+		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+			seenMatch = matchQuery
+			return nil, nil, nil
+		}
+		svc, _ := newTestServiceWithMock(t, ds)
+		require.NoError(t, svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil, "zoom"))
+		require.Equal(t, "zoom", seenMatch)
 	})
 }
 
@@ -2699,6 +2899,82 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 			assert.Equal(t, c.want, got)
 		})
 	}
+}
+
+func TestPlanPatchPolicy(t *testing.T) {
+	titleID := uint(42)
+	teamID := uint(0)
+	fmaInstaller := &fleet.SoftwareInstaller{TitleID: &titleID, FleetMaintainedAppID: new(uint(7)), PreInstallQuery: "SELECT old;"}
+	nonFMAInstaller := &fleet.SoftwareInstaller{TitleID: &titleID}
+
+	payload := func(patch *bool, patchWhenClosed *bool) *fleet.UpdateSoftwareInstallerPayload {
+		return &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, TeamID: &teamID, Patch: patch, PatchWhenClosed: patchWhenClosed}
+	}
+
+	// patch_when_closed set without patch enabled is rejected, whether patch is omitted with no
+	// existing policy or explicitly disabled.
+	t.Run("rejects patch_when_closed without patch", func(t *testing.T) {
+		_, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, nil)
+		require.ErrorContains(t, err, `"patch" must be true`)
+		_, _, err = planPatchPolicy(payload(new(false), new(true)), fmaInstaller, nil)
+		require.ErrorContains(t, err, `"patch" must be true`)
+	})
+
+	// While patch_when_closed is on, the user pre-install query is managed and can't be edited.
+	t.Run("rejects pre-install edit while managed", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PreInstallQuery = new("SELECT changed;")
+		_, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		require.ErrorContains(t, err, "managed by Fleet")
+	})
+
+	// A pre-install edit on a non-FMA package is never managed; nothing to plan.
+	t.Run("allows pre-install edit on non-FMA package", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PreInstallQuery = new("SELECT changed;")
+		patchFlag, _, err := planPatchPolicy(p, nonFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		require.NoError(t, err)
+		assert.False(t, patchFlag)
+	})
+
+	// patch:true with no existing policy plans a create with patch_when_closed on.
+	t.Run("creates when no policy exists", func(t *testing.T) {
+		patchFlag, patchWhenClosedFlag, err := planPatchPolicy(payload(new(true), new(true)), fmaInstaller, nil)
+		require.NoError(t, err)
+		assert.True(t, patchFlag)
+		assert.True(t, patchWhenClosedFlag)
+	})
+
+	// patch:true with patch_when_closed omitted defaults a new policy to "only when closed".
+	t.Run("new policy defaults to patch_when_closed", func(t *testing.T) {
+		_, patchWhenClosedFlag, err := planPatchPolicy(payload(new(true), nil), fmaInstaller, nil)
+		require.NoError(t, err)
+		assert.True(t, patchWhenClosedFlag)
+	})
+
+	// patch:false disables the existing patch policy.
+	t.Run("disables when patch off", func(t *testing.T) {
+		patchFlag, _, err := planPatchPolicy(payload(new(false), nil), fmaInstaller, &fleet.PatchPolicyData{ID: 9})
+		require.NoError(t, err)
+		assert.False(t, patchFlag)
+	})
+
+	// Toggling patch_when_closed on an existing policy keeps patch on and flips the value.
+	t.Run("updates patch_when_closed on existing policy", func(t *testing.T) {
+		patchFlag, patchWhenClosedFlag, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
+		require.NoError(t, err)
+		assert.True(t, patchFlag)
+		assert.True(t, patchWhenClosedFlag)
+	})
+
+	// A pre-install edit is allowed when the title's patch policy has patch_when_closed off.
+	t.Run("pre-install edit allowed when patch_when_closed is off", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PreInstallQuery = new("SELECT changed;")
+		_, patchWhenClosedFlag, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
+	})
 }
 
 func TestValidateFleetVariablesOnInstallerScripts(t *testing.T) {

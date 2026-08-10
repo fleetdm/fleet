@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -110,6 +111,10 @@ type ActivityLookupService interface {
 
 	// GetActivitiesWebhookSettings returns the webhook settings for activities.
 	GetActivitiesWebhookSettings(ctx context.Context) (ActivitiesWebhookSettings, error)
+	// GetHostActivitiesWebhookSettings returns the enabled host-activities
+	// webhook settings of the fleets the given hosts belong to, deduplicated by
+	// fleet. Returns nil on Fleet Free.
+	GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]HostActivitiesWebhookDelivery, error)
 	// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
 	ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error
 }
@@ -547,6 +552,8 @@ type Service interface {
 	AppConfigObfuscated(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
+	// MaxInstallerSizeBytes returns the configured maximum size for software installer uploads.
+	MaxInstallerSizeBytes() int64
 	AppConfigUrls(ctx context.Context) (urls *AppConfigUrls, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -813,8 +820,9 @@ type Service interface {
 
 	// SelfServiceInstallAllSoftwareTitles queues a self-service install for every available self-service software
 	// title on the host that isn't already installed. When categoryID is non-nil, only titles assigned to that
-	// self-service category on the host's fleet are queued.
-	SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *Host, categoryID *uint) error
+	// self-service category on the host's fleet are queued. When matchQuery is non-empty, only titles whose name
+	// matches the query (same semantics as the self-service list endpoint) are queued.
+	SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *Host, categoryID *uint, matchQuery string) error
 
 	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
 	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
@@ -937,7 +945,9 @@ type Service interface {
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleDeclaration, error)
+	// activation is an optional custom activation declaration to attach to the
+	// declaration; nil or empty means Fleet generates the activation.
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -1243,6 +1253,11 @@ type Service interface {
 	// unsupported extension is uploaded.
 	NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error
 
+	// Called when an activation is uploaded alongside a profile that isn't an
+	// Apple declaration. Exists, like the two below, so the error goes through
+	// an authorization check.
+	NewMDMActivationUnsupportedProfile(ctx context.Context, teamID uint) error
+
 	// NewMDMInvalidJSONConfigProfile is called when a JSON profile is uploaded with contents that
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
@@ -1251,7 +1266,7 @@ type Service interface {
 	// contents and/or label targeting in place. Supported for Apple
 	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and
 	// Android profiles.
-	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) error
+	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)

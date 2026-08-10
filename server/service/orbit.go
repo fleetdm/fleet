@@ -233,7 +233,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 	}
 
-	var euaDeviceID, euaUPN, euaIdpAcctUUID string
+	var euaDeviceID, euaIdpAcctUUID string
 
 	if isEndUserAuthRequired {
 		if hostInfo.HardwareUUID == "" {
@@ -268,11 +268,10 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				case platform == "windows" && euaToken != "":
 					// A Windows host already authenticated during MDM enrollment and the
 					// EUA token was passed by the MSI installer.
-					upn, deviceID, idpAcctUUID, err := svc.processWindowsEUAToken(ctx, hostInfo.HardwareUUID, euaToken)
+					_, deviceID, idpAcctUUID, err := svc.processWindowsEUAToken(ctx, hostInfo.HardwareUUID, euaToken)
 					if err != nil {
 						return "", err
 					}
-					euaUPN = upn
 					euaDeviceID = deviceID
 					euaIdpAcctUUID = idpAcctUUID
 					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
@@ -353,29 +352,30 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	}
 
 	if euaDeviceID != "" {
-		updated, err := svc.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, euaDeviceID)
-		if err != nil {
+		// LinkWindowsHostMDMEnrollment performs the full post-link bookkeeping: SCIM user mapping, plus IdP device mapping, the DEP flag,
+		// and the Windows enrollment default fleet assignment for newly created hosts.
+		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, euaDeviceID); err != nil {
 			svc.logger.ErrorContext(ctx, "failed to link windows mdm enrollment to orbit host via EUA token",
 				"err", err, "host_uuid", host.UUID, "device_id", euaDeviceID)
 		}
-
-		if updated {
-			scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, euaUPN, euaUPN)
-			//nolint:gocritic // ignore ifElseChain
-			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
-				svc.logger.ErrorContext(ctx, "failed to find SCIM user for EUA token enrollment",
-					"err", err, "host_id", host.ID)
-			} else if err == nil && scimUser != nil {
-				if _, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
-					svc.logger.ErrorContext(ctx, "failed to set SCIM user mapping for EUA token enrollment",
-						"err", err, "host_id", host.ID)
-				}
-			} else {
-				if _, err := svc.ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
-					svc.logger.ErrorContext(ctx, "failed to delete SCIM user mapping for EUA token enrollment",
-						"err", err, "host_id", host.ID)
-				}
+	} else if platform == "windows" && appConfig.MDM.WindowsEnabledAndConfigured && hostInfo.HardwareSerial != "" {
+		// Reverse link: an automatic (user-driven) Windows MDM enrollment may already exist for this device, created before fleetd was
+		// installed. The OMA-DM session stores the device-reported SMBIOS serial on the unlinked enrollment row; link it now, before
+		// orbit fetches its config and runs its one-shot setup-experience init, so the Windows enrollment default fleet (and therefore
+		// the ESP's software and profiles) applies to this host from the start.
+		device, err := svc.ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, hostInfo.HardwareSerial)
+		switch {
+		case err != nil && !fleet.IsNotFound(err):
+			svc.logger.ErrorContext(ctx, "failed to look up unlinked windows mdm enrollment by serial",
+				"err", err, "host_uuid", host.UUID, "hardware_serial", hostInfo.HardwareSerial)
+		case err == nil:
+			if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID); err != nil {
+				svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
+					"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
 			}
+			// A Windows orbit enrollment is not linked when it is not MDM, when it is already linked, or when it is a
+			// programmatic fleetd-first enrollment. Note this matches on serial alone, so the lookup refuses when several
+			// unlinked enrollments share the serial.
 		}
 	}
 
@@ -1860,6 +1860,17 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return err
 	}
 
+	// A patch-when-closed policy install whose managed app-open query returned no result means the
+	// app was open: a skip, not a failure. Key on the policy flag, not empty output, so an ordinary
+	// empty pre_install_query on a non-managed policy still fails and counts toward the retry cap.
+	isAppOpenSkip := false
+	if result.Status() == fleet.SoftwareInstallFailed &&
+		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == "" {
+		if cur, curErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID); curErr == nil && cur != nil {
+			isAppOpenSkip = cur.PolicyID != nil && cur.PatchWhenClosed
+		}
+	}
+
 	// Check if a non-policy install failure will be retried so we can skip
 	// updating setup experience status during intermediate retries.
 	willRetryNonPolicyOnFailure := false
@@ -1899,7 +1910,13 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 	}
 
-	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result, attemptNumber)
+	// attempt_number=0 keeps the skip out of the retry-sequence count, so it never consumes an attempt.
+	attemptToStore := attemptNumber
+	if isAppOpenSkip {
+		attemptToStore = new(0)
+	}
+
+	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result, attemptToStore)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
@@ -1929,7 +1946,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 			}
 
-			if status == fleet.SoftwareInstallFailed {
+			// Skip the immediate-retry ladder for app-open skips; the next continuous run re-fires.
+			if status == fleet.SoftwareInstallFailed && !isAppOpenSkip {
 				shouldRetry, err := svc.shouldRetryPolicyAutomationSoftwareInstall(ctx, host, hsi)
 				if err != nil {
 					svc.logger.ErrorContext(ctx,
@@ -1982,18 +2000,19 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			ctx,
 			user,
 			fleet.ActivityTypeInstalledSoftware{
-				HostID:              host.ID,
-				HostDisplayName:     host.DisplayName(),
-				SoftwareTitle:       hsi.SoftwareTitle,
-				SoftwarePackage:     hsi.SoftwarePackage,
-				HashSHA256:          hsi.HashSHA256,
-				InstallUUID:         result.InstallUUID,
-				Status:              string(status),
-				Source:              hsi.Source,
-				SelfService:         hsi.SelfService,
-				PolicyID:            hsi.PolicyID,
-				PolicyName:          policyName,
-				FromSetupExperience: fromSetupExperience,
+				HostID:                    host.ID,
+				HostDisplayName:           host.DisplayName(),
+				SoftwareTitle:             hsi.SoftwareTitle,
+				SoftwarePackage:           hsi.SoftwarePackage,
+				HashSHA256:                hsi.HashSHA256,
+				InstallUUID:               result.InstallUUID,
+				Status:                    string(status),
+				Source:                    hsi.Source,
+				SelfService:               hsi.SelfService,
+				PolicyID:                  hsi.PolicyID,
+				PolicyName:                policyName,
+				FromSetupExperience:       fromSetupExperience,
+				InstallSkippedWhenAppOpen: isAppOpenSkip,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")

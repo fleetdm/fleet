@@ -4,7 +4,8 @@
       "version": "1.52.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Azure Data Studio' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Azure Data Studio' AND publisher = 'Microsoft Corporation' AND version_compare(version, '1.52.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Azure Data Studio' AND publisher = 'Microsoft Corporation' AND version_compare(version, '1.52.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'azure data studio.exe');"
       },
       "installer_url": "https://download.microsoft.com/download/6b2bfeac-9c1b-4182-9a2f-ce86ff8cc371/azuredatastudio-windows-setup-1.52.0.exe",
       "install_script_ref": "8c1c97a1",

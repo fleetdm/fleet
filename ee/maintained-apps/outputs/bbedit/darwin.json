@@ -4,7 +4,8 @@
       "version": "16.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit' AND version_compare(bundle_short_version, '16.0.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit' AND version_compare(bundle_short_version, '16.0.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.barebones.bbedit');"
       },
       "installer_url": "https://s3.amazonaws.com/BBSW-download/BBEdit_16.0.2.dmg",
       "install_script_ref": "8fd9895e",

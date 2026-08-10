@@ -4,7 +4,8 @@
       "version": "5.11.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Franz' AND publisher = 'Stefan Malzner';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Franz' AND publisher = 'Stefan Malzner' AND version_compare(version, '5.11.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Franz' AND publisher = 'Stefan Malzner' AND version_compare(version, '5.11.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'franz.exe');"
       },
       "installer_url": "https://github.com/meetfranz/franz/releases/download/v5.11.0/Franz-Setup-5.11.0.exe",
       "install_script_ref": "8c009ff0",

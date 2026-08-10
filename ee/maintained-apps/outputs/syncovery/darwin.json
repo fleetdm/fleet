@@ -4,7 +4,8 @@
       "version": "11.16.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND version_compare(bundle_short_version, '11.16.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND version_compare(bundle_short_version, '11.16.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.company.Syncovery');"
       },
       "installer_url": "https://www.syncovery.com/release/SyncoveryMac11.16.0-Apple.dmg",
       "install_script_ref": "2ad0e63a",

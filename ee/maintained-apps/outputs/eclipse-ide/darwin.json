@@ -4,7 +4,8 @@
       "version": "4.40",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'epp.package.committers';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'epp.package.committers' AND version_compare(bundle_short_version, '4.40') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'epp.package.committers' AND version_compare(bundle_short_version, '4.40') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'epp.package.committers');"
       },
       "installer_url": "https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2026-06/R/eclipse-committers-2026-06-R-macosx-cocoa-aarch64.dmg&r=1",
       "install_script_ref": "6b90e6bc",

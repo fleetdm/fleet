@@ -150,7 +150,10 @@ const render = createCustomRenderer({
  * external `handleRef` always sees the latest closure. */
 const renderWithHandle = (
   policyOverrides?: Partial<IPolicy>,
-  handleRef?: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null>
+  handleRef?: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null>,
+  componentProps?: Partial<
+    React.ComponentPropsWithoutRef<typeof PolicyAutomationsFields>
+  >
 ) => {
   return render(
     <PolicyAutomationsFields
@@ -161,6 +164,7 @@ const renderWithHandle = (
       automationsConfig={undefined}
       globalConfig={undefined}
       fleetName="Test Fleet"
+      {...componentProps}
     />
   );
 };
@@ -336,5 +340,155 @@ describe("PolicyAutomationsFields — payload", () => {
     // Backend picks the VPP install target from software_title_id; we send
     // installer_id as null on the wire.
     expect(payload?.policyUpdate?.software_installer_id ?? null).toBeNull();
+  });
+
+  it("maps Patch when app is closed to both policy flags", () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    renderWithHandle(
+      {
+        type: "patch",
+        patch_software: { name: "Firefox", software_title_id: 42 },
+        patch_when_closed: false,
+        continuous_automations_enabled: false,
+      },
+      handleRef,
+      { patchOption: "closed" }
+    );
+
+    expect(
+      handleRef.current?.getAutomationsPayload().policyUpdate
+    ).toMatchObject({
+      software_title_id: 42,
+      patch_when_closed: true,
+      continuous_automations_enabled: true,
+    });
+  });
+
+  it("maps Force patch to patch_when_closed false and continuous automation off", () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    renderWithHandle(
+      {
+        type: "patch",
+        patch_software: { name: "Firefox", software_title_id: 42 },
+        patch_when_closed: true,
+        continuous_automations_enabled: true,
+      },
+      handleRef,
+      { patchOption: "force" }
+    );
+
+    // Switching a stored Patch when app is closed policy to Force patch clears
+    // continuous automation instead of carrying the stored value over.
+    expect(
+      screen.getByRole("checkbox", { name: "continuous-automations-enabled" })
+    ).toHaveAttribute("aria-checked", "false");
+
+    expect(
+      handleRef.current?.getAutomationsPayload().policyUpdate
+    ).toMatchObject({
+      software_title_id: 42,
+      patch_when_closed: false,
+      continuous_automations_enabled: false,
+    });
+  });
+
+  it("maps End user initiated to no continuous automation", () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    renderWithHandle(
+      {
+        type: "patch",
+        patch_software: { name: "Firefox", software_title_id: 42 },
+        install_software: { name: "Firefox", software_title_id: 42 },
+        patch_when_closed: false,
+        continuous_automations_enabled: true,
+      },
+      handleRef,
+      { patchOption: "manual" }
+    );
+
+    expect(
+      handleRef.current?.getAutomationsPayload().policyUpdate
+    ).toMatchObject({
+      software_title_id: null,
+      continuous_automations_enabled: false,
+    });
+
+    expect(
+      screen.queryByRole("checkbox", {
+        name: "continuous-automations-enabled",
+      })
+    ).not.toBeInTheDocument();
+  });
+
+  it("checks and disables continuous automation for Patch when app is closed", async () => {
+    const { user, container } = renderWithHandle(
+      {
+        type: "patch",
+        patch_when_closed: true,
+        continuous_automations_enabled: true,
+      },
+      undefined,
+      { patchOption: "closed" }
+    );
+
+    const continuous = screen.getByRole("checkbox", {
+      name: "continuous-automations-enabled",
+    });
+    expect(continuous).toHaveAttribute("aria-checked", "true");
+    expect(continuous).toHaveAttribute("aria-disabled", "true");
+
+    const icon = container.querySelector(
+      ".policy-automations-fields__section:last-child .fleet-checkbox__icon"
+    );
+    expect(icon).not.toBeNull();
+    await user.hover(icon as Element);
+    expect(
+      await screen.findByText(
+        "Continuous automation can't be disabled when Patch when app is closed is selected."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("keeps continuous automation editable for Force patch", async () => {
+    const { user } = renderWithHandle(
+      {
+        type: "patch",
+        patch_when_closed: false,
+        continuous_automations_enabled: false,
+      },
+      undefined,
+      { patchOption: "force" }
+    );
+
+    const continuous = screen.getByRole("checkbox", {
+      name: "continuous-automations-enabled",
+    });
+    expect(continuous).toHaveAttribute("aria-disabled", "false");
+    expect(continuous).toHaveAttribute("aria-checked", "false");
+
+    await user.click(continuous);
+    expect(continuous).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("does not clear continuous automation already stored on a Force patch policy", () => {
+    renderWithHandle(
+      {
+        type: "patch",
+        patch_when_closed: false,
+        continuous_automations_enabled: true,
+      },
+      undefined,
+      { patchOption: "force" }
+    );
+
+    expect(
+      screen.getByRole("checkbox", { name: "continuous-automations-enabled" })
+    ).toHaveAttribute("aria-checked", "true");
   });
 });

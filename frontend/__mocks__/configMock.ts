@@ -18,14 +18,17 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   macos_updates: {
     minimum_version: "",
     deadline: "",
+    deadline_days: null,
   },
   ios_updates: {
     minimum_version: "",
     deadline: "",
+    deadline_days: null,
   },
   ipados_updates: {
     minimum_version: "",
     deadline: "",
+    deadline_days: null,
   },
   apple_settings: {
     configuration_profiles: null,
@@ -234,6 +237,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       secrets: true,
     },
   },
+  max_software_package_size: 10 * 1024 * 1024 * 1024,
 };
 
 export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {

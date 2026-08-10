@@ -1,0 +1,1 @@
+- Added the ability to create a managed local admin account on Windows hosts. Requires fleetd 1.60.0 or higher.

@@ -4,7 +4,8 @@
       "version": "11.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.stairways.keyboardmaestro.editor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.stairways.keyboardmaestro.editor' AND version_compare(bundle_short_version, '11.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.stairways.keyboardmaestro.editor' AND version_compare(bundle_short_version, '11.1.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.stairways.keyboardmaestro.editor');"
       },
       "installer_url": "https://files.stairways.com/keyboardmaestro-1111.zip",
       "install_script_ref": "3de43890",

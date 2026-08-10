@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -285,9 +286,16 @@ type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
 	if tv, ok := v.([]byte); ok {
-		return json.Unmarshal(tv, &c)
+		return json.Unmarshal(tv, c)
 	}
 	return errors.New("unsupported type")
+}
+
+func (c SliceString) Value() (driver.Value, error) {
+	if c == nil {
+		return nil, nil
+	}
+	return json.Marshal(c)
 }
 
 // SoftwareVersion is an abstraction over the `software` table to support the

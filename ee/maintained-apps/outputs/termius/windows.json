@@ -4,7 +4,8 @@
       "version": "9.42.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Termius' AND publisher = 'Termius Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Termius' AND publisher = 'Termius Corporation' AND version_compare(version, '9.42.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Termius' AND publisher = 'Termius Corporation' AND version_compare(version, '9.42.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'termius.exe');"
       },
       "installer_url": "https://autoupdate.termius.com/windows/Install%20Termius.exe",
       "install_script_ref": "df65625a",

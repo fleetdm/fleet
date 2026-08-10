@@ -4,7 +4,8 @@
       "version": "3.18.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'de.nagstamon';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'de.nagstamon' AND version_compare(bundle_short_version, '3.18.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'de.nagstamon' AND version_compare(bundle_short_version, '3.18.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'de.nagstamon');"
       },
       "installer_url": "https://github.com/HenriWahl/Nagstamon/releases/download/v3.18.2/Nagstamon-3.18.2-ARM.dmg",
       "install_script_ref": "99136b87",
