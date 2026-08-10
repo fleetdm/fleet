@@ -58,10 +58,10 @@ sequenceDiagram
         Server-->>Agent: no (99.7%)
     end
 
-    Note over Server: live query created
+    Note over Server: live, policy, detail, or label<br>query needs to run on host
     loop next 10s tick
         Agent->>Server: anything for me?
-        Server-->>Agent: yes, here's your query
+        Server-->>Agent: yes, here are your queries to run
     end
 ```
 
@@ -77,7 +77,7 @@ sequenceDiagram
     Agent->>Server: open WebSocket
     Note over Agent,Server: silent until needed
 
-    Note over Server: live query created
+    Note over Server: live, policy, detail, or label<br>query needs to run on host
     Server->>Agent: check now (WebSocket push)
     Agent->>Server: distributed/read (HTTP)
     Server-->>Agent: here's your query
@@ -91,6 +91,9 @@ The **server** decides whether WebSocket transport is active, not the agent. Whe
 - **Old agent (no WebSocket support):** ignores the unknown directive and continues polling as before. No harm done.
 
 > **The server is always in control.** Disabling the feature flag immediately stops new WebSocket connections on the next config cycle. Every agent falls back to polling. No agent action required, no rollback needed, no downtime.
+> TBD during implementation:
+>   - Whether the detection of websocket ON/OFF triggers an orbit restart to start with the new mode of operation (or can be optimized to not require an orbit restart, mostly due to the `--distributed_plugin` mode of operation).
+>   - Instead of having a orbit/config setting, just have orbit perform a websocket connection attempt, if it succeeds it means two things: websocket is configured in the server AND orbit can connect to it (no network issues with websockets).
 
 ### What travels over `distributed/read` today
 
