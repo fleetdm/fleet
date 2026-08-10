@@ -2819,6 +2819,9 @@
             "null"
           ]
         },
+        "deadline_days": {
+          "description": "DeadlineDays is the number of days after an OS version's release date\nbefore the update is enforced. It is only valid when MinimumVersion is\n\"latest\", where the deadline is relative to each version's release rather\nthan a fixed calendar date.\n\ntype: `integer`"
+        },
         "minimum_version": {
           "description": "MinimumVersion is the required minimum operating system version.\n\ntype: `string`",
           "type": [
@@ -3441,7 +3444,7 @@
           ]
         },
         "continuous_automations_enabled": {
-          "description": "ContinuousAutomationsEnabled indicates whether software/script automations\nshould run on every failing policy result, not just on pass→fail transitions.\n\nOnly applies to team policies.\n\ntype: `boolean`",
+          "description": "Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set\nexplicitly vs. omitted, which patch_when_closed validation needs.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -3547,6 +3550,13 @@
         "name": {
           "description": "Name is the name of the policy.\n\ntype: `string`",
           "type": "string"
+        },
+        "patch_when_closed": {
+          "description": "PatchWhenClosed skips the install while the app is open, via the managed pre-install query.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "path": {
           "type": [
@@ -3742,6 +3752,30 @@
           ]
         },
         "vulnerabilities": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HostActivitiesWebhookSettings": {
+      "additionalProperties": false,
+      "description": "HostActivitiesWebhookSettings is the per-fleet webhook fired when an activity linked to one of the fleet's hosts is created.",
+      "properties": {
+        "destination_url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_host_activities_webhook": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -4196,6 +4230,13 @@
             "null"
           ]
         },
+        "windows_enrollment": {
+          "description": "WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the\nsource of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.\n\ntype: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
         "windows_entra_client_ids": {
           "description": "WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for\nWindows automatic enrollment.\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -4299,6 +4340,13 @@
       "additionalProperties": false,
       "description": "MDMProfileSpec represents the spec used to define configuration profiles via yaml files.",
       "properties": {
+        "activation": {
+          "description": "Activation is a path to a custom activation JSON file, only valid\nalongside an Apple declaration.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "labels": {
           "description": "Deprecated: the Labels field is now deprecated, it is superseded by\nLabelsIncludeAll, so any value set via this field will be transferred to\nLabelsIncludeAll.\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -4407,7 +4455,7 @@
       "description": "MacOSSettings contains settings specific to macOS.",
       "properties": {
         "assets": {
-          "description": "Assets is a slice of Apple DDM asset (com.apple.asset) declaration file\npaths. Unlike CustomSettings, assets are not stored on the AppConfig/team\nspec: this field is only populated while parsing a GitOps file so the\nassets can be applied via their own batch endpoint. It is intentionally\nomitted from ToMap/FromMap.\n\ntype: `array\u003cMDMProfileSpec\u003e`",
+          "description": "Assets is a slice of Apple DDM asset (com.apple.asset) declaration file\npaths. Unlike CustomSettings, assets are not stored on the AppConfig/team\nspec: this field is only populated while parsing a GitOps file so the\nassets can be applied via their own batch endpoint. It is intentionally\nomitted from FromMap; ToMap includes it only so the key passes the team\nspec's strict key validation (see applyTeamSpecsRequest.DecodeBody).\n\ntype: `array\u003cMDMProfileSpec\u003e`",
           "items": {
             "$ref": "#/$defs/MDMProfileSpec"
           },
@@ -4629,6 +4677,13 @@
             "null"
           ]
         },
+        "display_name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "icon": {
           "$ref": "#/$defs/TeamSpecSoftwareAsset",
           "description": "type: `TeamSpecSoftwareAsset`"
@@ -4717,6 +4772,23 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ManagedLocalAccountSettings": {
+      "additionalProperties": false,
+      "description": "ManagedLocalAccountSettings configures the hidden managed local admin account for one platform.",
+      "properties": {
+        "enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         }
@@ -5781,6 +5853,10 @@
           "$ref": "#/$defs/FailingPoliciesWebhookSettings",
           "description": "type: `FailingPoliciesWebhookSettings`"
         },
+        "host_activities_webhook": {
+          "$ref": "#/$defs/HostActivitiesWebhookSettings",
+          "description": "HostActivitiesWebhook is nil when not provided so partial updates and\nteam specs can leave the stored value untouched.\n\ntype: `HostActivitiesWebhookSettings`"
+        },
         "host_status_webhook": {
           "$ref": "#/$defs/HostStatusWebhookSettings",
           "description": "HostStatusWebhook can be nil to match the TeamSpec webhook settings\n\ntype: `HostStatusWebhookSettings`"
@@ -5979,6 +6055,10 @@
             "array",
             "null"
           ]
+        },
+        "managed_local_account_settings": {
+          "$ref": "#/$defs/ManagedLocalAccountSettings",
+          "description": "ManagedLocalAccountSettings configures the hidden managed local admin account created by\nfleetd on Windows hosts during Autopilot/OOBE enrollment.\n\ntype: `ManagedLocalAccountSettings`"
         }
       },
       "type": [
