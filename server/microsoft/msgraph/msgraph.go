@@ -107,17 +107,9 @@ func newClientWithHosts(cred *fleet.MicrosoftGraphCredential, loginHost, graphHo
 }
 
 // httpClientFor builds an HTTP client whose token acquisition inherits ctx.
-//
-// Redirects are refused. Go strips Authorization on a cross-domain redirect, but that only helps when the header is set
-// on the request: the oauth2 transport adds the bearer token inside RoundTrip, which runs again for every hop, so a
-// Graph 3xx would hand the token to the redirect target. assertGraphOrigin cannot help here either, since it validates
-// the next link we choose to follow, not one the HTTP client follows on its own.
 func (c *client) httpClientFor(ctx context.Context) *http.Client {
+	// Configure clientcredentials package. It is using context for configuration.
 	httpClient := c.cfg.Client(context.WithValue(ctx, oauth2.HTTPClient, c.baseClient))
-	httpClient.CheckRedirect = func(req *http.Request, _ []*http.Request) error {
-		return fmt.Errorf("microsoft graph redirected to %s://%s, refusing to follow and disclose the access token",
-			req.URL.Scheme, req.URL.Host)
-	}
 	return httpClient
 }
 
