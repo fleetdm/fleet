@@ -79,8 +79,17 @@ func autopilotTimestamp(t *testing.T, ds *Datastore, stmt string, hostID uint) t
 }
 
 // storedGraphCredential reads one credential back through the decrypting list, which is the only credential read path
-// production uses. There is no single-tenant datastore read because nothing needs one.
+// production uses. There is no single-tenant datastore read because nothing needs one. It fails the test when the
+// tenant is absent, so callers can use the result directly.
 func storedGraphCredential(t *testing.T, ds *Datastore, tenantID string) *fleet.MicrosoftGraphCredential {
+	t.Helper()
+	cred := findGraphCredential(t, ds, tenantID)
+	require.NotNil(t, cred, "no stored credential for tenant %s", tenantID)
+	return cred
+}
+
+// findGraphCredential is the same read without the assertion, for the cases that expect nothing.
+func findGraphCredential(t *testing.T, ds *Datastore, tenantID string) *fleet.MicrosoftGraphCredential {
 	t.Helper()
 	creds, err := ds.ListMicrosoftGraphCredentials(t.Context())
 	require.NoError(t, err)
@@ -90,6 +99,26 @@ func storedGraphCredential(t *testing.T, ds *Datastore, tenantID string) *fleet.
 		}
 	}
 	return nil
+}
+
+// seedAutopilotDevices shrinks the batch size, creates n hosts, and stores one device per host, returning both so a
+// test can assert against either. Both batch tests need exactly this, differing only in count and batch size.
+func seedAutopilotDevices(t *testing.T, ds *Datastore, prefix string, n, batchSize int) ([]*fleet.Host, []*fleet.HostAutopilotDevice) {
+	t.Helper()
+	original := hostAutopilotDeviceBatchSize
+	hostAutopilotDeviceBatchSize = batchSize
+	t.Cleanup(func() { hostAutopilotDeviceBatchSize = original })
+
+	hosts := newAutopilotHosts(t, ds, prefix, n)
+	devices := make([]*fleet.HostAutopilotDevice, 0, n)
+	for i, host := range hosts {
+		devices = append(devices, &fleet.HostAutopilotDevice{
+			HostID: host.ID, TenantID: testTenantA,
+			HardwareSerial: "serial-" + strconv.Itoa(i), GroupTag: "tag-" + strconv.Itoa(i),
+		})
+	}
+	upsertAutopilotDevices(t, ds, devices...)
+	return hosts, devices
 }
 
 func requireAutopilotDeviceNotFound(t *testing.T, ds *Datastore, hostID uint) {
@@ -141,11 +170,10 @@ func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 	require.Len(t, creds, 2)
 
 	got := storedGraphCredential(t, ds, testTenantB)
-	require.NotNil(t, got)
 	assert.Equal(t, "client-"+testTenantB, got.ClientID)
 	assert.Equal(t, "secret-"+testTenantB, got.ClientSecret)
 
-	assert.Nil(t, storedGraphCredential(t, ds, "no-such-tenant"), "an unconfigured tenant is simply absent")
+	assert.Nil(t, findGraphCredential(t, ds, "no-such-tenant"), "an unconfigured tenant is simply absent")
 
 	// Deleting one tenant leaves the other alone.
 	require.NoError(t, ds.DeleteMicrosoftGraphCredential(ctx, testTenantA))
@@ -174,7 +202,6 @@ func testGraphCredentialSecretEncryptedAtRest(t *testing.T, ds *Datastore) {
 
 	// And it decrypts back to the original on read.
 	got := storedGraphCredential(t, ds, testTenantA)
-	require.NotNil(t, got)
 	assert.Equal(t, "plaintext-secret", got.ClientSecret)
 }
 
@@ -212,7 +239,6 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	assert.False(t, wasSet)
 
 	got := storedGraphCredential(t, ds, testTenantA)
-	require.NotNil(t, got)
 	assert.True(t, got.CredentialInvalid)
 
 	// Clearing works the same way.
@@ -221,14 +247,12 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	assert.True(t, wasSet)
 
 	got = storedGraphCredential(t, ds, testTenantA)
-	require.NotNil(t, got)
 	assert.False(t, got.CredentialInvalid)
 
 	// A failed pass records the message alongside the timestamp.
 	syncErr := "AADSTS7000222: client secret expired"
 	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &syncErr))
 	got = storedGraphCredential(t, ds, testTenantA)
-	require.NotNil(t, got)
 	require.NotNil(t, got.LastSyncedAt)
 	require.NotNil(t, got.LastSyncError)
 	assert.Equal(t, syncErr, *got.LastSyncError)
@@ -236,13 +260,11 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	// A subsequent success clears the error.
 	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, nil))
 	got = storedGraphCredential(t, ds, testTenantA)
-	require.NotNil(t, got)
 	require.NotNil(t, got.LastSyncedAt)
 	assert.Nil(t, got.LastSyncError)
 
 	// Rotating the credential clears all of its sync state, which describes the credential being replaced.
-	failure := "AADSTS7000222: client secret expired"
-	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &failure))
+	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &syncErr))
 	_, err = ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true)
 	require.NoError(t, err)
 
@@ -251,7 +273,6 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	}))
 
 	got = storedGraphCredential(t, ds, testTenantA)
-	require.NotNil(t, got)
 	assert.False(t, got.CredentialInvalid, "rotating a verified credential must clear the banner flag")
 	assert.Nil(t, got.LastSyncError, "rotating a credential must clear the error recorded against the old secret")
 	assert.Nil(t, got.LastSyncedAt, "the previous sync time describes the replaced credential, not the new one")
@@ -293,7 +314,6 @@ func testHostAutopilotDeviceUpsertAndGet(t *testing.T, ds *Datastore) {
 	got, err = ds.GetHostAutopilotDevice(ctx, host.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Sales", got.GroupTag)
-
 }
 
 func testHostAutopilotDeviceListByTenant(t *testing.T, ds *Datastore) {
@@ -330,20 +350,9 @@ func testHostAutopilotDeviceListByTenant(t *testing.T, ds *Datastore) {
 func testHostAutopilotDeviceBatchSpansBatches(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	originalBatchSize := hostAutopilotDeviceBatchSize
-	hostAutopilotDeviceBatchSize = 3
-	t.Cleanup(func() { hostAutopilotDeviceBatchSize = originalBatchSize })
-
-	// Deliberately not a multiple of the batch size, so the final partial batch is exercised.
+	// 7 devices at a batch size of 3 is deliberately not a multiple, so the final partial batch is exercised.
 	const deviceCount = 7
-	hosts := newAutopilotHosts(t, ds, "batch", deviceCount)
-	devices := make([]*fleet.HostAutopilotDevice, 0, deviceCount)
-	for i, host := range hosts {
-		devices = append(devices, &fleet.HostAutopilotDevice{
-			HostID: host.ID, TenantID: testTenantA, HardwareSerial: "serial-" + strconv.Itoa(i), GroupTag: "tag-" + strconv.Itoa(i),
-		})
-	}
-	upsertAutopilotDevices(t, ds, devices...)
+	_, devices := seedAutopilotDevices(t, ds, "batch", deviceCount, 3)
 
 	assertStoredTags := func(msg string) {
 		t.Helper()
@@ -396,19 +405,8 @@ func testHostAutopilotDeviceUnchangedUpsertIsNotAWrite(t *testing.T, ds *Datasto
 func testHostAutopilotDeviceBatchSoftDelete(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	originalBatchSize := hostAutopilotDeviceBatchSize
-	hostAutopilotDeviceBatchSize = 2
-	t.Cleanup(func() { hostAutopilotDeviceBatchSize = originalBatchSize })
-
 	const deviceCount = 5
-	hosts := newAutopilotHosts(t, ds, "del", deviceCount)
-	devices := make([]*fleet.HostAutopilotDevice, 0, deviceCount)
-	for i, host := range hosts {
-		devices = append(devices, &fleet.HostAutopilotDevice{
-			HostID: host.ID, TenantID: testTenantA, HardwareSerial: "serial-" + strconv.Itoa(i),
-		})
-	}
-	upsertAutopilotDevices(t, ds, devices...)
+	hosts, devices := seedAutopilotDevices(t, ds, "del", deviceCount, 2)
 
 	// Tombstone three of five, spanning the batch boundary.
 	toDelete := []uint{hosts[0].ID, hosts[2].ID, hosts[4].ID}
