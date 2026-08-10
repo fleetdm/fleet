@@ -26,15 +26,17 @@ try {
 
 $selected = $null
 foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike) {
+    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike `
+        -and $key.Publisher -eq "Citrix Systems, Inc.") {
         $selected = $key
         break
     }
 }
 
 if (-not $selected) {
+    # Already uninstalled (or never installed) -- nothing to do.
     Write-Host "Uninstall entry not found for $softwareNameLike"
-    Exit 1
+    Exit 0
 }
 
 $uninstallCommand = if ($selected.QuietUninstallString) {
