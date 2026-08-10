@@ -26,23 +26,6 @@ func (c MicrosoftGraphCredential) Configured() bool {
 	return c.TenantID != "" && c.ClientID != "" && c.ClientSecret != ""
 }
 
-// Clone implements Cloner so the credential list can be cached safely.
-func (c *MicrosoftGraphCredential) Clone() (Cloner, error) {
-	if c == nil {
-		return (*MicrosoftGraphCredential)(nil), nil
-	}
-	clone := *c
-	if c.LastSyncedAt != nil {
-		syncedAt := *c.LastSyncedAt
-		clone.LastSyncedAt = &syncedAt
-	}
-	if c.LastSyncError != nil {
-		syncErr := *c.LastSyncError
-		clone.LastSyncError = &syncErr
-	}
-	return &clone, nil
-}
-
 // Equal reports whether two credentials describe the same app registration with the same secret.
 func (c MicrosoftGraphCredential) Equal(other MicrosoftGraphCredential) bool {
 	return strings.EqualFold(c.TenantID, other.TenantID) &&
