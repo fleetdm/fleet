@@ -1584,14 +1584,6 @@ type Service interface {
 	// UpdateCertificateAuthority updates the certificate authority of the given id
 	UpdateCertificateAuthority(ctx context.Context, id uint, p CertificateAuthorityUpdatePayload) error
 	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (*string, error)
-	// ListMicrosoftGraphCredentials returns the stored Microsoft Graph credentials with their per-tenant sync status.
-	// Client secrets are masked, never decrypted.
-	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
-
-	// ApplyMicrosoftGraphCredentials declaratively reconciles the stored Microsoft Graph credentials to the supplied
-	// list, verifying any new or changed credential against Graph before storing it. A tenant absent from the list is
-	// deleted.
-	ApplyMicrosoftGraphCredentials(ctx context.Context, creds []MicrosoftGraphCredential, dryRun bool) error
 
 	// BatchApplyCertificateAuthorities applies the given certificate authorities spec
 	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, opts BatchApplyCertificateAuthoritiesOpts) error
@@ -1641,6 +1633,15 @@ type Service interface {
 
 	// ReleaseABDevices releases the specified Apple Business devices.
 	ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*ABReleaseDeviceResponse, error)
+
+	//////////////////////////////////////////////////////////////////////////////
+	// Microsoft Graph
+
+	// ListMicrosoftGraphCredentials returns the stored Microsoft Graph credentials with their per-tenant sync status. Client secrets are masked.
+	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+	// ApplyMicrosoftGraphCredentials declaratively reconciles the stored Microsoft Graph credentials to the supplied
+	// list, verifying any new or changed credential against Graph before storing it. A tenant absent from the list is deleted.
+	ApplyMicrosoftGraphCredentials(ctx context.Context, creds []MicrosoftGraphCredential, dryRun bool) error
 }
 
 type KeyValueStore interface {

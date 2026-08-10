@@ -2263,46 +2263,6 @@ type Datastore interface {
 	// value.
 	IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error)
 
-	///////////////////////////////////////////////////////////////////////////////
-	// Microsoft Graph credentials and Windows Autopilot devices
-
-	// ListMicrosoftGraphCredentials returns every stored Microsoft Graph credential with its client secret decrypted.
-	// Callers that serialize the result must mask the secret first.
-	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
-
-	// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets, decrypting
-	// nothing. Used by the config API, which masks the secret anyway.
-	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredential, error)
-
-	// UpsertMicrosoftGraphCredential stores a credential keyed on its tenant ID, encrypting the client secret.
-	UpsertMicrosoftGraphCredential(ctx context.Context, cred *MicrosoftGraphCredential) error
-
-	// DeleteMicrosoftGraphCredential removes the credential for an Entra tenant.
-	DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error
-
-	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag for a tenant. It reports
-	// whether the flag actually changed.
-	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
-
-	// RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass. A nil syncErr records a success and clears any
-	// previous error.
-	RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error
-
-	// BatchUpsertHostAutopilotDevices stores the Windows Autopilot metadata for many hosts, clearing any soft
-	// deletion. A tenant can register 100k+ Autopilot devices, so writes go through this batch path rather than a
-	// per-device call. Callers should pass only the devices whose values changed.
-	BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
-
-	// BatchSoftDeleteHostAutopilotDevices tombstones the Autopilot records for the given hosts, for devices that are
-	// no longer present in the tenant's Autopilot registry. The host rows themselves are untouched.
-	BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error
-
-	// ListHostAutopilotDevices returns the live Autopilot records for an Entra tenant.
-	ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*HostAutopilotDevice, error)
-
-	// GetHostAutopilotDevice returns the live Autopilot record for a host, or a not-found error.
-	GetHostAutopilotDevice(ctx context.Context, hostID uint) (*HostAutopilotDevice, error)
-
 	// InsertABMToken inserts a new ABM token into the datastore.
 	InsertABMToken(ctx context.Context, tok *ABMToken) (*ABMToken, error)
 
@@ -2528,6 +2488,41 @@ type Datastore interface {
 
 	// GetHostMDMProfileInstallStatus returns the status of the profile for the host.
 	GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (MDMDeliveryStatus, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Microsoft Graph credentials and Windows Autopilot devices
+
+	// ListMicrosoftGraphCredentials returns every stored Microsoft Graph credential with its client secret decrypted.
+	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+
+	// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets, decrypting
+	// nothing.
+	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+
+	// UpsertMicrosoftGraphCredential stores a credential keyed on its tenant ID, encrypting the client secret.
+	UpsertMicrosoftGraphCredential(ctx context.Context, cred *MicrosoftGraphCredential) error
+
+	// DeleteMicrosoftGraphCredential removes the credential for an Entra tenant.
+	DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error
+
+	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag for a tenant. It reports whether the flag actually changed.
+	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
+
+	// RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass. A nil syncErr records a success and clears any previous error.
+	RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error
+
+	// BatchUpsertHostAutopilotDevices stores the Windows Autopilot metadata for many hosts, clearing any soft deletion.
+	BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
+
+	// BatchSoftDeleteHostAutopilotDevices tombstones the Autopilot records for the given hosts, for devices that are no
+	// longer present in the tenant's Autopilot registry. The host rows themselves are untouched.
+	BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error
+
+	// ListHostAutopilotDevices returns the live Autopilot records for an Entra tenant.
+	ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*HostAutopilotDevice, error)
+
+	// GetHostAutopilotDevice returns the live Autopilot record for a host, or a not-found error.
+	GetHostAutopilotDevice(ctx context.Context, hostID uint) (*HostAutopilotDevice, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Linux MDM

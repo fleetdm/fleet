@@ -2112,8 +2112,7 @@ func (a ActivityTypeDeletedMicrosoftEntraClientID) ActivityName() string {
 }
 
 // The three activities below track the Microsoft Graph credential Fleet uses to read Windows Autopilot devices. Only
-// the tenant ID is recorded: the client secret must never reach the audit log, and the tenant is the credential's
-// identity (the table is unique on it).
+// the tenant ID is recorded, which is sufficient.
 
 type ActivityTypeAddedMicrosoftGraphCredential struct {
 	TenantID string `json:"tenant_id"`
