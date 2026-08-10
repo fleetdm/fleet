@@ -1,32 +1,14 @@
-# ADR-0011: Agent WebSocket Transport
+# ADR-0011: Agent WebSocket transport
 
 ## Status
 
 Proposed
 
-## Authors
-
-- @lucasmrod
-- @lukeheath
-- @sharon-fdm
-
 ## Date
 
 2026-08-04
 
-## Table of Contents
-
-1. [What & Why](#1-what--why)
-2. [How Orbit Proxies osquery](#2-how-orbit-proxies-osquery)
-3. [Security Analysis](#3-security-analysis)
-4. [Deployment & Rollout](#4-deployment--rollout)
-5. [Consequences](#consequences)
-6. [Alternatives Considered](#alternatives-considered)
-7. [References](#references)
-
----
-
-## 1. What & Why
+## 1. What & why
 
 ### The problem
 
@@ -201,9 +183,7 @@ Three layers handle this:
 - **Fully backward compatible.** Old agents ignore the directive. New agents with an old server never receive it. Both keep polling. If the WebSocket cannot be established, fleetd falls back to polling.
 - **Server-controlled load.** Reconnections are jittered with backoff, the server rate-limits upgrades, and the server can pace "check now" nudges progressively to prevent thundering herds.
 
----
-
-## 2. How Orbit Proxies osquery
+## 2. How Orbit proxies osquery
 
 osquery core is unaware of this change. Orbit acts as a local proxy using osquery's existing extension plugin system.
 
@@ -283,9 +263,7 @@ In a future phase, orbit could also register as osquery's logger and config plug
 - The localhost thrift call has zero network overhead.
 - osquery requires zero code changes and has zero awareness of the WebSocket.
 
----
-
-## 3. Security Analysis
+## 3. Security analysis
 
 ### Transport encryption
 
@@ -330,7 +308,7 @@ Redis pub/sub is used only for live query wake-ups: the campaign is created on w
 
 ---
 
-## 4. Deployment & Rollout
+## 4. Deployment & rollout
 
 The feature flag gives us full control over when and where WebSocket transport is enabled. The proposed rollout is incremental, with validation at each stage before moving to the next.
 
@@ -345,8 +323,6 @@ The feature flag gives us full control over when and where WebSocket transport i
 **Stage 4: Document and publish.** Once the feature is proven at scale across managed cloud, document the feature flag and make it available to self-hosted customers who want to enable it on their own infrastructure.
 
 > **Open question for @lucasmrod and @lukeheath:** What do you think of this rollout order? Any concerns or suggestions?
-
----
 
 ## Consequences
 
@@ -369,7 +345,7 @@ With ECS Fargate, we pay per container (vCPU + memory allocation), not per CPU c
 
 Reducing instance count increases WebSocket density per instance. Each instance must still handle HTTP bursts when nudges fire (agents do `distributed/read` and `distributed/write` over HTTP). The connection budget per instance must account for both.
 
-Because this is a new mode of communication, we cannot fully predict the instance count needed for a given host count up front; we will learn it as we deploy progressively (see [Deployment & Rollout](#4-deployment--rollout)). The worked example below is an estimate to show that connection limits are not the bottleneck.
+Because this is a new mode of communication, we cannot fully predict the instance count needed for a given host count up front; we will learn it as we deploy progressively (see [Deployment & rollout](#4-deployment--rollout)). The worked example below is an estimate to show that connection limits are not the bottleneck.
 
 **Worked example at 50k hosts:**
 
@@ -392,9 +368,7 @@ In the worst case, with 5 instances each instance handles ~10k WebSockets + ~10k
 
 The exact instance count and sizing should be determined by load testing with WebSockets enabled, measuring both steady-state resource usage and burst HTTP capacity under nudge scenarios.
 
----
-
-## Alternatives Considered
+## Alternatives considered
 
 ### Long polling
 
@@ -427,10 +401,3 @@ Reduce response size by having agents send an ETag with each request. The server
 - **Pros:** Small, self-contained change. Benefits every deployment including self-hosted without WebSockets. No infrastructure changes needed.
 - **Cons:** Does not eliminate the requests themselves, only shrinks responses. The agent still polls on a fixed timer. Requires an upstream osquery change.
 - **Why not chosen (as a replacement):** The two are complementary, not exclusive. ETag makes the polling fallback path cheap. WebSockets eliminate the polling entirely. Together they cover both managed cloud (WebSocket-enabled) and self-hosted (polling with ETag) deployments.
-
----
-
-## References
-
-- [Agent transport phase 1: `distributed/read` POC](https://github.com/fleetdm/confidential/issues/17019)
-- Load test cost data (July baseline)
