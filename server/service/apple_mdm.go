@@ -3101,6 +3101,11 @@ func (svc *Service) shouldOSUpdateForDEPEnrollment(ctx context.Context, m fleet.
 		}
 	}
 
+	// Always check update if latest is configured for each platform.
+	if minVersion == fleet.AppleOSUpdateLatestVersion {
+		return true, nil
+	}
+
 	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, minVersion)
 	if err != nil {
 		svc.logger.InfoContext(ctx, "checking os updates settings, cannot compare versions", logs...)
