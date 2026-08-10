@@ -81,8 +81,7 @@ type Service struct {
 	// activitySvc is the activity bounded context service for write operations.
 	activitySvc fleet.ActivityWriteService
 
-	// msGraphClientFactory builds the Microsoft Graph client used to verify a credential when it is written to the
-	// config. Injected so tests can avoid the network and so the service does not depend on the concrete client.
+	// msGraphClientFactory builds the Microsoft Graph client used to verify a credential when it is written to the config.
 	msGraphClientFactory msgraph.ClientFactory
 
 	// acmeSvc is the ACME service module for write operations.
@@ -172,7 +171,7 @@ func NewService(
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	// Default to the real Graph client so a caller that has no opinion still behaves correctly in production.
+	// Default to the real Graph client.
 	if msGraphClientFactory == nil {
 		msGraphClientFactory = msgraph.NewClient
 	}

@@ -101,8 +101,7 @@ type TestServerOpts struct {
 	// After setup, tests can use it to intercept or assert on activity creation.
 	ActivityMock *fleet_mock.MockActivityService
 
-	// MicrosoftGraphClientFactory overrides the Graph client used to verify a credential on config write. Test servers
-	// default to a no-op factory; set this to assert on verification behavior.
+	// MicrosoftGraphClientFactory overrides the Graph client used to verify a credential on config write.
 	MicrosoftGraphClientFactory msgraph.ClientFactory
 
 	ACMECertCA  *x509.Certificate

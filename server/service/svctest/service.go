@@ -194,8 +194,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	orgLogoStore, err := filesystem.NewOrgLogoStore(t.TempDir())
 	require.NoError(t, err)
 
-	// Verifying a Microsoft Graph credential on config write calls Entra and Graph, so test servers get a no-op
-	// factory unless a test injects its own. Without this any test applying a credential would hit the real network.
+	// Test servers get a no-op factory unless a test injects its own. Without this any test applying a credential would hit the real network.
 	msGraphClientFactory := msgraph.ClientFactory(noopMicrosoftGraphClientFactory)
 	if len(opts) > 0 && opts[0].MicrosoftGraphClientFactory != nil {
 		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
