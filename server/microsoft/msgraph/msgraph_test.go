@@ -123,6 +123,7 @@ func device(id, serial, tag string) WindowsAutopilotDevice {
 }
 
 func TestNewClientRequiresFullCredential(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		cred *fleet.MicrosoftGraphCredential
@@ -142,6 +143,7 @@ func TestNewClientRequiresFullCredential(t *testing.T) {
 }
 
 func TestListPagination(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name    string
 		pages   [][]WindowsAutopilotDevice
@@ -210,6 +212,7 @@ func nilIfEmpty(s []string) []string {
 // Field mapping is separate from pagination: it pins the Graph wire names onto our struct, including the two values
 // most likely to be mangled (an empty group tag, and one at Intune's 2048-character maximum).
 func TestListParsesDeviceFields(t *testing.T) {
+	t.Parallel()
 	maxTag := strings.Repeat("a", 2048)
 	gs := newPagedGraphServer(t, []WindowsAutopilotDevice{
 		device("id-1", "SERIAL-1", "Engineering"),
@@ -234,6 +237,7 @@ func TestListParsesDeviceFields(t *testing.T) {
 
 // The walk must refuse to continue in several shapes, each of which was either observed live or is a token-safety hazard.
 func TestListRefusesToContinue(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name    string
 		handler func(gs *graphServer) http.HandlerFunc
@@ -301,6 +305,7 @@ func TestListRefusesToContinue(t *testing.T) {
 // The oauth2 transport attaches the bearer token to whatever we request, so a nextLink off the Graph origin is an
 // exfiltration vector, not just a correctness bug.
 func TestListRejectsNextLinkOnAnotherOrigin(t *testing.T) {
+	t.Parallel()
 	evil := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Fail(t, "client followed a next link to a foreign origin", "sent header %q", r.Header.Get("Authorization"))
 	}))
@@ -317,6 +322,7 @@ func TestListRejectsNextLinkOnAnotherOrigin(t *testing.T) {
 }
 
 func TestListClassifiesErrors(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name         string
 		status       int
@@ -383,6 +389,7 @@ func TestListClassifiesErrors(t *testing.T) {
 }
 
 func TestVerifyCredential(t *testing.T) {
+	t.Parallel()
 	t.Run("succeeds on a good page", func(t *testing.T) {
 		var gotTop string
 		gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -420,6 +427,7 @@ func TestVerifyCredential(t *testing.T) {
 // A wrong or expired client secret fails at Entra's token endpoint, before Graph is reached, so it never becomes a
 // Graph response. It still has to classify as an auth failure, or the admin is told it's a connection problem.
 func TestTokenEndpointInvalidClientClassifiesAsAuthError(t *testing.T) {
+	t.Parallel()
 	c := newSingleHostClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
@@ -440,6 +448,7 @@ func TestTokenEndpointInvalidClientClassifiesAsAuthError(t *testing.T) {
 
 // Token acquisition must inherit the caller's context.
 func TestTokenAcquisitionHonorsCallerContext(t *testing.T) {
+	t.Parallel()
 	release := make(chan struct{})
 	// defer, not t.Cleanup: cleanups run LIFO, so the server's Close would run first and block forever waiting on a
 	// handler that is itself blocked on this channel. A deferred close runs before any cleanup and breaks that
@@ -469,6 +478,7 @@ func TestTokenAcquisitionHonorsCallerContext(t *testing.T) {
 
 // Every page of one listing shares a single access token; a token per page would multiply calls against Entra.
 func TestListRequestShape(t *testing.T) {
+	t.Parallel()
 	var tops []string
 	gs := newPagedGraphServer(t,
 		[]WindowsAutopilotDevice{device("id-1", "S1", "A")},
@@ -497,6 +507,7 @@ func TestListRequestShape(t *testing.T) {
 // The error path must bound what it reads, not read everything and then truncate: an edge proxy can answer a 5xx with a
 // very large body, and this message ends up in logs and in the sync error shown to the admin.
 func TestErrorBodyIsBoundedBeforeReading(t *testing.T) {
+	t.Parallel()
 	const huge = 5 << 20 // 5MB
 	var served atomic.Int64
 	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {

@@ -125,9 +125,9 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 		return nil
 	}
 
-	// A credential that was just verified is healthy, and a deleted one can no longer be unhealthy, so the banner is
+	// A credential that was just verified is healthy, and a deleted one can no longer be unhealthy, so the aggregate is
 	// recomputed after a change.
-	if err := svc.refreshMicrosoftGraphCredentialBanner(ctx); err != nil {
+	if err := svc.refreshMicrosoftGraphCredentialInvalid(ctx); err != nil {
 		return err
 	}
 
@@ -140,10 +140,10 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 	return nil
 }
 
-// refreshMicrosoftGraphCredentialBanner recomputes the app-wide banner flag from the stored credentials and saves the
-// app config only when it actually changed. The flag is stored rather than derived on read so that GET /config does not
+// refreshMicrosoftGraphCredentialInvalid recomputes MDM.MicrosoftGraphCredentialInvalid from the stored credentials
+// and saves the app config only when it actually changed. The flag is stored rather than derived on read so that GET /config does not
 // have to join the credentials table on every page load.
-func (svc *Service) refreshMicrosoftGraphCredentialBanner(ctx context.Context) error {
+func (svc *Service) refreshMicrosoftGraphCredentialInvalid(ctx context.Context) error {
 	stored, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
@@ -167,7 +167,7 @@ func (svc *Service) refreshMicrosoftGraphCredentialBanner(ctx context.Context) e
 
 	appCfg.MDM.MicrosoftGraphCredentialInvalid = anyInvalid
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
-		return ctxerr.Wrap(ctx, err, "save app config with microsoft graph banner flag")
+		return ctxerr.Wrap(ctx, err, "save app config with microsoft graph credential status")
 	}
 	return nil
 }

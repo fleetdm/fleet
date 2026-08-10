@@ -2280,7 +2280,7 @@ type Datastore interface {
 	// DeleteMicrosoftGraphCredential removes the credential for an Entra tenant.
 	DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error
 
-	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag that drives the app-wide banner. It reports
+	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag for a tenant. It reports
 	// whether the flag actually changed.
 	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
 

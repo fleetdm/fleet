@@ -107,7 +107,7 @@ func (ds *Datastore) DeleteMicrosoftGraphCredential(ctx context.Context, tenantI
 	return nil
 }
 
-// SetMicrosoftGraphCredentialInvalid flips the flag that drives the app-wide "credential needs attention" banner.
+// SetMicrosoftGraphCredentialInvalid flips the per-tenant flag reporting that a credential needs an admin's attention.
 func (ds *Datastore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (bool, error) {
 	const stmt = `UPDATE mdm_microsoft_graph_credentials SET credential_invalid = ? WHERE tenant_id = ? AND credential_invalid != ?`
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, invalid, tenantID, invalid)

@@ -14,6 +14,7 @@ import (
 )
 
 func TestErrorUnwrapsUnderlyingCause(t *testing.T) {
+	t.Parallel()
 	// A token-endpoint failure must keep the oauth2 error reachable.
 	retrieveErr := &oauth2.RetrieveError{
 		ErrorCode:        "invalid_client",
@@ -32,6 +33,7 @@ func TestErrorUnwrapsUnderlyingCause(t *testing.T) {
 }
 
 func TestParseRetryAfter(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name   string
 		header string
@@ -55,6 +57,7 @@ func TestParseRetryAfter(t *testing.T) {
 }
 
 func TestGraphErrorBodyIsBounded(t *testing.T) {
+	t.Parallel()
 	// An edge proxy can return a large HTML page on 5xx; this string lands in logs and in the admin-visible sync error.
 	huge := strings.Repeat("x", 10_000)
 	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
