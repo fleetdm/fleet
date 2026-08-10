@@ -4,7 +4,8 @@
       "version": "1.4.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Airtable' AND publisher = 'Airtable';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Airtable' AND publisher = 'Airtable' AND version_compare(version, '1.4.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Airtable' AND publisher = 'Airtable' AND version_compare(version, '1.4.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'airtable.exe');"
       },
       "installer_url": "https://static.airtable.com/download/win/AirtableSetup1.4.5.exe",
       "install_script_ref": "ff3de939",

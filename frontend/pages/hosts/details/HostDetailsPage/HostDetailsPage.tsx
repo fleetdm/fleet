@@ -654,19 +654,6 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
-  const getOSVersionRequirementFromMDMConfig = (hostPlatform: string) => {
-    switch (hostPlatform) {
-      case "darwin":
-        return mdmConfig?.macos_updates;
-      case "ipados":
-        return mdmConfig?.ipados_updates;
-      case "ios":
-        return mdmConfig?.ios_updates;
-      default:
-        return undefined;
-    }
-  };
-
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -1483,6 +1470,7 @@ const HostDetailsPage = ({
               diskIsEncrypted={host?.disk_encryption_enabled}
               diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
               lastMdmEnrolledAt={host?.last_mdm_enrolled_at}
+              detailUpdatedAt={host?.detail_updated_at}
             />
           )}
           <div className={`${baseClass}__header-links`}>
@@ -1540,9 +1528,8 @@ const HostDetailsPage = ({
                   vitalsData={vitalsData}
                   munki={macadmins?.munki}
                   mdm={host?.mdm}
-                  osVersionRequirement={getOSVersionRequirementFromMDMConfig(
-                    host.platform
-                  )}
+                  osUpdateMinimumVersion={host.os_update_minimum_version}
+                  osUpdateDeadline={host.os_update_deadline}
                   toggleLocationModal={toggleLocationModal}
                   toggleMDMStatusModal={toggleMDMStatusModal}
                   toggleVitalsModal={toggleVitalsModal}
@@ -2087,9 +2074,8 @@ const HostDetailsPage = ({
             vitalsData={vitalsData}
             munki={macadmins?.munki}
             mdm={host?.mdm}
-            osVersionRequirement={getOSVersionRequirementFromMDMConfig(
-              host.platform
-            )}
+            osUpdateMinimumVersion={host.os_update_minimum_version}
+            osUpdateDeadline={host.os_update_deadline}
             toggleLocationModal={toggleLocationModal}
             toggleMDMStatusModal={toggleMDMStatusModal}
             customHostVitals={host.custom_host_vitals}

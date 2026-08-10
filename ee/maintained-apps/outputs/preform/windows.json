@@ -4,7 +4,8 @@
       "version": "3.60.4.642",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'PreForm' AND publisher = 'Formlabs';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PreForm' AND publisher = 'Formlabs' AND version_compare(version, '3.60.4.642') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PreForm' AND publisher = 'Formlabs' AND version_compare(version, '3.60.4.642') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'preform.exe');"
       },
       "installer_url": "https://downloads.formlabs.com/PreForm/Release/3.60.4/PreForm_win_3.60.4_release_releaser_642_127557.exe",
       "install_script_ref": "84a9966c",

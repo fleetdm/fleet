@@ -188,11 +188,12 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 	}
 
 	// Already-terminal rows. AMAPI may redeliver a notification at-least-once.
-	// For WIPE+acknowledged specifically, still re-run handleAndroidWipeAckUnenroll so transient DB
+	// For WIPE+acknowledged specifically, still re-run androidWipeAckUnenroll so transient DB
 	// failures on the original delivery recover on this retry.
 	if cmd.Status != string(android.MDMAndroidCommandStatusPending) {
 		if cmd.CommandType == string(android.MDMAndroidCommandTypeWipe) && cmd.Status == string(android.MDMAndroidCommandStatusAcknowledged) {
-			if err := svc.handleAndroidWipeAckUnenroll(ctx, cmd, messageID, publishTime); err != nil {
+			if err := androidWipeAckUnenroll(ctx, svc.fleetDS, svc.newActivity, cmd,
+				svc.pubSubDedupRecorder(ctx, messageID, publishTime)); err != nil {
 				return err
 			}
 		}
@@ -201,28 +202,10 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 		return nil
 	}
 
-	newStatus := string(android.MDMAndroidCommandStatusAcknowledged)
-	var errCode, errMsg *string
-	if op.Error != nil {
-		newStatus = string(android.MDMAndroidCommandStatusError)
-		code := googleStatusCode(op.Error.Code)
-		message := op.Error.Message
-		errCode = &code
-		errMsg = &message
-	}
-
-	if err := svc.fleetDS.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, newStatus, errCode, errMsg); err != nil {
-		return ctxerr.Wrap(ctx, err, "update android command status from pub/sub")
-	}
-
-	// WIPE ack is the authoritative signal that the device has been wiped (BYO: work profile removed; COBO: full factory reset). Flip
-	// host_mdm.enrolled to 0 here rather than waiting on a separate STATUS_REPORT / ENROLLMENT with state=DELETED, which AMAPI does
-	// not reliably send for a factory-reset COBO device (the agent is gone, nothing left to phone home). For BYO the DELETED
-	// notification typically arrives and is now a no-op because we already flipped state.
-	if cmd.CommandType == string(android.MDMAndroidCommandTypeWipe) && newStatus == string(android.MDMAndroidCommandStatusAcknowledged) {
-		if err := svc.handleAndroidWipeAckUnenroll(ctx, cmd, messageID, publishTime); err != nil {
-			return err
-		}
+	newStatus, errCode, errMsg := androidOperationTerminalState(&op)
+	if err := setAndroidCommandTerminalState(ctx, svc.fleetDS, svc.newActivity, cmd, newStatus, errCode, errMsg,
+		svc.pubSubDedupRecorder(ctx, messageID, publishTime)); err != nil {
+		return err
 	}
 
 	svc.logger.InfoContext(ctx, "android pub/sub COMMAND processed",
@@ -234,11 +217,57 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 	return nil
 }
 
-// handleAndroidWipeAckUnenroll runs after a successful WIPE ack: flips host_mdm.enrolled, clears host_mdm_actions for BYO (so the
+// androidOperationTerminalState maps a done AMAPI Operation to the terminal status to write on the
+// mdm_android_commands row, plus the error code/message to record. A nil Operation.Error means the
+// device executed the command successfully; a populated one means AMAPI or the device rejected it.
+func androidOperationTerminalState(op *androidmanagement.Operation) (status string, errCode, errMsg *string) {
+	if op.Error == nil {
+		return string(android.MDMAndroidCommandStatusAcknowledged), nil, nil
+	}
+	code := googleStatusCode(op.Error.Code)
+	message := op.Error.Message
+	return string(android.MDMAndroidCommandStatusError), &code, &message
+}
+
+// setAndroidCommandTerminalState moves a pending mdm_android_commands row to a terminal status and runs
+// the post-WIPE-ack side effects. Shared by the Pub/Sub COMMAND handler and the command reconciler cron
+// so the two paths cannot drift. onUnenrolled is passed through to androidWipeAckUnenroll; see its doc
+// comment.
+func setAndroidCommandTerminalState(ctx context.Context, ds fleet.Datastore, newActivityFn fleet.NewActivityFunc,
+	cmd *android.MDMAndroidCommand, status string, errCode, errMsg *string, onUnenrolled func(hostID uint),
+) error {
+	// WIPE ack is the authoritative signal that the device has been wiped (BYO: work profile removed; COBO: full factory reset). Flip
+	// host_mdm.enrolled to 0 here rather than waiting on a separate STATUS_REPORT / ENROLLMENT with state=DELETED, which AMAPI does
+	// not reliably send for a factory-reset COBO device (the agent is gone, nothing left to phone home). For BYO the DELETED
+	// notification typically arrives and is now a no-op because we already flipped state.
+	//
+	// This runs before the status write, not after: androidWipeAckUnenroll is idempotent, so a failure
+	// here leaving the row pending is recoverable (Pub/Sub redelivers, and the reconciler cron only
+	// selects pending rows). Writing the status first would strand a row as acknowledged with its side
+	// effects never applied, which the reconciler could never pick up again.
+	if cmd.CommandType == string(android.MDMAndroidCommandTypeWipe) && status == string(android.MDMAndroidCommandStatusAcknowledged) {
+		if err := androidWipeAckUnenroll(ctx, ds, newActivityFn, cmd, onUnenrolled); err != nil {
+			return err
+		}
+	}
+
+	if err := ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, status, errCode, errMsg); err != nil {
+		return ctxerr.Wrap(ctx, err, "update android command status")
+	}
+	return nil
+}
+
+// androidWipeAckUnenroll runs after a successful WIPE ack: flips host_mdm.enrolled, clears host_mdm_actions for BYO (so the
 // "Wiped" badge does not stick on a host whose only the work profile was removed), and emits mdm_unenrolled if state actually
 // changed. Returns errors so Pub/Sub retries on transient DB failures.
-func (svc *Service) handleAndroidWipeAckUnenroll(ctx context.Context, cmd *android.MDMAndroidCommand, messageID, publishTime string) error {
-	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, cmd.HostUUID)
+//
+// onUnenrolled, when non-nil, runs only if this call actually flipped the host to unenrolled. The Pub/Sub
+// path uses it to record dedup state for the notification that drove the wipe; the reconciler cron passes
+// nil because it has no Pub/Sub message to dedup against.
+func androidWipeAckUnenroll(ctx context.Context, ds fleet.Datastore, newActivityFn fleet.NewActivityFunc,
+	cmd *android.MDMAndroidCommand, onUnenrolled func(hostID uint),
+) error {
+	ah, err := ds.AndroidHostLiteByHostUUID(ctx, cmd.HostUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: lookup host by uuid")
 	}
@@ -248,11 +277,11 @@ func (svc *Service) handleAndroidWipeAckUnenroll(ctx context.Context, cmd *andro
 
 	// BYO needs host_mdm_actions cleared so IsWiped() returns false post-ack -- only the work
 	// profile was removed, not the device. COBO leaves wipe_ref intact so the "Wiped" badge sticks.
-	if err := clearAndroidBYOWipeRef(ctx, svc.fleetDS, ah.Host.ID); err != nil {
+	if err := clearAndroidBYOWipeRef(ctx, ds, ah.Host.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: clear byo wipe-ref")
 	}
 
-	didUnenroll, err := svc.fleetDS.SetAndroidHostUnenrolled(ctx, ah.Host.ID)
+	didUnenroll, err := ds.SetAndroidHostUnenrolled(ctx, ah.Host.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: set host_mdm unenrolled")
 	}
@@ -277,13 +306,15 @@ func (svc *Service) handleAndroidWipeAckUnenroll(ctx context.Context, cmd *andro
 	// it here means a STATUS_REPORT published before the wipe but delivered afterwards (Pub/Sub
 	// is unordered) is dropped as stale by handlePubSubStatusReport, so it cannot re-enroll a
 	// device that was just wiped. Only done when this delivery actually flipped state.
-	svc.recordPubSubProcessed(ctx, ah.Host.ID, messageID, pubSubEventTime("", publishTime))
+	if onUnenrolled != nil {
+		onUnenrolled(ah.Host.ID)
+	}
 
 	displayName := ""
-	if hosts, herr := svc.fleetDS.ListHostsLiteByIDs(ctx, []uint{ah.Host.ID}); herr == nil && len(hosts) == 1 && hosts[0] != nil {
+	if hosts, herr := ds.ListHostsLiteByIDs(ctx, []uint{ah.Host.ID}); herr == nil && len(hosts) == 1 && hosts[0] != nil {
 		displayName = hosts[0].DisplayName()
 	}
-	if err := svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+	if err := newActivityFn(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 		HostID:           ah.Host.ID,
 		HostDisplayName:  displayName,
 		InstalledFromDEP: false,
@@ -413,6 +444,15 @@ func (svc *Service) recordPubSubProcessed(ctx context.Context, hostID uint, mess
 		// that needs alerting.
 		svc.logger.WarnContext(ctx, "failed to record Android PubSub dedup state",
 			"host_id", hostID, "message_id", messageID, "err", err)
+	}
+}
+
+// pubSubDedupRecorder builds the onUnenrolled callback for androidWipeAckUnenroll from a COMMAND
+// notification's envelope. The COMMAND payload carries no device timestamp, so publishTime is the
+// only available event time.
+func (svc *Service) pubSubDedupRecorder(ctx context.Context, messageID, publishTime string) func(hostID uint) {
+	return func(hostID uint) {
+		svc.recordPubSubProcessed(ctx, hostID, messageID, pubSubEventTime("", publishTime))
 	}
 }
 

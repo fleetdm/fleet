@@ -46,7 +46,7 @@ import {
   estimateUploadSize,
   generateFormValidation,
 } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySelector";
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 export const baseClass = "package-form";
 
@@ -159,6 +159,7 @@ interface IPackageFormProps {
   /** Overrides the initial `targetType` for new (non-editing) forms. The
    * multi-package add modal preselects `"Custom"` per Figma. */
   initialTargetType?: string;
+  patchWhenClosed?: boolean;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
@@ -187,6 +188,7 @@ const PackageForm = ({
   restrictedFileAccept,
   restrictedFileTypeLabel,
   initialTargetType,
+  patchWhenClosed = false,
 }: IPackageFormProps) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
   const { config } = useContext(AppContext);
@@ -448,11 +450,13 @@ const PackageForm = ({
   );
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector.
-  // Options selector (self-service + categories) stays edit-only. The target
-  // selector shows whenever a package is being staged — on Edit, in the
+  // The options selector exposes Self-service on Add and Edit; categories
+  // remain edit-only inside SoftwareOptionsSelector. The target selector
+  // shows whenever a package is being staged — on Edit, in the
   // multi-package Add modal, and on the single-package Add page once a file
   // is chosen — because every package on a title needs its own label scope.
-  const showSoftwareOptionsSelector = !gitOpsModeEnabled && isEditingSoftware;
+  const showSoftwareOptionsSelector =
+    !gitOpsModeEnabled && (isEditingSoftware || !!formData.software);
   const showTargetLabelSelector =
     !gitOpsModeEnabled &&
     (isEditingSoftware || multiPackageContext || !!formData.software);
@@ -565,6 +569,7 @@ const PackageForm = ({
             onChangeUninstallScript={onChangeUninstallScript}
             gitopsCompatible={gitopsCompatible}
             gitOpsModeEnabled={gitOpsModeEnabled}
+            patchWhenClosed={patchWhenClosed}
           />
         )}
         <div className={`${baseClass}__action-buttons`}>

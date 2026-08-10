@@ -208,17 +208,17 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tok
 		appConfig.ServerSettings.ServerURL, titleID, token,
 	)
 
-	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil {
+	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil || svc.config.S3.SoftwareInstallersSignedURL {
 		signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID, fleet.InHouseAppSignedURLExpiry)
 		if err != nil {
 			// We log the error and continue to send the Fleet server URL for the in-house app
-			svc.logger.ErrorContext(ctx, "error signing in-house app URL; check CloudFront configuration", "err", err)
+			svc.logger.ErrorContext(ctx, "error signing in-house app URL; check signed URL configuration", "err", err)
 		} else {
 			downloadURL = signedURL
 		}
 	}
 
-	// Escape & characters in case of using CloudFront signed URL
+	// Escape & characters in case of using a signed URL (CloudFront or GCS presigned)
 	funcMap := map[string]any{
 		"xml": mobileconfig.XMLEscapeString,
 	}

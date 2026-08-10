@@ -4,7 +4,8 @@
       "version": "9.6.7.1268",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Shift' AND publisher = 'Shift Technologies, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Shift' AND publisher = 'Shift Technologies, Inc.' AND version_compare(version, '9.6.7.1268') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Shift' AND publisher = 'Shift Technologies, Inc.' AND version_compare(version, '9.6.7.1268') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'shift.exe');"
       },
       "installer_url": "https://updates.tryshift.com/v9.6.7/stable/shift-v9.6.7.1268-stable-x64.exe",
       "install_script_ref": "fbf50bbc",

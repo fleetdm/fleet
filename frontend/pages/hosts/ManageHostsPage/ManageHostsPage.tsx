@@ -115,6 +115,7 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
+  toApiSortBy,
   hostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
@@ -336,6 +337,7 @@ const ManageHostsPage = ({
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
+  const apiSortBy = useMemo(() => toApiSortBy(sortBy), [sortBy]);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
@@ -668,7 +670,7 @@ const ManageHostsPage = ({
         scope: "hosts",
         selectedLabels,
         globalFilter: searchQuery,
-        sortBy,
+        sortBy: apiSortBy,
         teamId: teamIdForApi,
         policyId,
         policyResponse,
@@ -1188,18 +1190,10 @@ const ManageHostsPage = ({
 
       let sort = sortBy;
       if (sortHeader) {
-        let direction = sortDirection;
-        if (sortHeader === "last_restarted_at") {
-          if (sortDirection === "asc") {
-            direction = "desc";
-          } else {
-            direction = "asc";
-          }
-        }
         sort = [
           {
             key: sortHeader,
-            direction: direction || DEFAULT_SORT_DIRECTION,
+            direction: sortDirection || DEFAULT_SORT_DIRECTION,
           },
         ];
       } else if (!sortBy.length) {
@@ -1780,7 +1774,7 @@ const ManageHostsPage = ({
       let options = {
         selectedLabels,
         globalFilter: searchQuery,
-        sortBy,
+        sortBy: apiSortBy,
         teamId: teamIdForApi,
         policyId,
         policyResponse,
@@ -1847,7 +1841,7 @@ const ManageHostsPage = ({
       teamIdForApi,
       selectedLabels,
       searchQuery,
-      sortBy,
+      apiSortBy,
       policyId,
       policyResponse,
       macSettingsStatus,

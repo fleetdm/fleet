@@ -996,4 +996,72 @@ describe("Custom host vitals", () => {
 
     expect(onEditCustomHostVital).toHaveBeenCalledWith(customHostVitals[0]);
   });
+
+  describe("Operating system OS update requirement", () => {
+    const renderWithRequirement = createCustomRenderer({});
+
+    it("shows the required version and deadline", async () => {
+      const mockHost = createMockHost({
+        platform: "darwin",
+        os_version: "macOS 26.5",
+      });
+
+      const { user } = renderWithRequirement(
+        <Vitals
+          vitalsData={mockHost}
+          osUpdateMinimumVersion="26.6"
+          osUpdateDeadline="2026-07-30"
+        />
+      );
+
+      await user.hover(screen.getByText("macOS 26.5"));
+
+      await waitFor(() => {
+        const tooltip = screen.getByText(/Minimum version required:/i);
+        expect(tooltip).toBeVisible();
+        expect(tooltip).toHaveTextContent("Minimum version required: 26.6");
+        expect(tooltip).toHaveTextContent("Deadline: 2026-07-30");
+      });
+
+      // The values are bolded, the labels aren't.
+      expect(screen.getByText("26.6").tagName).toBe("B");
+      expect(screen.getByText("2026-07-30").tagName).toBe("B");
+    });
+
+    it("shows Pending while the target is still being resolved", async () => {
+      const mockHost = createMockHost({
+        platform: "darwin",
+        os_version: "macOS 26.5",
+      });
+
+      const { user } = renderWithRequirement(
+        <Vitals
+          vitalsData={mockHost}
+          osUpdateMinimumVersion="Pending"
+          osUpdateDeadline="Pending"
+        />
+      );
+
+      await user.hover(screen.getByText("macOS 26.5"));
+
+      await waitFor(() => {
+        const tooltip = screen.getByText(/Minimum version required:/i);
+        expect(tooltip).toBeVisible();
+        expect(tooltip).toHaveTextContent("Minimum version required: Pending");
+        expect(tooltip).toHaveTextContent("Deadline: Pending");
+      });
+    });
+
+    it("renders no tooltip when there's no requirement", () => {
+      const mockHost = createMockHost({
+        platform: "darwin",
+        os_version: "macOS 26.5",
+      });
+
+      renderWithRequirement(<Vitals vitalsData={mockHost} />);
+
+      expect(screen.getByText("macOS 26.5")).toBeVisible();
+      expect(screen.queryByText(/Minimum version required/i)).toBeNull();
+    });
+  });
 });

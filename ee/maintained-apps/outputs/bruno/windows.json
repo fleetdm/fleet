@@ -4,7 +4,8 @@
       "version": "4.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Bruno' AND publisher = 'Anoop M D';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Bruno' AND publisher = 'Anoop M D' AND version_compare(version, '4.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Bruno' AND publisher = 'Anoop M D' AND version_compare(version, '4.0.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'bruno.exe');"
       },
       "installer_url": "https://github.com/usebruno/bruno/releases/download/v4.0.0/bruno_4.0.0_x64_win.msi",
       "install_script_ref": "22e48c46",

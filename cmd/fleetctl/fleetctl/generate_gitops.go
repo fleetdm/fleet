@@ -1802,6 +1802,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 				return nil, err
 			}
 			policySpec["fleet_maintained_app_slug"] = fma.Slug
+			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
@@ -2279,7 +2280,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
+				// With patch_when_closed on, this holds Fleet's managed app open query, which gitops rejects.
+				patchPolicy := softwareTitle.SoftwarePackage.PatchPolicy
+				if softwareTitle.SoftwarePackage.PreInstallQuery != "" && (patchPolicy == nil || !patchPolicy.PatchWhenClosed) {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
 					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)

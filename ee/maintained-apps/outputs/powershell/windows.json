@@ -4,7 +4,8 @@
       "version": "7.6.4.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'PowerShell 7-x64' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PowerShell 7-x64' AND publisher = 'Microsoft Corporation' AND version_compare(version, '7.6.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PowerShell 7-x64' AND publisher = 'Microsoft Corporation' AND version_compare(version, '7.6.4.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'pwsh.exe');"
       },
       "installer_url": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.4/PowerShell-7.6.4-win-x64.msi",
       "install_script_ref": "22e48c46",

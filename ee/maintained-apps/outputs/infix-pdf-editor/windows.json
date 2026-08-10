@@ -4,7 +4,8 @@
       "version": "7.7.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Infix PDF Editor' AND publisher = 'Iceni Technology';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Infix PDF Editor' AND publisher = 'Iceni Technology' AND version_compare(version, '7.7.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Infix PDF Editor' AND publisher = 'Iceni Technology' AND version_compare(version, '7.7.0.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'infix pdf editor.exe');"
       },
       "installer_url": "https://www.pdfeditor.biz/Infix7/v7.7.0/InfixSetup.exe",
       "install_script_ref": "0a10872d",

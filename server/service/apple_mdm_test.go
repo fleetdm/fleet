@@ -74,9 +74,15 @@ func (nopProfileMatcher) RetrieveProfiles(ctx context.Context, extHostID string)
 	return fleet.MDMApplePreassignHostProfiles{}, nil
 }
 
-func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
+func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...func(*config.FleetConfig)) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
+	// Custom activations are opt-in on the server (#50764). Tests that exercise
+	// them need them on; pass a tweak to turn them back off.
+	cfg.MDM.EnableCustomActivations = true
+	for _, fn := range tweakCfg {
+		fn(&cfg)
+	}
 	testCertPEM, testKeyPEM, err := generateCertWithAPNsTopic()
 	require.NoError(t, err)
 	config.SetTestMDMConfig(t, &cfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
@@ -9993,7 +9999,7 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 		activation := activationBytesForTest("com.fleet.actD1", "com.fleet.configOther")
 
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, activation)
-		require.ErrorContains(t, err, "Activation must reference the configuration profile it's uploaded with")
+		require.ErrorContains(t, err, "The custom activation must reference the identifier of the configuration profile used to upload it")
 	})
 
 	t.Run("malformed activation is rejected", func(t *testing.T) {
@@ -10067,6 +10073,30 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 		require.ErrorContains(t, err, "Custom activations")
 
 		// ...and the same declaration without an activation still works.
+		_, err = svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, nil)
+		require.NoError(t, err)
+	})
+
+	// A predicate Fleet can't validate can wedge a host's MDM subsystem past
+	// remote recovery (Apple FB24193230, #50764), so uploads are refused unless
+	// the server explicitly opts in.
+	t.Run("activation is refused when the server hasn't enabled activations", func(t *testing.T) {
+		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium},
+			func(c *config.FleetConfig) { c.MDM.EnableCustomActivations = false })
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			return d, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil,
+			activationBytesForTest("com.fleet.actD1", declIdentifier))
+		require.ErrorContains(t, err, ActivationsDisabledErrorMsg)
+
+		// The declaration itself is unaffected -- only the activation is gated.
 		_, err = svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, nil)
 		require.NoError(t, err)
 	})

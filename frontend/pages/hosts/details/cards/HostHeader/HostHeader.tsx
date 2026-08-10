@@ -101,7 +101,14 @@ const HostHeader = ({
 
   const renderRefetch = () => {
     if (isAndroid(platform)) {
-      return null;
+      return (
+        <RefetchButton
+          isDisabled
+          isFetching={false}
+          tooltip={ANDROID_NO_REFETCH_TOOLTIP_MESSAGE}
+          onRefetchHost={onRefetchHost}
+        />
+      );
     }
 
     const isOnline = summaryData.status === "online";
@@ -213,16 +220,7 @@ const HostHeader = ({
           {renderDeviceStatusTag()}
 
           <div className={`${baseClass}__last-fetched`}>
-            <TooltipWrapper
-              disableTooltip={!isAndroid(platform)}
-              tipContent={ANDROID_NO_REFETCH_TOOLTIP_MESSAGE}
-              underline={isAndroid(platform)}
-              position="bottom"
-              showArrow
-            >
-              {"Last fetched"} {lastFetched}
-              &nbsp;
-            </TooltipWrapper>
+            {"Last fetched"} {lastFetched}
           </div>
         </div>
       </div>

@@ -4,7 +4,8 @@
       "version": "6.2.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mattermost' AND publisher = 'Mattermost, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mattermost' AND publisher = 'Mattermost, Inc.' AND version_compare(version, '6.2.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mattermost' AND publisher = 'Mattermost, Inc.' AND version_compare(version, '6.2.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mattermost.exe');"
       },
       "installer_url": "https://github.com/mattermost/desktop/releases/download/v6.2.2/mattermost-desktop-6.2.2-win-x64.msi",
       "install_script_ref": "22e48c46",
