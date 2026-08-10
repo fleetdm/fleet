@@ -267,13 +267,7 @@ type MDM struct {
 	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
 
 	// MicrosoftGraphCredentialInvalid reports that at least one stored Microsoft Graph credential has been rejected by
-	// Entra or denied by Graph, so an admin has to supply a new secret or grant consent. It drives an app-wide banner,
-	// which is why it lives here rather than behind GET /microsoft_graph_credentials: the frontend already loads the
-	// app config on every page, and the credentials endpoint is not on that path.
-	//
-	// It is an aggregate over every configured tenant, mirroring AppleBMTermsExpired: true as soon as one credential
-	// goes bad, false only once all of them are healthy. It cannot be set via PATCH /config; the server recomputes it
-	// whenever a credential is stored, deleted, or marked invalid by the sync.
+	// Entra or denied by Graph, so an admin has to supply a new secret or grant consent.
 	MicrosoftGraphCredentialInvalid bool `json:"microsoft_graph_credential_invalid"`
 
 	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the
