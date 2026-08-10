@@ -2775,7 +2775,8 @@ software:
 
 		// the FMA display name must survive the conversion to the package spec used
 		// to build the batch payload
-		assert.Equal(t, "Custom FMA Name", result.Software.FleetMaintainedApps[0].ToSoftwarePackageSpec().DisplayName)
+		packageSpec := result.Software.FleetMaintainedApps[0].ToSoftwarePackageSpec()
+		assert.Equal(t, "Custom FMA Name", packageSpec.DisplayName)
 	})
 }
 
