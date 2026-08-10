@@ -14,7 +14,7 @@ You can customize these flows with a webhook (e.g. Tines) to run scripts, use th
 
 ### Setup
 
-1. Connect a Google Workspace service account to Fleet under **Settings > Integrations > Calendars**.
+1. Connect a Google Workspace service account to Fleet under **Settings > Integrations > Calendar events**.
 2. Create a webhook to handle the remediation (see [Fleet + Tines guide](https://fleetdm.com/guides/building-webhook-flows-with-fleet-and-tines)).
 3. In the **Policies** tab, click **Manage automations > Calendar events**, enable the feature, and paste your webhook URL.
 

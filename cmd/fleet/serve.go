@@ -219,7 +219,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		platform_logging.DisableTopic(topic)
 	}
 
-	if dev_mode.IsEnabled {
+	if dev_mode.IsEnabled && useS3DevConfig() {
 		createTestBuckets(cmd.Context(), &config, logger)
 	}
 
@@ -295,7 +295,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		return
 	}
 
-	resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
+	resultStore := pubsub.NewRedisQueryResults(
+		redisPool, config.Redis.DuplicateResults,
 		logger.With("component", "query-results"),
 	)
 	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration,
@@ -530,6 +531,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			}
 			// Extract the CloudFront URL signer before creating the S3 stores.
 			config.S3.ValidateCloudFrontURL(initFatal)
+			config.S3.ValidateSoftwareInstallersSignedURL(initFatal)
 			if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
 				// Strip newlines from private key
 				signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
@@ -1257,12 +1259,14 @@ func getTLSConfig(profile string) *tls.Config {
 	switch profile {
 	case configpkg.TLSProfileModern:
 		cfg.MinVersion = tls.VersionTLS13
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
+		cfg.CurvePreferences = append(
+			cfg.CurvePreferences,
 			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
 		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
+		cfg.CipherSuites = append(
+			cfg.CipherSuites,
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
 			tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -1274,12 +1278,14 @@ func getTLSConfig(profile string) *tls.Config {
 		)
 	case configpkg.TLSProfileIntermediate:
 		cfg.MinVersion = tls.VersionTLS12
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
+		cfg.CurvePreferences = append(
+			cfg.CurvePreferences,
 			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
 		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
+		cfg.CipherSuites = append(
+			cfg.CipherSuites,
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
 			tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -1384,6 +1390,12 @@ func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, e
 	return nil, nil
 }
 
+// useS3DevConfig determines usage of local S3 test buckets for software and carve storage.
+// By default, they are allowed unless explicitly disabled by setting FLEET_DEV_SKIP_S3_CONFIG to "1".
+func useS3DevConfig() bool {
+	return dev_mode.Env("FLEET_DEV_SKIP_S3_CONFIG") != "1"
+}
+
 func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logger *slog.Logger) {
 	softwareInstallerStore, err := s3.NewSoftwareInstallerStore(config.S3)
 	if err != nil {
@@ -1391,7 +1403,8 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 	if err := softwareInstallerStore.CreateTestBucket(ctx, config.S3.SoftwareInstallersBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		logger.InfoContext(ctx, "failed to create test software installer bucket",
+		logger.InfoContext(
+			ctx, "failed to create test software installer bucket",
 			"err", err,
 			"name", config.S3.SoftwareInstallersBucket,
 		)
@@ -1402,7 +1415,8 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 	if err := carveStore.CreateTestBucket(ctx, config.S3.CarvesBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		logger.InfoContext(ctx, "failed to create test carve bucket",
+		logger.InfoContext(
+			ctx, "failed to create test carve bucket",
 			"err", err,
 			"name", config.S3.CarvesBucket,
 		)

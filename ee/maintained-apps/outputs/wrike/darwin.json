@@ -4,7 +4,8 @@
       "version": "4.6.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.wrike.Wrike';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.wrike.Wrike' AND version_compare(bundle_short_version, '4.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.wrike.Wrike' AND version_compare(bundle_short_version, '4.6.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.wrike.Wrike');"
       },
       "installer_url": "https://dl.wrike.com/download/WrikeDesktopApp_ARM.v4.6.1.dmg",
       "install_script_ref": "db0938a2",

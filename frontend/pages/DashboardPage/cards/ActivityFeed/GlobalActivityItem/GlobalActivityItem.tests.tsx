@@ -219,6 +219,46 @@ describe("Activity Feed", () => {
     expect(screen.getByText("was added to Fleet by SSO.")).toBeInTheDocument();
   });
 
+  it("renders an edited_macos_min_version activity for a specific version", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedMacosMinVersion,
+      details: {
+        team_id: 1,
+        team_name: "Workstations",
+        minimum_version: "14.6.1",
+        deadline: "2026-09-01",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(/updated the minimum macOS version/)
+    ).toBeInTheDocument();
+    expect(screen.getByText("14.6.1")).toBeInTheDocument();
+    expect(screen.getByText(/deadline: 2026-09-01/)).toBeInTheDocument();
+  });
+
+  it("renders an edited_macos_min_version activity for the latest target", () => {
+    // "latest" is a mode rather than a version, so the sentence must not call it
+    // a minimum, and there's no deadline to report.
+    const activity = createMockActivity({
+      type: ActivityType.EditedMacosMinVersion,
+      details: {
+        team_id: 1,
+        team_name: "Workstations",
+        minimum_version: "latest",
+        deadline: "",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/updated macOS version to/)).toBeInTheDocument();
+    expect(screen.getByText("latest")).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+    expect(screen.queryByText(/minimum/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/deadline/)).not.toBeInTheDocument();
+  });
+
   it("renders an edited_agent_options type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedAgentOptions,
@@ -1974,6 +2014,47 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText(/failed to run/i)).toBeInTheDocument(); // For status: "failed_install"
     expect(screen.getByText("Script-only Software")).toBeInTheDocument();
+  });
+
+  it("renders skipped copy when the app was open", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Fleet",
+      fleet_initiated: true,
+      details: {
+        software_title: "Firefox",
+        software_package: "Firefox.pkg",
+        host_display_name: "Work Mac",
+        source: "apps",
+        status: "failed_install",
+        install_skipped_when_app_open: true,
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/skipped install of/)).toBeInTheDocument();
+    expect(screen.getByText("Firefox")).toBeInTheDocument();
+    expect(screen.getByText("Work Mac")).toBeInTheDocument();
+    expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
+  });
+
+  it("keeps generic failed-install copy when the app-open flag is absent", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Fleet",
+      fleet_initiated: true,
+      details: {
+        software_title: "Firefox",
+        software_package: "Firefox.pkg",
+        host_display_name: "Work Mac",
+        source: "apps",
+        status: "failed_install",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/failed to install/)).toBeInTheDocument();
+    expect(screen.queryByText(/skipped install/)).not.toBeInTheDocument();
   });
 
   it("renders py script package ran status in InstalledSoftware activity", () => {

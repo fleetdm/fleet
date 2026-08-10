@@ -8,7 +8,7 @@ In Fleet, labels organize hosts into groups you can target with [software](https
 
 - **Dynamic:** Query-based; auto-applied to any host returning a result for the label's SQL query. Optionally restrict to a platform (`darwin`, `windows`, `ubuntu`, `centos`).
 - **Manual:** Applied to an explicit list of hosts, specified by `hardware_serial`, `uuid`, or Fleet host ID. Useful for one-off groupings (e.g., a pilot group).
-- **Host vitals:** Auto-applied to hosts matching a host vital from your IdP. Supported criteria: `end_user_idp_group` and `end_user_idp_department`. Requires a connected IdP (Okta, Microsoft Entra ID, Google Workspace, authentik, or any SCIM provider; see [Foreign host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts)).
+- **Host vitals:** Auto-applied to hosts matching a single host vital's value (exact match only). Supported criteria: `end_user_idp_group` and `end_user_idp_department`, which require a connected IdP (Okta, Microsoft Entra ID, Google Workspace, authentik, or any SCIM provider; see [Foreign host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts)), or any [custom host vital](https://fleetdm.com/guides/custom-host-vitals) you've defined.
 
 > To change a dynamic label's query/platform or a host vitals label's criteria in the UI, you must delete and re-create it.
 

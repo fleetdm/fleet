@@ -4,7 +4,8 @@
       "version": "2026.1.2.36540",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Foxit PDF Reader' AND publisher = 'Foxit Software Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foxit PDF Reader' AND publisher = 'Foxit Software Inc.' AND version_compare(version, '2026.1.2.36540') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foxit PDF Reader' AND publisher = 'Foxit Software Inc.' AND version_compare(version, '2026.1.2.36540') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foxit pdf reader.exe');"
       },
       "installer_url": "https://cdn01.foxitsoftware.com/product/reader/desktop/win/2026.1.2/FoxitPDFReader202612_L10N_Setup_x64.exe",
       "install_script_ref": "4ce619b8",

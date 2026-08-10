@@ -404,6 +404,124 @@ describe("SelfServiceCard", () => {
     expect(button).toBeEnabled();
   });
 
+  // With a search query active, the install-all count and the request sent to
+  // the BE must both match the visible (filtered) subset. The count math is
+  // covered at the helper level in helpers.tests.ts; here we only need to
+  // assert the count *renders* correctly and the query lands on the POST.
+  it("forwards the search query to install_all so the request matches the visible subset", async () => {
+    let installAllUrl = "";
+    mockServer.use(
+      http.post(
+        baseUrl("/device/:token/software/install_all"),
+        ({ request }) => {
+          installAllUrl = request.url;
+          return new HttpResponse(null, { status: 202 });
+        }
+      )
+    );
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 1, query: "fox" },
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({
+            name: "Firefox",
+            software_package: browserPackage,
+          }),
+          ui_status: "uninstalled",
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+    const user = userEvent.setup();
+
+    render(<SelfServiceCard {...props} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /Install all \(1\)/i })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /^Install all$/i })
+    );
+
+    await waitFor(() => {
+      expect(installAllUrl).toContain("query=fox");
+    });
+    expect(installAllUrl).toContain("category_id=1");
+  });
+
+  // Normalization must happen once at the SelfServiceCard level so the
+  // desktop table filter, count, and outgoing API call all share identical
+  // semantics. Whitespace-padded or whitespace-only queries would otherwise
+  // drift between react-table (raw) and the helper/API (trimmed).
+  it.each([
+    ["trailing/leading spaces", "  fox  ", "query=fox"],
+    ["whitespace-only", "   ", null],
+    ["empty string", "", null],
+  ])(
+    "normalizes queryParams.query (%s) into a single semantics for the POST",
+    async (_, urlQuery, expectedFragment) => {
+      let installAllUrl = "";
+      mockServer.use(
+        http.post(
+          baseUrl("/device/:token/software/install_all"),
+          ({ request }) => {
+            installAllUrl = request.url;
+            return new HttpResponse(null, { status: 202 });
+          }
+        )
+      );
+      mockServer.use(
+        listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+      );
+      const browserPackage = createMockHostSoftwarePackage({
+        categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+      });
+      const props = createTestProps({
+        queryParams: {
+          ...DEFAULT_QUERY_PARAMS,
+          category_id: 1,
+          query: urlQuery,
+        },
+        enhancedSoftware: [
+          {
+            ...createMockDeviceSoftware({
+              name: "Firefox",
+              software_package: browserPackage,
+            }),
+            ui_status: "uninstalled",
+          },
+        ],
+      });
+      const render = createCustomRenderer({ withBackendMock: true });
+      const user = userEvent.setup();
+
+      render(<SelfServiceCard {...props} />);
+
+      await user.click(
+        await screen.findByRole("button", { name: /Install all \(1\)/i })
+      );
+      await user.click(
+        await screen.findByRole("button", { name: /^Install all$/i })
+      );
+
+      await waitFor(() => {
+        expect(installAllUrl).toContain("category_id=1");
+      });
+      if (expectedFragment) {
+        expect(installAllUrl).toContain(expectedFragment);
+        expect(installAllUrl).not.toContain("query=%20");
+      } else {
+        expect(installAllUrl).not.toContain("query=");
+      }
+    }
+  );
+
   it("posts to install_all and fires onInstallAllSuccess when the confirm modal is submitted", async () => {
     let installAllCalled = false;
     let installAllUrl = "";

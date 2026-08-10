@@ -312,6 +312,7 @@ export interface IActivityDetails {
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;
+  install_skipped_when_app_open?: boolean;
   installed_from_dep?: boolean;
   labels_exclude_any?: ILabelSoftwareTitle[];
   labels_include_any?: ILabelSoftwareTitle[];
@@ -327,6 +328,7 @@ export interface IActivityDetails {
   policy_name?: string;
   profile_identifier?: string;
   profile_name?: string;
+  profile_uuid?: string;
   public_ip?: string;
   query_id?: number;
   query_ids?: number[];

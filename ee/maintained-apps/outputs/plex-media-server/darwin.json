@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.43.3.10828",
+      "version": "1.43.3.10861",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.plexapp.plexmediaserver';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.plexapp.plexmediaserver' AND version_compare(bundle_short_version, '1.43.3.10828') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.plexapp.plexmediaserver' AND version_compare(bundle_short_version, '1.43.3.10861') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.plexapp.plexmediaserver');"
       },
-      "installer_url": "https://downloads.plex.tv/plex-media-server-new/1.43.3.10828-00f62d37d/macos/PlexMediaServer-1.43.3.10828-00f62d37d-universal.zip",
+      "installer_url": "https://downloads.plex.tv/plex-media-server-new/1.43.3.10861-07dfddaeb/macos/PlexMediaServer-1.43.3.10861-07dfddaeb-universal.zip",
       "install_script_ref": "87eb0241",
       "uninstall_script_ref": "2c6d641f",
-      "sha256": "32f014ca977e856d2bd28c7a86d2f7effdc6d7fa7b83eec3a212845c7b5bebe8",
+      "sha256": "bf6b1466dbef552457b49be68e54020198987ea498622ec7cf95ae8252b243ee",
       "default_categories": [
         "Productivity"
       ]

@@ -1,0 +1,1 @@
+- Fixed the script and query editors so that scrolling after a single click no longer selects text instead of scrolling.

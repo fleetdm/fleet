@@ -4,7 +4,8 @@
       "version": "17.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.koingosw.MacPilot';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.koingosw.MacPilot' AND version_compare(bundle_short_version, '17.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.koingosw.MacPilot' AND version_compare(bundle_short_version, '17.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.koingosw.MacPilot');"
       },
       "installer_url": "https://www.koingosw.com/products/macpilot/download/macpilot.dmg",
       "install_script_ref": "c5af05bc",
