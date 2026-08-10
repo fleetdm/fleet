@@ -99,23 +99,18 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	return "", nil
 }
 
-// bracketScript runs the command named by the first positional parameter with its
-// stdout and exit status bracketed by markers, so they can be told apart from
-// anything else written to the same stream.
+// bracketScript runs the command named by the first positional parameter, with its
+// stdout and exit status bracketed by markers.
 //
 // The command runs under the login user's shell (see getConfigForCommand), whose
-// startup files write to that same stdout: /etc/profile, /etc/profile.d/* and
-// ~/.profile before the command, ~/.bash_logout after it. Without the markers
-// there is no way to tell that output from the command's own, and prepending it
-// to, say, a passphrase read from a dialog silently corrupts the value.
+// startup files write to the same stdout (/etc/profile, /etc/profile.d/*,
+// ~/.profile, ~/.bash_logout). Without the markers that output is indistinguishable
+// from the command's own, and prepending it to a passphrase silently corrupts it.
 //
-// The status is reported in the closing marker rather than left to the exit code,
-// which by then belongs to the shell rather than the command.
-//
-// The script is fed to `sh -s` over stdin rather than passed as an argument. As an
-// argument it travels through the login shell, which on some sudo implementations
-// expands it first: the inner shell then received the login shell's own
-// positional parameters and tried to run its argv[0] instead of the command.
+// The status travels in the closing marker because the process status is the
+// shell's by then. The script goes over stdin because as an argument it is expanded
+// by the login shell on some sudo implementations, leaving the inner shell to run
+// that shell's argv[0] instead of the command.
 func bracketScript(nonce string) string {
 	return fmt.Sprintf(`echo "B-%s"; cmd=$1; shift; "$cmd" "$@"; echo "E-%s:$?"`, nonce, nonce)
 }
@@ -133,10 +128,12 @@ func newOutputNonce() (string, error) {
 // parseBracketedOutput returns the wrapped command's own stdout and exit status,
 // discarding whatever the login shell wrote around them.
 //
-// ok is false when the markers are absent or malformed, meaning the wrapper did
-// not run as expected. Callers then fall back to the raw output and the process
-// exit code, which is no worse than not wrapping at all.
+// ok is false when the markers are absent or malformed, meaning the wrapper did not
+// run as expected; callers then fall back to the raw output and the process exit
+// code, which is no worse than not wrapping at all.
 func parseBracketedOutput(b []byte, nonce string) (output []byte, exitCode int, ok bool) {
+	// Redundant with the search below, which already fails on empty input, but
+	// nilaway needs it to see that the slice further down is guarded.
 	if len(b) == 0 {
 		return nil, 0, false
 	}
@@ -170,10 +167,8 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 		return nil, -1, err
 	}
 
-	// Run the command through `sh -s` so its output can be bracketed. The command
-	// and its arguments become the shell's positional parameters, and the script
-	// itself arrives on stdin, out of reach of the login shell. This inner shell is
-	// not a login shell, so it sources nothing of its own.
+	// The command and its arguments become the inner shell's positional parameters;
+	// the script itself arrives on stdin. See bracketScript.
 	opts.args = append([][2]string{
 		{"-s", ""},
 		{path, ""},
