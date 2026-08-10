@@ -25,7 +25,12 @@ const (
 	_ uint = -(stdWriteDAC ^ windows.WRITE_DAC)
 	_ uint = -(stdWriteOwner ^ windows.WRITE_OWNER)
 	_ uint = -(genericAll ^ windows.GENERIC_ALL)
+	_ uint = -(genericExecute ^ windows.GENERIC_EXECUTE)
 	_ uint = -(genericWrite ^ windows.GENERIC_WRITE)
 	_ uint = -(genericRead ^ windows.GENERIC_READ)
+
+	// The generic mapping mapGenericRights applies.
 	_ uint = -(fileGenericRead ^ windows.FILE_GENERIC_READ)
+	_ uint = -(fileGenericWrite ^ windows.FILE_GENERIC_WRITE)
+	_ uint = -(fileGenericExecute ^ windows.FILE_GENERIC_EXECUTE)
 )

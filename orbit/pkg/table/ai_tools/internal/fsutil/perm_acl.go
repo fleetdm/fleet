@@ -33,20 +33,53 @@ const (
 	stdWriteDAC    = 0x00040000 // WRITE_DAC
 	stdWriteOwner  = 0x00080000 // WRITE_OWNER
 	genericAll     = 0x10000000 // GENERIC_ALL
+	genericExecute = 0x20000000 // GENERIC_EXECUTE
 	genericWrite   = 0x40000000 // GENERIC_WRITE
 	genericRead    = 0x80000000 // GENERIC_READ
 
-	fileAllAccess   = 0x001F01FF // FILE_ALL_ACCESS — what `icacls /grant <x>:F` writes
-	fileGenericRead = 0x00120089 // FILE_GENERIC_READ — `icacls /grant <x>:R`
+	// The file object's GENERIC_MAPPING: what each generic right stands for on a
+	// file. Note FILE_GENERIC_WRITE carries none of DELETE, WRITE_DAC or
+	// WRITE_OWNER.
+	fileAllAccess      = 0x001F01FF // FILE_ALL_ACCESS — GENERIC_ALL, `icacls /grant <x>:F`
+	fileGenericRead    = 0x00120089 // FILE_GENERIC_READ — GENERIC_READ, `icacls /grant <x>:R`
+	fileGenericWrite   = 0x00120116 // FILE_GENERIC_WRITE — GENERIC_WRITE, `icacls /grant <x>:W`
+	fileGenericExecute = 0x001200A0 // FILE_GENERIC_EXECUTE — GENERIC_EXECUTE
 )
 
 // writeMask is every bit that lets the holder change the file's contents, or
 // escalate to being able to. DELETE allows replacing the file wholesale, and
 // WRITE_DAC/WRITE_OWNER allow granting yourself the rest — all three are as good
 // as write for an attacker editing an agent instruction file.
-const writeMask = fileWriteData | fileAppendData | stdDelete | stdWriteDAC | stdWriteOwner | genericWrite | genericAll
+//
+// Both masks name specific rights only: mapGenericRights has already translated
+// the generic aliases away by the time a mask is evaluated.
+const writeMask = fileWriteData | fileAppendData | stdDelete | stdWriteDAC | stdWriteOwner
 
-const readMask = fileReadData | genericRead | genericAll
+const readMask = fileReadData
+
+// mapGenericRights rewrites an ACE mask's generic bits into the specific file
+// rights they stand for, and clears them — the same translation MapGenericMask
+// performs, and what the object manager is supposed to have done before a
+// descriptor reaches an object. It has to be done here because generic bits do
+// reach real file DACLs verbatim (icacls renders them GR/GW/GE/GA, and SDDL
+// strings write them as-is), and precedence has to be decided in one vocabulary:
+// otherwise a deny naming GENERIC_ALL and an allow naming FILE_ALL_ACCESS look
+// like disjoint sets of rights and neither settles the other.
+func mapGenericRights(m uint32) uint32 {
+	if m&genericRead != 0 {
+		m |= fileGenericRead
+	}
+	if m&genericWrite != 0 {
+		m |= fileGenericWrite
+	}
+	if m&genericExecute != 0 {
+		m |= fileGenericExecute
+	}
+	if m&genericAll != 0 {
+		m |= fileAllAccess
+	}
+	return m &^ (genericRead | genericWrite | genericExecute | genericAll)
+}
 
 // aceEntry is one DACL entry reduced to the fields the world-permission decision
 // needs.
@@ -74,7 +107,7 @@ func worldPermFromACEs(aces []aceEntry) Perm {
 		if a.InheritOnly || !isWorldSID(a.SID) {
 			continue
 		}
-		fresh := a.Mask & ^decided // rights no earlier ACE has already settled
+		fresh := mapGenericRights(a.Mask) & ^decided // rights no earlier ACE has settled
 		if fresh == 0 {
 			continue
 		}

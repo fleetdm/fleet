@@ -89,6 +89,37 @@ func TestWorldPermFromACEs(t *testing.T) {
 			},
 		},
 		{
+			// A deny and an allow can name the same rights in different
+			// vocabularies. GENERIC_ALL stands for FILE_ALL_ACCESS, so this deny
+			// settles every right the following allow asks for.
+			name: "generic deny ahead of specific allow grants nothing",
+			aces: []aceEntry{
+				deny(sidEveryone, genericAll),
+				allow(sidEveryone, fileAllAccess),
+			},
+		},
+		{
+			// The same in reverse: the deny names specific rights and the allow uses
+			// the generic alias for them, so it adds nothing.
+			name: "specific deny ahead of generic allow grants nothing",
+			aces: []aceEntry{
+				deny(sidEveryone, fileAllAccess),
+				allow(sidEveryone, genericAll),
+			},
+		},
+		{
+			// GENERIC_WRITE maps to FILE_GENERIC_WRITE, which carries none of DELETE,
+			// WRITE_DAC or WRITE_OWNER — so like the (WD,AD) case above, the allow's
+			// escalation rights survive the deny.
+			name: "generic write deny leaves the escalation rights a later allow grants",
+			aces: []aceEntry{
+				deny(sidEveryone, genericWrite),
+				allow(sidEveryone, fileAllAccess),
+			},
+			wantRead:  true,
+			wantWrite: true,
+		},
+		{
 			name: "inherit-only ACE does not apply to the object itself",
 			aces: []aceEntry{
 				{SID: sidEveryone, Allow: true, InheritOnly: true, Mask: fileAllAccess},
