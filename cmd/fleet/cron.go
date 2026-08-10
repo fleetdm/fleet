@@ -2365,13 +2365,10 @@ func newMaintainedAppSchedule(
 				return err
 			}
 
-			// A name the catalog just changed applies now rather than whenever
-			// CronMacOSMaintainedAppNames next runs. That schedule stays the authority, so
-			// this is best effort: the apps are stored at this point, and failing the sync
-			// over a rename the other schedule will redo would be the wrong trade. Running
-			// it only after a successful sync is the point -- a failed or partial fetch must
-			// not decide whether the rename pass happens, which is why it is a schedule of
-			// its own and no longer a step in here.
+			// Best effort so a name the catalog just changed applies now instead of on
+			// CronMacOSMaintainedAppNames' next tick. That schedule owns the pass and
+			// surfaces its errors, so a failure here warns instead of failing a refresh
+			// that already succeeded.
 			if err := ds.ReconcileMaintainedAppSoftwareNames(ctx); err != nil {
 				logger.WarnContext(ctx, "reconciling macOS maintained app software names after a catalog refresh", "err", err)
 			}

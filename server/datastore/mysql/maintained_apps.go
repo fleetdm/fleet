@@ -54,15 +54,14 @@ ON DUPLICATE KEY UPDATE
 }
 
 // maintainedAppNameReconcileBatchSize caps how many rows a single reconcile UPDATE
-// touches. Each batch is its own autocommit statement, so this bounds how long
-// InnoDB holds row locks on software / software_titles. A var so tests can lower it.
+// touches. Each batch commits its own transaction, so this bounds how long InnoDB
+// holds row locks on software / software_titles. A var so tests can lower it.
 var maintainedAppNameReconcileBatchSize = 500
 
 // maintainedAppNameReconcileDiscoveryLimit caps how many mismatched rows one discovery
-// SELECT returns, bounding the pass's memory no matter how large the catalog or the
-// software inventory grows. Renaming a window removes its rows from the next SELECT's
-// result, so the pass re-runs the same query until a window comes back short rather
-// than paginating with an offset. A var so tests can lower it.
+// SELECT returns, bounding the pass's memory no matter how many rows need renaming;
+// the windowed loop in ReconcileMaintainedAppSoftwareNames drains rows past it. A var
+// so tests can lower it.
 var maintainedAppNameReconcileDiscoveryLimit = 10_000
 
 // ReconcileMaintainedAppSoftwareNames renames macOS software_titles and software rows
@@ -70,39 +69,18 @@ var maintainedAppNameReconcileDiscoveryLimit = 10_000
 // Code"). Inventory and the installer already share a title via bundle_identifier, so
 // only the name needs correcting. Batched and idempotent.
 //
-// Runs on its own schedule (CronMacOSMaintainedAppNames) rather than as a step in the
-// catalog sync. Tying it to the sync meant a failed fetch, or one that errored part way
-// through its upserts, skipped the pass and left names the previous fetch had already
-// recorded uncorrected. The refresh still calls it on success, so a name the catalog just
-// changed applies immediately rather than on the next tick; the schedule is what covers a
-// refresh that failed.
-//
 // A bundle identifier is not unique across apps (Firefox and Firefox ESR both use
 // org.mozilla.firefox), so renaming by identifier alone is ambiguous: it renames first
 // by the precise installer link, then by bundle identifier but only where it maps to a
 // single app name.
 //
-// The writes deliberately avoid `UPDATE ... JOIN (<derived table>)`. The catalog subqueries
-// need GROUP BY, so MySQL materializes them, and at scale the optimizer flips to scanning the
-// target table once per materialized row. An UPDATE locks every row it reads -- the WHERE
-// filter is applied after the row is locked -- so that plan takes exclusive next-key locks on
-// all of software and software_titles, which blocks any insert needing a shared lock on a
-// software_titles row. That took down the software install endpoints, which reach
-// software_titles through their foreign keys.
-//
 // Discovery is a different matter and does join. That hazard is specific to UPDATE: a SELECT
 // here is a non-locking consistent read. So each pass finds its mismatched rows in
-// LIMIT-bounded windows and renames them by primary key in bounded batches, each batch its
-// own statement, so locks stay on a handful of rows and never span batches, and memory is
+// LIMIT-bounded windows and renames them by primary key in small batches, each batch its own
+// transaction: locks stay on a handful of rows and never span batches, and memory stays
 // bounded no matter how many rows are mismatched. Every UPDATE re-checks `name <> ?`, which
 // keeps the pass idempotent.
-//
-// Windows needs a merge rather than a rename and does not depend on the catalog, so it
-// runs separately. See ReconcileWindowsMaintainedAppSoftwareTitles.
 func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) error {
-	// Reads go to the primary: the catalog refresh calls this straight after upserting those
-	// rows, so a replica may not have them yet and a freshly published name would be missed
-	// until the schedule's next tick. These are index lookups, not scans, and take no locks.
 	primaryCtx := ctxdb.RequirePrimary(ctx, true)
 
 	var renamedTitles, renamedSoftware int64
@@ -134,7 +112,7 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 		// memory. Renaming a window removes its rows from the next SELECT's result -- every
 		// UPDATE re-checks `name <> ?` -- so re-running the same query walks the remainder
 		// without an offset, and a window that comes back short means nothing is left. A
-		// selected row the rename cannot fix would error out rather than loop.
+		// rename that fails returns its error, so the loop cannot spin on rows it cannot fix.
 		for {
 			var rows []struct {
 				ID   uint   `db:"id"`
@@ -147,9 +125,7 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 				break
 			}
 
-			// One UPDATE carries one name, so group the ids by the name they should get. Grouping is
-			// an exact map lookup, never a comparison, so it cannot disagree with the
-			// collation-sensitive `name <> ?` that the UPDATE itself applies.
+			// One UPDATE carries one name, so group the ids by the name they should get.
 			idsByName := make(map[string][]uint, len(rows))
 			for _, r := range rows {
 				idsByName[r.Name] = append(idsByName[r.Name], r.ID)
@@ -189,12 +165,11 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 // Statements for ReconcileMaintainedAppSoftwareNames.
 //
 // The join order is pinned with STRAIGHT_JOIN so the materialized catalog is always the outer
-// table and each software row is reached by index: ~960 index lookups inside one query rather
-// than one query per catalog entry. Left to itself the optimizer can pick the
-// scan-per-catalog-row plan instead, which is what made the original UPDATE examine ~106M
-// rows. The name comparison stays in SQL so it uses the columns' utf8mb4_unicode_ci
-// collation; comparing in Go would be byte-exact, disagree with the UPDATE's own predicate,
-// and re-select case-only differences on every run.
+// table and every software row is reached by index. Left to itself the optimizer can flip
+// that around and scan the target table once per catalog row -- the plan behind the incident
+// described on the function. The name comparison stays in SQL so it uses the columns'
+// utf8mb4_unicode_ci collation; comparing in Go would be byte-exact, disagree with the
+// UPDATE's own predicate, and re-select case-only differences on every run.
 //
 // additional_identifier is 1 for ios_apps and 2 for ipados_apps, so requiring 0 keeps a macOS
 // app's canonical name off its iOS and iPadOS sibling titles, which are distinct products
