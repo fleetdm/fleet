@@ -78,6 +78,20 @@ func autopilotTimestamp(t *testing.T, ds *Datastore, stmt string, hostID uint) t
 	return ts
 }
 
+// storedGraphCredential reads one credential back through the decrypting list, which is the only credential read path
+// production uses. There is no single-tenant datastore read because nothing needs one.
+func storedGraphCredential(t *testing.T, ds *Datastore, tenantID string) *fleet.MicrosoftGraphCredential {
+	t.Helper()
+	creds, err := ds.ListMicrosoftGraphCredentials(t.Context())
+	require.NoError(t, err)
+	for _, cred := range creds {
+		if cred.TenantID == tenantID {
+			return cred
+		}
+	}
+	return nil
+}
+
 func requireAutopilotDeviceNotFound(t *testing.T, ds *Datastore, hostID uint) {
 	t.Helper()
 	_, err := ds.GetHostAutopilotDevice(t.Context(), hostID)
@@ -126,14 +140,12 @@ func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, creds, 2)
 
-	got, err := ds.GetMicrosoftGraphCredential(ctx, testTenantB)
-	require.NoError(t, err)
+	got := storedGraphCredential(t, ds, testTenantB)
+	require.NotNil(t, got)
 	assert.Equal(t, "client-"+testTenantB, got.ClientID)
 	assert.Equal(t, "secret-"+testTenantB, got.ClientSecret)
 
-	_, err = ds.GetMicrosoftGraphCredential(ctx, "no-such-tenant")
-	require.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
+	assert.Nil(t, storedGraphCredential(t, ds, "no-such-tenant"), "an unconfigured tenant is simply absent")
 
 	// Deleting one tenant leaves the other alone.
 	require.NoError(t, ds.DeleteMicrosoftGraphCredential(ctx, testTenantA))
@@ -161,8 +173,8 @@ func testGraphCredentialSecretEncryptedAtRest(t *testing.T, ds *Datastore) {
 	assert.NotContains(t, string(stored), "plaintext-secret", "The stored blob must not contain the plaintext")
 
 	// And it decrypts back to the original on read.
-	got, err := ds.GetMicrosoftGraphCredential(ctx, testTenantA)
-	require.NoError(t, err)
+	got := storedGraphCredential(t, ds, testTenantA)
+	require.NotNil(t, got)
 	assert.Equal(t, "plaintext-secret", got.ClientSecret)
 }
 
@@ -199,8 +211,8 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.False(t, wasSet)
 
-	got, err := ds.GetMicrosoftGraphCredential(ctx, testTenantA)
-	require.NoError(t, err)
+	got := storedGraphCredential(t, ds, testTenantA)
+	require.NotNil(t, got)
 	assert.True(t, got.CredentialInvalid)
 
 	// Clearing works the same way.
@@ -208,23 +220,23 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, wasSet)
 
-	got, err = ds.GetMicrosoftGraphCredential(ctx, testTenantA)
-	require.NoError(t, err)
+	got = storedGraphCredential(t, ds, testTenantA)
+	require.NotNil(t, got)
 	assert.False(t, got.CredentialInvalid)
 
 	// A failed pass records the message alongside the timestamp.
 	syncErr := "AADSTS7000222: client secret expired"
 	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &syncErr))
-	got, err = ds.GetMicrosoftGraphCredential(ctx, testTenantA)
-	require.NoError(t, err)
+	got = storedGraphCredential(t, ds, testTenantA)
+	require.NotNil(t, got)
 	require.NotNil(t, got.LastSyncedAt)
 	require.NotNil(t, got.LastSyncError)
 	assert.Equal(t, syncErr, *got.LastSyncError)
 
 	// A subsequent success clears the error.
 	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, nil))
-	got, err = ds.GetMicrosoftGraphCredential(ctx, testTenantA)
-	require.NoError(t, err)
+	got = storedGraphCredential(t, ds, testTenantA)
+	require.NotNil(t, got)
 	require.NotNil(t, got.LastSyncedAt)
 	assert.Nil(t, got.LastSyncError)
 
@@ -238,8 +250,8 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 		TenantID: testTenantA, ClientID: "client-a", ClientSecret: "rotated-secret",
 	}))
 
-	got, err = ds.GetMicrosoftGraphCredential(ctx, testTenantA)
-	require.NoError(t, err)
+	got = storedGraphCredential(t, ds, testTenantA)
+	require.NotNil(t, got)
 	assert.False(t, got.CredentialInvalid, "rotating a verified credential must clear the banner flag")
 	assert.Nil(t, got.LastSyncError, "rotating a credential must clear the error recorded against the old secret")
 	assert.Nil(t, got.LastSyncedAt, "the previous sync time describes the replaced credential, not the new one")

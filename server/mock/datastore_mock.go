@@ -1364,8 +1364,6 @@ type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.Micro
 
 type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
 
-type GetMicrosoftGraphCredentialFunc func(ctx context.Context, tenantID string) (*fleet.MicrosoftGraphCredential, error)
-
 type UpsertMicrosoftGraphCredentialFunc func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error
 
 type DeleteMicrosoftGraphCredentialFunc func(ctx context.Context, tenantID string) error
@@ -4338,9 +4336,6 @@ type DataStore struct {
 
 	ListMicrosoftGraphCredentialMetadataFunc        ListMicrosoftGraphCredentialMetadataFunc
 	ListMicrosoftGraphCredentialMetadataFuncInvoked bool
-
-	GetMicrosoftGraphCredentialFunc        GetMicrosoftGraphCredentialFunc
-	GetMicrosoftGraphCredentialFuncInvoked bool
 
 	UpsertMicrosoftGraphCredentialFunc        UpsertMicrosoftGraphCredentialFunc
 	UpsertMicrosoftGraphCredentialFuncInvoked bool
@@ -10476,13 +10471,6 @@ func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([
 	s.ListMicrosoftGraphCredentialMetadataFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMicrosoftGraphCredentialMetadataFunc(ctx)
-}
-
-func (s *DataStore) GetMicrosoftGraphCredential(ctx context.Context, tenantID string) (*fleet.MicrosoftGraphCredential, error) {
-	s.mu.Lock()
-	s.GetMicrosoftGraphCredentialFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMicrosoftGraphCredentialFunc(ctx, tenantID)
 }
 
 func (s *DataStore) UpsertMicrosoftGraphCredential(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {

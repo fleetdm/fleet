@@ -73,28 +73,6 @@ ORDER BY tenant_id`
 	return creds, nil
 }
 
-// GetMicrosoftGraphCredential returns the credential for a tenant, with its client secret decrypted.
-func (ds *Datastore) GetMicrosoftGraphCredential(ctx context.Context, tenantID string) (*fleet.MicrosoftGraphCredential, error) {
-	const stmt = `
-SELECT tenant_id, client_id, client_secret, credential_invalid, last_synced_at, last_sync_error
-FROM mdm_microsoft_graph_credentials
-WHERE tenant_id = ?`
-
-	var row microsoftGraphCredentialRow
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, tenantID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("MicrosoftGraphCredential").WithName(tenantID))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get microsoft graph credential")
-	}
-
-	secret, err := decrypt(row.ClientSecret, ds.serverPrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decrypt microsoft graph client secret")
-	}
-	return row.toCredential(string(secret)), nil
-}
-
 // UpsertMicrosoftGraphCredential stores a credential, encrypting the client secret with the server private key. Storing
 // a credential resets all of its sync state, because that state describes the credential being replaced rather than the
 // new one: a new secret may carry different permissions or point at a different app registration.
