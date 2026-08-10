@@ -277,7 +277,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	// Config writes that carry a new credential verify it against Entra and Graph, so default to a no-op factory and
 	// let tests inject their own when they assert on verification.
-	msGraphClientFactory := msgraph.ClientFactory(NoopMicrosoftGraphClientFactory)
+	msGraphClientFactory := msgraph.ClientFactory(noopGraphFactory)
 	if len(opts) > 0 && opts[0].MicrosoftGraphClientFactory != nil {
 		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
 	}
@@ -1555,3 +1555,17 @@ func (rt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 // errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
 // for assertions that only care about the error.
 func errOnly(_ []uint, err error) error { return err }
+
+// noopGraphClient keeps credential verification off the network. Test servers built without an injected factory would
+// otherwise reach the real login.microsoftonline.com and graph.microsoft.com on any config write carrying a credential.
+type noopGraphClient struct{}
+
+func (noopGraphClient) VerifyCredential(context.Context) error { return nil }
+
+func (noopGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgraph.WindowsAutopilotDevice, error) {
+	return nil, nil
+}
+
+func noopGraphFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
+	return noopGraphClient{}, nil
+}

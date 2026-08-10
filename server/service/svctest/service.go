@@ -196,7 +196,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	// Verifying a Microsoft Graph credential on config write calls Entra and Graph, so test servers get a no-op
 	// factory unless a test injects its own. Without this any test applying a credential would hit the real network.
-	msGraphClientFactory := msgraph.ClientFactory(service.NoopMicrosoftGraphClientFactory)
+	msGraphClientFactory := msgraph.ClientFactory(noopMicrosoftGraphClientFactory)
 	if len(opts) > 0 && opts[0].MicrosoftGraphClientFactory != nil {
 		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
 	}
@@ -293,4 +293,19 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	svc.SetACMEService(&fleet_mock.MockACMEService{})
 
 	return svc, ctx
+}
+
+// noopMicrosoftGraphClient accepts any credential without touching the network. Verification runs on every write that
+// carries a new or changed credential, so a test server built without an injected factory would reach the real
+// login.microsoftonline.com and graph.microsoft.com.
+type noopMicrosoftGraphClient struct{}
+
+func (noopMicrosoftGraphClient) VerifyCredential(context.Context) error { return nil }
+
+func (noopMicrosoftGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgraph.WindowsAutopilotDevice, error) {
+	return nil, nil
+}
+
+func noopMicrosoftGraphClientFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
+	return noopMicrosoftGraphClient{}, nil
 }

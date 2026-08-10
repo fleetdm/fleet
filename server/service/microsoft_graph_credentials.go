@@ -13,37 +13,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 )
 
-// NoopMicrosoftGraphClient accepts any credential without touching the network.
-//
-// Credential verification runs on every write that carries a new or changed credential, so a test server built without
-// an injected factory would reach the real login.microsoftonline.com and graph.microsoft.com. Test harnesses inject
-// this instead.
-type NoopMicrosoftGraphClient struct{}
-
-func (NoopMicrosoftGraphClient) VerifyCredential(context.Context) error { return nil }
-
-func (NoopMicrosoftGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgraph.WindowsAutopilotDevice, error) {
-	return nil, nil
-}
-
-// NoopMicrosoftGraphClientFactory builds a NoopMicrosoftGraphClient for any credential.
-func NoopMicrosoftGraphClientFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
-	return NoopMicrosoftGraphClient{}, nil
-}
-
-// maxMicrosoftGraphCredentials caps how many Graph credentials may be configured.
-//
-// Fleet's data model, sync loop, and storage are all built for the multi-tenant case, because an Autopilot device
-// registry is scoped to a single Entra tenant and surfacing several tenants needs one credential each. Only this cap
-// limits it to one for now, so raising it is a one-line change with no rename, no scalar-to-list type change, no API
-// break, and no migration.
+// maxMicrosoftGraphCredentials caps how many Graph credentials may be configured. Fleet's data model, sync loop, and
+// storage are all built for the multi-tenant case. We limit it now for initial rollout.
 const maxMicrosoftGraphCredentials = 1
 
 /////////////////////////////////////////////////////////////////////////////////
 // GET /microsoft_graph_credentials
 /////////////////////////////////////////////////////////////////////////////////
-
-type listMicrosoftGraphCredentialsRequest struct{}
 
 type listMicrosoftGraphCredentialsResponse struct {
 	MicrosoftGraphCredentials []*fleet.MicrosoftGraphCredential `json:"microsoft_graph_credentials"`
@@ -61,11 +37,8 @@ func listMicrosoftGraphCredentialsEndpoint(ctx context.Context, _ any, svc fleet
 }
 
 // ListMicrosoftGraphCredentials returns the stored credentials with their per-tenant sync status. Client secrets are
-// never decrypted on this path: the metadata read leaves them out entirely, so a rotated or missing server private key
-// cannot fail it.
+// never decrypted on this path.
 func (svc *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
-	// Authorizing against AppConfig keeps these credentials on exactly the permissions they had when they were a config
-	// field: global admins write, and anyone who can read the config can read them.
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -75,8 +48,6 @@ func (svc *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet
 		return nil, ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
 	}
 	for _, cred := range creds {
-		// Signal that a secret is set without leaking it. The metadata read never loads the encrypted blob, so this is
-		// a display value rather than a masked real one.
 		cred.ClientSecret = fleet.MaskedPassword
 	}
 	return creds, nil
@@ -106,12 +77,10 @@ func applyMicrosoftGraphCredentialsEndpoint(ctx context.Context, request any, sv
 }
 
 // ApplyMicrosoftGraphCredentials reconciles the stored credentials to match the supplied list. It is declarative: a
-// tenant absent from the list is deleted, which is how GitOps removes a credential and how an empty list clears them
-// all.
-//
-// Every credential that is new or whose values changed is verified against Graph before anything is written, so a bad
-// credential is rejected at write time instead of failing silently on the next sync. Unchanged credentials are skipped
-// entirely: re-applying an identical GitOps config makes no network call, performs no write, and emits no activity.
+// tenant absent from the list is deleted. Every credential that is new or whose values changed is verified against Graph
+// before anything is written, so a bad credential is rejected at write time instead of failing silently on the next
+// sync. Unchanged credentials are skipped entirely: re-applying an identical GitOps config makes no network call,
+// performs no write, and emits no activity.
 func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming []fleet.MicrosoftGraphCredential, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return err
