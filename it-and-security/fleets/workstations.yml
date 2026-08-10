@@ -85,6 +85,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-game-center.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-guest-account.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-guest-shares.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig

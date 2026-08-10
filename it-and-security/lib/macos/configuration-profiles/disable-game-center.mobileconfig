@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>Disables Game Center and related multiplayer gaming and friend features on macOS.</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.macos.disable-game-center</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>D39F7F31-8761-48B9-83A7-D0676E4C07EE</string>
+	<key>PayloadDisplayName</key>
+	<string>Disable Game Center</string>
+	<key>PayloadEnabled</key>
+	<true/>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Restrictions</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.applicationaccess.disable-game-center</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadUUID</key>
+			<string>03D45D6F-8035-45B0-ABFD-1F1C690C2707</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>allowGameCenter</key>
+			<false/>
+			<key>allowMultiplayerGaming</key>
+			<false/>
+			<key>allowAddingGameCenterFriends</key>
+			<false/>
+		</dict>
+	</array>
+</dict>
+</plist>
