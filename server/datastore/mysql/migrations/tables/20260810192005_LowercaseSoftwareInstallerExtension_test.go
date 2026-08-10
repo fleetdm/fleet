@@ -25,20 +25,40 @@ func TestUp_20260810192005(t *testing.T) {
 	alreadyLower := insertInstaller("setup.exe", "exe", "storage-lower-exe")
 	tarball := insertInstaller("package.tar.gz", "tar.gz", "storage-targz")
 
+	// The column collation is case insensitive, so read the extension back with a
+	// binary collation to see the stored casing rather than a case-folded match.
+	type installerRow struct {
+		ID        int64  `db:"id"`
+		Extension string `db:"extension"`
+		UpdatedAt string `db:"updated_at"`
+	}
+	snapshot := func() map[int64]installerRow {
+		var installers []installerRow
+		err := db.Select(&installers,
+			`SELECT id, extension COLLATE utf8mb4_bin AS extension, updated_at FROM software_installers`)
+		require.NoError(t, err)
+		byID := make(map[int64]installerRow, len(installers))
+		for _, installer := range installers {
+			byID[installer.ID] = installer
+		}
+		return byID
+	}
+	before := snapshot()
+
 	// Apply current migration.
 	applyNext(t, db)
 
-	// The column collation is case insensitive, so read back with a binary
-	// collation to see the stored casing rather than a case-folded match.
-	extensionOf := func(id int64) string {
-		var got string
-		err := db.QueryRow(`SELECT extension COLLATE utf8mb4_bin FROM software_installers WHERE id = ?`, id).Scan(&got)
-		require.NoError(t, err)
-		return got
-	}
+	after := snapshot()
 
-	require.Equal(t, "exe", extensionOf(upperExe))
-	require.Equal(t, "dmg", extensionOf(upperDmg))
-	require.Equal(t, "exe", extensionOf(alreadyLower))
-	require.Equal(t, "tar.gz", extensionOf(tarball))
+	require.Equal(t, "exe", after[upperExe].Extension)
+	require.Equal(t, "dmg", after[upperDmg].Extension)
+	require.Equal(t, "exe", after[alreadyLower].Extension)
+	require.Equal(t, "tar.gz", after[tarball].Extension)
+
+	// updated_at is ON UPDATE CURRENT_TIMESTAMP, and MySQL skips the write for a
+	// row whose value doesn't change, so only the rewritten rows get a new one.
+	require.NotEqual(t, before[upperExe].UpdatedAt, after[upperExe].UpdatedAt)
+	require.NotEqual(t, before[upperDmg].UpdatedAt, after[upperDmg].UpdatedAt)
+	require.Equal(t, before[alreadyLower].UpdatedAt, after[alreadyLower].UpdatedAt)
+	require.Equal(t, before[tarball].UpdatedAt, after[tarball].UpdatedAt)
 }
