@@ -26,28 +26,9 @@ At 50k hosts this produces ~1.2 billion requests/day. 96.7% carry no useful payl
 
 Replace polling with a persistent WebSocket connection per agent. The server pushes a "check now" nudge only when there is actual work. The agent then makes one normal HTTP request to fetch it.
 
-### How it works today (polling)
+### How it would work with WebSockets (push)
 
-> *The diagrams below are simplified for illustration. See the full sequence diagrams in sections below.* 
-
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant Server
-
-    loop every 10s
-        Agent->>Server: anything for me?
-        Server-->>Agent: no (99.7%)
-    end
-
-    Note over Server: live, policy, detail, or label<br>query needs to run on host
-    loop next 10s tick
-        Agent->>Server: anything for me?
-        Server-->>Agent: yes, here are your queries to run
-    end
-```
-
-### How it works with WebSockets (push)
+> *The diagram below is simplified for illustration. See the full sequence diagrams in sections below.*
 
 ```mermaid
 sequenceDiagram
@@ -138,8 +119,6 @@ Because live queries, policies, labels, and host vitals (e.g. software) ingestio
 | Future | `desktop` | every 5m | "there is something to show the user" |
 | Future | `osquery/config` | every 60s | "your osquery config changed" |
 
-Each new channel is a new message type on the same connection. The pattern is always the same: the server sends a short nudge, the agent performs the corresponding HTTP call. One socket, many notification types, added incrementally.
-
 ### Keepalive and agent liveness
 
 The server sends a WebSocket ping every **5 minutes**. This serves two purposes: confirming the agent is still alive, and preventing the load balancer (e.g. AWS ALB) from killing the connection due to idle timeout. The ALB idle timeout should be configured to a value longer than the ping interval (e.g. 10 minutes). If a pong is not received within 30 seconds, the server considers the connection dead and closes it. The agent's normal reconnection logic (with jitter) handles recovery.
@@ -149,6 +128,8 @@ The server sends a WebSocket ping every **5 minutes**. This serves two purposes:
 ### Feature flag and activation
 
 The WebSocket transport is controlled by a server-side command-line flag (e.g. `--enable_websocket_transport`). It is not exposed in the UI, not documented, and not available through any API or GitOps configuration. The only way to enable it is to start the Fleet server with this flag. When disabled (the default), the directive is absent and all agents poll as usual.
+
+If `--enable_websocket_transport=false` then the server will reject any websocket connections (this could be the signal for agents to know if the setting is enabled or not, and at the same time check if a websocket connection can be established, i.e. no network issues).
 
 **Fallback requirement (fleetd):** If the agent cannot establish the WebSocket connection (blocked by a middlebox, repeated upgrade failures, etc.), or an established connection drops and cannot be re-established, fleetd must fall back to the existing polling protocol. WebSocket transport is an optimization; polling remains the guaranteed baseline, so no functionality is ever lost.
 
@@ -173,15 +154,6 @@ Three layers handle this:
 3. **Graceful rebalancing.** Instances report connection counts to Redis. If one holds more than ~120% of the cluster average, it sends "please reconnect" to excess agents. They reconnect with jitter and the ALB redistributes them.
 
 > **Example:** 100k agents on 2 instances. A third is added. A and B each shed ~17k connections; agents reconnect with jitter across all three.
-
-### Key design choices
-
-- **Nudge, not full push.** The WebSocket says "check now," then the agent does a normal HTTP call. The existing ingest pipeline stays untouched.
-- **Server-driven activation.** The server controls whether agents use WebSockets via an undocumented command-line flag. Agents never decide on their own.
-- **fleetd becomes osquery's distributed plugin.** osquery's 10s poll becomes a local call answered from memory. Nothing leaves the host in steady state.
-- **One socket, many uses.** The same connection can eventually carry config updates, Desktop check-ins, and more, replacing multiple polling loops.
-- **Fully backward compatible.** Old agents ignore the directive. New agents with an old server never receive it. Both keep polling. If the WebSocket cannot be established, fleetd falls back to polling.
-- **Server-controlled load.** Reconnections are jittered with backoff, the server rate-limits upgrades, and the server can pace "check now" nudges progressively to prevent thundering herds.
 
 ## 2. How Orbit proxies osquery
 
@@ -238,13 +210,7 @@ sequenceDiagram
     Orbit->>S2: distributed/read (HTTP)
     S2-->>Orbit: policy / label / host vitals queries (whatever is due)
     Orbit->>Orbit: cache queries in memory
-
-    Note over OSQ,Orbit: NEXT LOCAL POLL (within 10s)
-    OSQ->>Orbit: any queries? (localhost thrift)
-    Orbit-->>OSQ: yes, here are your queries
-    OSQ->>OSQ: execute queries
-    OSQ->>Orbit: results (localhost thrift)
-    Orbit->>S2: distributed/write (HTTP)
+    Note over OSQ,Orbit: then same local poll flow as scenario A:<br>osquery picks up the queries within 10s,<br>results go back via distributed/write
 ```
 
 **Note on wake-up triggers (new mechanisms):** A "check now" nudge has two triggers:
