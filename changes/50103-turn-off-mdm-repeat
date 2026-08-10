@@ -1,0 +1,1 @@
+- Fixed "Turn off MDM" being available again after it succeeded, which let an offline host be sent duplicate unenroll commands and record duplicate activities. The host page now refreshes when MDM is turned off, and Fleet rejects the request if MDM is already off for that host.

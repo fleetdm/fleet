@@ -22,6 +22,9 @@ interface IUnenrollMdmModalProps {
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
   onClose: () => void;
+  /** Called after MDM is successfully turned off, so the caller can refresh the
+   * host. Without it the page keeps offering the action against stale data. */
+  onSuccess: () => void;
 }
 
 const UnenrollMdmModal = ({
@@ -30,6 +33,7 @@ const UnenrollMdmModal = ({
   hostName,
   enrollmentStatus,
   onClose,
+  onSuccess,
 }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
     undefined | "unenrolling" | "error"
@@ -51,6 +55,7 @@ const UnenrollMdmModal = ({
           </>
         );
       notify.success(successMessage);
+      onSuccess();
       onClose();
     } catch (unenrollMdmError: unknown) {
       const errorMessage =

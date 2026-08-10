@@ -4404,12 +4404,29 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	installedFromDEP := false
-	switch host.Platform {
-	case "windows":
+	if host.Platform == "windows" {
 		return &fleet.BadRequestError{
 			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
 		}
+	}
+
+	// Turning MDM off clears Fleet's enrolled flag right away, but the device
+	// only checks out once it actually receives the removal command. On an
+	// offline host that can be days, and until then the nano-enrollment guard
+	// in enqueueMDMAppleCommandRemoveEnrollmentProfile still sees an enabled
+	// enrollment, so every repeat call queues another removal command and logs
+	// another unenroll activity. Fleet's own flag is the one that flips
+	// immediately, so it's what makes this operation refusable when repeated.
+	hostMDM, err := svc.ds.GetHostMDM(ctx, hostID)
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		return ctxerr.Wrap(ctx, err, "getting host MDM info for unenroll")
+	case err != nil || !hostMDM.Enrolled:
+		return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.MDMAlreadyTurnedOffMessage})
+	}
+
+	installedFromDEP := false
+	switch host.Platform {
 	case "ios", "ipados", "darwin":
 		if err := svc.enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, host); err != nil {
 			return ctxerr.Wrap(ctx, err, "unenrolling apple host")
