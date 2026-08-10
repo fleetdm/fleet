@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.201.0",
+      "version": "1.202.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.duckduckgo.macos.browser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.duckduckgo.macos.browser' AND version_compare(bundle_short_version, '1.201.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.duckduckgo.macos.browser' AND version_compare(bundle_short_version, '1.202.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.duckduckgo.macos.browser');"
       },
-      "installer_url": "https://staticcdn.duckduckgo.com/macos-desktop-browser/duckduckgo-1.201.0.777.dmg",
+      "installer_url": "https://staticcdn.duckduckgo.com/macos-desktop-browser/duckduckgo-1.202.0.779.dmg",
       "install_script_ref": "18fb46ca",
       "uninstall_script_ref": "b5d499ac",
-      "sha256": "01a01f69ff93be19fca78c3c32b4fbebdca4d3826bf6112145481e4c8585748d",
+      "sha256": "608c5929dfb1984f02e4559b71e78c884fe8d8c40bbff24796b34fe85e87713a",
       "default_categories": [
         "Browsers"
       ]
