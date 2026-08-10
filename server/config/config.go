@@ -995,6 +995,10 @@ type MDMConfig struct {
 	// EnableCustomDiskEncryption is a cross-platform alias for EnableCustomFileVault.
 	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
 	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
+	// EnableCustomActivations opts in to custom DDM activations. Off by default
+	// because a predicate Fleet cannot validate can wedge a host's MDM
+	// subsystem beyond remote recovery -- see Apple FB24193230 and #50764.
+	EnableCustomActivations bool `yaml:"enable_custom_activations"`
 
 	// AllowOrbitEndUserAuthBypass controls whether an Orbit/fleetd host that does
 	// not complete end user authentication is allowed to enroll into a team that
@@ -1909,6 +1913,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
+	man.addConfigBool("mdm.enable_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
 	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -2270,6 +2275,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
 			EnableCustomDiskEncryption:        man.getConfigBool("mdm.enable_custom_disk_encryption"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
+			EnableCustomActivations:           man.getConfigBool("mdm.enable_custom_activations"),
 			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),

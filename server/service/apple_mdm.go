@@ -70,6 +70,7 @@ const (
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
 	ActivationEmptyFileErrorMsg             = "Activation must contain a declaration. To remove the activation, send an empty activation field."
 	ActivationConflictingPartsErrorMsg      = "Send either an activation file to replace it or an empty activation field to remove it, not both."
+	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ENABLE_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
 )
 
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
@@ -970,6 +971,17 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier, configurationType string) (*fleet.MDMAppleCustomActivation, error) {
 	if len(activation) == 0 {
 		return nil, nil
+	}
+
+	// Fleet can't validate a predicate -- the syntax is Apple's -- and an invalid
+	// one wedges the host's MDM subsystem past the point of remote recovery
+	// (Apple FB24193230). Until that's fixed, uploading an activation takes an
+	// explicit opt-in. Removing a stored activation deliberately doesn't reach
+	// here, so an operator can always undo one.
+	if !svc.config.MDM.EnableCustomActivations {
+		return nil, ctxerr.Wrap(ctx,
+			fleet.NewInvalidArgumentError("activation", ActivationsDisabledErrorMsg),
+			"custom activations are not enabled")
 	}
 
 	// Management declarations are never activated.
