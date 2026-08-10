@@ -2,10 +2,8 @@ package apps
 
 import (
 	"encoding/xml"
-	"maps"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
@@ -71,15 +69,35 @@ func parsePackageFullName(pfn string) (appxPackage, bool) {
 	return appxPackage{Name: name, Version: version, ResourceID: resourceID, PublisherID: publisherID}, true
 }
 
-// parsePackageFamilyName splits a package family name, "<Name>_<PublisherId>".
-// This is what per-user package directories are named, and unlike a package full
-// name it carries no version.
-func parsePackageFamilyName(family string) (name, publisherID string, ok bool) {
-	parts := strings.Split(family, "_")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", "", false
+// appxInstallDirName is the packaged-app install directory, under Program Files.
+// There is exactly one of them per host: unlike Win32 installers, packaged apps
+// are not subject to the "Program Files (x86)" split, and every architecture
+// stages here with x86/x64/arm64/neutral distinguished inside the package full
+// name instead.
+const appxInstallDirName = "WindowsApps"
+
+// appxInstallRootFrom resolves the packaged-app install root from the Windows
+// environment. It is split out from its Windows-only caller so the redirection
+// rule below is testable.
+//
+// %ProgramFiles% is redirected by process bitness: a 32-bit process on 64-bit
+// Windows sees "C:\Program Files (x86)", which holds no WindowsApps directory,
+// so trusting it would silently scan the wrong place and report nothing.
+// %ProgramW6432% is never redirected and always names the real 64-bit Program
+// Files; it is unset only on 32-bit Windows, where %ProgramFiles% is already
+// right.
+func appxInstallRootFrom(programW6432, programFiles, systemDrive string) string {
+	base := programW6432
+	if base == "" {
+		base = programFiles
 	}
-	return parts[0], parts[1], true
+	if base == "" {
+		if systemDrive == "" {
+			systemDrive = "C:"
+		}
+		base = filepath.Join(systemDrive+`\`, "Program Files")
+	}
+	return filepath.Join(base, appxInstallDirName)
 }
 
 // appxManifest is the subset of AppxManifest.xml this collector reads. Elements
@@ -99,20 +117,17 @@ type appxManifest struct {
 
 // scanAppxDirs adds the AI apps installed as MSIX/Appx packages to c.
 //
-// Two independent sources are read, richest first:
+// installRoot is the only source of rows: it holds one directory per staged
+// package, named by package full name and sitting alongside the package
+// manifest, which together give identity, version, publisher, and install path.
 //
-//   - installRoot holds one directory per staged package, named by package full
-//     name, alongside the package manifest. This gives identity, version, and
-//     publisher, but the directory carries a restrictive ACL.
-//
-//   - userPkgDirs are the per-user package-state directories, named by package
-//     family name. No version, but they sit in the user's own profile, are
-//     readable without special rights, and exist for logged-off users too.
-//
-// Either source alone produces a row. That redundancy is deliberate: the exact
-// location of packaged-app state has moved between Windows releases, so a single
-// source that turns out to be wrong or unreadable would mean silently reporting
-// nothing at all.
+// userPkgDirs are the per-user package-state directories, named by package
+// family name. They are read only to decide whether an install belongs to a user
+// or to the machine — never to report an app. That directory records that a
+// package once ran for a user, not that it is installed now: Windows leaves it
+// behind after an uninstall, so a row sourced from it would assert an install
+// with no version and no path to corroborate it, and would never expire. On an
+// inventory table a missing row is cheaper than a phantom one.
 func scanAppxDirs(c *appCollector, installRoot string, userPkgDirs []string) {
 	userFamilies := appxUserFamilies(userPkgDirs)
 
@@ -149,22 +164,6 @@ func scanAppxDirs(c *appCollector, installRoot string, userPkgDirs []string) {
 			Path:        dir,
 			Scope:       scope,
 			Source:      "appx",
-		})
-	}
-
-	// Anything the install root did not yield. Sorted so that two family names
-	// matching one app resolve the same way on every run.
-	for _, family := range slices.Sorted(maps.Keys(userFamilies)) {
-		name, _, ok := parsePackageFamilyName(family)
-		if !ok || !c.wants(name) {
-			continue
-		}
-		// Path is left empty rather than pointing at the per-user state directory,
-		// which is not where the app is installed.
-		c.add(appCandidate{
-			MatchTokens: []string{name},
-			Scope:       "user",
-			Source:      "appx-user",
 		})
 	}
 }

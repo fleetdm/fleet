@@ -1,6 +1,9 @@
 package apps
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestParsePackageFullName(t *testing.T) {
 	cases := []struct {
@@ -96,6 +99,50 @@ func TestAppxPackageFamilyName(t *testing.T) {
 	}
 	if got := (appxPackage{}).FamilyName(); got != "" {
 		t.Errorf("zero appxPackage FamilyName() = %q want \"\"", got)
+	}
+}
+
+// TestAppxInstallRootFrom covers the WOW64 trap: %ProgramFiles% is redirected to
+// "Program Files (x86)" for a 32-bit process, and that directory holds no
+// WindowsApps, so %ProgramW6432% must win whenever it is set.
+func TestAppxInstallRootFrom(t *testing.T) {
+	cases := []struct {
+		name                                 string
+		programW6432, programFiles, sysDrive string
+		want                                 string
+	}{
+		{
+			name:         "64-bit process: both set and identical",
+			programW6432: `C:\Program Files`, programFiles: `C:\Program Files`,
+			want: filepath.Join(`C:\Program Files`, "WindowsApps"),
+		},
+		{
+			name:         "32-bit process: ProgramFiles is redirected and must lose",
+			programW6432: `C:\Program Files`, programFiles: `C:\Program Files (x86)`,
+			want: filepath.Join(`C:\Program Files`, "WindowsApps"),
+		},
+		{
+			name:         "32-bit Windows: ProgramW6432 unset, ProgramFiles is correct",
+			programFiles: `C:\Program Files`,
+			want:         filepath.Join(`C:\Program Files`, "WindowsApps"),
+		},
+		{
+			name:     "no Program Files vars: fall back to the system drive",
+			sysDrive: "D:",
+			want:     filepath.Join(filepath.Join(`D:\`, "Program Files"), "WindowsApps"),
+		},
+		{
+			name: "nothing set at all",
+			want: filepath.Join(filepath.Join(`C:\`, "Program Files"), "WindowsApps"),
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := appxInstallRootFrom(c.programW6432, c.programFiles, c.sysDrive); got != c.want {
+				t.Errorf("appxInstallRootFrom(%q, %q, %q) = %q want %q",
+					c.programW6432, c.programFiles, c.sysDrive, got, c.want)
+			}
+		})
 	}
 }
 

@@ -154,10 +154,12 @@ func TestScanAppxDirsScopeFromUserDir(t *testing.T) {
 	}
 }
 
-// TestScanAppxDirsUserDirFallback is the defense-in-depth case: the install root
-// is unreadable or absent — the failure mode that made MSIX apps invisible on a
-// real host — and the per-user directories alone must still yield the app.
-func TestScanAppxDirsUserDirFallback(t *testing.T) {
+// TestScanAppxDirsNoRowsFromUserDirsAlone pins down that per-user package
+// directories never produce a row. That directory records that a package once
+// ran for a user and survives uninstall, so sourcing rows from it would report
+// removed apps forever, with no version or path to check them against. An
+// unreadable install root must report nothing rather than something unverified.
+func TestScanAppxDirsNoRowsFromUserDirsAlone(t *testing.T) {
 	userPkgs := t.TempDir()
 	mkPackageDir(t, userPkgs, "OpenAI.ChatGPT-Desktop_2p2nqsd0c76g0", "")
 	mkPackageDir(t, userPkgs, "Microsoft.WindowsCalculator_8wekyb3d8bbwe", "")
@@ -165,24 +167,34 @@ func TestScanAppxDirsUserDirFallback(t *testing.T) {
 	for _, installRoot := range []string{
 		"",
 		filepath.Join(t.TempDir(), "does-not-exist"),
+		t.TempDir(), // readable but empty
 	} {
 		c := newAppCollector()
 		scanAppxDirs(c, installRoot, []string{userPkgs})
 
-		got := c.apps()
-		if len(got) != 1 {
-			t.Fatalf("installRoot=%q: got %d apps, want 1: %+v", installRoot, len(got), got)
+		if got := c.apps(); len(got) != 0 {
+			t.Errorf("installRoot=%q: got %d apps, want 0: %+v", installRoot, len(got), got)
 		}
-		if got[0].Name != "chatgpt" || got[0].Scope != "user" {
-			t.Errorf("installRoot=%q: got name=%q scope=%q, want chatgpt/user", installRoot, got[0].Name, got[0].Scope)
-		}
-		if got[0].PlatformSource != "appx-user" {
-			t.Errorf("installRoot=%q: got source %q, want \"appx-user\" so the fallback is visible in results",
-				installRoot, got[0].PlatformSource)
-		}
-		if got[0].Version != "" {
-			t.Errorf("installRoot=%q: got version %q, want empty: a family name carries none", installRoot, got[0].Version)
-		}
+	}
+}
+
+// TestScanAppxDirsStaleUserDirIsNotAnInstall is the regression test for the
+// phantom row: a healthy host where the app was uninstalled but Windows left its
+// per-user state directory behind. The install root is authoritative, and it
+// does not list the package.
+func TestScanAppxDirsStaleUserDirIsNotAnInstall(t *testing.T) {
+	root := t.TempDir()
+	mkPackageDir(t, root, "Microsoft.WindowsCalculator_11.2210.0.0_x64__8wekyb3d8bbwe", "")
+	mkPackageDir(t, root, "Microsoft.VCLibs.140.00_14.0.30704.0_x64__8wekyb3d8bbwe", "")
+
+	userPkgs := t.TempDir()
+	mkPackageDir(t, userPkgs, "OpenAI.ChatGPT-Desktop_2p2nqsd0c76g0", "") // left over from an uninstall
+
+	c := newAppCollector()
+	scanAppxDirs(c, root, []string{userPkgs})
+
+	if got := c.apps(); len(got) != 0 {
+		t.Errorf("got %d apps, want 0: a leftover per-user directory is not an install: %+v", len(got), got)
 	}
 }
 

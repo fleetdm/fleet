@@ -23,7 +23,6 @@ import (
 // a service, and not something a collector should open. The directories below
 // need no such machinery: they are named by package full name and package family
 // name, which carry the identity outright.
-const appxInstallDirName = "WindowsApps"
 
 // appxUserDataSubdir is a package's per-user state directory, relative to a home
 // directory and named by package family name.
@@ -45,12 +44,9 @@ func scanAppx(c *appCollector, homesList []homes.Home) {
 // appxInstallRoot returns the packaged-app install root, normally
 // "C:\Program Files\WindowsApps".
 func appxInstallRoot() string {
-	if pf := os.Getenv("ProgramFiles"); pf != "" {
-		return filepath.Join(pf, appxInstallDirName)
-	}
-	drive := os.Getenv("SystemDrive")
-	if drive == "" {
-		drive = "C:"
-	}
-	return filepath.Join(drive+`\`, "Program Files", appxInstallDirName)
+	return appxInstallRootFrom(
+		os.Getenv("ProgramW6432"),
+		os.Getenv("ProgramFiles"),
+		os.Getenv("SystemDrive"),
+	)
 }

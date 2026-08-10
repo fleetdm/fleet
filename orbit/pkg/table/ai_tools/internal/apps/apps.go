@@ -19,7 +19,7 @@ type App struct {
 	Path           string
 	BundleID       string
 	Version        string
-	PlatformSource string // applications | registry | appx | appx-user | desktop-file
+	PlatformSource string // applications | registry | appx | desktop-file
 	Scope          string // system | user
 	ServesLocalAPI int
 	APIPort        int
