@@ -103,10 +103,10 @@ These go in `AGENTS.md` or `CLAUDE.md` at the root of your repo, the same files 
 
 An agent can read your repo and infer the directory layout, the naming, and the YAML style. It can't infer the standing decisions behind them:
 
-- **Which delivery method you prefer.** Many Apple settings can ship as either a `.mobileconfig` or a DDM declaration. Say which one you want for those cases and why, because otherwise the agent picks for you, and not always the same way twice. Asking it to run `contour profile ddm map <payload_type>` first tells you whether a declarative equivalent exists at all.
+- **Which delivery method you prefer.** Many Apple settings can ship as either a `.mobileconfig` or a DDM declaration. Say which one you want for those cases and why, because otherwise the agent picks for you, and not always the same way twice.
 - **Which Windows CSP you prefer when several would work.** A setting is often reachable through both the Policy CSP and a dedicated CSP, and ADMX-backed nodes are reachable through `ADMXInstall` as well. Pick one and say so, or you'll accumulate three ways of doing the same thing.
 - **How a profile gets wired in.** A file committed outside a directory covered by a `paths:` glob does nothing until it has an explicit `path:` entry in the YAML for each fleet that should receive it. Write down which mechanism your repo uses, and the agent will wire new profiles the same way every time. The target fleet itself goes in the prompt, since it changes per profile.
-- **The conventions behind your layout.** Which directory each delivery method lives in, how files are named, and which identifier prefix you use. Contour's config covers this for Apple, so this is mostly a Windows note.
+- **The conventions behind your layout.** Which directory each delivery method lives in, how files are named, and which identifier prefix you use. 
 - **Anything the agent got wrong once.** Both platforms have a few behaviors where a wrong input still produces a passing result, covered in step 4. Noting them here is the same habit as documenting a gotcha for a new teammate, and it's what keeps the second occurrence from happening.
 
 Write these as sentences with reasoning rather than nested bullets, since a rule with a stated reason is one the agent can apply to a case you didn't anticipate.
