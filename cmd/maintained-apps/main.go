@@ -157,42 +157,61 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 		return ctxerr.Wrap(ctx, err, "unmarshaling output apps list file")
 	}
 
-	var found bool
-	for _, a := range outputAppsFile.Apps {
-		if a.Slug == outApp.Slug {
-			found = true
-			break
-		}
+	platform := outApp.Platform()
+	if platform == "" {
+		return ctxerr.New(ctx, fmt.Sprintf("invalid platform found for slug %s", outApp.Slug))
 	}
 
-	if !found {
-		platform := outApp.Platform()
-		if platform == "" {
-			return ctxerr.New(ctx, fmt.Sprintf("invalid platform found for slug %s", outApp.Slug))
-		}
-
+	var changed bool
+	idx := slices.IndexFunc(outputAppsFile.Apps, func(a maintained_apps.FMAListFileApp) bool { return a.Slug == outApp.Slug })
+	switch idx {
+	case -1:
 		outputAppsFile.Apps = append(outputAppsFile.Apps, maintained_apps.FMAListFileApp{
 			Name:             outApp.Name,
 			Slug:             outApp.Slug,
 			Platform:         platform,
 			UniqueIdentifier: outApp.UniqueIdentifier,
 		})
+		changed = true
 
 		// Keep existing order
 		slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int { return strings.Compare(a.Slug, b.Slug) })
-
-		var buf bytes.Buffer
-		encoder := json.NewEncoder(&buf)
-		encoder.SetEscapeHTML(false)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(outputAppsFile); err != nil {
-			return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
+	default:
+		// The app is already listed, but the input manifest is the source of truth for its
+		// identity fields, so pick up any edits to them. apps.json is what the Fleet server syncs
+		// into fleet_maintained_apps, so leaving a stale unique_identifier here ships the stale
+		// value even though the per-app manifest was regenerated. Description has no manifest
+		// counterpart, so it is left untouched.
+		existing := &outputAppsFile.Apps[idx]
+		if existing.Name != outApp.Name {
+			existing.Name = outApp.Name
+			changed = true
 		}
-		updatedFile := buf.Bytes()
-
-		if err := os.WriteFile(appListFilePath, updatedFile, 0o644); err != nil {
-			return ctxerr.Wrap(ctx, err, "writing updated output apps file")
+		if existing.UniqueIdentifier != outApp.UniqueIdentifier {
+			existing.UniqueIdentifier = outApp.UniqueIdentifier
+			changed = true
 		}
+		if existing.Platform != platform {
+			existing.Platform = platform
+			changed = true
+		}
+	}
+
+	if !changed {
+		return nil
+	}
+
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(outputAppsFile); err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
+	}
+	updatedFile := buf.Bytes()
+
+	if err := os.WriteFile(appListFilePath, updatedFile, 0o644); err != nil {
+		return ctxerr.Wrap(ctx, err, "writing updated output apps file")
 	}
 
 	return nil
