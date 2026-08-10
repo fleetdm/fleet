@@ -264,27 +264,48 @@ func TestScanPerHomeProfileWinsOverUserBundled(t *testing.T) {
 	}
 }
 
-// The bundled pass consults what the profile pass reported across every home, so
-// an extension installed both ways yields one row — the user's.
-func TestScanDedupesBuiltinAgainstProfile(t *testing.T) {
+// One user having their own copy says nothing about anyone else, so it must not
+// suppress the machine-wide row: the editor is installed for the whole host and
+// every other account still has the extension it bundles.
+func TestScanUserCopyDoesNotShadowSystemCopy(t *testing.T) {
 	apps := t.TempDir()
 	write(t, filepath.Join(apps, "Visual Studio Code.app", "Contents", "Resources", "app", "extensions", "copilot", "package.json"),
 		`{"name":"copilot-chat","publisher":"GitHub","version":"1.130.0","displayName":"GitHub Copilot Chat"}`)
 	useAppRoots(t, appRoot{dir: apps, scope: scopeSystem})
 
-	home := t.TempDir()
-	write(t, filepath.Join(home, ".vscode", "extensions", "github.copilot-chat-1.131.0", "package.json"),
+	alice := t.TempDir()
+	write(t, filepath.Join(alice, ".vscode", "extensions", "github.copilot-chat-1.131.0", "package.json"),
 		`{"name":"copilot-chat","publisher":"GitHub","version":"1.131.0","displayName":"GitHub Copilot Chat"}`)
 
-	got, err := Scan(t.Context(), []homes.Home{{UID: "501", Username: "alice", Dir: home}})
+	got, err := Scan(t.Context(), []homes.Home{
+		{UID: "501", Username: "alice", Dir: alice},
+		{UID: "502", Username: "bob", Dir: t.TempDir()}, // no copy of his own
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("got %d rows, want 1 (profile copy wins over bundled): %+v", len(got), got)
+	if len(got) != 2 {
+		t.Fatalf("got %d rows, want alice's profile copy and the machine-wide one: %+v", len(got), got)
 	}
-	if got[0].Version != "1.131.0" || got[0].Scope != scopeUser {
-		t.Errorf("version=%q scope=%q want the profile copy 1.131.0/user", got[0].Version, got[0].Scope)
+	byScope := map[string]Plugin{}
+	for _, p := range got {
+		byScope[p.Scope] = p
+	}
+	user, ok := byScope[scopeUser]
+	if !ok {
+		t.Fatalf("alice's profile copy missing: %+v", got)
+	}
+	if user.Version != "1.131.0" || user.Username != "alice" {
+		t.Errorf("version=%q username=%q want alice's 1.131.0", user.Version, user.Username)
+	}
+	// Bob is covered by this row: it is what makes the extension visible for every
+	// account that has no copy of its own.
+	sys, ok := byScope[scopeSystem]
+	if !ok {
+		t.Fatalf("machine-wide copy suppressed by alice's; bob is now invisible: %+v", got)
+	}
+	if sys.Version != "1.130.0" || sys.UID != "" {
+		t.Errorf("version=%q uid=%q want the bundled 1.130.0 with no owner", sys.Version, sys.UID)
 	}
 }
 

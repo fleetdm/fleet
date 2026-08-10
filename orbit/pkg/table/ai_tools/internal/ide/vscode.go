@@ -70,11 +70,11 @@ func scanVSCodeProfiles(h homes.Home, seen map[string]struct{}) []Plugin {
 			if !ok {
 				continue // AI tools only — skip non-AI extensions
 			}
-			// A profile copy takes precedence over both this user's bundled copy
-			// and a machine-wide one, so it is recorded under both keys. Other
-			// users' homes are untouched: they key on their own home.
+			// Keyed on this home only. A profile copy takes precedence over the
+			// same user's bundled copy, but says nothing about anyone else: a
+			// machine-wide install is still available to every other account, and
+			// suppressing its row here would erase them from the inventory.
 			seen[vscodePluginKey(scopeUser, h.Dir, ed.editor, p.PluginID)] = struct{}{}
-			seen[vscodePluginKey(scopeSystem, "", ed.editor, p.PluginID)] = struct{}{}
 			out = append(out, p.finish(h, cat))
 		}
 	}

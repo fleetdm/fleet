@@ -158,12 +158,15 @@ func defaultVSCodeAppRoots(hs []homes.Home) []appRoot {
 // vscodePluginKey identifies a plugin row for de-duplication within one editor,
 // so a bundled extension is not reported alongside a copy of the same id that was
 // already reported. VS Code itself gives the profile copy precedence when both are
-// present.
+// present for the same user.
 //
-// Scope decides how wide the key reaches. A system-scoped install belongs to the
-// host, so one key covers the whole machine. A user-scoped one belongs to a single
-// account, so its home is part of the key: two users who each have the extension
-// really do each have it, and one user's copy must never hide another's.
+// Scope decides how wide the key reaches, and the two scopes never share a key
+// space. A system-scoped install belongs to the host, so one key covers the whole
+// machine. A user-scoped one belongs to a single account, so its home is part of
+// the key. Keeping them separate is what stops one account's copy from standing in
+// for everyone: two users who each have the extension really do each have it, and
+// a machine-wide install remains available to every account no matter who else
+// happens to have installed their own copy.
 func vscodePluginKey(scope, home, editor, id string) string {
 	if scope == scopeSystem {
 		return editor + "\x00" + id
