@@ -166,10 +166,10 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 //
 // The join order is pinned with STRAIGHT_JOIN so the materialized catalog is always the outer
 // table and every software row is reached by index. Left to itself the optimizer can flip
-// that around and scan the target table once per catalog row -- the plan behind the incident
-// described on the function. The name comparison stays in SQL so it uses the columns'
-// utf8mb4_unicode_ci collation; comparing in Go would be byte-exact, disagree with the
-// UPDATE's own predicate, and re-select case-only differences on every run.
+// that around and scan the target table once per catalog row. The name comparison stays in
+// SQL so it uses the columns' utf8mb4_unicode_ci collation; comparing in Go would be
+// byte-exact, disagree with the UPDATE's own predicate, and re-select case-only differences
+// on every run.
 //
 // additional_identifier is 1 for ios_apps and 2 for ipados_apps, so requiring 0 keeps a macOS
 // app's canonical name off its iOS and iPadOS sibling titles, which are distinct products
