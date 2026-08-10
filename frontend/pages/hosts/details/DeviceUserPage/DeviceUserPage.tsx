@@ -731,6 +731,7 @@ const DeviceUserPage = ({
             diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             mdmManualEnrolmentUrl={mdmManualEnrollUrl}
             lastMdmEnrolledAt={host.last_mdm_enrolled_at}
+            detailUpdatedAt={host.detail_updated_at}
           />
           <HostHeader
             summaryData={summaryData}

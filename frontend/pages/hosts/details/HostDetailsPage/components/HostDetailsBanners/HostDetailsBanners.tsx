@@ -15,7 +15,10 @@ import {
 
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  INITIAL_FLEET_DATE,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 const baseClass = "host-details-banners";
 
@@ -34,6 +37,8 @@ export interface IHostBannersBaseProps {
   diskEncryptionKeyAvailable?: boolean;
   /** The timestamp of the last MDM enrollment */
   lastMdmEnrolledAt?: string;
+  /** The timestamp of the last communication */
+  detailUpdatedAt?: string;
 }
 /**
  * Handles the displaying of banners on the host details page
@@ -48,6 +53,7 @@ const HostDetailsBanners = ({
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
   lastMdmEnrolledAt,
+  detailUpdatedAt,
 }: IHostBannersBaseProps) => {
   const { config } = useContext(AppContext);
 
@@ -63,7 +69,9 @@ const HostDetailsBanners = ({
   const showTurnOnMdmInfoBanner =
     hostPlatform === "darwin" &&
     isMdmUnenrolled &&
-    config?.mdm.enabled_and_configured;
+    config?.mdm.enabled_and_configured &&
+    detailUpdatedAt &&
+    detailUpdatedAt > INITIAL_FLEET_DATE;
 
   const showMacDiskEncryptionUserActionRequired =
     config?.mdm.enabled_and_configured &&
