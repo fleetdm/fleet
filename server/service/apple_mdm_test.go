@@ -7947,6 +7947,18 @@ func TestShouldOSUpdateForDEPEnrollment(t *testing.T) {
 			expectedResult: true,
 		},
 		{
+			name:     "if platform is macOS and min_version is set to latest",
+			platform: string(fleet.MacOSPlatform),
+			appleMachineInfo: fleet.MDMAppleMachineInfo{
+				OSVersion: "16.0.1",
+			},
+			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				UpdateNewHosts: optjson.SetBool(false), // this state is not possible, but for test we do it to verify "latest" takes precedence
+			},
+			expectedResult: true,
+		},
+		{
 			name:     "if platform is not macOS and min_version is not set",
 			platform: string(fleet.IPadOSPlatform),
 			appleMachineInfo: fleet.MDMAppleMachineInfo{
