@@ -209,6 +209,37 @@ func TestApplyMicrosoftGraphCredentials(t *testing.T) {
 		assert.Equal(t, 0, *calls, "an unchanged credential is not re-verified")
 	})
 
+	// A client secret belongs to one app registration. Re-pairing a stored secret with a different tenant or client
+	// would silently attach a credential to an app it was never issued for, so the mask only preserves the secret when
+	// both IDs still match.
+	t.Run("changing an ID requires a new secret", func(t *testing.T) {
+		const otherClientID = "9a1c1d3e-0000-4b2a-9c3d-0f1e2d3c4b5a"
+		for _, tc := range []struct {
+			name     string
+			tenantID string
+			clientID string
+		}{
+			{"client ID changed", graphTenantA, otherClientID},
+			{"tenant ID changed", graphTenantB, graphClientA},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				env, calls := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
+				env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
+					TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret",
+				}
+
+				err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
+					{TenantID: tc.tenantID, ClientID: tc.clientID, ClientSecret: fleet.MaskedPassword},
+				}, false)
+
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "client_secret must be provided")
+				assert.Equal(t, "stored-secret", env.stored[graphTenantA].ClientSecret, "the old credential is untouched")
+				assert.Zero(t, *calls, "nothing should be verified against Graph with a mismatched secret")
+			})
+		}
+	})
+
 	t.Run("is declarative: an absent tenant is deleted", func(t *testing.T) {
 		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 		env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
@@ -290,20 +321,32 @@ func TestMicrosoftGraphCredentialBanner(t *testing.T) {
 			"a deleted credential can no longer need attention")
 	})
 
-	t.Run("raises when a stored credential is unhealthy", func(t *testing.T) {
-		env, _ := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
+	// The banner is recomputed only when a credential actually changed. Re-applying an identical GitOps config is the
+	// common case, and it must not read or rewrite the app config: nothing that feeds the banner can have moved, since
+	// an unchanged credential is neither verified nor written.
+	t.Run("an unchanged credential does not touch the app config", func(t *testing.T) {
+		env, calls := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 		env.stored[graphTenantA] = &fleet.MicrosoftGraphCredential{
-			TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret", CredentialInvalid: true,
+			TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret",
+		}
+		env.ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			t.Fatal("a no-op apply must not save the app config")
+			return nil
+		}
+		// Counting the read, not the write, is what distinguishes a skipped recomputation from one that ran and found
+		// nothing to change: the latter still reads the app config before deciding.
+		var appConfigReads int
+		env.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			appConfigReads++
+			return &fleet.AppConfig{}, nil
 		}
 
-		// Re-applying the identical credential writes nothing, but the banner must still reflect the stored health.
 		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
 			{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret"},
 		}, false))
 
-		ac, err := env.ds.AppConfig(env.ctx)
-		require.NoError(t, err)
-		assert.True(t, ac.MDM.MicrosoftGraphCredentialInvalid)
+		assert.Zero(t, appConfigReads, "the banner must not be recomputed when nothing changed")
+		assert.Equal(t, 0, *calls, "an unchanged credential is not re-verified either")
 	})
 
 	t.Run("cannot be set through PATCH /config", func(t *testing.T) {

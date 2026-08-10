@@ -90,12 +90,21 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 	lic, _ := licChecker.(*fleet.LicenseInfo)
 	invalid := &fleet.InvalidArgumentError{}
 
-	resolved, err := svc.resolveMicrosoftGraphCredentials(ctx, incoming, lic, invalid)
+	var err error
+	var stored map[string]*fleet.MicrosoftGraphCredential
+	if len(incoming) > 0 {
+		// Read the stored credentials once.
+		if stored, err = svc.storedMicrosoftGraphCredentialsByTenant(ctx); err != nil {
+			return err
+		}
+	}
+
+	resolved, err := svc.resolveMicrosoftGraphCredentials(incoming, lic, invalid, stored)
 	if err != nil {
 		return err
 	}
 	if !invalid.HasErrors() {
-		if err := svc.verifyMicrosoftGraphCredentials(ctx, resolved, invalid); err != nil {
+		if err := svc.verifyMicrosoftGraphCredentials(ctx, resolved, invalid, stored); err != nil {
 			return err
 		}
 	}
@@ -107,14 +116,17 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 		return nil
 	}
 
-	added, edited, deleted, err := svc.persistMicrosoftGraphCredentials(ctx, resolved)
+	added, edited, deleted, err := svc.persistMicrosoftGraphCredentials(ctx, resolved, stored)
 	if err != nil {
 		return err
 	}
 
-	// A credential that was just verified is healthy, and a deleted one can no longer be unhealthy, so the banner has to
-	// be recomputed after any change. This runs before the activity feed on purpose: activity creation reads webhook
-	// config and can fail, and a failure there must not leave the banner reporting a credential that no longer exists.
+	if len(added)+len(edited)+len(deleted) == 0 {
+		return nil
+	}
+
+	// A credential that was just verified is healthy, and a deleted one can no longer be unhealthy, so the banner is
+	// recomputed after a change.
 	if err := svc.refreshMicrosoftGraphCredentialBanner(ctx); err != nil {
 		return err
 	}
@@ -129,15 +141,8 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 }
 
 // refreshMicrosoftGraphCredentialBanner recomputes the app-wide banner flag from the stored credentials and saves the
-// app config only when it actually changed.
-//
-// The flag is stored rather than derived on read so that GET /config does not have to join the credentials table on
-// every page load. That means it can only be as fresh as its last recomputation, so every path that can change a
-// credential's health must call this: credential writes and deletes here, and the Autopilot sync when it marks a
-// credential invalid or clears it.
-//
-// Only CredentialInvalid feeds the banner. Throttling and 5xx are recorded in LastSyncError but must never raise a
-// credential alarm, or a Microsoft outage would light up the banner on every Fleet deployment at once.
+// app config only when it actually changed. The flag is stored rather than derived on read so that GET /config does not
+// have to join the credentials table on every page load.
 func (svc *Service) refreshMicrosoftGraphCredentialBanner(ctx context.Context) error {
 	stored, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
 	if err != nil {
@@ -168,19 +173,16 @@ func (svc *Service) refreshMicrosoftGraphCredentialBanner(ctx context.Context) e
 }
 
 // resolveMicrosoftGraphCredentials validates the incoming credential list and returns it with every client secret
-// resolved to a usable value.
-//
-// A caller that already has a stored credential may send back the masked placeholder (the UI round-trips what the list
-// endpoint returned) or omit the secret entirely; both mean "keep the stored secret". A genuinely new secret requires
-// the server private key, since it is encrypted at rest.
+// resolved to a usable value. A caller that already has a stored credential may send back the masked placeholder (the UI
+// round-trips what the list endpoint returned) or omit the secret entirely; both mean "keep the stored secret".
 //
 // Validation failures are accumulated on invalid rather than returned, so one bad entry does not mask another. The
 // returned slice only contains entries that validated.
 func (svc *Service) resolveMicrosoftGraphCredentials(
-	ctx context.Context,
 	incoming []fleet.MicrosoftGraphCredential,
 	lic *fleet.LicenseInfo,
 	invalid *fleet.InvalidArgumentError,
+	storedByTenant map[string]*fleet.MicrosoftGraphCredential,
 ) ([]fleet.MicrosoftGraphCredential, error) {
 	if len(incoming) == 0 {
 		return nil, nil
@@ -195,11 +197,6 @@ func (svc *Service) resolveMicrosoftGraphCredentials(
 		invalid.Append("microsoft_graph_credentials",
 			fmt.Sprintf("Only %d Microsoft Graph credential can be configured.", maxMicrosoftGraphCredentials))
 		return nil, nil
-	}
-
-	storedByTenant, err := svc.storedMicrosoftGraphCredentialsByTenant(ctx)
-	if err != nil {
-		return nil, err
 	}
 
 	seen := make(map[string]struct{}, len(incoming))
@@ -230,10 +227,12 @@ func (svc *Service) resolveMicrosoftGraphCredentials(
 		seen[cred.TenantID] = struct{}{}
 
 		if cred.ClientSecret == "" || cred.ClientSecret == fleet.MaskedPassword {
+			// The mask means "keep the secret for this credential", and a credential's identity is the app registration:
+			// tenant plus client.
 			existing, ok := storedByTenant[cred.TenantID]
-			if !ok || existing.ClientSecret == "" {
+			if !ok || existing.ClientSecret == "" || !strings.EqualFold(existing.ClientID, cred.ClientID) {
 				invalid.Append("microsoft_graph_credentials.client_secret",
-					"client_secret must be provided when adding a Microsoft Graph credential")
+					"client_secret must be provided when adding a Microsoft Graph credential or changing its tenant or client ID")
 				continue
 			}
 			cred.ClientSecret = existing.ClientSecret
@@ -256,16 +255,8 @@ func (svc *Service) verifyMicrosoftGraphCredentials(
 	ctx context.Context,
 	creds []fleet.MicrosoftGraphCredential,
 	invalid *fleet.InvalidArgumentError,
+	storedByTenant map[string]*fleet.MicrosoftGraphCredential,
 ) error {
-	if len(creds) == 0 {
-		return nil
-	}
-
-	storedByTenant, err := svc.storedMicrosoftGraphCredentialsByTenant(ctx)
-	if err != nil {
-		return err
-	}
-
 	for _, cred := range creds {
 		if existing, ok := storedByTenant[cred.TenantID]; ok && existing.Equal(cred) {
 			continue
@@ -308,29 +299,24 @@ func microsoftGraphVerifyMessage(err error) string {
 
 // persistMicrosoftGraphCredentials reconciles stored credentials to match the supplied list, and reports which tenants
 // were added, edited, or deleted so the caller can emit one activity apiece.
-//
-// Deletions are computed from the metadata read, which decrypts nothing. Only the "has this credential changed?"
-// comparison needs the stored secret, so an empty incoming list never decrypts. That keeps the recovery path open: if
-// the server private key is missing or has been rotated, the stored secrets cannot be read, and deleting the
-// unreadable credential is exactly what an admin needs to do.
 func (svc *Service) persistMicrosoftGraphCredentials(
 	ctx context.Context,
 	creds []fleet.MicrosoftGraphCredential,
+	storedByTenant map[string]*fleet.MicrosoftGraphCredential,
 ) (added, edited, deleted []string, err error) {
-	storedMeta, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
-	if err != nil {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
-	}
-	storedTenants := make(map[string]struct{}, len(storedMeta))
-	for _, cred := range storedMeta {
-		storedTenants[strings.ToLower(cred.TenantID)] = struct{}{}
-	}
-
-	storedByTenant := map[string]*fleet.MicrosoftGraphCredential{}
-	if len(creds) > 0 {
-		storedByTenant, err = svc.storedMicrosoftGraphCredentialsByTenant(ctx)
+	storedTenants := make(map[string]struct{}, len(storedByTenant))
+	if storedByTenant != nil {
+		for tenantID := range storedByTenant {
+			storedTenants[tenantID] = struct{}{}
+		}
+	} else {
+		// The clear-everything path. We need to get what we need to delete.
+		storedMeta, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
+		}
+		for _, cred := range storedMeta {
+			storedTenants[strings.ToLower(cred.TenantID)] = struct{}{}
 		}
 	}
 
