@@ -1,25 +1,26 @@
 # Driving automations and reports based on available disk space on macOS
 
-A customer's IT team built a disk space query in Fleet and noticed the numbers didn't match what macOS reports. They were right. The `mounts` table doesn't include purgeable space, so it consistently underreports available capacity. The fix is a one-line change: swap `mounts` for `disk_space`.
+A customer's IT team built a disk space query in Fleet and noticed the numbers didn't match what macOS reports. They were right. The `mounts` table doesn't include purgeable space, so it consistently underreports what's actually available. That gap matters most in two situations: a Mac that won't download or install a software update, and a user who's convinced their disk isn't as full as your dashboard says. The fix for both is a one-line change: swap `mounts` for `disk_space`.
 
 ## The problem
 
-macOS treats purgeable space (caches, Time Machine local snapshots, and other reclaimable data) as "available." When a user opens Finder and hits Get Info on their startup disk, macOS includes that purgeable space in the available number. The `mounts` table doesn't. It reports raw filesystem blocks only.
+macOS treats purgeable space (caches, Time Machine local snapshots, and other reclaimable data) as available. Open Finder, hit **Get Info** on the startup disk, and that purgeable space is included in the number macOS shows. The `mounts` table doesn't do this. It reports raw file system blocks: total, free, used. On Linux and Windows, that's the full picture. On macOS, it's not.
 
-The customer's IT team spotted it immediately:
+The customer's IT team spotted the mismatch immediately:
 
 > "The query doesn't seem to include rewritable disk space."
 
-They asked exactly the right question. The numbers were off because the table they were using was never designed to account for how macOS actually manages storage.
+They asked the right question. macOS actively manages a layer of purgeable storage that sits between “used” and “truly free”, and the OS will reclaim it on demand when an app or installer needs room. From the user's perspective, that space is available. From the file system's perspective, it's already allocated. A disk can read as 90% full in `mounts` while macOS tells the user they have 50 GB free. Both numbers are technically correct, but only one matches what the user experiences, and only one matches what the macOS installer will actually use.
 
-## Prerequisites
+## Why this is relevant for update compliance
 
-- Fleet with one or more macOS hosts enrolled
-- Permission to run queries (observer+ or higher)
+This is where the gap stops being a rounding error and starts causing real problems. macOS won't download or install an update without enough free space to stage it, and Apple doesn't publish hard numbers, but real-world testing puts minor updates at requiring roughly 15 GB free and major upgrades at roughly 35 GB (the installer itself plus working space for the upgrade process). If a host is short on either, the update silently fails to download, gets stuck partway through, or the user dismisses the “not enough space” prompt and moves on.
+
+If you're troubleshooting why a fleet of Macs is behind on updates, checking `mounts` can point you in the wrong direction. It's the same undercounting issue: a host might have 30 GB of purgeable cache sitting there, macOS would reclaim it automatically during the update, but `mounts` reports that space as used. You'd have to dig into the host manually to find out it actually has plenty of room. `disk_space` gives you the number that matches what the installer sees, so a host failing a space check is genuinely short on space, not a false alarm from stale cache data.
 
 ## Use the disk_space table
 
-The [`disk_space`](https://fleetdm.com/tables/disk_space) table uses Apple's `NSURLVolumeAvailableCapacityForImportantUsageKey` API under the hood. This is the same API macOS uses to calculate what it shows users. It includes purgeable space.
+The [`disk_space`](https://fleetdm.com/tables/disk_space) table uses Apple's `NSURLVolumeAvailableCapacityForImportantUsageKey` API, the same API macOS uses to calculate what it shows users. It includes purgeable space.
 
 Run this query on your macOS hosts:
 
@@ -27,27 +28,45 @@ Run this query on your macOS hosts:
 SELECT bytes_available FROM disk_space;
 ```
 
-That's it. The `bytes_available` column gives you the available disk capacity including purgeable space. It matches what your users see in Finder.
+That's it. The `bytes_available` column gives you available disk capacity including purgeable space, matching what your users see in Finder and what the macOS installer will actually have to work with.
 
-> **Note:** The `disk_space` table is macOS-only. For cross-platform disk reporting, you'll still need `mounts` on Linux and Windows, where purgeable space isn't a factor.
-
-## Why mounts falls short on macOS
-
-The `mounts` table reports what the filesystem layer knows: total blocks, free blocks, used blocks. On Linux and Windows, that's the full picture.
-
-On macOS, it's not. macOS actively manages a layer of purgeable storage that sits between "used" and "truly free." The operating system will reclaim that space on demand when an app or download needs it. From the user's perspective, it's available. From the filesystem's perspective, it's allocated.
-
-This means `mounts` can report a disk as 90% full while macOS tells the user they have 50 GB free. Both are technically correct, but only one matches what the user experiences.
+> **Note:** `disk_space` is macOS-only. For cross-platform reporting, you'll still need `mounts` on Linux and Windows, where purgeable space isn't a factor.
 
 ## Build automations and reports
 
-Now that your query returns accurate numbers, you can put them to work:
+Once your query reflects reality, you can use it for update troubleshooting, not just general alerting.
 
-1. **Disk space alerts.** Create a policy using `disk_space` to flag hosts where `bytes_available` drops below a threshold. Users get notified before they run out of space, and the alert fires at the same threshold they'd notice in Finder.
+### Flag hosts that can't take the next update
 
-2. **Capacity reports.** Schedule the query as a report in Fleet. Export the results to build dashboards or feed them into your ITSM tool. The numbers will match what your users report, which means fewer "but my Mac says I have space" tickets.
+Set separate thresholds for minor updates and major upgrades, since they need different amounts of headroom. Here's a policy for minor updates:
 
-3. **Automated workflows.** Use Fleet's webhook integrations to trigger actions when available space crosses a boundary. Prompt users to clean up, open a ticket, or kick off a remediation script.
+```yaml
+- name: Sufficient disk space for macOS minor update
+  query: SELECT 1 FROM disk_space WHERE bytes_available >= 15000000000;
+  critical: false
+  description: >-
+    This policy checks whether a host has at least 15GB of available disk space, including purgeable space,
+    which is roughly what macOS needs to download and install a minor update.
+    Hosts that fail this policy are likely stuck on an older version because the update can't stage,
+    not because anyone is ignoring the update prompt.
+  resolution: |-
+    Free up disk space by removing unnecessary files, emptying the Trash, or uninstalling unused applications.
+    Once the host has enough free space, macOS should be able to download and install the pending update.
+
+    If the issue persists, please reach out to support.
+  platform: darwin
+  webhooks_and_tickets_enabled: true
+```
+
+For major upgrades, raise the threshold to roughly 35 GB and adjust the name and description accordingly. Running both policies side by side tells you at a glance whether a host is behind because of disk space or for some other reason, which saves time when you're chasing down compliance gaps.
+
+### Capacity reports
+
+Schedule `SELECT bytes_available FROM disk_space;` as a report in Fleet. Export the results to build dashboards or feed them into your ITSM tool. The numbers will match what your users report, which means fewer “but my Mac says I have space” tickets landing in your queue.
+
+### Automated clean-up workflows
+
+Use Fleet's webhook integrations to trigger action when available space crosses a boundary, before it becomes an update failure. Prompt the user to clean up, open a ticket automatically, or kick off a remediation script that clears known cache locations.
 
 ## Further reading
 
@@ -56,7 +75,7 @@ Now that your query returns accurate numbers, you can put them to work:
 
 <meta name="articleTitle" value="Driving automations and reports based on available disk space on macOS">
 <meta name="authorFullName" value="Gray Williams">
-<meta name="authorGitHubUsername" value="gray-williams">
-<meta name="publishedOn" value="2026-07-28">
+<meta name="authorGitHubUsername" value="GrayW">
+<meta name="publishedOn" value="2026-08-07">
 <meta name="category" value="guides">
-<meta name="description" value="How to get accurate disk space numbers on macOS with Fleet, including purgeable space.">
+<meta name="description" value="Use the disk_space table to catch macOS hosts that are stuck on old updates because they're out of room, and to stop disk space tickets before they start.">
