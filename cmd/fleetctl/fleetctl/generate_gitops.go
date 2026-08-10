@@ -842,19 +842,13 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	}
 	orgSettings["certificate_authorities"] = certificateAuthorities // TODO(hca): Ask Scott about jsonFieldName usage
 
-	// Microsoft Graph credentials come from their own endpoint, not the app config. They belong in org_settings rather
-	// than controls because that is where every other GitOps-managed credential lives, and because controls are not
-	// generated for the global file on Premium -- emitting them there would put the credential in the Unassigned file,
-	// where apply ignores it, and an apply of the resulting default.yml would then delete the stored credential.
+	// Microsoft Graph credentials come from their own endpoint, not the app config. They belong in org_settings.
 	graphCreds, err := cmd.Client.GetMicrosoftGraphCredentials()
 	if err != nil {
 		return nil, err
 	}
 	if len(graphCreds) > 0 {
 		credT := reflect.TypeFor[fleet.MicrosoftGraphCredential]()
-		// The client secret is never readable from the API, so emit a placeholder and warn, exactly as
-		// certificate_authorities and apple_account_provisioning do. Emitting the mask verbatim would round-trip a
-		// literal "********" back into the config on the next apply.
 		creds := make([]map[string]any, 0, len(graphCreds))
 		for _, cred := range graphCreds {
 			creds = append(creds, map[string]any{
