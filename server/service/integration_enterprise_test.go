@@ -30895,9 +30895,6 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 	})
 }
 
-// Some FMA manifests point at an installer URL whose extension is uppercase.
-// GitOps must still store a lowercase extension, while the filename keeps the
-// casing the download gave it.
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersLowercasesExtension() {
 	t := s.T()
 

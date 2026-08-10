@@ -1,0 +1,1 @@
+- Fixed installer extensions getting saved without converting to lowercase.
