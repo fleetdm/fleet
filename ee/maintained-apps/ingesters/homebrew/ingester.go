@@ -221,6 +221,27 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	external_refs.EnrichManifest(out)
 
+	if input.Token == "cisco-jabber" {
+		// Homebrew versions the Jabber cask by Cisco's build timestamp
+		// ("20260722023311"), which tells us nothing about the app version osquery
+		// reports ("15.3.0"). Read the version the installer actually delivers out
+		// of the package itself. The package id is not the bundle id: Cisco spells
+		// it "com.cisco.Jabber", the bundle "com.cisco.jabber".
+		version, err := i.pkgRefVersion(ctx, out.InstallerURL, "com.cisco.Jabber")
+		if err != nil {
+			// Both ways of guessing here are worse than not publishing: the build
+			// timestamp is not a version at all, and keeping the previous version
+			// alongside the new installer is the mismatch that breaks patch status
+			// for every install. Leave the last good manifest in place; the next run
+			// picks this build up.
+			i.logger.WarnContext(ctx, "resolving Cisco Jabber version from the installer failed; skipping manifest update", "err", err.Error())
+			return &maintained_apps.FMAManifestApp{Slug: input.Slug, Name: input.Name}, nil
+		}
+		// The package records a four-segment build version ("15.3.0.311163") where
+		// the bundle's CFBundleShortVersionString is the first three ("15.3.0").
+		out.Version = truncateVersion(version, 3)
+	}
+
 	// create patch policy
 	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
 		Platform:    "darwin",
