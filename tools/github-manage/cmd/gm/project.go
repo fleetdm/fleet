@@ -26,12 +26,17 @@ var projectCmd = &cobra.Command{
 			return
 		}
 
-		tui.RunTUI(tui.ProjectCommand, projectID, limit, "")
+		allIssues, _ := cmd.Flags().GetBool("all-issues")
+		workflow, _ := cmd.Flags().GetString("workflow")
+
+		tui.RunTUI(tui.ProjectCommand, projectID, limit, "", allIssues, workflow)
 	},
 }
 
 func init() {
 	projectCmd.Flags().IntP("limit", "l", 300, "Maximum number of items to fetch")
+	projectCmd.Flags().BoolP("all-issues", "a", false, "Select all issues once the view is populated")
+	projectCmd.Flags().StringP("workflow", "w", "", "Run this workflow immediately instead of waiting for input (e.g. 'demo')")
 	estimatedCmd.Flags().IntP("limit", "l", 500, "Maximum number of items to fetch from drafting project")
 	sprintCmd.Flags().IntP("limit", "l", 300, "Maximum number of items to fetch")
 	sprintCmd.Flags().BoolP("previous", "p", false, "Show previous sprint instead of current")
@@ -54,7 +59,7 @@ var estimatedCmd = &cobra.Command{
 			return
 		}
 
-		tui.RunTUI(tui.EstimatedCommand, projectID, limit, "")
+		tui.RunTUI(tui.EstimatedCommand, projectID, limit, "", false, "")
 	},
 }
 
@@ -81,10 +86,10 @@ var sprintCmd = &cobra.Command{
 		prev, _ := cmd.Flags().GetBool("previous")
 		if prev {
 			// Pass a mode hint via the search parameter
-			tui.RunTUI(tui.SprintCommand, projectID, limit, "previous")
+			tui.RunTUI(tui.SprintCommand, projectID, limit, "previous", false, "")
 			return
 		}
 
-		tui.RunTUI(tui.SprintCommand, projectID, limit, "")
+		tui.RunTUI(tui.SprintCommand, projectID, limit, "", false, "")
 	},
 }

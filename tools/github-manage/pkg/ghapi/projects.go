@@ -24,6 +24,13 @@ var Aliases = map[string]int{
 	"sec":                   97,
 	"g-security-compliance": 97,
 	"releases":              87,
+	"apple-at-work":         108,
+	"apple":                 108,
+	"aaw":                   108,
+	"auto-patching":         109,
+	"auto":                  109,
+	"ap":                    109,
+	"byod":                  112,
 }
 
 // ProjectLabels maps project IDs to their corresponding label filters for the drafting project
