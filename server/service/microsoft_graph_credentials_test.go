@@ -163,8 +163,7 @@ func TestApplyMicrosoftGraphCredentials(t *testing.T) {
 		env := setupGraphCredsTest(t, fleet.TierFree, "test-private-key", nil)
 
 		err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, validCred, false)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), ErrMissingLicense.Error())
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		assert.Empty(t, env.stored)
 	})
 

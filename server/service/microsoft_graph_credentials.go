@@ -189,8 +189,7 @@ func (svc *Service) resolveMicrosoftGraphCredentials(
 	}
 
 	if lic == nil || !lic.IsPremium() {
-		invalid.Append("microsoft_graph_credentials", ErrMissingLicense.Error())
-		return nil, nil
+		return nil, fleet.ErrMissingLicense
 	}
 
 	if len(incoming) > maxMicrosoftGraphCredentials {

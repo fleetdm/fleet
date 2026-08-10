@@ -71,10 +71,7 @@ type Group struct {
 	UsersRoles             *fleet.UsersRoleSpec
 	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 	CertificateAuthorities *fleet.GroupedCertificateAuthorities
-	// MicrosoftGraphCredentials is applied through its own endpoint rather than the app config, so it is lifted out
-	// of controls and carried here. Only DoGitOps populates it, and it applies declaratively: a non-nil empty slice
-	// clears the stored credentials. The pointer is what keeps that safe -- nil means "this run is not managing
-	// credentials at all", which is the case for fleetctl apply, so a partial file can never delete them.
+	// MicrosoftGraphCredentials is applied through its own endpoint rather than the app config.
 	MicrosoftGraphCredentials *[]fleet.MicrosoftGraphCredential
 }
 

@@ -9127,7 +9127,6 @@ func TestGetLabelUsagePolicyScopes(t *testing.T) {
 }
 
 func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
-	// Cannot run t.Parallel() because it sets environment variables.
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
 	const (
@@ -9218,4 +9217,45 @@ software:
 	_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile("")})
 	require.Empty(t, stored)
 	require.Equal(t, []string{tenantID}, deleted)
+}
+
+func TestGitOpsMicrosoftGraphCredentialsFreeTier(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+		License:       &fleet.LicenseInfo{Tier: fleet.TierFree},
+		KeyValueStore: testing_utils.NewMemKeyValueStore(),
+	})
+	setupEmptyGitOpsMocks(ds)
+	t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+	f, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = f.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  microsoft_graph_credentials:
+    - tenant_id: 5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4
+      client_id: 7f6b1665-51f5-48de-a9b6-ac17539583fb
+      client_secret: some-secret
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test
+  secrets:
+    - secret: globalSecret
+software:
+`)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	_, err = runAppNoChecks([]string{"gitops", "-f", f.Name()})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Microsoft Graph credentials are available in Fleet Premium only",
+		"the license branch must fire rather than surfacing the raw client error")
+	require.Contains(t, err.Error(), filepath.Base(f.Name()), "the message must name the file being applied")
 }
