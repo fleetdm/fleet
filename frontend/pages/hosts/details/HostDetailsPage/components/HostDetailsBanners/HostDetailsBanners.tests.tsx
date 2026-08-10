@@ -78,4 +78,36 @@ describe("Host Details Banners", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText(logOutExpectedText)).not.toBeInTheDocument();
   });
+
+  it("hides the Turn on MDM banner for never-updated devices", () => {
+    const turnOnMdmText = /To enforce settings, OS updates, disk encryption, and more/;
+
+    render(
+      <HostDetailsBanners
+        hostPlatform="darwin"
+        mdmEnrollmentStatus="Off"
+        connectedToFleetMdm={false}
+        macDiskEncryptionStatus={null}
+        detailUpdatedAt="0001-01-01T00:00:00Z"
+      />
+    );
+
+    expect(screen.queryByText(turnOnMdmText)).not.toBeInTheDocument();
+  });
+
+  it("renders the Turn on MDM banner for unenrolled macOS hosts that have updated its detail", () => {
+    const turnOnMdmText = /To enforce settings, OS updates, disk encryption, and more/;
+
+    render(
+      <HostDetailsBanners
+        hostPlatform="darwin"
+        mdmEnrollmentStatus="Off"
+        connectedToFleetMdm={false}
+        macDiskEncryptionStatus={null}
+        detailUpdatedAt="2025-01-15T10:00:00Z"
+      />
+    );
+
+    expect(screen.getByText(turnOnMdmText)).toBeInTheDocument();
+  });
 });

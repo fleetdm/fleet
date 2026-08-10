@@ -1,0 +1,1 @@
+- Fixed an issue where Fleet would show a turn on MDM banner before knowing the device state.

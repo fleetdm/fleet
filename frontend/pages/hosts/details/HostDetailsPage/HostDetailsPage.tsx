@@ -1470,6 +1470,7 @@ const HostDetailsPage = ({
               diskIsEncrypted={host?.disk_encryption_enabled}
               diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
               lastMdmEnrolledAt={host?.last_mdm_enrolled_at}
+              detailUpdatedAt={host?.detail_updated_at}
             />
           )}
           <div className={`${baseClass}__header-links`}>
