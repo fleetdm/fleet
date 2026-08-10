@@ -15,12 +15,10 @@ examples: |-
   Create a policy query that causes a Mac to fail a policy if the macOS version is older than 26.6.1 & either Screen Sharing or Remote Management is enabled -
 
   ```
-  SELECT 1 WHERE NOT EXISTS (
-    SELECT 1
-    FROM os_version, sharing_preferences
-    WHERE version < '26.6.1'
-    AND (sharing_preferences.screen_sharing = 1 OR sharing_preferences.remote_management = 1)
-  );
+  SELECT 1
+  FROM os_version, sharing_preferences
+  WHERE version < '26.6.1'
+  AND (sharing_preferences.screen_sharing = 1 OR sharing_preferences.remote_management = 1);
   ```
 columns:
   - name: install_date
