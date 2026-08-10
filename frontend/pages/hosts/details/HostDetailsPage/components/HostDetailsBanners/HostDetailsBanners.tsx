@@ -37,7 +37,7 @@ export interface IHostBannersBaseProps {
   diskEncryptionKeyAvailable?: boolean;
   /** The timestamp of the last MDM enrollment */
   lastMdmEnrolledAt?: string;
-  /** The timestamp of the last communication */
+  /** The timestamp of the last detail update */
   detailUpdatedAt?: string;
 }
 /**
