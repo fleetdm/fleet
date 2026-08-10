@@ -2,6 +2,7 @@ package tables
 
 import (
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -88,6 +89,12 @@ func TestUp_20260810152924_MergesIntoInventoryTitle(t *testing.T) {
 		`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (0, ?, '4.86.0')`,
 		staleTitleID)
 
+	// Re-pointing a foreign key must not restamp updated_at on records that only moved.
+	execNoErr(t, db,
+		`UPDATE software_installers SET updated_at = '2026-01-15 12:00:00' WHERE id = ?`, installerID)
+	execNoErr(t, db,
+		`UPDATE host_software_installs SET updated_at = '2026-01-15 12:00:00' WHERE execution_id = 'exec-1'`)
+
 	applyNext(t, db)
 
 	require.False(t, dockerDesktopTitleExists(t, db, staleTitleID))
@@ -102,6 +109,16 @@ func TestUp_20260810152924_MergesIntoInventoryTitle(t *testing.T) {
 	require.NoError(t, db.Get(&pinnedTitleID,
 		`SELECT title_id FROM software_title_team_pins WHERE team_id = 0`))
 	require.Equal(t, targetTitleID, pinnedTitleID)
+
+	want := time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC)
+	for _, q := range []string{
+		`SELECT updated_at FROM software_installers WHERE id = ?`,
+		`SELECT updated_at FROM host_software_installs WHERE software_installer_id = ?`,
+	} {
+		var updatedAt time.Time
+		require.NoError(t, db.Get(&updatedAt, q, installerID))
+		require.Equal(t, want, updatedAt.UTC(), q)
+	}
 }
 
 // A per-team setting that already exists on the target title cannot move; the duplicate is

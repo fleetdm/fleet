@@ -81,7 +81,8 @@ func Up_20260810152924(tx *sql.Tx) error {
 			continue
 		}
 		if _, err := tx.Exec(
-			`UPDATE software_installers SET title_id = ? WHERE id = ?`, targetTitleID, si.id,
+			`UPDATE software_installers SET title_id = ?, updated_at = updated_at WHERE id = ?`,
+			targetTitleID, si.id,
 		); err != nil {
 			return fmt.Errorf("re-pointing Docker Desktop installer %d: %w", si.id, err)
 		}
@@ -89,45 +90,41 @@ func Up_20260810152924(tx *sql.Tx) error {
 
 	// Install history and queued installs have no title-scoped unique key, so they move
 	// wholesale.
-	for _, stmt := range []struct {
-		table  string
-		column string
-	}{
-		{"host_software_installs", "software_title_id"},
-		{"software_install_upcoming_activities", "software_title_id"},
-		{"software", "title_id"},
-		{"policies", "patch_software_title_id"},
+	for _, t := range []titleRefColumn{
+		{"host_software_installs", "software_title_id", true},
+		{"software_install_upcoming_activities", "software_title_id", true},
+		{"software", "title_id", false},
+		{"policies", "patch_software_title_id", true},
 	} {
 		if _, err := tx.Exec(
-			fmt.Sprintf(`UPDATE %s SET %s = ? WHERE %s = ?`, stmt.table, stmt.column, stmt.column),
+			fmt.Sprintf(`UPDATE %s SET %s = ?%s WHERE %s = ?`,
+				t.table, t.column, t.preserveUpdatedAt(), t.column),
 			targetTitleID, staleTitleID,
 		); err != nil {
-			return fmt.Errorf("re-pointing %s.%s: %w", stmt.table, stmt.column, err)
+			return fmt.Errorf("re-pointing %s.%s: %w", t.table, t.column, err)
 		}
 	}
 
 	// Per-team settings are unique per (team, title). UPDATE IGNORE moves the ones the
 	// target title does not already have; whatever stays behind is a duplicate of a setting
 	// the target already carries, so drop it.
-	for _, s := range []struct {
-		table  string
-		column string
-	}{
-		{"software_title_icons", "software_title_id"},
-		{"software_title_display_names", "software_title_id"},
-		{"software_title_team_pins", "title_id"},
-		{"software_update_schedules", "title_id"},
+	for _, t := range []titleRefColumn{
+		{"software_title_icons", "software_title_id", false},
+		{"software_title_display_names", "software_title_id", false},
+		{"software_title_team_pins", "title_id", true},
+		{"software_update_schedules", "title_id", false},
 	} {
 		if _, err := tx.Exec(
-			fmt.Sprintf(`UPDATE IGNORE %s SET %s = ? WHERE %s = ?`, s.table, s.column, s.column),
+			fmt.Sprintf(`UPDATE IGNORE %s SET %s = ?%s WHERE %s = ?`,
+				t.table, t.column, t.preserveUpdatedAt(), t.column),
 			targetTitleID, staleTitleID,
 		); err != nil {
-			return fmt.Errorf("re-pointing %s.%s: %w", s.table, s.column, err)
+			return fmt.Errorf("re-pointing %s.%s: %w", t.table, t.column, err)
 		}
 		if _, err := tx.Exec(
-			fmt.Sprintf(`DELETE FROM %s WHERE %s = ?`, s.table, s.column), staleTitleID,
+			fmt.Sprintf(`DELETE FROM %s WHERE %s = ?`, t.table, t.column), staleTitleID,
 		); err != nil {
-			return fmt.Errorf("cleaning up %s.%s: %w", s.table, s.column, err)
+			return fmt.Errorf("cleaning up %s.%s: %w", t.table, t.column, err)
 		}
 	}
 
@@ -155,6 +152,23 @@ func Up_20260810152924(tx *sql.Tx) error {
 	}
 
 	return nil
+}
+
+// titleRefColumn is a column pointing at a software title that has to follow the merge.
+// hasUpdatedAt marks the tables whose updated_at is ON UPDATE CURRENT_TIMESTAMP: this
+// migration re-points a foreign key rather than modifying the record, so those timestamps
+// are assigned to themselves to keep MySQL from stamping them.
+type titleRefColumn struct {
+	table        string
+	column       string
+	hasUpdatedAt bool
+}
+
+func (t titleRefColumn) preserveUpdatedAt() string {
+	if !t.hasUpdatedAt {
+		return ""
+	}
+	return ", updated_at = updated_at"
 }
 
 type dockerDesktopInstaller struct {
