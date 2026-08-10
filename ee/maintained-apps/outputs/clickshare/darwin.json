@@ -4,7 +4,8 @@
       "version": "4.50.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.barco.clickshare.updater';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.barco.clickshare.updater' AND version_compare(bundle_short_version, '4.50.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.barco.clickshare.updater' AND version_compare(bundle_short_version, '4.50.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.barco.clickshare.updater');"
       },
       "installer_url": "https://assets.cloud.barco.com/clickshare/release/ClickShare-4.50.0-b15_mac.zip",
       "install_script_ref": "2723b00c",

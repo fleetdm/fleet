@@ -4,7 +4,8 @@
       "version": "3.25.54307.37251",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Plantronics Hub %' AND publisher = 'Plantronics';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Plantronics Hub %' AND publisher = 'Plantronics' AND version_compare(version, '3.25.54307.37251') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Plantronics Hub %' AND publisher = 'Plantronics' AND version_compare(version, '3.25.54307.37251') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'plthub.exe');"
       },
       "installer_url": "https://downloads.poly.com/headsets/PlantronicsHubInstaller.exe",
       "install_script_ref": "1a5ce2ca",

@@ -10,6 +10,7 @@ import {
   getSoftwareInstallHandlerWithHash,
   getSoftwareInstallHandlerWithPreInstall,
   getSoftwareInstallHandlerOnlyPreInstallOutput,
+  getSoftwareInstallHandlerAppOpen,
   getSoftwareInstallResultHandlerPremiumRequired,
 } from "test/handlers/software-handlers";
 import mockServer from "test/mock-server";
@@ -133,6 +134,31 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/Test Host/)).toBeInTheDocument();
       expect(screen.queryByText(/You can retry/)).not.toBeInTheDocument();
       expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
+    });
+
+    it("renders app-open skipped copy instead of generic failed-install copy", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+          })}
+          isMyDevicePage={false}
+          installSkippedWhenAppOpen
+        />
+      );
+
+      expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
+      expect(screen.getByText(/The app was open/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /It will update once the user closes it and policy runs again, or update via self service\./
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
+      // Grey "!" (error-outline), not the red failure icon.
+      expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+      expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
     });
 
     it("on host details page/install activity, renders installed message with timestamp", () => {
@@ -308,6 +334,33 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(
         screen.queryByText(/Post-install script output:/i)
       ).not.toBeInTheDocument();
+    });
+
+    it("renders the app-open pre-install output for a skipped install", async () => {
+      mockServer.use(getSoftwareInstallHandlerAppOpen);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      const { user } = renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            install_skipped_when_app_open: true,
+          }}
+          onCancel={noop}
+        />
+      );
+
+      await screen.findByText(/Fleet skipped install of/);
+      await user.click(screen.getByRole("button", { name: /Details/i }));
+
+      expect(screen.getByText("Pre-install query output:")).toBeInTheDocument();
+      // Figma: the code block shows both the generic no-result line and the
+      // app-open reason (label stays "Pre-install query output:").
+      expect(
+        screen.getByText(
+          /Query didn't return result or failed\s+The app was open/
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Install stopped")).not.toBeInTheDocument();
     });
 
     it("shows install and post-install outputs after clicking Details (no pre-install)", async () => {

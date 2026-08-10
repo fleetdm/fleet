@@ -21,7 +21,6 @@ import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 
@@ -29,7 +28,6 @@ import Pagination from "components/Pagination";
 
 import UploadList from "../../../../../components/UploadList";
 
-import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
 import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import EditProfileModal from "./components/EditProfileModal";
@@ -221,7 +219,25 @@ const ConfigurationProfiles = ({
           </Card>
         );
       }
-      return <AddProfileCard setShowModal={setShowAddProfileModal} />;
+      return (
+        <EmptyState
+          variant="header-list"
+          header="No configuration profiles"
+          info="Add a configuration profile to enforce custom settings on your hosts."
+          primaryButton={
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Button
+                  disabled={disableChildren}
+                  onClick={() => setShowAddProfileModal(true)}
+                >
+                  Add profile
+                </Button>
+              )}
+            />
+          }
+        />
+      );
     }
 
     return (
@@ -300,9 +316,9 @@ const ConfigurationProfiles = ({
                         size="small"
                         onClick={() => setShowAddProfileModal(true)}
                         disabled={disableChildren}
+                        icon="plus"
                       >
-                        <Icon name="plus" size="small" />
-                        <span>Add profile</span>
+                        Add profile
                       </Button>
                     )}
                   />

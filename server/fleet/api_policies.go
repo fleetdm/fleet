@@ -189,6 +189,7 @@ type TeamPolicyRequest struct {
 	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
 	Type                         *string  `json:"type"`
 	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
+	PatchWhenClosed              bool     `json:"patch_when_closed" premium:"true"`
 }
 
 type TeamPolicyResponse struct {

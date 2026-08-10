@@ -2312,6 +2312,36 @@ func cronUpgradeCodeSoftwareMigration(
 	return s, nil
 }
 
+// cronSoftwareChecksumMigration merges duplicate software inventory entries left
+// behind by the software checksum field-ordering change in Fleet v4.76.0. Like the
+// other one-shot software migrations (uninstall/upgrade code), it runs once shortly
+// after startup and can be re-run on demand with
+// `fleetctl trigger --name software_checksum_migration`.
+func cronSoftwareChecksumMigration(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronSoftwareChecksumMigration)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+	logger = logger.With("cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return ds.ReconcileSoftwareChecksums(ctx)
+		}),
+	)
+	return s, nil
+}
+
 func newMaintainedAppSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -2537,6 +2567,36 @@ func newAndroidMDMDeviceReconcilerSchedule(
 	return s, nil
 }
 
+// newAndroidMDMCommandReconcilerSchedule periodically polls AMAPI for the outcome of Android MDM
+// commands (Lock, Wipe, Clear passcode) that are still pending because their Pub/Sub COMMAND
+// notification never arrived, so hosts don't stay stuck in a pending state.
+func newAndroidMDMCommandReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	licenseKey string,
+	newActivityFn fleet.NewActivityFunc,
+) (*schedule.Schedule, error) {
+	const (
+		name = string(fleet.CronMDMAndroidCommandReconciler)
+		// Daily is enough: a dropped notification is rare, and a day of reconciliation lag is invisible
+		// next to the indefinite wait an affected host has otherwise.
+		defaultInterval = 24 * time.Hour
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_android_commands", func(ctx context.Context) error {
+			return android_svc.ReconcileAndroidCommands(ctx, ds, logger, licenseKey, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
 func cronEnableAndroidAppReportsOnDefaultPolicy(
 	ctx context.Context,
 	instanceID string,
@@ -2658,6 +2718,28 @@ func newCleanupExpiredADUEChallengesSchedule(
 				return ctxerr.Wrap(ctx, err, "cleaning up expired ADUE challenges")
 			}
 			return nil
+		}),
+	)
+
+	return s, nil
+}
+
+func newAppleMDMOSUpdatesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAppleMDMOSUpdatesSchedule)
+		defaultInterval = 1 * time.Hour
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("apple_mdm_os_updates", func(ctx context.Context) error {
+			return apple_mdm.HandleAppleMDMOSUpdates(ctx, ds, logger)
 		}),
 	)
 

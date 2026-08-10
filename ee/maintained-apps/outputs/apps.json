@@ -2088,6 +2088,13 @@
       "description": "Cryptomator is a multi-platform client-side cloud file encryption tool."
     },
     {
+      "name": "CrystalDiskMark",
+      "slug": "crystaldiskmark/windows",
+      "platform": "windows",
+      "unique_identifier": "CrystalDiskMark",
+      "description": "CrystalDiskMark is a disk benchmark tool that measures storage read and write speeds."
+    },
+    {
       "name": "Crystalfetch",
       "slug": "crystalfetch/darwin",
       "platform": "darwin",
@@ -2177,6 +2184,13 @@
       "platform": "darwin",
       "unique_identifier": "press.freedom.dangerzone",
       "description": "Dangerzone is a tool to convert potentially dangerous PDFs or Office documents into safe PDFs."
+    },
+    {
+      "name": "Dante Controller",
+      "slug": "dante-controller/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.audinate.dante.DanteController",
+      "description": "Dante Controller is Audinate's app for configuring devices and routing audio channels on a Dante network."
     },
     {
       "name": "DarkModeBuddy",
@@ -2408,6 +2422,13 @@
       "platform": "windows",
       "unique_identifier": "Dell Command",
       "description": "Dell Command Update is a standalone application that delivers BIOS, firmware, driver, and application updates for Dell client hardware."
+    },
+    {
+      "name": "Dell Display and Peripheral Manager",
+      "slug": "dell-display-and-peripheral-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Dell Display and Peripheral Manager",
+      "description": "Dell Display and Peripheral Manager sets up and configures Dell monitors and peripherals such as keyboards, mice, webcams, audio devices, and active pens."
     },
     {
       "name": "Descript",
@@ -3208,13 +3229,6 @@
       "description": "Fetch is a file transfer client."
     },
     {
-      "name": "fig",
-      "slug": "fig/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.mschrage.fig",
-      "description": "fig is a terminal app."
-    },
-    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -3521,27 +3535,6 @@
       "platform": "darwin",
       "unique_identifier": "com.nektony.Funter-SIII",
       "description": "Funter is a shows hidden files and folders and switches their visibility in Finder."
-    },
-    {
-      "name": "Gadwin PrintScreen Pro",
-      "slug": "gadwin-printscreen-pro/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin PrintScreenPro (64-Bit)",
-      "description": "Gadwin PrintScreen Pro is a screen capture tool for saving, printing, and sharing screenshots."
-    },
-    {
-      "name": "Gadwin PrintScreen",
-      "slug": "gadwin-printscreen/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin PrintScreen (64-Bit)",
-      "description": "Gadwin PrintScreen is a screen capture tool that saves screenshots in multiple graphics formats."
-    },
-    {
-      "name": "Gadwin ScreenRecorder",
-      "slug": "gadwin-screenrecorder/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin ScreenRecorder (64-Bit)",
-      "description": "Gadwin ScreenRecorder is a screen recording tool for creating videos of on-screen activity."
     },
     {
       "name": "Galaxy Modeler",
@@ -4024,6 +4017,13 @@
       "slug": "handbrake-app/darwin",
       "platform": "darwin",
       "unique_identifier": "fr.handbrake.HandBrake",
+      "description": "HandBrake is an open-source video transcoder."
+    },
+    {
+      "name": "HandBrake",
+      "slug": "handbrake/windows",
+      "platform": "windows",
+      "unique_identifier": "HandBrake",
       "description": "HandBrake is an open-source video transcoder."
     },
     {
@@ -4860,6 +4860,13 @@
       "description": "Lenovo Dock Manager is an application for deploying and managing firmware updates for Lenovo docks."
     },
     {
+      "name": "Lenovo System Update",
+      "slug": "lenovo-system-update/windows",
+      "platform": "windows",
+      "unique_identifier": "Lenovo System Update",
+      "description": "Lenovo System Update installs and updates Lenovo drivers, BIOS, and applications on Lenovo computers."
+    },
+    {
       "name": "Lens",
       "slug": "lens/darwin",
       "platform": "darwin",
@@ -5364,6 +5371,13 @@
       "description": "Microsoft 365 Copilot is an AI-powered productivity assistant that integrates with Microsoft 365 apps."
     },
     {
+      "name": "Microsoft Access Database Engine 2016 Redistributable",
+      "slug": "microsoft-access-database-engine-2016/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Access database engine 2016 (English)",
+      "description": "Microsoft Access Database Engine 2016 Redistributable provides OLE DB and ODBC drivers for reading Access databases and Office data sources without installing Office."
+    },
+    {
       "name": "Microsoft Auto Update",
       "slug": "microsoft-auto-update/darwin",
       "platform": "darwin",
@@ -5376,6 +5390,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.StorageExplorer",
       "description": "Microsoft Azure Storage Explorer is an explorer for Azure Storage."
+    },
+    {
+      "name": "Microsoft .NET Desktop Runtime 10",
+      "slug": "microsoft-dotnet-desktop-runtime-10/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Windows Desktop Runtime",
+      "description": "Microsoft .NET Desktop Runtime 10 runs desktop apps built on .NET 10, including Windows Forms and WPF apps."
     },
     {
       "name": "Microsoft .NET Runtime 10",
@@ -5411,6 +5432,20 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.Excel",
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
+    },
+    {
+      "name": "Microsoft ODBC Driver 17 for SQL Server",
+      "slug": "microsoft-odbc-driver-17/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft ODBC Driver 17 for SQL Server",
+      "description": "Microsoft ODBC Driver 17 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the ODBC interface."
+    },
+    {
+      "name": "Microsoft ODBC Driver 18 for SQL Server",
+      "slug": "microsoft-odbc-driver-18/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft ODBC Driver 18 for SQL Server",
+      "description": "Microsoft ODBC Driver 18 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the ODBC interface."
     },
     {
       "name": "Microsoft Office",
@@ -6050,6 +6085,13 @@
       "description": "Numi is a calculator and converter application."
     },
     {
+      "name": "NVDA",
+      "slug": "nvda/windows",
+      "platform": "windows",
+      "unique_identifier": "NVDA",
+      "description": "NVDA is a free and open-source screen reader for blind and vision impaired users."
+    },
+    {
       "name": "NVIDIA GeForce NOW",
       "slug": "nvidia-geforce-now/darwin",
       "platform": "darwin",
@@ -6377,6 +6419,13 @@
       "platform": "darwin",
       "unique_identifier": "com.charlessoft.pacifist",
       "description": "Pacifist is an extract files and folders from package files, disk images, and archives."
+    },
+    {
+      "name": "Paint.NET",
+      "slug": "paint-dot-net/windows",
+      "platform": "windows",
+      "unique_identifier": "Paint.NET",
+      "description": "Paint.NET is an image and photo editor with support for layers, effects, and a range of image formats."
     },
     {
       "name": "Pale Moon",
@@ -7009,6 +7058,13 @@
       "description": "Python 3.14 is a high-level, general-purpose programming language used for web development, data analysis, automation, scripting, and scientific computing."
     },
     {
+      "name": "QEMU",
+      "slug": "qemu/windows",
+      "platform": "windows",
+      "unique_identifier": "QEMU",
+      "description": "QEMU is an open-source machine emulator and virtualizer."
+    },
+    {
       "name": "QLab",
       "slug": "qlab/darwin",
       "platform": "darwin",
@@ -7238,6 +7294,13 @@
       "platform": "windows",
       "unique_identifier": "Requestly",
       "description": "Requestly is an app for intercepting and modifying HTTP requests."
+    },
+    {
+      "name": "ReSharper",
+      "slug": "resharper/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains ReSharper",
+      "description": "ReSharper is a Visual Studio extension for .NET developers."
     },
     {
       "name": "Retcon",
@@ -7504,6 +7567,13 @@
       "platform": "darwin",
       "unique_identifier": "com.apptorium.ScreenFocus-dm",
       "description": "ScreenFocus is a tool to manage multiple screens."
+    },
+    {
+      "name": "Scribe",
+      "slug": "scribe/windows",
+      "platform": "windows",
+      "unique_identifier": "Scribe",
+      "description": "Scribe records a process as you work through it and turns it into a step-by-step guide with screenshots."
     },
     {
       "name": "Scribus",
@@ -8374,6 +8444,13 @@
       "description": "TeaCode is a text expanding app for developers."
     },
     {
+      "name": "TeamViewer Host",
+      "slug": "teamviewer-host/windows",
+      "platform": "windows",
+      "unique_identifier": "TeamViewer Host",
+      "description": "TeamViewer Host is a remote access agent for unattended 24/7 access to a device, for uses such as remote device monitoring and server maintenance."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -8874,7 +8951,7 @@
       "name": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
       "slug": "vc-redist-x64/windows",
       "platform": "windows",
-      "unique_identifier": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
+      "unique_identifier": "Microsoft Visual C++ v14 Redistributable (x64)",
       "description": "Microsoft Visual C++ 2015-2022 Redistributable (x64) installs the runtime components of the Visual C++ libraries required to run 64-bit applications built with Visual C++ 2015, 2017, 2019, and 2022."
     },
     {
@@ -8960,6 +9037,27 @@
       "platform": "darwin",
       "unique_identifier": "com.install4j.1106-5897-7327-6550.5",
       "description": "Visual Paradigm is an UML, SysML, BPMN modelling platform."
+    },
+    {
+      "name": "Visual Studio Community 2022",
+      "slug": "visual-studio-2022-community/windows",
+      "platform": "windows",
+      "unique_identifier": "Visual Studio Community 2022",
+      "description": "Visual Studio Community 2022 is a free, full-featured IDE from Microsoft for building apps across desktop, web, mobile, and cloud."
+    },
+    {
+      "name": "Visual Studio Enterprise 2022",
+      "slug": "visual-studio-2022-enterprise/windows",
+      "platform": "windows",
+      "unique_identifier": "Visual Studio Enterprise 2022",
+      "description": "Visual Studio Enterprise 2022 is Microsoft's IDE for enterprise development teams, built for scale, security, and complex, high-impact projects."
+    },
+    {
+      "name": "Visual Studio Professional 2022",
+      "slug": "visual-studio-2022-professional/windows",
+      "platform": "windows",
+      "unique_identifier": "Visual Studio Professional 2022",
+      "description": "Visual Studio Professional 2022 is Microsoft's IDE for professional developers working across desktop, web, mobile, and cloud."
     },
     {
       "name": "Microsoft Visual Studio Code",

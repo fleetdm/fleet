@@ -1,4 +1,4 @@
-- name: Windows - Disk encryption enabled
+- name: Disk encryption enabled (Windows)
   query: SELECT 1 FROM bitlocker_info WHERE protection_status = 1;
   critical: false
   description: This policy checks if disk encryption is enabled.

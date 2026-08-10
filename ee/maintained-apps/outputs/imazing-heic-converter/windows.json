@@ -4,7 +4,8 @@
       "version": "1.0.14.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'iMazing HEIC Converter%' AND publisher = 'DigiDNA';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'iMazing HEIC Converter%' AND publisher = 'DigiDNA' AND version_compare(version, '1.0.14.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'iMazing HEIC Converter%' AND publisher = 'DigiDNA' AND version_compare(version, '1.0.14.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'imazing heic converter.exe');"
       },
       "installer_url": "https://downloads.imazing.com/windows/iMazing-HEIC-Converter/1.0.14/iMazing_HEIC_Converter_1.0.14.exe",
       "install_script_ref": "bc1dc807",

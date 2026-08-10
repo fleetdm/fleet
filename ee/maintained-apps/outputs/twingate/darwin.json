@@ -4,7 +4,8 @@
       "version": "2026.182",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.twingate.macos';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.twingate.macos' AND version_compare(bundle_short_version, '2026.182') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.twingate.macos' AND version_compare(bundle_short_version, '2026.182') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.twingate.macos');"
       },
       "installer_url": "https://binaries.twingate.com/client/macos/2026.182.26057/Twingate.pkg",
       "install_script_ref": "a6ef7a54",

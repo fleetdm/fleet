@@ -24,6 +24,20 @@ func TruncateErrorResponse(s string) string {
 	return cut + " [truncated]"
 }
 
+// TruncateRunes returns s shortened to at most maxRunes characters, preserving the start of the string. Use it before
+// storing device- or user-supplied text in a column: utf8mb4 VARCHAR(N) in MySQL counts characters (runes), not bytes,
+// so slicing on runes both matches the column constraint and cannot cut a multi-byte character in half and produce invalid UTF-8.
+func TruncateRunes(s string, maxRunes int) string {
+	if len(s) <= maxRunes {
+		// Fast path: a string of at most maxRunes bytes cannot exceed maxRunes characters.
+		return s
+	}
+	if utf8.RuneCountInString(s) <= maxRunes {
+		return s
+	}
+	return string([]rune(s)[:maxRunes])
+}
+
 func SplitAndTrim(s string, delimiter string, removeEmpty bool) []string {
 	parts := strings.Split(s, delimiter)
 	cleaned := make([]string, 0, len(parts))

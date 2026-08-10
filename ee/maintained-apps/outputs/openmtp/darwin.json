@@ -4,7 +4,8 @@
       "version": "3.2.25",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.ganeshrvel.openmtp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.ganeshrvel.openmtp' AND version_compare(bundle_short_version, '3.2.25') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.ganeshrvel.openmtp' AND version_compare(bundle_short_version, '3.2.25') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'io.ganeshrvel.openmtp');"
       },
       "installer_url": "https://github.com/ganeshrvel/openmtp/releases/download/v3.2.25/openmtp-3.2.25-mac-arm64.zip",
       "install_script_ref": "185c2d48",

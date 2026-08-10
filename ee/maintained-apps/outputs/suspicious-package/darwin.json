@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.6.2",
+      "version": "4.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.SuspiciousPackageApp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.SuspiciousPackageApp' AND version_compare(bundle_short_version, '4.6.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.SuspiciousPackageApp' AND version_compare(bundle_short_version, '4.7') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.mothersruin.SuspiciousPackageApp');"
       },
-      "installer_url": "https://www.mothersruin.com/software/downloads/SuspiciousPackage.dmg",
+      "installer_url": "https://www.mothersruin.com/software/archives/SuspiciousPackage-4.7.dmg",
       "install_script_ref": "0cdf9027",
       "uninstall_script_ref": "69130fbf",
-      "sha256": "no_check",
+      "sha256": "5b8215b7a6536d1d41f1a3485e3428b39f8d3d0f2471ab1a0c69bedb22df4e5b",
       "default_categories": [
         "Developer tools"
       ]

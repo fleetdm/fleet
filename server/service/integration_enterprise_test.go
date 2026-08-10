@@ -71,6 +71,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -317,16 +318,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.SetBool(true),
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -450,16 +454,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.SetBool(true),
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -491,16 +498,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.SetBool(true),
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -534,16 +544,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.SetBool(true),
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-07-23"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1831,6 +1844,80 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
 	), "no disable historical data activity for ignored patch")
 }
 
+func (s *integrationEnterpriseTestSuite) TestModifyTeamEnableSoftwareInventory() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a fleet — features.enable_software_inventory snapshots the global
+	// config. `features` in the POST payload is ignored (pre-existing
+	// behavior, consistent with historical_data), so send the OPPOSITE of the
+	// global value to make the ignore observable.
+	globalCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	globalEnabled := globalCfg.Features.EnableSoftwareInventory
+	teamName := t.Name() + "softwareInventoryFleet"
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", json.RawMessage(fmt.Sprintf(
+		`{"name": %q, "features": {"enable_software_inventory": %t}}`, teamName, !globalEnabled,
+	)), http.StatusOK, &createResp)
+	require.Equal(t, globalEnabled, createResp.Team.Config.Features.EnableSoftwareInventory,
+		"features is ignored on POST; new fleet snapshots the global config value")
+	teamID := createResp.Team.ID
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(ctx, teamID))
+	})
+
+	// PATCH enable_software_inventory=false.
+	var modResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": false}}`),
+		http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.Features.EnableSoftwareInventory)
+
+	// PATCH other fields without the key — value retained (PATCH-merge semantics).
+	newName := teamName + "renamed"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(fmt.Sprintf(`{"name": %q, "features": {"historical_data": {"uptime": false}}}`, newName)),
+		http.StatusOK, &modResp)
+	require.Equal(t, newName, modResp.Team.Name)
+	require.False(t, modResp.Team.Config.Features.EnableSoftwareInventory,
+		"enable_software_inventory preserved when omitted from PATCH")
+	require.False(t, modResp.Team.Config.Features.HistoricalData.Uptime)
+
+	// Invalid value returns a 4xx error and does not change the setting.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": "yes"}}`),
+		http.StatusBadRequest, &modResp)
+	teamFeatures, err := s.ds.TeamFeatures(ctx, teamID)
+	require.NoError(t, err)
+	require.False(t, teamFeatures.EnableSoftwareInventory,
+		"setting unchanged after invalid value")
+
+	// `null` is treated as omitted — value retained.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": null}}`),
+		http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.Features.EnableSoftwareInventory)
+
+	// Re-enable.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_software_inventory": true}}`),
+		http.StatusOK, &modResp)
+	require.True(t, modResp.Team.Config.Features.EnableSoftwareInventory)
+
+	// PATCH /fleets/0 (Unassigned) ignores `features` (pre-existing behavior,
+	// consistent with historical_data); Unassigned hosts follow the global
+	// config setting, so send the OPPOSITE of the global value and verify it
+	// is unchanged.
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0",
+		json.RawMessage(fmt.Sprintf(`{"features": {"enable_software_inventory": %t}}`, !globalEnabled)),
+		http.StatusOK, &modResp)
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, globalEnabled, appCfg.Features.EnableSoftwareInventory,
+		"global setting unchanged by Unassigned fleet PATCH")
+}
+
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 	t := s.T()
 
@@ -2624,6 +2711,80 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.True(t, tmResp.Team.Config.WebhookSettings.HostStatusWebhook.Enable)
 	require.Equal(t, "http://example.com/host_status_webhook", tmResp.Team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 
+	// enable the host activities webhook
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com/host_activities_webhook",
+		},
+	}}, http.StatusOK, &tmResp)
+	require.NotNil(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook)
+	require.True(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.Enable)
+	require.Equal(t, "http://example.com/host_activities_webhook", tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.DestinationURL)
+
+	// a webhook_settings PATCH that omits host_activities_webhook preserves the stored value
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+	}}, http.StatusOK, &tmResp)
+	require.NotNil(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook)
+	require.True(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.Enable)
+	require.Equal(t, "http://example.com/host_activities_webhook", tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.DestinationURL)
+
+	// enabling with an empty destination URL fails validation
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+			Enable: true,
+		},
+	}}, http.StatusUnprocessableEntity)
+	errText := extractServerErrorText(res.Body)
+	require.Contains(t, errText, "destination_url is required to enable the host activities webhook")
+
+	// enabling with a non-http(s) destination URL fails validation
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "ftp://example.com",
+		},
+	}}, http.StatusUnprocessableEntity)
+	errText = extractServerErrorText(res.Body)
+	require.Contains(t, errText, "destination_url must be https or http")
+
+	// explicitly disabling works. webhook_settings is a whole-object
+	// replacement, so keep the failing-policies webhook enabled: the rest of
+	// this test depends on it (webhook vs ticket automation conflicts below).
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+			Enable: false,
+		},
+	}}, http.StatusOK, &tmResp)
+	require.NotNil(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook)
+	require.False(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.Enable)
+
+	// an empty host_activities_webhook object passes validation (enable defaults
+	// to false) and replaces the stored value: disabled with the URL cleared
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{},
+	}}, http.StatusOK, &tmResp)
+	require.NotNil(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook)
+	require.False(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.Enable)
+	require.Empty(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.DestinationURL)
+	require.True(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+
 	// add an unknown automation - does not exist at the global level
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
 		Jira: []*fleet.TeamJiraIntegration{
@@ -3236,6 +3397,298 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 		},
 	}}, http.StatusOK, &defaultTeamResp)
 	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+
+	// Configure the host activities webhook for "No Team"
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "https://example.com/no-team-activities-webhook",
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.NotNil(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.Enable)
+	require.Equal(t, "https://example.com/no-team-activities-webhook", defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.DestinationURL)
+
+	// Verify it persisted
+	defaultTeamResp = struct {
+		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+	}{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
+	require.NotNil(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.Enable)
+	require.Equal(t, "https://example.com/no-team-activities-webhook", defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.DestinationURL)
+
+	// A webhook_settings PATCH that omits host_activities_webhook preserves the stored value
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable: false,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.NotNil(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.Enable)
+
+	// Enabling with an invalid destination URL fails validation
+	res := s.Do("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+			Enable: true,
+		},
+	}}, http.StatusUnprocessableEntity)
+	errText := extractServerErrorText(res.Body)
+	require.Contains(t, errText, "destination_url is required to enable the host activities webhook")
+
+	// Explicitly disabling works
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+			Enable: false,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.NotNil(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook)
+	require.False(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.Enable)
+}
+
+// A failing-policy webhook automation batch is sent, records
+// a ran_automation_webhook activity carrying host_ids, and that activity fires
+// the per-fleet host activities webhook with the same details.
+func (s *integrationEnterpriseTestSuite) TestFailingPolicyAutomationFiresHostActivitiesWebhook() {
+	t := s.T()
+	ctx := t.Context()
+
+	// One receiver, two endpoints: the failing-policies destination and the
+	// per-fleet host activities destination.
+	type hostActivitiesWebhookPayload struct {
+		Type    string          `json:"type"`
+		Details json.RawMessage `json:"details"`
+	}
+	fpwCalled := make(chan struct{}, 1)
+	hostActivitiesCalled := make(chan hostActivitiesWebhookPayload, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/fpw":
+			_, _ = io.Copy(io.Discard, r.Body)
+			fpwCalled <- struct{}{}
+		case "/host-activities":
+			var p hostActivitiesWebhookPayload
+			if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+				t.Log(err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			hostActivitiesCalled <- p
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         new(t.Name() + "-key"),
+		UUID:            t.Name() + "-uuid",
+		Hostname:        "host-activities-webhook-host",
+		Platform:        "ubuntu",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	pol, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  "host-activities-webhook-failing-policy",
+		Query: "SELECT 1 WHERE 0",
+	})
+	require.NoError(t, err)
+
+	// Enable the per-fleet host activities webhook on the team.
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+			Enable:         true,
+			DestinationURL: srv.URL + "/host-activities",
+		},
+	}}, http.StatusOK, &tmResp)
+
+	// Send the failing-policies automation batch through the production
+	// sender, with the real activity service as the activity sink.
+	failingPolicySet := NewMemFailingPolicySet()
+	require.NoError(t, failingPolicySet.AddHost(pol.ID, fleet.PolicySetHost{
+		ID:       host.ID,
+		Hostname: host.Hostname,
+	}))
+	policy, err := s.ds.Policy(ctx, pol.ID)
+	require.NoError(t, err)
+	serverURL, err := url.Parse("https://fleet.example.com")
+	require.NoError(t, err)
+	webhookURL, err := url.Parse(srv.URL + "/fpw")
+	require.NoError(t, err)
+
+	activitySvc := mysqltest.NewTestActivityService(t, s.ds)
+	require.NoError(t, webhooks.SendFailingPoliciesBatchedPOSTs(
+		ctx, policy, failingPolicySet, 0, serverURL, webhookURL, time.Now(),
+		slog.New(slog.DiscardHandler), activitySvc,
+	))
+
+	// The failing-policies webhook received the batch POST.
+	select {
+	case <-fpwCalled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for failing policies webhook")
+	}
+
+	// The per-fleet host activities webhook received the resulting
+	// ran_automation_webhook activity with host_ids injected into the payload
+	// details at fire time.
+	select {
+	case p := <-hostActivitiesCalled:
+		require.Equal(t, "ran_automation_webhook", p.Type)
+		var details struct {
+			PolicyID uint   `json:"policy_id"`
+			HostIDs  []uint `json:"host_ids"`
+		}
+		require.NoError(t, json.Unmarshal(p.Details, &details))
+		assert.Equal(t, pol.ID, details.PolicyID)
+		assert.Equal(t, []uint{host.ID}, details.HostIDs)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for host activities webhook")
+	}
+
+	// The stored activity does NOT carry host_ids: the list is webhook-only,
+	// so API/feed responses stay lean and don't expose the batch's host IDs.
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanAutomationWebhook{}.ActivityName(),
+		fmt.Sprintf(`{"policy_id": %d}`, pol.ID),
+		0)
+}
+
+// A failing GLOBAL policy batch spanning hosts of two fleets fires each
+// fleet's host activities webhook once, and each delivery carries only the
+// host IDs belonging to that fleet.
+func (s *integrationEnterpriseTestSuite) TestGlobalPolicyAutomationFiresEachFleetsHostActivitiesWebhook() {
+	t := s.T()
+	ctx := t.Context()
+
+	type hostActivitiesWebhookPayload struct {
+		Type    string          `json:"type"`
+		Details json.RawMessage `json:"details"`
+	}
+	received := make(chan struct {
+		path string
+		body hostActivitiesWebhookPayload
+	}, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/fpw" {
+			_, _ = io.Copy(io.Discard, r.Body)
+			return
+		}
+		var p hostActivitiesWebhookPayload
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			t.Log(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		received <- struct {
+			path string
+			body hostActivitiesWebhookPayload
+		}{path: r.URL.Path, body: p}
+	}))
+	t.Cleanup(srv.Close)
+
+	newHost := func(name string, teamID uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new(t.Name() + name + "-key"),
+			UUID:            t.Name() + name + "-uuid",
+			Hostname:        name,
+			Platform:        "ubuntu",
+			TeamID:          &teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-a"})
+	require.NoError(t, err)
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-b"})
+	require.NoError(t, err)
+	hostA := newHost("global-batch-host-a", teamA.ID)
+	hostB := newHost("global-batch-host-b", teamB.ID)
+
+	var tmResp teamResponse
+	for teamID, path := range map[uint]string{teamA.ID: "/fleet-a", teamB.ID: "/fleet-b"} {
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+				Enable:         true,
+				DestinationURL: srv.URL + path,
+			},
+		}}, http.StatusOK, &tmResp)
+	}
+
+	// Global policy (no team) failing on both hosts.
+	gpol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:  "global-host-activities-webhook-failing-policy",
+		Query: "SELECT 1 WHERE 0",
+	})
+	require.NoError(t, err)
+
+	failingPolicySet := NewMemFailingPolicySet()
+	for _, h := range []*fleet.Host{hostA, hostB} {
+		require.NoError(t, failingPolicySet.AddHost(gpol.ID, fleet.PolicySetHost{
+			ID:       h.ID,
+			Hostname: h.Hostname,
+		}))
+	}
+	policy, err := s.ds.Policy(ctx, gpol.ID)
+	require.NoError(t, err)
+	serverURL, err := url.Parse("https://fleet.example.com")
+	require.NoError(t, err)
+	webhookURL, err := url.Parse(srv.URL + "/fpw")
+	require.NoError(t, err)
+
+	activitySvc := mysqltest.NewTestActivityService(t, s.ds)
+	require.NoError(t, webhooks.SendFailingPoliciesBatchedPOSTs(
+		ctx, policy, failingPolicySet, 0, serverURL, webhookURL, time.Now(),
+		slog.New(slog.DiscardHandler), activitySvc,
+	))
+
+	// One delivery per fleet destination, each scoped to that fleet's hosts.
+	deliveries := make(map[string]hostActivitiesWebhookPayload, 2)
+	for range 2 {
+		select {
+		case d := <-received:
+			deliveries[d.path] = d.body
+		case <-time.After(5 * time.Second):
+			t.Fatal("timeout waiting for host activities webhooks")
+		}
+	}
+	require.Len(t, deliveries, 2)
+	wantHostIDs := map[string][]uint{
+		"/fleet-a": {hostA.ID},
+		"/fleet-b": {hostB.ID},
+	}
+	for _, path := range []string{"/fleet-a", "/fleet-b"} {
+		body, ok := deliveries[path]
+		require.True(t, ok, "expected a webhook POST to %s", path)
+		require.Equal(t, "ran_automation_webhook", body.Type)
+		var details struct {
+			PolicyID uint   `json:"policy_id"`
+			HostIDs  []uint `json:"host_ids"`
+		}
+		require.NoError(t, json.Unmarshal(body.Details, &details))
+		assert.Equal(t, gpol.ID, details.PolicyID)
+		// Each fleet's endpoint only sees its own hosts.
+		assert.Equal(t, wantHostIDs[path], details.HostIDs)
+	}
+	// No third delivery: one request per destination, not per host.
+	select {
+	case d := <-received:
+		t.Fatalf("unexpected extra webhook delivery to %s", d.path)
+	case <-time.After(500 * time.Millisecond):
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger() {
@@ -3435,16 +3888,19 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true, Valid: false, Value: false},
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -4932,7 +5388,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 		// get the appconfig, nothing changed
 		acResp = appConfigResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-		require.Equal(t, fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.SetBool(false)}, acResp.MDM.MacOSUpdates)
+		require.Equal(t, fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}, UpdateNewHosts: optjson.SetBool(false)}, acResp.MDM.MacOSUpdates)
 
 		// no activity got created
 		activitiesResp = listActivitiesResponse{}
@@ -6401,10 +6857,9 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	)
 	osVersionResp = getOSVersionResponse{}
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
 		fmt.Sprintf("%d", tr.Team.ID),
 	)
-	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team0, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
@@ -6450,8 +6905,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	// team1 user does not have access to team0 host
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	assert.Empty(t, osVersionsResp.OSVersions)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
-	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp)
 
 	// Move host from team0 to team1
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
@@ -14433,7 +14887,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
 	message := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.NotEmpty(t, message)
-	require.Contains(t, message, fmt.Sprintf("validation failed: software.url Couldn't edit software. URL (\"%s/not_found.pkg\") returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", srv.URL))
+	expectedNotFoundMessage := fmt.Sprintf("validation failed: software.url URL (\"%s/not_found.pkg\") returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", srv.URL)
+	require.Contains(t, message, expectedNotFoundMessage)
 
 	// do a request with a valid URL
 	rubyURL := srv.URL + "/ruby.deb"
@@ -21916,15 +22371,16 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	_, err = maintained_apps.Hydrate(ctx, dbAppRecord, "", nil, nil)
 	require.NoError(t, err)
 	dbAppResponse := fleet.MaintainedApp{
-		ID:              dbAppRecord.ID,
-		Name:            dbAppRecord.Name,
-		Slug:            dbAppRecord.Slug,
-		Version:         dbAppRecord.Version,
-		Platform:        dbAppRecord.Platform,
-		InstallerURL:    dbAppRecord.InstallerURL,
-		InstallScript:   dbAppRecord.InstallScript,
-		UninstallScript: dbAppRecord.UninstallScript,
-		Categories:      []string{"Productivity"},
+		ID:                    dbAppRecord.ID,
+		Name:                  dbAppRecord.Name,
+		Slug:                  dbAppRecord.Slug,
+		Version:               dbAppRecord.Version,
+		Platform:              dbAppRecord.Platform,
+		InstallerURL:          dbAppRecord.InstallerURL,
+		InstallScript:         dbAppRecord.InstallScript,
+		UninstallScript:       dbAppRecord.UninstallScript,
+		AutomaticInstallQuery: dbAppRecord.AutomaticInstallQuery,
+		Categories:            []string{"Productivity"},
 	}
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallerURL)
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallScript)
@@ -33071,9 +33527,9 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}}))
 
 	// Orbit client capabilities — Linux and Windows orbit builds advertise
-	// CapabilityEndUserAuth. Without this header the EnrollOrbit handler
-	// short-circuits past the EUA gating (with a logged warning) and the bug
-	// would not be exercised.
+	// CapabilityEndUserAuth. The X-Fleet-Capabilities header is an
+	// informational hint only: EUA gating must hold regardless of what
+	// the client advertises.
 	var caps fleet.CapabilityMap
 	caps.PopulateFromString(string(fleet.CapabilityEndUserAuth))
 	capsHeaders := map[string]string{fleet.CapabilitiesHeader: caps.String()}
@@ -34919,6 +35375,79 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageFleetVariables() {
 	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titleID, true)
 	require.NoError(t, err)
 	require.Equal(t, updatedContents, meta.InstallScript)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareBatchDownloadProgressManyPackages() {
+	t := s.T()
+	teamName := "software-batch-download-progress"
+	const packageCount = 100
+
+	// One installer served under many names, instead of building an archive per package.
+	installer, err := os.ReadFile(filepath.Join("testdata", "software-installers", "test.tar.gz"))
+	require.NoError(t, err)
+	payloads := make([]*fleet.SoftwareInstallerPayload, 0, packageCount)
+	names := make([]string, 0, packageCount)
+
+	// Serves an ETag and honors If-None-Match, so a second apply revalidates.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		etag := fmt.Sprintf("%q", name)
+		w.Header().Set("ETag", etag)
+		if r.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = w.Write(installer)
+	}))
+	t.Cleanup(srv.Close)
+
+	for i := 1; i <= packageCount; i++ {
+		name := fmt.Sprintf("tarball-package-%03d.tar.gz", i)
+		names = append(names, name)
+		payloads = append(payloads, &fleet.SoftwareInstallerPayload{
+			URL:             srv.URL + "/" + name,
+			InstallScript:   "echo installing",
+			UninstallScript: "echo uninstalling",
+		})
+	}
+
+	_, err = s.ds.NewTeam(t.Context(), &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: payloads},
+		http.StatusAccepted, &batchResponse, "fleet_name", teamName)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResponse.RequestUUID)
+	require.Len(t, packages, packageCount)
+
+	var batchResult batchSetSoftwareInstallersResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/batch/"+batchResponse.RequestUUID, nil, http.StatusOK,
+		&batchResult, "fleet_name", teamName)
+
+	// Every package reports on its own place in the payload, and none is left mid-download.
+	require.Len(t, batchResult.DownloadProgress, packageCount)
+	for i, progress := range batchResult.DownloadProgress {
+		require.Equal(t, names[i], progress.Name, "package at index %d", i)
+		require.Equal(t, fleet.SoftwarePackageDownloadFinished, progress.Status, "package at index %d", i)
+	}
+
+	// The same packages again: every conditional request gets a 304, so nothing transfers.
+	batchResponse = batchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: payloads},
+		http.StatusAccepted, &batchResponse, "fleet_name", teamName)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResponse.RequestUUID)
+
+	batchResult = batchSetSoftwareInstallersResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/batch/"+batchResponse.RequestUUID, nil, http.StatusOK,
+		&batchResult, "fleet_name", teamName)
+
+	require.Len(t, batchResult.DownloadProgress, packageCount)
+	for i, progress := range batchResult.DownloadProgress {
+		require.Equal(t, names[i], progress.Name, "package at index %d", i)
+		require.Equal(t, fleet.SoftwarePackageDownloadSkipped, progress.Status, "package at index %d", i)
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuildSameVersion() {

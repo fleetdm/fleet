@@ -32,6 +32,7 @@ const (
 	CronGoogleWorkspaceSync          CronScheduleName = "google_workspace_sync"
 	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
 	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
+	CronSoftwareChecksumMigration    CronScheduleName = "software_checksum_migration"
 	CronMaintainedApps               CronScheduleName = "maintained_apps"
 	// CronWindowsMaintainedAppTitles merges Windows software titles whose reported
 	// name embeds the version onto the title owned by the Fleet-maintained app's
@@ -71,6 +72,10 @@ const (
 	CronAppleMDMWorker                          CronScheduleName = "apple_mdm_worker"
 	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
 	CronCleanupExpiredADUEChallenges            CronScheduleName = "cleanup_expired_adue_challenges"
+	CronAppleMDMOSUpdatesSchedule               CronScheduleName = "apple_mdm_os_updates"
+	// CronMDMAndroidCommandReconciler polls AMAPI for the outcome of Android MDM commands whose Pub/Sub
+	// COMMAND notification never arrived, so they don't stay pending forever. Runs every 24h.
+	CronMDMAndroidCommandReconciler CronScheduleName = "mdm_android_command_reconciler"
 )
 
 type CronSchedulesService interface {

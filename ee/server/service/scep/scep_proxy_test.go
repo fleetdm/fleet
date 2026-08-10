@@ -1261,11 +1261,11 @@ func TestNDESChallengeErrorToDetail(t *testing.T) {
 		wantNotContains []string
 	}{
 		{
-			name:         "invalid credentials points to Certificate enrollment",
+			name:         "invalid credentials points to Certificate authorities",
 			err:          NewNDESInvalidError("invalid admin URL or credentials"),
-			wantContains: []string{"Invalid NDES admin credentials", varName, "Settings > Integrations > Certificate enrollment."},
-			// Regression guard: must not point to the renamed/removed UI location (#46380).
-			wantNotContains: []string{"Mobile Device Management", "Simple Certificate Enrollment Protocol", "Certificate authorities"},
+			wantContains: []string{"Invalid NDES admin credentials", varName, "Settings > Integrations > Certificate authorities."},
+			// Regression guard: must not point to the renamed/removed UI location.
+			wantNotContains: []string{"Mobile Device Management", "Simple Certificate Enrollment Protocol", "Certificate enrollment"},
 		},
 		{
 			name:         "password cache full",

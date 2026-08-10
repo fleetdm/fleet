@@ -4,7 +4,8 @@
       "version": "65.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.red.RED-Tether';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.red.RED-Tether' AND version_compare(bundle_short_version, '65.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.red.RED-Tether' AND version_compare(bundle_short_version, '65.2.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.red.RED-Tether');"
       },
       "installer_url": "https://downloads.red.com/software/rcx/mac/release/65.2.1/REDCINE-X_PRO_Build_65.2.1.pkg",
       "install_script_ref": "a7efc3a3",

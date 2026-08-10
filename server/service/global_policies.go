@@ -254,8 +254,9 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 /////////////////////////////////////////////////////////////////////////////////
 
 const (
-	errPolicyAllFleetsForConditionalAccess     = "\"All fleets\" policy cannot have conditional_access_enabled set"
-	errPolicyAllFleetsForContinuousAutomations = "\"All fleets\" policy cannot have continuous_automations_enabled set"
+	errPolicyAllFleetsForConditionalAccess          = "\"All fleets\" policy cannot have conditional_access_enabled set"
+	errPolicyAllFleetsForContinuousAutomations      = "\"All fleets\" policy cannot have continuous_automations_enabled set"
+	errPatchWhenClosedRequiresContinuousAutomations = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
 )
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -496,6 +497,11 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 		// ContinuousAutomationsEnabled is premium-only.
 		if policy.ContinuousAutomationsEnabled && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		// PatchWhenClosed is premium-only.
+		if policy.PatchWhenClosed && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 

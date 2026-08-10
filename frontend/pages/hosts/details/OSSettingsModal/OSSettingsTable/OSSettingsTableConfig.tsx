@@ -64,16 +64,10 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        let scope = cellProps.row.original.scope;
-
-        if (isIPadOrIPhone(cellProps.row.original.platform)) {
-          scope = null; // Don't show user-scoped icon for iOS/iPadOS profiles, since we don't support user channels.
-        }
-
         return (
           <OSSettingsNameCell
             profileName={cellProps.cell.value}
-            scope={scope}
+            scope={cellProps.row.original.scope}
             managedAccount={cellProps.row.original.managed_local_account}
           />
         );

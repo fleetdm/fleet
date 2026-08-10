@@ -40,14 +40,17 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       windows_updates:
@@ -62,6 +65,7 @@ spec:
     webhook_settings:
       host_status_webhook: null
       failing_policies_webhook: null
+      host_activities_webhook: null
     name: tm1
   team:
     host_expiry_settings:
@@ -101,14 +105,17 @@ spec:
         software: null
       macos_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ios_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       ipados_updates:
         deadline: null
+        deadline_days: null
         minimum_version: null
         update_new_hosts: null
       windows_updates:
@@ -123,4 +130,5 @@ spec:
     webhook_settings:
       host_status_webhook: null
       failing_policies_webhook: null
+      host_activities_webhook: null
     name: tm1
