@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260807130547, Down_20260807130547)
+	MigrationClient.AddMigration(Up_20260810153910, Down_20260810153910)
 }
 
-func Up_20260807130547(tx *sql.Tx) error {
+func Up_20260810153910(tx *sql.Tx) error {
 	// mdm_microsoft_graph_credentials stores the Entra app-registration credential Fleet authenticates with when
 	// calling Microsoft Graph to read Windows Autopilot device identities.
 	//
@@ -60,6 +60,6 @@ func Up_20260807130547(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260807130547(tx *sql.Tx) error {
+func Down_20260810153910(tx *sql.Tx) error {
 	return nil
 }
