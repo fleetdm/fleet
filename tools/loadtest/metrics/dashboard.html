@@ -246,6 +246,13 @@ const state = {
 /* ============================ helpers ============================ */
 const $ = (sel) => document.querySelector(sel);
 
+// Escape artifact-derived strings embedded in markup built as a string
+// (the SVG charts) — everything DOM-built uses textContent instead.
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function getPath(obj, path) {
   let cur = obj;
   for (const seg of path.split('.')) {
@@ -374,9 +381,9 @@ async function ingestFiles(fileRecs) {
     try { data = JSON.parse(await file.text()); } catch { skipped++; continue; }
     const ws = data?.metadata?.workspace, ts = data?.metadata?.collected_at;
     if (!ws || !ts) { skipped++; continue; }
-    const id = ws + '|' + ts;
-    if (state.runs.some((r) => r.id === id)) { skipped++; continue; }
     const interval = data.metadata.interval || '1h';
+    const id = ws + '|' + ts + '|' + interval;
+    if (state.runs.some((r) => r.id === id)) { skipped++; continue; }
     state.runs.push({
       id, workspace: ws, collectedAt: ts, interval,
       hours: intervalHours(interval),
@@ -443,7 +450,12 @@ function renderRunList() {
       cb.onchange = () => { cb.checked ? state.selected.add(r.id) : state.selected.delete(r.id); renderAll(); };
       const lb = document.createElement('label');
       lb.htmlFor = cb.id;
-      lb.innerHTML = r.workspace + ' <span class="date">' + r.collectedAt.slice(0, 10) + ' · ' + r.interval + '</span>';
+      // artifact-derived strings: textContent/append only, never innerHTML
+      lb.append(r.workspace + ' ');
+      const dt = document.createElement('span');
+      dt.className = 'date';
+      dt.textContent = r.collectedAt.slice(0, 10) + ' · ' + r.interval;
+      lb.appendChild(dt);
       lb.title = r.workspace + ' — collected ' + r.collectedAt + ' (' + r.interval + ' window)';
       div.append(cb, lb);
       el.appendChild(div);
@@ -533,6 +545,10 @@ function renderMetricSelect() {
 }
 
 function renderRawPaths() {
+  // Runs are append-only, so the path set only changes when the run count
+  // does — skip the full deep walk on unrelated re-renders (checkbox toggles).
+  if (state.rawPathCount === state.runs.length) return;
+  state.rawPathCount = state.runs.length;
   const dl = $('#raw-paths');
   const paths = new Set();
   function walk(obj, prefix) {
@@ -542,7 +558,12 @@ function renderRawPaths() {
     for (const [k, v] of Object.entries(obj)) walk(v, prefix ? prefix + '.' + k : k);
   }
   for (const r of state.runs) walk(r.data, '');
-  dl.innerHTML = [...paths].sort().map((p) => '<option value="' + p + '">').join('');
+  dl.innerHTML = '';
+  for (const p of [...paths].sort()) {
+    const opt = document.createElement('option');
+    opt.value = p; // artifact-derived: assign as property, never attribute markup
+    dl.appendChild(opt);
+  }
 }
 
 function niceTicks(min, max, n) {
@@ -607,8 +628,8 @@ function renderDetail() {
     if (i % stride !== 0 && i !== series.length - 1) return;
     const x = xs(i);
     svg += '<g class="axis" transform="translate(' + x + ',' + (H - B + 18) + ') rotate(-32)">' +
-      '<text text-anchor="end">' + p.run.workspace + '</text></g>';
-    svg += '<g class="axis"><text x="' + x + '" y="' + (H - 6) + '" text-anchor="middle">' + p.run.collectedAt.slice(2, 10) + '</text></g>';
+      '<text text-anchor="end">' + esc(p.run.workspace) + '</text></g>';
+    svg += '<g class="axis"><text x="' + x + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(p.run.collectedAt.slice(2, 10)) + '</text></g>';
   });
   // series line (broken at gaps)
   let d = '', pen = false;
@@ -627,16 +648,27 @@ function renderDetail() {
   svg += '</svg>';
   wrap.innerHTML = svg;
 
-  // tooltips
+  // tooltips — artifact-derived strings go in via textContent/append only
   const tip = $('#tooltip');
   wrap.querySelectorAll('.pt').forEach((c) => {
     c.addEventListener('mousemove', (ev) => {
       const p = series[+c.dataset.i];
-      tip.innerHTML = '<div class="t-run">' + p.run.workspace + '</div>' +
-        p.run.collectedAt + ' · ' + p.run.interval + ' window<br>' +
-        m.name + ': <b>' + fmtVal(p.value, m.unit) + '</b>' +
-        (m.rate ? ' (per hour)' : '') +
-        (p.lowCov ? '<br>⚠ metric had &lt;75% datapoint coverage' : '');
+      tip.textContent = '';
+      const trun = document.createElement('div');
+      trun.className = 't-run';
+      trun.textContent = p.run.workspace;
+      tip.appendChild(trun);
+      tip.append(p.run.collectedAt + ' · ' + p.run.interval + ' window');
+      tip.appendChild(document.createElement('br'));
+      tip.append(m.name + ': ');
+      const val = document.createElement('b');
+      val.textContent = fmtVal(p.value, m.unit);
+      tip.appendChild(val);
+      if (m.rate) tip.append(' (per hour)');
+      if (p.lowCov) {
+        tip.appendChild(document.createElement('br'));
+        tip.append('⚠ metric had <75% datapoint coverage');
+      }
       tip.style.display = 'block';
       tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 310) + 'px';
       tip.style.top = (ev.clientY + 14) + 'px';
