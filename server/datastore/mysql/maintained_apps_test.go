@@ -58,6 +58,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ReconcileSoftwareNamesBatched", testReconcileSoftwareNamesBatched},
+		{"ReconcileSoftwareNamesDiscoveryWindowed", testReconcileSoftwareNamesDiscoveryWindowed},
 		{"ReconcileSoftwareNamesOrphanedInstaller", testReconcileSoftwareNamesOrphanedInstaller},
 		{"ReconcileSoftwareNamesIdentifierWinsOverInstallerLink", testReconcileSoftwareNamesIdentifierWinsOverInstallerLink},
 		{"ReconcileSoftwareNamesMultiTeamInstallers", testReconcileSoftwareNamesMultiTeamInstallers},
@@ -1325,6 +1326,64 @@ func testReconcileSoftwareNamesBatched(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 	require.Equal(t, "Visual Studio Code", titleName("com.microsoft.VSCode"))
 	require.Equal(t, []string{"Unrelated"}, softwareNames("com.example.unrelated"))
+}
+
+// testReconcileSoftwareNamesDiscoveryWindowed: each discovery SELECT is capped by
+// maintainedAppNameReconcileDiscoveryLimit so the pass never holds every mismatched row
+// in memory at once. Renamed rows drop out of the next SELECT, so the pass must keep
+// re-discovering until a window comes back short, not stop after the first one.
+func testReconcileSoftwareNamesDiscoveryWindowed(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Seven mismatched software rows against a window of three and batches of two, so
+	// the pass needs several windows and the window and batch edges never line up.
+	oldBatchSize := maintainedAppNameReconcileBatchSize
+	oldDiscoveryLimit := maintainedAppNameReconcileDiscoveryLimit
+	maintainedAppNameReconcileBatchSize = 2
+	maintainedAppNameReconcileDiscoveryLimit = 3
+	t.Cleanup(func() {
+		maintainedAppNameReconcileBatchSize = oldBatchSize
+		maintainedAppNameReconcileDiscoveryLimit = oldDiscoveryLimit
+	})
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "windowed-host",
+		Platform:        "darwin",
+		OsqueryHostID:   new("windowed-osquery-id"),
+		NodeKey:         new("windowed-node-key"),
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
+
+	var software []fleet.Software
+	for _, version := range []string{"1.0", "2.0", "3.0", "4.0", "5.0", "6.0", "7.0"} {
+		software = append(software, fleet.Software{
+			Name: "Code", Version: version, Source: "apps", BundleIdentifier: "com.microsoft.VSCode",
+		})
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	upsertDarwinFMA(t, ds, "Microsoft Visual Studio Code", "com.microsoft.VSCode", "visual-studio-code/darwin")
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	var names []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &names,
+			`SELECT DISTINCT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode'`)
+	})
+	require.Equal(t, []string{"Microsoft Visual Studio Code"}, names)
+
+	var titleName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleName,
+			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
+	})
+	require.Equal(t, "Microsoft Visual Studio Code", titleName)
 }
 
 // upsertDarwinFMA upserts a darwin maintained app. Call it once per app: the upsert's

@@ -58,6 +58,13 @@ ON DUPLICATE KEY UPDATE
 // InnoDB holds row locks on software / software_titles. A var so tests can lower it.
 var maintainedAppNameReconcileBatchSize = 500
 
+// maintainedAppNameReconcileDiscoveryLimit caps how many mismatched rows one discovery
+// SELECT returns, bounding the pass's memory no matter how large the catalog or the
+// software inventory grows. Renaming a window removes its rows from the next SELECT's
+// result, so the pass re-runs the same query until a window comes back short rather
+// than paginating with an offset. A var so tests can lower it.
+var maintainedAppNameReconcileDiscoveryLimit = 10_000
+
 // ReconcileMaintainedAppSoftwareNames renames macOS software_titles and software rows
 // to the canonical Fleet-maintained app name (e.g. "Code" -> "Microsoft Visual Studio
 // Code"). Inventory and the installer already share a title via bundle_identifier, so
@@ -84,10 +91,11 @@ var maintainedAppNameReconcileBatchSize = 500
 // software_titles through their foreign keys.
 //
 // Discovery is a different matter and does join. That hazard is specific to UPDATE: a SELECT
-// here is a non-locking consistent read. So each pass finds its mismatched rows in one query
-// and then renames them by primary key in bounded batches, each batch its own statement, so
-// locks stay on a handful of rows and never span batches. Every UPDATE re-checks `name <> ?`,
-// which keeps the pass idempotent.
+// here is a non-locking consistent read. So each pass finds its mismatched rows in
+// LIMIT-bounded windows and renames them by primary key in bounded batches, each batch its
+// own statement, so locks stay on a handful of rows and never span batches, and memory is
+// bounded no matter how many rows are mismatched. Every UPDATE re-checks `name <> ?`, which
+// keeps the pass idempotent.
 //
 // Windows needs a merge rather than a rename and does not depend on the catalog, so it
 // runs separately. See ReconcileWindowsMaintainedAppSoftwareTitles.
@@ -122,39 +130,50 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 	}
 
 	for _, step := range steps {
-		var rows []struct {
-			ID   uint   `db:"id"`
-			Name string `db:"name"`
-		}
-		if err := sqlx.SelectContext(ctx, ds.reader(primaryCtx), &rows, step.selectStmt); err != nil {
-			return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: find %s", step.label)
-		}
-		if len(rows) == 0 {
-			continue
-		}
+		// Discovery is windowed by LIMIT so the pass never holds every mismatched row in
+		// memory. Renaming a window removes its rows from the next SELECT's result -- every
+		// UPDATE re-checks `name <> ?` -- so re-running the same query walks the remainder
+		// without an offset, and a window that comes back short means nothing is left. A
+		// selected row the rename cannot fix would error out rather than loop.
+		for {
+			var rows []struct {
+				ID   uint   `db:"id"`
+				Name string `db:"name"`
+			}
+			if err := sqlx.SelectContext(ctx, ds.reader(primaryCtx), &rows, step.selectStmt, maintainedAppNameReconcileDiscoveryLimit); err != nil {
+				return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: find %s", step.label)
+			}
+			if len(rows) == 0 {
+				break
+			}
 
-		// One UPDATE carries one name, so group the ids by the name they should get. Grouping is
-		// an exact map lookup, never a comparison, so it cannot disagree with the
-		// collation-sensitive `name <> ?` that the UPDATE itself applies.
-		idsByName := make(map[string][]uint, len(rows))
-		for _, r := range rows {
-			idsByName[r.Name] = append(idsByName[r.Name], r.ID)
-		}
+			// One UPDATE carries one name, so group the ids by the name they should get. Grouping is
+			// an exact map lookup, never a comparison, so it cannot disagree with the
+			// collation-sensitive `name <> ?` that the UPDATE itself applies.
+			idsByName := make(map[string][]uint, len(rows))
+			for _, r := range rows {
+				idsByName[r.Name] = append(idsByName[r.Name], r.ID)
+			}
 
-		for name, ids := range idsByName {
-			if err := common_mysql.BatchProcessSimple(ids, maintainedAppNameReconcileBatchSize, func(batch []uint) error {
-				stmt, args, err := sqlx.In(step.updateStmt, name, batch, name)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "build rename statement")
+			for name, ids := range idsByName {
+				if err := common_mysql.BatchProcessSimple(ids, maintainedAppNameReconcileBatchSize, func(batch []uint) error {
+					stmt, args, err := sqlx.In(step.updateStmt, name, batch, name)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "build rename statement")
+					}
+					n, err := ds.renameWithRetry(ctx, stmt, args...)
+					if err != nil {
+						return err
+					}
+					*step.renamed += n
+					return nil
+				}); err != nil {
+					return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: rename %s", step.label)
 				}
-				n, err := ds.renameWithRetry(ctx, stmt, args...)
-				if err != nil {
-					return err
-				}
-				*step.renamed += n
-				return nil
-			}); err != nil {
-				return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: rename %s", step.label)
+			}
+
+			if len(rows) < maintainedAppNameReconcileDiscoveryLimit {
+				break
 			}
 		}
 	}
@@ -205,20 +224,23 @@ const (
 		SELECT st.id, fma.name
 		FROM (` + catalogNamesByTitle + `) fma
 		STRAIGHT_JOIN software_titles st ON st.id = fma.title_id
-		WHERE st.name <> fma.name`
+		WHERE st.name <> fma.name
+		LIMIT ?`
 
 	mismatchedSoftwareByInstallerLink = `
 		SELECT s.id, fma.name
 		FROM (` + catalogNamesByTitle + `) fma
 		STRAIGHT_JOIN software s ON s.title_id = fma.title_id
-		WHERE s.name <> fma.name`
+		WHERE s.name <> fma.name
+		LIMIT ?`
 
 	mismatchedTitlesByIdentifier = `
 		SELECT st.id, fma.name
 		FROM (` + catalogNamesByIdentifier + `) fma
 		STRAIGHT_JOIN software_titles st
 			ON st.bundle_identifier = fma.unique_identifier AND st.additional_identifier = 0
-		WHERE st.name <> fma.name`
+		WHERE st.name <> fma.name
+		LIMIT ?`
 
 	mismatchedSoftwareByIdentifier = `
 		SELECT s.id, fma.name
@@ -226,7 +248,8 @@ const (
 		STRAIGHT_JOIN software s
 			ON s.bundle_identifier = fma.unique_identifier
 			AND s.source NOT IN ('ios_apps', 'ipados_apps')
-		WHERE s.name <> fma.name`
+		WHERE s.name <> fma.name
+		LIMIT ?`
 
 	updateSoftwareTitleNames = `UPDATE software_titles SET name = ? WHERE id IN (?) AND name <> ?`
 
