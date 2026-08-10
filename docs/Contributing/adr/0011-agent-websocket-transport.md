@@ -133,6 +133,10 @@ If `--enable_websocket_transport=false` then the server will reject any websocke
 
 **Fallback requirement (fleetd):** If the agent cannot establish the WebSocket connection (blocked by a middlebox, repeated upgrade failures, etc.), or an established connection drops and cannot be re-established, fleetd must fall back to the existing polling protocol. WebSocket transport is an optimization; polling remains the guaranteed baseline, so no functionality is ever lost.
 
+The agent treats the WebSocket as **stable** (and stops polling) once a connection has stayed up for 1 full minute, and as **unavailable** (and resumes polling, while still retrying with backoff) after 1 minute without a successful connection — e.g. N consecutive failed attempts. Both thresholds are initial guesses to be validated during implementation.
+
+Before downgrading, the agent should check that plain HTTP still works: if both the WebSocket and normal HTTP requests are failing, the server (or the network path to it) is probably down, not the WebSocket transport. In that case the agent should not downgrade to polling; it keeps retrying both as usual.
+
 ### Thundering herd mitigation
 
 **Initial connections.** When the feature flag is first enabled, each agent receives the WebSocket directive on its next config poll. Because config polls are already spread across the poll interval, connection attempts arrive naturally staggered; no client-side jitter is needed for the initial wave.
@@ -216,7 +220,7 @@ sequenceDiagram
 **Note on wake-up triggers (new mechanisms):** A "check now" nudge has two triggers:
 
 1. **Live query created.** Today, campaign targeting is written to Redis keys and each server instance discovers it independently when a host polls. There is no inter-instance notification. With WebSockets, the server instance holding an agent's connection may not be the one that created the campaign. To solve this, campaign creation adds a Redis `PUBLISH` on a wake-up channel. All server instances subscribe to this channel and nudge the relevant agents they hold. Redis pub/sub already exists in Fleet for streaming query results back; this extends the same pattern for the wake-up signal.
-2. **Interval-based work due (per-instance check, new).** Policies, labels, and host vitals refresh on server-side intervals. Today the agent's blind 10-second poll is what picks up that work once an interval elapses; with nudge-driven `distributed/read`, the server takes over that role. Each server instance periodically checks which of **its own connected agents** have intervals that elapsed (e.g. host 1 has stale policies, host 2 has stale labels, host 3 has stale host vitals) and nudges them directly, pacing the nudges progressively to avoid a thundering herd of `distributed/read` calls. No Redis is involved: the instance holding the WebSocket is the one doing the checking, so the work is naturally sharded across instances. Staleness is read from MySQL (`policy_updated_at`, `label_updated_at`, `detail_updated_at`), not tracked in instance memory, because the agent's `distributed/read`/`distributed/write` HTTP calls go through the load balancer and may be served by any instance.
+2. **Interval-based work due (per-instance check, new).** Policies, labels, and host vitals refresh on server-side intervals. Today the agent's blind 10-second poll is what picks up that work once an interval elapses; with nudge-driven `distributed/read`, a per-instance check job takes over that role — see [The interval check job](#the-interval-check-job) below.
 
 **Phase 1 scope: `distributed/read` and `distributed/write` only.** In this first phase, orbit registers only as osquery's `distributed` plugin. All other osquery traffic is unchanged: osquery keeps sending scheduled query result logs (`/api/osquery/log`) and fetching config (`/api/osquery/config`) directly from the server, exactly as it does today.
 
@@ -228,6 +232,22 @@ In a future phase, orbit could also register as osquery's logger and config plug
 - No HTTP proxying, no TLS interception, no URL rewriting needed.
 - The localhost thrift call has zero network overhead.
 - osquery requires zero code changes and has zero awareness of the WebSocket.
+
+### The interval check job
+
+Each server instance runs a lightweight periodic job (e.g. every minute, configurable) that determines which of **its own open WebSocket connections** need a "check now" signal:
+
+1. Collect the host IDs of the connections the instance currently holds.
+2. Query MySQL for those hosts' last-updated timestamps: `policy_updated_at`, `label_updated_at`, and `detail_updated_at` (detail queries cover host vitals, including software).
+3. Any host with a timestamp older than the corresponding interval (PolicyUpdateInterval, LabelUpdateInterval, DetailUpdateInterval) is due: send it a `type=distributed/read` nudge.
+4. Pace the nudges progressively (in batches) so a large due-set does not produce a thundering herd of `distributed/read` calls.
+
+Design notes:
+
+- **Batch scan, not per-connection checks.** The job checks all held connections in one pass with a single chunked MySQL query, rather than querying per connection (10k+ queries per tick) or keeping a per-host next-due schedule (state that goes stale when intervals change or timestamps advance via another instance). Steady state is self-staggering: hosts' timestamps are naturally spread out, so each tick finds only a small slice due (~170 hosts/minute at 10k connections and a 1-hour interval). The one case where everything looks due at once — after downtime — is handled by the progressive pacing step.
+- **Not a cluster-wide cron.** The job intentionally does not use Fleet's cron/schedule infrastructure (where a single instance takes a lock and runs the job): only the instance holding a WebSocket can deliver the nudge, so each instance checks exactly the agents it holds. The work is naturally sharded across instances and no Redis coordination is needed.
+- **Staleness comes from MySQL, not instance memory.** The agent's `distributed/read`/`distributed/write` HTTP calls go through the load balancer and may be served by any instance, so the connection-holding instance cannot know locally when the host last reported. The timestamps in the `hosts` table are the source of truth.
+- **Avoid re-nudging.** A due host stays due until its results are ingested and the timestamp advances. The instance should remember the last nudge sent per connection (in memory is fine — the connection lives on this instance) and wait a grace period (e.g. a few minutes) before nudging the same host again, covering agents that are slow to respond without hammering them.
 
 ## 3. Security analysis
 
@@ -288,7 +308,7 @@ The feature flag gives us full control over when and where WebSocket transport i
 
 **Stage 4: Document and publish.** Once the feature is proven at scale across managed cloud, document the feature flag and make it available to self-hosted customers who want to enable it on their own infrastructure.
 
-> **Open question for @lucasmrod and @lukeheath:** What do you think of this rollout order? Any concerns or suggestions?
+> **Open question for @lukeheath:** What do you think of this rollout order? Any concerns or suggestions?
 
 ## Consequences
 
