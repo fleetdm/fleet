@@ -30,7 +30,7 @@ Proposed
 
 ### The problem
 
-Today, every Fleet agent polls the server on fixed timers. The biggest offender is `distributed/read` (live query check-in): every host asks "anything for me?" every 10 seconds, and 99.7% of the time the answer is "no."
+Today, every Fleet agent polls the server on fixed timers. The biggest offender is `distributed/read` (query check-in): every host asks "anything for me?" every 10 seconds, and 99.7% of the time the answer is "no."
 
 At 50k hosts this produces ~1.2 billion requests/day. 96.7% carry no useful payload.
 
@@ -74,7 +74,7 @@ sequenceDiagram
 
     Agent->>Server: poll config (existing mechanism)
     Server-->>Agent: config includes websocket_enabled=true
-    Agent->>Server: open WebSocket (with jitter delay)
+    Agent->>Server: open WebSocket
     Note over Agent,Server: silent until needed
 
     Note over Server: live query created
@@ -87,107 +87,71 @@ sequenceDiagram
 
 The **server** decides whether WebSocket transport is active, not the agent. When the feature flag is enabled on the server, it includes a WebSocket directive in the agent's configuration response (delivered through the existing config polling mechanism). On the next config poll:
 
-- **New agent (supports WebSockets):** reads the directive and opens a WebSocket connection to the server. To avoid a thundering herd when the feature is first enabled, each agent applies a random jitter delay before connecting.
+- **New agent (supports WebSockets):** reads the directive and opens a WebSocket connection to the server. Connection attempts arrive naturally staggered because each agent discovers the directive on its own config poll schedule (see [Thundering herd mitigation](#thundering-herd-mitigation)).
 - **Old agent (no WebSocket support):** ignores the unknown directive and continues polling as before. No harm done.
 
 > **The server is always in control.** Disabling the feature flag immediately stops new WebSocket connections on the next config cycle. Every agent falls back to polling. No agent action required, no rollback needed, no downtime.
 
 ### What travels over `distributed/read` today
 
-The `distributed/read` endpoint is not just for live queries. Three distinct features share it, each with its own server-side interval:
+The `distributed/read` endpoint is not just for live queries. Four distinct features share it, each with its own server-side interval:
 
 | Feature | How it gets to the agent | Server includes it when... |
 |---|---|---|
 | **Live queries** | `distributed/read` | A campaign targets the host |
 | **Policies** | `distributed/read` | PolicyUpdateInterval has elapsed (~1 hour) |
-| **Software ingestion** | `distributed/read` (detail queries) | DetailUpdateInterval has elapsed (~1 hour) |
+| **Labels** | `distributed/read` | LabelUpdateInterval has elapsed (~1 hour) |
+| **Host vitals** (detail queries, which include software) | `distributed/read` | DetailUpdateInterval has elapsed (~1 hour) |
 
-The agent polls `distributed/read` every 10 seconds. The server decides what to include based on these intervals. In steady state, most polls return empty because no live query is active and the hourly intervals have not elapsed.
+The agent polls `distributed/read` every 10 seconds. The server decides what to include based on these intervals. In steady state, most polls return empty because no live query is active and the hourly intervals have not elapsed. See [Understanding host vitals](../product-groups/orchestration/understanding-host-vitals.md) for the full list of queries delivered this way.
 
-**Scheduled queries (reports)** use a different channel: they are delivered via `/api/osquery/config` as part of the osquery pack configuration. This is covered by the config endpoint, not `distributed/read`.
+> **Scheduled queries (reports)** use a different channel: they are delivered via `/api/osquery/config` as part of the osquery pack configuration.
 
-### How each feature works today (polling)
+### How this works today (polling)
 
-> The diagrams below are simplified for illustration.
+> The diagram below is simplified for illustration.
 
-**Live queries** (the primary target of this ADR):
+Live queries, policies, labels, and host vitals (which include software) all travel over the same `distributed/read` poll. The only difference is what makes the server include work in the response: a live query campaign targeting the host, or one of the hourly intervals elapsing.
 
 ```mermaid
 sequenceDiagram
     participant Agent
     participant Server
+
     loop every 10s
         Agent->>Server: distributed/read
-        Server-->>Agent: empty (no active campaign)
+        Server-->>Agent: empty (no campaign, intervals not elapsed)
     end
+
     Note over Server: admin runs a live query
     Agent->>Server: distributed/read (next 10s tick)
-    Server-->>Agent: here is your query
+    Server-->>Agent: live query
     Agent->>Server: distributed/write (results)
-```
 
-**Policies** (delivered via distributed/read, but only every ~1 hour):
-
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant Server
-    loop every 10s
-        Agent->>Server: distributed/read
-        Server-->>Agent: empty (policy interval not elapsed)
-    end
-    Note over Server: 1 hour elapses
-    Agent->>Server: distributed/read
-    Server-->>Agent: policy queries
-    Agent->>Server: distributed/write (pass/fail results)
-```
-
-**Software ingestion** (delivered via distributed/read as detail queries, ~1 hour):
-
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant Server
-    loop every 10s
-        Agent->>Server: distributed/read
-        Server-->>Agent: empty (detail interval not elapsed)
-    end
-    Note over Server: 1 hour elapses
-    Agent->>Server: distributed/read
-    Server-->>Agent: software inventory queries
-    Agent->>Server: distributed/write (software list)
-```
-
-**Scheduled queries / reports** (different channel, via config):
-
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant Server
-    loop every 60s
-        Agent->>Server: /api/osquery/config
-        Server-->>Agent: config with pack/schedule (usually unchanged)
-    end
-    Note over Agent: osquery runs scheduled queries locally on their own timers
-    Agent->>Server: /api/osquery/log (result logs)
+    Note over Server: PolicyUpdateInterval/<br>LabelUpdateInterval/<br>DetailUpdateInterval<br> elapses (~1 hour)
+    Agent->>Server: distributed/read (next 10s tick)
+    Server-->>Agent: policy / label / host vitals queries (whatever is due)
+    Agent->>Server: distributed/write (results)
 ```
 
 ### The WebSocket is a notification channel only
 
 The WebSocket does **not** replace any existing functionality. It acts purely as a notification channel: the server sends a short "check now" signal, and the agent then performs the same HTTP calls it always has. No query data, no config payloads, no results travel over the WebSocket. Everything that works today continues to work exactly the same way. The only difference is that the agent no longer asks on a blind timer; it asks when told to.
 
-Because live queries, policies, and software ingestion all share `distributed/read`, a single WebSocket nudge type covers all three. The agent does not need to know which feature triggered the nudge; it just calls `distributed/read` and the server returns whatever is due.
+Each "check now" signal carries a `type` field indicating which channel the agent should check. In Phase 1 the only value is `type=distributed/read`; future phases add values such as `type=orbit/config` on the same connection.
 
-**Phase 1 (POC):** The notification channel covers `distributed/read` only (live queries, policies, software ingestion). This is the biggest offender (38.2% of all traffic, 99.7% empty) and proves the mechanism end to end.
+Because live queries, policies, labels, and host vitals (e.g. software) ingestion all share `distributed/read`, a single WebSocket nudge type covers all four. The agent does not need to know which feature triggered the nudge; it just calls `distributed/read` and the server returns whatever is due.
+
+**Phase 1 (POC):** The notification channel covers `distributed/read` only (live queries, labels, policies, host vitals). This is the biggest offender (38.2% of all traffic, 99.7% empty) and proves the mechanism end to end.
 
 **Future phases:** The same WebSocket carries notifications for additional channels:
 
-| Phase | Channel | Current polling | What the nudge means |
+| Phase | Nudge `type` | Current polling | What the nudge means |
 |---|---|---|---|
-| 1 (POC) | `distributed/read` | every 10s | "there is work for you" (live queries, policies, or software ingestion) |
-| Future | orbit config | every 30s | "your config changed" |
-| Future | Fleet Desktop check-in | every 5m | "there is something to show the user" |
-| Future | osquery config | every 60s | "your osquery config changed" |
+| 1 (POC) | `distributed/read` | every 10s | "there is work for you" (live queries, policies, labels, or host vitals) |
+| Future | `orbit/config` | every 30s | "your config changed" |
+| Future | `desktop` | every 5m | "there is something to show the user" |
+| Future | `osquery/config` | every 60s | "your osquery config changed" |
 
 Each new channel is a new message type on the same connection. The pattern is always the same: the server sends a short nudge, the agent performs the corresponding HTTP call. One socket, many notification types, added incrementally.
 
@@ -195,26 +159,23 @@ Each new channel is a new message type on the same connection. The pattern is al
 
 The server sends a WebSocket ping every **5 minutes**. This serves two purposes: confirming the agent is still alive, and preventing the load balancer (e.g. AWS ALB) from killing the connection due to idle timeout. The ALB idle timeout should be configured to a value longer than the ping interval (e.g. 10 minutes). If a pong is not received within 30 seconds, the server considers the connection dead and closes it. The agent's normal reconnection logic (with jitter) handles recovery.
 
+> **Open question for infrastructure (@rfairburn):** 5 minutes may be too long in practice. Proxies, NATs, and other middle layers between the agent and the server often drop connections that are idle for less than 5 minutes. The ping interval should be validated against real infrastructure and made configurable, with the ALB idle timeout adjusted accordingly.
+
 ### Feature flag and activation
 
 The WebSocket transport is controlled by a server-side command-line flag (e.g. `--enable_websocket_transport`). It is not exposed in the UI, not documented, and not available through any API or GitOps configuration. The only way to enable it is to start the Fleet server with this flag. When disabled (the default), the directive is absent and all agents poll as usual.
 
+**Fallback requirement (fleetd):** If the agent cannot establish the WebSocket connection (blocked by a middlebox, repeated upgrade failures, etc.), or an established connection drops and cannot be re-established, fleetd must fall back to the existing polling protocol. WebSocket transport is an optimization; polling remains the guaranteed baseline, so no functionality is ever lost.
+
 ### Thundering herd mitigation
 
-When the feature flag is first enabled, every agent receives the WebSocket directive on its next config poll. If all agents immediately open a WebSocket, the server receives tens of thousands of connection attempts within seconds. The same problem occurs when the server restarts: every held connection drops, and all agents try to reconnect at once.
+**Initial connections.** When the feature flag is first enabled, each agent receives the WebSocket directive on its next config poll. Because config polls are already spread across the poll interval, connection attempts arrive naturally staggered; no client-side jitter is needed for the initial wave.
 
-To prevent this, each agent applies a random jitter delay before connecting:
+**Reconnections.** When the server restarts, every held connection drops and all agents try to reconnect at once. Each agent applies a random jitter delay (0 to 30 seconds) before reconnecting. If the connection fails, the agent retries with exponential backoff (starting at 5s, capped at 5 minutes) plus a small random jitter on each retry, falling back to polling in the meantime so no functionality is lost.
 
-| Scenario | Jitter window | Rationale |
-|---|---|---|
-| First connection (feature just enabled) | 0 to 5 minutes | No urgency, spread load wide |
-| Reconnection (server restart, network drop) | 0 to 30 seconds | Reconnect fast but avoid stampede |
+**Server-side protection.** Each instance rate-limits new WebSocket upgrades (e.g. 200/second) and enforces a max connection cap. Excess attempts receive `503 Retry-After`, and the agent retries with its backoff logic.
 
-If the connection fails after the jitter delay, the agent retries with exponential backoff (starting at 5s, capped at 5 minutes) plus a small random jitter on each retry.
-
-The server also protects itself: each instance rate-limits new WebSocket upgrades (e.g. 200/second) and enforces a max connection cap. Excess attempts receive `503 Retry-After`, and the agent retries with its backoff logic.
-
-**At 50k hosts with 5-minute initial jitter:** ~167 new connections/second on average, well within normal HTTP capacity.
+**Nudge pacing (new capability).** With push, the Fleet server gains real thundering herd control that polling never allowed: it decides when agents check in. For example, after several minutes of downtime, instead of sending "check now" to all agents at once, the server can send the nudges progressively (in batches), spreading the resulting HTTP load however it chooses.
 
 ### Connection balancing across server instances
 
@@ -234,8 +195,8 @@ Three layers handle this:
 - **Server-driven activation.** The server controls whether agents use WebSockets via an undocumented command-line flag. Agents never decide on their own.
 - **fleetd becomes osquery's distributed plugin.** osquery's 10s poll becomes a local call answered from memory. Nothing leaves the host in steady state.
 - **One socket, many uses.** The same connection can eventually carry config updates, Desktop check-ins, and more, replacing multiple polling loops.
-- **Fully backward compatible.** Old agents ignore the directive. New agents with an old server never receive it. Both keep polling.
-- **Jittered connections.** Agents apply random delays to avoid thundering herd on activation or reconnection.
+- **Fully backward compatible.** Old agents ignore the directive. New agents with an old server never receive it. Both keep polling. If the WebSocket cannot be established, fleetd falls back to polling.
+- **Server-controlled load.** Reconnections are jittered with backoff, the server rate-limits upgrades, and the server can pace "check now" nudges progressively to prevent thundering herds.
 
 ---
 
@@ -261,7 +222,7 @@ sequenceDiagram
     S2-->>Orbit: config with websocket_enabled=true
     Orbit->>Orbit: register as osquery's distributed plugin
     Orbit->>Orbit: flip --distributed_plugin to local extension
-    Orbit->>S2: open WebSocket (with jitter delay)
+    Orbit->>S2: open WebSocket
     S2->>S2: hold connection
 
     Note over OSQ,Orbit: STEADY STATE (nothing to do)
@@ -271,12 +232,12 @@ sequenceDiagram
     end
     Note over OSQ,S2: zero network traffic
 
-    Note over S1,Redis: LIVE QUERY CREATED (on server A)
+    Note over S1,Redis: SCENARIO A: LIVE QUERY CREATED (on server A)
     S1->>Redis: write targeting state + PUBLISH wake-up (new)
     Redis-->>S2: server B receives wake-up (new)
-    S2->>Orbit: check now (over WebSocket)
+    S2->>Orbit: check now (type=distributed/read)
     Orbit->>S2: distributed/read (HTTP)
-    S2-->>Orbit: query payload
+    S2-->>Orbit: live query
     Orbit->>Orbit: cache query in memory
 
     Note over OSQ,Orbit: NEXT LOCAL POLL (within 10s)
@@ -285,17 +246,32 @@ sequenceDiagram
     OSQ->>OSQ: execute query
     OSQ->>Orbit: results (localhost thrift)
     Orbit->>S2: distributed/write (HTTP)
+
+    Note over Orbit,S2: SCENARIO B: INTERVAL WORK DUE (per-instance check, new)
+    S2->>S2: find which of its connected hosts are due for<br>labels/policies/detail-queries (from MySQL)
+    Note over S2: e.g. host 1 stale policies,<br>host 2 stale labels,<br>host 3 stale vitals
+    Note over S2: no Redis involved:<br>each instance checks only the agents it holds
+    S2->>Orbit: check now (type=distributed/read, paced progressively)
+    Orbit->>S2: distributed/read (HTTP)
+    S2-->>Orbit: policy / label / host vitals queries (whatever is due)
+    Orbit->>Orbit: cache queries in memory
+
+    Note over OSQ,Orbit: NEXT LOCAL POLL (within 10s)
+    OSQ->>Orbit: any queries? (localhost thrift)
+    Orbit-->>OSQ: yes, here are your queries
+    OSQ->>OSQ: execute queries
+    OSQ->>Orbit: results (localhost thrift)
+    Orbit->>S2: distributed/write (HTTP)
 ```
 
-**Note on Redis pub/sub (new mechanism):** Today, campaign targeting is written to Redis keys and each server instance discovers it independently when a host polls. There is no inter-instance notification. With WebSockets, the server instance holding an agent's connection may not be the one that created the campaign. To solve this, campaign creation adds a Redis `PUBLISH` on a wake-up channel. All server instances subscribe to this channel and nudge the relevant agents they hold. Redis pub/sub already exists in Fleet for streaming query results back; this extends the same pattern for the wake-up signal.
+**Note on wake-up triggers (new mechanisms):** A "check now" nudge has two triggers:
 
-**Orbit proxies all osquery traffic, not just distributed queries.** With orbit acting as osquery's proxy, all osquery-to-server communication flows through orbit. This includes:
+1. **Live query created.** Today, campaign targeting is written to Redis keys and each server instance discovers it independently when a host polls. There is no inter-instance notification. With WebSockets, the server instance holding an agent's connection may not be the one that created the campaign. To solve this, campaign creation adds a Redis `PUBLISH` on a wake-up channel. All server instances subscribe to this channel and nudge the relevant agents they hold. Redis pub/sub already exists in Fleet for streaming query results back; this extends the same pattern for the wake-up signal.
+2. **Interval-based work due (per-instance check, new).** Policies, labels, and host vitals refresh on server-side intervals. Today the agent's blind 10-second poll is what picks up that work once an interval elapses; with nudge-driven `distributed/read`, the server takes over that role. Each server instance periodically checks which of **its own connected agents** have intervals that elapsed (e.g. host 1 has stale policies, host 2 has stale labels, host 3 has stale host vitals) and nudges them directly, pacing the nudges progressively to avoid a thundering herd of `distributed/read` calls. No Redis is involved: the instance holding the WebSocket is the one doing the checking, so the work is naturally sharded across instances. Staleness is read from MySQL (`policy_updated_at`, `label_updated_at`, `detail_updated_at`), not tracked in instance memory, because the agent's `distributed/read`/`distributed/write` HTTP calls go through the load balancer and may be served by any instance.
 
-- `distributed/read` and `distributed/write` (live queries, policies, software ingestion)
-- **Scheduled query result logs** (`/api/osquery/log`). Today osquery sends these directly to the server. With the proxy, osquery sends results to orbit locally, and orbit forwards them to the server via HTTP.
-- Config fetches (`/api/osquery/config`), if orbit also registers as the config plugin in a future phase.
+**Phase 1 scope: `distributed/read` and `distributed/write` only.** In this first phase, orbit registers only as osquery's `distributed` plugin. All other osquery traffic is unchanged: osquery keeps sending scheduled query result logs (`/api/osquery/log`) and fetching config (`/api/osquery/config`) directly from the server, exactly as it does today.
 
-Orbit is the single point of contact between the host and the server. osquery communicates only with orbit on localhost; orbit handles all external network communication.
+In a future phase, orbit could also register as osquery's logger and config plugins. At that point orbit becomes the single point of contact between the host and the server: osquery communicates only with orbit on localhost, and orbit handles all external network communication.
 
 **Why the extension plugin approach (not an HTTP proxy):**
 
@@ -347,7 +323,7 @@ The new server-to-agent channel (the nudge) carries no sensitive information. Th
 
 ### Redis pub/sub
 
-The wake-up signal is published through Redis pub/sub so all server instances can relay nudges to agents connected to them. Redis should be deployed on a private network with authentication enabled (Fleet's existing Redis configuration). The pub/sub message contains only the campaign ID and target host identifiers, not query content or results.
+Redis pub/sub is used only for live query wake-ups: the campaign is created on whatever instance served the API request, so it must notify the instances holding the targeted agents' connections. (Interval-based nudges never transit Redis; each instance checks and nudges its own connected agents directly.) Redis should be deployed on a private network with authentication enabled (Fleet's existing Redis configuration). The pub/sub message contains only the nudge type, target host identifiers, and the campaign ID — not query content or results.
 
 ---
 
@@ -389,6 +365,8 @@ With ECS Fargate, we pay per container (vCPU + memory allocation), not per CPU c
 ### The tension: fewer instances vs. WebSocket headroom
 
 Reducing instance count increases WebSocket density per instance. Each instance must still handle HTTP bursts when nudges fire (agents do `distributed/read` and `distributed/write` over HTTP). The connection budget per instance must account for both.
+
+Because this is a new mode of communication, we cannot fully predict the instance count needed for a given host count up front; we will learn it as we deploy progressively (see [Deployment & Rollout](#4-deployment--rollout)). The worked example below is an estimate to show that connection limits are not the bottleneck.
 
 **Worked example at 50k hosts:**
 
