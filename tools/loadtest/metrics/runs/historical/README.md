@@ -20,6 +20,9 @@ rows duplicating those runs were not backfilled.
   percentiles, coverage, Performance Insights) are omitted entirely.
 - `backfill.raw` preserves the original cell text for every parsed or dropped
   value — nothing from the sheet was discarded, even where parsing was lossy.
+- `<url>`, `<tok>`, and `Token-N` placeholders mark where links and token-like
+  strings were redacted at extraction time (these files live in a public repo).
+  The unredacted text remains in the source sheet row (`metadata.sheet_row`).
 
 ## Parsing rules
 
