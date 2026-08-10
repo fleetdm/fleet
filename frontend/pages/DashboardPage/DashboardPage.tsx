@@ -928,6 +928,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   ) : (
     <MainContent className={baseClass}>
       <>
+        <div className={`${baseClass}__hello-matias`}>
+          <button
+            type="button"
+            className={`${baseClass}__hello-matias-btn`}
+            onClick={() => alert("Hello Matias!")}
+          >
+            Hello Matias
+          </button>
+        </div>
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>

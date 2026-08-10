@@ -1,6 +1,35 @@
 .dashboard-page {
   @include vertical-page-layout;
 
+  &__hello-matias {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 0;
+  }
+
+  &__hello-matias-btn {
+    font-size: 32px;
+    font-weight: 700;
+    padding: 24px 64px;
+    background-color: $core-fleet-blue;
+    color: $core-white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+    &:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+
   h2 {
     font-size: $small;
     margin: 0;
