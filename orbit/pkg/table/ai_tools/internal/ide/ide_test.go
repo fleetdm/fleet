@@ -1,6 +1,8 @@
 package ide
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -72,6 +74,45 @@ func TestScanVSCodeFamily(t *testing.T) {
 	}
 	if _, ok := by["old.ext"]; ok {
 		t.Error("obsolete extension old.ext should have been skipped")
+	}
+}
+
+// cancelAfterCtx reports itself cancelled only from its nth Err call onwards,
+// which lands the cancellation inside the bundled pass rather than at the checks
+// that precede it.
+type cancelAfterCtx struct {
+	context.Context
+	n     int
+	calls int
+}
+
+func (c *cancelAfterCtx) Err() error {
+	c.calls++
+	if c.calls >= c.n {
+		return context.Canceled
+	}
+	return nil
+}
+
+// A query cancelled while the bundled pass is walking application directories must
+// stop there and be reported as cancelled — never answered with a partial
+// inventory that reads like a complete one.
+func TestScanStopsOnCancellation(t *testing.T) {
+	apps := t.TempDir()
+	write(t, filepath.Join(apps, "Visual Studio Code.app", "Contents", "Resources", "app", "extensions", "copilot", "package.json"),
+		`{"name":"copilot-chat","publisher":"GitHub","version":"1.132.0","displayName":"GitHub Copilot"}`)
+	useAppRoots(t, appRoot{dir: apps, scope: scopeSystem})
+
+	// 3 clears the per-home and pre-bundled checks, so cancellation first bites
+	// once the bundled scan is already under way.
+	ctx := &cancelAfterCtx{Context: t.Context(), n: 3}
+
+	got, err := Scan(ctx, []homes.Home{{UID: "501", Username: "tester", Dir: t.TempDir()}})
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("err=%v want context.Canceled", err)
+	}
+	if got != nil {
+		t.Errorf("got %+v, want no rows alongside the error", got)
 	}
 }
 

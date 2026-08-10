@@ -58,7 +58,14 @@ func Scan(ctx context.Context, hs []homes.Home) ([]Plugin, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return append(out, scanVSCodeBuiltins(hs, seen)...), nil
+	out = append(out, scanVSCodeBuiltins(ctx, hs, seen)...)
+	// The bundled pass stops early on cancellation and hands back what it had, so
+	// re-check here: a partial inventory must be reported as the error it is, never
+	// as a complete result.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // finish stamps ownership and the AI classification onto a plugin row. It is

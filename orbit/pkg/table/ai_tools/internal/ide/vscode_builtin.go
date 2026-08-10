@@ -1,6 +1,7 @@
 package ide
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -154,22 +155,41 @@ func defaultVSCodeAppRoots(hs []homes.Home) []appRoot {
 	return out
 }
 
-// vscodePluginKey identifies a plugin row within one editor, so a bundled
-// extension is not reported alongside a user-profile copy of the same id. VS Code
-// itself gives the profile copy precedence when both are present.
-func vscodePluginKey(editor, id string) string { return editor + "\x00" + id }
+// vscodePluginKey identifies a plugin row for de-duplication within one editor,
+// so a bundled extension is not reported alongside a copy of the same id that was
+// already reported. VS Code itself gives the profile copy precedence when both are
+// present.
+//
+// Scope decides how wide the key reaches. A system-scoped install belongs to the
+// host, so one key covers the whole machine. A user-scoped one belongs to a single
+// account, so its home is part of the key: two users who each have the extension
+// really do each have it, and one user's copy must never hide another's.
+func vscodePluginKey(scope, home, editor, id string) string {
+	if scope == scopeSystem {
+		return editor + "\x00" + id
+	}
+	return home + "\x00" + editor + "\x00" + id
+}
 
 // scanVSCodeBuiltins reports the AI extensions bundled inside every VS Code-family
 // application installed on the host. seen holds the keys already reported from
 // user profiles and is added to as rows are produced, so a given extension is
 // reported once per editor.
-func scanVSCodeBuiltins(hs []homes.Home, seen map[string]struct{}) []Plugin {
-	return scanVSCodeBuiltinsIn(vscodeAppRoots(hs), seen)
+//
+// Traversal stops as soon as ctx is cancelled: reading every bundled manifest of
+// every editor installed on the host is the most I/O this collector does, so it
+// must not outlive the query that asked for it. The caller reports the
+// cancellation.
+func scanVSCodeBuiltins(ctx context.Context, hs []homes.Home, seen map[string]struct{}) []Plugin {
+	return scanVSCodeBuiltinsIn(ctx, vscodeAppRoots(hs), seen)
 }
 
-func scanVSCodeBuiltinsIn(roots []appRoot, seen map[string]struct{}) []Plugin {
+func scanVSCodeBuiltinsIn(ctx context.Context, roots []appRoot, seen map[string]struct{}) []Plugin {
 	var out []Plugin
 	for _, root := range roots {
+		if ctx.Err() != nil {
+			return out
+		}
 		entries, err := os.ReadDir(root.dir)
 		if err != nil {
 			continue
@@ -182,7 +202,7 @@ func scanVSCodeBuiltinsIn(roots []appRoot, seen map[string]struct{}) []Plugin {
 			if !ok {
 				continue
 			}
-			out = append(out, scanVSCodeAppDir(filepath.Join(root.dir, e.Name()), editor, root, seen)...)
+			out = append(out, scanVSCodeAppDir(ctx, filepath.Join(root.dir, e.Name()), editor, root, seen)...)
 		}
 	}
 	return out
@@ -200,11 +220,11 @@ func scanVSCodeBuiltinsIn(roots []appRoot, seen map[string]struct{}) []Plugin {
 // which matters on macOS, where a case-insensitive volume would otherwise let
 // <app>/Contents/resources/... resolve onto the real Contents/Resources tree and
 // scan every manifest a second time.
-func scanVSCodeAppDir(appDir, editor string, root appRoot, seen map[string]struct{}) []Plugin {
+func scanVSCodeAppDir(ctx context.Context, appDir, editor string, root appRoot, seen map[string]struct{}) []Plugin {
 	var out []Plugin
 	var found bool
 	for _, dir := range vscodeBundledDirs(appDir) {
-		ps, ok := scanVSCodeBundledDir(dir, editor, root, seen)
+		ps, ok := scanVSCodeBundledDir(ctx, dir, editor, root, seen)
 		out, found = append(out, ps...), found || ok
 	}
 	if found {
@@ -219,7 +239,7 @@ func scanVSCodeAppDir(appDir, editor string, root appRoot, seen map[string]struc
 			continue
 		}
 		for _, dir := range vscodeBundledDirs(filepath.Join(appDir, c.Name())) {
-			ps, _ := scanVSCodeBundledDir(dir, editor, root, seen)
+			ps, _ := scanVSCodeBundledDir(ctx, dir, editor, root, seen)
 			out = append(out, ps...)
 		}
 	}
@@ -230,7 +250,10 @@ func scanVSCodeAppDir(appDir, editor string, root appRoot, seen map[string]struc
 // directory. The second return reports whether the directory existed at all,
 // which is how the caller tells "this layout is not the one" apart from "this
 // layout is right and holds no AI extensions".
-func scanVSCodeBundledDir(dir, editor string, root appRoot, seen map[string]struct{}) ([]Plugin, bool) {
+func scanVSCodeBundledDir(ctx context.Context, dir, editor string, root appRoot, seen map[string]struct{}) ([]Plugin, bool) {
+	if ctx.Err() != nil {
+		return nil, false
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, false
@@ -251,7 +274,7 @@ func scanVSCodeBundledDir(dir, editor string, root appRoot, seen map[string]stru
 		if !ok {
 			continue
 		}
-		key := vscodePluginKey(editor, p.PluginID)
+		key := vscodePluginKey(root.scope, root.home.Dir, editor, p.PluginID)
 		if _, dup := seen[key]; dup {
 			continue
 		}

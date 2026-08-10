@@ -77,7 +77,7 @@ func TestScanVSCodeBuiltins(t *testing.T) {
 	write(t, filepath.Join(root, "Slack.app", "Contents", "Resources", "app", "extensions", "x", "package.json"),
 		`{"name":"copilot","publisher":"acme","version":"1.0.0"}`)
 
-	got := scanVSCodeBuiltinsIn([]appRoot{{dir: root, scope: scopeSystem}}, map[string]struct{}{})
+	got := scanVSCodeBuiltinsIn(t.Context(), []appRoot{{dir: root, scope: scopeSystem}}, map[string]struct{}{})
 
 	by := map[string]Plugin{}
 	for _, p := range got {
@@ -135,7 +135,7 @@ func TestScanVSCodeBuiltinsBuildIDLayout(t *testing.T) {
 	write(t, filepath.Join(install, "bin", "code.cmd"), "@echo off")
 
 	h := homes.Home{UID: "S-1-5-21-1001", Username: "juan", Dir: t.TempDir()}
-	got := scanVSCodeBuiltinsIn([]appRoot{{dir: root, scope: scopeUser, home: h}}, map[string]struct{}{})
+	got := scanVSCodeBuiltinsIn(t.Context(), []appRoot{{dir: root, scope: scopeUser, home: h}}, map[string]struct{}{})
 	if len(got) != 1 {
 		t.Fatalf("got %d plugins, want 1 under the build-id layout: %+v", len(got), got)
 	}
@@ -155,7 +155,7 @@ func TestScanVSCodeBuiltinsUserScope(t *testing.T) {
 		`{"name":"copilot-chat","publisher":"GitHub","version":"1.0.0","displayName":"GitHub Copilot Chat"}`)
 
 	h := homes.Home{UID: "501", Username: "tester", Dir: t.TempDir()}
-	got := scanVSCodeBuiltinsIn([]appRoot{{dir: root, scope: scopeUser, home: h}}, map[string]struct{}{})
+	got := scanVSCodeBuiltinsIn(t.Context(), []appRoot{{dir: root, scope: scopeUser, home: h}}, map[string]struct{}{})
 	if len(got) != 1 {
 		t.Fatalf("got %d plugins, want 1: %+v", len(got), got)
 	}
@@ -176,9 +176,9 @@ func TestScanVSCodeBuiltinsSkipsAlreadySeen(t *testing.T) {
 		`{"name":"copilot-chat","publisher":"GitHub","version":"1.130.0","displayName":"Copilot Chat"}`)
 
 	seen := map[string]struct{}{
-		vscodePluginKey("vscode", "github.copilot-chat"): {},
+		vscodePluginKey(scopeSystem, "", "vscode", "github.copilot-chat"): {},
 	}
-	if got := scanVSCodeBuiltinsIn([]appRoot{{dir: root, scope: scopeSystem}}, seen); len(got) != 0 {
+	if got := scanVSCodeBuiltinsIn(t.Context(), []appRoot{{dir: root, scope: scopeSystem}}, seen); len(got) != 0 {
 		t.Errorf("got %+v, want no rows: the user-profile copy was already reported", got)
 	}
 }
@@ -206,6 +206,61 @@ func TestScanReportsMachineWideBuiltinOnce(t *testing.T) {
 	}
 	if got[0].Scope != scopeSystem || got[0].UID != "" {
 		t.Errorf("scope=%q uid=%q want a system row with no owner", got[0].Scope, got[0].UID)
+	}
+}
+
+// Two users who each have their own copy of an editor each have the extension it
+// bundles, so both are reported. De-duplication is per home for user-scoped rows —
+// one account's copy must never hide another's.
+func TestScanVSCodeBuiltinsPerHomeDedup(t *testing.T) {
+	alice := homes.Home{UID: "501", Username: "alice", Dir: t.TempDir()}
+	bob := homes.Home{UID: "502", Username: "bob", Dir: t.TempDir()}
+
+	roots := make([]appRoot, 0, 2)
+	for _, h := range []homes.Home{alice, bob} {
+		appsDir := filepath.Join(h.Dir, "Applications")
+		write(t, filepath.Join(appsDir, "Visual Studio Code.app", "Contents", "Resources", "app", "extensions", "copilot", "package.json"),
+			`{"name":"copilot-chat","publisher":"GitHub","version":"1.132.0","displayName":"GitHub Copilot"}`)
+		roots = append(roots, appRoot{dir: appsDir, scope: scopeUser, home: h})
+	}
+
+	got := scanVSCodeBuiltinsIn(t.Context(), roots, map[string]struct{}{})
+	if len(got) != 2 {
+		t.Fatalf("got %d rows, want one per home: %+v", len(got), got)
+	}
+	byUser := map[string]Plugin{}
+	for _, p := range got {
+		byUser[p.Username] = p
+	}
+	for _, want := range []string{"alice", "bob"} {
+		if _, ok := byUser[want]; !ok {
+			t.Errorf("no row for %s; got %+v", want, got)
+		}
+	}
+}
+
+// The same user's profile copy still takes precedence over that user's bundled
+// copy — the per-home key is shared by both passes.
+func TestScanPerHomeProfileWinsOverUserBundled(t *testing.T) {
+	home := t.TempDir()
+	write(t, filepath.Join(home, ".vscode", "extensions", "github.copilot-chat-1.131.0", "package.json"),
+		`{"name":"copilot-chat","publisher":"GitHub","version":"1.131.0","displayName":"GitHub Copilot"}`)
+	appsDir := filepath.Join(home, "Applications")
+	write(t, filepath.Join(appsDir, "Visual Studio Code.app", "Contents", "Resources", "app", "extensions", "copilot", "package.json"),
+		`{"name":"copilot-chat","publisher":"GitHub","version":"1.132.0","displayName":"GitHub Copilot"}`)
+
+	h := homes.Home{UID: "501", Username: "alice", Dir: home}
+	useAppRoots(t, appRoot{dir: appsDir, scope: scopeUser, home: h})
+
+	got, err := Scan(t.Context(), []homes.Home{h})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("got %d rows, want 1: %+v", len(got), got)
+	}
+	if got[0].Version != "1.131.0" {
+		t.Errorf("version=%q want the profile copy 1.131.0", got[0].Version)
 	}
 }
 
@@ -279,7 +334,7 @@ func TestScanVSCodeBuiltinsUnresolvedPlaceholderUsesName(t *testing.T) {
 	write(t, filepath.Join(root, "Cursor.app", "Contents", "Resources", "app", "extensions", "x", "package.json"),
 		`{"name":"tabnine-chat","publisher":"Acme","version":"1.0.0","displayName":"%displayName%"}`)
 
-	got := scanVSCodeBuiltinsIn([]appRoot{{dir: root, scope: scopeSystem}}, map[string]struct{}{})
+	got := scanVSCodeBuiltinsIn(t.Context(), []appRoot{{dir: root, scope: scopeSystem}}, map[string]struct{}{})
 	if len(got) != 1 {
 		t.Fatalf("got %d plugins, want 1 (classified via the manifest name): %+v", len(got), got)
 	}
