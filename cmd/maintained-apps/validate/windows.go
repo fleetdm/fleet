@@ -156,6 +156,20 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 				logger.InfoContext(ctx, "Microsoft Office detected - version mismatch but app is installed, skipping version check due to Click-to-Run always installing the latest build")
 				return true, nil
 			}
+			// Citrix Workspace app's bootstrapper installs several
+			// internally-versioned MSI components; the one that actually
+			// registers in Programs and Features (the bundled "ReceiverInside"
+			// component, DisplayName "Citrix Workspace Inside") carries its own
+			// build version, not the outer installer package version, and
+			// there's no documented mapping between the two. Fall back to an
+			// existence-only check, scoped to the vendor's publisher so an
+			// unrelated app can't match.
+			if appName == "Citrix Workspace LTSR" &&
+				result.Publisher == "Citrix Systems, Inc." &&
+				strings.HasPrefix(result.Name, "Citrix Workspace") {
+				logger.InfoContext(ctx, "Citrix Workspace detected - version mismatch but app is installed, skipping version check due to internal component versioning")
+				return true, nil
+			}
 		}
 	}
 
