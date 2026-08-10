@@ -4,7 +4,8 @@
       "version": "4.32.0.1324",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Box Tools' AND publisher = 'Box';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Box Tools' AND publisher = 'Box' AND version_compare(version, '4.32.0.1324') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Box Tools' AND publisher = 'Box' AND version_compare(version, '4.32.0.1324') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'box tools.exe');"
       },
       "installer_url": "https://e3.boxcdn.net/box-installers/boxedit/win/currentrelease/BoxToolsInstaller-AdminInstall.msi",
       "install_script_ref": "22e48c46",

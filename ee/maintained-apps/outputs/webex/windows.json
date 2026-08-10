@@ -4,7 +4,8 @@
       "version": "46.8.0.35593",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cisco Webex' AND publisher = 'Cisco Systems, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cisco Webex' AND publisher = 'Cisco Systems, Inc' AND version_compare(version, '46.8.0.35593') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cisco Webex' AND publisher = 'Cisco Systems, Inc' AND version_compare(version, '46.8.0.35593') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'webex.exe');"
       },
       "installer_url": "https://binaries.webex.com/WebexDesktop-Win-64-Gold/20260804173554/Webex.msi",
       "install_script_ref": "22e48c46",

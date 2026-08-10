@@ -4,7 +4,8 @@
       "version": "0.4.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Lapce' AND publisher = 'Lapce';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Lapce' AND publisher = 'Lapce' AND version_compare(version, '0.4.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Lapce' AND publisher = 'Lapce' AND version_compare(version, '0.4.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'lapce.exe');"
       },
       "installer_url": "https://github.com/lapce/lapce/releases/download/v0.4.6/Lapce-windows.msi",
       "install_script_ref": "22e48c46",

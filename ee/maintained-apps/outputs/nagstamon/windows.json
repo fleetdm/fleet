@@ -4,7 +4,8 @@
       "version": "3.18.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Nagstamon' AND publisher = 'Henri Wahl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Nagstamon' AND publisher = 'Henri Wahl' AND version_compare(version, '3.18.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Nagstamon' AND publisher = 'Henri Wahl' AND version_compare(version, '3.18.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'nagstamon.exe');"
       },
       "installer_url": "https://github.com/HenriWahl/Nagstamon/releases/download/v3.18.2/Nagstamon-3.18.2-win64_setup.exe",
       "install_script_ref": "886734d1",

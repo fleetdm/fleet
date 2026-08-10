@@ -8780,12 +8780,13 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
 		fmt.Sprintf(`{
 			"mdm_platform": "microsoft",
+			"host_id": %d,
 			"host_serial": "%s",
 			"installed_from_dep": false,
 			"host_display_name": "%s",
 			"enrollment_id": null,
 			"platform": "windows"
-		 }`, windowsHost.HardwareSerial, windowsHost.DisplayName()),
+		 }`, windowsHost.ID, windowsHost.HardwareSerial, windowsHost.DisplayName()),
 		0)
 
 	expectedDeviceID := "AB157C3A18778F4FB21E2739066C1F27" // TODO: make the hard-coded deviceID in `s.newSecurityTokenMsg` configurable
@@ -25704,6 +25705,29 @@ func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
 			macQueued = append(macQueued, d.SoftwareTitle)
 		}
 		require.Equal(t, []string{"chrome", "slack", "zoom"}, macQueued)
+	})
+
+	// With a search query on the self-service page, install_all should queue
+	// only the titles whose name matches — matching what the user sees on
+	// screen.
+	t.Run("scopes to the query parameter when provided", func(t *testing.T) {
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		host := createOrbitEnrolledHost(t, "ubuntu", "ia-q", s.ds)
+		token := "ia-q-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		newInstaller("q-apple", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("q-banana", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("q-cherry", &team.ID, true, fleet.LabelIdentsWithScope{})
+
+		installAll(token, http.StatusAccepted, "query", "ban")
+		require.Equal(t, []string{"q-banana"}, queuedTitles(host.ID))
+
+		// blank query behaves like no query — all three queue
+		installAll(token, http.StatusAccepted, "query", "")
+		require.ElementsMatch(t, []string{"q-banana", "q-apple", "q-cherry"}, queuedTitles(host.ID))
 	})
 
 	t.Run("coexists with existing and incoming activities", func(t *testing.T) {

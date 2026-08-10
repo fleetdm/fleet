@@ -2567,6 +2567,36 @@ func newAndroidMDMDeviceReconcilerSchedule(
 	return s, nil
 }
 
+// newAndroidMDMCommandReconcilerSchedule periodically polls AMAPI for the outcome of Android MDM
+// commands (Lock, Wipe, Clear passcode) that are still pending because their Pub/Sub COMMAND
+// notification never arrived, so hosts don't stay stuck in a pending state.
+func newAndroidMDMCommandReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	licenseKey string,
+	newActivityFn fleet.NewActivityFunc,
+) (*schedule.Schedule, error) {
+	const (
+		name = string(fleet.CronMDMAndroidCommandReconciler)
+		// Daily is enough: a dropped notification is rare, and a day of reconciliation lag is invisible
+		// next to the indefinite wait an affected host has otherwise.
+		defaultInterval = 24 * time.Hour
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_android_commands", func(ctx context.Context) error {
+			return android_svc.ReconcileAndroidCommands(ctx, ds, logger, licenseKey, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
 func cronEnableAndroidAppReportsOnDefaultPolicy(
 	ctx context.Context,
 	instanceID string,

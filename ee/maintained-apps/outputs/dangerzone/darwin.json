@@ -4,7 +4,8 @@
       "version": "0.11.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'press.freedom.dangerzone';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'press.freedom.dangerzone' AND version_compare(bundle_short_version, '0.11.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'press.freedom.dangerzone' AND version_compare(bundle_short_version, '0.11.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'press.freedom.dangerzone');"
       },
       "installer_url": "https://github.com/freedomofpress/dangerzone/releases/download/v0.11.0/Dangerzone-0.11.0-arm64.dmg",
       "install_script_ref": "219d49b9",

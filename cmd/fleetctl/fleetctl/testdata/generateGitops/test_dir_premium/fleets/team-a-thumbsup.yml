@@ -73,6 +73,7 @@ policies:
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
   name: Team patch policy
+  patch_when_closed: true
   platform: linux,windows
   resolution: Do a team thing
   type: patch
@@ -150,6 +151,9 @@ settings:
       destination_url: https://some-team-failing_policies-webhook.com
       enable_failing_policies_webhook: false
       host_batch_size: 4
+    host_activities_webhook:
+      destination_url: https://some-team-host-activities-webhook.com
+      enable_host_activities_webhook: true
     host_status_webhook:
       days_count: 3
       destination_url: https://some-team-host-status-webhook.com

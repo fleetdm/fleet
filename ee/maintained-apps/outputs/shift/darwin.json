@@ -4,7 +4,8 @@
       "version": "9.6.7.1268",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.rdbrck.shift';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rdbrck.shift' AND version_compare(bundle_short_version, '9.6.7.1268') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rdbrck.shift' AND version_compare(bundle_short_version, '9.6.7.1268') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.rdbrck.shift');"
       },
       "installer_url": "https://updates.tryshift.com/v9.6.7/stable/shift-v9.6.7.1268-stable-arm64.dmg",
       "install_script_ref": "526e5310",

@@ -492,6 +492,8 @@ type TeamWithExtrasFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
 type TeamLiteFunc func(ctx context.Context, tid uint) (*fleet.TeamLite, error)
 
+type TeamLitesByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.TeamLite, error)
+
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
@@ -620,7 +622,7 @@ type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleI
 
 type GetCategoriesForSoftwareInstallersFunc func(ctx context.Context, installerIDs []uint) (map[uint][]string, error)
 
-type GetSoftwareTitlesForInstallAllFunc func(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error)
+type GetSoftwareTitlesForInstallAllFunc func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error)
 
 type AssociateMDMInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error
 
@@ -873,6 +875,10 @@ type UpdateMDMInstalledFromDEPFunc func(ctx context.Context, hostID uint, instal
 type GetHostEmailsFunc func(ctx context.Context, hostUUID string, source string) ([]string, error)
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64, gigsAll *float64) error
+
+type SetOrUpdateHostMDMAppleDeviceVitalsFunc func(ctx context.Context, hostUUID string, vitals fleet.MDMAppleDeviceVitals) error
+
+type LoadHostMDMAppleDeviceVitalsFunc func(ctx context.Context, host *fleet.Host) error
 
 type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error)
 
@@ -1538,7 +1544,7 @@ type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles [
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
 
-type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
+type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -1685,6 +1691,8 @@ type UpdateSoftwareInstallerWithoutPackageIDsFunc func(ctx context.Context, id u
 type UpdateInstallerUpgradeCodeFunc func(ctx context.Context, id uint, upgradeCode string) error
 
 type ProcessInstallerUpdateSideEffectsFunc func(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
+
+type ClearPreInstallQueryForTitleFunc func(ctx context.Context, teamID uint, titleID uint) error
 
 type SaveInstallerUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
 
@@ -1979,6 +1987,8 @@ type GetMDMAndroidCommandByUUIDFunc func(ctx context.Context, commandUUID string
 type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
 
 type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error
+
+type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
 
 type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
@@ -2999,6 +3009,9 @@ type DataStore struct {
 	TeamLiteFunc        TeamLiteFunc
 	TeamLiteFuncInvoked bool
 
+	TeamLitesByIDsFunc        TeamLitesByIDsFunc
+	TeamLitesByIDsFuncInvoked bool
+
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
 
@@ -3571,6 +3584,12 @@ type DataStore struct {
 
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
+
+	SetOrUpdateHostMDMAppleDeviceVitalsFunc        SetOrUpdateHostMDMAppleDeviceVitalsFunc
+	SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked bool
+
+	LoadHostMDMAppleDeviceVitalsFunc        LoadHostMDMAppleDeviceVitalsFunc
+	LoadHostMDMAppleDeviceVitalsFuncInvoked bool
 
 	GetConfigEnableDiskEncryptionFunc        GetConfigEnableDiskEncryptionFunc
 	GetConfigEnableDiskEncryptionFuncInvoked bool
@@ -4790,6 +4809,9 @@ type DataStore struct {
 	ProcessInstallerUpdateSideEffectsFunc        ProcessInstallerUpdateSideEffectsFunc
 	ProcessInstallerUpdateSideEffectsFuncInvoked bool
 
+	ClearPreInstallQueryForTitleFunc        ClearPreInstallQueryForTitleFunc
+	ClearPreInstallQueryForTitleFuncInvoked bool
+
 	SaveInstallerUpdatesFunc        SaveInstallerUpdatesFunc
 	SaveInstallerUpdatesFuncInvoked bool
 
@@ -5230,6 +5252,9 @@ type DataStore struct {
 
 	UpdateMDMAndroidCommandStatusFunc        UpdateMDMAndroidCommandStatusFunc
 	UpdateMDMAndroidCommandStatusFuncInvoked bool
+
+	ListPendingMDMAndroidCommandsFunc        ListPendingMDMAndroidCommandsFunc
+	ListPendingMDMAndroidCommandsFuncInvoked bool
 
 	LockHostViaAndroidMDMFunc        LockHostViaAndroidMDMFunc
 	LockHostViaAndroidMDMFuncInvoked bool
@@ -7346,6 +7371,13 @@ func (s *DataStore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, er
 	return s.TeamLiteFunc(ctx, tid)
 }
 
+func (s *DataStore) TeamLitesByIDs(ctx context.Context, ids []uint) ([]*fleet.TeamLite, error) {
+	s.mu.Lock()
+	s.TeamLitesByIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamLitesByIDsFunc(ctx, ids)
+}
+
 func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
 	s.mu.Lock()
 	s.DeleteTeamFuncInvoked = true
@@ -7794,11 +7826,11 @@ func (s *DataStore) GetCategoriesForSoftwareInstallers(ctx context.Context, inst
 	return s.GetCategoriesForSoftwareInstallersFunc(ctx, installerIDs)
 }
 
-func (s *DataStore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+func (s *DataStore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
 	s.mu.Lock()
 	s.GetSoftwareTitlesForInstallAllFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareTitlesForInstallAllFunc(ctx, host, categoryID)
+	return s.GetSoftwareTitlesForInstallAllFunc(ctx, host, categoryID, matchQuery)
 }
 
 func (s *DataStore) AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error {
@@ -8681,6 +8713,20 @@ func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, 
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable, gigsTotal, gigsAll)
+}
+
+func (s *DataStore) SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, hostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
+	s.mu.Lock()
+	s.SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateHostMDMAppleDeviceVitalsFunc(ctx, hostUUID, vitals)
+}
+
+func (s *DataStore) LoadHostMDMAppleDeviceVitals(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.LoadHostMDMAppleDeviceVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.LoadHostMDMAppleDeviceVitalsFunc(ctx, host)
 }
 
 func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
@@ -11007,11 +11053,11 @@ func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fle
 	return s.NewMDMAppleDeclarationFunc(ctx, declaration, usesFleetVars)
 }
 
-func (s *DataStore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+func (s *DataStore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.SetOrUpdateMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateMDMAppleDeclarationFunc(ctx, declaration, usesFleetVars)
+	return s.SetOrUpdateMDMAppleDeclarationFunc(ctx, declaration, usesFleetVars, activationAction)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
@@ -11523,6 +11569,13 @@ func (s *DataStore) ProcessInstallerUpdateSideEffects(ctx context.Context, insta
 	s.ProcessInstallerUpdateSideEffectsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ProcessInstallerUpdateSideEffectsFunc(ctx, installerID, wasMetadataUpdated, wasPackageUpdated)
+}
+
+func (s *DataStore) ClearPreInstallQueryForTitle(ctx context.Context, teamID uint, titleID uint) error {
+	s.mu.Lock()
+	s.ClearPreInstallQueryForTitleFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearPreInstallQueryForTitleFunc(ctx, teamID, titleID)
 }
 
 func (s *DataStore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
@@ -12552,6 +12605,13 @@ func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUU
 	s.UpdateMDMAndroidCommandStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage)
+}
+
+func (s *DataStore) ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+	s.mu.Lock()
+	s.ListPendingMDMAndroidCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPendingMDMAndroidCommandsFunc(ctx, createdBefore, limit)
 }
 
 func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {

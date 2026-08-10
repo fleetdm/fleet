@@ -4,7 +4,8 @@
       "version": "1.11.5.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'XnView MP' AND publisher = 'Pierre-e Gougelet';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'XnView MP' AND publisher = 'Pierre-e Gougelet' AND version_compare(version, '1.11.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'XnView MP' AND publisher = 'Pierre-e Gougelet' AND version_compare(version, '1.11.5.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'xnviewmp.exe');"
       },
       "installer_url": "https://download.xnview.com/old_versions/XnView_MP/XnView_MP-1.11.5-win-x64.exe",
       "install_script_ref": "7eb6b47e",

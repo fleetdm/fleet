@@ -34,6 +34,7 @@ import {
   getTicketOrWebhookLabel,
 } from "pages/policies/helpers";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { PatchOption } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 
 import { IPolicyAutomationUpdate } from "pages/policies/hooks";
 
@@ -85,6 +86,11 @@ interface IPolicyAutomationsFieldsProps {
   globalConfig: IConfig | undefined;
   /** Fleet display name, used in the "Not enabled for <fleet>" hints. */
   fleetName: string;
+  /** Present only for patch policies on Premium. */
+  patchOption?: PatchOption;
+  /** Rendered between the automation types and the continuous-automation
+   *  checkbox — the edit-policy Patch radios (owned by PolicyForm). */
+  patchSlot?: React.ReactNode;
 }
 
 const PolicyAutomationsFields = forwardRef<
@@ -99,6 +105,8 @@ const PolicyAutomationsFields = forwardRef<
       automationsConfig,
       globalConfig,
       fleetName,
+      patchOption,
+      patchSlot,
     },
     ref
   ) => {
@@ -147,6 +155,7 @@ const PolicyAutomationsFields = forwardRef<
     const initialCalendar = policy.calendar_events_enabled;
     const initialConditionalAccess = policy.conditional_access_enabled;
     const initialContinuous = policy.continuous_automations_enabled ?? false;
+    const initialPatchWhenClosed = policy.patch_when_closed ?? false;
 
     const [webhookOrTicketEnabled, setWebhookOrTicketEnabled] = useState(
       initialWebhookOrTicket
@@ -160,8 +169,17 @@ const PolicyAutomationsFields = forwardRef<
       initialConditionalAccess
     );
     const [continuousEnabled, setContinuousEnabled] = useState(
-      initialContinuous
+      initialPatchWhenClosed ? false : initialContinuous
     );
+    const patchWhenClosed = patchOption
+      ? patchOption === "closed"
+      : initialPatchWhenClosed;
+    let effectiveContinuousEnabled = continuousEnabled;
+    if (patchWhenClosed) {
+      effectiveContinuousEnabled = true;
+    } else if (patchOption === "manual") {
+      effectiveContinuousEnabled = false;
+    }
 
     const [softwareTitleId, setSoftwareTitleId] = useState<number | null>(
       policy.install_software?.software_title_id ?? null
@@ -173,6 +191,22 @@ const PolicyAutomationsFields = forwardRef<
     const [softwareInstallerId, setSoftwareInstallerId] = useState<
       number | null
     >(policy.install_software?.software_installer_id ?? null);
+    const patchSoftwareTitleId =
+      policy.patch_software?.software_title_id ?? null;
+    const effectiveInstallSoftware =
+      patchOption === undefined ? installSoftware : patchOption !== "manual";
+    let effectiveSoftwareTitleId = softwareTitleId;
+    let effectiveSoftwareInstallerId = softwareInstallerId;
+    if (patchOption !== undefined) {
+      effectiveSoftwareTitleId = effectiveInstallSoftware
+        ? patchSoftwareTitleId
+        : null;
+      effectiveSoftwareInstallerId =
+        effectiveInstallSoftware &&
+        policy.install_software?.software_title_id === patchSoftwareTitleId
+          ? softwareInstallerId
+          : null;
+    }
     const [scriptId, setScriptId] = useState<number | null>(
       policy.run_script?.id ?? null
     );
@@ -189,13 +223,14 @@ const PolicyAutomationsFields = forwardRef<
 
     const validate = (): IAutomationsErrors => {
       const newErrors: IAutomationsErrors = {};
-      if (installSoftware && softwareTitleId === null) {
+      if (effectiveInstallSoftware && effectiveSoftwareTitleId === null) {
         newErrors.install_software = "Please select software to install.";
       } else if (
-        installSoftware &&
-        softwareTitleId !== null &&
+        patchOption === undefined &&
+        effectiveInstallSoftware &&
+        effectiveSoftwareTitleId !== null &&
         (selectedTitlePackages?.length ?? 0) > 0 &&
-        softwareInstallerId === null
+        effectiveSoftwareInstallerId === null
       ) {
         // Only reachable when a custom title (with packages[]) is selected
         // but its packages haven't hydrated yet — the auto-select effect
@@ -233,12 +268,18 @@ const PolicyAutomationsFields = forwardRef<
       setScriptId(id);
       if (id !== null) clearError("run_script");
     };
+    const handleToggleContinuous = (next: boolean) => {
+      setContinuousEnabled(next);
+    };
 
     const canFetchTeamScopedLists =
       !isGlobalPolicy && teamIdForApi !== undefined;
     const { data: softwareTitlesData } = useSoftwareTitles({
       fleetId: teamIdForApi ?? 0,
-      enabled: canFetchTeamScopedLists && installSoftware,
+      enabled:
+        canFetchTeamScopedLists &&
+        effectiveInstallSoftware &&
+        patchOption === undefined,
     });
     const { data: scriptsData } = useScripts({
       fleetId: teamIdForApi ?? 0,
@@ -317,16 +358,18 @@ const PolicyAutomationsFields = forwardRef<
 
         const perPolicyDirty =
           !isGlobalPolicy &&
-          (installSoftware !== initialInstallSoftware ||
-            softwareTitleId !==
+          (effectiveInstallSoftware !== initialInstallSoftware ||
+            effectiveSoftwareTitleId !==
               (policy.install_software?.software_title_id ?? null) ||
-            softwareInstallerId !==
+            effectiveSoftwareInstallerId !==
               (policy.install_software?.software_installer_id ?? null) ||
             runScript !== initialRunScript ||
             scriptId !== (policy.run_script?.id ?? null) ||
             calendarEvent !== initialCalendar ||
             conditionalAccess !== initialConditionalAccess ||
-            continuousEnabled !== initialContinuous);
+            effectiveContinuousEnabled !== initialContinuous ||
+            (patchOption !== undefined &&
+              patchWhenClosed !== initialPatchWhenClosed));
         const webhookDirty = webhookOrTicketEnabled !== initialWebhookOrTicket;
 
         return {
@@ -334,13 +377,14 @@ const PolicyAutomationsFields = forwardRef<
           isDirty: perPolicyDirty || webhookDirty,
           policyUpdate: perPolicyDirty
             ? {
-                software_title_id: installSoftware ? softwareTitleId : null,
-                // Send the pinned installer id when install-software is on;
-                // omit when unchecked so the backend can clear it. Null
-                // (title selected, no packages hydrated yet) is a validation
-                // error and shouldn't reach here.
-                software_installer_id: installSoftware
-                  ? softwareInstallerId
+                software_title_id: effectiveInstallSoftware
+                  ? effectiveSoftwareTitleId
+                  : null,
+                // Send the pinned installer id when install-software is on.
+                // Null clears the automation or lets the backend select the
+                // Fleet-maintained app's installer when a Patch radio owns it.
+                software_installer_id: effectiveInstallSoftware
+                  ? effectiveSoftwareInstallerId
                   : null,
                 script_id: runScript ? scriptId : null,
                 // When the team has the feature disabled, the row is locked
@@ -354,7 +398,11 @@ const PolicyAutomationsFields = forwardRef<
                 ...(isConditionalAccessEnabledForTeam && {
                   conditional_access_enabled: conditionalAccess,
                 }),
-                continuous_automations_enabled: continuousEnabled,
+                continuous_automations_enabled: effectiveContinuousEnabled,
+                ...(patchOption !== undefined &&
+                  patchWhenClosed !== initialPatchWhenClosed && {
+                    patch_when_closed: patchWhenClosed,
+                  }),
               }
             : undefined,
           webhookOrTicketUpdate: webhookDirty
@@ -387,47 +435,49 @@ const PolicyAutomationsFields = forwardRef<
               learnMoreUrl="https://fleetdm.com/learn-more-about/policy-automation-install-software"
             />
           ),
-          checked: installSoftware,
+          checked: effectiveInstallSoftware,
           onToggle: handleToggleInstallSoftware,
           isDisabled: false,
-          picker: installSoftware ? (
-            <div className={`${baseClass}__software-pickers`}>
-              <DropdownWrapper
-                name="software-title"
-                className={`${baseClass}__row-picker`}
-                isDisabled={gitOpsModeEnabled}
-                value={
-                  softwareOptions.find(
-                    (o) => o.value === String(softwareTitleId ?? "")
-                  ) ?? null
-                }
-                options={softwareOptions}
-                placeholder="Select software"
-                onChange={(opt: SingleValue<CustomOptionType>) =>
-                  handleSelectSoftware(opt ? Number(opt.value) : null)
-                }
-              />
-              {/* Only surfaces for multi-package titles; first-added is
-                  auto-selected above, so this is pin-adjustment. */}
-              {packageOptions.length > 1 && (
+          isLocked: patchOption !== undefined,
+          picker:
+            effectiveInstallSoftware && patchOption === undefined ? (
+              <div className={`${baseClass}__software-pickers`}>
                 <DropdownWrapper
-                  name="software-package"
+                  name="software-title"
                   className={`${baseClass}__row-picker`}
                   isDisabled={gitOpsModeEnabled}
                   value={
-                    packageOptions.find(
-                      (o) => o.value === String(softwareInstallerId ?? "")
+                    softwareOptions.find(
+                      (o) => o.value === String(softwareTitleId ?? "")
                     ) ?? null
                   }
-                  options={packageOptions}
-                  placeholder="Select package"
+                  options={softwareOptions}
+                  placeholder="Select software"
                   onChange={(opt: SingleValue<CustomOptionType>) =>
-                    handleSelectPackage(opt ? Number(opt.value) : null)
+                    handleSelectSoftware(opt ? Number(opt.value) : null)
                   }
                 />
-              )}
-            </div>
-          ) : undefined,
+                {/* Only surfaces for multi-package titles; first-added is
+                  auto-selected above, so this is pin-adjustment. */}
+                {packageOptions.length > 1 && (
+                  <DropdownWrapper
+                    name="software-package"
+                    className={`${baseClass}__row-picker`}
+                    isDisabled={gitOpsModeEnabled}
+                    value={
+                      packageOptions.find(
+                        (o) => o.value === String(softwareInstallerId ?? "")
+                      ) ?? null
+                    }
+                    options={packageOptions}
+                    placeholder="Select package"
+                    onChange={(opt: SingleValue<CustomOptionType>) =>
+                      handleSelectPackage(opt ? Number(opt.value) : null)
+                    }
+                  />
+                )}
+              </div>
+            ) : undefined,
         },
         {
           key: "run_script",
@@ -566,15 +616,22 @@ const PolicyAutomationsFields = forwardRef<
           </div>
         </div>
 
-        {!isGlobalPolicy && (
+        {patchSlot}
+
+        {!isGlobalPolicy && patchOption !== "manual" && (
           <div className={`${baseClass}__section`}>
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
                 <Checkbox
                   name="continuous-automations-enabled"
-                  value={continuousEnabled}
-                  disabled={disableChildren}
-                  onChange={setContinuousEnabled}
+                  value={effectiveContinuousEnabled}
+                  disabled={disableChildren || patchWhenClosed}
+                  onChange={handleToggleContinuous}
+                  iconTooltipContent={
+                    patchWhenClosed
+                      ? "Continuous automation can't be disabled when Patch when app is closed is selected."
+                      : undefined
+                  }
                   helpText="If the automations do not resolve the policy, this could cause a retry loop."
                 >
                   <TooltipWrapper

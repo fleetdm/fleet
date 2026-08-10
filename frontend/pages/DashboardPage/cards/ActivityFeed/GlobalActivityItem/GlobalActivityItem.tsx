@@ -521,6 +521,19 @@ const TAGGED_TEMPLATES = {
       <>unassigned</>
     );
 
+    // "latest" isn't a minimum -- the target floats with what Apple publishes --
+    // so the sentence drops "the minimum" rather than contradicting itself.
+    // There's no deadline to report either: it's derived from deadline_days,
+    // which the activity doesn't record.
+    if (activity.details?.minimum_version === "latest") {
+      return (
+        <>
+          {editedActivity} {applePlatform} version to <b>latest</b> on hosts
+          assigned to {teamSection}.
+        </>
+      );
+    }
+
     return (
       <>
         {editedActivity} the minimum {applePlatform} version {versionSection}{" "}
@@ -1513,12 +1526,22 @@ const TAGGED_TEMPLATES = {
       source,
       self_service,
       from_setup_experience,
+      install_skipped_when_app_open,
     } = details;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
+
+    if (install_skipped_when_app_open) {
+      return (
+        <>
+          {" "}
+          skipped install of <b>{title}</b> on <b>{hostName}</b>.
+        </>
+      );
+    }
 
     // Self-service actions: drop the actor and switch to passive voice so the
     // sentence reads "<title> was installed on <host> (self-service)." without

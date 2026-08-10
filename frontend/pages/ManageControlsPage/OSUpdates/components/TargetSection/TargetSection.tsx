@@ -40,6 +40,29 @@ const getDefaultUpdateNewHosts = ({
   }
 };
 
+/** deadline_days is only set in "latest" mode; an empty string means unset,
+ * matching how the version and deadline defaults are handled. */
+const getDefaultAppleDeadlineDays = ({
+  osType,
+  currentTeamId,
+  appConfig,
+  teamConfig,
+}: GetDefaultFnParams) => {
+  const mdmData =
+    currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
+
+  switch (osType) {
+    case "darwin":
+      return mdmData?.macos_updates.deadline_days?.toString() ?? "";
+    case "ios":
+      return mdmData?.ios_updates.deadline_days?.toString() ?? "";
+    case "ipados":
+      return mdmData?.ipados_updates.deadline_days?.toString() ?? "";
+    default:
+      return "";
+  }
+};
+
 const getDefaultOSVersion = ({
   osType,
   currentTeamId,
@@ -170,6 +193,24 @@ const TargetSection = ({
     appConfig,
     teamConfig,
   });
+  const defaultMacOSDeadlineDays = getDefaultAppleDeadlineDays({
+    osType: "darwin",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
+  const defaultIOSDeadlineDays = getDefaultAppleDeadlineDays({
+    osType: "ios",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
+  const defaultIPadOSDeadlineDays = getDefaultAppleDeadlineDays({
+    osType: "ipados",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
   const defaultMacOSUpdateNewHosts = getDefaultUpdateNewHosts({
     osType: "darwin",
     currentTeamId,
@@ -205,10 +246,13 @@ const TargetSection = ({
         currentTeamId={currentTeamId}
         defaultMacOSVersion={defaultMacOSVersion}
         defaultMacOSDeadline={defaultMacOSDeadline}
+        defaultMacOSDeadlineDays={defaultMacOSDeadlineDays}
         defaultIOSVersion={defaultIOSVersion}
         defaultIOSDeadline={defaultIOSDeadline}
+        defaultIOSDeadlineDays={defaultIOSDeadlineDays}
         defaultIPadOSVersion={defaultIPadOSOSVersion}
         defaultIPadOSDeadline={defaultIPadOSDeadline}
+        defaultIPadOSDeadlineDays={defaultIPadOSDeadlineDays}
         defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
         defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
         defaultMacOSUpdateNewHosts={defaultMacOSUpdateNewHosts}

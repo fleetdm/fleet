@@ -149,6 +149,7 @@ import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 import LocationModal from "../modals/LocationModal";
+import VitalsModal from "../modals/VitalsModal";
 import EditHostVitalModal from "../modals/EditHostVitalModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
 import ClearPasscodeModal from "./modals/ClearPasscodeModal";
@@ -252,6 +253,7 @@ const HostDetailsPage = ({
   const [showMDMStatusModal, setShowMDMStatusModal] = useState(
     location.query.show_mdm_status === "true"
   );
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
   // Sync MDM status modal state when the query param changes while mounted
   // (e.g., browser back/forward navigation).
   useEffect(() => {
@@ -652,19 +654,6 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
-  const getOSVersionRequirementFromMDMConfig = (hostPlatform: string) => {
-    switch (hostPlatform) {
-      case "darwin":
-        return mdmConfig?.macos_updates;
-      case "ipados":
-        return mdmConfig?.ipados_updates;
-      case "ios":
-        return mdmConfig?.ios_updates;
-      default:
-        return undefined;
-    }
-  };
-
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -712,6 +701,10 @@ const HostDetailsPage = ({
   const toggleLocationModal = useCallback(() => {
     setShowLocationModal(!showLocationModal);
   }, [showLocationModal, setShowLocationModal]);
+
+  const toggleVitalsModal = useCallback(() => {
+    setShowVitalsModal(!showVitalsModal);
+  }, [showVitalsModal, setShowVitalsModal]);
 
   const toggleMDMStatusModal = useCallback(() => {
     setShowMDMStatusModal((prev) => {
@@ -1534,11 +1527,11 @@ const HostDetailsPage = ({
                   vitalsData={vitalsData}
                   munki={macadmins?.munki}
                   mdm={host?.mdm}
-                  osVersionRequirement={getOSVersionRequirementFromMDMConfig(
-                    host.platform
-                  )}
+                  osUpdateMinimumVersion={host.os_update_minimum_version}
+                  osUpdateDeadline={host.os_update_deadline}
                   toggleLocationModal={toggleLocationModal}
                   toggleMDMStatusModal={toggleMDMStatusModal}
+                  toggleVitalsModal={toggleVitalsModal}
                   customHostVitals={host.custom_host_vitals}
                   onEditCustomHostVital={
                     canEditCustomHostVitals
@@ -2072,6 +2065,23 @@ const HostDetailsPage = ({
               setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
+          />
+        )}
+        {showVitalsModal && (
+          <VitalsModal
+            host={host}
+            vitalsData={vitalsData}
+            munki={macadmins?.munki}
+            mdm={host?.mdm}
+            osUpdateMinimumVersion={host.os_update_minimum_version}
+            osUpdateDeadline={host.os_update_deadline}
+            toggleLocationModal={toggleLocationModal}
+            toggleMDMStatusModal={toggleMDMStatusModal}
+            customHostVitals={host.custom_host_vitals}
+            onEditCustomHostVital={
+              canEditCustomHostVitals ? setEditingCustomHostVital : undefined
+            }
+            onExit={toggleVitalsModal}
           />
         )}
         {editingCustomHostVital && (

@@ -857,6 +857,7 @@ import RemoteBuddy from "./RemoteBuddy";
 import RemoteDesktopManager from "./RemoteDesktopManager";
 import Reqable from "./Reqable";
 import Requestly from "./Requestly";
+import Resharper from "./Resharper";
 import Retcon from "./Retcon";
 import Retroarch from "./Retroarch";
 import Retrobatch from "./Retrobatch";
@@ -1062,6 +1063,7 @@ import VirtualBox from "./VirtualBox";
 import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualParadigm from "./VisualParadigm";
+import VisualStudio2022 from "./VisualStudio2022";
 import VisualStudioCode from "./VisualStudioCode";
 import Vivaldi from "./Vivaldi";
 import VividApp from "./VividApp";
@@ -2027,6 +2029,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "remote desktop manager": RemoteDesktopManager,
   reqable: Reqable,
   requestly: Requestly,
+  resharper: Resharper,
   retcon: Retcon,
   retroarch: Retroarch,
   retrobatch: Retrobatch,
@@ -2232,6 +2235,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   viscosity: Viscosity,
   "visual paradigm": VisualParadigm,
   "visual studio code": VisualStudioCode,
+  "visual studio community 2022": VisualStudio2022,
+  "visual studio enterprise 2022": VisualStudio2022,
+  "visual studio professional 2022": VisualStudio2022,
   vivaldi: Vivaldi,
   vivid: VividApp,
   viz: Viz,

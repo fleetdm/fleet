@@ -4,7 +4,8 @@
       "version": "3.6.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox' AND version_compare(bundle_short_version, '3.6.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox' AND version_compare(bundle_short_version, '3.6.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.jetbrains.toolbox');"
       },
       "installer_url": "https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.6.4.86641-arm64.dmg",
       "install_script_ref": "18687029",

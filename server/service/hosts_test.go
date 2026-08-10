@@ -438,6 +438,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		return nil
+	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
@@ -529,6 +532,119 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 				assert.False(t, ds.GetNanoMDMEnrollmentDetailsFuncInvoked)
 				assert.Nil(t, hostDetail.LastMDMEnrolledAt)
 				assert.Nil(t, hostDetail.LastMDMCheckedInAt)
+			}
+		})
+	}
+}
+
+// TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment is a regression test:
+// BYOD/personal enrollments never receive the device vitals fields (see
+// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
+// getHostDetails shouldn't even load them -- both to avoid an unnecessary
+// datastore call and so a personal host's response can't carry data it was
+// never supposed to have.
+func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{
+			PushToken: []byte("sensitive-push-token"),
+		}
+		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
+		return nil, nil
+	}
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
+	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+		return nil, nil
+	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+		return nil, nil
+	}
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
+	}
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, nil
+	}
+
+	personal := fleet.MDMEnrollmentStatusPersonal
+	manual := fleet.MDMEnrollmentStatusManual
+
+	cases := []struct {
+		name             string
+		enrollmentStatus *string
+		wantVitalsLoaded bool
+	}{
+		{"personal enrollment", &personal, false},
+		{"non-personal enrollment", &manual, true},
+		{"unknown enrollment status", nil, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.LoadHostMDMAppleDeviceVitalsFuncInvoked = false
+			host := &fleet.Host{
+				ID:       3,
+				Platform: "ipados",
+				UUID:     "abc123",
+				MDM:      fleet.MDMHostData{EnrollmentStatus: tc.enrollmentStatus},
+			}
+			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
+			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantVitalsLoaded, ds.LoadHostMDMAppleDeviceVitalsFuncInvoked)
+			if tc.wantVitalsLoaded {
+				assert.Equal(t, []byte("sensitive-push-token"), hostDetail.PushToken)
+			} else {
+				assert.Equal(t, fleet.HostMDMAppleDeviceVitals{}, hostDetail.HostMDMAppleDeviceVitals)
 			}
 		})
 	}
@@ -918,6 +1034,7 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) { return nil, nil }
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error { return nil }
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) { return nil, nil }
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) { return nil, nil }
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
@@ -1050,6 +1167,7 @@ func TestHostDetailsOSUpdates(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) { return nil, nil }
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error { return nil }
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) { return nil, nil }
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) { return nil, nil }
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {

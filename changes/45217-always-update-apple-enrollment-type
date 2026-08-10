@@ -1,0 +1,1 @@
+- Fixed an issue where re-enrolling an Apple device with a different type, e.g. Manual -> ADE, would not update the enrollment type correctly.

@@ -11527,6 +11527,161 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	require.Contains(t, errMsg, fleet.ErrWindowsMDMNotConfigured.Error())
 }
 
+// hostIOSVitalsJSONKeys are the JSON keys of the 29 iOS/iPadOS vitals fields
+// added to fleet.Host: they must be fully omitted (not present, not null)
+// from the host response for non-iOS/iPadOS hosts, or for a field that's
+// absent from the host's host_mdm_apple_device_vitals row.
+var hostIOSVitalsJSONKeys = []string{
+	"udid", "model_number", "modem_firmware_version", "supplemental_build_version",
+	"supplemental_os_version_extra", "bluetooth_mac", "wifi_mac", "eas_device_identifier",
+	"itunes_store_account_hash", "push_token", "battery_level", "cellular_technology",
+	"app_analytics_enabled", "awaiting_configuration", "data_roaming_enabled",
+	"diagnostic_submission_enabled", "is_cloud_backup_enabled", "is_device_locator_service_enabled",
+	"is_do_not_disturb_in_effect", "is_mdm_lost_mode_enabled", "is_network_tethered",
+	"itunes_store_account_is_active", "personal_hotspot_enabled", "last_cloud_backup_date",
+	"accessibility_settings", "organization_info", "mdm_options", "device_properties_attestation",
+	"service_subscriptions",
+}
+
+func (s *integrationTestSuite) getHostJSON(path string) map[string]any {
+	t := s.T()
+	res := s.DoRaw("GET", path, nil, http.StatusOK)
+	defer res.Body.Close()
+
+	var raw struct {
+		Host map[string]any `json:"host"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&raw))
+	return raw.Host
+}
+
+func (s *integrationTestSuite) TestGetHostIOSVitals() {
+	t := s.T()
+	ctx := t.Context()
+
+	newHost := func(platform, uuidSuffix string) *fleet.Host {
+		name := strings.ReplaceAll(t.Name(), "/", "_") + uuidSuffix
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new(name),
+			OsqueryHostID:   new(name),
+			UUID:            name,
+			Hostname:        name + ".local",
+			PrimaryIP:       "192.168.1.1",
+			PrimaryMac:      "30-65-EC-6F-C4-58",
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	lastBackup := time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
+	fullVitals := fleet.MDMAppleDeviceVitals{
+		UDID:                          new("00008030-AAA"),
+		ModelNumber:                   new("MNEP3LL/A"),
+		ModemFirmwareVersion:          new("2.01.00"),
+		SupplementalBuildVersion:      new("21E236"),
+		SupplementalOSVersionExtra:    new("a"),
+		BluetoothMAC:                  new("a4:83:e7:12:34:57"),
+		WiFiMAC:                       new("a4:83:e7:12:34:58"),
+		EASDeviceIdentifier:           new("3E2A1F9C"),
+		ITunesStoreAccountHash:        new("a1b2c3"),
+		PushToken:                     []byte("push-token-bytes"),
+		BatteryLevel:                  new(0.87),
+		CellularTechnology:            new(int64(1)),
+		AppAnalyticsEnabled:           new(true),
+		AwaitingConfiguration:         new(false),
+		DataRoamingEnabled:            new(false),
+		DiagnosticSubmissionEnabled:   new(true),
+		IsCloudBackupEnabled:          new(true),
+		IsDeviceLocatorServiceEnabled: new(true),
+		IsDoNotDisturbInEffect:        new(false),
+		IsMDMLostModeEnabled:          new(false),
+		IsNetworkTethered:             new(false),
+		ITunesStoreAccountIsActive:    new(true),
+		PersonalHotspotEnabled:        new(false),
+		LastCloudBackupDate:           &lastBackup,
+		AccessibilitySettings: &fleet.MDMAppleAccessibilitySettings{
+			VoiceOverEnabled: new(true),
+			GrayscaleEnabled: new(false),
+		},
+		OrganizationInfo: &fleet.MDMAppleOrganizationInfo{
+			OrganizationName: new("Acme Corp"),
+		},
+		MDMOptions: &fleet.MDMAppleDeviceVitalsMDMOptions{
+			BootstrapTokenAllowed: new(true),
+		},
+		DevicePropertiesAttestation: [][]byte{[]byte("leaf-cert"), []byte("intermediate-cert")},
+		ServiceSubscriptions: []fleet.MDMAppleServiceSubscription{
+			{Slot: "CTSubscriptionSlotOne", ICCID: new("iccid-1")},
+		},
+	}
+
+	// A fully populated iOS host returns all 29 fields, on both GET endpoints.
+	fullHost := newHost("ios", "-full")
+	require.NoError(t, s.ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, fullHost.UUID, fullVitals))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fullHost.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, "00008030-AAA", *getHostResp.Host.UDID)
+	require.InDelta(t, 0.87, *getHostResp.Host.BatteryLevel, 0.001)
+	require.True(t, *getHostResp.Host.AccessibilitySettings.VoiceOverEnabled)
+	require.Len(t, getHostResp.Host.ServiceSubscriptions, 1)
+
+	hostJSON := s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", fullHost.ID))
+	for _, key := range hostIOSVitalsJSONKeys {
+		assert.Contains(t, hostJSON, key, "expected key %q in response for fully populated iOS host", key)
+	}
+	// cellular_technology is stored as Apple's raw integer but returned as its
+	// display label.
+	assert.Equal(t, "GSM", hostJSON["cellular_technology"])
+
+	// GET /hosts/identifier/:identifier funnels through the same datastore
+	// loading path and must behave identically.
+	var getByIdentifierResp getHostResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/identifier/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
+	require.Equal(t, "00008030-AAA", *getByIdentifierResp.Host.UDID)
+
+	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/identifier/" + fullHost.UUID)
+	for _, key := range hostIOSVitalsJSONKeys {
+		assert.Contains(t, identifierJSON, key, "expected key %q in identifier response for fully populated iOS host", key)
+	}
+
+	// A non-Apple-mobile host omits all 29 keys.
+	macHost := newHost("darwin", "-macos")
+	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID))
+	for _, key := range hostIOSVitalsJSONKeys {
+		assert.NotContains(t, hostJSON, key, "did not expect key %q for a non-Apple-mobile host", key)
+	}
+
+	// A field absent from the side table row is omitted; other populated
+	// fields are still present.
+	partialHost := newHost("ipados", "-partial")
+	partialVitals := fleet.MDMAppleDeviceVitals{
+		UDID:         new("00008030-CCC"),
+		BatteryLevel: new(0.5),
+	}
+	require.NoError(t, s.ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, partialHost.UUID, partialVitals))
+
+	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", partialHost.ID))
+	assert.Contains(t, hostJSON, "udid")
+	assert.Contains(t, hostJSON, "battery_level")
+	assert.NotContains(t, hostJSON, "model_number")
+	assert.NotContains(t, hostJSON, "accessibility_settings")
+	assert.NotContains(t, hostJSON, "service_subscriptions")
+
+	// An iOS host with no vitals row yet (hasn't refetched since this
+	// shipped) omits all 29 keys, with no error.
+	noRowHost := newHost("ios", "-no-row")
+	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", noRowHost.ID))
+	for _, key := range hostIOSVitalsJSONKeys {
+		assert.NotContains(t, hostJSON, key, "did not expect key %q for an iOS host with no vitals row yet", key)
+	}
+}
+
 func (s *integrationTestSuite) TestListVulnerabilities() {
 	t := s.T()
 	var resp listVulnerabilitiesResponse

@@ -4,7 +4,8 @@
       "version": "10.4.5647",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'eM Client' AND publisher = 'eM Client s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'eM Client' AND publisher = 'eM Client s.r.o.' AND version_compare(version, '10.4.5647') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'eM Client' AND publisher = 'eM Client s.r.o.' AND version_compare(version, '10.4.5647') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'em client.exe');"
       },
       "installer_url": "https://www.emclient.com/dist/v10.4.5647/setup.msi",
       "install_script_ref": "22e48c46",

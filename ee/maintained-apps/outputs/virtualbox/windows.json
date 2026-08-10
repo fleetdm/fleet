@@ -4,7 +4,8 @@
       "version": "7.2.14",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Oracle VirtualBox %' AND publisher = 'Oracle and/or its affiliates';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Oracle VirtualBox %' AND publisher = 'Oracle and/or its affiliates' AND version_compare(version, '7.2.14') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Oracle VirtualBox %' AND publisher = 'Oracle and/or its affiliates' AND version_compare(version, '7.2.14') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'virtualbox%');"
       },
       "installer_url": "https://download.virtualbox.org/virtualbox/7.2.14/VirtualBox-7.2.14-174565-Win.exe",
       "install_script_ref": "556130e3",

@@ -4,7 +4,8 @@
       "version": "12.13.10.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'iTunes' AND publisher = 'Apple Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iTunes' AND publisher = 'Apple Inc.' AND version_compare(version, '12.13.10.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iTunes' AND publisher = 'Apple Inc.' AND version_compare(version, '12.13.10.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'itunes.exe');"
       },
       "installer_url": "https://secure-appldnld.apple.com/itunes12/047-76416-20260302-fefe4356-211d-4da1-8bc4-058eb36ea803/iTunes64Setup.exe",
       "install_script_ref": "d180d999",

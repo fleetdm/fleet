@@ -73,6 +73,9 @@ const (
 	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
 	CronCleanupExpiredADUEChallenges            CronScheduleName = "cleanup_expired_adue_challenges"
 	CronAppleMDMOSUpdatesSchedule               CronScheduleName = "apple_mdm_os_updates"
+	// CronMDMAndroidCommandReconciler polls AMAPI for the outcome of Android MDM commands whose Pub/Sub
+	// COMMAND notification never arrived, so they don't stay pending forever. Runs every 24h.
+	CronMDMAndroidCommandReconciler CronScheduleName = "mdm_android_command_reconciler"
 )
 
 type CronSchedulesService interface {

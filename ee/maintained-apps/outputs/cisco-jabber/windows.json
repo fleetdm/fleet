@@ -4,7 +4,8 @@
       "version": "15.3.0.61167",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cisco Jabber' AND publisher = 'Cisco Systems, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cisco Jabber' AND publisher = 'Cisco Systems, Inc' AND version_compare(version, '15.3.0.61167') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cisco Jabber' AND publisher = 'Cisco Systems, Inc' AND version_compare(version, '15.3.0.61167') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cisco jabber.exe');"
       },
       "installer_url": "https://binaries.webex.com/jabberclientwindows/20260721091017/CiscoJabberSetup.msi",
       "install_script_ref": "22e48c46",

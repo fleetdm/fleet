@@ -4,7 +4,8 @@
       "version": "1.8.2.714",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Elgato Control Center' AND publisher = 'Corsair Memory, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Elgato Control Center' AND publisher = 'Corsair Memory, Inc.' AND version_compare(version, '1.8.2.714') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Elgato Control Center' AND publisher = 'Corsair Memory, Inc.' AND version_compare(version, '1.8.2.714') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'elgato control center.exe');"
       },
       "installer_url": "https://edge.elgato.com/egc/windows/eccw/1.8.2/ControlCenter_1.8.2.714_x64.msi",
       "install_script_ref": "22e48c46",

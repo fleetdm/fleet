@@ -4,7 +4,8 @@
       "version": "10.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.getflywheel.lightning.local';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getflywheel.lightning.local' AND version_compare(bundle_short_version, '10.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getflywheel.lightning.local' AND version_compare(bundle_short_version, '10.1.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.getflywheel.lightning.local');"
       },
       "installer_url": "https://cdn.localwp.com/releases-stable/10.1.1+6939/local-10.1.1-mac-arm64.dmg",
       "install_script_ref": "c77001b6",

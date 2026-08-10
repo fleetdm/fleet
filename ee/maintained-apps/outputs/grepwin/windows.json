@@ -4,7 +4,8 @@
       "version": "2.1.1434",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'grepWin' AND publisher = 'Stefans Tools';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'grepWin' AND publisher = 'Stefans Tools' AND version_compare(version, '2.1.1434') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'grepWin' AND publisher = 'Stefans Tools' AND version_compare(version, '2.1.1434') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'grepwin.exe');"
       },
       "installer_url": "https://github.com/stefankueng/grepWin/releases/download/2.1.12/grepWin-2.1.12-x64.msi",
       "install_script_ref": "22e48c46",

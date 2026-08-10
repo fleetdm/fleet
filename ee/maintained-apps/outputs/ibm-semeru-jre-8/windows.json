@@ -4,7 +4,8 @@
       "version": "8.0.502.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JRE)%' AND publisher = 'Semeru' AND version LIKE '8.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JRE)%' AND publisher = 'Semeru' AND version LIKE '8.%' AND version_compare(version, '8.0.502.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JRE)%' AND publisher = 'Semeru' AND version LIKE '8.%' AND version_compare(version, '8.0.502.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ibm semeru runtime open edition jre 8.exe');"
       },
       "installer_url": "https://github.com/ibmruntimes/semeru8-binaries/releases/download/jdk-8.0.502.0/ibm-semeru-open-jre_x64_windows_8.0.502.0.msi",
       "install_script_ref": "22e48c46",

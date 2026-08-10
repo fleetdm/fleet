@@ -819,6 +819,38 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-07-31 09:46:22
 
+### [CVE-2026-56211](https://nvd.nist.gov/vuln/detail/CVE-2026-56211)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
+### [CVE-2026-56210](https://nvd.nist.gov/vuln/detail/CVE-2026-56210)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
+### [CVE-2026-56209](https://nvd.nist.gov/vuln/detail/CVE-2026-56209)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
+### [CVE-2026-56208](https://nvd.nist.gov/vuln/detail/CVE-2026-56208)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
 ### [CVE-2026-56131](https://nvd.nist.gov/vuln/detail/CVE-2026-56131)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -866,6 +898,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libtiff6`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-20 11:42:37
+
+### [CVE-2026-47178](https://nvd.nist.gov/vuln/detail/CVE-2026-47178)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process HEIF/AVIF images (libheif) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libheif1`,`pkg:deb/debian/libheif-plugin-dav1d`,`pkg:deb/debian/libheif-plugin-libde265`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:58:48
 
 ### [CVE-2026-45447](https://nvd.nist.gov/vuln/detail/CVE-2026-45447)
 - **Author:** @lucasmrod
@@ -1003,6 +1043,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-08 11:01:10
 
+### [CVE-2026-32882](https://nvd.nist.gov/vuln/detail/CVE-2026-32882)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process HEIF/AVIF images (libheif) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libheif1`,`pkg:deb/debian/libheif-plugin-dav1d`,`pkg:deb/debian/libheif-plugin-libde265`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:58:48
+
 ### [CVE-2026-32775](https://nvd.nist.gov/vuln/detail/CVE-2026-32775)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1010,6 +1058,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libexif12`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:16:53
+
+### [CVE-2026-32741](https://nvd.nist.gov/vuln/detail/CVE-2026-32741)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process HEIF/AVIF images (libheif) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libheif1`,`pkg:deb/debian/libheif-plugin-dav1d`,`pkg:deb/debian/libheif-plugin-libde265`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:58:48
+
+### [CVE-2026-32740](https://nvd.nist.gov/vuln/detail/CVE-2026-32740)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process HEIF/AVIF images (libheif) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libheif1`,`pkg:deb/debian/libheif-plugin-dav1d`,`pkg:deb/debian/libheif-plugin-libde265`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:58:48
 
 ### [CVE-2026-31789](https://nvd.nist.gov/vuln/detail/CVE-2026-31789)
 - **Author:** @lucasmrod
@@ -1130,6 +1194,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libjxl0.11`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-10 11:44:26
+
+### [CVE-2025-68431](https://nvd.nist.gov/vuln/detail/CVE-2025-68431)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process HEIF/AVIF images (libheif) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libheif1`,`pkg:deb/debian/libheif-plugin-dav1d`,`pkg:deb/debian/libheif-plugin-libde265`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:58:48
 
 ### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
 - **Author:** @lucasmrod

@@ -3764,8 +3764,6 @@ For VPP `InstallApplication` command results, `results_metadata` may include:
 
 Queues an install for every self-service software title available to the device that isn't already installed.
 
-If `category_id` is provided, only titles assigned to that [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories) on the device's fleet are queued.
-
 `POST /api/v1/fleet/device/{token}/software/install_all`
 
 ##### Parameters
@@ -3773,11 +3771,12 @@ If `category_id` is provided, only titles assigned to that [self-service categor
 | Name        | Type    | In    | Description                                                                                                                                          |
 | ----------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | token       | string  | path  | **Required**. The device's authentication token.                                                                                                     |
-| category_id | integer | query | Restrict the install to a single self-service category. Must reference a category that exists on the device's fleet. If omitted, all categories are included. |
+| category_id | integer | query | Restrict to a single [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories). Must exist on the device's fleet. If omitted, all categories are included. |
+| query       | string  | query | Restrict to titles whose name matches (same semantics as the self-service list endpoint). If omitted, no name filter is applied. |
 
 ##### Example
 
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install_all?category_id=12`
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install_all?category_id=12&query=zoom`
 
 ##### Default response
 

@@ -4,7 +4,8 @@
       "version": "0.17.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Alacritty' AND publisher = 'Alacritty';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Alacritty' AND publisher = 'Alacritty' AND version_compare(version, '0.17.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Alacritty' AND publisher = 'Alacritty' AND version_compare(version, '0.17.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'alacritty.exe');"
       },
       "installer_url": "https://github.com/alacritty/alacritty/releases/download/v0.17.0/Alacritty-v0.17.0-installer.msi",
       "install_script_ref": "22e48c46",

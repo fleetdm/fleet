@@ -690,6 +690,10 @@ type Datastore interface {
 	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
 	// TeamLite retrieves a Team by ID, including only id, created_at, name, filename, description, config fields.
 	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
+	// TeamLitesByIDs retrieves the TeamLite of every existing team among ids in
+	// one query; deleted IDs are absent from the result. ID 0 ("Unassigned") is
+	// synthesized from the default team config.
+	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name (including extras).
@@ -870,8 +874,9 @@ type Datastore interface {
 
 	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
 	// to queue for the host's "install all" action, in alphabetical order, optionally
-	// scoped to a category.
-	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint) ([]*HostSoftwareWithInstaller, *string, error)
+	// scoped to a category and/or a name-match query (same semantics as the self-service
+	// list endpoint).
+	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint, matchQuery string) ([]*HostSoftwareWithInstaller, *string, error)
 
 	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
 	// given install attempt (InstallApplication command).
@@ -1271,6 +1276,16 @@ type Datastore interface {
 	// SetOrUpdateHostDisksSpace sets or updates the gigs_total_disk_space and gigs_all_disk_space
 	// fields for a host. gigs_all_disk_space should should only be non-nil for Linux hosts
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error
+
+	// SetOrUpdateHostMDMAppleDeviceVitals persists the iOS/iPadOS vitals parsed
+	// from a DeviceInformation command ack into host_mdm_apple_device_vitals
+	// and host_mdm_apple_service_subscriptions.
+	SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAppleDeviceVitals) error
+	// LoadHostMDMAppleDeviceVitals populates host's HostMDMAppleDeviceVitals
+	// fields from host_mdm_apple_device_vitals and
+	// host_mdm_apple_service_subscriptions. Callers are responsible for only
+	// calling this for iOS/iPadOS hosts.
+	LoadHostMDMAppleDeviceVitals(ctx context.Context, host *Host) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
@@ -2695,7 +2710,7 @@ type Datastore interface {
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
-	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
+	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName, activationAction MDMAppleActivationAction) (*MDMAppleDeclaration, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
@@ -2996,6 +3011,10 @@ type Datastore interface {
 	// as removed, hiding them from stats calculations (note that this will null out installer statuses due
 	// to how the virtual column works).
 	ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
+
+	// ClearPreInstallQueryForTitle blanks the pre-install query on a title's active Fleet-maintained
+	// installer and cancels its pending installs. No-op when the query is already empty.
+	ClearPreInstallQueryForTitle(ctx context.Context, teamID uint, titleID uint) error
 
 	// SaveInstallerUpdates persists new values to an existing installer. See comments in the payload struct
 	// for which fields must be set.
@@ -3944,6 +3963,11 @@ type AndroidDatastore interface {
 	// UpdateMDMAndroidCommandStatus updates the status (and optional error_code/error_message) of
 	// a previously-issued command. Called by the Pub/Sub COMMAND handler on ack/error.
 	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error
+
+	// ListPendingMDMAndroidCommands returns commands still in the pending status that were created
+	// before createdBefore, oldest first, capped at limit rows. Used by the command reconciler cron to
+	// find commands whose Pub/Sub COMMAND notification never arrived.
+	ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
 
 	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the lock_ref on host_mdm_actions in a
 	// single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate cmd.CommandUUID and cmd.OperationName

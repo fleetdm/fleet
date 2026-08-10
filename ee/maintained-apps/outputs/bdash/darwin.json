@@ -4,7 +4,8 @@
       "version": "1.35.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.bdash';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.bdash' AND version_compare(bundle_short_version, '1.35.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.bdash' AND version_compare(bundle_short_version, '1.35.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'io.bdash');"
       },
       "installer_url": "https://github.com/bdash-app/bdash/releases/download/v1.35.1/Bdash-1.35.1-universal-mac.zip",
       "install_script_ref": "1aeacce5",
