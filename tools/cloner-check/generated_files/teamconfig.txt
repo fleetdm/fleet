@@ -13,6 +13,9 @@ github.com/fleetdm/fleet/v4/server/fleet/FailingPoliciesWebhookSettings	Enable	b
 github.com/fleetdm/fleet/v4/server/fleet/FailingPoliciesWebhookSettings	DestinationURL	string
 github.com/fleetdm/fleet/v4/server/fleet/FailingPoliciesWebhookSettings	PolicyIDs	[]uint
 github.com/fleetdm/fleet/v4/server/fleet/FailingPoliciesWebhookSettings	HostBatchSize	int
+github.com/fleetdm/fleet/v4/server/fleet/TeamWebhookSettings	HostActivitiesWebhook	*fleet.HostActivitiesWebhookSettings
+github.com/fleetdm/fleet/v4/server/fleet/HostActivitiesWebhookSettings	Enable	bool
+github.com/fleetdm/fleet/v4/server/fleet/HostActivitiesWebhookSettings	DestinationURL	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Integrations	fleet.TeamIntegrations
 github.com/fleetdm/fleet/v4/server/fleet/TeamIntegrations	Jira	[]*fleet.TeamJiraIntegration
 github.com/fleetdm/fleet/v4/server/fleet/TeamJiraIntegration	URL	string

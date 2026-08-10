@@ -4,7 +4,8 @@
       "version": "2.156.951.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Power BI Desktop (x64)' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Power BI Desktop (x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '2.156.951.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Power BI Desktop (x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '2.156.951.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'power bi.exe');"
       },
       "installer_url": "https://download.microsoft.com/download/8/8/0/880BCA75-79DD-466A-927D-1ABF1F5454B0/PBIDesktopSetup-2026-07_x64.exe",
       "install_script_ref": "cc478c11",

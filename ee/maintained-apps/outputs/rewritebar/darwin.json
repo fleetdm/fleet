@@ -4,7 +4,8 @@
       "version": "2.31.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.m91michel.rewritebar';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.m91michel.rewritebar' AND version_compare(bundle_short_version, '2.31.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.m91michel.rewritebar' AND version_compare(bundle_short_version, '2.31.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.m91michel.rewritebar');"
       },
       "installer_url": "https://rewritebar.com/download/v2.31.0.zip",
       "install_script_ref": "9638de12",

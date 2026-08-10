@@ -4,7 +4,8 @@
       "version": "7.5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.elgato.StreamDeck';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.elgato.StreamDeck' AND version_compare(bundle_short_version, '7.5.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.elgato.StreamDeck' AND version_compare(bundle_short_version, '7.5.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.elgato.StreamDeck');"
       },
       "installer_url": "https://edge.elgato.com/egc/macos/sd/Stream_Deck_7.5.1.22901.pkg",
       "install_script_ref": "08b5b783",

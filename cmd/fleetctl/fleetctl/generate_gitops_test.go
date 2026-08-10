@@ -265,6 +265,10 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 						PolicyIDs:      []uint{1, 2, 3},
 						HostBatchSize:  100,
 					},
+					HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+						Enable:         true,
+						DestinationURL: "https://example.com/no-team-activities-webhook",
+					},
 				},
 			},
 		}, nil
@@ -459,6 +463,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Platform:                 "linux,windows",
 				ConditionalAccessEnabled: true,
 				Type:                     fleet.PolicyTypePatch,
+				PatchWhenClosed:          true,
 			},
 			PatchSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 8,
@@ -708,6 +713,14 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(2),
 				PinnedVersion:        new("10.0"),
+				// Mirrors the API, which returns the managed app open query while patch_when_closed is on.
+				PreInstallQuery: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'My Windows FMA');",
+				PatchPolicy: &fleet.PatchPolicyData{
+					ID:                           1,
+					Name:                         "Windows - My Windows FMA up to date",
+					PatchWhenClosed:              true,
+					ContinuousAutomationsEnabled: true,
+				},
 			},
 			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
@@ -1979,6 +1992,9 @@ func TestGenerateSoftware(t *testing.T) {
 	} else {
 		t.Fatalf("Expected file not found")
 	}
+
+	// The windows FMA is patch_when_closed, so its query is not written out.
+	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-windows-fma-windows-preinstallquery.yml")
 
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-setup-experience-app-android-config.json"]; ok {
 		require.JSONEq(t, `{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`, string(fileContents.([]byte)))

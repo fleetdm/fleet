@@ -4,7 +4,8 @@
       "version": "5.8.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'KNIME Analytics Platform %' AND publisher = 'KNIME AG';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'KNIME Analytics Platform %' AND publisher = 'KNIME AG' AND version_compare(version, '5.8.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'KNIME Analytics Platform %' AND publisher = 'KNIME AG' AND version_compare(version, '5.8.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'knime.exe');"
       },
       "installer_url": "https://download.knime.com/analytics-platform/win/KNIME%205.8.3%20Installer%20(64bit).exe",
       "install_script_ref": "37a3a8bd",

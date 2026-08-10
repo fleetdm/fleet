@@ -4,7 +4,8 @@
       "version": "17.11.1.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft ODBC Driver 17 for SQL Server' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft ODBC Driver 17 for SQL Server' AND publisher = 'Microsoft Corporation' AND version_compare(version, '17.11.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft ODBC Driver 17 for SQL Server' AND publisher = 'Microsoft Corporation' AND version_compare(version, '17.11.1.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'microsoft odbc driver 17 for sql server.exe');"
       },
       "installer_url": "https://download.microsoft.com/download/d99fcd4f-548f-46e6-83d5-b9eb62b373d5/amd64/1033/msodbcsql.msi",
       "install_script_ref": "5a2f9a9f",

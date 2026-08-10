@@ -4,7 +4,8 @@
       "version": "153.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird' AND version_compare(bundle_short_version, '153.0.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird' AND version_compare(bundle_short_version, '153.0.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.mozilla.thunderbird');"
       },
       "installer_url": "https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/153.0.2/mac/en-US/Thunderbird%20153.0.2.dmg",
       "install_script_ref": "7ab956d5",

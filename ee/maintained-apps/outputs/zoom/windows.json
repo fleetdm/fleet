@@ -4,7 +4,8 @@
       "version": "7.1.43453",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Zoom Workplace%' AND publisher = 'Zoom';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Workplace%' AND publisher = 'Zoom' AND version_compare(version, '7.1.43453') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Workplace%' AND publisher = 'Zoom' AND version_compare(version, '7.1.43453') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'zoom.exe');"
       },
       "installer_url": "https://zoom.us/client/7.1.5.43453/ZoomInstallerFull.msi?archType=x64",
       "install_script_ref": "22e48c46",

@@ -4,7 +4,8 @@
       "version": "1.34.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Bdash %' AND publisher = 'Kazuhito Hokamura';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Bdash %' AND publisher = 'Kazuhito Hokamura' AND version_compare(version, '1.34.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Bdash %' AND publisher = 'Kazuhito Hokamura' AND version_compare(version, '1.34.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'bdash.exe');"
       },
       "installer_url": "https://github.com/bdash-app/bdash/releases/download/v1.34.0/Bdash-Setup-1.34.0.exe",
       "install_script_ref": "840aa08a",

@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { useQuery } from "react-query";
+import { useMutation, useQuery } from "react-query";
 import { Row } from "react-table";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
@@ -21,7 +21,10 @@ import scriptsAPI, {
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
-import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import teamsAPI, {
+  ILoadTeamResponse,
+  ILoadTeamsResponse,
+} from "services/entities/teams";
 import policiesAPI from "services/entities/policies";
 import hostsAPI, {
   HOSTS_QUERY_PARAMS as PARAMS,
@@ -64,6 +67,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { IEmptyStateProps } from "interfaces/empty_state";
 import {
   DiskEncryptionStatus,
@@ -96,6 +100,7 @@ import TableCount from "components/TableContainer/TableCount";
 import DataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import FleetsDropdown from "components/FleetsDropdown";
+import ActionsDropdown from "components/ActionsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyState from "components/EmptyState";
@@ -110,6 +115,7 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
+  toApiSortBy,
   hostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
@@ -128,6 +134,8 @@ import DeleteLabelModal from "./components/DeleteLabelModal";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
 import RunScriptBatchModal from "./components/RunScriptBatchModal";
+import HostActivityAutomationsModal from "./components/HostActivityAutomationsModal";
+import { IHostActivityAutomationsFormData } from "./components/HostActivityAutomationsModal/HostActivityAutomationsModal";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -234,11 +242,19 @@ const ManageHostsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showRunScriptBatchModal, setShowRunScriptBatchModal] = useState(false);
+  const [
+    showHostActivityAutomationsModal,
+    setShowHostActivityAutomationsModal,
+  ] = useState(false);
 
   // Hoisted above the deep-link effects so they share the same gate
   // as the in-page Add hosts / Manage enroll secrets affordances.
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  // Activity automations are configured per fleet, admins only. The menu item
+  // stays visible but disabled on "All fleets" (the setting belongs to one
+  // fleet) and on Fleet Free (Premium feature, shown so it can be discovered).
+  const canManageHostActivityAutomations = isGlobalAdmin || isTeamAdmin;
 
   // Open add hosts modal via query param (e.g. from command palette).
   // Wait until role flags and the team route have resolved before
@@ -280,6 +296,34 @@ const ManageHostsPage = ({
     isRouteOk,
   ]);
 
+  // Open activity automations modal via query param (e.g. from command
+  // palette). Same hydration gate as the effects above; re-checks the same
+  // conditions that enable the gear menu item.
+  useEffect(() => {
+    if (queryParams?.manage_activity_automations !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
+    if (
+      canManageHostActivityAutomations &&
+      !!isPremiumTier &&
+      !isAllTeamsSelected
+    ) {
+      setShowHostActivityAutomationsModal(true);
+    }
+    router.replace({
+      pathname: location.pathname,
+      query: omit(queryParams, "manage_activity_automations"),
+    });
+  }, [
+    queryParams,
+    location.pathname,
+    router,
+    canManageHostActivityAutomations,
+    isPremiumTier,
+    isAllTeamsSelected,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
+
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_host_columns || defaultHiddenColumns
   );
@@ -293,6 +337,7 @@ const ManageHostsPage = ({
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
+  const apiSortBy = useMemo(() => toApiSortBy(sortBy), [sortBy]);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
@@ -519,6 +564,34 @@ const ManageHostsPage = ({
   );
 
   const {
+    data: teamResponse,
+    isLoading: isLoadingHostActivityAutomations,
+    isError: isErrorHostActivityAutomations,
+    refetch: refetchHostActivityAutomations,
+  } = useQuery<ILoadTeamResponse, Error>(
+    ["team webhook settings", teamIdForApi],
+    () => teamsAPI.load(teamIdForApi),
+    {
+      // Fetched only when the modal opens so the modal mounts with the stored
+      // settings; works for "No fleet" (team 0) too.
+      enabled:
+        isRouteOk &&
+        showHostActivityAutomationsModal &&
+        teamIdForApi !== undefined &&
+        !!isPremiumTier,
+      // Close the modal on load failure: mounting it without the stored
+      // settings would show disabled defaults, and saving those would
+      // silently overwrite the configured webhook.
+      onError: () => {
+        notify.error("Could not load activity automations. Please try again.");
+        setShowHostActivityAutomationsModal(false);
+      },
+    }
+  );
+  const hostActivityAutomations =
+    teamResponse?.team?.webhook_settings?.host_activities_webhook;
+
+  const {
     data: policy,
     isLoading: isLoadingPolicy,
     error: errorPolicy,
@@ -597,7 +670,7 @@ const ManageHostsPage = ({
         scope: "hosts",
         selectedLabels,
         globalFilter: searchQuery,
-        sortBy,
+        sortBy: apiSortBy,
         teamId: teamIdForApi,
         policyId,
         policyResponse,
@@ -751,6 +824,59 @@ const ManageHostsPage = ({
   const toggleRunScriptBatchModal = useCallback(() => {
     setShowRunScriptBatchModal(!showRunScriptBatchModal);
   }, [showRunScriptBatchModal]);
+
+  const toggleHostActivityAutomationsModal = () => {
+    setShowHostActivityAutomationsModal(!showHostActivityAutomationsModal);
+  };
+
+  const {
+    mutate: updateHostActivityAutomations,
+    isLoading: isUpdatingHostActivityAutomations,
+  } = useMutation(
+    (formData: IHostActivityAutomationsFormData) =>
+      teamsAPI.update(
+        {
+          webhook_settings: {
+            host_activities_webhook: {
+              enable_host_activities_webhook: formData.enabled,
+              destination_url: formData.url,
+            },
+          },
+        },
+        teamIdForApi
+      ),
+    {
+      onSuccess: () => {
+        notify.success("Successfully updated activity automations.");
+        setShowHostActivityAutomationsModal(false);
+        refetchHostActivityAutomations();
+      },
+      onError: () => {
+        notify.error(
+          "Could not update activity automations. Please try again."
+        );
+      },
+    }
+  );
+
+  const onSelectHostsPageSetting = (value: string) => {
+    switch (value) {
+      case "enrollSecrets":
+        setShowEnrollSecretModal(true);
+        break;
+      case "customHostVitals":
+        router.push(
+          getPathWithQueryParams(PATHS.CONTROLS_VARIABLES_CUSTOM_HOST_VITALS, {
+            fleet_id: teamIdForApi,
+          })
+        );
+        break;
+      case "activityAutomations":
+        setShowHostActivityAutomationsModal(true);
+        break;
+      default:
+    }
+  };
 
   const toggleEditColumnsModal = () => {
     setShowEditColumnsModal(!showEditColumnsModal);
@@ -1064,18 +1190,10 @@ const ManageHostsPage = ({
 
       let sort = sortBy;
       if (sortHeader) {
-        let direction = sortDirection;
-        if (sortHeader === "last_restarted_at") {
-          if (sortDirection === "asc") {
-            direction = "desc";
-          } else {
-            direction = "asc";
-          }
-        }
         sort = [
           {
             key: sortHeader,
-            direction: direction || DEFAULT_SORT_DIRECTION,
+            direction: sortDirection || DEFAULT_SORT_DIRECTION,
           },
         ];
       } else if (!sortBy.length) {
@@ -1656,7 +1774,7 @@ const ManageHostsPage = ({
       let options = {
         selectedLabels,
         globalFilter: searchQuery,
-        sortBy,
+        sortBy: apiSortBy,
         teamId: teamIdForApi,
         policyId,
         policyResponse,
@@ -1723,7 +1841,7 @@ const ManageHostsPage = ({
       teamIdForApi,
       selectedLabels,
       searchQuery,
-      sortBy,
+      apiSortBy,
       policyId,
       policyResponse,
       macSettingsStatus,
@@ -2063,38 +2181,55 @@ const ManageHostsPage = ({
 
   const showAddHostsButton = canEnrollHosts && !hasErrors;
 
+  // Gear menu grouping the page-level settings (see #50219). Options are
+  // gated per item; the gear renders only when at least one is available.
+  const hostsPageSettingsOptions: IDropdownOption[] = [];
+  if (canEnrollHosts) {
+    hostsPageSettingsOptions.push({
+      label: "Enroll secrets",
+      value: "enrollSecrets",
+      disabled: false,
+    });
+  }
+  if (canManageCustomHostVitals) {
+    hostsPageSettingsOptions.push({
+      label: "Custom host vitals",
+      value: "customHostVitals",
+      disabled: false,
+    });
+  }
+  if (canManageHostActivityAutomations) {
+    const automationsDisabled = !isPremiumTier || isAllTeamsSelected;
+    let automationsTooltip: React.ReactNode;
+    if (!isPremiumTier) {
+      automationsTooltip =
+        "Activity automations are available in Fleet Premium.";
+    } else if (isAllTeamsSelected) {
+      automationsTooltip = "Select a fleet to manage activity automations.";
+    }
+    hostsPageSettingsOptions.push({
+      label: "Activity automations",
+      value: "activityAutomations",
+      disabled: automationsDisabled,
+      tooltipContent: automationsTooltip,
+    });
+  }
+
   return (
     <>
       <MainContent className={baseClass}>
         <div className={`${baseClass}__header-wrap`}>
           {renderHeader()}
           <div className={`${baseClass}__button-wrap`}>
-            {canManageCustomHostVitals && !hasErrors && (
-              <Button
-                onClick={() =>
-                  router.push(
-                    getPathWithQueryParams(
-                      PATHS.CONTROLS_VARIABLES_CUSTOM_HOST_VITALS,
-                      { fleet_id: teamIdForApi }
-                    )
-                  )
-                }
-                className={`${baseClass}__custom-host-vitals`}
-                variant="secondary"
-                icon="pencil"
-              >
-                <span>Custom host vitals</span>
-              </Button>
-            )}
-            {canEnrollHosts && !hasErrors && (
-              <Button
-                onClick={() => setShowEnrollSecretModal(true)}
-                className={`${baseClass}__enroll-hosts button`}
-                variant="secondary"
-                icon="settings"
-              >
-                <span>Enroll secrets</span>
-              </Button>
+            {hostsPageSettingsOptions.length > 0 && !hasErrors && (
+              <ActionsDropdown
+                className={`${baseClass}__settings-dropdown`}
+                options={hostsPageSettingsOptions}
+                placeholder="Hosts page settings"
+                onChange={onSelectHostsPageSetting}
+                triggerIcon="settings"
+                menuAlign="right"
+              />
             )}
             {showAddHostsButton && (
               <Button
@@ -2176,6 +2311,21 @@ const ManageHostsPage = ({
       {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
       {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}
       {canEnrollHosts && showEnrollSecretModal && renderEnrollSecretModal()}
+      {/* Mounted only once the stored settings load: the form seeds its
+          state from automationSettings at mount, so mounting early (or on a
+          failed load — see the query's onError) would show disabled defaults
+          that, if saved, overwrite the configured webhook. */}
+      {showHostActivityAutomationsModal &&
+        !isLoadingHostActivityAutomations &&
+        !isErrorHostActivityAutomations && (
+          <HostActivityAutomationsModal
+            automationSettings={hostActivityAutomations}
+            fleetName={currentTeamName || "Fleet"}
+            onSubmit={updateHostActivityAutomations}
+            onExit={toggleHostActivityAutomationsModal}
+            isUpdating={isUpdatingHostActivityAutomations}
+          />
+        )}
       {showEditColumnsModal && renderEditColumnsModal()}
       {showDeleteLabelModal && renderDeleteLabelModal()}
       {showAddHostsModal && renderAddHostsModal()}

@@ -4,7 +4,8 @@
       "version": "6.0.11",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Bitwig Studio %' AND publisher = 'Bitwig GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Bitwig Studio %' AND publisher = 'Bitwig GmbH' AND version_compare(version, '6.0.11') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Bitwig Studio %' AND publisher = 'Bitwig GmbH' AND version_compare(version, '6.0.11') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'bitwig studio.exe');"
       },
       "installer_url": "https://www.bitwig.com/dl/Bitwig%20Studio/6.0.11/installer_windows/",
       "install_script_ref": "22e48c46",

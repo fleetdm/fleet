@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -110,6 +111,10 @@ type ActivityLookupService interface {
 
 	// GetActivitiesWebhookSettings returns the webhook settings for activities.
 	GetActivitiesWebhookSettings(ctx context.Context) (ActivitiesWebhookSettings, error)
+	// GetHostActivitiesWebhookSettings returns the enabled host-activities
+	// webhook settings of the fleets the given hosts belong to, deduplicated by
+	// fleet. Returns nil on Fleet Free.
+	GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]HostActivitiesWebhookDelivery, error)
 	// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
 	ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error
 }
@@ -815,8 +820,9 @@ type Service interface {
 
 	// SelfServiceInstallAllSoftwareTitles queues a self-service install for every available self-service software
 	// title on the host that isn't already installed. When categoryID is non-nil, only titles assigned to that
-	// self-service category on the host's fleet are queued.
-	SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *Host, categoryID *uint) error
+	// self-service category on the host's fleet are queued. When matchQuery is non-empty, only titles whose name
+	// matches the query (same semantics as the self-service list endpoint) are queued.
+	SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *Host, categoryID *uint, matchQuery string) error
 
 	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
 	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
@@ -1260,7 +1266,7 @@ type Service interface {
 	// contents and/or label targeting in place. Supported for Apple
 	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and
 	// Android profiles.
-	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte) error
+	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)

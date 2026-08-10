@@ -270,6 +270,18 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 		)
 	})
 
+	// Register Android MDM Command Reconciler schedule (recovers commands whose Pub/Sub notification was lost)
+	deps.register("failed to register mdm_android_command_reconciler schedule", func() (fleet.CronSchedule, error) {
+		return newAndroidMDMCommandReconcilerSchedule(
+			ctx,
+			deps.instanceID,
+			deps.ds,
+			deps.logger,
+			deps.config.License.Key,
+			deps.svc.NewActivity,
+		)
+	})
+
 	deps.register("failed to register enable_android_app_reports_on_default_policy cron", func() (fleet.CronSchedule, error) {
 		return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, deps.instanceID, deps.ds, deps.logger, deps.androidSvc)
 	})

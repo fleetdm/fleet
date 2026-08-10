@@ -4,7 +4,8 @@
       "version": "1.102.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.' AND version_compare(version, '1.102.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.' AND version_compare(version, '1.102.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tailscale.exe');"
       },
       "installer_url": "https://pkgs.tailscale.com/stable/tailscale-setup-1.102.2-amd64.msi",
       "install_script_ref": "22e48c46",

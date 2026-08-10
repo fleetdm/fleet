@@ -21,6 +21,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -1253,6 +1254,8 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "disk_space_darwin":                       {},
 		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
 		hostDetailQueryPrefix + "certificates_windows":                    {},
+		hostDetailQueryPrefix + "tpm_pin_config_verify":                   {},
+		hostDetailQueryPrefix + "tpm_pin_set_verify":                      {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1364,6 +1367,69 @@ func TestHostDetailQueries(t *testing.T) {
 		assert.Contains(t, queries, hostDetailQueryPrefix+name)
 	}
 	verifyDiscovery(t, queries, discovery)
+}
+
+// TestHostDetailQueriesTeamBitLockerPIN is a regression test for #50729: the scheduler must honor team-level disk encryption /
+// BitLocker PIN settings even when Apple MDM is not configured, and must not fall back to the global settings for hosts that
+// belong to a team.
+func TestHostDetailQueriesTeamBitLockerPIN(t *testing.T) {
+	pinQueryNames := []string{
+		hostDetailQueryPrefix + "tpm_pin_config_verify",
+		hostDetailQueryPrefix + "tpm_pin_set_verify",
+	}
+
+	globalRequiresPIN := false
+	teamMDMConfig := fleet.TeamMDM{EnableDiskEncryption: true, RequireBitLockerPIN: true}
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appConfig := &fleet.AppConfig{}
+		appConfig.MDM.WindowsEnabledAndConfigured = true // Apple MDM stays unconfigured
+		if globalRequiresPIN {
+			appConfig.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			appConfig.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+		}
+		return appConfig, nil
+	}
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		return &teamMDMConfig, nil
+	}
+
+	host := fleet.Host{
+		ID:               1,
+		Platform:         "windows",
+		TeamID:           new(uint(7)),
+		NodeKey:          new("test_key"),
+		Hostname:         "test_hostname",
+		UUID:             "test_uuid",
+		RefetchRequested: true,
+	}
+	svc := &Service{
+		clock:    clock.NewMockClock(),
+		logger:   slog.New(slog.DiscardHandler),
+		config:   config.TestConfig(),
+		ds:       ds,
+		jitterMu: new(sync.RWMutex),
+		jitterH:  make(map[time.Duration]*jitterHashTable),
+	}
+
+	// The team requiring a PIN must schedule the PIN queries even though the global config does not.
+	queries, discovery, err := svc.detailQueriesForHost(t.Context(), &host)
+	require.NoError(t, err)
+	require.True(t, ds.TeamMDMConfigFuncInvoked)
+	verifyDiscovery(t, queries, discovery)
+	for _, queryName := range pinQueryNames {
+		assert.Contains(t, queries, queryName)
+	}
+
+	// The reverse: the global config requiring a PIN must not leak to a host whose team does not.
+	globalRequiresPIN = true
+	teamMDMConfig = fleet.TeamMDM{EnableDiskEncryption: true}
+	queries, _, err = svc.detailQueriesForHost(t.Context(), &host)
+	require.NoError(t, err)
+	for _, queryName := range pinQueryNames {
+		assert.NotContains(t, queries, queryName)
+	}
 }
 
 func TestQueriesAndHostFeatures(t *testing.T) {

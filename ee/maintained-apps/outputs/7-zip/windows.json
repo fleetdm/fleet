@@ -4,7 +4,8 @@
       "version": "26.02",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.02') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.02') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('7zfm.exe','7zg.exe'));"
       },
       "installer_url": "https://github.com/ip7z/7zip/releases/download/26.02/7z2602-x64.msi",
       "install_script_ref": "22e48c46",

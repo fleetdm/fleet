@@ -4,7 +4,8 @@
       "version": "6.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'BlueJ' AND publisher = 'BlueJ Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'BlueJ' AND publisher = 'BlueJ Team' AND version_compare(version, '6.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'BlueJ' AND publisher = 'BlueJ Team' AND version_compare(version, '6.0.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'bluej.exe');"
       },
       "installer_url": "https://github.com/k-pet-group/BlueJ-Greenfoot/releases/download/BLUEJ-RELEASE-6.0.0/BlueJ-windows-6.0.0.msi",
       "install_script_ref": "85459eac",

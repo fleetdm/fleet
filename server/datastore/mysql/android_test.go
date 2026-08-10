@@ -54,6 +54,7 @@ func TestAndroid(t *testing.T) {
 		{"GetHostMDMAndroidProfiles", testGetHostMDMAndroidProfiles},
 		{"GetAndroidPolicyRequestByUUID", testGetAndroidPolicyRequestByUUID},
 		{"MDMAndroidCommandCRUD", testMDMAndroidCommandCRUD},
+		{"ListPendingMDMAndroidCommands", testListPendingMDMAndroidCommands},
 		{"LockWipeHostViaAndroidMDM", testLockWipeHostViaAndroidMDM},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
@@ -2803,6 +2804,82 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		})
 		require.Error(t, err)
 		require.True(t, IsDuplicate(err), "expected a Duplicate-entry error for the UNIQUE operation_name constraint")
+	})
+}
+
+func testListPendingMDMAndroidCommands(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// insertCommand creates a command row and backdates created_at so the age cutoff can be exercised
+	// without waiting. Returns the command_uuid.
+	insertCommand := func(t *testing.T, status string, age time.Duration) string {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   cmdUUID,
+			HostUUID:      "host-" + cmdUUID,
+			OperationName: "enterprises/E1/devices/D1/operations/" + cmdUUID,
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        status,
+		}))
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE mdm_android_commands SET created_at = NOW(6) - INTERVAL ? SECOND WHERE command_uuid = ?`,
+				int(age.Seconds()), cmdUUID)
+			return err
+		})
+		return cmdUUID
+	}
+
+	uuidsOf := func(cmds []*android.MDMAndroidCommand) []string {
+		got := make([]string, 0, len(cmds))
+		for _, cmd := range cmds {
+			got = append(got, cmd.CommandUUID)
+		}
+		return got
+	}
+
+	oldest := insertCommand(t, string(android.MDMAndroidCommandStatusPending), 72*time.Hour)
+	middle := insertCommand(t, string(android.MDMAndroidCommandStatusPending), 48*time.Hour)
+	newest := insertCommand(t, string(android.MDMAndroidCommandStatusPending), 25*time.Hour)
+	tooRecent := insertCommand(t, string(android.MDMAndroidCommandStatusPending), time.Hour)
+	acknowledged := insertCommand(t, string(android.MDMAndroidCommandStatusAcknowledged), 48*time.Hour)
+	errored := insertCommand(t, string(android.MDMAndroidCommandStatusError), 48*time.Hour)
+
+	t.Run("returns only pending rows older than the cutoff, oldest first", func(t *testing.T) {
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, time.Now().Add(-24*time.Hour), 100)
+		require.NoError(t, err)
+		require.Equal(t, []string{oldest, middle, newest}, uuidsOf(cmds))
+		require.NotContains(t, uuidsOf(cmds), tooRecent)
+		require.NotContains(t, uuidsOf(cmds), acknowledged)
+		require.NotContains(t, uuidsOf(cmds), errored)
+	})
+
+	t.Run("limit caps the batch to the oldest rows", func(t *testing.T) {
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, time.Now().Add(-24*time.Hour), 2)
+		require.NoError(t, err)
+		require.Equal(t, []string{oldest, middle}, uuidsOf(cmds))
+	})
+
+	t.Run("returns all fields needed to reconcile", func(t *testing.T) {
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, time.Now().Add(-24*time.Hour), 1)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		assert.Equal(t, oldest, cmds[0].CommandUUID)
+		assert.Equal(t, "host-"+oldest, cmds[0].HostUUID)
+		assert.Equal(t, "enterprises/E1/devices/D1/operations/"+oldest, cmds[0].OperationName)
+		assert.Equal(t, string(android.MDMAndroidCommandTypeLock), cmds[0].CommandType)
+		assert.Equal(t, string(android.MDMAndroidCommandStatusPending), cmds[0].Status)
+		// created_at drives the not-found grace period in the reconciler, so it has to come back
+		// populated. Only assert it predates the cutoff -- an exact age would be at the mercy of clock
+		// skew between the app and the database.
+		assert.False(t, cmds[0].CreatedAt.IsZero())
+		assert.True(t, cmds[0].CreatedAt.Before(time.Now().Add(-24*time.Hour)))
+	})
+
+	t.Run("no matching rows returns an empty slice", func(t *testing.T) {
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, time.Now().Add(-365*24*time.Hour), 100)
+		require.NoError(t, err)
+		require.Empty(t, cmds)
 	})
 }
 

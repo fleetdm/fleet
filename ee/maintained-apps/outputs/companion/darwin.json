@@ -4,7 +4,8 @@
       "version": "5.0.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'companion.bitfocus.no';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'companion.bitfocus.no' AND version_compare(bundle_short_version, '5.0.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'companion.bitfocus.no' AND version_compare(bundle_short_version, '5.0.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'companion.bitfocus.no');"
       },
       "installer_url": "https://cf-pub.bitfocus.io/companion/companion/companion-mac-arm64-5.0.3-9703-stable-2daa0d7670.dmg",
       "install_script_ref": "f4b5e238",

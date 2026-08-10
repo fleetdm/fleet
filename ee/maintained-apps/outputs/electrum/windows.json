@@ -4,7 +4,8 @@
       "version": "4.8.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Electrum' AND publisher = 'Electrum Technologies GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Electrum' AND publisher = 'Electrum Technologies GmbH' AND version_compare(version, '4.8.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Electrum' AND publisher = 'Electrum Technologies GmbH' AND version_compare(version, '4.8.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'electrum.exe');"
       },
       "installer_url": "https://download.electrum.org/4.8.0/electrum-4.8.0-setup.exe",
       "install_script_ref": "32bde59f",

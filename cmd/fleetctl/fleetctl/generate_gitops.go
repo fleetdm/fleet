@@ -1287,11 +1287,13 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	}
 
 	if team.ID == 0 {
-		// Only include failing_policies_webhook for "No Team".
+		// Only include failing_policies_webhook and host_activities_webhook for "No Team".
 		fpw := webhookSettings["failing_policies_webhook"]
+		haw := webhookSettings["host_activities_webhook"]
 		teamSettings = map[string]any{
 			jsonFieldName(t, "WebhookSettings"): map[string]any{
 				"failing_policies_webhook": fpw,
+				"host_activities_webhook":  haw,
 			},
 		}
 		return teamSettings, nil
@@ -1771,6 +1773,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 				return nil, err
 			}
 			policySpec["fleet_maintained_app_slug"] = fma.Slug
+			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
@@ -2248,7 +2251,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
+				// With patch_when_closed on, this holds Fleet's managed app open query, which gitops rejects.
+				patchPolicy := softwareTitle.SoftwarePackage.PatchPolicy
+				if softwareTitle.SoftwarePackage.PreInstallQuery != "" && (patchPolicy == nil || !patchPolicy.PatchWhenClosed) {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
 					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)

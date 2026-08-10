@@ -4,7 +4,8 @@
       "version": "2026.1.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'NVDA %' AND publisher = 'NV Access';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'NVDA %' AND publisher = 'NV Access' AND version_compare(version, '2026.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'NVDA %' AND publisher = 'NV Access' AND version_compare(version, '2026.1.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'nvda.exe');"
       },
       "installer_url": "https://download.nvaccess.org/releases/2026.1.1/nvda_2026.1.1.exe",
       "install_script_ref": "25f7bd4d",

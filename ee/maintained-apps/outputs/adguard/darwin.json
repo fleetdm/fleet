@@ -4,7 +4,8 @@
       "version": "2.19.0.2258",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adguard.mac.adguard';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adguard.mac.adguard' AND version_compare(bundle_short_version, '2.19.0.2258') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adguard.mac.adguard' AND version_compare(bundle_short_version, '2.19.0.2258') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.adguard.mac.adguard');"
       },
       "installer_url": "https://static.adguard.com/mac/release/AdGuard-2.19.0.2258.dmg",
       "install_script_ref": "bd04834e",
