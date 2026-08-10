@@ -1,12 +1,16 @@
 # Uninstall for Citrix Workspace App LTSR.
 #
-# The installer self-registers under Programs and Features as "Citrix
-# Workspace <version>" (e.g. "Citrix Workspace 2507"), with an UninstallString
-# that points at the vendor's own uninstaller (TrolleyExpress.exe on older
-# builds, CWAInstaller.exe on 2311.1+). We look up that entry, extract just
-# the executable path, and re-run it with the vendor-documented silent
-# uninstall switches rather than trusting whatever args are already in the
-# registry string.
+# The Programs and Features entry that's actually visible is Citrix's
+# bundled "ReceiverInside" component (DisplayName "Citrix Workspace Inside"),
+# whose UninstallString is a standard MSI reference (MsiExec.exe
+# /I{ProductCode}, the maintenance/repair form) -- not the TrolleyExpress.exe
+# or CWAInstaller.exe bootstrapper uninstaller some older community docs
+# describe for this DisplayName pattern. Resolve the ProductCode (registry
+# key name, or the first GUID in the UninstallString) and run a clean
+# "msiexec /x {ProductCode} /qn /norestart" -- never reuse the /I switch
+# from the registry string. If the selected entry isn't MSI-based, fall back
+# to re-running its own uninstaller exe with Citrix's documented silent
+# switches.
 
 $softwareNameLike = "Citrix Workspace *"
 
@@ -39,6 +43,8 @@ if (-not $selected) {
     Exit 0
 }
 
+Write-Host "Selected entry DisplayName: $($selected.DisplayName)"
+
 $uninstallCommand = if ($selected.QuietUninstallString) {
     $selected.QuietUninstallString
 } else {
@@ -50,25 +56,42 @@ if (-not $uninstallCommand) {
     Exit 1
 }
 
-$exePath = ""
-if ($uninstallCommand -match '^\s*"([^"]+)"') {
-    # Quoted path
-    $exePath = $matches[1]
-} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)') {
-    # Unquoted path that may contain spaces (e.g. "C:\Program Files (x86)\...")
-    $exePath = $matches[1]
+if ($uninstallCommand -match '(?i)msiexec') {
+    # MSI-based entry: resolve the ProductCode and run a clean uninstall,
+    # ignoring whatever switches are already in the registry string.
+    $productCode = $selected.PSChildName
+    if ($productCode -notmatch '^\{[0-9A-Fa-f-]+\}$') {
+        if ($uninstallCommand -match '(\{[0-9A-Fa-f-]+\})') {
+            $productCode = $matches[1]
+        }
+    }
+    if ($productCode -notmatch '^\{[0-9A-Fa-f-]+\}$') {
+        Throw "Could not determine ProductCode from: $uninstallCommand"
+    }
+
+    Write-Host "Uninstalling product code: $productCode"
+    $process = Start-Process -FilePath "msiexec.exe" `
+        -ArgumentList "/x $productCode /qn /norestart" `
+        -PassThru -Wait
 } else {
-    Throw "Could not parse uninstaller path from: $uninstallCommand"
+    # Non-MSI entry (e.g. TrolleyExpress.exe / CWAInstaller.exe): re-run the
+    # vendor's own uninstaller with its documented silent switches.
+    $exePath = ""
+    if ($uninstallCommand -match '^\s*"([^"]+)"') {
+        # Quoted path
+        $exePath = $matches[1]
+    } elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)') {
+        # Unquoted path that may contain spaces (e.g. "C:\Program Files (x86)\...")
+        $exePath = $matches[1]
+    } else {
+        Throw "Could not parse uninstaller path from: $uninstallCommand"
+    }
+
+    Write-Host "Uninstall command: $exePath"
+    $process = Start-Process -FilePath $exePath -ArgumentList "/uninstall /cleanup /silent" `
+        -PassThru -Wait
 }
 
-# Vendor-documented silent uninstall switches.
-$uninstallArgs = "/uninstall /cleanup /silent"
-
-Write-Host "Selected entry DisplayName: $($selected.DisplayName)"
-Write-Host "Uninstall command: $exePath"
-Write-Host "Uninstall args: $uninstallArgs"
-
-$process = Start-Process -FilePath $exePath -ArgumentList $uninstallArgs -PassThru -Wait
 $exitCode = $process.ExitCode
 Write-Host "Uninstall exit code: $exitCode"
 
