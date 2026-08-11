@@ -7366,7 +7366,7 @@ List all assets available for the "Unassigned" fleet.
       "identifier": "com.example.asset1",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo=",
+      "checksum": "dGVzdAo="
     },
     {
       "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
@@ -7374,9 +7374,9 @@ List all assets available for the "Unassigned" fleet.
       "identifier": "com.example.asset2",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo=",
-    },
-  ],
+      "checksum": "dGVzdAo="
+    }
+  ]
 }
 ```
 
@@ -7618,7 +7618,7 @@ If a host is missing the IdP data a variable needs, that host's rename fails. A 
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 ### Resend host name template
 
@@ -8525,9 +8525,7 @@ Edit managed local account enforcement settings for eligible hosts.
 
 `POST /api/v1/fleet/managed_local_account`
 
-##### Default response
-
-`204`
+##### Request body
 
 ```json
 {
@@ -8536,6 +8534,10 @@ Edit managed local account enforcement settings for eligible hosts.
   "end_user_local_account_type": "admin"
 }
 ```
+
+##### Default response
+
+`Status: 204`
 
 ---
 
@@ -13682,7 +13684,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
-   "output": "Installing software...\nError: The operation can’t be completed because the item "Falcon" is in use.",
+   "output": "Installing software...\nError: The operation can’t be completed because the item \"Falcon\" is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
  }
@@ -14380,7 +14382,7 @@ _Available in Fleet Premium_
         ],
         "managed_local_account_settings": {
           "enabled": true
-        },
+        }
       },
       "windows_settings": {
         "custom_settings": [
@@ -14397,7 +14399,7 @@ _Available in Fleet Premium_
         ],
         "managed_local_account_settings": {
           "enabled": true
-        },
+        }
       },
       "macos_setup": {
         "bootstrap_package": "",
