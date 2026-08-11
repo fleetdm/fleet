@@ -4,7 +4,8 @@
       "version": "13.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Insomnia' AND publisher = 'Kong';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Insomnia' AND publisher = 'Kong' AND version_compare(version, '13.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Insomnia' AND publisher = 'Kong' AND version_compare(version, '13.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'insomnia.exe');"
       },
       "installer_url": "https://github.com/Kong/insomnia/releases/download/core@13.1.0/Insomnia.Core-13.1.0.exe",
       "install_script_ref": "a20529f5",

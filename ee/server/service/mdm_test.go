@@ -629,7 +629,7 @@ func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
 			return ids, nil
 		}
 		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, decl *fleet.MDMAppleDeclaration,
-			usesFleetVars []fleet.FleetVarName,
+			usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction,
 		) (*fleet.MDMAppleDeclaration, error) {
 			got.decl = decl
 			got.vars = usesFleetVars

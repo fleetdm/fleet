@@ -4,7 +4,8 @@
       "version": "5.33.0.5939",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon WorkSpaces' AND publisher = 'Amazon Web Services, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon WorkSpaces' AND publisher = 'Amazon Web Services, Inc' AND version_compare(version, '5.33.0.5939') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon WorkSpaces' AND publisher = 'Amazon Web Services, Inc' AND version_compare(version, '5.33.0.5939') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon workspaces.exe');"
       },
       "installer_url": "https://d2td7dqidlhjx7.cloudfront.net/prod/global/windows/Amazon+WorkSpaces.msi",
       "install_script_ref": "22e48c46",

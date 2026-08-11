@@ -4,7 +4,8 @@
       "version": "1.29.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Podman Desktop %' AND publisher = 'Podman Desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Podman Desktop %' AND publisher = 'Podman Desktop' AND version_compare(version, '1.29.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Podman Desktop %' AND publisher = 'Podman Desktop' AND version_compare(version, '1.29.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'podman desktop.exe');"
       },
       "installer_url": "https://github.com/containers/podman-desktop/releases/download/v1.29.1/podman-desktop-1.29.1-setup-x64.exe",
       "install_script_ref": "a1a2e133",

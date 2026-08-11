@@ -4,7 +4,8 @@
       "version": "3.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Flexwhere for Desktop' AND publisher = 'Dutchview';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Flexwhere for Desktop' AND publisher = 'Dutchview' AND version_compare(version, '3.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Flexwhere for Desktop' AND publisher = 'Dutchview' AND version_compare(version, '3.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'flexwhere for desktop.exe');"
       },
       "installer_url": "https://s3.eu-central-1.amazonaws.com/releases.flexwhere.net/Flexwhere+for+Desktop+3.5.msi",
       "install_script_ref": "22e48c46",

@@ -4,7 +4,8 @@
       "version": "6.34.2.12397",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'CrisisGo' AND publisher = 'CrisisGo, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CrisisGo' AND publisher = 'CrisisGo, Inc.' AND version_compare(version, '6.34.2.12397') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CrisisGo' AND publisher = 'CrisisGo, Inc.' AND version_compare(version, '6.34.2.12397') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'crisisgo.exe');"
       },
       "installer_url": "https://crisisgoapp.s3.amazonaws.com/Windows/CrisisGo_6.34.2.msi",
       "install_script_ref": "01aaef68",

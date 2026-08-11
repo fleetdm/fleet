@@ -421,9 +421,11 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 type ActivityTypeMDMEnrolled struct {
-	// HostID is omitted when zero so Windows enrollments (which don't set it;
-	// see #47874) keep their existing activity payload. It is always set for
-	// Apple enrollments.
+	// HostID is omitted when zero. It is always set for Apple enrollments and
+	// for Windows enrollments where the host is known at enrollment time;
+	// Windows Azure automatic enrollments are linked to their host later (via
+	// the serial reported on the first management session), so their
+	// enrollment activity has no host_id (see #47874).
 	HostID           uint    `json:"host_id,omitempty"`
 	HostSerial       *string `json:"host_serial"`
 	HostDisplayName  string  `json:"host_display_name"`
@@ -1181,6 +1183,7 @@ type ActivityTypeResentConfigurationProfile struct {
 	HostID          *uint   `json:"host_id"`
 	HostDisplayName *string `json:"host_display_name"`
 	ProfileName     string  `json:"profile_name"`
+	ProfileUUID     string  `json:"profile_uuid"`
 }
 
 func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
@@ -1189,6 +1192,7 @@ func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
 
 type ActivityTypeResentConfigurationProfileBatch struct {
 	ProfileName string `json:"profile_name"`
+	ProfileUUID string `json:"profile_uuid"`
 	HostCount   int64  `json:"host_count"`
 }
 
@@ -1211,6 +1215,8 @@ type ActivityTypeInstalledSoftware struct {
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
+	// InstallSkippedWhenAppOpen is set only on a patch-when-closed skip; Status is then "failed_install".
+	InstallSkippedWhenAppOpen bool `json:"install_skipped_when_app_open,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {

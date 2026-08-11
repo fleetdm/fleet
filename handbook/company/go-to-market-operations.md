@@ -577,7 +577,7 @@ We track certain social posts from the [LinkedIn company page](https://www.linke
 
 #### Quotes
 
-##### Change which fields are visable when editing selected quote line items
+##### Change which fields are visible when editing selected quote line items
 
 <img width="1698" height="391" alt="image" src="https://github.com/user-attachments/assets/71f540b8-c1b7-408e-b7cc-640237db7930" />
 
@@ -1316,7 +1316,7 @@ Fleet uses an **opt-in** model for all marketing communications.
 - Contacts must explicitly consent before being added to the Marketing Contacts or Newsletter lists. Consent is captured at the point of form submission (newsletter sign-up, content downloads, event registration) or when a contact responds to an SDR or AE outreach.
 - Contacts collected at events (e.g., badge scans) are considered opted-in at the point of scanning and are added to Marketing Contacts with `ls: prospect`.
 - Contacts with Role = ⛄️ Non-prospect are tagged `ls: non-prospect` and excluded from marketing sends even if they are on a marketing list.
-- The **Marketing Email** field is used to give the sales team the ability to signal to Marketing(ActiveCampaign) that they want to STOP marketing from emailing a contact.  The defualt value is **"no restrictions"**, the two optional values are **"Block Nurture Email""** and **"Block All Email"**
+- The **Marketing Email** field is used to give the sales team the ability to signal to Marketing(ActiveCampaign) that they want to STOP marketing from emailing a contact.  The default value is **"no restrictions"**, the two optional values are **"Block Nurture Email""** and **"Block All Email"**
 - Unsubscribing removes a contact from the relevant list and halts all active automations tied to it. Unsubscribed contacts should not be re-subscribed without explicit re-consent.
 - Transactional and product emails (e.g., billing notifications, security alerts) are not managed in ActiveCampaign and are not subject to marketing list opt-in requirements.
 

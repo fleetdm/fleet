@@ -786,7 +786,7 @@ func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.H
 	}
 
 	var mdmTeamConfig *fleet.TeamMDM
-	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
+	if appConfig != nil && (appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured) && host.TeamID != nil {
 		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "reading MDM Team Config")

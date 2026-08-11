@@ -4,6 +4,7 @@ import {
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
   IWebhookActivities,
+  IWebhookHostActivities,
 } from "interfaces/webhook";
 import { IGlobalIntegrations } from "./integration";
 import { EndUserLocalAccountType } from "./mdm";
@@ -39,8 +40,12 @@ interface ICustomSetting {
 }
 
 export interface IAppleDeviceUpdates {
+  /** The sentinel `"latest"` enforces the newest version available, with the
+   * deadline derived from `deadline_days` instead of a fixed date. */
   minimum_version: string;
   deadline: string;
+  /** Only set when `minimum_version` is `"latest"`; null otherwise. */
+  deadline_days: number | null;
   update_new_hosts?: boolean;
 }
 
@@ -273,6 +278,7 @@ export interface IWebhookSettings {
   host_status_webhook: IWebhookHostStatus | null;
   vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
   activities_webhook: IWebhookActivities;
+  host_activities_webhook?: IWebhookHostActivities | null;
 }
 
 export type IAutomationsConfig = Pick<

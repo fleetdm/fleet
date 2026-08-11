@@ -4,7 +4,8 @@
       "version": "4.4.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.danielerolli.beaver-notes';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.danielerolli.beaver-notes' AND version_compare(bundle_short_version, '4.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.danielerolli.beaver-notes' AND version_compare(bundle_short_version, '4.4.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.danielerolli.beaver-notes');"
       },
       "installer_url": "https://github.com/Beaver-Notes/Beaver-Notes/releases/download/4.4.0/Beaver-notes-4.4.0-universal.dmg",
       "install_script_ref": "f1f718a8",

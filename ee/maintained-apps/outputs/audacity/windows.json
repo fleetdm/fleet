@@ -4,7 +4,8 @@
       "version": "3.7.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity Team' AND version_compare(version, '3.7.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity Team' AND version_compare(version, '3.7.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'audacity.exe');"
       },
       "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-3.7.8/audacity-win-3.7.8-64bit.exe",
       "install_script_ref": "33137473",

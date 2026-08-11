@@ -4,7 +4,8 @@
       "version": "3.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cmushroom.redis-pro';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cmushroom.redis-pro' AND version_compare(bundle_short_version, '3.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cmushroom.redis-pro' AND version_compare(bundle_short_version, '3.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.cmushroom.redis-pro');"
       },
       "installer_url": "https://github.com/cmushroom/redis-pro/releases/download/3.1.0/redis-pro.dmg",
       "install_script_ref": "b9e828ad",

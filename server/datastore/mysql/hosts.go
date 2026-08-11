@@ -667,6 +667,8 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_certificate_templates":            "host_uuid",
 	"host_mdm_apple_enrollment_permissions": "host_uuid",
 	"host_mdm_apple_device_names":           "host_uuid",
+	"host_mdm_apple_device_vitals":          "host_uuid",
+	"host_mdm_apple_service_subscriptions":  "host_uuid",
 	"host_mdm_apple_os_updates":             "host_uuid",
 }
 

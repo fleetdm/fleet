@@ -4,7 +4,8 @@
       "version": "1.1.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'FreeCAD%' AND publisher = 'FreeCAD Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'FreeCAD%' AND publisher = 'FreeCAD Team' AND version_compare(version, '1.1.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'FreeCAD%' AND publisher = 'FreeCAD Team' AND version_compare(version, '1.1.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'freecad.exe');"
       },
       "installer_url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.3/FreeCAD_1.1.3-Windows-x86_64-py311-installer.exe",
       "install_script_ref": "1cf2c1f5",

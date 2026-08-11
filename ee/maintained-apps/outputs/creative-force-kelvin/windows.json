@@ -4,7 +4,8 @@
       "version": "6.7.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Kelvin' AND publisher = 'Creative Force';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Kelvin' AND publisher = 'Creative Force' AND version_compare(version, '6.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Kelvin' AND publisher = 'Creative Force' AND version_compare(version, '6.7.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'creative force kelvin.exe');"
       },
       "installer_url": "https://download.creativeforce.io/released-files.042024/prod/kelvin/win/Kelvin-6.7.0-win.msi",
       "install_script_ref": "22e48c46",
