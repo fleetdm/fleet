@@ -1700,6 +1700,7 @@ This activity contains the following fields:
 - "policy_ids": IDs of the patch policies included in the notification.
 - "time_before": Either 1 hour or 5 minutes before patch is forced.
 - "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
+- "script_execution_id": Execution ID of the script run that displayed notification to the end user.
 
 #### Example
 
@@ -1712,7 +1713,8 @@ This activity contains the following fields:
   "status": "success",
   "policy_ids": [1337, 1338],
   "time_before": 3600,
-  "install_at": "2026-08-06T14:00:00Z"
+  "install_at": "2026-08-06T14:00:00Z",
+  "script_execution_id": "c672cccb-fcfa-4424-a25f-dd2d2e3eb3be"
 }
 ```
 
