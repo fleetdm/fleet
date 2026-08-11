@@ -4330,6 +4330,8 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 > In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
 
+> Note: GitOps users don't have host read access. For them, this endpoint returns the host's `id` and nothing else, rather than an error like [Get host](#get-host) does.
+
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 
 #### Parameters
