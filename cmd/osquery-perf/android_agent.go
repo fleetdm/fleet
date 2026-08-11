@@ -59,6 +59,13 @@ type androidAgent struct {
 	// Timing
 	statusReportInterval time.Duration
 
+	// lastState is the most recent state successfully polled from the mock proxy. It is
+	// reused when a later poll fails so the agent keeps reporting instead of going silent,
+	// which Fleet's device reconciler would eventually treat as an unenrollment.
+	// staleStateReports counts how many consecutive reports have used it.
+	lastState         *proxyDeviceState
+	staleStateReports int
+
 	// Non-compliance probability (fraction of STATUS_REPORTs that include non-compliance details)
 	nonComplianceProb float64
 }
@@ -253,11 +260,21 @@ func (a *androidAgent) runLoop() {
 
 	for range statusTicker.C {
 		// Poll proxy for current state (policy version, pending commands)
-		state, err := a.pollProxyState()
+		state, stale, err := a.currentState()
+		if errors.Is(err, errProxyDeviceDeleted) {
+			// Fleet unenrolled this host, so there is nothing left to simulate.
+			log.Printf("Android agent %d: device was deleted, stopping", a.agentIndex)
+			return
+		}
 		if err != nil {
 			log.Printf("Android agent %d: failed to poll proxy: %v", a.agentIndex, err)
 			a.stats.IncrementAndroidErrors()
 			continue
+		}
+		if stale {
+			// Still report, so the device doesn't look dead to Fleet's reconciler, but count
+			// it: the state being reported is fabricated.
+			a.stats.IncrementAndroidErrors()
 		}
 
 		// Send STATUS_REPORT
@@ -338,10 +355,18 @@ func (a *androidAgent) registerWithProxy() error {
 		EnterpriseSpecificID string `json:"enterprise_specific_id"`
 		DeviceName           string `json:"device_name"`
 		EnterpriseID         string `json:"enterprise_id"`
+		PolicyName           string `json:"policy_name,omitempty"`
+		PolicyVersion        int64  `json:"policy_version,omitempty"`
 	}{
 		EnterpriseSpecificID: a.enterpriseSpecificID,
 		DeviceName:           a.deviceName,
 		EnterpriseID:         a.enterpriseID,
+	}
+	// When registering again after the proxy lost its in-memory state, hand back the policy
+	// we last observed so the proxy doesn't report a regressed policy to Fleet.
+	if a.lastState != nil {
+		body.PolicyName = a.lastState.PolicyName
+		body.PolicyVersion = a.lastState.PolicyVersion
 	}
 	data, err := json.Marshal(body)
 	if err != nil {
@@ -354,12 +379,29 @@ func (a *androidAgent) registerWithProxy() error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusGone {
+		return errProxyDeviceDeleted
+	}
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("register returned %d: %s", resp.StatusCode, string(respBody))
 	}
 	return nil
 }
+
+// errProxyDeviceUnknown means the mock proxy has no registration for this device, which
+// happens when the proxy is restarted since it only keeps devices in memory.
+var errProxyDeviceUnknown = errors.New("device not registered with proxy")
+
+// errProxyDeviceDeleted means Fleet deleted this device through AMAPI, i.e. the host was
+// unenrolled. Unlike errProxyDeviceUnknown this is terminal: the device is gone on purpose
+// and must not register again.
+var errProxyDeviceDeleted = errors.New("device was deleted from the proxy")
+
+// maxStaleStateReports bounds how many consecutive status reports may be sent from a stale
+// cached state. Reporting forever would keep a dead agent looking healthy and would re-drive
+// Fleet's certificate API with the same templates every cycle.
+const maxStaleStateReports = 10
 
 // pollProxyState asks the mock proxy for the current state this device should report.
 func (a *androidAgent) pollProxyState() (*proxyDeviceState, error) {
@@ -369,6 +411,12 @@ func (a *androidAgent) pollProxyState() (*proxyDeviceState, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, errProxyDeviceUnknown
+	}
+	if resp.StatusCode == http.StatusGone {
+		return nil, errProxyDeviceDeleted
+	}
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("poll state returned %d: %s", resp.StatusCode, string(respBody))
@@ -379,6 +427,58 @@ func (a *androidAgent) pollProxyState() (*proxyDeviceState, error) {
 		return nil, fmt.Errorf("decode state: %w", err)
 	}
 	return &state, nil
+}
+
+// currentState polls the mock proxy for this device's state, recovering from a proxy that
+// lost its in-memory registration by registering again. If the state still can't be
+// fetched, the last known state is reused so the agent keeps sending status reports: going
+// silent makes Fleet's hourly device reconciler mark the host unenrolled.
+//
+// The returned bool reports whether the state is stale (reused rather than freshly polled),
+// so the caller can still count the failure instead of reporting a healthy load test.
+// errProxyDeviceDeleted is returned as-is: that device is gone on purpose.
+func (a *androidAgent) currentState() (*proxyDeviceState, bool, error) {
+	state, err := a.pollProxyState()
+	if errors.Is(err, errProxyDeviceUnknown) {
+		log.Printf("Android agent %d: proxy lost our registration, registering again", a.agentIndex)
+		if rerr := a.registerWithProxy(); rerr != nil {
+			if errors.Is(rerr, errProxyDeviceDeleted) {
+				return nil, false, rerr
+			}
+			return a.lastKnownState(fmt.Errorf("re-register with proxy: %w", rerr))
+		}
+		state, err = a.pollProxyState()
+	}
+	if errors.Is(err, errProxyDeviceDeleted) {
+		return nil, false, err
+	}
+	if err != nil {
+		return a.lastKnownState(err)
+	}
+	a.lastState = state
+	a.staleStateReports = 0
+	return state, false, nil
+}
+
+// lastKnownState returns the previously polled state, or err if there is none yet or the
+// state has been reused too many times in a row.
+func (a *androidAgent) lastKnownState(err error) (*proxyDeviceState, bool, error) {
+	if a.lastState == nil {
+		return nil, false, err
+	}
+	if a.staleStateReports >= maxStaleStateReports {
+		return nil, false, fmt.Errorf("proxy state stale for %d consecutive reports: %w", a.staleStateReports, err)
+	}
+	a.staleStateReports++
+	log.Printf("Android agent %d: reusing last known proxy state (%d in a row): %v", a.agentIndex, a.staleStateReports, err)
+	// Pending commands were already acked against the earlier state; re-acking them would
+	// send duplicate operation results to Fleet.
+	stale := *a.lastState
+	stale.PendingCommands = nil
+	// Certificates were already handled against the earlier state; re-serving them would
+	// re-drive Fleet's certificate API every cycle for as long as the proxy is unreachable.
+	stale.PendingCertificates = nil
+	return &stale, true, nil
 }
 
 // sendEnrollment sends an ENROLLMENT PubSub message to Fleet.
