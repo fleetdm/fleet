@@ -107,7 +107,7 @@ module.exports = {
 
     // For bold text
     customRenderer.strong = function(textHTML) {
-      return `<strong style="display: inline; font-weight: 700; font-size: 16px; line-height: 24px;">${textHTML}</strong>`;
+      return `<strong style="display: inline; font-weight: 700; color: #192147">${textHTML}</strong>`;
     };
 
     // For emphasized text
