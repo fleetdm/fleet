@@ -3730,7 +3730,7 @@ For Windows, allows users to add custom Windows profiles for BitLocker.
 
 ### mdm.allow_all_declarations
 
-> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations are turned on separately with [`mdm.allow_custom_activations`](#mdm-allow-custom-activations).
+> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations require [`mdm.allow_custom_activations`](#mdm-allow-custom-activations).
 
 If disabled (default), Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
 
@@ -3748,15 +3748,17 @@ Enabling this bypasses checks for forbidden declaration types, reserved identifi
 
 ### mdm.allow_custom_activations
 
-Allows custom [activations](https://developer.apple.com/documentation/devicemanagement/activationsimple) to be uploaded with Apple configuration declarations (DDM profiles), using the API or GitOps.
+*Available in Fleet Premium.*
 
-An activation includes a predicate. Predicate syntax is defined by Apple, so Fleet can't check it before sending it to a host. On macOS 26.5, an invalid predicate can leave a host unmanageable: declaration commands stop completing, other MDM commands are never finished, and removing the MDM enrollment profile on the host fails. The host can't be recovered remotely. Apple is tracking this as FB24193230.
+Allows users to add custom [activations](https://developer.apple.com/documentation/devicemanagement/activationsimple) to Apple configuration declarations (DDM profiles), using the API or GitOps.
 
-Custom activations are turned off because of this. If you turn them on, test each predicate on a single host before you add the profile to a fleet.
+An activation includes a predicate. Apple defines predicate syntax, so Fleet can't check a predicate before it reaches a host.
 
-An activation that's already uploaded can be removed whether or not this setting is turned on.
+On macOS 26.5, an invalid predicate can leave a host unmanageable. The host stops applying declarations, other MDM commands never finish, and removing the MDM enrollment profile from the host fails. You can't recover the host remotely. Apple tracks this as FB24193230.
 
-Custom activations require Fleet Premium.
+Custom activations are off for this reason. If you turn them on, test each predicate on one host before you add the profile to more hosts.
+
+You can remove an activation you already added, whether or not this setting is turned on.
 
 - Default value: `false`
 - Environment variable: `FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS`
