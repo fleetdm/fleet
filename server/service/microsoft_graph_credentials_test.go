@@ -359,7 +359,7 @@ func TestListMicrosoftGraphCredentials(t *testing.T) {
 	require.Len(t, creds, 1)
 	assert.Equal(t, graphTenantA, creds[0].TenantID)
 	assert.Equal(t, graphClientA, creds[0].ClientID)
-	assert.Equal(t, fleet.MaskedPassword, creds[0].ClientSecret)
+	assert.Empty(t, creds[0].ClientSecret, "the secret is write-only and must never be returned, not even as a mask")
 	// Per-tenant status is the whole reason this endpoint exists; it is no longer on the app config.
 	assert.True(t, creds[0].CredentialInvalid)
 

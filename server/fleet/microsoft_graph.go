@@ -9,9 +9,10 @@ import (
 
 // MicrosoftGraphCredential is the Entra app-registration credential Fleet authenticates with when calling Microsoft Graph.
 type MicrosoftGraphCredential struct {
-	TenantID     string `json:"tenant_id" db:"tenant_id"`
-	ClientID     string `json:"client_id" db:"client_id"`
-	ClientSecret string `json:"client_secret" db:"-"`
+	TenantID string `json:"tenant_id" db:"tenant_id"`
+	ClientID string `json:"client_id" db:"client_id"`
+	// ClientSecret is write-only. Omitting it on a write means "keep the stored secret".
+	ClientSecret string `json:"client_secret,omitempty" db:"-"`
 
 	// CredentialInvalid is set by the sync when the credential fails to authenticate or is denied, and cleared on the
 	// next successful sync.

@@ -47,9 +47,6 @@ func (svc *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
 	}
-	for _, cred := range creds {
-		cred.ClientSecret = fleet.MaskedPassword
-	}
 	return creds, nil
 }
 
@@ -173,8 +170,8 @@ func (svc *Service) refreshMicrosoftGraphCredentialInvalid(ctx context.Context) 
 }
 
 // resolveMicrosoftGraphCredentials validates the incoming credential list and returns it with every client secret
-// resolved to a usable value. A caller that already has a stored credential may send back the masked placeholder (the UI
-// round-trips what the list endpoint returned) or omit the secret entirely; both mean "keep the stored secret".
+// resolved to a usable value. Omitting the secret for an already-stored credential means "keep the stored secret"; the
+// standard masked placeholder is accepted as the same thing.
 //
 // Validation failures are accumulated on invalid rather than returned, so one bad entry does not mask another. The
 // returned slice only contains entries that validated.
