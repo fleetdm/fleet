@@ -375,15 +375,21 @@ func (ds *Datastore) ListHostReports(
 
 	countStmt := "SELECT COUNT(*) FROM queries q " + whereClause
 
-	// Do a LATERAL subquery for each row in queries q so that everything stays in index space
+	// Aggregate this host's results per query, then join on query_id. The
+	// natural spelling is LEFT JOIN LATERAL ... ON TRUE correlated on q.id, but
+	// MariaDB has no LATERAL. A derived table cannot be correlated either, so
+	// the subquery groups by query_id instead of filtering per row -- equivalent
+	// for a single host, and it keeps the qr_stats alias the ordering and
+	// cursor-pagination expressions below are written against.
 	listStmt := `
 		SELECT q.id, q.name, q.description, q.discard_data, q.logging_type, qr_stats.last_result_fetched
 		FROM queries q
-		LEFT JOIN LATERAL (
-			SELECT MAX(last_fetched) AS last_result_fetched
+		LEFT JOIN (
+			SELECT query_id, MAX(last_fetched) AS last_result_fetched
 			FROM query_results
-			WHERE query_id = q.id AND host_id = ?
-		) qr_stats ON TRUE
+			WHERE host_id = ?
+			GROUP BY query_id
+		) qr_stats ON qr_stats.query_id = q.id
 	` + whereClause
 	listArgs := append([]any{hostID}, whereArgs...)
 
