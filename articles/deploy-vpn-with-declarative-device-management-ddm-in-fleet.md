@@ -23,11 +23,11 @@ A VPN declaration that authenticates with a shared secret references a separate 
 
 ## Security considerations
 
-The plaintext credential no longer lives inside content that gets distributed everywhere. The old `.mobileconfig` VPN payload baked the shared secret into a file that every enrolled device received and stored, that Fleet stored in its own database, and that anyone with access to the device could potentially recover through `profiles show` or the keychain. With assets, the declaration itself carries only a URL, and the secret exists in exactly one place you control. That also changes how rotation works: to rotate the secret, you change the JSON file in one place. You don't have to redistribute a new profile to every device the way the old model required.
+The plaintext credential no longer lives inside content that gets distributed everywhere. The old `.mobileconfig` VPN payload baked the shared secret into a file that every enrolled device received and stored, that Fleet stored in its own database, and that anyone with access to the device could recover through `profiles show` or the keychain. With assets, the declaration itself carries only a URL, and the secret exists in exactly one place you control. That also changes how rotation works: to rotate the secret, you change the JSON file in one place. You don't have to redistribute a new profile to every device the way the old model required.
 
 The device is willing to present its MDM identity certificate as part of the request, per Apple's spec: "A request that uses MDM semantics, which includes the device-identity certificate, and any user authentication. This is equivalent to an MDM request made to the `CheckInURL` or `ServerURL`." Fleet always sends the request this way. What varies is whether your hosting server actually asks for and checks that certificate. A plain HTTPS server can just ignore it and respond to anyone, which is the simpler option if your security requirements don't call for more.
 
-The best-practice end state for a production deployment is to configure your hosting infrastructure to require mutual TLS and validate the presented certificate against the CA that issued your fleet's device identity certificates, turning the `MDM` semantics Fleet already applies into an actual access-control check. Steps to do so depend on your HTTP server software and are outside the scope of this guide. Reach out to Fleet support if you'd like help with this.
+For a production deployment, verify that the requester is actually one of your enrolled devices before serving the credential. See [How to secure externally hosted DDM assets](https://fleetdm.com/guides/securing-externally-hosted-ddm-assets) for two ways to do that: verifying the `Mdm-Signature` header Apple attaches to the request, or requiring mutual TLS and validating the device's certificate against Fleet's CA at the handshake.
 
 ## Hosting the credential content
 
@@ -95,7 +95,7 @@ Setting `PayloadScope: "User"` explicitly put both applicator passes in the same
 
 ## Verify the deployment
 
-Fleet's declaration status (`Pending` → `Verifying` → `Verified`) confirms Fleet successfully delivered the declaration and the device acknowledged it. It does not confirm the VPN configuration is actually usable, per the scope issue above. To confirm it actually works:
+Fleet's declaration status (`Pending` → `Verifying` → `Verified`) confirms Fleet successfully delivered the declaration and the device acknowledged it. It does not confirm the VPN configuration is actually usable, per the scope issue above. To confirm it works:
 
 - Check **System Settings > VPN** for the configuration to appear.
 - Attempt an actual connection and confirm success both on the client and on your VPN server's logs (e.g., a successful `IKE_SA established` and `CHILD_SA established` in a strongSwan-based server's logs) rather than relying on the client UI alone.
@@ -115,4 +115,4 @@ IKEv2 is one of four new VPN declaration types (`network.vpn.ikev2`, `network.vp
 <meta name="authorGitHubUsername" value="jakestenger">
 <meta name="publishedOn" value="2026-08-04">
 <meta name="category" value="guides">
-<meta name="description" value="A best-practice guide to deploying IKEv2 VPN declarations and credential assets with Fleet, including a real scope pitfall found in testing and what the new credential-delivery model does and doesn't secure.">
+<meta name="description" value="A guide to deploying IKEv2 VPN declarations and credential assets in Fleet, including a scope pitfall that silently drops VPN configs.">
