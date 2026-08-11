@@ -1360,26 +1360,6 @@ type SetABMTokenInvalidForOrgNameFunc func(ctx context.Context, orgName string, 
 
 type IsABMTokenInvalidForOrgNameFunc func(ctx context.Context, orgName string) (bool, error)
 
-type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
-
-type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
-
-type UpsertMicrosoftGraphCredentialFunc func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error
-
-type DeleteMicrosoftGraphCredentialFunc func(ctx context.Context, tenantID string) error
-
-type SetMicrosoftGraphCredentialInvalidFunc func(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
-
-type RecordMicrosoftGraphSyncResultFunc func(ctx context.Context, tenantID string, syncErr *string) error
-
-type BatchUpsertHostAutopilotDevicesFunc func(ctx context.Context, devices []*fleet.HostAutopilotDevice) error
-
-type BatchSoftDeleteHostAutopilotDevicesFunc func(ctx context.Context, hostIDs []uint) error
-
-type ListHostAutopilotDevicesFunc func(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error)
-
-type GetHostAutopilotDeviceFunc func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error)
-
 type InsertABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error)
 
 type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
@@ -1495,6 +1475,26 @@ type BatchResendMDMProfileToHostsFunc func(ctx context.Context, profileUUID stri
 type GetMDMConfigProfileStatusFunc func(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error)
 
 type GetHostMDMProfileInstallStatusFunc func(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error)
+
+type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
+type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
+type UpsertMicrosoftGraphCredentialFunc func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error
+
+type DeleteMicrosoftGraphCredentialFunc func(ctx context.Context, tenantID string) error
+
+type SetMicrosoftGraphCredentialInvalidFunc func(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
+
+type RecordMicrosoftGraphSyncResultFunc func(ctx context.Context, tenantID string, syncErr *string) error
+
+type BatchUpsertHostAutopilotDevicesFunc func(ctx context.Context, devices []*fleet.HostAutopilotDevice) error
+
+type BatchSoftDeleteHostAutopilotDevicesFunc func(ctx context.Context, hostIDs []uint) error
+
+type ListHostAutopilotDevicesFunc func(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error)
+
+type GetHostAutopilotDeviceFunc func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error)
 
 type GetLinuxDiskEncryptionSummaryFunc func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error)
 
@@ -4331,36 +4331,6 @@ type DataStore struct {
 	IsABMTokenInvalidForOrgNameFunc        IsABMTokenInvalidForOrgNameFunc
 	IsABMTokenInvalidForOrgNameFuncInvoked bool
 
-	ListMicrosoftGraphCredentialsFunc        ListMicrosoftGraphCredentialsFunc
-	ListMicrosoftGraphCredentialsFuncInvoked bool
-
-	ListMicrosoftGraphCredentialMetadataFunc        ListMicrosoftGraphCredentialMetadataFunc
-	ListMicrosoftGraphCredentialMetadataFuncInvoked bool
-
-	UpsertMicrosoftGraphCredentialFunc        UpsertMicrosoftGraphCredentialFunc
-	UpsertMicrosoftGraphCredentialFuncInvoked bool
-
-	DeleteMicrosoftGraphCredentialFunc        DeleteMicrosoftGraphCredentialFunc
-	DeleteMicrosoftGraphCredentialFuncInvoked bool
-
-	SetMicrosoftGraphCredentialInvalidFunc        SetMicrosoftGraphCredentialInvalidFunc
-	SetMicrosoftGraphCredentialInvalidFuncInvoked bool
-
-	RecordMicrosoftGraphSyncResultFunc        RecordMicrosoftGraphSyncResultFunc
-	RecordMicrosoftGraphSyncResultFuncInvoked bool
-
-	BatchUpsertHostAutopilotDevicesFunc        BatchUpsertHostAutopilotDevicesFunc
-	BatchUpsertHostAutopilotDevicesFuncInvoked bool
-
-	BatchSoftDeleteHostAutopilotDevicesFunc        BatchSoftDeleteHostAutopilotDevicesFunc
-	BatchSoftDeleteHostAutopilotDevicesFuncInvoked bool
-
-	ListHostAutopilotDevicesFunc        ListHostAutopilotDevicesFunc
-	ListHostAutopilotDevicesFuncInvoked bool
-
-	GetHostAutopilotDeviceFunc        GetHostAutopilotDeviceFunc
-	GetHostAutopilotDeviceFuncInvoked bool
-
 	InsertABMTokenFunc        InsertABMTokenFunc
 	InsertABMTokenFuncInvoked bool
 
@@ -4534,6 +4504,36 @@ type DataStore struct {
 
 	GetHostMDMProfileInstallStatusFunc        GetHostMDMProfileInstallStatusFunc
 	GetHostMDMProfileInstallStatusFuncInvoked bool
+
+	ListMicrosoftGraphCredentialsFunc        ListMicrosoftGraphCredentialsFunc
+	ListMicrosoftGraphCredentialsFuncInvoked bool
+
+	ListMicrosoftGraphCredentialMetadataFunc        ListMicrosoftGraphCredentialMetadataFunc
+	ListMicrosoftGraphCredentialMetadataFuncInvoked bool
+
+	UpsertMicrosoftGraphCredentialFunc        UpsertMicrosoftGraphCredentialFunc
+	UpsertMicrosoftGraphCredentialFuncInvoked bool
+
+	DeleteMicrosoftGraphCredentialFunc        DeleteMicrosoftGraphCredentialFunc
+	DeleteMicrosoftGraphCredentialFuncInvoked bool
+
+	SetMicrosoftGraphCredentialInvalidFunc        SetMicrosoftGraphCredentialInvalidFunc
+	SetMicrosoftGraphCredentialInvalidFuncInvoked bool
+
+	RecordMicrosoftGraphSyncResultFunc        RecordMicrosoftGraphSyncResultFunc
+	RecordMicrosoftGraphSyncResultFuncInvoked bool
+
+	BatchUpsertHostAutopilotDevicesFunc        BatchUpsertHostAutopilotDevicesFunc
+	BatchUpsertHostAutopilotDevicesFuncInvoked bool
+
+	BatchSoftDeleteHostAutopilotDevicesFunc        BatchSoftDeleteHostAutopilotDevicesFunc
+	BatchSoftDeleteHostAutopilotDevicesFuncInvoked bool
+
+	ListHostAutopilotDevicesFunc        ListHostAutopilotDevicesFunc
+	ListHostAutopilotDevicesFuncInvoked bool
+
+	GetHostAutopilotDeviceFunc        GetHostAutopilotDeviceFunc
+	GetHostAutopilotDeviceFuncInvoked bool
 
 	GetLinuxDiskEncryptionSummaryFunc        GetLinuxDiskEncryptionSummaryFunc
 	GetLinuxDiskEncryptionSummaryFuncInvoked bool
@@ -10459,76 +10459,6 @@ func (s *DataStore) IsABMTokenInvalidForOrgName(ctx context.Context, orgName str
 	return s.IsABMTokenInvalidForOrgNameFunc(ctx, orgName)
 }
 
-func (s *DataStore) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
-	s.mu.Lock()
-	s.ListMicrosoftGraphCredentialsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMicrosoftGraphCredentialsFunc(ctx)
-}
-
-func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
-	s.mu.Lock()
-	s.ListMicrosoftGraphCredentialMetadataFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMicrosoftGraphCredentialMetadataFunc(ctx)
-}
-
-func (s *DataStore) UpsertMicrosoftGraphCredential(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
-	s.mu.Lock()
-	s.UpsertMicrosoftGraphCredentialFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpsertMicrosoftGraphCredentialFunc(ctx, cred)
-}
-
-func (s *DataStore) DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error {
-	s.mu.Lock()
-	s.DeleteMicrosoftGraphCredentialFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteMicrosoftGraphCredentialFunc(ctx, tenantID)
-}
-
-func (s *DataStore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error) {
-	s.mu.Lock()
-	s.SetMicrosoftGraphCredentialInvalidFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetMicrosoftGraphCredentialInvalidFunc(ctx, tenantID, invalid)
-}
-
-func (s *DataStore) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error {
-	s.mu.Lock()
-	s.RecordMicrosoftGraphSyncResultFuncInvoked = true
-	s.mu.Unlock()
-	return s.RecordMicrosoftGraphSyncResultFunc(ctx, tenantID, syncErr)
-}
-
-func (s *DataStore) BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
-	s.mu.Lock()
-	s.BatchUpsertHostAutopilotDevicesFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchUpsertHostAutopilotDevicesFunc(ctx, devices)
-}
-
-func (s *DataStore) BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error {
-	s.mu.Lock()
-	s.BatchSoftDeleteHostAutopilotDevicesFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchSoftDeleteHostAutopilotDevicesFunc(ctx, hostIDs)
-}
-
-func (s *DataStore) ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error) {
-	s.mu.Lock()
-	s.ListHostAutopilotDevicesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListHostAutopilotDevicesFunc(ctx, tenantID)
-}
-
-func (s *DataStore) GetHostAutopilotDevice(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
-	s.mu.Lock()
-	s.GetHostAutopilotDeviceFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetHostAutopilotDeviceFunc(ctx, hostID)
-}
-
 func (s *DataStore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
 	s.mu.Lock()
 	s.InsertABMTokenFuncInvoked = true
@@ -10933,6 +10863,76 @@ func (s *DataStore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID
 	s.GetHostMDMProfileInstallStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostMDMProfileInstallStatusFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialsFunc(ctx)
+}
+
+func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialMetadataFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialMetadataFunc(ctx)
+}
+
+func (s *DataStore) UpsertMicrosoftGraphCredential(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
+	s.mu.Lock()
+	s.UpsertMicrosoftGraphCredentialFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertMicrosoftGraphCredentialFunc(ctx, cred)
+}
+
+func (s *DataStore) DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error {
+	s.mu.Lock()
+	s.DeleteMicrosoftGraphCredentialFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMicrosoftGraphCredentialFunc(ctx, tenantID)
+}
+
+func (s *DataStore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error) {
+	s.mu.Lock()
+	s.SetMicrosoftGraphCredentialInvalidFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMicrosoftGraphCredentialInvalidFunc(ctx, tenantID, invalid)
+}
+
+func (s *DataStore) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error {
+	s.mu.Lock()
+	s.RecordMicrosoftGraphSyncResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordMicrosoftGraphSyncResultFunc(ctx, tenantID, syncErr)
+}
+
+func (s *DataStore) BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
+	s.mu.Lock()
+	s.BatchUpsertHostAutopilotDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchUpsertHostAutopilotDevicesFunc(ctx, devices)
+}
+
+func (s *DataStore) BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.BatchSoftDeleteHostAutopilotDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSoftDeleteHostAutopilotDevicesFunc(ctx, hostIDs)
+}
+
+func (s *DataStore) ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error) {
+	s.mu.Lock()
+	s.ListHostAutopilotDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAutopilotDevicesFunc(ctx, tenantID)
+}
+
+func (s *DataStore) GetHostAutopilotDevice(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+	s.mu.Lock()
+	s.GetHostAutopilotDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostAutopilotDeviceFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
