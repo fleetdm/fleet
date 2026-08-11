@@ -110,6 +110,15 @@ All Fleet documentation lives in this repo. Check these sources before searching
 - **`handbook/`** — Internal procedures: engineering practices, company policies, product design
 - **`articles/`** — Blog posts and tutorials
 
+## Knowledge graph
+
+A precomputed knowledge graph lives in `.okf/knowledge/`. **Check it before exploring the codebase** — it maps API endpoints to service code to documentation, saving you from grepping.
+
+- **API endpoints:** Read `.okf/knowledge/api-endpoints/index.md` to find any REST API endpoint, its handler function, service file, and link to REST API docs. Example: look up `GET /api/v1/fleet/hosts/:id` → find `getHostEndpoint` in `server/service/hosts.go:848`.
+- **Article/guide links:** Read `.okf/knowledge/article-links/index.md` to find which articles link to which docs and guides.
+- **Code concepts:** `.okf/knowledge/server/service/*.go.md` files list every function, import, and symbol in that source file with line numbers — read these instead of scanning large `.go` files.
+- **Search:** Run `okf search -q "<term>"` to find relevant concepts across the graph.
+
 ## Other references
 
 - Linter config: `.golangci.yml`
