@@ -4385,9 +4385,7 @@ func executeWindowsProfileReconcileBatch(
 			if command == nil {
 				// Every LocURI of the removed profile is still enforced by another profile on these hosts, so there is no
 				// <Delete> to send and no command ack will ever arrive to clean these rows up. Collect the rows and delete
-				// them after the loop, or the removed profile stays listed on the host (and counted in the profile summary)
-				// forever. Batching matters: replacing a whole team's profile set with same-LocURI profiles suppresses every
-				// remove at once, and the datastore call recomputes the status rollup for each host it is given.
+				// them after the loop.
 				for _, hostUUID := range g.hostUUIDs {
 					suppressedRemoveRows = append(suppressedRemoveRows, &fleet.MDMWindowsProfilePayload{
 						ProfileUUID: profUUID,
