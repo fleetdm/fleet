@@ -100,6 +100,9 @@ type Datastore struct {
 	// certificates and keys.
 	serverPrivateKey string
 
+	// dialect generates SQL that differs between MySQL and MariaDB.
+	dialect *SQLDialect
+
 	// knownSoftwareTitleKeys caches title keys that are known to exist in software_titles.
 	// This eliminates redundant INSERT IGNORE statements during concurrent software ingestion,
 	// preventing lock convoys on the unique index when many hosts report the same software catalog.
@@ -343,11 +346,16 @@ func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c c
 		stmtCache:              make(map[string]*sqlx.Stmt),
 		minLastOpenedAtDiff:    conns.Options.MinLastOpenedAtDiff,
 		serverPrivateKey:       conns.Options.PrivateKey,
+		dialect:                NewSQLDialect(conns.Primary.DB),
 		knownSoftwareTitleKeys: make(map[string]struct{}),
 		Datastore:              NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
 	}
 
 	go ds.writeChanLoop()
+
+	if dialect, version, err := DetectDialect(conns.Primary.DB); err == nil {
+		conns.Options.Logger.Info("detected database dialect", "dialect", dialect.String(), "version", version)
+	}
 
 	return ds, nil
 }

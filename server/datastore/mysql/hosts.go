@@ -888,7 +888,7 @@ SELECT
   hoi.desktop_version AS fleet_desktop_version,
   hoi.scripts_enabled AS scripts_enabled,
   IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
-  ` + hostMDMSelect + `
+  ` + ds.hostMDMSelect() + `
 FROM
   hosts h
   LEFT JOIN teams t ON (h.team_id = t.id)
@@ -994,15 +994,18 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 	return scheduledQueriesStats
 }
 
-// hostMDMSelect is the SQL fragment used to construct the JSON object
-// of MDM host data. It assumes that hostMDMJoin is included in the query.
-const hostMDMSelect = `,
+// hostMDMSelect generates the SQL fragment used to construct the JSON object
+// of MDM host data. It uses dialect-specific helpers for boolean values, since
+// MariaDB has no JSON type and so rejects CAST(... AS JSON).
+// It assumes that hostMDMJoin is included in the query.
+func (ds *Datastore) hostMDMSelect() string {
+	return `,
 	JSON_OBJECT(
 		'enrollment_status', hmdm.enrollment_status,
 		'dep_profile_error',
 		CASE
-			WHEN hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `') THEN CAST(TRUE AS JSON)
-			ELSE CAST(FALSE AS JSON)
+			WHEN hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `') THEN ` + ds.dialect.JSONBoolTrue() + `
+			ELSE ` + ds.dialect.JSONBoolFalse() + `
 		END,
 		'server_url',
 		CASE
@@ -1016,8 +1019,8 @@ const hostMDMSelect = `,
 			* unmarshaller was having problems converting int values to
 			* booleans.
 			*/
-			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
-			ELSE CAST(TRUE AS JSON)
+			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN ` + ds.dialect.JSONBoolFalse() + `
+			ELSE ` + ds.dialect.JSONBoolTrue() + `
 		END,
 		'raw_decryptable',
 		CASE
@@ -1027,42 +1030,43 @@ const hostMDMSelect = `,
 		'connected_to_fleet',
 		CASE
 			WHEN h.platform = 'windows' THEN (` +
-	// NOTE: if you change any of the conditions in this
-	// query, please update the AreHostsConnectedToFleetMDM
-	// datastore method and any relevant filters.
-	`SELECT CASE WHEN EXISTS (
+		// NOTE: if you change any of the conditions in this
+		// query, please update the AreHostsConnectedToFleetMDM
+		// datastore method and any relevant filters.
+		`SELECT CASE WHEN EXISTS (
 				    SELECT mwe.host_uuid
 				    FROM mdm_windows_enrollments mwe
 				    WHERE mwe.host_uuid = h.uuid
 				    AND mwe.device_state = '` + microsoft_mdm.MDMDeviceStateEnrolled + `'
 				    AND hmdm.enrolled = 1
 				)
-				THEN CAST(TRUE AS JSON)
-				ELSE CAST(FALSE AS JSON)
+				THEN ` + ds.dialect.JSONBoolTrue() + `
+				ELSE ` + ds.dialect.JSONBoolFalse() + `
 				END
 			)
 			WHEN h.platform = 'android' THEN
-				CASE WHEN hmdm.enrolled = 1 THEN CAST(TRUE AS JSON) ELSE CAST(FALSE AS JSON) END
+				CASE WHEN hmdm.enrolled = 1 THEN ` + ds.dialect.JSONBoolTrue() + ` ELSE ` + ds.dialect.JSONBoolFalse() + ` END
 			WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (` +
-	// NOTE: if you change any of the conditions in this
-	// query, please update the AreHostsConnectedToFleetMDM
-	// datastore method and any relevant filters.
-	`SELECT CASE WHEN EXISTS (
+		// NOTE: if you change any of the conditions in this
+		// query, please update the AreHostsConnectedToFleetMDM
+		// datastore method and any relevant filters.
+		`SELECT CASE WHEN EXISTS (
 				    SELECT ne.id FROM nano_enrollments ne
 				    WHERE ne.id = h.uuid
 				    AND ne.enabled = 1
 				    AND ne.type IN ('Device', 'User Enrollment (Device)')
 				    AND hmdm.enrolled = 1
 				)
-				THEN CAST(TRUE AS JSON)
-				ELSE CAST(FALSE AS JSON)
+				THEN ` + ds.dialect.JSONBoolTrue() + `
+				ELSE ` + ds.dialect.JSONBoolFalse() + `
 				END
 			)
-			ELSE CAST(FALSE AS JSON)
+			ELSE ` + ds.dialect.JSONBoolFalse() + `
 		END,
 		'name', hmdm.name
 	) mdm_host_data
 	`
+}
 
 // hostMDMJoin is the SQL fragment used to join MDM-related tables to the hosts table. It is a
 // dependency of the hostMDMSelect fragment.
@@ -1170,7 +1174,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     hoi.desktop_version AS fleet_desktop_version
 	`
 
-	sql += hostMDMSelect
+	sql += ds.hostMDMSelect()
 
 	if opt.DeviceMapping {
 		// Use a correlated subquery in the SELECT list (rather than a derived-table
@@ -3263,7 +3267,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     hd.gigs_all_disk_space as gigs_all_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
 	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
-	` + hostMDMSelect + `
+	` + ds.hostMDMSelect() + `
   FROM hosts h
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
@@ -3504,7 +3508,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) AS seen_time,
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
-    ` + hostMDMSelect + `
+    ` + ds.hostMDMSelect() + `
     FROM hosts h
     LEFT JOIN teams t ON t.id = h.team_id
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -3583,7 +3587,7 @@ func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, 
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) AS seen_time,
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
-    ` + hostMDMSelect + `
+    ` + ds.hostMDMSelect() + `
     FROM hosts h
     LEFT JOIN teams t ON t.id = h.team_id
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)

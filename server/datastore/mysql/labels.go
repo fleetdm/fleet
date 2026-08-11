@@ -1282,7 +1282,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	}
 
 	query := fmt.Sprintf(
-		queryFmt, hostMDMSelect, failingIssuesSelect, deviceMappingSelect, hostMDMJoin, failingIssuesJoin, deviceMappingJoin,
+		queryFmt, ds.hostMDMSelect(), failingIssuesSelect, deviceMappingSelect, hostMDMJoin, failingIssuesJoin, deviceMappingJoin,
 	)
 
 	query, params, err := ds.applyHostLabelFilters(ctx, filter, lid, query, opt)
