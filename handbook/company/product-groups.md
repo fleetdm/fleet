@@ -192,9 +192,24 @@ Continuous flow does not use story points or track velocity. [T-shirt sizing](#t
 ### Working the board
 
 - **Multiple issues in flight is OK.** Contributors can run several agents in parallel and have many issues open at once. Use judgment; don't start more than you can shepherd through review.
-- **Pick up unassigned work as you finish in-flight items.** When an issue moves to the next column (e.g. Ready for review), pick the next unassigned item from **Ready**. For bugs, use the standard [bug prioritization order](#bug-prioritization).
+- **Pick up unassigned work as you finish in-flight items.** When an issue moves to the next column (e.g. Ready for review), pick the next unassigned item from **Ready** using the standard [issue prioritization order](#issue-prioritization).
 - **Help finish in-flight work when nothing in Ready is available.** Assist with code review, QA, or sub-issues for active stories.
 - **Hit a blocker or have a question?** It's okay — blockers happen. Move the issue to **Blocked** and try to resolve it async (in the group's Slack channel, with the relevant collaborator, etc.) rather than waiting for standup. If it isn't resolved async, the next standup is the latest it should go without being addressed.
+
+### Code review coverage during time off
+
+Fleet's product groups typically have two to three engineers. With AI-assisted development accelerating how fast code is written, deep code review is the primary engineering bottleneck. When one engineer in a small group is on vacation or out of office, the remaining engineer may have no one available to review their pull requests, blocking progress until the teammate returns.
+
+To prevent PRs from stalling, engineers should arrange temporary review coverage before a teammate's absence (or as soon as the need arises):
+
+1. **Talk to your Engineering Manager.** Let your EM know you need review coverage. The EM will find an engineer from another product group who can review your PRs while your teammate is out.
+2. **Prefer groups under the same Engineering Manager.** When possible, the EM should find a reviewer from another group they also manage. This keeps tracking and follow-up simple since the EM already has visibility into both groups' boards.
+3. **Cross-EM arrangements are fine when needed.** If no group under your EM has capacity, the EM can coordinate with another EM to find a reviewer. Both EMs should stay in the loop so the commitment is tracked.
+4. **Communicate the plan.** Post in your product group's Slack channel (and the covering group's channel, if different) so everyone knows who is handling reviews and for how long.
+
+The arrangement between groups can be a mutual trade (your group covers reviews for theirs in return), one-sided help, or whatever works for the teams involved.
+
+The goal is to keep pull requests moving. A brief async message to arrange coverage is far cheaper than a week of blocked PRs.
 
 ### Daily standup (30 minutes)
 
@@ -1143,6 +1158,16 @@ Product group boards are exclusively composed of the following types of work ite
 
 > Product group boards do not accommodate any other type of ticket. By strictly adhering to these work items, we maintain an organized and focused workflow that consistently adds value for our users.
 
+## Issue prioritization
+
+When selecting which issue to work on next, prioritize in the following order:
+
+1. **P0, P1, P2 issues**: [High-priority](#high-priority-user-stories-and-bugs) issues take precedence over all other work.
+2. **Customer promises due this release**: Issues with the `~customer promise` label whose due date falls within the current release.
+3. **Customer activation blockers**: Issues with the `~activation-blocker` label.
+4. **Reliability issues**: Issues with the `reliability` label that the product group agreed to work on this release cycle.
+5. **Bugs**: Issues with the `bug` label, ordered by the [bug prioritization](#bug-prioritization) list below.
+6. **Other roadmap stories**: The remaining user stories in the group's **Ready** column.
 
 ## Bug prioritization
 

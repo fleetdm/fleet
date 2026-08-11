@@ -42,6 +42,12 @@ go build -o build/migration-cleanup ./tools/migration-cleanup
 
 SQL generation is the default mode and does not connect to MySQL.
 
+Exactly one of `--branch`, `--since-commit`, or `--commit` is required.
+
+### `--branch` (default mode)
+
+Scan a branch against `main` for migration renames:
+
 ```sh
 go run ./tools/migration-cleanup -b rc-minor-fleet-v4.86.0
 ```
@@ -64,6 +70,28 @@ go run ./tools/migration-cleanup \
 
 If the branch only exists on the remote, pass the plain branch name. The tool
 tries the local branch first, then `origin/<branch>`.
+
+### `--since-commit`
+
+Scan `main` from a given commit forward:
+
+```sh
+go run ./tools/migration-cleanup --since-commit abc1234
+```
+
+### `--commit`
+
+Inspect a single commit for renames:
+
+```sh
+go run ./tools/migration-cleanup --commit abc1234
+```
+
+Both `--since-commit` and `--commit` accept a full SHA, short SHA, or any ref
+`git rev-parse` understands.
+
+**Note:** `--commit` does not support merge commits (no renames will be
+reported). Use `--since-commit` or `--branch` for merge commits.
 
 ## Dry run
 
@@ -174,6 +202,7 @@ move.
 
 ## Notes
 
+- Exactly one of `--branch`, `--since-commit`, or `--commit` is required; providing more than one is an error.
 - `--branch` should point at the branch with the final migration filenames.
 - The generated SQL is the source of truth for SQL output, dry-run simulation,
   and apply mode.

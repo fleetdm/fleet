@@ -4,7 +4,8 @@
       "version": "2605.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Dialpad' AND publisher = 'Dialpad';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dialpad' AND publisher = 'Dialpad' AND version_compare(version, '2605.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dialpad' AND publisher = 'Dialpad' AND version_compare(version, '2605.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dialpad.exe');"
       },
       "installer_url": "https://storage.googleapis.com/dialpad_native/stable/win32/x64/DialpadSetup-2605.1.0_x64.exe",
       "install_script_ref": "47c0fae4",

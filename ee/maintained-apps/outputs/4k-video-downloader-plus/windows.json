@@ -4,7 +4,8 @@
       "version": "26.1.1.355",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = '4K Video Downloader+' AND publisher = 'InterPromo GMBH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '4K Video Downloader+' AND publisher = 'InterPromo GMBH' AND version_compare(version, '26.1.1.355') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '4K Video Downloader+' AND publisher = 'InterPromo GMBH' AND version_compare(version, '26.1.1.355') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '4k video downloader+.exe');"
       },
       "installer_url": "https://dl.4kdownload.com/app/4kvideodownloaderplus_26.1.1_x64_offline.exe?source=website",
       "install_script_ref": "e60e87a2",

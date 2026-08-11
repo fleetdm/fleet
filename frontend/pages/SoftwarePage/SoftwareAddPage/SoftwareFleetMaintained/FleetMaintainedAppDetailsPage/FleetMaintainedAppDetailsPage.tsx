@@ -9,6 +9,7 @@ import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
+import teamPoliciesAPI from "services/entities/team_policies";
 import { AppContext } from "context/app";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 
@@ -23,6 +24,7 @@ import Card from "components/Card";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import Button from "components/buttons/Button";
 import PageDescription from "components/PageDescription";
+import { getPatchPolicyFlags } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
@@ -176,14 +178,10 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
-    try {
-      const {
-        software_title_id: softwareFmaTitleId,
-      } = await softwareAPI.addFleetMaintainedApp(parseInt(teamId, 10), {
-        ...formData,
-        appId,
-      });
-
+    // Refresh the software caches and land on the new title's details. Shared
+    // by the success path and the partial-success path (title added, but the
+    // patch policy failed) so the two can't drift apart.
+    const refreshAndGoToTitle = (titleId: number) => {
       queryClient.invalidateQueries({
         queryKey: [{ scope: "software-titles" }],
       });
@@ -193,15 +191,39 @@ const FleetMaintainedAppDetailsPage = ({
       queryClient.invalidateQueries({
         queryKey: [{ scope: "fleet-maintained-apps" }],
       });
-
       router.push(
         getPathWithQueryParams(
-          PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
-          {
-            fleet_id: teamId,
-          }
+          PATHS.SOFTWARE_TITLE_DETAILS(titleId.toString()),
+          { fleet_id: teamId }
         )
       );
+    };
+
+    let softwareFmaTitleId: number | undefined;
+    try {
+      const response = await softwareAPI.addFleetMaintainedApp(
+        parseInt(teamId, 10),
+        {
+          ...formData,
+          appId,
+        }
+      );
+      const addedSoftwareTitleId = response.software_title_id;
+      softwareFmaTitleId = addedSoftwareTitleId;
+
+      if (formData.patch) {
+        await teamPoliciesAPI.create({
+          team_id: parseInt(teamId, 10),
+          type: "patch",
+          patch_software_title_id: addedSoftwareTitleId,
+          ...(formData.patchOption !== "manual" && {
+            software_title_id: addedSoftwareTitleId,
+          }),
+          ...getPatchPolicyFlags(formData.patchOption),
+        });
+      }
+
+      refreshAndGoToTitle(addedSoftwareTitleId);
 
       notify.success(
         <>
@@ -211,7 +233,15 @@ const FleetMaintainedAppDetailsPage = ({
     } catch (error) {
       const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
 
-      notify.error(getErrorMessage(ae), { response: error });
+      if (softwareFmaTitleId) {
+        refreshAndGoToTitle(softwareFmaTitleId);
+        notify.error(
+          "Software was added, but the deployment settings couldn't be saved. Try again from Actions > Deploy.",
+          { response: error }
+        );
+      } else {
+        notify.error(getErrorMessage(ae), { response: error });
+      }
     }
 
     setShowAddFleetAppSoftwareModal(false);
@@ -239,7 +269,7 @@ const FleetMaintainedAppDetailsPage = ({
             className={`${baseClass}__back-to-add-software`}
           />
           <h1>{fleetApp.name}</h1>
-          <PageDescription content="Add software to your library. You can add it to self-service later." />
+          <PageDescription content="Add software to your library." />
           <div className={`${baseClass}__page-content`}>
             <FleetAppSummary
               name={fleetApp.name}

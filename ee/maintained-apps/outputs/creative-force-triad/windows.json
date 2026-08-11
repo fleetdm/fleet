@@ -4,7 +4,8 @@
       "version": "4.4.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Creative Force Triad %' AND publisher = 'Creative Force';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Creative Force Triad %' AND publisher = 'Creative Force' AND version_compare(version, '4.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Creative Force Triad %' AND publisher = 'Creative Force' AND version_compare(version, '4.4.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'creative force triad.exe');"
       },
       "installer_url": "https://download.creativeforce.io/released-files.042024/prod/triad/win/Triad-4.4.0-win.exe",
       "install_script_ref": "8568dd32",

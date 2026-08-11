@@ -8,7 +8,10 @@ import { createCustomRenderer } from "test/test-utils";
 import policiesAPI from "services/entities/policies";
 
 import PolicyAutomationsActivitiesTable from "./PolicyAutomationsActivitiesTable";
-import { getAutomationRunDisplayName } from "./helpers";
+import {
+  getAutomationRunDisplayName,
+  getAutomationStatusIcon,
+} from "./helpers";
 
 jest.mock("services/entities/policies");
 
@@ -65,6 +68,21 @@ describe("getAutomationRunDisplayName", () => {
     expect(getAutomationRunDisplayName(mockActivity({ status: "error" }))).toBe(
       "Software failed (1Password)"
     );
+  });
+
+  it("labels a patch-when-closed skip as skipped, not failed", () => {
+    expect(
+      getAutomationRunDisplayName(
+        mockActivity({
+          status: "error",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            install_skipped_when_app_open: true,
+          },
+        })
+      )
+    ).toBe("Patch skipped (1Password)");
   });
 
   it("treats App Store (VPP) apps as software", () => {
@@ -129,6 +147,29 @@ describe("getAutomationRunDisplayName", () => {
   });
 });
 
+describe("getAutomationStatusIcon", () => {
+  it("uses a muted grey error glyph for a skip, red for other failures, green for success", () => {
+    expect(
+      getAutomationStatusIcon(
+        mockActivity({
+          status: "error",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            install_skipped_when_app_open: true,
+          },
+        })
+      )
+    ).toEqual({ name: "error-outline", color: "ui-fleet-black-50" });
+    expect(getAutomationStatusIcon(mockActivity({ status: "error" }))).toEqual({
+      name: "error-outline",
+    });
+    expect(
+      getAutomationStatusIcon(mockActivity({ status: "success" }))
+    ).toEqual({ name: "success-outline" });
+  });
+});
+
 describe("PolicyAutomationsActivitiesTable", () => {
   const render = createCustomRenderer({ withBackendMock: true });
 
@@ -153,6 +194,40 @@ describe("PolicyAutomationsActivitiesTable", () => {
     expect(await screen.findByText("Anna's MacBook Pro")).toBeInTheDocument();
     expect(screen.getByText("1 run")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search hosts")).toBeInTheDocument();
+  });
+
+  it("renders one row per host for a batch activity sharing an activity id", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([
+        mockActivity({
+          id: 41,
+          type: ActivityType.RanAutomationWebhook,
+          details: { policy_id: 123 },
+          host_id: 1,
+          host_display_name: "batch-host-a",
+        }),
+        mockActivity({
+          id: 41,
+          type: ActivityType.RanAutomationWebhook,
+          details: { policy_id: 123 },
+          host_id: 2,
+          host_display_name: "batch-host-b",
+        }),
+      ])
+    );
+
+    render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        currentAutomatedPolicies={[]}
+        canResetPolicy={false}
+      />
+    );
+
+    // Both (activity, host) rows must render even though they share id 41.
+    expect(await screen.findByText("batch-host-a")).toBeInTheDocument();
+    expect(screen.getByText("batch-host-b")).toBeInTheDocument();
+    expect(screen.getByText("2 runs")).toBeInTheDocument();
   });
 
   it("shows the Reset policy button only when allowed", async () => {

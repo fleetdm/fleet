@@ -1,4 +1,4 @@
-- name: macOS - Screen lock after inactivity (15 minutes or less)
+- name: Screen lock after inactivity (15 minutes or less)
   query: |-
     SELECT 1 WHERE EXISTS (
       SELECT 1

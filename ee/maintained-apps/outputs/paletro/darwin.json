@@ -4,7 +4,8 @@
       "version": "1.11.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.appmakes.Paletro';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.appmakes.Paletro' AND version_compare(bundle_short_version, '1.11.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.appmakes.Paletro' AND version_compare(bundle_short_version, '1.11.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'io.appmakes.Paletro');"
       },
       "installer_url": "https://appmakes.io/paletro/download/Paletro-1.11.0.dmg",
       "install_script_ref": "16627afe",

@@ -1,1 +1,1 @@
-- Added a tooltip to "Last fetched" on the Host details page for Android hosts, explaining why there's no Refetch button (Android hosts sync data automatically when they change).
+- Added a disabled Refetch button with a tooltip on the Host details page for Android hosts, explaining that Android hosts sync data automatically and linking to how to sync manually.

@@ -4,7 +4,8 @@
       "version": "0.98.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.jasp-stats.JASP';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jasp-stats.JASP' AND version_compare(bundle_short_version, '0.98.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jasp-stats.JASP' AND version_compare(bundle_short_version, '0.98.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.jasp-stats.JASP');"
       },
       "installer_url": "https://github.com/jasp-stats/jasp-desktop/releases/download/v0.98.1/JASP-0.98.1.0-macOS-arm64.dmg",
       "install_script_ref": "bbbd6311",

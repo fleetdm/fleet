@@ -4,7 +4,8 @@
       "version": "6.0.11",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwig.studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwig.studio' AND version_compare(bundle_short_version, '6.0.11') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwig.studio' AND version_compare(bundle_short_version, '6.0.11') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.bitwig.studio');"
       },
       "installer_url": "https://www.bitwig.com/dl/Bitwig%20Studio/6.0.11/installer_mac",
       "install_script_ref": "25e86798",

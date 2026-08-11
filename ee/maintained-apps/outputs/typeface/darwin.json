@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.4.0",
+      "version": "4.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.criminalbird.typeface.standalone';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.criminalbird.typeface.standalone' AND version_compare(bundle_short_version, '4.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.criminalbird.typeface.standalone' AND version_compare(bundle_short_version, '4.4.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.criminalbird.typeface.standalone');"
       },
-      "installer_url": "https://dcdn.typefaceapp.com/Typeface-4.4.0-5132/Typeface-4.4.0-5132.dmg",
+      "installer_url": "https://dcdn.typefaceapp.com/Typeface-4.4.1-5153/Typeface-4.4.1-5153.dmg",
       "install_script_ref": "f9c4f26e",
       "uninstall_script_ref": "707f4675",
-      "sha256": "3f85feea17d881e36b668f4c69d180daa7947ece680ffef147133010be2bc287",
+      "sha256": "f6d29d337615d7458a7377c9312c980ec0bf20fe647eceba145c28fa480e4693",
       "default_categories": [
         "Productivity"
       ]

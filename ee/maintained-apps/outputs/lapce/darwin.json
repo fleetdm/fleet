@@ -4,7 +4,8 @@
       "version": "0.4.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.lapce';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.lapce' AND version_compare(bundle_short_version, '0.4.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.lapce' AND version_compare(bundle_short_version, '0.4.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'io.lapce');"
       },
       "installer_url": "https://github.com/lapce/lapce/releases/download/v0.4.6/Lapce-macos.dmg",
       "install_script_ref": "38ecdbea",
