@@ -17,10 +17,13 @@
 # "Citrix Workspace(USB)" does). Declaring success as soon as the FIRST
 # entry appears races the still-running later components -- our uninstall
 # script would then only find and remove whichever ones had registered so
-# far. Require at least one entry AND no msiexec.exe process running,
-# stable across two consecutive polls, before declaring the install done.
+# far. Require the core "Citrix Workspace Inside" entry AND no msiexec.exe
+# process running, stable across two consecutive polls, before declaring the
+# install done. Match that DisplayName exactly (not a "Citrix Workspace*"
+# wildcard) so a leftover entry from an unrelated prior install can't cause
+# a false-positive success before this install has actually registered.
 
-$softwareNameLike = "Citrix Workspace*"
+$softwareName = "Citrix Workspace Inside"
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
   'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
@@ -36,7 +39,7 @@ function Test-CitrixWorkspaceInstalled {
           ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
 
   foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike `
+    if ($key.DisplayName -eq $softwareName `
         -and $key.Publisher -eq "Citrix Systems, Inc.") {
       return $true
     }
