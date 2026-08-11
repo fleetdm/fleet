@@ -11,22 +11,7 @@ Publish a downloadable OpenAPI 3.1 spec (`openapi.yml`) with every Fleet release
 
 The spec covers every endpoint documented in `docs/REST API/rest-api.md`:
 every `### ` section with a request line becomes an operation. There's no
-allowlist. A fixed set of 10 commonly integrated endpoints serves as the
-live contract-test set exercised by `verify` (see "The verify subcommand"
-below):
-
-| # | Method | Path | Markdown section |
-|---|--------|------|------------------|
-| 1 | GET | `/api/v1/fleet/hosts` | List hosts |
-| 2 | GET | `/api/v1/fleet/hosts/{id}` | Get host |
-| 3 | GET | `/api/v1/fleet/software/titles` | List software |
-| 4 | GET | `/api/v1/fleet/global/policies` | List policies |
-| 5 | POST | `/api/v1/fleet/global/policies` | Create policy |
-| 6 | GET | `/api/v1/fleet/reports` | List reports |
-| 7 | POST | `/api/v1/fleet/reports` | Create report |
-| 8 | GET | `/api/v1/fleet/fleets` | List fleets |
-| 9 | GET | `/api/v1/fleet/commands` | List MDM commands |
-| 10 | POST | `/api/v1/fleet/commands/run` | Run MDM command |
+allowlist.
 
 ## The generator (`tools/openapi/`)
 
@@ -35,7 +20,7 @@ A standalone Go module with its own `go.mod` (precedented by `tools/snapshot`, `
 ```
 tools/openapi/
   go.mod                 # module github.com/fleetdm/fleet/tools/openapi
-  main.go                # CLI: generate (default) and verify subcommands
+  main.go                # CLI: the generate command
   parser/                # rest-api.md -> []Endpoint (parses the ENTIRE doc)
   spec/                  # []Endpoint -> OpenAPI 3.1 document (every parsed endpoint)
   openapi.yml            # generated spec (gitignored), not committed
@@ -72,20 +57,13 @@ Rationale: at full-API scale a committed generated file churns on every docs edi
 
 ## CI (`.github/workflows/openapi.yml`)
 
-Triggered on pull requests touching `docs/REST API/**` or `tools/openapi/**`. Two jobs:
+Triggered on pull requests touching `docs/REST API/**` or `tools/openapi/**`. One job:
 
-1. **generate-and-validate.** Run the generator, validate OpenAPI 3.1, fail on any generation or validation error, and upload the resulting `openapi.yml` as a workflow artifact (`openapi-spec`).
-2. **contract-verify.** Start MySQL and Redis (same service pattern as existing Go test workflows), run `fleet prepare db` and `fleet serve`, create an admin via the setup API, then run the generator followed by `go run . verify --server http://localhost:1337 --email <admin> --password <pw>` from `tools/openapi`.
+**generate-and-validate.** Run the generator, validate OpenAPI 3.1, fail on any generation or validation error, and upload the resulting `openapi.yml` as a workflow artifact (`openapi-spec`).
 
-### The verify subcommand
+### Live contract verification (removed)
 
-Walks the 10 contract-test endpoints against a live server and validates each response body against the generated spec's schemas:
-
-- Seeds what it can through the API itself: create a policy, a report, and a fleet, so list endpoints return non-empty data.
-- `GET /hosts` and `GET /hosts/{id}`: in CI there are no enrolled hosts, so `GET /hosts` validates the empty-list envelope and `GET /hosts/{id}` is reported as "partially verified"; the dev-instance run exercises real hosts.
-- `POST /commands/run` cannot succeed without an MDM-enrolled host. In CI, verify asserts the documented error shape and reports the endpoint as "partially verified". The happy path for this endpoint is checked in the manual run against a dev instance.
-
-Because verify takes `--server` plus `--token` or `--email`/`--password`, the same tool performs the story's test-plan sign-off against a real dev instance.
+Earlier revisions of this work included a `verify` subcommand and a `contract-verify` CI job: a hand-built contract test that exercised 10 commonly integrated endpoints against a live server and validated real responses against the generated schemas. It proved the spec functions as a validation contract (last green run: https://github.com/fleetdm/fleet/actions/runs/31528481208, commit 0c28085b4a) and was then removed before merge: it was ~500 lines of Go plus the workflow's heaviest job (a full server build on every docs PR) for ~4% endpoint coverage, and its failure modes (server bootstrap flakes in CI) weren't actionable by docs authors. If the spec gains consumers that need contract guarantees, live verification should come back as a nightly or release-time job rather than a docs-PR check.
 
 ## Release wiring
 
@@ -104,7 +82,6 @@ A short subsection in the introduction of `docs/REST API/rest-api.md` (renders a
 
 - Go unit tests in `parser/` (table extraction, request-line parsing, schema inference edge cases: nulls, empty arrays, `:id` paths, `json`/`form` params, hard-skip classification) and `spec/` (assembly of every parsed endpoint, duplicate operationId detection).
 - CI regenerating and validating `openapi.yml` on every relevant PR acts as the end-to-end test.
-- The contract test (the original 10 endpoints) runs automatically in CI (job 2) and manually against a dev instance for story sign-off.
 - Manual, once at the end: import `openapi.yml` into Postman and Stoplight, confirm both render the generated endpoints; confirm the artifact appears on an RC release.
 
 ## Out of scope

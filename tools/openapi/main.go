@@ -1,5 +1,5 @@
 // Command openapi generates Fleet's OpenAPI 3.1 spec from the canonical
-// REST API Markdown, and verifies it against a live server.
+// REST API Markdown.
 // See DESIGN.md and https://github.com/fleetdm/fleet/issues/45279.
 package main
 
@@ -21,10 +21,8 @@ func main() {
 	switch cmd {
 	case "generate":
 		os.Exit(runGenerate(args))
-	case "verify":
-		os.Exit(runVerify(args))
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command %q (want generate or verify)\n", cmd)
+		fmt.Fprintf(os.Stderr, "unknown command %q (want generate)\n", cmd)
 		os.Exit(1)
 	}
 }

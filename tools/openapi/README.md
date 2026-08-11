@@ -32,22 +32,6 @@ Sections with no request line at all (for example "Retrieve your API
 token", which documents UI steps, not an endpoint) are not endpoints and are
 tolerated; they still show up in the coverage report printed to stderr.
 
-## Verifying against a live server
-
-```sh
-cd tools/openapi
-go run . verify --server https://localhost:8080 --email admin@example.com --password '...'
-```
-
-Verify is a hand-built contract test covering a fixed set of 10 commonly
-integrated endpoints (see DESIGN.md), not every endpoint in the spec. It calls each
-one and validates the response against the spec.
-It seeds data it can create over the API (a policy, a report, a fleet) using
-`openapi-verify-` prefixed names, and does not clean them up. Use a disposable
-dev instance. Endpoints that need real hosts (`GET /hosts/{id}`) or an
-MDM-enrolled host (`POST /commands/run`) report as partially verified when the
-server has none; pass `--strict` to fail on partials for release sign-off.
-
 ## Design
 
 See [DESIGN.md](./DESIGN.md).
