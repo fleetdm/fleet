@@ -1101,6 +1101,36 @@ Can only be configured for "All fleets" (`org_settings`).
 
 Can only be configured for "All fleets" (`org_settings`).
 
+### microsoft_graph_credentials
+
+_Available in Fleet Premium._
+
+This section lets you connect Fleet to the Microsoft Graph API so that [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot) devices appear in Fleet as pending hosts before they enroll.
+
+The app registration needs the `DeviceManagementServiceConfig.Read.All` application permission, with admin consent granted for your tenant. Fleet currently supports one credential.
+
+#### Example
+
+`default.yml`
+
+```yaml
+org_settings:
+  microsoft_graph_credentials:
+    - tenant_id: 4e342a0d-ec1a-4353-bdeb-785542e0a8fb
+      client_id: 122349c0-9b2c-4d3e-8f10-aabbccddeeff
+      client_secret: $MICROSOFT_GRAPH_CLIENT_SECRET
+```
+
+- `tenant_id` is the Microsoft Entra tenant ID. Find your **Tenant ID** on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
+- `client_id` is the Microsoft Entra application (client) ID. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
+- `client_secret` is the client secret for the app registration. Required when you add a credential, and when you change an existing credential's `tenant_id` or `client_id`. Omit it to keep the secret Fleet already stores. Find your **Client secret** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Certificates & secrets**.
+
+Fleet verifies each credential against Microsoft Graph before saving it, so GitOps fails with an error if the credential is wrong. Re-applying an unchanged credential makes no request to Microsoft and changes nothing in Fleet.
+
+This section is declarative. Removing a credential from the list deletes it, and omitting `microsoft_graph_credentials` entirely deletes any credentials Fleet has stored.
+
+Can only be configured for "All fleets" (`org_settings`).
+
 ### webhook_settings
 
 The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status [automations](https://fleetdm.com/docs/using-fleet/automations).
