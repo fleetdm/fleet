@@ -6601,6 +6601,9 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 
 	// it also doesn't get installed to a new host not a member of any labels
 	appleHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// simulate reporting label results for the new host, otherwise exclude-any
+	// profiles are withheld until label membership is known
+	require.NoError(t, s.ds.AsyncBatchUpdateLabelTimestamp(ctx, []uint{appleHost2.ID}, time.Now()))
 	s.awaitRunAppleMDMWorkerSchedule()
 	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+appleHost2.UUID)
 	require.NoError(t, err)

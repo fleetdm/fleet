@@ -1454,6 +1454,29 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.Equal(t, "sh", payload.Extension)
 	})
 
+	t.Run("shell script with CRLF line endings is normalized", func(t *testing.T) {
+		scriptContents := "#!/bin/bash\r\necho 'Installing software'\r\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.sh",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.NoError(t, err)
+		require.Equal(t, "#!/bin/bash\necho 'Installing software'\n", payload.InstallScript)
+		require.NotContains(t, payload.InstallScript, "\r")
+	})
+
 	// addMetadataToSoftwarePayload picks the script-package branch off the
 	// filename's extension, so an uppercase one has to route there too.
 	t.Run("uppercase extension still routes to script package", func(t *testing.T) {
@@ -1508,6 +1531,30 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.NotEmpty(t, payload.StorageID)
 	})
 
+	t.Run("powershell script with CRLF line endings is preserved", func(t *testing.T) {
+		// Unlike sh/py, ps1 scripts run via powershell.exe on Windows,
+		// where CRLF is the native line ending. They must not be normalized to LF.
+		scriptContents := "Write-Host 'Installing software'\r\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
+	})
+
 	t.Run("valid python script", func(t *testing.T) {
 		scriptContents := "#!/usr/bin/env python3\nprint('Installing software')\n"
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.py")
@@ -1536,6 +1583,29 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.Empty(t, payload.PackageIDs)
 		require.NotEmpty(t, payload.StorageID)
 		require.Equal(t, "py", payload.Extension)
+	})
+
+	t.Run("python script with CRLF line endings is normalized", func(t *testing.T) {
+		scriptContents := "#!/usr/bin/env python3\r\nprint(\"crlf\")\r\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.py")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.py",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "py")
+		require.NoError(t, err)
+		require.Equal(t, "#!/usr/bin/env python3\nprint(\"crlf\")\n", payload.InstallScript)
+		require.NotContains(t, payload.InstallScript, "\r")
 	})
 
 	t.Run("python script without shebang", func(t *testing.T) {
