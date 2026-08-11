@@ -135,13 +135,12 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 		}
 	}
 	if has("ide_plugins") {
-		for _, h := range hs {
-			if err := ctx.Err(); err != nil {
-				return nil, err
-			}
-			for _, p := range ide.Scan(h) {
-				rows = append(rows, ideRow(p))
-			}
+		plugins, err := ide.Scan(ctx, hs)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range plugins {
+			rows = append(rows, ideRow(p))
 		}
 	}
 	if has("agents") {
@@ -269,6 +268,10 @@ func ideRow(p ide.Plugin) map[string]string {
 		"editor_family": p.EditorFamily,
 		"publisher":     p.Publisher,
 		"manifest_path": p.ManifestPath,
+		// scope distinguishes an extension installed in this user's editor profile
+		// from one bundled inside a machine-wide editor install (which has no owner,
+		// so uid/username are empty).
+		"scope": p.Scope,
 	})
 }
 
