@@ -67,6 +67,7 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"org_settings.mdm.apple_business[].macos_team", "org_settings.mdm.apple_business[].macos_fleet"},
 	{"org_settings.mdm.apple_business[].ios_team", "org_settings.mdm.apple_business[].ios_fleet"},
 	{"org_settings.mdm.apple_business[].ipados_team", "org_settings.mdm.apple_business[].ipados_fleet"},
+	{"org_settings.mdm.apple_business[].tvos_team", "org_settings.mdm.apple_business[].tvos_fleet"},
 	{"org_settings.mdm.apple_business[].byod_team", "org_settings.mdm.apple_business[].byod_fleet"},
 
 	// Nested keys in org_settings.mdm.volume_purchasing_program[]
@@ -91,6 +92,7 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"query_stats", "report_stats"},
 	{"scheduled_query_id", "scheduled_report_id"},
 	{"scheduled_query_name", "scheduled_report_name"},
+	{"tvos_team_id", "tvos_fleet_id"},
 	{"team", "fleet"},
 	{"team_id", "fleet_id"},
 	{"team_ids_by_name", "fleet_ids_by_name"},

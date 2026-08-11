@@ -199,7 +199,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       return (
         <EmptyState
           header="Turn on Apple MDM"
-          info="To add your AB and enable automatic enrollment for macOS, iOS, and iPadOS hosts, first turn on Apple MDM."
+          info="To add your AB and enable automatic enrollment for macOS, iOS, iPadOS, and tvOS hosts, first turn on Apple MDM."
           primaryButton={
             <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
               Turn on

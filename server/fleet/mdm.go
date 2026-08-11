@@ -14,6 +14,7 @@ import (
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 )
 
@@ -201,6 +202,7 @@ type ABMToken struct {
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
+	TvOSDefaultTeamID   *uint     `db:"tvos_default_team_id" json:"-"`
 	BYODDefaultTeamID   *uint     `db:"byod_default_team_id" json:"-"`
 	EncryptedToken      []byte    `db:"token" json:"-"`
 	EnrollmentURLToken  []byte    `db:"enrollment_url_token" json:"-"`
@@ -216,18 +218,74 @@ type ABMToken struct {
 	MacOSTeamName  string `db:"macos_team" json:"-"`
 	IOSTeamName    string `db:"ios_team" json:"-"`
 	IPadOSTeamName string `db:"ipados_team" json:"-"`
+	TvOSTeamName   string `db:"tvos_team" json:"-"`
 	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
 	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
 	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
+	TvOSTeam   ABMTokenTeam `json:"tvos_team" renameto:"tvos_fleet"`
 	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
+}
+
+// ABMTokenTeamIDs are the per-platform default team ids submitted when updating
+// an ABM token's team assignments. A nil or zero id means "No team".
+type ABMTokenTeamIDs struct {
+	MacOS  *uint
+	IOS    *uint
+	IPadOS *uint
+	TvOS   *uint
+	BYOD   *uint
+}
+
+// ABMDefaultTeams holds the per-platform default teams configured on an ABM
+// token. A nil entry means devices of that platform land in "No team".
+type ABMDefaultTeams struct {
+	MacOS  *Team
+	IOS    *Team
+	IPadOS *Team
+	TvOS   *Team
+}
+
+// ForDeviceFamily returns the default team for a DEP sync device_family value.
+// Anything unrecognized falls back to the macOS team, matching how Fleet types
+// such devices as "darwin".
+func (t ABMDefaultTeams) ForDeviceFamily(deviceFamily string) *Team {
+	switch deviceFamily {
+	case "iPhone", "iPod":
+		return t.IOS
+	case "iPad":
+		return t.IPadOS
+	case "AppleTV":
+		return t.TvOS
+	default:
+		return t.MacOS
+	}
+}
+
+// All returns one entry per platform, in a fixed order. A nil entry means that
+// platform has no default team, which callers read as "No team" — devices of
+// that family land there, so the nils are meaningful and not filtered out.
+func (t ABMDefaultTeams) All() []*Team {
+	return []*Team{t.MacOS, t.IOS, t.IPadOS, t.TvOS}
 }
 
 type ABMTokenTeam struct {
 	Name string `json:"name"`
 	ID   uint   `json:"team_id" renameto:"fleet_id"`
+}
+
+// PopulateTeams composes the per-platform team objects the API returns from the
+// id and name columns, which are read separately (the ids live on abm_tokens,
+// the names come from a LEFT JOIN on teams). A nil default team id means "No
+// team" and yields the zero id.
+func (t *ABMToken) PopulateTeams() {
+	t.MacOSTeam = ABMTokenTeam{Name: t.MacOSTeamName, ID: ptr.ValOrZero(t.MacOSDefaultTeamID)}
+	t.IOSTeam = ABMTokenTeam{Name: t.IOSTeamName, ID: ptr.ValOrZero(t.IOSDefaultTeamID)}
+	t.IPadOSTeam = ABMTokenTeam{Name: t.IPadOSTeamName, ID: ptr.ValOrZero(t.IPadOSDefaultTeamID)}
+	t.TvOSTeam = ABMTokenTeam{Name: t.TvOSTeamName, ID: ptr.ValOrZero(t.TvOSDefaultTeamID)}
+	t.BYODTeam = ABMTokenTeam{Name: t.BYODTeamName, ID: ptr.ValOrZero(t.BYODDefaultTeamID)}
 }
 
 type AppleCSR struct {

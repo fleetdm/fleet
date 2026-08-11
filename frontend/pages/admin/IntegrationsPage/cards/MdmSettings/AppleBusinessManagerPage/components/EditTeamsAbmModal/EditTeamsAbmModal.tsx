@@ -43,6 +43,7 @@ interface SelectedTeamNames {
   ios_team: IMdmAbToken["ios_fleet"]["name"];
   ipados_team: IMdmAbToken["ipados_fleet"]["name"];
   macos_team: IMdmAbToken["macos_fleet"]["name"];
+  tvos_team: IMdmAbToken["tvos_fleet"]["name"];
   byod_team: IMdmAbToken["byod_fleet"]["name"];
 }
 
@@ -59,7 +60,13 @@ type SelectedTeamIds = Parameters<typeof mdmAbmAPI.editTeams>[0]["teams"];
  * `validateSelectedTeamIds` function).
  */
 export const getSelectedTeamIds = (
-  { ios_team, ipados_team, macos_team, byod_team }: SelectedTeamNames,
+  {
+    ios_team,
+    ipados_team,
+    macos_team,
+    tvos_team,
+    byod_team,
+  }: SelectedTeamNames,
   availableTeams: ITeamSummary[] = []
 ): SelectedTeamIds => {
   const byName = availableTeams.reduce((acc, t) => {
@@ -70,6 +77,7 @@ export const getSelectedTeamIds = (
     ios_fleet_id: byName[ios_team],
     ipados_fleet_id: byName[ipados_team],
     macos_fleet_id: byName[macos_team],
+    tvos_fleet_id: byName[tvos_team],
     byod_fleet_id: byName[byod_team],
   };
 };
@@ -88,6 +96,7 @@ const EditTeamsAbmModal = ({
       ios_team: token.ios_fleet.name,
       ipados_team: token.ipados_fleet.name,
       macos_team: token.macos_fleet.name,
+      tvos_team: token.tvos_fleet.name,
       byod_team: token.byod_fleet.name,
     }
   );
@@ -175,6 +184,16 @@ const EditTeamsAbmModal = ({
           value={selectedTeamNames.ipados_team}
           label="iPadOS fleet"
           wrapperClassName={`${baseClass}__form-field form-field--ipados`}
+        />
+        <Dropdown
+          searchable={false}
+          options={options}
+          onChange={(value: string) =>
+            setSelectedTeamNames((prev) => ({ ...prev, tvos_team: value }))
+          }
+          value={selectedTeamNames.tvos_team}
+          label="tvOS fleet"
+          wrapperClassName={`${baseClass}__form-field form-field--tvos`}
         />
         <Dropdown
           searchable={false}

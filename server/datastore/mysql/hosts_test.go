@@ -1753,7 +1753,7 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	// enrollment: pending (with Fleet mdm)
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: "532141num832", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
-	}, abmToken.ID, nil, nil, nil)
+	}, abmToken.ID, fleet.ABMDefaultTeams{})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
 
@@ -6206,7 +6206,7 @@ func testDEPHostsExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	count, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices, abmToken.ID, nil, nil, nil)
+	count, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices, abmToken.ID, fleet.ABMDefaultTeams{})
 	require.NoError(t, err)
 	require.Equal(t, int64(2), count)
 

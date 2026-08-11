@@ -171,6 +171,7 @@ type MDMAppleABMAssignmentInfo struct {
 	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
 	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
+	TvOSTeam         string `json:"tvos_team" renameto:"tvos_fleet"`
 	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
 }
 
@@ -183,6 +184,9 @@ func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
 	}
 	if m.IpadOSTeam == removedTeamName {
 		m.IpadOSTeam = ""
+	}
+	if m.TvOSTeam == removedTeamName {
+		m.TvOSTeam = ""
 	}
 	if m.BYODTeam == removedTeamName {
 		m.BYODTeam = ""

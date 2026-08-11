@@ -229,6 +229,7 @@
         "macos_team": "💻 Workstations",
         "ios_team": "📱🏢 Company-owned mobile devices",
         "ipados_team": "📱🏢 Company-owned mobile devices",
+        "tvos_team": "📺 Conference room Apple TVs",
         "byod_team": "📱🔐 Personal mobile devices"
       }
     ],

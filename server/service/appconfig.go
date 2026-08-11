@@ -2445,6 +2445,7 @@ func (svc *Service) validateABMAssignments(
 		tok.MacOSDefaultTeamID = &team.ID
 		tok.IOSDefaultTeamID = &team.ID
 		tok.IPadOSDefaultTeamID = &team.ID
+		tok.TvOSDefaultTeamID = &team.ID
 		tok.BYODDefaultTeamID = &team.ID
 		return []*fleet.ABMToken{tok}, nil
 	}
@@ -2477,28 +2478,33 @@ func (svc *Service) validateABMAssignments(
 			token.MacOSDefaultTeamID = nil
 			token.IOSDefaultTeamID = nil
 			token.IPadOSDefaultTeamID = nil
+			token.TvOSDefaultTeamID = nil
 			token.BYODDefaultTeamID = nil
-			tokensByName[token.OrganizationName] = token
+			tokensByName[norm.NFC.String(token.OrganizationName)] = token
 		}
 
 		var tokensToSave []*fleet.ABMToken
 		for _, bm := range mdm.AppleBusinessManager.Value {
-			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
+			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.TvOSTeam, bm.BYODTeam} {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
 					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
 					return nil, nil
 				}
 			}
 
-			if _, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; !ok {
+			// The existence check and the lookup must use the same key: reading
+			// with the un-normalized name after checking the normalized one
+			// yields a nil token for any org name that isn't already NFC.
+			tok, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]
+			if !ok {
 				invalid.Appendf("mdm.apple_business", "token with organization name %s doesn't exist", bm.OrganizationName)
 				return nil, nil
 			}
 
-			tok := tokensByName[bm.OrganizationName]
 			tok.MacOSDefaultTeamID = teamsByName[bm.MacOSTeam]
 			tok.IOSDefaultTeamID = teamsByName[bm.IOSTeam]
 			tok.IPadOSDefaultTeamID = teamsByName[bm.IpadOSTeam]
+			tok.TvOSDefaultTeamID = teamsByName[bm.TvOSTeam]
 			tok.BYODDefaultTeamID = teamsByName[bm.BYODTeam]
 			tokensToSave = append(tokensToSave, tok)
 		}

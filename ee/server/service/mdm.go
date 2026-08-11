@@ -1718,7 +1718,7 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 	return tokens, nil
 }
 
-func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*fleet.ABMToken, error) {
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, teamIDs fleet.ABMTokenTeamIDs) (*fleet.ABMToken, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -1728,67 +1728,45 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		return nil, ctxerr.Wrap(ctx, err, "get ABM token to update teams")
 	}
 
-	// validate the team IDs
-	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
-	token.MacOSDefaultTeamID = nil
-	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
-	token.IOSDefaultTeamID = nil
-	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
-	token.IPadOSDefaultTeamID = nil
-	token.BYODTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
-	token.BYODDefaultTeamID = nil
+	// A nil or zero id clears the assignment back to "No team", so every platform
+	// starts cleared and is only set if a valid team id was submitted.
+	assign := func(label string, teamID *uint, team *fleet.ABMTokenTeam, defaultTeamID **uint) error {
+		*team = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+		*defaultTeamID = nil
 
-	if macOSTeamID != nil && *macOSTeamID != 0 {
-		macOSTeam, err := svc.ds.TeamLite(ctx, *macOSTeamID)
+		if teamID == nil || *teamID == 0 {
+			return nil
+		}
+
+		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if err != nil {
-			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *macOSTeamID),
-				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of macOS team"),
+			return &fleet.BadRequestError{
+				Message:     fmt.Sprintf("team with ID %d not found", *teamID),
+				InternalErr: ctxerr.Wrapf(ctx, err, "checking existence of %s team", label),
 			}
 		}
 
-		token.MacOSTeam.Name = macOSTeam.Name
-		token.MacOSTeam.ID = *macOSTeamID
-		token.MacOSDefaultTeamID = macOSTeamID
+		team.Name = tm.Name
+		team.ID = *teamID
+		*defaultTeamID = teamID
+		return nil
 	}
 
-	if iOSTeamID != nil && *iOSTeamID != 0 {
-		iOSTeam, err := svc.ds.TeamLite(ctx, *iOSTeamID)
-		if err != nil {
-			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *iOSTeamID),
-				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iOS team"),
-			}
+	for _, platform := range []struct {
+		label         string
+		teamID        *uint
+		team          *fleet.ABMTokenTeam
+		defaultTeamID **uint
+	}{
+		{"macOS", teamIDs.MacOS, &token.MacOSTeam, &token.MacOSDefaultTeamID},
+		{"iOS", teamIDs.IOS, &token.IOSTeam, &token.IOSDefaultTeamID},
+		{"iPadOS", teamIDs.IPadOS, &token.IPadOSTeam, &token.IPadOSDefaultTeamID},
+		{"tvOS", teamIDs.TvOS, &token.TvOSTeam, &token.TvOSDefaultTeamID},
+		{"BYOD", teamIDs.BYOD, &token.BYODTeam, &token.BYODDefaultTeamID},
+	} {
+		if err := assign(platform.label, platform.teamID, platform.team, platform.defaultTeamID); err != nil {
+			return nil, err
 		}
-		token.IOSTeam.Name = iOSTeam.Name
-		token.IOSTeam.ID = *iOSTeamID
-		token.IOSDefaultTeamID = iOSTeamID
-	}
-
-	if iPadOSTeamID != nil && *iPadOSTeamID != 0 {
-		iPadOSTeam, err := svc.ds.TeamLite(ctx, *iPadOSTeamID)
-		if err != nil {
-			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *iPadOSTeamID),
-				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iPadOS team"),
-			}
-		}
-		token.IPadOSTeam.Name = iPadOSTeam.Name
-		token.IPadOSTeam.ID = *iPadOSTeamID
-		token.IPadOSDefaultTeamID = iPadOSTeamID
-	}
-
-	if byodTeamID != nil && *byodTeamID != 0 {
-		byodTeam, err := svc.ds.TeamLite(ctx, *byodTeamID)
-		if err != nil {
-			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *byodTeamID),
-				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of BYOD team"),
-			}
-		}
-		token.BYODTeam.Name = byodTeam.Name
-		token.BYODTeam.ID = *byodTeamID
-		token.BYODDefaultTeamID = byodTeamID
 	}
 
 	if err := svc.ds.SaveABMToken(ctx, token); err != nil {
@@ -1801,64 +1779,36 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
-	var found bool
-	for i, appCfgToken := range appCfg.MDM.AppleBusinessManager.Value {
-		if appCfgToken.OrganizationName == token.OrganizationName {
-
-			// Clear no team names, so they are presented nicer in gitops.
-			appCfgToken.BYODTeam = token.BYODTeam.Name
-			if token.BYODTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.BYODTeam = ""
-			}
-			appCfgToken.MacOSTeam = token.MacOSTeam.Name
-			if token.MacOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.MacOSTeam = ""
-			}
-			appCfgToken.IOSTeam = token.IOSTeam.Name
-			if token.IOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.IOSTeam = ""
-			}
-			appCfgToken.IpadOSTeam = token.IPadOSTeam.Name
-			if token.IPadOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.IpadOSTeam = ""
-			}
-
-			// update the app config with the new team names
-			appCfg.MDM.AppleBusinessManager.Value[i] = appCfgToken
-			found = true
-			break
+	// "No team" is stored as an empty name so it reads nicer in gitops.
+	gitOpsTeamName := func(team fleet.ABMTokenTeam) string {
+		if team.Name == fleet.TeamNameNoTeam {
+			return ""
 		}
+		return team.Name
+	}
+	assignment := fleet.MDMAppleABMAssignmentInfo{
+		OrganizationName: token.OrganizationName,
+		MacOSTeam:        gitOpsTeamName(token.MacOSTeam),
+		IOSTeam:          gitOpsTeamName(token.IOSTeam),
+		IpadOSTeam:       gitOpsTeamName(token.IPadOSTeam),
+		TvOSTeam:         gitOpsTeamName(token.TvOSTeam),
+		BYODTeam:         gitOpsTeamName(token.BYODTeam),
 	}
 
 	if !appCfg.MDM.AppleBusinessManager.Set || !appCfg.MDM.AppleBusinessManager.Valid {
 		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
 	}
 
+	var found bool
+	for i, appCfgToken := range appCfg.MDM.AppleBusinessManager.Value {
+		if appCfgToken.OrganizationName == token.OrganizationName {
+			appCfg.MDM.AppleBusinessManager.Value[i] = assignment
+			found = true
+			break
+		}
+	}
 	if !found {
-		// create a new entry if app config doesn't have one.
-		byodTeam := token.BYODTeam.Name
-		if byodTeam == fleet.TeamNameNoTeam {
-			byodTeam = ""
-		}
-		macosTeam := token.MacOSTeam.Name
-		if macosTeam == fleet.TeamNameNoTeam {
-			macosTeam = ""
-		}
-		iosTeam := token.IOSTeam.Name
-		if iosTeam == fleet.TeamNameNoTeam {
-			iosTeam = ""
-		}
-		ipadosTeam := token.IPadOSTeam.Name
-		if ipadosTeam == fleet.TeamNameNoTeam {
-			ipadosTeam = ""
-		}
-		appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value, fleet.MDMAppleABMAssignmentInfo{
-			OrganizationName: token.OrganizationName,
-			BYODTeam:         byodTeam,
-			MacOSTeam:        macosTeam,
-			IOSTeam:          iosTeam,
-			IpadOSTeam:       ipadosTeam,
-		})
+		appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value, assignment)
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {

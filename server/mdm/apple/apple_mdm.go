@@ -515,22 +515,25 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 	var result error
 	for _, token := range tokens {
-		var macOSTeam, iosTeam, ipadTeam *fleet.Team
+		var defaultTeams fleet.ABMDefaultTeams
 
 		if token.MacOSDefaultTeamID != nil {
-			macOSTeam = teamsByID[*token.MacOSDefaultTeamID]
+			defaultTeams.MacOS = teamsByID[*token.MacOSDefaultTeamID]
 		}
 
 		if token.IOSDefaultTeamID != nil {
-			iosTeam = teamsByID[*token.IOSDefaultTeamID]
+			defaultTeams.IOS = teamsByID[*token.IOSDefaultTeamID]
 		}
 
 		if token.IPadOSDefaultTeamID != nil {
-			ipadTeam = teamsByID[*token.IPadOSDefaultTeamID]
+			defaultTeams.IPadOS = teamsByID[*token.IPadOSDefaultTeamID]
 		}
 
-		teams := []*fleet.Team{macOSTeam, iosTeam, ipadTeam}
-		for _, team := range teams {
+		if token.TvOSDefaultTeamID != nil {
+			defaultTeams.TvOS = teamsByID[*token.TvOSDefaultTeamID]
+		}
+
+		for _, team := range defaultTeams.All() {
 			// ensure the default (fallback) setup assistant profile exists, registered
 			// with Apple DEP.
 			_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, team, token.OrganizationName)
@@ -577,7 +580,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 			depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
 				// the nanodep syncer just logs the error of the callback, so in order to
 				// capture it we need to do this here.
-				err := d.processDeviceResponse(ctx, resp, token.ID, token.OrganizationName, macOSTeam, iosTeam, ipadTeam)
+				err := d.processDeviceResponse(ctx, resp, token.ID, token.OrganizationName, defaultTeams)
 				if err != nil {
 					ctxerr.Handle(ctx, err)
 				}
@@ -640,9 +643,7 @@ func (d *DEPService) processDeviceResponse(
 	resp *godep.DeviceResponse,
 	abmTokenID uint,
 	abmOrganizationName string,
-	macOSTeam *fleet.Team,
-	iosTeam *fleet.Team,
-	ipadTeam *fleet.Team,
+	defaultTeams fleet.ABMDefaultTeams,
 ) error {
 	if len(resp.Devices) < 1 {
 		// no devices means we can't assign anything
@@ -790,7 +791,7 @@ func (d *DEPService) processDeviceResponse(
 		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
 	}
 
-	n, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevicesSlice, abmTokenID, macOSTeam, iosTeam, ipadTeam)
+	n, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevicesSlice, abmTokenID, defaultTeams)
 	switch {
 	case err != nil:
 		d.logger.ErrorContext(ctx, "error ingesting DEP devices", "err", err)
@@ -812,29 +813,14 @@ func (d *DEPService) processDeviceResponse(
 	//
 	// collect a map of all the profiles => serials we need to assign.
 	profileToDevices := map[string][]godep.Device{}
-	var iosTeamID, macOSTeamID, ipadTeamID *uint
-	if iosTeam != nil {
-		iosTeamID = &iosTeam.ID
-	}
-	if macOSTeam != nil {
-		macOSTeamID = &macOSTeam.ID
-	}
-	if ipadTeam != nil {
-		ipadTeamID = &ipadTeam.ID
-	}
 
 	// each new device should be assigned the DEP profile of the default
 	// ABM team as configured by the IT admin.
 	devicesByTeam := map[*uint][]godep.Device{}
 	for _, newDevice := range addedDevicesSlice {
 		var teamID *uint
-		switch newDevice.DeviceFamily {
-		case "iPhone", "iPod":
-			teamID = iosTeamID
-		case "iPad":
-			teamID = ipadTeamID
-		default:
-			teamID = macOSTeamID
+		if team := defaultTeams.ForDeviceFamily(newDevice.DeviceFamily); team != nil {
+			teamID = &team.ID
 		}
 		devicesByTeam[teamID] = append(devicesByTeam[teamID], newDevice)
 	}

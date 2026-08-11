@@ -416,8 +416,7 @@ func (t *HostLifecycle) getDefaultTeamForABMToken(ctx context.Context, host *fle
 	case "ipados":
 		abmDefaultTeamID = tok.IPadOSDefaultTeamID
 	case "tvos":
-		// TODO: switch to the token's tvOS default team once abm_tokens has one.
-		abmDefaultTeamID = tok.MacOSDefaultTeamID
+		abmDefaultTeamID = tok.TvOSDefaultTeamID
 	default:
 		return nil, ctxerr.NewWithData(ctx, "attempting to get default ABM team for host with invalid platform", map[string]any{"host_platform": host.FleetPlatform(), "host_id": host.ID})
 	}

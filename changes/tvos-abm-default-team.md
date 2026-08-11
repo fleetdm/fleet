@@ -1,0 +1,1 @@
+- Added a tvOS default fleet to Apple Business Manager tokens. Apple TVs that appear in Apple Business are now assigned to this fleet on sync instead of falling through to the macOS default fleet. Configurable in the UI and via the `tvos_fleet` key in GitOps.

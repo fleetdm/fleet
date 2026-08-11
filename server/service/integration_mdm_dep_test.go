@@ -1856,10 +1856,11 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 			  "macos_team": %q,
 			  "ios_team": %q,
 			  "ipados_team": %q,
+			  "tvos_team": %q,
 			  "byod_team": %q
 			}]
 		}
-	}`, tmOrgName, tm.Name, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
+	}`, tmOrgName, tm.Name, tm.Name, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {

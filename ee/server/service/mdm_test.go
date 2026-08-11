@@ -511,14 +511,15 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 	t.Run("team ids is validated and updated", func(t *testing.T) {
 		teamLiteCalls = 0
 		ds.SaveAppConfigFuncInvoked = false
-		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, validTeamID, validTeamID, validTeamID, validTeamID)
+		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, allTeams(validTeamID))
 		require.NoError(t, err)
 
 		assert.Equal(t, validTeamID, token.BYODDefaultTeamID)
 		assert.Equal(t, validTeamID, token.MacOSDefaultTeamID)
 		assert.Equal(t, validTeamID, token.IOSDefaultTeamID)
 		assert.Equal(t, validTeamID, token.IPadOSDefaultTeamID)
-		assert.Equal(t, 4, teamLiteCalls)
+		assert.Equal(t, validTeamID, token.TvOSDefaultTeamID)
+		assert.Equal(t, 5, teamLiteCalls)
 		require.True(t, ds.SaveAppConfigFuncInvoked)
 		var appCfgToken fleet.MDMAppleABMAssignmentInfo
 		for _, tok := range updatedAppCfg.MDM.AppleBusinessManager.Value {
@@ -531,23 +532,33 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 		assert.Equal(t, validTeamName, appCfgToken.MacOSTeam)
 		assert.Equal(t, validTeamName, appCfgToken.IOSTeam)
 		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.TvOSTeam)
 	})
 
 	t.Run("invalid team id returns error", func(t *testing.T) {
-		teamLiteCalls = 0
-		_, err := svc.UpdateABMTokenTeams(ctx, tokenID, validTeamID, validTeamID, validTeamID, invalidTeamID)
-		require.Error(t, err)
+		for _, teamIDs := range []fleet.ABMTokenTeamIDs{
+			{MacOS: validTeamID, IOS: validTeamID, IPadOS: validTeamID, TvOS: validTeamID, BYOD: invalidTeamID},
+			{MacOS: validTeamID, IOS: validTeamID, IPadOS: validTeamID, TvOS: invalidTeamID, BYOD: validTeamID},
+		} {
+			teamLiteCalls = 0
+			_, err := svc.UpdateABMTokenTeams(ctx, tokenID, teamIDs)
+			require.Error(t, err)
+		}
 	})
 
 	t.Run("does not validate nil team ids", func(t *testing.T) {
 		teamLiteCalls = 0
 		ds.SaveAppConfigFuncInvoked = false
 		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
-			{OrganizationName: orgName, MacOSTeam: validTeamName, IOSTeam: validTeamName, IpadOSTeam: validTeamName, BYODTeam: validTeamName},
+			{
+				OrganizationName: orgName, MacOSTeam: validTeamName, IOSTeam: validTeamName,
+				IpadOSTeam: validTeamName, TvOSTeam: validTeamName, BYODTeam: validTeamName,
+			},
 		})
 		abmToken.MacOSDefaultTeamID = validTeamID
 		abmToken.IOSDefaultTeamID = validTeamID
 		abmToken.IPadOSDefaultTeamID = validTeamID
+		abmToken.TvOSDefaultTeamID = validTeamID
 		abmToken.BYODDefaultTeamID = validTeamID
 		abmToken.MacOSTeam.Name = validTeamName
 		abmToken.MacOSTeam.ID = *validTeamID
@@ -555,15 +566,18 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 		abmToken.IOSTeam.ID = *validTeamID
 		abmToken.IPadOSTeam.Name = validTeamName
 		abmToken.IPadOSTeam.ID = *validTeamID
+		abmToken.TvOSTeam.Name = validTeamName
+		abmToken.TvOSTeam.ID = *validTeamID
 		abmToken.BYODTeam.Name = validTeamName
 		abmToken.BYODTeam.ID = *validTeamID
-		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, nil, nil, nil, nil)
+		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, fleet.ABMTokenTeamIDs{})
 		require.NoError(t, err)
 
 		assert.Nil(t, token.BYODDefaultTeamID)
 		assert.Nil(t, token.MacOSDefaultTeamID)
 		assert.Nil(t, token.IOSDefaultTeamID)
 		assert.Nil(t, token.IPadOSDefaultTeamID)
+		assert.Nil(t, token.TvOSDefaultTeamID)
 		assert.Equal(t, 0, teamLiteCalls) // no calls to TeamLite since all team ids are nil
 		require.True(t, ds.SaveAppConfigFuncInvoked)
 		var appCfgToken fleet.MDMAppleABMAssignmentInfo
@@ -578,18 +592,20 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 		assert.Empty(t, appCfgToken.MacOSTeam)
 		assert.Empty(t, appCfgToken.IOSTeam)
 		assert.Empty(t, appCfgToken.IpadOSTeam)
+		assert.Empty(t, appCfgToken.TvOSTeam)
 	})
 
 	t.Run("updates app config with new entry if not present", func(t *testing.T) {
 		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
 
-		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, validTeamID, validTeamID, validTeamID, validTeamID)
+		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, allTeams(validTeamID))
 		require.NoError(t, err)
 
 		assert.Equal(t, validTeamID, token.BYODDefaultTeamID)
 		assert.Equal(t, validTeamID, token.MacOSDefaultTeamID)
 		assert.Equal(t, validTeamID, token.IOSDefaultTeamID)
 		assert.Equal(t, validTeamID, token.IPadOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.TvOSDefaultTeamID)
 		require.True(t, ds.SaveAppConfigFuncInvoked)
 		var appCfgToken fleet.MDMAppleABMAssignmentInfo
 		for _, tok := range updatedAppCfg.MDM.AppleBusinessManager.Value {
@@ -602,8 +618,15 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 		assert.Equal(t, validTeamName, appCfgToken.MacOSTeam)
 		assert.Equal(t, validTeamName, appCfgToken.IOSTeam)
 		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.TvOSTeam)
 	})
 }
+
+// allTeams assigns the same team to every platform.
+func allTeams(teamID *uint) fleet.ABMTokenTeamIDs {
+	return fleet.ABMTokenTeamIDs{MacOS: teamID, IOS: teamID, IPadOS: teamID, TvOS: teamID, BYOD: teamID}
+}
+
 func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
 	ctx := context.Background()
 	teamID := uint(1)

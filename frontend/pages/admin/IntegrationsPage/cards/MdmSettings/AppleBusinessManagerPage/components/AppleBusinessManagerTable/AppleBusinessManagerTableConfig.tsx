@@ -198,6 +198,36 @@ export const generateTableConfig = (
       ),
     },
     {
+      id: "tvos_team",
+      sortType: "caseInsensitive",
+      accessor: (originalRow) => getFleetDisplayName(originalRow.tvos_fleet),
+      Header: (cellProps: ITableHeaderProps) => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                tvOS hosts are automatically added to this fleet on initial sync
+                from AB. If a host is manually assigned to a different fleet
+                before enrollment, it will enroll to the newly assigned fleet
+                and not the default.
+              </>
+            }
+          >
+            tvOS fleet
+          </TooltipWrapper>
+        );
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={cellProps.column.isSortedDesc}
+          />
+        );
+      },
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
       id: "byod_team",
       sortType: "caseInsensitive",
       accessor: (originalRow) => getFleetDisplayName(originalRow.byod_fleet),

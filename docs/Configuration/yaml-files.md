@@ -1325,6 +1325,7 @@ After [adding an Apple Business (AB) token via the UI](https://fleetdm.com/guide
 - `macos_fleet` is the fleet where macOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 - `ios_fleet` is the the fleet where iOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 - `ipados_fleet` is the fleet where iPadOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
+- `tvos_fleet` is the fleet where tvOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 - `byod_fleet` is the fleet where BYOD hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 
 Can only be configured for "All fleets" (`org_settings`).
@@ -1339,6 +1340,7 @@ org_settings:
       macos_fleet: 💻 Workstations
       ios_fleet: 📱🏢 Company-owned iPhones
       ipados_fleet: 🔳🏢 Company-owned iPads
+      tvos_fleet: 📺 Conference room Apple TVs
       byod_fleet: 📱 BYOD iPhones
 ```
 

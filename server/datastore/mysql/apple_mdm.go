@@ -1714,16 +1714,25 @@ type hostToCreateFromMDM struct {
 	UUID *string
 }
 
+// appleMDMDefaultTeamIDs are the resolved per-platform default team ids from an
+// ABM token, used to pick each new host's team as it is created.
+type appleMDMDefaultTeamIDs struct {
+	macOS  *uint
+	iOS    *uint
+	iPadOS *uint
+	tvOS   *uint
+}
+
 func createHostFromMDMDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	logger *slog.Logger,
 	devices []hostToCreateFromMDM,
 	source appleMDMInfoSource,
-	macOSTeam, iosTeam, ipadTeam *uint,
+	teamIDs appleMDMDefaultTeamIDs,
 ) (int64, []fleet.Host, error) {
-	// NOTE: order of arguments for teams is important, see statement.
-	args := []any{iosTeam, ipadTeam, macOSTeam}
+	// NOTE: order of arguments for teams is important, see the CASE in the statement.
+	args := []any{teamIDs.iOS, teamIDs.iPadOS, teamIDs.tvOS, teamIDs.macOS}
 	us, unionArgs := unionSelectDevices(devices)
 	args = append(args, unionArgs...)
 
@@ -1749,6 +1758,7 @@ func createHostFromMDMDB(
 				CASE
 					WHEN us.platform = 'ios' THEN ?
 					WHEN us.platform = 'ipados' THEN ?
+					WHEN us.platform = 'tvos' THEN ?
 					ELSE ?
 				END AS team_id
 			FROM (%s) us
@@ -1884,7 +1894,10 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 				UUID:           &deviceInfo.UDID,
 			},
 		}
-		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, appleMDMInfoFromOTAEnrollment, teamID, teamID, teamID)
+		// OTA enrollment gets its team from the enroll secret, so every platform
+		// resolves to the same team.
+		otaTeams := appleMDMDefaultTeamIDs{macOS: teamID, iOS: teamID, iPadOS: teamID, tvOS: teamID}
+		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, appleMDMInfoFromOTAEnrollment, otaTeams)
 		if idpUUID != "" && len(hosts) > 0 {
 			host := hosts[0]
 			ds.logger.InfoContext(ctx, fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
@@ -1931,7 +1944,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 	ctx context.Context,
 	devices []godep.Device,
 	abmTokenID uint,
-	macOSTeam, iosTeam, ipadTeam *fleet.Team,
+	defaultTeams fleet.ABMDefaultTeams,
 ) (createdCount int64, err error) {
 	if len(devices) < 1 {
 		ds.logger.DebugContext(ctx, "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
@@ -1944,27 +1957,40 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 		}
 	}
 
-	var teamIDs []*uint
-	for _, team := range []*fleet.Team{macOSTeam, iosTeam, ipadTeam} {
+	// A default team configured on the token may have been deleted since; in that
+	// case we still ingest the device, it just lands in "No team".
+	resolveTeamID := func(team *fleet.Team) (*uint, error) {
 		if team == nil {
-			teamIDs = append(teamIDs, nil)
-			continue
+			return nil, nil
 		}
 
 		exists, err := ds.TeamExists(ctx, team.ID)
 		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
+			return nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
 		}
-
 		if exists {
-			teamIDs = append(teamIDs, &team.ID)
-			continue
+			return &team.ID, nil
 		}
 
-		// If the team doesn't exist, we still ingest the device, but it won't
-		// belong to any team.
 		ds.logger.DebugContext(ctx, "ingesting devices from ABM: unable to find default team assigned in config, the devices won't be assigned to a team", "team_id", team)
-		teamIDs = append(teamIDs, nil)
+		return nil, nil
+	}
+
+	var teamIDs appleMDMDefaultTeamIDs
+	for _, resolve := range []struct {
+		team *fleet.Team
+		dest **uint
+	}{
+		{defaultTeams.MacOS, &teamIDs.macOS},
+		{defaultTeams.IOS, &teamIDs.iOS},
+		{defaultTeams.IPadOS, &teamIDs.iPadOS},
+		{defaultTeams.TvOS, &teamIDs.tvOS},
+	} {
+		id, err := resolveTeamID(resolve.team)
+		if err != nil {
+			return 0, err
+		}
+		*resolve.dest = id
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -1983,7 +2009,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 			ds.logger,
 			htc,
 			appleMDMInfoFromDEPSync,
-			teamIDs[0], teamIDs[1], teamIDs[2],
+			teamIDs,
 		)
 		if err != nil {
 			return err
@@ -6531,6 +6557,7 @@ SET
 	macos_default_team_id = ?,
 	ios_default_team_id = ?,
 	ipados_default_team_id = ?,
+	tvos_default_team_id = ?,
 	byod_default_team_id = ?
 WHERE
 	id = ?`
@@ -6551,6 +6578,7 @@ WHERE
 		tok.MacOSDefaultTeamID,
 		tok.IOSDefaultTeamID,
 		tok.IPadOSDefaultTeamID,
+		tok.TvOSDefaultTeamID,
 		tok.BYODDefaultTeamID,
 		tok.ID)
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
@@ -6565,8 +6593,8 @@ func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*
 	const stmt = `
 INSERT INTO
 	abm_tokens
-	(organization_name, apple_id, terms_expired, renew_at, token, enrollment_url_token, macos_default_team_id, ios_default_team_id, ipados_default_team_id, byod_default_team_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	(organization_name, apple_id, terms_expired, renew_at, token, enrollment_url_token, macos_default_team_id, ios_default_team_id, ipados_default_team_id, tvos_default_team_id, byod_default_team_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
 	if err != nil {
@@ -6590,6 +6618,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		tok.MacOSDefaultTeamID,
 		tok.IOSDefaultTeamID,
 		tok.IPadOSDefaultTeamID,
+		tok.TvOSDefaultTeamID,
 		tok.BYODDefaultTeamID,
 	)
 	if err != nil {
@@ -6629,10 +6658,12 @@ SELECT
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
+	abt.tvos_default_team_id,
 	abt.byod_default_team_id,
 	COALESCE(t1.name, :no_team) as macos_team,
 	COALESCE(t2.name, :no_team) as ios_team,
 	COALESCE(t3.name, :no_team) as ipados_team,
+	COALESCE(t5.name, :no_team) as tvos_team,
 	COALESCE(t4.name, :no_team) as byod_team
 FROM
 	abm_tokens abt
@@ -6644,6 +6675,8 @@ LEFT OUTER JOIN
 	teams t3 ON t3.id = abt.ipados_default_team_id
 LEFT OUTER JOIN
 	teams t4 ON t4.id = abt.byod_default_team_id
+LEFT OUTER JOIN
+	teams t5 ON t5.id = abt.tvos_default_team_id
 
 	`
 
@@ -6670,25 +6703,7 @@ LEFT OUTER JOIN
 	for _, tok := range tokens {
 		tok.MDMServerURL = url
 
-		// Promote DB fields into respective objects
-		var macOSTeamID, iOSTeamID, iPadIOSTeamID, byodTeamID uint
-		if tok.MacOSDefaultTeamID != nil {
-			macOSTeamID = *tok.MacOSDefaultTeamID
-		}
-		if tok.IOSDefaultTeamID != nil {
-			iOSTeamID = *tok.IOSDefaultTeamID
-		}
-		if tok.IPadOSDefaultTeamID != nil {
-			iPadIOSTeamID = *tok.IPadOSDefaultTeamID
-		}
-		if tok.BYODDefaultTeamID != nil {
-			byodTeamID = *tok.BYODDefaultTeamID
-		}
-
-		tok.MacOSTeam = fleet.ABMTokenTeam{Name: tok.MacOSTeamName, ID: macOSTeamID}
-		tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
-		tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
-		tok.BYODTeam = fleet.ABMTokenTeam{Name: tok.BYODTeamName, ID: byodTeamID}
+		tok.PopulateTeams()
 
 		// decrypt the token with the serverPrivateKey, the resulting value will be
 		// the token still encrypted, but just with the ABM cert and key (it is that
@@ -6739,10 +6754,12 @@ SELECT
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
+	abt.tvos_default_team_id,
 	abt.byod_default_team_id,
 	COALESCE(t1.name, :no_team) as macos_team,
 	COALESCE(t2.name, :no_team) as ios_team,
 	COALESCE(t3.name, :no_team) as ipados_team,
+	COALESCE(t5.name, :no_team) as tvos_team,
 	COALESCE(t4.name, :no_team) as byod_team
 FROM
 	abm_tokens abt
@@ -6754,6 +6771,8 @@ LEFT OUTER JOIN
 	teams t3 ON t3.id = abt.ipados_default_team_id
 LEFT OUTER JOIN
 	teams t4 ON t4.id = abt.byod_default_team_id
+LEFT OUTER JOIN
+	teams t5 ON t5.id = abt.tvos_default_team_id
 %s
 	`
 
@@ -6807,25 +6826,7 @@ LEFT OUTER JOIN
 
 	tok.MDMServerURL = url
 
-	// Promote DB fields into respective objects
-	var macOSTeamID, iOSTeamID, iPadIOSTeamID, byodTeamID uint
-	if tok.MacOSDefaultTeamID != nil {
-		macOSTeamID = *tok.MacOSDefaultTeamID
-	}
-	if tok.IOSDefaultTeamID != nil {
-		iOSTeamID = *tok.IOSDefaultTeamID
-	}
-	if tok.IPadOSDefaultTeamID != nil {
-		iPadIOSTeamID = *tok.IPadOSDefaultTeamID
-	}
-	if tok.BYODDefaultTeamID != nil {
-		byodTeamID = *tok.BYODDefaultTeamID
-	}
-
-	tok.MacOSTeam = fleet.ABMTokenTeam{Name: tok.MacOSTeamName, ID: macOSTeamID}
-	tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
-	tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
-	tok.BYODTeam = fleet.ABMTokenTeam{Name: tok.BYODTeamName, ID: byodTeamID}
+	tok.PopulateTeams()
 
 	return &tok, nil
 }
@@ -6925,11 +6926,11 @@ WHERE
 `
 	var args []any
 	teamFilter := `h.team_id IS NULL`
-	abmtFilter := `abmt.macos_default_team_id IS NULL OR abmt.ios_default_team_id IS NULL OR abmt.ipados_default_team_id IS NULL OR abmt.byod_default_team_id IS NULL`
+	abmtFilter := `abmt.macos_default_team_id IS NULL OR abmt.ios_default_team_id IS NULL OR abmt.ipados_default_team_id IS NULL OR abmt.tvos_default_team_id IS NULL OR abmt.byod_default_team_id IS NULL`
 	if teamID != nil {
 		teamFilter = `h.team_id = ?`
-		abmtFilter = `abmt.macos_default_team_id = ? OR abmt.ios_default_team_id = ? OR abmt.ipados_default_team_id = ? OR abmt.byod_default_team_id = ?`
-		args = append(args, *teamID, *teamID, *teamID, *teamID, *teamID)
+		abmtFilter = `abmt.macos_default_team_id = ? OR abmt.ios_default_team_id = ? OR abmt.ipados_default_team_id = ? OR abmt.tvos_default_team_id = ? OR abmt.byod_default_team_id = ?`
+		args = append(args, *teamID, *teamID, *teamID, *teamID, *teamID, *teamID)
 	}
 
 	stmt = fmt.Sprintf(stmt, teamFilter, abmtFilter)

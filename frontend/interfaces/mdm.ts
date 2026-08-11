@@ -37,6 +37,7 @@ export interface IMdmAbToken {
   macos_fleet: ITokenFleet;
   ios_fleet: ITokenFleet;
   ipados_fleet: ITokenFleet;
+  tvos_fleet: ITokenFleet;
   byod_fleet: ITokenFleet;
 }
 

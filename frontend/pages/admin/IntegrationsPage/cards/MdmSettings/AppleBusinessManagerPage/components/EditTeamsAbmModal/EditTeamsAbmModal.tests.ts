@@ -11,6 +11,7 @@ describe("EditTeamsAbmModal", () => {
     { name: "Team 1", id: 1 },
     { name: "Team 2", id: 2 },
     { name: "BYOD Fleet", id: 3 },
+    { name: "Apple TVs", id: 4 },
   ];
 
   describe("getOptions", () => {
@@ -31,12 +32,14 @@ describe("EditTeamsAbmModal", () => {
         ios_team: "Team 1",
         ipados_team: "Team 2",
         macos_team: "Unassigned",
+        tvos_team: "Apple TVs",
         byod_team: "BYOD Fleet",
       };
       expect(getSelectedTeamIds(selectedTeamNames, availableTeams)).toEqual({
         ios_fleet_id: 1,
         ipados_fleet_id: 2,
         macos_fleet_id: 0,
+        tvos_fleet_id: 4,
         byod_fleet_id: 3,
       });
     });

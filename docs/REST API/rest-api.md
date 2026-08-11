@@ -8795,6 +8795,10 @@ None.
       "ipados_fleet": {
         "name": "🔳🏢 Company-owned iPads",
         "fleet_id": 3
+      },
+      "tvos_fleet": {
+        "name": "📺 Conference room Apple TVs",
+        "fleet_id": 5
       }
     }
   ],
@@ -8830,6 +8834,14 @@ None.
       "ipados_fleet": {
         "name": "🔳🏢 Company-owned iPads",
         "id": 3
+      },
+      "tvos_team": {
+        "name": "📺 Conference room Apple TVs",
+        "id": 5
+      },
+      "tvos_fleet": {
+        "name": "📺 Conference room Apple TVs",
+        "id": 5
       },
       "byod_team": {
         "name": "📱 BYOD iPhones",
