@@ -11,6 +11,7 @@ import { AppContext } from "context/app";
 import { getErrorReason } from "interfaces/errors";
 
 import configAPI from "services/entities/config";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 
@@ -56,7 +57,8 @@ const validateWebhookUrl = (val: string) => {
 };
 
 const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
-  const { config, isPremiumTier, setConfig } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [formData, setFormData] = useState<IEndUserMigrationFormData>({
     isEnabled: config?.mdm.macos_migration.enable || false,
@@ -116,8 +118,8 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           },
         },
       });
+      updateAppConfig(updatedConfig);
       notify.success("Successfully updated end user migration.");
-      setConfig(updatedConfig);
     } catch (err) {
       if (
         getErrorReason(err, {

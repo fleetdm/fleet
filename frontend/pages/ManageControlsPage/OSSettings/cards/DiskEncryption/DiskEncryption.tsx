@@ -10,7 +10,8 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import configAPI from "services/entities/config";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
+import { IConfig } from "interfaces/config";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -38,10 +39,10 @@ const DiskEncryption = ({
   const {
     isPremiumTier,
     config,
-    setConfig,
     isTeamTechnician,
     isGlobalTechnician,
   } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
 
@@ -63,19 +64,6 @@ const DiskEncryption = ({
     defaultRequireBitLockerPIN
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-
-  // because we pull the default state for no teams from the config,
-  // we need to update the config when the user toggles the checkbox
-  const getUpdatedAppConfig = async () => {
-    try {
-      const updatedConfig = await configAPI.loadAll();
-      setConfig(updatedConfig);
-    } catch (err) {
-      notify.error("Could not retrieve updated app config. Please try again.", {
-        response: err,
-      });
-    }
-  };
 
   const onToggleDiskEncryption = (value: boolean) => {
     setDiskEncryptionEnabled(value);
@@ -106,17 +94,20 @@ const DiskEncryption = ({
 
   const onUpdateDiskEncryption = async () => {
     try {
-      await diskEncryptionAPI.updateDiskEncryption(
+      const response = await diskEncryptionAPI.updateDiskEncryption(
         diskEncryptionEnabled,
         requireBitLockerPIN,
         currentTeamId
       );
-      notify.success("Successfully updated disk encryption enforcement.");
       onMutation();
       setShowAggregate(diskEncryptionEnabled);
-      if (currentTeamId === 0) {
-        getUpdatedAppConfig();
+      // For the "No team" case, the PATCH hits /config and returns the full
+      // updated app config — use it directly to prime the cache instead of a
+      // separate GET.
+      if (currentTeamId === 0 && response) {
+        updateAppConfig(response as IConfig);
       }
+      notify.success("Successfully updated disk encryption enforcement.");
     } catch (e) {
       if (getErrorReason(e).includes("Missing required private key")) {
         const link =

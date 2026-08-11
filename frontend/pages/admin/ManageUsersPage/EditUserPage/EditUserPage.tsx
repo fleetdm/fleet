@@ -138,8 +138,8 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
 
     usersAPI
       .update(entityId, requestData)
-      .then(() => {
-        queryClient.invalidateQueries(["user", entityId]);
+      .then((updatedUser) => {
+        queryClient.setQueryData(["user", entityId], updatedUser);
         notify.success(successMessage);
         router.push(PATHS.ADMIN_USERS);
       })
@@ -180,8 +180,8 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
         })),
         api_endpoints: formData.api_endpoints,
       })
-      .then(() => {
-        queryClient.invalidateQueries(["user", entityId]);
+      .then((updatedUser) => {
+        queryClient.setQueryData(["user", entityId], updatedUser);
         notify.success(`Successfully edited ${formData.name}.`);
         router.push(PATHS.ADMIN_USERS);
       })

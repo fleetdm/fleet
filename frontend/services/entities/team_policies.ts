@@ -112,8 +112,10 @@ export default {
       patch_when_closed,
     });
   },
-  // TODO - response type Promise<IPolicy>
-  update: (id: number, data: IPolicyFormData) => {
+  update: (
+    id: number,
+    data: IPolicyFormData
+  ): Promise<ILoadTeamPolicyResponse> => {
     const {
       name,
       description,

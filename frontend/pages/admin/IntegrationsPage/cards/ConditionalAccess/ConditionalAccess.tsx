@@ -6,6 +6,7 @@ import conditionalAccessAPI, {
   ConfirmMSConditionalAccessResponse,
 } from "services/entities/conditional_access";
 import configAPI from "services/entities/config";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
@@ -162,7 +163,8 @@ enum EntraPhase {
 
 const ConditionalAccess = () => {
   // HOOKS
-  const { isPremiumTier, setConfig, config } = useContext(AppContext);
+  const { isPremiumTier, config } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [entraPhase, setEntraPhase] = useState<EntraPhase>(
     EntraPhase.NotConfigured
@@ -310,7 +312,7 @@ const ConditionalAccess = () => {
   };
 
   const onDeleteConditionalAccess = (updatedConfig: IConfig) => {
-    setConfig(updatedConfig);
+    updateAppConfig(updatedConfig);
   };
 
   const toggleOktaModal = () => {
@@ -319,7 +321,7 @@ const ConditionalAccess = () => {
 
   const handleOktaModalSuccess = (updatedConfig: IConfig) => {
     setShowOktaModal(false);
-    setConfig(updatedConfig);
+    updateAppConfig(updatedConfig);
   };
 
   const handleEntraDelete = () => {
@@ -349,7 +351,7 @@ const ConditionalAccess = () => {
             config?.conditional_access?.microsoft_entra_tenant_id || "",
         },
       });
-      setConfig(updatedConfig);
+      updateAppConfig(updatedConfig);
       notify.success("Successfully updated conditional access settings.");
     } catch (e) {
       notify.error("Could not update conditional access settings.", {

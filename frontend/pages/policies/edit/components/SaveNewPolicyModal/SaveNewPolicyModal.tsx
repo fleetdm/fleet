@@ -25,6 +25,7 @@ import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 import configAPI from "services/entities/config";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -103,8 +104,9 @@ const SaveNewPolicyModal = ({
   fleetName,
   router,
 }: ISaveNewPolicyModalProps): JSX.Element => {
-  const { isPremiumTier, setConfig } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
   const queryClient = useQueryClient();
+  const updateAppConfig = useUpdateAppConfig();
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -233,8 +235,7 @@ const SaveNewPolicyModal = ({
             if (isGlobalPolicy) {
               requests.push(
                 configAPI.update(webhookPayload).then((updatedConfig) => {
-                  queryClient.setQueryData(["config"], updatedConfig);
-                  setConfig(updatedConfig);
+                  updateAppConfig(updatedConfig);
                 })
               );
             } else if (policyTeamId !== undefined) {

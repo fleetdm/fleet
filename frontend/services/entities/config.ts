@@ -42,8 +42,11 @@ export default {
    * If the request fails and `skipParseError` is `true`, the caller is
    * responsible for verifying that the value of the rejected promise is an AxiosError
    * and further parsing of the error message.
+   *
+   * Returns the updated `IConfig` so callers can prime the cache directly
+   * instead of refetching (which is unsafe under read-replica lag).
    */
-  update: (formData: object, skipParseError?: boolean) => {
+  update: (formData: object, skipParseError?: boolean): Promise<IConfig> => {
     const { CONFIG } = endpoints;
 
     return sendRequest(

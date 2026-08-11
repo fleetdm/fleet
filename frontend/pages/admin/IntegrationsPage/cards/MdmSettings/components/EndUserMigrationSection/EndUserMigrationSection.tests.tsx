@@ -21,6 +21,7 @@ const createTestMockData = (
   isPremiumTier = true
 ) => {
   return {
+    withBackendMock: true,
     context: {
       app: {
         isPremiumTier,

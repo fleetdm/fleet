@@ -7,6 +7,7 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { AppContext } from "context/app";
 
 import configAPI from "services/entities/config";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -56,7 +57,7 @@ const validate = (formData: IChangeManagementFormData) => {
 };
 
 const ChangeManagement = () => {
-  const { setConfig } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [formData, setFormData] = useState<IChangeManagementFormData>({
     // dummy values, will be populated with fresh config API response
@@ -90,7 +91,7 @@ const ChangeManagement = () => {
         exceptSoftware: exceptions.software,
         exceptSecrets: exceptions.secrets,
       });
-      setConfig(data);
+      updateAppConfig(data);
     },
   });
 
@@ -148,7 +149,7 @@ const ChangeManagement = () => {
         exceptSecrets: updatedConfig.gitops.exceptions.secrets,
       });
 
-      setConfig(updatedConfig);
+      updateAppConfig(updatedConfig);
 
       notify.success("Successfully updated settings");
     } catch (e) {
