@@ -79,7 +79,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	cfg := config.TestConfig()
 	// Custom activations are opt-in on the server (#50764). Tests that exercise
 	// them need them on; pass a tweak to turn them back off.
-	cfg.MDM.EnableCustomActivations = true
+	cfg.MDM.AllowCustomActivations = true
 	for _, fn := range tweakCfg {
 		fn(&cfg)
 	}
@@ -7953,6 +7953,18 @@ func TestShouldOSUpdateForDEPEnrollment(t *testing.T) {
 			expectedResult: true,
 		},
 		{
+			name:     "if platform is macOS and min_version is set to latest",
+			platform: string(fleet.MacOSPlatform),
+			appleMachineInfo: fleet.MDMAppleMachineInfo{
+				OSVersion: "16.0.1",
+			},
+			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				UpdateNewHosts: optjson.SetBool(false), // this state is not possible, but for test we do it to verify "latest" takes precedence
+			},
+			expectedResult: true,
+		},
+		{
 			name:     "if platform is not macOS and min_version is not set",
 			platform: string(fleet.IPadOSPlatform),
 			appleMachineInfo: fleet.MDMAppleMachineInfo{
@@ -7980,6 +7992,18 @@ func TestShouldOSUpdateForDEPEnrollment(t *testing.T) {
 			},
 			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("16.0.2"),
+				UpdateNewHosts: optjson.SetBool(false),
+			},
+			expectedResult: true,
+		},
+		{
+			name:     "if platform is not macOS and min_version is set to latest",
+			platform: string(fleet.IPadOSPlatform),
+			appleMachineInfo: fleet.MDMAppleMachineInfo{
+				OSVersion: "16.0.1",
+			},
+			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
 				UpdateNewHosts: optjson.SetBool(false),
 			},
 			expectedResult: true,
@@ -10082,7 +10106,7 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 	// the server explicitly opts in.
 	t.Run("activation is refused when the server hasn't enabled activations", func(t *testing.T) {
 		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium},
-			func(c *config.FleetConfig) { c.MDM.EnableCustomActivations = false })
+			func(c *config.FleetConfig) { c.MDM.AllowCustomActivations = false })
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 			return d, nil

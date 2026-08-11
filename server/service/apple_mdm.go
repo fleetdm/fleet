@@ -70,7 +70,7 @@ const (
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
 	ActivationEmptyFileErrorMsg             = "Activation must contain a declaration. To remove the activation, send an empty activation field."
 	ActivationConflictingPartsErrorMsg      = "Send either an activation file to replace it or an empty activation field to remove it, not both."
-	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ENABLE_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
+	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
 )
 
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
@@ -978,7 +978,7 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 	// (Apple FB24193230). Until that's fixed, uploading an activation takes an
 	// explicit opt-in. Removing a stored activation deliberately doesn't reach
 	// here, so an operator can always undo one.
-	if !svc.config.MDM.EnableCustomActivations {
+	if !svc.config.MDM.AllowCustomActivations {
 		return nil, ctxerr.Wrap(ctx,
 			fleet.NewInvalidArgumentError("activation", ActivationsDisabledErrorMsg),
 			"custom activations are not enabled")
@@ -3093,6 +3093,12 @@ func (svc *Service) shouldOSUpdateForDEPEnrollment(ctx context.Context, m fleet.
 	if platform != "darwin" && !isSetMinVersion {
 		svc.logger.InfoContext(ctx, "checking os updates settings for non-macos platform, minimum version not set, skipping version check", logs...)
 		return false, nil
+	}
+
+	// Always check update if latest is configured for each platform.
+	if minVersion == fleet.AppleOSUpdateLatestVersion {
+		svc.logger.InfoContext(ctx, "checking os updates settings, minimum version set to latest, checking available apple updates", logs...)
+		return true, nil
 	}
 
 	if platform == "darwin" {
