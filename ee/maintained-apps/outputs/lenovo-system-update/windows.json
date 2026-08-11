@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.08.03.59",
+      "version": "5.08.04.85",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Lenovo System Update';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Lenovo System Update' AND version_compare(version, '5.08.03.59') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Lenovo System Update' AND version_compare(version, '5.08.04.85') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'lenovo system update.exe');"
       },
-      "installer_url": "https://download.lenovo.com/pccbbs/thinkvantage_en/system_update_5.08.03.59.exe",
+      "installer_url": "https://download.lenovo.com/pccbbs/thinkvantage_en/system_update_5.08.04.85.exe",
       "install_script_ref": "04c67509",
       "uninstall_script_ref": "aca82ee7",
-      "sha256": "e66794dc561a3e58e3dc68556eb053ee32b674ac9d99638e473ef7322f353e0d",
+      "sha256": "4f044c4a1cece3fe4be22408da7e1d8e8338eeaae4491ce18fdaa5b655dc9585",
       "default_categories": [
         "Productivity"
       ]
