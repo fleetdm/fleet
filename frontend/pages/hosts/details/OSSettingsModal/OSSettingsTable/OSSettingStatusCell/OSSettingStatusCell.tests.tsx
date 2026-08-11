@@ -306,6 +306,36 @@ describe("OS setting status cell", () => {
       expect(screen.queryByText("Retrying")).not.toBeInTheDocument();
     });
 
+    // Reporting a failure detail is optional, so a retry can carry no error message at all. The
+    // retry itself is still worth surfacing.
+    it("displays 'Retrying' when the host reported a failure without a detail", async () => {
+      const profile = createRetryingCertProfile({ detail: "" });
+      const { user } = renderStatusCell(profile);
+
+      const statusText = screen.getByText("Retrying");
+      expect(statusText).toBeInTheDocument();
+
+      await user.hover(statusText);
+      await waitFor(() => {
+        expect(
+          screen.getByText("Retrying enrollment (2 of 4).")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("treats a blank detail the same as a missing one", async () => {
+      const profile = createRetryingCertProfile({ detail: "   " });
+      const { user } = renderStatusCell(profile);
+
+      await user.hover(screen.getByText("Retrying"));
+      await waitFor(() => {
+        // Not ". Retrying enrollment (2 of 4)."
+        expect(
+          screen.getByText("Retrying enrollment (2 of 4).")
+        ).toBeInTheDocument();
+      });
+    });
+
     it("displays 'Removing enforcement' for a removal, which is never retried", () => {
       const profile = createRetryingCertProfile({ operation_type: "remove" });
       renderStatusCell(profile);
@@ -330,7 +360,8 @@ describe("OS setting status cell", () => {
       });
     });
 
-    it("omits the attempt count when the server does not report the retry allowance", async () => {
+    // Defensive only: this server always sends max_retries alongside retry_count.
+    it("falls back to no attempt count if the retry allowance is missing", async () => {
       const profile = createRetryingCertProfile({ max_retries: undefined });
       const { user } = renderStatusCell(profile);
 

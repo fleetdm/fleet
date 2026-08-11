@@ -1045,13 +1045,15 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	// A template Fleet re-delivered after a failure: back to an in-progress status, with the
-	// failure detail and the incremented retry count preserved.
+	// A template Fleet is retrying after a failure. Going through RetryHostCertificateTemplate
+	// rather than writing the row directly keeps this honest about what a retry actually leaves
+	// behind: an in-progress status carrying the failure detail and an incremented retry count.
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail, operation_type, name, retry_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		h2.UUID, ct3.ID, "test-challenge", fleet.CertificateTemplateDelivered, "Network error during SCEP enrollment", fleet.MDMOperationTypeInstall, ct3.Name, 1,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+		h2.UUID, ct3.ID, "test-challenge", fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, ct3.Name,
 	)
 	require.NoError(t, err)
+	require.NoError(t, ds.RetryHostCertificateTemplate(ctx, h2.UUID, ct3.ID, "Network error during SCEP enrollment"))
 
 	testCases := []struct {
 		name string
@@ -1094,7 +1096,7 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 				require.Equal(t, fleet.MDMOperationTypeInstall, templates[1].OperationType)
 
 				require.Equal(t, ct3.Name, templates[2].Name)
-				require.Equal(t, fleet.CertificateTemplateDelivered, templates[2].Status)
+				require.Equal(t, fleet.CertificateTemplatePending, templates[2].Status)
 				require.Equal(t, "Network error during SCEP enrollment", *templates[2].Detail)
 				require.EqualValues(t, 1, templates[2].RetryCount)
 			},
