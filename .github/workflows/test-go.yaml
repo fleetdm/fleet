@@ -106,6 +106,31 @@ jobs:
       SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
 
   # ──────────────────────────────────────────────────────────────────────────
+  # MariaDB coverage: only on the nightly cron schedule.
+  #
+  # MariaDB is not a supported database. This leg exists to track how far from
+  # working it is without slowing down every push, so it is cron-only and
+  # continue-on-error. See https://github.com/fleetdm/fleet/issues/31288.
+  # ──────────────────────────────────────────────────────────────────────────
+  test-go-mariadb:
+    if: github.event_name == 'schedule'
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]
+        mysql: ["mariadb:11.4"]
+    uses: ./.github/workflows/test-go-suite.yaml
+    with:
+      suite: ${{ matrix.suite }}
+      mysql: ${{ matrix.mysql }}
+      is_cron: true
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      # Deliberately not wired to Slack: MariaDB is experimental and its
+      # failures should not page the team.
+
+  # ──────────────────────────────────────────────────────────────────────────
   # Extended Redis/Valkey coverage: only on the nightly cron schedule.
   # Runs the Redis-touching suites against newer Redis versions and Valkey, in
   # both standalone and cluster mode. MySQL is pinned to the always-run version
