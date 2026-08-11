@@ -20,43 +20,32 @@ func tsSlice(entries []logEntry) []string {
 	return out
 }
 
-func TestRingBuffer_Len(t *testing.T) {
-	rb := newRingBuffer(3)
-	require.Equal(t, 0, rb.Len())
-	rb.Add(mk(0))
-	require.Equal(t, 1, rb.Len())
-	rb.Add(mk(1))
-	require.Equal(t, 2, rb.Len())
-	rb.Add(mk(2))
-	require.Equal(t, 3, rb.Len())
-	rb.Add(mk(3))
-	require.Equal(t, 3, rb.Len())
-	rb.Add(mk(4))
-	require.Equal(t, 3, rb.Len())
-}
-
-func TestRingBuffer_NoWrap(t *testing.T) {
-	rb := newRingBuffer(3)
-	rb.Add(mk(0)) // A
-	rb.Add(mk(1)) // B
-	require.Equal(t, []string{"A", "B"}, tsSlice(rb.SliceChrono()))
-}
-
-func TestRingBuffer_Wrap(t *testing.T) {
-	rb := newRingBuffer(3)
-	// Add 6: A B C D E F → keep last 3: D E F
-	for i := range 6 {
-		rb.Add(mk(i))
+// TestRingBuffer_KeepsNewestInOrder verifies the core contract at every fill
+// level: the buffer holds the last cap entries added, oldest first.
+func TestRingBuffer_KeepsNewestInOrder(t *testing.T) {
+	tests := []struct {
+		name string
+		cap  int
+		adds int
+		want []string
+	}{
+		{"empty", 2, 0, []string{}},
+		{"below capacity", 3, 2, []string{"A", "B"}},
+		{"at capacity", 2, 2, []string{"A", "B"}},
+		{"wraps keeping the newest", 3, 6, []string{"D", "E", "F"}},
+		{"zero capacity holds nothing", 0, 4, []string{}},
 	}
-	require.Equal(t, []string{"D", "E", "F"}, tsSlice(rb.SliceChrono()))
-}
 
-func TestRingBuffer_ExactCapacity(t *testing.T) {
-	rb := newRingBuffer(2)
-	rb.Add(mk(0)) // A
-	rb.Add(mk(1)) // B
-
-	require.Equal(t, []string{"A", "B"}, tsSlice(rb.SliceChrono()))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rb := newRingBuffer(tt.cap)
+			for i := range tt.adds {
+				rb.Add(mk(i))
+			}
+			require.Equal(t, tt.want, tsSlice(rb.SliceChrono()))
+			require.Equal(t, len(tt.want), rb.Len())
+		})
+	}
 }
 
 // TestRingBuffer_GrowsOnDemand verifies that the backing array is sized to the
@@ -93,16 +82,4 @@ func TestRingBuffer_Reset(t *testing.T) {
 
 	rb.Add(mk(0))
 	require.Equal(t, []string{"A"}, tsSlice(rb.SliceChrono()))
-}
-
-func TestRingBuffer_ZeroCapacity(t *testing.T) {
-	rb := newRingBuffer(0)
-	rb.Add(mk(0))
-	require.Equal(t, 0, rb.Len())
-	require.Empty(t, rb.SliceChrono())
-}
-
-func TestRingBuffer_Empty(t *testing.T) {
-	rb := newRingBuffer(2)
-	require.Empty(t, rb.SliceChrono())
 }

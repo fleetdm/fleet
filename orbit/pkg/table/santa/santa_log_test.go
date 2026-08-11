@@ -47,64 +47,39 @@ func TestParseLogEntry(t *testing.T) {
 			line: `santad: decision=DENY | path=/usr/local/bin/tool | reason=rule | sha256=def456`,
 		},
 		{
-			name: "trims spaces around keys and values",
-			line: `[2025-09-18] santad:   decision = ALLOW   |   path = /a/b/c  | reason =  ok  `,
-			want: logEntry{
-				Timestamp:   "2025-09-18",
-				Application: "/a/b/c",
-				Reason:      "ok",
-			},
+			name:   "trims spaces around keys and values",
+			line:   `[2025-09-18] santad:   decision = ALLOW   |   path = /a/b/c  | reason =  ok  `,
+			want:   logEntry{Timestamp: "2025-09-18", Application: "/a/b/c", Reason: "ok"},
 			wantOK: true,
 		},
 		{
-			name: "ignores empty segments and missing equals",
-			line: `[ts] santad: decision=DENY | | path=/p | just-a-flag | sha256=zzz`,
-			want: logEntry{
-				Timestamp:   "ts",
-				Application: "/p",
-				SHA256:      "zzz",
-			},
+			name:   "ignores empty segments and missing equals",
+			line:   `[ts] santad: decision=DENY | | path=/p | just-a-flag | sha256=zzz`,
+			want:   logEntry{Timestamp: "ts", Application: "/p", SHA256: "zzz"},
 			wantOK: true,
 		},
 		{
-			name: "value containing equals keeps everything after the first equals",
-			line: `[ts] santad: note=a=b=c | path=/eq | sha256=x`,
-			want: logEntry{
-				Timestamp:   "ts",
-				Application: "/eq",
-				SHA256:      "x",
-			},
+			name:   "value containing equals keeps everything after the first equals",
+			line:   `[ts] santad: note=a=b=c | path=/eq | sha256=x`,
+			want:   logEntry{Timestamp: "ts", Application: "/eq", SHA256: "x"},
 			wantOK: true,
 		},
 		{
-			name: "duplicate keys last one wins",
-			line: `[ts] santad: path=/first | path=/second | reason=one | reason=two`,
-			want: logEntry{
-				Timestamp:   "ts",
-				Application: "/second",
-				Reason:      "two",
-			},
+			name:   "duplicate keys last one wins",
+			line:   `[ts] santad: path=/first | path=/second | reason=one | reason=two`,
+			want:   logEntry{Timestamp: "ts", Application: "/second", Reason: "two"},
 			wantOK: true,
 		},
 		{
-			name: "quoted values are unquoted",
-			line: `[ts] santad: path="/Applications/App With Spaces.app" | reason='quoted'`,
-			want: logEntry{
-				Timestamp:   "ts",
-				Application: "/Applications/App With Spaces.app",
-				Reason:      "quoted",
-			},
+			name:   "quoted values are unquoted",
+			line:   `[ts] santad: path="/Applications/App With Spaces.app" | reason='quoted'`,
+			want:   logEntry{Timestamp: "ts", Application: "/Applications/App With Spaces.app", Reason: "quoted"},
 			wantOK: true,
 		},
 		{
-			name: "keys are matched case-insensitively",
-			line: `[ts] santad: PATH=/upper | Reason=ok | SHA256=abc`,
-			want: logEntry{
-				Timestamp:   "ts",
-				Application: "/upper",
-				Reason:      "ok",
-				SHA256:      "abc",
-			},
+			name:   "keys are matched case-insensitively",
+			line:   `[ts] santad: PATH=/upper | Reason=ok | SHA256=abc`,
+			want:   logEntry{Timestamp: "ts", Application: "/upper", Reason: "ok", SHA256: "abc"},
 			wantOK: true,
 		},
 		{
@@ -116,12 +91,9 @@ func TestParseLogEntry(t *testing.T) {
 			line: `[] santad: decision=ALLOW | path=/a`,
 		},
 		{
-			name: "falls through an empty bracket group to the next one",
-			line: `[] [ts] santad: decision=ALLOW | path=/a`,
-			want: logEntry{
-				Timestamp:   "ts",
-				Application: "/a",
-			},
+			name:   "falls through an empty bracket group to the next one",
+			line:   `[] [ts] santad: decision=ALLOW | path=/a`,
+			want:   logEntry{Timestamp: "ts", Application: "/a"},
 			wantOK: true,
 		},
 		{
@@ -129,21 +101,15 @@ func TestParseLogEntry(t *testing.T) {
 			line: `[2025-09-18 santad: decision=ALLOW | path=/a`,
 		},
 		{
-			name: "bracket group keeps a nested opening bracket",
-			line: `[a[b] santad: decision=ALLOW | path=/a`,
-			want: logEntry{
-				Timestamp:   "a[b",
-				Application: "/a",
-			},
+			name:   "bracket group keeps a nested opening bracket",
+			line:   `[a[b] santad: decision=ALLOW | path=/a`,
+			want:   logEntry{Timestamp: "a[b", Application: "/a"},
 			wantOK: true,
 		},
 		{
-			name: "handles trailing separator",
-			line: `[ts] santad: decision=ALLOW | path=/a/b/c |`,
-			want: logEntry{
-				Timestamp:   "ts",
-				Application: "/a/b/c",
-			},
+			name:   "handles trailing separator",
+			line:   `[ts] santad: decision=ALLOW | path=/a/b/c |`,
+			want:   logEntry{Timestamp: "ts", Application: "/a/b/c"},
 			wantOK: true,
 		},
 	}
@@ -168,222 +134,199 @@ func TestParseLogEntry_TruncatedLongLine(t *testing.T) {
 }
 
 func TestScrapeSantaLogFromBase_EndToEnd(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
+	base := tempLog(t)
+	writeFile(t, base, allow("/Applications/A.app")+deny("/Applications/B.app"))
+	writeGz(t, base+".0.gz", deny("/Blocked/X"))
+	writeGz(t, base+".1.gz", allow("/OK/C"))
 
-	// current (plain) log with ALLOW and DENY
-	current := strings.Builder{}
-	current.WriteString(mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/Applications/A.app", "ok", "aaa"))
-	current.WriteString(mkLine("decision=DENY", "2025-09-18 12:00:01.000", "/Applications/B.app", "rule", "bbb"))
-	writeFile(t, base, current.String())
-
-	// archive 0 (gz): a DENY (older)
-	writeGz(t, base+".0.gz", mkLine("decision=DENY", "2025-09-18 11:59:59.000", "/Blocked/X", "blacklist", "xxx"))
-
-	// archive 1 (gz): an ALLOW (older)
-	writeGz(t, base+".1.gz", mkLine("decision=ALLOW", "2025-09-18 11:59:58.000", "/OK/C", "scope", "ccc"))
-
-	ctx := t.Context()
-
-	denied, err := scrapeSantaLogFromBase(ctx, decisionDenied, base)
-	require.NoError(t, err)
 	// Results are chronological regardless of the order the files are read in, so
-	// the archived DENY comes before the one in the active log.
-	require.Len(t, denied, 2)
-	require.Equal(t, "/Blocked/X", denied[0].Application)
-	require.Equal(t, "/Applications/B.app", denied[1].Application)
-
-	allowed, err := scrapeSantaLogFromBase(ctx, decisionAllowed, base)
+	// the archived events come before the ones in the active log.
+	denied, err := scrapeSantaLogFromBase(t.Context(), decisionDenied, base)
 	require.NoError(t, err)
-	// Likewise the ALLOW from the older archive comes first.
-	require.Len(t, allowed, 2)
-	require.Equal(t, "/OK/C", allowed[0].Application)
-	require.Equal(t, "/Applications/A.app", allowed[1].Application)
+	require.Equal(t, []string{"/Blocked/X", "/Applications/B.app"}, apps(denied))
+
+	allowed, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
+	require.NoError(t, err)
+	require.Equal(t, []string{"/OK/C", "/Applications/A.app"}, apps(allowed))
 }
 
-// TestScrapeSantaLogFromBase_IgnoresGapsAfterFirstMiss verifies that archive
-// iteration stops cleanly at the first missing archive file.
-// In this setup only the current log exists (no ".0.gz"), so the function
-// should return entries from the current log only and not attempt to read
-// later archives (".1.gz", ".2.gz", etc.).
-func TestScrapeSantaLogFromBase_IgnoresGapsAfterFirstMiss(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
+// TestScrapeSantaLogFromBase_Scenarios covers the on-disk states a scrape must
+// survive. Every read is best effort, so a file that cannot be read is reported
+// (wantErr) without discarding the entries collected from the other files.
+func TestScrapeSantaLogFromBase_Scenarios(t *testing.T) {
+	tests := []struct {
+		name     string
+		decision santaDecisionType // zero value is decisionAllowed
+		cap      int               // overrides maxEntries when > 0
+		setup    func(t *testing.T, base string)
+		want     []string // application column, oldest first
+		wantErr  bool
+	}{
+		{
+			// Archive iteration stops cleanly when no rotated file exists at all.
+			name:  "only the active log exists",
+			setup: func(t *testing.T, base string) { writeFile(t, base, allow("/A")) },
+			want:  []string{"/A"},
+		},
+		{
+			// In monitor mode Santa logs an ALLOW line for nearly every exec, arguments
+			// included, so a single long command line would otherwise empty the whole
+			// table until it rotated out.
+			name: "line over the retention limit does not discard the rest",
+			setup: func(t *testing.T, base string) {
+				writeFile(t, base, allow("/A")+longAllow("/B")+allow("/C"))
+			},
+			want: []string{"/A", "/B", "/C"},
+		},
+		{
+			// The over-long line path through a compressed archive, where the reader is
+			// fed in decompressed chunks rather than straight from a file.
+			name: "line over the retention limit inside an archive",
+			setup: func(t *testing.T, base string) {
+				writeFile(t, base, allow("/CUR"))
+				writeGz(t, base+".0.gz", allow("/A")+longAllow("/B")+allow("/C"))
+			},
+			want: []string{"/A", "/B", "/C", "/CUR"},
+		},
+		{
+			// An archive still being written by newsyslog is not valid gzip data.
+			name: "unreadable archive is reported but keeps other entries",
+			setup: func(t *testing.T, base string) {
+				writeFile(t, base, allow("/CUR"))
+				writeFile(t, base+".0.gz", "definitely not gzip")
+			},
+			want:    []string{"/CUR"},
+			wantErr: true,
+		},
+		{
+			// newsyslog has rotated the log but not finished compressing it: the .gz is
+			// incomplete while the uncompressed sibling is still on disk.
+			name: "corrupt archive falls back to its uncompressed sibling",
+			setup: func(t *testing.T, base string) {
+				writeFile(t, base, allow("/CUR"))
+				writeFile(t, base+".0.gz", "definitely not gzip")
+				writeFile(t, base+".0", allow("/ARC0"))
+			},
+			want: []string{"/ARC0", "/CUR"},
+		},
+		{
+			// Whether rotated logs are compressed at all depends on the host's
+			// newsyslog configuration.
+			name: "reads uncompressed archives",
+			setup: func(t *testing.T, base string) {
+				writeFile(t, base, allow("/CUR"))
+				writeFile(t, base+".0", allow("/ARC0"))
+				writeFile(t, base+".1", allow("/ARC1"))
+			},
+			want: []string{"/ARC1", "/ARC0", "/CUR"},
+		},
+		{
+			// A missing active log is benign: Santa may not be installed, or the log
+			// may have just been rotated. Archived entries must survive it.
+			name: "missing active log keeps archives",
+			setup: func(t *testing.T, base string) {
+				writeGz(t, base+".0.gz", allow("/ARC0"))
+			},
+			want: []string{"/ARC0"},
+		},
+		{
+			// newsyslog has renamed santa.log and santad has not recreated it yet: the
+			// pre-rotation events are read from the renamed, not-yet-compressed file.
+			name: "missing active log mid-rotation",
+			setup: func(t *testing.T, base string) {
+				writeFile(t, base+".0", allow("/ARC0"))
+			},
+			want: []string{"/ARC0"},
+		},
+		{
+			name:  "missing log entirely yields no rows and no error",
+			setup: func(*testing.T, string) {},
+			want:  []string{},
+		},
+		{
+			// A gzip stream cut short still yields the entries decoded before the failure.
+			name: "truncated gzip keeps the entries decoded before the cut",
+			setup: func(t *testing.T, base string) {
+				writeFile(t, base, allow("/CUR"))
+				writeTruncatedGz(t, base+".0.gz", allow("/DECODED"), allow("/LOST"))
+			},
+			want:    []string{"/DECODED", "/CUR"},
+			wantErr: true,
+		},
+		{
+			// santad terminates every line with a newline, so an unterminated final
+			// line is a partial write, not an event.
+			name: "skips an unterminated final line",
+			setup: func(t *testing.T, base string) {
+				writeFile(t, base, allow("/A")+`[ts] santad: decision=ALLOW | path="/PARTIAL" | rea`)
+			},
+			want: []string{"/A"},
+		},
+		{
+			// Archives are not opened once the active log alone satisfies the entry
+			// cap, which is the common case in monitor mode. The archive here cannot
+			// be read, so opening it at all would surface an error.
+			name: "archives are not opened once the cap is met",
+			cap:  2,
+			setup: func(t *testing.T, base string) {
+				writeFile(t, base, allow("/A")+allow("/B")+allow("/C"))
+				writeFile(t, base+".0.gz", "definitely not gzip")
+			},
+			want: []string{"/B", "/C"},
+		},
+		{
+			// The same short circuit part way through the archives: enough events are
+			// found in the active log and the newest archive, so the older unreadable
+			// one is left alone.
+			name: "older archives are not opened once the cap is met",
+			cap:  3,
+			setup: func(t *testing.T, base string) {
+				writeFile(t, base, allow("/CUR1")+allow("/CUR2"))
+				writeGz(t, base+".0.gz", allow("/ARC0-1")+allow("/ARC0-2"))
+				writeFile(t, base+".1.gz", "definitely not gzip")
+			},
+			want: []string{"/ARC0-2", "/CUR1", "/CUR2"},
+		},
+	}
 
-	// only current exists; no .0.gz
-	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/A", "ok", "aaa"))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.cap > 0 {
+				setCap(t, tt.cap)
+			}
+			base := tempLog(t)
+			tt.setup(t, base)
 
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.NoError(t, err)
-	require.Len(t, got, 1)
-	require.Equal(t, "/A", got[0].Application)
-}
-
-// TestScrapeSantaLogFromBase_SurvivesOverlongLine verifies that a log line
-// longer than bufio.Scanner's default token limit does not discard the entries
-// scraped from the rest of the file. In monitor mode Santa logs an ALLOW line
-// for nearly every exec, arguments included, so a single long command line
-// would otherwise empty the whole table until it rotated out.
-func TestScrapeSantaLogFromBase_SurvivesOverlongLine(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	var sb strings.Builder
-	sb.WriteString(mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/A", "ok", "aaa"))
-	sb.WriteString(mkLineWithArgs("decision=ALLOW", "2025-09-18 12:00:01.000", "/B", "ok", "bbb",
-		strings.Repeat("x", 200_000)))
-	sb.WriteString(mkLine("decision=ALLOW", "2025-09-18 12:00:02.000", "/C", "ok", "ccc"))
-	writeFile(t, base, sb.String())
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.NoError(t, err)
-	require.Equal(t, []string{"/A", "/B", "/C"}, apps(got))
+			got, err := scrapeSantaLogFromBase(t.Context(), tt.decision, base)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tt.want, apps(got))
+		})
+	}
 }
 
 // TestScrapeSantaLogFromBase_TruncatesLongLineKeepingColumns verifies that
 // truncating an over-long line preserves every column these tables expose.
 // Santa emits the unbounded args field last, after path, reason and sha256.
 func TestScrapeSantaLogFromBase_TruncatesLongLineKeepingColumns(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeFile(t, base, mkLineWithArgs("decision=ALLOW", "2025-09-18 12:00:01.000", "/Long", "cdhash", "bbb",
-		strings.Repeat("x", 200_000)))
+	base := tempLog(t)
+	writeFile(t, base, longAllow("/Long"))
 
 	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
 	require.NoError(t, err)
-	require.Len(t, got, 1)
-	require.Equal(t, "2025-09-18 12:00:01.000", got[0].Timestamp)
-	require.Equal(t, "/Long", got[0].Application)
-	require.Equal(t, "cdhash", got[0].Reason)
-	require.Equal(t, "bbb", got[0].SHA256)
-}
-
-// TestScrapeSantaLogFromBase_UnreadableArchiveKeepsOtherEntries verifies that a
-// file that cannot be read is reported but does not discard entries scraped
-// from the other files.
-func TestScrapeSantaLogFromBase_UnreadableArchiveKeepsOtherEntries(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/CUR", "ok", "aaa"))
-	// Not gzip data: an archive still being written by newsyslog looks like this.
-	writeFile(t, base+".0.gz", "definitely not gzip")
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.Error(t, err, "the unreadable archive should be reported")
-	require.Len(t, got, 1, "entries from the readable files should survive")
-	require.Equal(t, "/CUR", got[0].Application)
-}
-
-// TestScrapeSantaLogFromBase_CorruptArchiveFallsBackToUncompressed covers the
-// window in which newsyslog has rotated the log but not finished compressing
-// it: the .gz is incomplete while the uncompressed sibling is still on disk.
-func TestScrapeSantaLogFromBase_CorruptArchiveFallsBackToUncompressed(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/CUR", "ok", "aaa"))
-	writeFile(t, base+".0.gz", "definitely not gzip")
-	writeFile(t, base+".0", mkLine("decision=ALLOW", "2025-09-18 11:59:59.000", "/ARC0", "ok", "bbb"))
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.NoError(t, err, "the uncompressed sibling should satisfy the read")
-	require.Equal(t, []string{"/ARC0", "/CUR"}, apps(got))
-}
-
-// TestScrapeSantaLogFromBase_ReadsUncompressedArchives verifies that rotated
-// logs are read even when they have not been compressed at all, which depends
-// on the host's newsyslog configuration.
-func TestScrapeSantaLogFromBase_ReadsUncompressedArchives(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/CUR", "ok", "aaa"))
-	writeFile(t, base+".0", mkLine("decision=ALLOW", "2025-09-18 11:59:59.000", "/ARC0", "ok", "bbb"))
-	writeFile(t, base+".1", mkLine("decision=ALLOW", "2025-09-18 11:59:58.000", "/ARC1", "ok", "ccc"))
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.NoError(t, err)
-	require.Equal(t, []string{"/ARC1", "/ARC0", "/CUR"}, apps(got))
-}
-
-// TestScrapeSantaLogFromBase_MissingCurrentLogKeepsArchives verifies that a
-// missing current log is treated as benign (Santa may not be installed, or the
-// log may have just been rotated) and does not discard archived entries.
-func TestScrapeSantaLogFromBase_MissingCurrentLogKeepsArchives(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeGz(t, base+".0.gz", mkLine("decision=ALLOW", "2025-09-18 11:59:59.000", "/ARC0", "ok", "bbb"))
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.NoError(t, err)
-	require.Len(t, got, 1)
-	require.Equal(t, "/ARC0", got[0].Application)
-}
-
-// TestScrapeSantaLogFromBase_TruncatedArchiveKeepsDecodedEntries verifies that
-// a gzip stream cut short still yields the entries decoded before the failure.
-func TestScrapeSantaLogFromBase_TruncatedArchiveKeepsDecodedEntries(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/CUR", "ok", "aaa"))
-	writeTruncatedGz(t, base+".0.gz",
-		mkLine("decision=ALLOW", "2025-09-18 11:59:58.000", "/DECODED", "ok", "bbb"),
-		mkLine("decision=ALLOW", "2025-09-18 11:59:59.000", "/LOST", "ok", "ccc"),
-	)
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.Error(t, err, "the truncated archive should be reported")
-	require.Equal(t, []string{"/DECODED", "/CUR"}, apps(got))
-}
-
-// TestScrapeSantaLogFromBase_SkipsUnterminatedFinalLine verifies that a line
-// caught mid-write is not reported as an event. santad terminates every line
-// with a newline, so an unterminated final line is always a partial write.
-func TestScrapeSantaLogFromBase_SkipsUnterminatedFinalLine(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeFile(t, base,
-		mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/A", "ok", "aaa")+
-			`[2025-09-18 12:00:01.000] santad: decision=ALLOW | path="/PARTIAL" | rea`)
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.NoError(t, err)
-	require.Len(t, got, 1)
-	require.Equal(t, "/A", got[0].Application)
-}
-
-// TestScrapeSantaLogFromBase_SurvivesOverlongLineInArchive exercises the
-// over-long line path through a compressed archive, where the reader is fed in
-// decompressed chunks rather than straight from a file.
-func TestScrapeSantaLogFromBase_SurvivesOverlongLineInArchive(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:02.000", "/CUR", "ok", "ccc"))
-	writeGz(t, base+".0.gz",
-		mkLine("decision=ALLOW", "2025-09-18 11:59:58.000", "/A", "ok", "aaa")+
-			mkLineWithArgs("decision=ALLOW", "2025-09-18 11:59:59.000", "/B", "ok", "bbb",
-				strings.Repeat("x", 200_000))+
-			mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/C", "ok", "ccc"))
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.NoError(t, err)
-	require.Equal(t, []string{"/A", "/B", "/C", "/CUR"}, apps(got))
+	require.Equal(t, []logEntry{{Timestamp: testTS, Application: "/Long", Reason: "ok", SHA256: "aaa"}}, got)
 }
 
 // TestScrapeSantaLogFromBase_LineAtRetentionLimit covers the boundary between the
 // single-read path and the truncating one.
 func TestScrapeSantaLogFromBase_LineAtRetentionLimit(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
+	base := tempLog(t)
 
 	for _, length := range []int{maxLineBytes - 1, maxLineBytes, maxLineBytes + 1} {
-		line := mkLineWithArgs("decision=ALLOW", "2025-09-18 12:00:00.000", "/A", "ok", "aaa", "")
+		line := mkLineWithArgs("decision=ALLOW", testTS, "/A", "ok", "aaa", "")
 		// Pad the args field so the line is exactly length bytes, newline included.
 		line = strings.TrimSuffix(line, "\n") + strings.Repeat("x", length-len(line)) + "\n"
 		require.Len(t, line, length)
@@ -391,22 +334,16 @@ func TestScrapeSantaLogFromBase_LineAtRetentionLimit(t *testing.T) {
 
 		got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
 		require.NoError(t, err, "line length %d", length)
-		require.Len(t, got, 1, "line length %d", length)
-		require.Equal(t, logEntry{
-			Timestamp:   "2025-09-18 12:00:00.000",
-			Application: "/A",
-			Reason:      "ok",
-			SHA256:      "aaa",
-		}, got[0], "line length %d", length)
+		require.Equal(t, []logEntry{{Timestamp: testTS, Application: "/A", Reason: "ok", SHA256: "aaa"}}, got,
+			"line length %d", length)
 	}
 }
 
 // TestScrapeSantaLogFromBase_CanceledContext verifies that a canceled query is
 // reported rather than looking like an empty log.
 func TestScrapeSantaLogFromBase_CanceledContext(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/A", "ok", "aaa"))
+	base := tempLog(t)
+	writeFile(t, base, allow("/A"))
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -420,11 +357,9 @@ func TestScrapeSantaLogFromBase_CanceledContext(t *testing.T) {
 // events move to the next rotation index, so the disappearance is expected and
 // must not be reported as a failure.
 func TestScrapeSantaLogFromBase_ArchiveRotatedAwayIsNotReported(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/CUR", "ok", "aaa"))
-	writeGz(t, base+".1.gz", mkLine("decision=ALLOW", "2025-09-18 11:59:58.000", "/ARC1", "ok", "ccc"))
+	base := tempLog(t)
+	writeFile(t, base, allow("/CUR"))
+	writeGz(t, base+".1.gz", allow("/ARC1"))
 
 	// santa.log.0.gz is reported by discovery but is not on disk by the time it is
 	// opened.
@@ -442,32 +377,15 @@ func TestScrapeSantaLogFromBase_ArchiveRotatedAwayIsNotReported(t *testing.T) {
 	require.Equal(t, []string{"/ARC1", "/CUR"}, apps(got))
 }
 
-// TestScrapeSantaLogFromBase_MissingCurrentLogMidRotation covers the window in
-// which newsyslog has renamed santa.log and santad has not recreated it yet: the
-// events written before the rotation are read from the renamed file, which has not
-// been compressed yet.
-func TestScrapeSantaLogFromBase_MissingCurrentLogMidRotation(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	// The renamed log is on disk; the active one does not exist yet.
-	writeFile(t, base+".0", mkLine("decision=ALLOW", "2025-09-18 11:59:59.000", "/ARC0", "ok", "bbb"))
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.NoError(t, err)
-	require.Equal(t, []string{"/ARC0"}, apps(got))
-}
-
 // TestScrapeSantaLogFromBase_RediscoversArchivesAfterRotation covers a rotation
 // landing between discovering the archives and reading the active log, on a host
 // that had no archives at all: the events are in a santa.log.0 that the first
 // discovery pass ran too early to see.
 func TestScrapeSantaLogFromBase_RediscoversArchivesAfterRotation(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
+	base := tempLog(t)
 
 	// The renamed log is on disk; the active one has not been recreated yet.
-	writeFile(t, base+".0", mkLine("decision=ALLOW", "2025-09-18 11:59:59.000", "/ARC0", "ok", "bbb"))
+	writeFile(t, base+".0", allow("/ARC0"))
 
 	// Each discovery pass starts by looking for santa.log.0.gz. The first pass sees
 	// nothing, as it would if it ran a moment before newsyslog's rename.
@@ -490,159 +408,89 @@ func TestScrapeSantaLogFromBase_RediscoversArchivesAfterRotation(t *testing.T) {
 	require.Equal(t, []string{"/ARC0"}, apps(got))
 }
 
-// TestScrapeSantaLogFromBase_MissingLogIsNotAnError verifies that a log that is
-// not there yields no rows and no error: Santa may not be installed, or may not be
-// configured to log to a file.
-func TestScrapeSantaLogFromBase_MissingLogIsNotAnError(t *testing.T) {
-	tmp := t.TempDir()
+// TestScrapeSantaLogFromBase_RediscoversShiftedArchivesAfterRotation covers the
+// same race on a host that already had compressed archives: the rename shifts
+// every archive up one index and leaves the ex-active events in a plain
+// santa.log.0, so the pre-rotation list points at files that no longer exist.
+func TestScrapeSantaLogFromBase_RediscoversShiftedArchivesAfterRotation(t *testing.T) {
+	base := tempLog(t)
 
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, filepath.Join(tmp, "santa.log"))
+	// Post-rotation disk state: no santa.log, no santa.log.0.gz; the ex-active
+	// events sit uncompressed at santa.log.0 and the old archive moved to .1.gz.
+	writeFile(t, base+".0", allow("/NEW"))
+	writeGz(t, base+".1.gz", allow("/OLD"))
+
+	// The first discovery pass ran a moment before the rename, when the only file
+	// besides the active log was santa.log.0.gz.
+	original := statFile
+	t.Cleanup(func() { statFile = original })
+	passes := 0
+	statFile = func(path string) (os.FileInfo, error) {
+		if strings.HasSuffix(path, ".0.gz") {
+			passes++
+		}
+		if passes == 1 {
+			if strings.HasSuffix(path, ".0.gz") {
+				return original(base + ".0")
+			}
+			return nil, os.ErrNotExist
+		}
+		return original(path)
+	}
+
+	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
 	require.NoError(t, err)
-	require.Empty(t, got)
-}
-
-// TestScrapeSantaLogFromBase_StopsOnceCapIsMet verifies that archives are not
-// opened once the active log alone satisfies the entry cap, which is the common
-// case in monitor mode. The archive here cannot be read, so opening it at all
-// would surface an error.
-func TestScrapeSantaLogFromBase_StopsOnceCapIsMet(t *testing.T) {
-	oldCap := maxEntries
-	maxEntries = 2
-	defer func() { maxEntries = oldCap }()
-
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeFile(t, base,
-		mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/A", "ok", "aaa")+
-			mkLine("decision=ALLOW", "2025-09-18 12:00:01.000", "/B", "ok", "bbb")+
-			mkLine("decision=ALLOW", "2025-09-18 12:00:02.000", "/C", "ok", "ccc"))
-	writeFile(t, base+".0.gz", "definitely not gzip")
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.NoError(t, err, "the archive should not have been opened")
-	require.Equal(t, []string{"/B", "/C"}, apps(got))
-}
-
-// TestScrapeSantaLogFromBase_StopsOnceOlderArchivesAreUnneeded verifies the same
-// short circuit part way through the archives: enough events are found in the
-// active log and the newest archive, so the older one is left alone.
-func TestScrapeSantaLogFromBase_StopsOnceOlderArchivesAreUnneeded(t *testing.T) {
-	oldCap := maxEntries
-	maxEntries = 3
-	defer func() { maxEntries = oldCap }()
-
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	writeFile(t, base,
-		mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/CUR1", "ok", "aaa")+
-			mkLine("decision=ALLOW", "2025-09-18 12:00:01.000", "/CUR2", "ok", "bbb"))
-	writeGz(t, base+".0.gz",
-		mkLine("decision=ALLOW", "2025-09-18 11:59:58.000", "/ARC0-1", "ok", "ccc")+
-			mkLine("decision=ALLOW", "2025-09-18 11:59:59.000", "/ARC0-2", "ok", "ddd"))
-	writeFile(t, base+".1.gz", "definitely not gzip")
-
-	got, err := scrapeSantaLogFromBase(t.Context(), decisionAllowed, base)
-	require.NoError(t, err, "the older archive should not have been opened")
-	require.Equal(t, []string{"/ARC0-2", "/CUR1", "/CUR2"}, apps(got))
+	require.Equal(t, 2, passes, "should have looked for archives again")
+	require.Equal(t, []string{"/OLD", "/NEW"}, apps(got))
 }
 
 func TestScrapeStream_EnforcesGlobalCap(t *testing.T) {
 	// Lower the global cap to make the test fast and predictable.
-	oldCap := maxEntries
-	maxEntries = 1_000
-	defer func() { maxEntries = oldCap }()
-
-	const perLine = `[` +
-		`2025-09-18 12:00:00.000` +
-		`] santad: decision=ALLOW | path=/Applications/App.app | reason=ok | sha256=abc123` + "\n"
-
-	var sb strings.Builder
-	sb.Grow(len(perLine) * (maxEntries + 50)) // generate a bit more than the cap
-	for i := 0; i < maxEntries+50; i++ {
-		sb.WriteString(perLine)
-	}
+	setCap(t, 1_000)
 
 	rb := newRingBuffer(maxEntries)
+	stream := strings.NewReader(strings.Repeat(allow("/Applications/App.app"), maxEntries+50))
 
-	err := scrapeStream(t.Context(), strings.NewReader(sb.String()), decisionAllowed, rb)
-
+	err := scrapeStream(t.Context(), stream, decisionAllowed, rb)
 	require.NoError(t, err, "cap should not surface as an error")
 	require.Len(t, rb.SliceChrono(), maxEntries, "SliceChrono should return exactly maxEntries items")
 }
 
 func TestScrapeSantaLogFromBase_PrefersLatestWithinArchiveOnCap(t *testing.T) {
-	tmp := t.TempDir()
-	base := filepath.Join(tmp, "santa.log")
+	base := tempLog(t)
+	writeFile(t, base, deny("/CUR-DENY"))
+	writeGz(t, base+".0.gz", deny("/ARC0-DENY"))
+	// The older archive holds more DENY lines than the cap leaves room for, so the
+	// buffer must end up holding the latest lines from within it.
+	writeGz(t, base+".1.gz", deny("/DENY-1")+deny("/DENY-2")+deny("/DENY-3")+deny("/DENY-4")+deny("/DENY-5"))
 
-	// Keep the test fast and intentional.
-	oldCap := maxEntries
-	maxEntries = 3
-	defer func() { maxEntries = oldCap }()
-
-	writeFile(t, base, mkLine("decision=DENY", "2025-09-18 12:00:00.000", "/CUR-DENY", "ok", "aaa"))
-
-	writeGz(t, base+".0.gz", mkLine("decision=DENY", "2025-09-18 11:59:59.500", "/ARC0-DENY", "ok", "bbb"))
-
-	// Older archive (.1.gz): many DENY lines with increasing timestamps.
-	// We want to ensure that when the cap is hit *inside this archive*,
-	// the buffer ends up holding the *latest* lines from within it.
-	var arc1 strings.Builder
-	arc1.WriteString(mkLine("decision=DENY", "2025-09-18 11:59:59.001", "/DENY-1", "r", "d1"))
-	arc1.WriteString(mkLine("decision=DENY", "2025-09-18 11:59:59.002", "/DENY-2", "r", "d2"))
-	arc1.WriteString(mkLine("decision=DENY", "2025-09-18 11:59:59.003", "/DENY-3", "r", "d3"))
-	arc1.WriteString(mkLine("decision=DENY", "2025-09-18 11:59:59.004", "/DENY-4", "r", "d4"))
-	arc1.WriteString(mkLine("decision=DENY", "2025-09-18 11:59:59.005", "/DENY-5", "r", "d5"))
-	writeGz(t, base+".1.gz", arc1.String())
-
-	// Scan: archives oldest→newest (.1.gz then .0.gz), then current last.
-	// Since only .1.gz has DENY lines and it contains more than maxEntries,
-	// the ring should end up with the last 3 from that archive:
-	// "/DENY-3", "/DENY-4", "/DENY-5" (chronological).
+	setCap(t, 3)
 	got, err := scrapeSantaLogFromBase(t.Context(), decisionDenied, base)
 	require.NoError(t, err)
-
-	require.Equal(t,
-		[]string{"/DENY-5", "/ARC0-DENY", "/CUR-DENY"},
-		[]string{got[0].Application, got[1].Application, got[2].Application},
-		"should keep the latest entries within the archive when hitting the cap",
-	)
+	require.Equal(t, []string{"/DENY-5", "/ARC0-DENY", "/CUR-DENY"}, apps(got),
+		"should keep the latest entries within the archive when hitting the cap")
 
 	maxEntries = 2
 	got, err = scrapeSantaLogFromBase(t.Context(), decisionDenied, base)
 	require.NoError(t, err)
-
-	require.Equal(t,
-		[]string{"/ARC0-DENY", "/CUR-DENY"},
-		[]string{got[0].Application, got[1].Application},
-		"with a smaller cap, should keep the latest entries within the archive",
-	)
+	require.Equal(t, []string{"/ARC0-DENY", "/CUR-DENY"}, apps(got),
+		"with a smaller cap, should keep the latest entries within the archive")
 
 	maxEntries = 1
 	got, err = scrapeSantaLogFromBase(t.Context(), decisionDenied, base)
 	require.NoError(t, err)
-
-	require.Equal(t,
-		[]string{"/CUR-DENY"},
-		[]string{got[0].Application},
-		"with a cap of 1, should keep only the latest entry overall",
-	)
+	require.Equal(t, []string{"/CUR-DENY"}, apps(got),
+		"with a cap of 1, should keep only the latest entry overall")
 }
 
 func TestGenerateAllowed_ReturnsRows(t *testing.T) {
-	base := stubLogPath(t)
-	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/A", "cdhash", "aaa")+
-		mkLine("decision=DENY", "2025-09-18 12:00:01.000", "/B", "rule", "bbb"))
+	writeFile(t, stubLogPath(t), allow("/A")+deny("/B"))
 
 	rows, err := GenerateAllowed(t.Context(), table.QueryContext{})
 	require.NoError(t, err)
-	require.Equal(t, []map[string]string{{
-		"timestamp":   "2025-09-18 12:00:00.000",
-		"application": "/A",
-		"reason":      "cdhash",
-		"sha256":      "aaa",
-	}}, rows)
+	require.Equal(t, []map[string]string{
+		{"timestamp": testTS, "application": "/A", "reason": "ok", "sha256": "aaa"},
+	}, rows)
 }
 
 // TestGenerateAllowed_LogsFailureWithoutFailingTheQuery verifies that an
@@ -651,9 +499,8 @@ func TestGenerateAllowed_ReturnsRows(t *testing.T) {
 // query on every host running Santa, and a synthetic error row would look like a
 // real Santa event.
 func TestGenerateAllowed_LogsFailureWithoutFailingTheQuery(t *testing.T) {
-	base := stubLogPath(t)
 	// A path that exists but cannot be read as a file.
-	require.NoError(t, os.Mkdir(base, 0o755))
+	require.NoError(t, os.Mkdir(stubLogPath(t), 0o755))
 
 	logs := captureLogs(t)
 
@@ -664,18 +511,58 @@ func TestGenerateAllowed_LogsFailureWithoutFailingTheQuery(t *testing.T) {
 }
 
 func TestGenerateDenied_ReturnsRows(t *testing.T) {
-	base := stubLogPath(t)
-	writeFile(t, base, mkLine("decision=ALLOW", "2025-09-18 12:00:00.000", "/A", "cdhash", "aaa")+
-		mkLine("decision=DENY", "2025-09-18 12:00:01.000", "/B", "rule", "bbb"))
+	writeFile(t, stubLogPath(t), allow("/A")+deny("/B"))
 
 	rows, err := GenerateDenied(t.Context(), table.QueryContext{})
 	require.NoError(t, err)
-	require.Equal(t, []map[string]string{{
-		"timestamp":   "2025-09-18 12:00:01.000",
-		"application": "/B",
-		"reason":      "rule",
-		"sha256":      "bbb",
-	}}, rows)
+	require.Equal(t, []map[string]string{
+		{"timestamp": testTS, "application": "/B", "reason": "rule", "sha256": "bbb"},
+	}, rows)
+}
+
+// testTS is the timestamp the line helpers below stamp on every entry. Results
+// are ordered by file and line position, never by parsing timestamps, so the
+// tests do not need distinct ones.
+const testTS = "2025-09-18 12:00:00.000"
+
+func allow(path string) string {
+	return mkLine("decision=ALLOW", testTS, path, "ok", "aaa")
+}
+
+func deny(path string) string {
+	return mkLine("decision=DENY", testTS, path, "rule", "bbb")
+}
+
+// longAllow is an ALLOW line whose args field pushes it far past the retention
+// limit, as monitor mode produces for an exec with a long command line.
+func longAllow(path string) string {
+	return mkLineWithArgs("decision=ALLOW", testTS, path, "ok", "aaa", strings.Repeat("x", 200_000))
+}
+
+func mkLine(dec, ts, path, reason, sha string) string {
+	// example Santa line format
+	return "[" + ts + "] santad: " + dec +
+		` | path="` + path + `" | reason=` + reason + ` | sha256=` + sha + "\n"
+}
+
+// mkLineWithArgs builds a line with a trailing args field, which is where Santa
+// puts the process arguments and the only field with no practical size bound.
+func mkLineWithArgs(dec, ts, path, reason, sha, args string) string {
+	return strings.TrimSuffix(mkLine(dec, ts, path, reason, sha), "\n") +
+		" | args=" + args + "\n"
+}
+
+// tempLog returns the santa.log path inside a fresh temporary directory.
+func tempLog(tb testing.TB) string {
+	return filepath.Join(tb.TempDir(), "santa.log")
+}
+
+// setCap lowers the global entry cap for the duration of the test.
+func setCap(tb testing.TB, n int) {
+	tb.Helper()
+	original := maxEntries
+	tb.Cleanup(func() { maxEntries = original })
+	maxEntries = n
 }
 
 // stubLogPath points the tables at a temporary log for the duration of the test
@@ -684,7 +571,7 @@ func stubLogPath(tb testing.TB) string {
 	tb.Helper()
 	original := logPath
 	tb.Cleanup(func() { logPath = original })
-	logPath = filepath.Join(tb.TempDir(), "santa.log")
+	logPath = tempLog(tb)
 	return logPath
 }
 
@@ -714,28 +601,6 @@ func writeGz(tb testing.TB, path, content string) {
 	require.NoError(tb, f.Close())
 }
 
-func mkLine(dec, ts, path, reason, sha string) string {
-	// example Santa line format
-	return "[" + ts + "] santad: " + dec +
-		` | path="` + path + `" | reason=` + reason + ` | sha256=` + sha + "\n"
-}
-
-// apps lists the application column of entries, in the order returned.
-func apps(entries []logEntry) []string {
-	out := make([]string, len(entries))
-	for i := range entries {
-		out[i] = entries[i].Application
-	}
-	return out
-}
-
-// mkLineWithArgs builds a line with a trailing args field, which is where Santa
-// puts the process arguments and the only field with no practical size bound.
-func mkLineWithArgs(dec, ts, path, reason, sha, args string) string {
-	return strings.TrimSuffix(mkLine(dec, ts, path, reason, sha), "\n") +
-		" | args=" + args + "\n"
-}
-
 // writeTruncatedGz writes a gzip stream containing keep followed by drop, then
 // cuts the file at the flush boundary between them: keep decodes cleanly and
 // the stream then ends unexpectedly, as it does while newsyslog is still
@@ -755,6 +620,15 @@ func writeTruncatedGz(tb testing.TB, path, keep, drop string) {
 	require.NoError(tb, os.WriteFile(path, buf.Bytes()[:boundary], 0o644))
 }
 
+// apps lists the application column of entries, in the order returned.
+func apps(entries []logEntry) []string {
+	out := make([]string, len(entries))
+	for i := range entries {
+		out[i] = entries[i].Application
+	}
+	return out
+}
+
 //////////////////
 // BENCHMARKS
 // Santa log scraping can be slow due to potentially large files and
@@ -767,46 +641,38 @@ func writeTruncatedGz(tb testing.TB, path, keep, drop string) {
 // cpu: Apple M4 Max
 //////////////////
 
-// Small (~150KB) non-compressed
-// BenchmarkScrapeSantaLogFromBase_SmallPlain-16              10514            226687 ns/op         677.58 MB/s      504616 B/op       5060 allocs/op
-func BenchmarkScrapeSantaLogFromBase_SmallPlain(b *testing.B) {
-	tmp := b.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
-	content := fillToSize(150*1024, "decision=ALLOW")
-	writeFile(b, base, content)
-
+// benchScrape scrapes base once per iteration, reporting allocations and
+// throughput over corpusBytes.
+func benchScrape(b *testing.B, base string, decision santaDecisionType, corpusBytes int) {
 	ctx := b.Context()
-	b.SetBytes(int64(len(content)))
+	b.SetBytes(int64(corpusBytes))
 	b.ReportAllocs()
-	b.ResetTimer()
 
 	for b.Loop() {
-		if _, err := scrapeSantaLogFromBase(ctx, decisionAllowed, base); err != nil {
+		if _, err := scrapeSantaLogFromBase(ctx, decision, base); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
+// Small (~150KB) non-compressed
+// BenchmarkScrapeSantaLogFromBase_SmallPlain-16              10514            226687 ns/op         677.58 MB/s      504616 B/op       5060 allocs/op
+func BenchmarkScrapeSantaLogFromBase_SmallPlain(b *testing.B) {
+	base := tempLog(b)
+	content := fillToSize(150*1024, "decision=ALLOW")
+	writeFile(b, base, content)
+
+	benchScrape(b, base, decisionAllowed, len(content))
+}
+
 // ~10MB non-compressed
 // BenchmarkScrapeSantaLogFromBase_10MB_Plain-16                177          13231784 ns/op         792.46 MB/s     8772758 B/op     343823 allocs/op
 func BenchmarkScrapeSantaLogFromBase_10MB_Plain(b *testing.B) {
-	tmp := b.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
+	base := tempLog(b)
 	content := fillToSize(10*1024*1024, "decision=ALLOW")
 	writeFile(b, base, content)
 
-	ctx := b.Context()
-	b.SetBytes(int64(len(content)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		if _, err := scrapeSantaLogFromBase(ctx, decisionAllowed, base); err != nil {
-			b.Fatal(err)
-		}
-	}
+	benchScrape(b, base, decisionAllowed, len(content))
 }
 
 // ~10MB current log + five compressed archives (each ~10MB uncompressed), querying
@@ -814,14 +680,12 @@ func BenchmarkScrapeSantaLogFromBase_10MB_Plain(b *testing.B) {
 // MB/s counts bytes that were never read and overstates real throughput.
 // BenchmarkScrapeSantaLogFromBase_10MB_PlainPlus5x10MB_Gzip-16                 135          17888254 ns/op        3517.07 MB/s     8942730 B/op    346729 allocs/op
 func BenchmarkScrapeSantaLogFromBase_10MB_PlainPlus5x10MB_Gzip(b *testing.B) {
-	tmp := b.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
+	base := tempLog(b)
 	plain := fillToSize(10*1024*1024, "decision=ALLOW")
 	writeFile(b, base, plain)
 
 	totalUncompressed := len(plain)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		dec := "decision=DENY"
 		if i%2 == 1 {
 			dec = "decision=ALLOW"
@@ -831,17 +695,8 @@ func BenchmarkScrapeSantaLogFromBase_10MB_PlainPlus5x10MB_Gzip(b *testing.B) {
 		totalUncompressed += len(raw)
 	}
 
-	ctx := b.Context()
-	b.SetBytes(int64(totalUncompressed))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		// Choose either decision; archives contain both.
-		if _, err := scrapeSantaLogFromBase(ctx, decisionDenied, base); err != nil {
-			b.Fatal(err)
-		}
-	}
+	// Choose either decision; archives contain both.
+	benchScrape(b, base, decisionDenied, totalUncompressed)
 }
 
 // ~10MB current log of ALLOW events plus five compressed archives, querying the
@@ -852,9 +707,7 @@ func BenchmarkScrapeSantaLogFromBase_10MB_PlainPlus5x10MB_Gzip(b *testing.B) {
 // throughput: the point of this benchmark is that most of those bytes are skipped.
 // BenchmarkScrapeSantaLogFromBase_CapMetByCurrentLog-16                        182          13192218 ns/op        4769.02 MB/s     8778596 B/op    343872 allocs/op
 func BenchmarkScrapeSantaLogFromBase_CapMetByCurrentLog(b *testing.B) {
-	tmp := b.TempDir()
-	base := filepath.Join(tmp, "santa.log")
-
+	base := tempLog(b)
 	plain := fillToSize(10*1024*1024, "decision=ALLOW")
 	writeFile(b, base, plain)
 
@@ -865,38 +718,11 @@ func BenchmarkScrapeSantaLogFromBase_CapMetByCurrentLog(b *testing.B) {
 		totalUncompressed += len(raw)
 	}
 
-	ctx := b.Context()
-	b.SetBytes(int64(totalUncompressed))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for b.Loop() {
-		if _, err := scrapeSantaLogFromBase(ctx, decisionAllowed, base); err != nil {
-			b.Fatal(err)
-		}
-	}
+	benchScrape(b, base, decisionAllowed, totalUncompressed)
 }
 
 // fillToSize builds a string ≈ targetBytes by repeating mkLine(dec,...).
 func fillToSize(targetBytes int, decision string) string {
-	line := mkLine(decision,
-		"2025-09-18 12:00:00.000",
-		"/Applications/App.app",
-		"ok",
-		"deadbeefcafebabef00d",
-	)
-	ll := len(line)
-	if ll == 0 {
-		panic("mkLine returned empty line")
-	}
-	n := targetBytes / ll
-	if n < 1 {
-		n = 1
-	}
-	var sb strings.Builder
-	sb.Grow(n * ll)
-	for i := 0; i < n; i++ {
-		sb.WriteString(line)
-	}
-	return sb.String()
+	line := mkLine(decision, testTS, "/Applications/App.app", "ok", "deadbeefcafebabef00d")
+	return strings.Repeat(line, max(targetBytes/len(line), 1))
 }

@@ -422,13 +422,11 @@ func scrapeSantaLogFromBase(ctx context.Context, decision santaDecisionType, pat
 		// Not an error: Santa may not be installed, or may not be configured to log to
 		// a file (see `santa_status.log_type`). It may also have been renamed by
 		// newsyslog a moment ago, in which case its events are in a santa.log.0 that
-		// discovery ran too early to see, so look again. With archives already found
-		// there is nothing to look for: newsyslog's rename shifts the events into a
-		// path that is on the list either way.
+		// discovery ran too early to see — and every archive on the list has shifted
+		// up one index — so discover again. Nothing has been read yet, so replacing
+		// the list cannot double-count.
 		log.Debug().Str("path", path).Msg("santa log not found")
-		if len(rotated) == 0 {
-			rotated = archives(path)
-		}
+		rotated = archives(path)
 	default:
 		errs = append(errs, err)
 	}
