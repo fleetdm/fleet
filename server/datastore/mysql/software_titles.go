@@ -589,7 +589,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 		}
 		if len(fmaTitleIDs) > 0 {
-			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID, false)
+			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID)
 			if err != nil {
 				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 			}
@@ -1130,9 +1130,9 @@ func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
 }
 
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
-// for the given title and team.
-func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
-	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID), byVersion)
+// for the given title and team, most recently downloaded first.
+func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID))
 	if err != nil {
 		return nil, err
 	}
@@ -1140,8 +1140,10 @@ func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, te
 }
 
 // getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
-// for the given title IDs and team, keyed by title ID.
-func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint, byVersion bool) (map[uint][]fleet.FleetMaintainedVersion, error) {
+// for the given title IDs and team, keyed by title ID, most recently downloaded first.
+// Fleet only caches what the manifest published and never rewrites a cached version, so
+// download order follows the manifest.
+func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint) (map[uint][]fleet.FleetMaintainedVersion, error) {
 	if len(titleIDs) == 0 {
 		return nil, nil
 	}
@@ -1150,7 +1152,7 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 		SELECT si.id, si.version, si.filename, si.title_id, si.uploaded_at
 			FROM software_installers si
 		WHERE si.title_id IN (?) AND si.global_or_team_id = ? AND si.fleet_maintained_app_id IS NOT NULL
-		ORDER BY si.title_id, si.uploaded_at DESC
+		ORDER BY si.title_id, si.uploaded_at DESC, si.id DESC
 	`
 
 	query, args, err := sqlx.In(query, titleIDs, teamID)
@@ -1171,20 +1173,6 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 	result := make(map[uint][]fleet.FleetMaintainedVersion, len(titleIDs))
 	for _, row := range rows {
 		result[row.TitleID] = append(result[row.TitleID], row.FleetMaintainedVersion)
-	}
-
-	if byVersion {
-		// sort by semantic version
-		for id := range result {
-			slices.SortFunc(result[id], func(a fleet.FleetMaintainedVersion, b fleet.FleetMaintainedVersion) int {
-				aVersion, aErr := fleet.VersionToSemverVersion(a.Version)
-				bVersion, bErr := fleet.VersionToSemverVersion(b.Version)
-				if aErr != nil || bErr != nil {
-					return strings.Compare(b.Version, a.Version)
-				}
-				return bVersion.Compare(aVersion)
-			})
-		}
 	}
 
 	return result, nil

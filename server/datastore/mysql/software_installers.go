@@ -1036,7 +1036,7 @@ func (ds *Datastore) GetSoftwareInstallerMetadataByStorageID(ctx context.Context
 // Policies on evicted rows are re-pointed to the active installer before the rows
 // are deleted. Mirrors the eviction logic in BatchSetSoftwareInstallers.
 func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID, newInstallerID, activeID uint) error {
-	fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
+	fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list FMA installer versions for eviction")
 	}
@@ -1113,7 +1113,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	var touchUploaded string
 	if payload.InstallerFile != nil {
 		// installer cannot be changed when associated with an FMA
-		touchUploaded = ", uploaded_at = NOW()"
+		touchUploaded = ", uploaded_at = NOW(6)"
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -3040,6 +3040,7 @@ ON DUPLICATE KEY UPDATE
 UPDATE
 	software_installers
 SET
+	%s
 	install_during_setup = COALESCE(?, install_during_setup),
 	self_service = ?,
 	install_script_content_id = ?,
@@ -3499,7 +3500,12 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				wasUpdatedArgs = append(wasUpdatedArgs, dedupToken)
 			}
 
-			// pull existing installer state if it exists so we can diff for side effects post-update
+			// pull existing installer state if it exists so we can diff for side effects post-update.
+			// Both flags compare the incoming payload against existing[0], which is not
+			// necessarily the row this apply ends up touching: for an FMA it is the active row
+			// whatever its version, for a custom package it is the row with the same content
+			// hash. So IsPackageModified reads as "the incoming package is not the one that is
+			// active", and it is always false for a custom package since the hash matched.
 			type existingInstallerUpdateCheckResult struct {
 				InstallerID        uint `db:"id"`
 				IsPackageModified  bool `db:"is_package_modified"`
@@ -3580,13 +3586,19 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 					installer.AppOpenQuery,
 					existingID,
 				}
-				if _, err := tx.ExecContext(ctx, updateInstaller, args...); err != nil {
+				// The manifest is at an already cached version whose bytes differ from the
+				// active installer, so it is the latest available version
+				touchUploaded := ""
+				if len(existing) > 0 && existing[0].IsPackageModified {
+					touchUploaded = "uploaded_at = NOW(6),"
+				}
+				if _, err := tx.ExecContext(ctx, fmt.Sprintf(updateInstaller, touchUploaded), args...); err != nil {
 					return ctxerr.Wrapf(ctx, err, "updating existing installer with name %q", installer.Filename)
 				}
 			} else {
 				upsertQuery := insertNewOrEditedInstaller
 				if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
-					upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW()", upsertQuery)
+					upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW(6)", upsertQuery)
 				}
 
 				if _, err := tx.ExecContext(ctx, upsertQuery, args...); err != nil {
@@ -3636,7 +3648,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				// Evict old FMA versions beyond the max per title per team.
 				// Always keep the active installer; fill remaining slots with
 				// the most recent versions, evict everything else.
-				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
+				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
 				}

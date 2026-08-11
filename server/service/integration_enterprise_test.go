@@ -29874,6 +29874,86 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.SelfService,
 			"self_service should be true after the edit")
 	})
+
+	// =========================================================================
+	// Section 9: the manifest publishes a version lower than one already cached.
+	// This happens when a maintained app is withdrawn upstream, as iMazing did
+	// going from 3.5.5.0 back to 3.3.1.0. Fleet follows the manifest either way:
+	// whether the withdrawn version is rebuilt with new bytes or comes back byte
+	// for byte, it becomes active and is listed first.
+	// =========================================================================
+	t.Run("manifest_publishes_lower_version", func(t *testing.T) {
+		lowerTeam := newTeam("team_lower_" + t.Name())
+		applyManifest := func() []fleet.SoftwarePackageResponse {
+			return batchSet(lowerTeam, []*fleet.SoftwareInstallerPayload{
+				{Slug: new("cloudflare-warp/windows")},
+			})
+		}
+		cachedVersions := func(pkg *fleet.SoftwarePackageOrApp) []string {
+			got := make([]string, 0, len(pkg.FleetMaintainedVersions))
+			for _, v := range pkg.FleetMaintainedVersions {
+				got = append(got, v.Version)
+			}
+			return got
+		}
+
+		resetFMAState(warpState, "1.0", []byte("lower-1-0"))
+		require.Len(t, applyManifest(), 1)
+		pkg := getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0"}, cachedVersions(pkg))
+
+		// 1.1 is published and cached alongside 1.0.
+		resetFMAState(warpState, "1.1", []byte("lower-1-1"))
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+		// Every apply below updates one of these two rows, so their ids must not change.
+		v11ID := pkg.FleetMaintainedVersions[0].ID
+		v10ID := pkg.FleetMaintainedVersions[1].ID
+
+		// 1.1 is withdrawn and the manifest goes back to 1.0, rebuilt with new bytes.
+		resetFMAState(warpState, "1.0", []byte("lower-1-0-rebuilt"))
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
+
+		// 1.1 is published again with the bytes Fleet already has cached, so there is
+		// nothing to download.
+		resetFMAState(warpState, "1.1", []byte("lower-1-1"))
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+
+		// 1.1 is withdrawn again and 1.0 comes back byte for byte. Nothing is
+		// downloaded, but the manifest points at 1.0, so it is active and newest.
+		resetFMAState(warpState, "1.0", []byte("lower-1-0-rebuilt"))
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
+
+		// 1.1 is published a third time, rebuilt with bytes Fleet has never seen. The
+		// version is cached but its hash is not, so the row is updated rather than added.
+		resetFMAState(warpState, "1.1", []byte("lower-1-1-rebuilt"))
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+
+		// A repeated apply with no manifest change must not disturb the order.
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+
+		require.Equal(t, v11ID, pkg.FleetMaintainedVersions[0].ID, "rows are updated in place, never re-inserted")
+		require.Equal(t, v10ID, pkg.FleetMaintainedVersions[1].ID)
+	})
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {

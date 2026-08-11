@@ -98,8 +98,9 @@ func autoUpdateOneFleetMaintainedApp(
 // leaves it untouched, so an admin pin changed between this read and write is
 // never clobbered).
 func promoteFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, c fleet.FMAAutoUpdateCandidate, pin string) error {
-	// Cached versions, semver-sorted newest-first.
-	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, c.TeamID, c.TitleID, true)
+	// Cached versions, most recently downloaded first. This runs on every pass, not just
+	// after a download, so the first entry decides which version stays active.
+	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, c.TeamID, c.TitleID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting cached versions")
 	}
