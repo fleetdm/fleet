@@ -637,4 +637,31 @@ func testListForHostExcludesDisabledPacks(t *testing.T, ds *Datastore) {
 	packs, err = ds.ListPacksForHost(ctx, h1.ID)
 	require.NoError(t, err)
 	assert.Len(t, packs, 0)
+
+	// Also verify the team-targeted branch: create a team, assign the host,
+	// create a team-targeted pack, then disable it.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_for_pack_test"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h1.ID})))
+
+	teamPack, err := ds.NewPack(ctx, &fleet.Pack{
+		Name:    "team_targeted_pack",
+		TeamIDs: []uint{team.ID},
+	})
+	require.NoError(t, err)
+
+	// The team-targeted pack should appear for the host.
+	packs, err = ds.ListPacksForHost(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, packs, 1)
+	assert.Equal(t, "team_targeted_pack", packs[0].Name)
+
+	// Disable the team-targeted pack.
+	teamPack.Disabled = true
+	require.NoError(t, ds.SavePack(ctx, teamPack))
+
+	// The disabled team-targeted pack should no longer appear.
+	packs, err = ds.ListPacksForHost(ctx, h1.ID)
+	require.NoError(t, err)
+	assert.Len(t, packs, 0)
 }
