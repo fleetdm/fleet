@@ -37,6 +37,11 @@ type InstallerMetadata struct {
 	Extension        string
 	PackageIDs       []string
 	UpgradeCode      string
+	// Platforms is the set of platforms the installer targets, for the formats
+	// where the extension alone doesn't determine it. An .ipa is either an
+	// iOS/iPadOS app or a tvOS app — never both, since they are separate Apple
+	// SDK platforms with separate binaries.
+	Platforms []fleet.InstallableDevicePlatform
 }
 
 // ExtractInstallerMetadata extracts the software name and version from the

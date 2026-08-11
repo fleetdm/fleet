@@ -829,7 +829,10 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
-	case "ipa": // TODO(JVE): what about iPads? Can we get the platforms from the Info.plist file?
+	case "ipa":
+		// An .ipa is either iOS/iPadOS or tvOS; the extension alone can't tell
+		// them apart. Callers that have the extracted metadata should use its
+		// Platforms instead — this is the fallback for the common iOS case.
 		return "ios", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)

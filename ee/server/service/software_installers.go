@@ -2631,15 +2631,16 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "determining platform from extension")
 	}
+	// An .ipa's extension doesn't say whether it targets iOS/iPadOS or tvOS, so
+	// prefer the platform the sniffer read out of the Info.plist.
+	if len(meta.Platforms) > 0 {
+		platform = string(meta.Platforms[0])
+	}
 	payload.Platform = platform
 
 	switch {
 	case payload.Extension == "ipa":
-		if payload.Platform == "ipados" {
-			payload.Source = "ipados_apps"
-		} else {
-			payload.Source = "ios_apps"
-		}
+		payload.Source = fleet.AppleSoftwareSourceForPlatform(payload.Platform)
 	case payload.BundleIdentifier != "":
 		payload.Source = "apps"
 	default:
@@ -3811,18 +3812,24 @@ func (svc *Service) softwareBatchUpload(
 				installer.Title = installer.Filename
 			}
 
-			// if this is an .ipa and there is no extra installer, create it here
+			// An iOS .ipa runs on both iPhone and iPad, so it gets a sibling
+			// installer for the other platform. A tvOS .ipa has no sibling:
+			// tvOS is a separate Apple SDK platform, so one archive is only
+			// ever one platform.
 			if installer.Extension == "ipa" && len(extraInstallers) == 0 {
-				extraPayload := *installer
+				var siblingPlatform fleet.InstallableDevicePlatform
 				switch installer.Platform {
 				case string(fleet.IOSPlatform):
-					extraPayload.Platform = string(fleet.IPadOSPlatform)
-					extraPayload.Source = "ipados_apps"
+					siblingPlatform = fleet.IPadOSPlatform
 				case string(fleet.IPadOSPlatform):
-					extraPayload.Platform = string(fleet.IOSPlatform)
-					extraPayload.Source = "ios_apps"
+					siblingPlatform = fleet.IOSPlatform
 				}
-				extraInstallers = append(extraInstallers, &extraPayload)
+				if siblingPlatform != "" {
+					extraPayload := *installer
+					extraPayload.Platform = string(siblingPlatform)
+					extraPayload.Source = fleet.AppleSoftwareSourceForPlatform(string(siblingPlatform))
+					extraInstallers = append(extraInstallers, &extraPayload)
+				}
 			}
 
 			installers[i] = &installerPayloadWithExtras{

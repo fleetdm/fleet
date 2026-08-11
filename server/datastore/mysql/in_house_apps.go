@@ -29,24 +29,37 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 	}
 
-	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ipados_apps")
-	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "generating software title")
-	}
-	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ios_apps")
-	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "generating software title")
+	// An iOS .ipa runs on both iPhone and iPad, so it fans out to two rows. A
+	// tvOS .ipa is only ever tvOS: they are separate Apple SDK platforms with
+	// separate binaries, so there is no such thing as a combined archive.
+	// Order matters: rows are created in this sequence, so callers that read
+	// in_house_apps back without an ORDER BY see iPadOS before iOS.
+	platforms := []string{"ipados", "ios"}
+	returnPlatform := "ios"
+	if fleet.IsAppleTVPlatform(payload.Platform) {
+		platforms = []string{"tvos"}
+		returnPlatform = "tvos"
 	}
 
-	var installerID uint
+	titleIDs := make(map[string]uint, len(platforms))
+	for _, platform := range platforms {
+		titleID, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID,
+			fleet.AppleSoftwareSourceForPlatform(platform))
+		if err != nil {
+			return 0, 0, ctxerr.Wrap(ctx, err, "generating software title")
+		}
+		titleIDs[platform] = titleID
+	}
+
+	installerIDs := make(map[string]uint, len(platforms))
 	var count uint
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID, payload.Filename)
 		if err := row.Scan(&count); err != nil {
 			return err
 		}
 		if count > 0 {
-			// ios or ipados version of this installer exists
+			// another platform's version of this installer exists
 			teamName, err := ds.getTeamName(ctx, payload.TeamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err)
@@ -54,28 +67,21 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
 		}
 
-		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
-		argsIpad := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDipad, "ipados", payload.SelfService}
-
-		installerIDIpad, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
-		if err != nil {
-			return err
+		for _, platform := range platforms {
+			args := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDs[platform], platform, payload.SelfService}
+			installerID, err := ds.insertInHouseAppDB(ctx, tx, payload, args)
+			if err != nil {
+				return err
+			}
+			installerIDs[platform] = installerID
 		}
 
-		installerID, err = ds.insertInHouseAppDB(ctx, tx, payload, argsIos)
-		if err != nil {
-			return err
-		}
-
-		// A single .ipa upload creates two in_house_apps rows (ios + ipados),
-		// each with its own installer ID. Configuration is keyed on installer
-		// ID, so without writing under both rows iPadOS lookups would always
-		// return no config. Write the same configuration under both so install
-		// command builders see it regardless of which platform's row they
-		// resolve from.
+		// Configuration is keyed on installer ID, so for a fan-out upload it has
+		// to be written under every row; otherwise a lookup that resolves the
+		// other platform's row would always come back empty.
 		if len(payload.Configuration) > 0 {
-			for _, id := range []uint{installerID, installerIDIpad} {
-				if err := ds.updateInHouseAppConfigurationTx(ctx, tx, id, payload.Configuration); err != nil {
+			for _, platform := range platforms {
+				if err := ds.updateInHouseAppConfigurationTx(ctx, tx, installerIDs[platform], payload.Configuration); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting in-house app configuration")
 				}
 			}
@@ -83,8 +89,11 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 
 		return nil
 	})
+	if err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+	}
 
-	return installerID, titleIDios, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+	return installerIDs[returnPlatform], titleIDs[returnPlatform], nil
 }
 
 func (ds *Datastore) getOrGenerateInHouseAppTitleID(ctx context.Context, name string, bundleID string, source string) (uint, error) {
@@ -1193,28 +1202,26 @@ WHERE
 
 		var args []any
 		for _, installer := range installers {
-			// Check for installers that target iOS/iPadOS if they conflict with an existing VPP app
+			// Check whether the in-house app conflicts with an existing VPP app on
+			// any of the Apple platforms it can be installed on. An iOS .ipa
+			// creates both iOS and iPadOS entries; a tvOS .ipa only creates a
+			// tvOS one.
 			if installer.BundleIdentifier != "" {
-				// Check for iOS VPP app conflict
-				exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, string(fleet.IOSPlatform), installer.BundleIdentifier, "ios_apps", "")
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "check if VPP app (ios) exists for in-house app")
+				conflictPlatforms := []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform}
+				if fleet.IsAppleTVPlatform(installer.Platform) {
+					conflictPlatforms = []fleet.InstallableDevicePlatform{fleet.TVOSPlatform}
 				}
-				if exists {
-					return ctxerr.Wrap(ctx, fleet.ConflictError{
-						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, installer.Title, teamName),
-					}, "in-house app conflicts with existing VPP app (ios)")
-				}
-
-				// Check for iPadOS VPP app conflict
-				exists, err = ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, string(fleet.IPadOSPlatform), installer.BundleIdentifier, "ipados_apps", "")
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "check if VPP app (ipados) exists for in-house app")
-				}
-				if exists {
-					return ctxerr.Wrap(ctx, fleet.ConflictError{
-						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, installer.Title, teamName),
-					}, "in-house app conflicts with existing VPP app (ipados)")
+				for _, platform := range conflictPlatforms {
+					exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, string(platform), installer.BundleIdentifier,
+						fleet.AppleSoftwareSourceForPlatform(string(platform)), "")
+					if err != nil {
+						return ctxerr.Wrapf(ctx, err, "check if VPP app (%s) exists for in-house app", platform)
+					}
+					if exists {
+						return ctxerr.Wrapf(ctx, fleet.ConflictError{
+							Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, installer.Title, teamName),
+						}, "in-house app conflicts with existing VPP app (%s)", platform)
+					}
 				}
 			}
 

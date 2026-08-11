@@ -1,0 +1,1 @@
+- Added support for uploading in-house (custom) tvOS apps. A tvOS `.ipa` is detected from its `Info.plist` and added as a single tvOS app; iOS `.ipa` files continue to be added for both iPhone and iPad.

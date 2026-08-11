@@ -4511,14 +4511,15 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 	}
 
 	switch payload.Platform {
-	// currently, the platform will always be ios for .ipa files
-	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform):
-		// at the point where this method is called, we attempt to create both iOS and iPadOS entries
-		// for ipa apps, so check for conflicts on either platform.
-		for platform, source := range map[string]string{
-			string(fleet.IOSPlatform):    "ios_apps",
-			string(fleet.IPadOSPlatform): "ipados_apps",
-		} {
+	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform), string(fleet.TVOSPlatform):
+		// An iOS .ipa creates both an iOS and an iPadOS entry, so conflicts are
+		// checked on both. A tvOS .ipa only ever creates a tvOS entry.
+		conflictPlatforms := []string{string(fleet.IOSPlatform), string(fleet.IPadOSPlatform)}
+		if payload.Platform == string(fleet.TVOSPlatform) {
+			conflictPlatforms = []string{string(fleet.TVOSPlatform)}
+		}
+		for _, platform := range conflictPlatforms {
+			source := fleet.AppleSoftwareSourceForPlatform(platform)
 			exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, platform, payload.BundleIdentifier, source, "")
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
