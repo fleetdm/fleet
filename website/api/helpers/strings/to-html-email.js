@@ -139,13 +139,13 @@ module.exports = {
           }
         }
       };
-      return `<a style="display: inline; color: #6A67FE; font-size: 16px; text-decoration: none; word-break: break-word;" href="${href}" target="_blank">${textHTML}</a>`;
+      return `<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="${_.escape(href)}" target="_blank">${textHTML}</a>`;
     };
 
     // For images
     customRenderer.image = function(href, title) {
       let linkToImageInAssetsFolder = href.replace(/^(\.\.\/website\/assets)/gi, 'https://fleetdm.com');
-      return `<img style="max-width: 100%; margin-top: 40px; margin-bottom: 40px;" src="${linkToImageInAssetsFolder}" alt="${title}">`;
+      return `<img style="max-width: 100%; margin-top: 40px; margin-bottom: 40px;" src="${_.escape(linkToImageInAssetsFolder)}" alt="${_.escape(title)}">`;
     };
 
     markedOpts.renderer = customRenderer;
