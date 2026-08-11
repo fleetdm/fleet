@@ -37,6 +37,7 @@ func TestVPP(t *testing.T) {
 		{"VPPTokenAppTeamAssociations", testVPPTokenAppTeamAssociations},
 		{"VPPTokenReassignTeamsToAllTeams", testVPPTokenReassignTeamsToAllTeams},
 		{"GetOrInsertSoftwareTitleForVPPApp", testGetOrInsertSoftwareTitleForVPPApp},
+		{"GetOrInsertSoftwareTitleForVPPAppMatchesPlatformSource", testGetOrInsertSoftwareTitleForVPPAppMatchesPlatformSource},
 		{"DeleteVPPAssignedToPolicy", testDeleteVPPAssignedToPolicy},
 		{"TestVPPTokenTeamAssignment", testVPPTokenTeamAssignment},
 		{"TestGetAllVPPApps", testGetAllVPPApps},
@@ -1753,6 +1754,64 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 				}
 			})
 		}
+	}
+}
+
+// Apple hosts inventory their apps into a per-platform source (ios_apps,
+// ipados_apps, tvos_apps), each of which gets its own software title because
+// additional_identifier discriminates them. Adding the same app from the App
+// Store has to resolve to that platform's existing title: a lookup that ignores
+// the source finds the macOS title instead, and then the insert collides with
+// the real row on the bundle_identifier unique key.
+func testGetOrInsertSoftwareTitleForVPPAppMatchesPlatformSource(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		platform fleet.InstallableDevicePlatform
+		source   string
+	}{
+		{fleet.IOSPlatform, "ios_apps"},
+		{fleet.IPadOSPlatform, "ipados_apps"},
+		{fleet.TVOSPlatform, "tvos_apps"},
+	} {
+		t.Run(string(tc.platform), func(t *testing.T) {
+			bundleID := "com.example." + string(tc.platform)
+			name := "Shared Name " + string(tc.platform)
+
+			// The macOS title shares the bundle identifier, which is what an
+			// unscoped lookup would wrongly match.
+			macHost := test.NewHost(t, ds, "mac-"+string(tc.platform), "", "mackey-"+string(tc.platform),
+				"macuuid-"+string(tc.platform), time.Now())
+			_, err := ds.UpdateHostSoftware(ctx, macHost.ID, []fleet.Software{
+				{Name: name, Version: "1.0", Source: "apps", BundleIdentifier: bundleID},
+			})
+			require.NoError(t, err)
+
+			mdmHost := test.NewHost(t, ds, "mdm-"+string(tc.platform), "", "mdmkey-"+string(tc.platform),
+				"mdmuuid-"+string(tc.platform), time.Now())
+			_, err = ds.UpdateHostSoftware(ctx, mdmHost.ID, []fleet.Software{
+				{Name: name, Version: "1.0", Source: tc.source, BundleIdentifier: bundleID},
+			})
+			require.NoError(t, err)
+			require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+			require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+			var wantTitleID uint
+			require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &wantTitleID,
+				`SELECT id FROM software_titles WHERE bundle_identifier = ? AND source = ?`, bundleID, tc.source))
+
+			var gotTitleID uint
+			require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				var err error
+				gotTitleID, err = ds.getOrInsertSoftwareTitleForVPPApp(ctx, tx, &fleet.VPPApp{
+					Name:             name,
+					BundleIdentifier: bundleID,
+					VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{Platform: tc.platform}},
+				})
+				return err
+			}))
+			require.Equal(t, wantTitleID, gotTitleID)
+		})
 	}
 }
 

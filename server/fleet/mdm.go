@@ -1379,9 +1379,9 @@ const (
 	AndroidPlatform InstallableDevicePlatform = "android"
 )
 
-var AppStoreAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
+var AppStoreAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, TVOSPlatform, MacOSPlatform, AndroidPlatform}
 
-var ApplePlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+var ApplePlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, TVOSPlatform, MacOSPlatform}
 
 // AppleSoftwareSourceForPlatform returns the software.source value Fleet stores
 // for apps inventoried from an Apple host, either through osquery (macOS) or an
@@ -1404,9 +1404,15 @@ func (p InstallableDevicePlatform) SupportsAppStoreApps() bool {
 	return slices.Contains(AppStoreAppsPlatforms, p)
 }
 
-// IsApplePlatform returns whether the platform is one of Apple's platforms: macOS, iOS, or iPadOS.
+// IsApplePlatform returns whether the platform is one of Apple's platforms: macOS, iOS, iPadOS or tvOS.
 func (p InstallableDevicePlatform) IsApplePlatform() bool {
 	return slices.Contains(ApplePlatforms, p)
+}
+
+// SupportsManagedAppConfiguration reports whether the platform accepts a managed
+// app configuration alongside an InstallApplication command. macOS does not.
+func (p InstallableDevicePlatform) SupportsManagedAppConfiguration() bool {
+	return p == IOSPlatform || p == IPadOSPlatform || p == TVOSPlatform
 }
 
 type AppleDevicesToRefetch struct {

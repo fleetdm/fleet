@@ -224,7 +224,7 @@ func do(req *http.Request, getBearerToken authenticator, forceRenew bool, dest *
 }
 
 func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
-	// length 1 because watchOS/tvOS/visionOS exist and we don't support them, so using the length of the DeviceFamilies
+	// length 1 because watchOS/visionOS exist and we don't support them, so using the length of the DeviceFamilies
 	// slice would give us extra empty entries
 	platforms := make(map[fleet.InstallableDevicePlatform]fleet.VPPApp, 1)
 	for _, device := range app.Attributes.DeviceFamilies {
@@ -235,7 +235,7 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 		)
 
 		// It is rare that a single app supports all platforms, but it is possible.
-		// Skipping the "appletvos" platform right now as we don't support tvOS;
+		// watchOS and visionOS are still skipped as Fleet doesn't manage them;
 		// see https://github.com/DIYgod/RSSHub/blob/master/lib/routes/apple/apps.ts for mapping info
 		switch device {
 		case "iphone":
@@ -256,6 +256,14 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 				continue
 			}
 			platform = fleet.MacOSPlatform
+		case "appletv":
+			// Apple TV apps are built against a separate SDK, so they carry
+			// their own platform entry rather than sharing the "ios" one.
+			data, ok = app.Attributes.Platforms["appletvos"]
+			if !ok {
+				continue
+			}
+			platform = fleet.TVOSPlatform
 		default:
 			continue
 		}

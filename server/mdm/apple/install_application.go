@@ -187,14 +187,14 @@ type InstallApplicationParams struct {
 // `InstallApplication` MDM command. Caller inserts the bytes directly into
 // `nano_commands.command`.
 //
-// For iOS / iPadOS hosts, the `Configuration` dict is injected when params
-// supplies non-empty configuration bytes. For macOS, configuration is always
-// omitted regardless of the input — that's intentional and matches the
+// For iOS / iPadOS / tvOS hosts, the `Configuration` dict is injected when
+// params supplies non-empty configuration bytes. For macOS, configuration is
+// always omitted regardless of the input — that's intentional and matches the
 // service-layer silent-drop behavior.
 func BuildInstallApplicationCommand(params InstallApplicationParams) []byte {
 	var managementFlags int
-	if fleet.IsAppleMobilePlatform(params.HostPlatform) {
-		// Mobile: remove the app when MDM is removed.
+	if fleet.IsAppleMDMOnlyPlatform(params.HostPlatform) {
+		// MDM-only Apple platforms: remove the app when MDM is removed.
 		managementFlags = 1
 	}
 	// macOS keeps the app on MDM removal (flag 0).
@@ -229,9 +229,9 @@ func BuildInstallApplicationCommand(params InstallApplicationParams) []byte {
         </dict>
 `)
 
-	// Configuration is iOS/iPadOS-only. Strip any outer plist wrapper so we
+	// Configuration is iOS/iPadOS/tvOS-only. Strip any outer plist wrapper so we
 	// inline only the bare <dict>...</dict>.
-	if fleet.IsAppleMobilePlatform(params.HostPlatform) && len(params.Configuration) > 0 {
+	if fleet.IsAppleMDMOnlyPlatform(params.HostPlatform) && len(params.Configuration) > 0 {
 		b.WriteString("        <key>Configuration</key>\n        ")
 		b.Write(stripPlistWrapper(params.Configuration))
 		b.WriteString("\n")

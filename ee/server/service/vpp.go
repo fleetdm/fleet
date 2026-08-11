@@ -281,6 +281,29 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 				},
 			)
+
+			// This fan-out is speculative, so tvOS is only a candidate when the
+			// requested configuration is one tvOS can actually honor. Self-service
+			// is not: including it here would reject the whole request over a
+			// platform the caller never asked for. Naming tvos explicitly still
+			// gets the validation error below.
+			if !payload.SelfService {
+				payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
+					AppStoreID:          payload.AppStoreID,
+					SelfService:         payload.SelfService,
+					InstallDuringSetup:  payload.InstallDuringSetup,
+					Platform:            fleet.TVOSPlatform,
+					LabelsExcludeAny:    payload.LabelsExcludeAny,
+					LabelsIncludeAny:    payload.LabelsIncludeAny,
+					LabelsIncludeAll:    payload.LabelsIncludeAll,
+					Categories:          payload.Categories,
+					DisplayName:         payload.DisplayName,
+					Configuration:       payload.Configuration,
+					AutoUpdateEnabled:   payload.AutoUpdateEnabled,
+					AutoUpdateStartTime: payload.AutoUpdateStartTime,
+					AutoUpdateEndTime:   payload.AutoUpdateEndTime,
+				})
+			}
 		}
 
 		payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
@@ -318,7 +341,11 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 			if !payload.Platform.SupportsAppStoreApps() {
 				return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.platform",
-					fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
+					fmt.Sprintf("platform must be one of '%s', '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
+			}
+
+			if err := validateSelfServiceSupported(payload.Platform, payload.SelfService); err != nil {
+				return nil, nil, err
 			}
 
 			// Block Fleet Agent apps from being added via GitOps
@@ -390,8 +417,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				}
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
-			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
-				if payload.Configuration != nil && payload.Platform != fleet.MacOSPlatform {
+			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform, fleet.MacOSPlatform:
+				if payload.Configuration != nil && payload.Platform.SupportsManagedAppConfiguration() {
 					var plist string
 					if err := json.Unmarshal(payload.Configuration, &plist); err != nil {
 						return nil, nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
@@ -572,25 +599,25 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		tmID = *teamID
 	}
 
-	// Apply auto-update config for iOS/iPadOS VPP apps
-	// First, get existing auto-update schedules to know which apps already have configs
-	existingIosAppSchedules, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx, tmID, "ios_apps")
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ios apps")
+	// Apply auto-update config for the Apple platforms Fleet manages over MDM only
+	// (iOS/iPadOS/tvOS). First, get existing auto-update schedules to know which
+	// apps already have configs.
+	var existingSchedules []fleet.SoftwareAutoUpdateSchedule
+	for _, platform := range []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform} {
+		source := fleet.AppleSoftwareSourceForPlatform(string(platform))
+		schedules, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx, tmID, source)
+		if err != nil {
+			return nil, nil, ctxerr.Wrapf(ctx, err, "listing existing auto-update schedules for %s apps", platform)
+		}
+		existingSchedules = append(existingSchedules, schedules...)
 	}
-	existingIPadOsSchedules, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx, tmID, "ipados_apps")
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ipados apps")
-	}
-	// Combine schedules from both sources
-	existingSchedules := slices.Concat(existingIosAppSchedules, existingIPadOsSchedules)
 	existingSchedulesByTitleID := make(map[uint]bool, len(existingSchedules))
 	for _, schedule := range existingSchedules {
 		existingSchedulesByTitleID[schedule.TitleID] = true
 	}
 
 	for _, app := range allPlatformApps {
-		if app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform {
+		if !fleet.IsAppleMDMOnlyPlatform(string(app.Platform)) {
 			continue
 		}
 		titleID, ok := appStoreIDToTitleID[app.VPPAppID.String()]
@@ -757,6 +784,17 @@ var androidApplicationID = regexp.MustCompile(`^([A-Za-z]{1}[A-Za-z\d_]*\.)+[A-Z
 // IT admins should not be able to add this app manually via the Software page as it is managed automatically by Fleet.
 const fleetAgentPackagePrefix = "com.fleetdm.agent"
 
+// errSelfServiceNotSupportedOnTvOS is returned when self-service is requested
+// for an Apple TV app. Apple TV has no browser and no Fleet Desktop, so there
+// is no surface an end user could install from.
+func validateSelfServiceSupported(platform fleet.InstallableDevicePlatform, selfService bool) error {
+	if selfService && platform == fleet.TVOSPlatform {
+		return fleet.NewInvalidArgumentError("self_service",
+			"Self-service isn't available for tvOS. Apple TVs have no end user interface to install from.")
+	}
+	return nil
+}
+
 func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID fleet.VPPAppTeam) (uint, string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return 0, "", err
@@ -776,7 +814,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	if !appID.Platform.SupportsAppStoreApps() {
 		return 0, "", fleet.NewInvalidArgumentError("platform",
-			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
+			fmt.Sprintf("platform must be one of '%s', '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
+	}
+
+	if err := validateSelfServiceSupported(appID.Platform, appID.SelfService); err != nil {
+		return 0, "", err
 	}
 
 	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, appID.LabelsIncludeAny, appID.LabelsExcludeAny, appID.LabelsIncludeAll)
@@ -934,7 +976,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 						assetMD.Attributes.Name, teamName),
 				}, "vpp app conflicts with existing software installer")
 			}
-		} else if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
+		} else if fleet.IsAppleMDMOnlyPlatform(string(appID.Platform)) {
 			// Check if an in-house app (IPA) with the same bundle identifier already exists
 			exists, err := svc.ds.CheckConflictingInHouseAppExists(ctx, teamID, appFromApple.BundleIdentifier, string(appID.Platform))
 			if err != nil {
@@ -978,7 +1020,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 				return 0, "", ctxerr.Wrap(ctx, err, "checking android app configuration change")
 			}
 			androidConfigChanged = changed
-		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+		case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform:
 			var plist string
 			if err := json.Unmarshal(appID.Configuration, &plist); err != nil {
 				return 0, "", fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
@@ -1246,13 +1288,16 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if payload.SelfService != nil && meta.Platform != fleet.AndroidPlatform {
 		selfServiceVal = *payload.SelfService
 	}
+	if err := validateSelfServiceSupported(meta.Platform, selfServiceVal); err != nil {
+		return nil, nil, err
+	}
 	if meta.Platform == fleet.MacOSPlatform {
 		payload.Configuration = nil
 	}
 
-	// datastoreConfig holds the decoded plist for iOS/iPadOS; payload.Configuration stays in its incoming form for the activity below.
+	// datastoreConfig holds the decoded plist for iOS/iPadOS/tvOS; payload.Configuration stays in its incoming form for the activity below.
 	datastoreConfig := payload.Configuration
-	if payload.Configuration != nil && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
+	if payload.Configuration != nil && meta.Platform.SupportsManagedAppConfiguration() {
 		var plist string
 		if err := json.Unmarshal(payload.Configuration, &plist); err != nil {
 			return nil, nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
@@ -1418,10 +1463,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
 	}
 
-	// Wrap iOS / iPadOS plist as a JSON string for the response.
+	// Wrap the iOS / iPadOS / tvOS plist as a JSON string for the response.
 	if len(updatedAppMeta.Configuration) > 0 {
 		switch updatedAppMeta.Platform {
-		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+		case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform:
 			wrapped, err := json.Marshal(string(updatedAppMeta.Configuration))
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "wrapping configuration for response")

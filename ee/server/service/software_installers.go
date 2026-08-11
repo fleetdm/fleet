@@ -1708,7 +1708,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	}
 
 	platform := host.FleetPlatform()
-	mobileAppleDevice := fleet.InstallableDevicePlatform(platform) == fleet.IOSPlatform || fleet.InstallableDevicePlatform(platform) == fleet.IPadOSPlatform
+	mobileAppleDevice := fleet.IsAppleMDMOnlyPlatform(platform)
 
 	if !mobileAppleDevice && (host.OrbitNodeKey == nil || *host.OrbitNodeKey == "") {
 		// fleetd is required to install software so if the host is
@@ -1977,13 +1977,13 @@ func (svc *Service) recordFailedInHouseInstall(ctx context.Context, hostID, inHo
 func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	// Pre-flight: resolve the managed app configuration's Fleet variables for
 	// this host BEFORE anything irreversible (reserving a VPP license, enqueuing
-	// the command). iOS/iPadOS only — macOS VPP installs drop the configuration.
+	// the command). iOS/iPadOS/tvOS only — macOS VPP installs drop the configuration.
 	// If a variable can't be resolved for this host (e.g. an IdP variable on a
 	// host with no IdP linkage), record a failed install and emit the
 	// failed-install activity instead of rejecting the request, so the failure
 	// is visible in the activity feed and Install Details modal. Doing this
 	// before AssociateAssets also avoids leaking a VPP license.
-	if vppApp.Platform == fleet.IOSPlatform || vppApp.Platform == fleet.IPadOSPlatform {
+	if vppApp.Platform.SupportsManagedAppConfiguration() {
 		cfg, err := svc.ds.GetVPPAppConfiguration(ctx, vppApp.Platform, vppApp.AdamID, ptr.ValOrZero(host.TeamID))
 		if err != nil && !fleet.IsNotFound(err) {
 			return "", ctxerr.Wrap(ctx, err, "get vpp app configuration for pre-flight check")
@@ -4311,7 +4311,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	}
 
 	platform := host.FleetPlatform()
-	mobileAppleDevice := fleet.InstallableDevicePlatform(platform) == fleet.IOSPlatform || fleet.InstallableDevicePlatform(platform) == fleet.IPadOSPlatform
+	mobileAppleDevice := fleet.IsAppleMDMOnlyPlatform(platform)
 
 	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.InstallableDevicePlatform(platform) == fleet.MacOSPlatform, fleet.HostSoftwareInstallOptions{
 		SelfService: true,

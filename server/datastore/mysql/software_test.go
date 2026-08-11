@@ -93,6 +93,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwarePaginationWithMultipleInstallers", testListHostSoftwarePaginationWithMultipleInstallers},
 		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
+		{"ListTvOSHostSoftwareAvailableForInstall", testListTvOSHostSoftwareAvailableForInstall},
 		{"ListHostSoftwareWithVPPApps", testListHostSoftwareWithVPPApps},
 		{"ListHostSoftwareVPPSelfService", testListHostSoftwareVPPSelfService},
 		{"ListHostSoftwareVPPSelfServiceTeamFilter", testListHostSoftwareVPPSelfServiceTeamFilter},
@@ -5629,6 +5630,47 @@ func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
 
 		return nil
 	})
+}
+
+// An Apple TV has no osquery, so everything it can install arrives over MDM.
+// Its team's tvOS App Store apps have to show up as available for install.
+func testListTvOSHostSoftwareAvailableForInstall(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "tvhost", "", "tvhostkey", "tvhostuuid", time.Now(), test.WithPlatform("tvos"))
+	nanoEnroll(t, ds, host, false)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "apple tv team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID})))
+	host.TeamID = &tm.ID
+
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_tvos_1", Platform: fleet.TVOSPlatform}},
+		Name:             "tvapp1",
+		BundleIdentifier: "com.app.tvapp1",
+	}, &tm.ID)
+	require.NoError(t, err)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:             fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+		OnlyAvailableForInstall: true,
+		IsMDMEnrolled:           true,
+	}
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, "tvapp1", sw[0].Name)
+	require.NotNil(t, sw[0].AppStoreApp)
+	require.Equal(t, string(fleet.TVOSPlatform), sw[0].AppStoreApp.Platform)
+
+	// Self-service is the one listing that keys off MDM enrollment, and an Apple
+	// TV has no end user interface to self-serve from, so it stays empty.
+	opts.SelfServiceOnly = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
 }
 
 func testListIOSHostSoftware(t *testing.T, ds *Datastore) {

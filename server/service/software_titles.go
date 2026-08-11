@@ -292,16 +292,14 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				}
 				meta.Status = summary
 
-				// Wrap iOS / iPadOS plist as a JSON string for the response.
-				if len(meta.Configuration) > 0 {
-					switch meta.Platform {
-					case fleet.IOSPlatform, fleet.IPadOSPlatform:
-						wrapped, err := json.Marshal(string(meta.Configuration))
-						if err != nil {
-							return nil, ctxerr.Wrap(ctx, err, "wrapping VPP configuration for response")
-						}
-						meta.Configuration = wrapped
+				// Wrap the plist as a JSON string for the response, for the
+				// platforms that can carry a managed app configuration.
+				if len(meta.Configuration) > 0 && meta.Platform.SupportsManagedAppConfiguration() {
+					wrapped, err := json.Marshal(string(meta.Configuration))
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "wrapping VPP configuration for response")
 					}
+					meta.Configuration = wrapped
 				}
 			}
 			software.AppStoreApp = meta

@@ -522,3 +522,57 @@ func TestDoRetries(t *testing.T) {
 		})
 	}
 }
+
+// ToVPPApps maps Apple's device families onto Fleet platforms. Getting the
+// family or platform-attribute key wrong means apps for that platform silently
+// never appear in Fleet, so the mapping is pinned here.
+func TestToVPPApps(t *testing.T) {
+	md := Metadata{
+		ID: "1234",
+		Attributes: Attributes{
+			Name:           "Test App",
+			DeviceFamilies: []string{"iphone", "ipad", "mac", "appletv", "watch"},
+			Platforms: map[string]PlatformData{
+				"ios": {
+					BundleID:          "com.example.ios",
+					LatestVersionInfo: LatestVersionInfo{DisplayVersion: "1.0"},
+				},
+				"osx": {
+					BundleID:          "com.example.mac",
+					LatestVersionInfo: LatestVersionInfo{DisplayVersion: "2.0"},
+				},
+				"appletvos": {
+					BundleID:          "com.example.tv",
+					LatestVersionInfo: LatestVersionInfo{DisplayVersion: "3.0"},
+				},
+			},
+		},
+	}
+
+	apps := ToVPPApps(md)
+
+	// watchOS is deliberately unmapped, so it must not produce an entry.
+	require.Len(t, apps, 4)
+
+	require.Equal(t, "com.example.ios", apps[fleet.IOSPlatform].BundleIdentifier)
+	require.Equal(t, "com.example.ios", apps[fleet.IPadOSPlatform].BundleIdentifier)
+	require.Equal(t, "com.example.mac", apps[fleet.MacOSPlatform].BundleIdentifier)
+
+	// Apple TV apps are built against their own SDK, so they carry a separate
+	// platform entry rather than sharing the "ios" one.
+	tvOS := apps[fleet.TVOSPlatform]
+	require.Equal(t, "com.example.tv", tvOS.BundleIdentifier)
+	require.Equal(t, "3.0", tvOS.LatestVersion)
+	require.Equal(t, fleet.TVOSPlatform, tvOS.Platform)
+	require.Equal(t, "1234", tvOS.AdamID)
+
+	// An app that lists the Apple TV family but has no appletvos entry is
+	// skipped rather than producing an empty app.
+	mdNoTVData := md
+	mdNoTVData.Attributes.Platforms = map[string]PlatformData{
+		"ios": {BundleID: "com.example.ios"},
+	}
+	apps = ToVPPApps(mdNoTVData)
+	_, ok := apps[fleet.TVOSPlatform]
+	require.False(t, ok)
+}

@@ -1,0 +1,1 @@
+- Added App Store (VPP) app support for tvOS. Apple TV apps can be added to a fleet, installed on Apple TVs, and given a managed app configuration, the same as iPhone and iPad apps. Self-service isn't available for tvOS, since Apple TVs have no end user interface to install from.
