@@ -129,6 +129,16 @@ func TestDEPService(t *testing.T) {
 			return 0, nil
 		}
 
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return true, nil
+		}
+
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			require.Equal(t, "org1", orgName)
+			require.False(t, invalid)
+			return false, nil
+		}
+
 		profUUID, modTime, err := depSvc.EnsureDefaultSetupAssistant(ctx, nil, "org1")
 		require.NoError(t, err)
 		require.Equal(t, "abcd", profUUID)
@@ -137,6 +147,7 @@ func TestDEPService(t *testing.T) {
 		require.True(t, ds.GetMDMAppleEnrollmentProfileByTypeFuncInvoked)
 		require.True(t, ds.GetMDMAppleDefaultSetupAssistantFuncInvoked)
 		require.True(t, ds.SetMDMAppleDefaultSetupAssistantProfileUUIDFuncInvoked)
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
 		require.True(t, depStorage.RetrieveConfigFuncInvoked)
 		require.False(t, depStorage.StoreAssignerProfileFuncInvoked) // not used anymore
 	})
@@ -150,6 +161,250 @@ func TestDEPService(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, url, serverURL+"api/mdm/apple/enroll?token=token")
 	})
+}
+
+func TestNewDEPClient_TokenInvalid(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.DiscardHandler)
+	const orgName = "org1"
+
+	// setupTest wires a DEP client up to a fake Apple DEP server that
+	// authenticates a session normally, then responds to the /account request
+	// with whatever accountHandler decides. It returns the mock Datastore (so
+	// the caller can stub SetABMTokenInvalidForOrgNameFunc before calling) and
+	// a call func that triggers the actual AccountDetail request.
+	setupTest := func(t *testing.T, accountHandler http.HandlerFunc) (*mock.Store, func() error) {
+		ds := new(mock.Store)
+		depStorage := new(nanodep_mock.Storage)
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/session":
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+			case "/account":
+				accountHandler(w, r)
+			default:
+				t.Errorf("unexpected request to %s", r.URL.Path)
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		depStorage.RetrieveConfigFunc = func(ctx context.Context, name string) (*client.Config, error) {
+			return &client.Config{BaseURL: srv.URL}, nil
+		}
+		depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*client.OAuth1Tokens, error) {
+			return &client.OAuth1Tokens{}, nil
+		}
+
+		depClient := NewDEPClient(depStorage, ds, logger)
+		call := func() error {
+			_, err := depClient.AccountDetail(ctx, orgName)
+			return err
+		}
+		return ds, call
+	}
+
+	t.Run("token rejected sets token_invalid", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`"token_rejected"`))
+		})
+		var gotOrgName string
+		var gotInvalid bool
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			gotOrgName, gotInvalid = orgName, invalid
+			return true, nil
+		}
+		// currently valid, so the write is needed to flag it as invalid
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return false, nil
+		}
+
+		require.Error(t, call())
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+		require.Equal(t, orgName, gotOrgName)
+		require.True(t, gotInvalid)
+	})
+
+	t.Run("read error falls back to always writing", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`"token_rejected"`))
+		})
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			return true, nil
+		}
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return false, errors.New("boom")
+		}
+
+		require.Error(t, call())
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+	})
+
+	t.Run("token rejected but already flagged invalid skips the write", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`"token_rejected"`))
+		})
+		// already invalid, so no write is needed
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return true, nil
+		}
+
+		require.Error(t, call())
+		require.False(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+	})
+
+	t.Run("signature invalid sets token_invalid", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`"signature_invalid"`))
+		})
+		var gotOrgName string
+		var gotInvalid bool
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			gotOrgName, gotInvalid = orgName, invalid
+			return true, nil
+		}
+		// currently valid, so the write is needed to flag it as invalid
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return false, nil
+		}
+
+		require.Error(t, call())
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+		require.Equal(t, orgName, gotOrgName)
+		require.True(t, gotInvalid)
+	})
+
+	t.Run("success clears token_invalid", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"admin_id": "admin123", "org_name": "org1"}`))
+		})
+		var gotOrgName string
+		var gotInvalid bool
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			gotOrgName, gotInvalid = orgName, invalid
+			return false, nil
+		}
+		// currently invalid, so the write is needed to clear it
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return true, nil
+		}
+		// incidental to this test: any successful call also flows through the
+		// hook's pre-existing terms-expired bookkeeping, which needs these
+		// stubbed to short-circuit cleanly (zero count, clear AppConfig flag).
+		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+			return 0, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		require.NoError(t, call())
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+		require.Equal(t, orgName, gotOrgName)
+		require.False(t, gotInvalid)
+	})
+
+	t.Run("terms not signed clears token_invalid", func(t *testing.T) {
+		// Apple only evaluates terms after authenticating the token, so a
+		// terms-not-signed response is definitive proof the token itself was
+		// accepted -- token_invalid should clear even though the call fails.
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`"T_C_NOT_SIGNED"`))
+		})
+		var gotOrgName string
+		var gotInvalid bool
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			gotOrgName, gotInvalid = orgName, invalid
+			return true, nil
+		}
+		// currently invalid, so the write is needed to clear it
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return true, nil
+		}
+		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+			return 0, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		// wasSet=true means the flag was already set, so stillSetCount stays
+		// at 0 and this test doesn't also need to stub SaveAppConfigFunc.
+		ds.SetABMTokenTermsExpiredForOrgNameFunc = func(ctx context.Context, orgName string, expired bool) (bool, error) {
+			return true, nil
+		}
+
+		require.Error(t, call())
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+		require.Equal(t, orgName, gotOrgName)
+		require.False(t, gotInvalid)
+	})
+
+	t.Run("unrelated error does not touch token_invalid", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`"SERVER_ERROR"`))
+		})
+
+		require.Error(t, call())
+		require.False(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+	})
+}
+
+func TestClassifyDEPDeviceError(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want fleet.DEPDeviceErrorType
+	}{
+		{"nil error", nil, ""},
+		{"unrelated error", errors.New("boom"), fleet.DEPDeviceErrorUnavailable},
+		{
+			"token rejected",
+			&godep.HTTPError{StatusCode: http.StatusForbidden, Body: []byte(`"token_rejected"`)},
+			fleet.DEPDeviceErrorTokenInvalid,
+		},
+		{
+			"signature invalid",
+			&godep.HTTPError{StatusCode: http.StatusForbidden, Body: []byte(`"signature_invalid"`)},
+			fleet.DEPDeviceErrorTokenInvalid,
+		},
+		{
+			"terms not signed",
+			&godep.HTTPError{StatusCode: http.StatusForbidden, Body: []byte(`"T_C_NOT_SIGNED"`)},
+			fleet.DEPDeviceErrorTermsExpired,
+		},
+		{
+			"server error",
+			&godep.HTTPError{StatusCode: http.StatusServiceUnavailable, Body: []byte(`"SERVICE_UNAVAILABLE"`)},
+			fleet.DEPDeviceErrorServerError,
+		},
+		{
+			// DoAuth's /session handshake (client/auth.go) constructs
+			// AuthError with whatever status Apple actually returns, so a
+			// genuine outage there surfaces as a 5xx AuthError rather than
+			// an HTTPError.
+			"server error from /session auth failure",
+			&client.AuthError{StatusCode: http.StatusServiceUnavailable, Body: []byte(`"SERVICE_UNAVAILABLE"`)},
+			fleet.DEPDeviceErrorServerError,
+		},
+		{
+			"unrelated 4xx",
+			&godep.HTTPError{StatusCode: http.StatusBadRequest, Body: []byte(`"INVALID_CURSOR"`)},
+			fleet.DEPDeviceErrorUnavailable,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, ClassifyDEPDeviceError(c.err))
+		})
+	}
 }
 
 func TestAddEnrollmentRefToFleetURL(t *testing.T) {
@@ -242,7 +497,7 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := GenerateEnrollmentProfileMobileconfig(tt.orgName, tt.fleetURL, tt.scepChallenge, "com.foo.bar")
+			result, err := GenerateEnrollmentProfileMobileconfig(tt.orgName, tt.fleetURL, tt.scepChallenge, "com.foo.bar", MDMAccessRightAll, true)
 			if tt.expectError {
 				require.Error(t, err)
 			} else {
@@ -271,6 +526,40 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The new-enrollment Subject OU marker must be present on fresh-enrollment profiles and absent on
+// renewal profiles, otherwise the checkin handler would misclassify renewals as fresh enrollments.
+func TestEnrollmentProfileNewEnrollmentSubjectOUMarker(t *testing.T) {
+	t.Run("standard enrollment", func(t *testing.T) {
+		fresh, err := GenerateEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", MDMAccessRightAll, true)
+		require.NoError(t, err)
+		require.Contains(t, string(fresh), FleetEnrollmentSubjectOU)
+
+		renewal, err := GenerateEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", MDMAccessRightAll, false)
+		require.NoError(t, err)
+		require.NotContains(t, string(renewal), FleetEnrollmentSubjectOU)
+	})
+
+	t.Run("account-driven enrollment", func(t *testing.T) {
+		fresh, err := GenerateAccountDrivenEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", "user@example.com", true)
+		require.NoError(t, err)
+		require.Contains(t, string(fresh), FleetEnrollmentSubjectOU)
+
+		renewal, err := GenerateAccountDrivenEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", "user@example.com", false)
+		require.NoError(t, err)
+		require.NotContains(t, string(renewal), FleetEnrollmentSubjectOU)
+	})
+
+	t.Run("ACME enrollment", func(t *testing.T) {
+		fresh, err := GenerateACMEEnrollmentProfileMobileconfig("Fleet", "https://example.com", "acme-ident", "SERIAL123", "com.foo.bar", MDMAccessRightAll, true)
+		require.NoError(t, err)
+		require.Contains(t, string(fresh), FleetEnrollmentSubjectOU)
+
+		renewal, err := GenerateACMEEnrollmentProfileMobileconfig("Fleet", "https://example.com", "acme-ident", "SERIAL123", "com.foo.bar", MDMAccessRightAll, false)
+		require.NoError(t, err)
+		require.NotContains(t, string(renewal), FleetEnrollmentSubjectOU)
+	})
 }
 
 func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
@@ -505,6 +794,68 @@ func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 		})
 	})
 
+	t.Run("latest", func(t *testing.T) {
+		// "latest" is a sentinel resolved per host later, so it must never be
+		// looked up against Apple's published versions.
+		t.Run("accepted on every platform", func(t *testing.T) {
+			t.Run("app config mdm settings", func(t *testing.T) {
+				ac := mockAppConfigMDM()
+				ac.MacOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				ac.IOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				ac.IPadOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+				require.NoError(t, err)
+				assert.Empty(t, got, "expect latest to be accepted when including non-public asset sets")
+
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+				require.NoError(t, err)
+				assert.Empty(t, got, "expect latest to be accepted when excluding non-public asset sets")
+			})
+
+			t.Run("team mdm settings", func(t *testing.T) {
+				tm := mockTeamMDM()
+				tm.MacOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				tm.IOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				tm.IPadOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+				require.NoError(t, err)
+				assert.Empty(t, got, "expect latest to be accepted when including non-public asset sets")
+
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+				require.NoError(t, err)
+				assert.Empty(t, got, "expect latest to be accepted when excluding non-public asset sets")
+			})
+		})
+
+		t.Run("mixed with a real version still validates that version", func(t *testing.T) {
+			t.Run("app config mdm settings", func(t *testing.T) {
+				ac := mockAppConfigMDM()
+				ac.MacOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				// only supported for Apple Watch, so iOS should still be flagged
+				ac.IOSUpdates.MinimumVersion = optjson.SetString("5.3.9")
+				ac.IPadOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+				require.NoError(t, err)
+				checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect only the concrete version to be validated")
+			})
+
+			t.Run("team mdm settings", func(t *testing.T) {
+				tm := mockTeamMDM()
+				tm.MacOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+				// only supported for Apple Watch, so iOS should still be flagged
+				tm.IOSUpdates.MinimumVersion = optjson.SetString("5.3.9")
+				tm.IPadOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+				require.NoError(t, err)
+				checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect only the concrete version to be validated")
+			})
+		})
+	})
+
 	// These subtests are placed last so that the dev_mode override cleanup for the error server
 	// doesn't interfere with the earlier subtests that rely on the valid mock server.
 	t.Run("GetAssetMetadata error", func(t *testing.T) {
@@ -525,6 +876,16 @@ func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 		tm := mockTeamMDM()
 		got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
 		require.Error(t, err)
+		assert.Nil(t, got)
+
+		// With every platform set to "latest" there is nothing to look up, so the
+		// broken metadata endpoint must never be contacted.
+		ac = mockAppConfigMDM()
+		ac.MacOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+		ac.IOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+		ac.IPadOSUpdates.MinimumVersion = optjson.SetString(fleet.AppleOSUpdateLatestVersion)
+		got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+		require.NoError(t, err, "latest-only settings must not fetch Apple metadata")
 		assert.Nil(t, got)
 	})
 }

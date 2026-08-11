@@ -1,7 +1,7 @@
 .ace_editor.ace-fleet {
   font-family: "SourceCodePro", monospace;
   font-size: 14px;
-  background-color: var(--ui-light-grey);
+  background: transparent;
   color: #66696f;
   border-radius: 4px;
   border: solid 1px var(--ui-blue-gray);
@@ -16,10 +16,6 @@
 .ace_editor.ace-fleet.ace_focus {
   border: 1px solid var(--ui-fleet-black-75-down);
   background: transparent;
-}
-
-.ace_editor.ace-fleet.ace_focus .ace_scroller {
-  box-shadow: 1px 1px 1px 1px var(--ui-fleet-black-75-down);
 }
 
 .ace-fleet.ace_autocomplete .ace_content {
@@ -91,8 +87,8 @@
 }
 
 .ace-fleet .ace_keyword {
-  color: var(--ui-fleet-black-75);
-  font-weight: 600;
+  color: var(--core-fleet-purple);
+  font-weight: normal;
 }
 
 .ace-fleet .ace_osquery-token {
@@ -102,12 +98,15 @@
 }
 
 .ace-fleet .ace_identifier {
-  color: #ff5850;
+  color: var(--ui-fleet-black-75);
 }
 
-.ace-fleet .ace_string,
+.ace-fleet .ace_string {
+  color: var(--core-fleet-green);
+}
+
 .ace-fleet .ace_osquery-column {
-  color: #4fd061;
+  color: var(--ui-fleet-black-75);
 }
 
 .ace-fleet .ace_meta,
@@ -117,13 +116,17 @@
   color: #8959a8;
 }
 
-.ace-fleet .ace_keyword.ace_operator {
-  color: #3e999f;
+.ace-fleet .ace_keyword.ace_operator,
+.ace-fleet .ace_paren {
+  color: var(--ui-fleet-black-75);
+}
+
+.ace-fleet .ace_constant.ace_numeric {
+  color: var(--core-fleet-green);
 }
 
 .ace-fleet .ace_constant.ace_character,
 .ace-fleet .ace_constant.ace_language,
-.ace-fleet .ace_constant.ace_numeric,
 .ace-fleet .ace_keyword.ace_other.ace_unit,
 .ace-fleet .ace_support.ace_constant,
 .ace-fleet .ace_variable.ace_parameter {
@@ -135,8 +138,7 @@
 }
 
 .ace-fleet .ace_invalid {
-  color: #ffffff;
-  background-color: #c82829;
+  color: var(--ui-error);
 }
 
 .ace-fleet .ace_invalid.ace_deprecated {
@@ -161,8 +163,7 @@
 }
 
 .ace-fleet .ace_heading,
-.ace-fleet .ace_markup.ace_heading,
-.ace-fleet .ace_string {
+.ace-fleet .ace_markup.ace_heading {
   color: #4fd061;
 }
 
@@ -175,7 +176,7 @@
 }
 
 .ace-fleet .ace_comment {
-  color: #8e908c;
+  color: var(--ui-fleet-black-50);
 }
 
 .ace-fleet .ace_indent-guide {

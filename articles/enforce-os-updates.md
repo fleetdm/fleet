@@ -66,6 +66,18 @@ Upload a custom DDM declaration of type `com.apple.configuration.softwareupdate.
 
 See Apple's [SoftwareUpdateEnforcementSpecific](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) documentation for all available payload keys.
 
+If you're using GitOps with a custom DDM update profile, and still want newly enrolled hosts to update to the latest OS, set `macos_updates` up this way:
+
+```yaml
+  macos_updates:
+    deadline: ""
+    minimum_version: ""
+    update_new_hosts: true
+```
+
+Also see our [Enforce macOS updates per major version using custom DDM declarations](https://fleetdm.com/guides/enforce-macos-updates-per-major-version) guide for more complex usage of this and tips for deployment.
+
+
 ### Windows
 
 Upload a custom Windows XML profile targeting the [Update CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) (`./Device/Vendor/MSFT/Policy/Config/Update`). For example, to set custom deadline and grace period values:

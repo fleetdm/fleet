@@ -6,6 +6,7 @@ import (
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -17,6 +18,27 @@ func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.Act
 		return fleet.ActivitiesWebhookSettings{}, ctxerr.Wrap(ctx, err, "get app config for activities webhook")
 	}
 	return appConfig.WebhookSettings.ActivitiesWebhook, nil
+}
+
+// GetHostActivitiesWebhookSettings returns the enabled host-activities webhook
+// settings of the fleets the given hosts belong to, deduplicated by fleet and
+// destination URL. Like GetActivitiesWebhookSettings, it reads settings
+// without an authz check because it is an internal provider hook for the
+// activity bounded context, not an endpoint.
+//
+// Perf note: this runs for every host-linked activity on Premium, enabled or
+// not. DefaultTeamConfig is served from the datastore cache but TeamLite is
+// not, so named-fleet hosts cost one lite host read plus one team read per
+// activity.
+func (svc *Service) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error) {
+	if !license.IsPremium(ctx) {
+		return nil, nil
+	}
+	settings, err := fleet.ResolveHostActivitiesWebhooks(ctx, svc.ds, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "resolve host activities webhooks")
+	}
+	return settings, nil
 }
 
 func (svc *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {

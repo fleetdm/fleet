@@ -168,11 +168,24 @@ module.exports = {
 
 
       let parsedPoliciesResponse;
+      // If Microsoft returned an empty body, surface a friendlier error rather than blowing up on JSON.parse.
+      // This can happen when the tenant is in a partial-setup state from a previous attempt, or when required API permissions haven't been consented on the enterprise app registration.
+      if(!createPolicyResponse.body) {
+        sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned an empty response body for tenant ${informationAboutThisTenant.entraTenantId}. Status: ${createPolicyResponse.statusCode}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an empty response (HTTP ${createPolicyResponse.statusCode}). This may indicate a partial setup state from a previous attempt, or missing API permissions on the Fleet enterprise app registration.`});
+        throw {redirect: fleetInstanceUrlToRedirectTo };
+      }
       try {
         parsedPoliciesResponse = JSON.parse(createPolicyResponse.body);
       } catch(err){
-        sails.log.warn(`An error occured when parsing the JSON response body from the PartnerCompliancePolicies endpoint for a microsoft compliance tenant. full error`, err);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
+        sails.log.warn(`An error occured when parsing the JSON response body from the PartnerCompliancePolicies endpoint for a microsoft compliance tenant. Status: ${createPolicyResponse.statusCode}. Body length: ${createPolicyResponse.body.length}. Body snippet: ${String(createPolicyResponse.body).slice(0, 200)}. Full error:`, err);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Could not parse response from Microsoft's PartnerCompliancePolicies API (HTTP ${createPolicyResponse.statusCode}). Underlying error: ${require('util').inspect(err, {depth: null})}`});
+        throw {redirect: fleetInstanceUrlToRedirectTo };
+      }
+      // Defensive check: Microsoft may return a well-formed but unexpected response shape (missing `value` array) for certain tenant configurations.
+      if(!parsedPoliciesResponse.value || !Array.isArray(parsedPoliciesResponse.value) || parsedPoliciesResponse.value.length === 0){
+        sails.log.warn(`The response body from PartnerCompliancePolicies did not contain the expected 'value' array for tenant ${informationAboutThisTenant.entraTenantId}. Parsed response: ${require('util').inspect(parsedPoliciesResponse, {depth: 2})}`);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an unexpected response shape (missing 'value' array). This may indicate a partial setup state or missing API permissions on the Fleet enterprise app registration.`});
         throw {redirect: fleetInstanceUrlToRedirectTo };
       }
       let createdPolicyId = parsedPoliciesResponse.value[0].Id;
@@ -196,16 +209,22 @@ module.exports = {
       }
       // Get the ID returned in the response.
       let parsedGroupResponse;
+      // If Microsoft's Graph API returned an empty body, surface a friendlier error rather than blowing up on JSON.parse.
+      if(!groupResponse.body) {
+        sails.log.warn(`Microsoft's Graph API returned an empty response body when searching for the "Fleet conditional access" group on tenant ${informationAboutThisTenant.entraTenantId}. Status: ${groupResponse.statusCode}. Response headers: ${require('util').inspect(groupResponse.headers, {depth: 1})}`);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's Graph API returned an empty response (HTTP ${groupResponse.statusCode}) when searching for the "Fleet conditional access" group. This may indicate missing API permissions on the Fleet enterprise app registration.`});
+        throw {redirect: fleetInstanceUrlToRedirectTo };
+      }
       try {
         parsedGroupResponse = JSON.parse(groupResponse.body);
       } catch(err){
-        sails.log.warn(`An error occured when parsing the JSON response body returned by the Microsoft graph API for a new Microsoft compliance tenant. full error`, err);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
+        sails.log.warn(`An error occured when parsing the JSON response body returned by the Microsoft graph API for a new Microsoft compliance tenant. Status: ${groupResponse.statusCode}. Body length: ${groupResponse.body.length}. Body snippet: ${String(groupResponse.body).slice(0, 200)}. Full error:`, err);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Could not parse response from Microsoft's Graph API (HTTP ${groupResponse.statusCode}). Underlying error: ${require('util').inspect(err, {depth: null})}`});
         throw {redirect: fleetInstanceUrlToRedirectTo };
       }
 
       // If the response from the Microsoft Graph API did not contain any groups, log a warning and save a setup error on the database record for this tenant.
-      if(parsedGroupResponse.value.length === 0){
+      if(!parsedGroupResponse.value || !Array.isArray(parsedGroupResponse.value) || parsedGroupResponse.value.length === 0){
         sails.log.warn(`When an Entra tenant (${informationAboutThisTenant.fleetInstanceUrl}) tried setting up a conditional access integration, no "Fleet conditional access" Entra ID group was found on this Entra tenant.`);
         // IMPORTANT: Don't change the below setupError value. The error string is checked by the Fleet UI frontend.
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `No "Fleet conditional access" Entra ID group was found on this Entra tenant.`});

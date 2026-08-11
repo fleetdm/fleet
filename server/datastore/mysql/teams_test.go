@@ -44,6 +44,7 @@ func TestTeams(t *testing.T) {
 		{"TestTeamsNameSort", testTeamsNameSort},
 		{"TeamIDsWithSetupExperienceIdPEnabled", testTeamIDsWithSetupExperienceIdPEnabled},
 		{"DefaultTeamConfig", testDefaultTeamConfig},
+		{"TeamLitesByIDs", testTeamLitesByIDs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -197,6 +198,17 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 					titleID,
 					"delete_test",
 					"delete_test.png",
+				)
+				if err != nil {
+					return err
+				}
+
+				_, err = q.ExecContext(
+					context.Background(),
+					"INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)",
+					team.ID,
+					titleID,
+					"^1",
 				)
 				if err != nil {
 					return err
@@ -858,20 +870,25 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 		mdm, err := ds.TeamMDMConfig(ctx, team.ID)
 		require.NoError(t, err)
 
+		// The config round-trips through JSON, which always carries
+		// deadline_days, so it reads back set-but-null rather than unset.
 		assert.Equal(t, &fleet.TeamMDM{
 			MacOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("10.15.0"),
 				Deadline:       optjson.SetString("2025-10-01"),
+				DeadlineDays:   optjson.Int{Set: true},
 				UpdateNewHosts: optjson.Bool{Set: true},
 			},
 			IOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("11.11.11"),
 				Deadline:       optjson.SetString("2024-04-04"),
+				DeadlineDays:   optjson.Int{Set: true},
 				UpdateNewHosts: optjson.Bool{Set: true},
 			},
 			IPadOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("12.12.12"),
 				Deadline:       optjson.SetString("2023-03-03"),
+				DeadlineDays:   optjson.Int{Set: true},
 				UpdateNewHosts: optjson.Bool{Set: true},
 			},
 			WindowsUpdates: fleet.WindowsUpdates{
@@ -890,7 +907,8 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				EndUserLocalAccountType:     optjson.SetString("admin"),
 			},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
+				CustomSettings:              optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
+				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
@@ -1186,4 +1204,39 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "https://updated.com/webhook", finalConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 	assert.Equal(t, []uint{4, 5}, finalConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	assert.Equal(t, 50, finalConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+}
+
+func testTeamLitesByIDs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "lites-a"})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "lites-b",
+		Config: fleet.TeamConfig{WebhookSettings: fleet.TeamWebhookSettings{
+			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{Enable: true, DestinationURL: "https://example.com/hook"},
+		}},
+	})
+	require.NoError(t, err)
+
+	lites, err := ds.TeamLitesByIDs(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, lites)
+
+	lites, err = ds.TeamLitesByIDs(ctx, []uint{teamA.ID, teamB.ID, teamB.ID + 1000, 0})
+	require.NoError(t, err)
+	require.Len(t, lites, 3)
+	byID := make(map[uint]*fleet.TeamLite, len(lites))
+	for _, l := range lites {
+		byID[l.ID] = l
+	}
+	liteA, liteB := byID[teamA.ID], byID[teamB.ID]
+	require.NotNil(t, liteA)
+	require.NotNil(t, liteB)
+	require.Equal(t, "lites-a", liteA.Name)
+	noTeam := byID[0]
+	require.NotNil(t, noTeam)
+	require.Equal(t, fleet.ReservedNameNoTeam, noTeam.Name)
+	webhook := liteB.Config.WebhookSettings.HostActivitiesWebhook
+	require.NotNil(t, webhook)
+	require.Equal(t, "https://example.com/hook", webhook.DestinationURL)
 }

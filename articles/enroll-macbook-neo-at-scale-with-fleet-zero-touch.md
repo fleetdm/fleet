@@ -35,7 +35,7 @@ Fleet integrates with [Apple Business (AB)](https://fleetdm.com/guides/macos-mdm
 
 2. **Assign devices to Fleet in Apple Business.** In the AB portal, assign the registered serial numbers to your Fleet MDM server. This tells Apple's activation servers to direct those devices to Fleet when they first boot up.
 
-3. **Configure enrollment settings in Fleet.** Set up your [enrollment profile](https://fleetdm.com/guides/setup-experience), including which Setup Assistant screens to show or skip, whether to require end user authentication, and which fleet to assign the device to. Fleet also supports a [bootstrap package](https://fleetdm.com/guides/manage-boostrap-package-with-gitops) for installing essential software during first setup.
+3. **Configure enrollment settings in Fleet.** Set up your [enrollment profile](https://fleetdm.com/guides/setup-experience), including which Setup Assistant screens to show or skip, whether to require end user authentication, and which fleet to assign the device to. Fleet also supports a [bootstrap package](https://fleetdm.com/guides/manage-bootstrap-package-with-gitops) for installing essential software during first setup.
 
 4. **Ship devices directly to employees.** When a user opens their new MacBook Neo and connects to the internet, the device contacts Apple's activation servers, receives its MDM assignment, and enrolls in Fleet automatically. Configuration profiles, security policies, and required software install without any manual steps.
 

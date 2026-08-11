@@ -214,6 +214,9 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 				return nil, nil
 			}
+			ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+				return nil, nil
+			}
 			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 				return nil, nil
 			}
@@ -225,6 +228,9 @@ func TestMDMRunCommand(t *testing.T) {
 			}
 			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 				return &fleet.HostLockWipeStatus{}, nil
+			}
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+				return nil, nil
 			}
 			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 				if len(uuids) == 0 {
@@ -505,6 +511,9 @@ func TestMDMLockCommand(t *testing.T) {
 	setupDSMocks(ds, hostByUUID, hostsByID)
 
 	// custom ds mocks for these tests
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, nil
+	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		fleetPlatform := host.FleetPlatform()
 
@@ -733,6 +742,15 @@ func TestMDMUnlockCommand(t *testing.T) {
 		},
 		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 	}
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID:       15,
+			UUID:     "android-not-connected",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
 
 	hostByUUID := make(map[string]testhost)
 	hostsByID := make(map[uint]testhost)
@@ -749,6 +767,7 @@ func TestMDMUnlockCommand(t *testing.T) {
 		macEnrolledLP,
 		winEnrolledWP,
 		macEnrolledWP,
+		androidNotConnected,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -778,6 +797,9 @@ func TestMDMUnlockCommand(t *testing.T) {
 	setupDSMocks(ds, hostByUUID, hostsByID)
 
 	// custom mocks for these test
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, nil
+	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		fleetPlatform := host.FleetPlatform()
 
@@ -906,6 +928,7 @@ fleetctl get host %s
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.host.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.host.UUID}, "Host has pending wipe request."},
 		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.host.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 	}
 
 	runTestCases(t, ds, "unlock", successfulOutput, cases)
@@ -1064,6 +1087,15 @@ func TestMDMWipeCommand(t *testing.T) {
 			Platform: "linux",
 		},
 	}
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID:       21,
+			UUID:     "android-not-connected",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
 
 	linuxHostIDs := []uint{linuxEnrolled.host.ID, linuxEnrolled2.host.ID, linuxEnrolled3.host.ID}
 
@@ -1088,6 +1120,7 @@ func TestMDMWipeCommand(t *testing.T) {
 		macEnrolledWiped,
 		winEnrolledLocked,
 		macEnrolledLocked,
+		androidNotConnected,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -1121,6 +1154,9 @@ func TestMDMWipeCommand(t *testing.T) {
 	setupDSMocks(ds, hostByUUID, hostsByID)
 
 	// TODO: custom ds mocks for these tests
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, nil
+	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		fleetPlatform := host.FleetPlatform()
 
@@ -1275,6 +1311,7 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgScriptsDisabled, "valid linux and scripts are disabled", []string{"--host", linuxEnrolled.host.UUID}, ""},
+		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
 	}
 
 	successfulOutput := func(ident string) string {
@@ -1351,14 +1388,23 @@ func TestMDMClearPasscodeCommand(t *testing.T) {
 	macNotEnrolled := testhost{
 		host: &fleet.Host{ID: 2, UUID: "mac-not-enrolled-cp", Platform: "darwin"},
 	}
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID: 3, UUID: "android-not-connected-cp", Platform: "android",
+			MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
 
 	hostByUUID := map[string]testhost{
-		macEnrolled.host.UUID:    macEnrolled,
-		macNotEnrolled.host.UUID: macNotEnrolled,
+		macEnrolled.host.UUID:         macEnrolled,
+		macNotEnrolled.host.UUID:      macNotEnrolled,
+		androidNotConnected.host.UUID: androidNotConnected,
 	}
 	hostsByID := map[uint]testhost{
-		macEnrolled.host.ID:    macEnrolled,
-		macNotEnrolled.host.ID: macNotEnrolled,
+		macEnrolled.host.ID:         macEnrolled,
+		macNotEnrolled.host.ID:      macNotEnrolled,
+		androidNotConnected.host.ID: androidNotConnected,
 	}
 
 	ds := setupTestServer(t)
@@ -1368,6 +1414,9 @@ func TestMDMClearPasscodeCommand(t *testing.T) {
 		return mdmInfo != nil && mdmInfo.Enrolled && mdmInfo.Name == fleet.WellKnownMDMFleet, nil
 	}
 	// Stubs required by the host-details endpoint that fleetctl hits via HostByIdentifier.
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, nil
+	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{HostFleetPlatform: host.FleetPlatform()}, nil
 	}
@@ -1386,6 +1435,7 @@ func TestMDMClearPasscodeCommand(t *testing.T) {
 		{appCfgAllMDM, "empty host", []string{"--host", ""}, `No host targeted. Please provide --host.`},
 		{appCfgAllMDM, "unknown host", []string{"--host", "doesnotexist"}, fleet.HostNotFoundErrMsg},
 		{appCfgAllMDM, "darwin not enrolled", []string{"--host", macNotEnrolled.host.UUID}, "Can't clear passcode for the host because it doesn't have MDM turned on."},
+		{appCfgAllMDM, "android not connected", []string{"--host", androidNotConnected.host.UUID}, "Can't clear passcode for the host because it doesn't have MDM turned on."},
 	}
 	for _, c := range cases {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return c.appCfg, nil }
@@ -1445,6 +1495,9 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 		return nil, nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {

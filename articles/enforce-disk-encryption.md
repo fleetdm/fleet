@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and verify disk encryption for Ubuntu Linux, Kubuntu Linux and Fedora Linux hosts.
+In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and escrow disk encryption keys for macOS, Windows, and Linux (Ubuntu, Kubuntu, and Fedora) hosts.
 
 > Apple calls this [FileVault](https://support.apple.com/en-us/HT204837), Microsoft calls this [BitLocker](https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/), and Linux typically uses [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) (Linux Unified Key Setup).
 
@@ -11,6 +11,10 @@ When disk encryption is enforced, hosts' disk encryption keys will be stored in 
 For macOS hosts that automatically enroll, end users are forced to enable disk encryption during Setup Assistant and the disk encryption key is automatically escrowed to Fleet. For hosts that manually enroll, end users are forced to enable disk encryption. The key gets escrowed the next time they log out and log back in. For both enroll methods, end users can't defer.
 
 > On macOS 15.7, if the end user account type is set to **Standard** or **Skip (no account)** during [setup experience](https://fleetdm.com/guides/setup-experience), FileVault cannot be enabled locally through System Settings. To encrypt the disk on these hosts, enforce disk encryption via Fleet using the steps below. This issue does not affect macOS 26.
+
+> Fleet offers two options for macOS disk encryption:
+  - Turn on disk encryption: Fleet enforces FileVault and escrows the recovery key.
+  - Escrow recovery key with Fleet: Fleet stores the recovery key but does not prompt users to turn on FileVault. Use when a third-party tool (e.g. XCreds) handles enforcement.
 
 For Windows, currently disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). For Linux, encryption requires end user interaction.
 
@@ -24,7 +28,13 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [GitOps](https
 
 2. Choose which fleet you want to enforce disk encryption on by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
-3. Check the box next to **Turn on** and select **Save**.
+3. Under macOS, check **Turn on disk encryption** and/or **Escrow recovery key with Fleet**.
+
+4. Under Windows, check **Turn on disk encryption** and optionally **Require BitLocker PIN**.
+
+5. Under Linux, check **Escrow recovery key with Fleet**.
+
+6. Select **Save**.
 
 #### Fleet API: 
 
@@ -50,9 +60,9 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 You can click each status to view the list of hosts for that status.
 
-## Enforce disk encryption on Linux
+## Escrow disk encryption key on Linux
 
-Fleet supports Linux Unified Key Setup version 2 (LUKS2) for encrypting volumes to enforce disk encryption on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
+Fleet supports Linux Unified Key Setup version 2 (LUKS2) for escrowing disk encryption keys on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
 
 1. Share [this step-by-step guide](https://fleetdm.com/learn-more-about/encrypt-linux-device) with end users setting up a work computer running Ubuntu Linux, Kubuntu Linux or Fedora Linux.
 
@@ -138,7 +148,7 @@ Share [these guided instructions](https://fleetdm.com/guides/mdm-migration#how-t
 
 ### Escrow Buddy
 
-Fleet uses [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to escrow disk encryption keys from macOS hosts. Escrow Buddy is installed only on macOS hosts that are assigned to a team in Fleet with disk encryption enforced. If a host is then transferred to a team that doesn't enforce disk encryption, Escrow Buddy stays installed.
+Fleet uses [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to escrow disk encryption keys from macOS hosts. Escrow Buddy is installed only on macOS hosts that are assigned to a team in Fleet with disk encryption enforced or escrow recovery key turned on. If a host is then transferred to a team that doesn't enforce disk encryption, Escrow Buddy stays installed.
 
 ### Encryption key changes
 
@@ -146,11 +156,11 @@ Currently, on macOS and Linux, Fleet detects when the disk encryption key change
 
 On macOS hosts, if an end user with local admin permissions changes the key using the `sudo fdesetup changerecovery -personal` command, Fleet will escrow that new key.
 
-For Linux, Fleet will prompt the end user to escrow a new key. [Learn more](#enforce-disk-encryption-on-linux).
+For Linux, Fleet will prompt the end user to escrow a new key. [Learn more](#escrow-disk-encryption-key-on-linux).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-08-14">
 <meta name="articleTitle" value="Enforce disk encryption">
-<meta name="description" value="Learn how to enforce disk encryption on macOS, Windows, and Linux hosts and manage encryption keys with Fleet Premium.">
+<meta name="description" value="Learn how to enforce disk encryption on macOS and Windows hosts, escrow disk encryption keys, and manage encryption keys with Fleet Premium.">

@@ -1,6 +1,5 @@
 import Button from "components/buttons/Button";
 import EmptyState from "components/EmptyState";
-import Icon from "components/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import React, { useCallback, useState } from "react";
@@ -109,21 +108,22 @@ const HQRTable = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQuery}
-          variant="inverse"
+          variant="secondary"
+          size="small"
+          icon="eye"
+          iconPosition="right"
         >
-          <>
-            Show query <Icon name="eye" />
-          </>
+          Show query
         </Button>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="inverse"
+          variant="secondary"
+          size="small"
+          icon="download"
+          iconPosition="right"
         >
-          <>
-            Export results
-            <Icon name="download" />
-          </>
+          Export results
         </Button>
       </div>
     );

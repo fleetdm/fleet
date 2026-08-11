@@ -21,6 +21,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -208,6 +209,52 @@ func TestGetClientConfig(t *testing.T) {
 					"removed": true,
 					"version": ""
 				}
+			}
+		}
+	}`,
+		string(conf["packs"].(json.RawMessage)),
+	)
+}
+
+// TestGetClientConfigNullConfig is a regression test for a panic
+// ("assignment to entry in nil map") that occurred when a host's agent options
+// had a null "config" and the host also had packs/scheduled queries. See
+// https://github.com/fleetdm/fleet/issues/47388.
+func TestGetClientConfigNullConfig(t *testing.T) {
+	ds := new(mock.Store)
+
+	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return []*fleet.Pack{{ID: 1, Name: "pack_by_label"}}, nil
+	}
+	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) (fleet.ScheduledQueryList, error) {
+		return []*fleet.ScheduledQuery{
+			{Name: "time", Query: "select * from time", Interval: 30, Removed: new(false)},
+		}, nil
+	}
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+		return nil, nil
+	}
+	// Global agent options with a null config. This unmarshals into a nil map,
+	// which previously caused a panic once packs were added to the config.
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{AgentOptions: new(json.RawMessage(`{"config":null}`))}, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		return nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1})
+
+	conf, err := svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{
+		"pack_by_label": {
+			"queries":{
+				"time":{"query":"select * from time","interval":30,"removed":false}
 			}
 		}
 	}`,
@@ -1193,6 +1240,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "orbit_info":                              {},
 		hostDetailQueryPrefix + "software_vscode_extensions":              {},
 		hostDetailQueryPrefix + "software_jetbrains_plugins":              {},
+		hostDetailQueryPrefix + "software_adobe_plugins":                  {},
 		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
 		hostDetailQueryPrefix + "software_go_binaries":                    {},
 		hostDetailQueryPrefix + "software_python_packages":                {},
@@ -1205,6 +1253,9 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
 		hostDetailQueryPrefix + "disk_space_darwin":                       {},
 		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
+		hostDetailQueryPrefix + "certificates_windows":                    {},
+		hostDetailQueryPrefix + "tpm_pin_config_verify":                   {},
+		hostDetailQueryPrefix + "tpm_pin_set_verify":                      {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1316,6 +1367,69 @@ func TestHostDetailQueries(t *testing.T) {
 		assert.Contains(t, queries, hostDetailQueryPrefix+name)
 	}
 	verifyDiscovery(t, queries, discovery)
+}
+
+// TestHostDetailQueriesTeamBitLockerPIN is a regression test for #50729: the scheduler must honor team-level disk encryption /
+// BitLocker PIN settings even when Apple MDM is not configured, and must not fall back to the global settings for hosts that
+// belong to a team.
+func TestHostDetailQueriesTeamBitLockerPIN(t *testing.T) {
+	pinQueryNames := []string{
+		hostDetailQueryPrefix + "tpm_pin_config_verify",
+		hostDetailQueryPrefix + "tpm_pin_set_verify",
+	}
+
+	globalRequiresPIN := false
+	teamMDMConfig := fleet.TeamMDM{EnableDiskEncryption: true, RequireBitLockerPIN: true}
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appConfig := &fleet.AppConfig{}
+		appConfig.MDM.WindowsEnabledAndConfigured = true // Apple MDM stays unconfigured
+		if globalRequiresPIN {
+			appConfig.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			appConfig.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+		}
+		return appConfig, nil
+	}
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		return &teamMDMConfig, nil
+	}
+
+	host := fleet.Host{
+		ID:               1,
+		Platform:         "windows",
+		TeamID:           new(uint(7)),
+		NodeKey:          new("test_key"),
+		Hostname:         "test_hostname",
+		UUID:             "test_uuid",
+		RefetchRequested: true,
+	}
+	svc := &Service{
+		clock:    clock.NewMockClock(),
+		logger:   slog.New(slog.DiscardHandler),
+		config:   config.TestConfig(),
+		ds:       ds,
+		jitterMu: new(sync.RWMutex),
+		jitterH:  make(map[time.Duration]*jitterHashTable),
+	}
+
+	// The team requiring a PIN must schedule the PIN queries even though the global config does not.
+	queries, discovery, err := svc.detailQueriesForHost(t.Context(), &host)
+	require.NoError(t, err)
+	require.True(t, ds.TeamMDMConfigFuncInvoked)
+	verifyDiscovery(t, queries, discovery)
+	for _, queryName := range pinQueryNames {
+		assert.Contains(t, queries, queryName)
+	}
+
+	// The reverse: the global config requiring a PIN must not leak to a host whose team does not.
+	globalRequiresPIN = true
+	teamMDMConfig = fleet.TeamMDM{EnableDiskEncryption: true}
+	queries, _, err = svc.detailQueriesForHost(t.Context(), &host)
+	require.NoError(t, err)
+	for _, queryName := range pinQueryNames {
+		assert.NotContains(t, queries, queryName)
+	}
 }
 
 func TestQueriesAndHostFeatures(t *testing.T) {
@@ -1620,6 +1734,29 @@ func TestLabelQueries(t *testing.T) {
 	assert.Equal(t, true, *gotResults[2])
 	assert.Equal(t, false, *gotResults[3])
 
+	mockClock.AddTime(1 * time.Second)
+
+	// A label query errors out (e.g. the extension socket is unavailable),
+	// rather than returning a definitive 0 rows. This must be recorded as an
+	// unknown (nil) result, not a non-match, so that existing label
+	// membership is left untouched (see #46399).
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "2": {},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostLabelQueryPrefix + "2": 1,
+		},
+		map[string]string{
+			hostLabelQueryPrefix + "2": "extension socket not available",
+		},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	require.Len(t, gotResults, 1)
+	assert.Nil(t, gotResults[2])
+
 	// We should get no labels now.
 	host.LabelUpdatedAt = mockClock.Now()
 	ctx = hostctx.NewContext(ctx, host)
@@ -1683,6 +1820,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) error {
+		return nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
 			EnableHostUsers:         true,
@@ -1885,6 +2025,9 @@ func TestDetailQueries(t *testing.T) {
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) error {
+		return nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
 			EnableHostUsers:         true,
@@ -3350,10 +3493,10 @@ func TestPolicyQueries(t *testing.T) {
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
-	) error {
+	) ([]uint, error) {
 		recordedResults = results
 		host = gotHost
-		return nil
+		return nil, nil
 	}
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
 		err error,
@@ -3511,6 +3654,93 @@ func TestPolicyQueries(t *testing.T) {
 	noPolicyResults(queries)
 }
 
+func TestPolicyMembershipOutOfScopeCleanup(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestService(t, ds, nil, lq)
+
+	host := &fleet.Host{ID: 42, Platform: "darwin"}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	inSetupExperience := false
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return inSetupExperience, nil
+	}
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) ([]uint, []uint, error) {
+		return nil, nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 0}, nil
+	}
+	stalePolicyIDs := []uint{7, 9}
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
+		deferred bool, newlyPassingPolicyIDs []uint,
+	) ([]uint, error) {
+		return stalePolicyIDs, nil
+	}
+	var clearedPolicyIDs []uint
+	ds.ClearHostPolicyMembershipForPoliciesFunc = func(ctx context.Context, hostID uint, policyIDs []uint) error {
+		require.Equal(t, host.ID, hostID)
+		clearedPolicyIDs = policyIDs
+		return nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
+
+	ctx = hostctx.NewContext(ctx, host)
+
+	submit := func(results map[string][]map[string]string) {
+		err := svc.SubmitDistributedQueryResults(
+			ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{},
+		)
+		require.NoError(t, err)
+	}
+	resetInvoked := func() {
+		clearedPolicyIDs = nil
+		ds.ClearHostPolicyMembershipForPoliciesFuncInvoked = false
+		ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked = false
+		ds.GetHostAwaitingConfigurationFuncInvoked = false
+	}
+	policyResults := map[string][]map[string]string{
+		hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+	}
+
+	// Stale policies reported by RecordPolicyQueryExecutions are deleted and
+	// the host's failing policies count is refreshed.
+	submit(policyResults)
+	require.Equal(t, []uint{7, 9}, clearedPolicyIDs)
+	require.True(t, ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked)
+
+	// Hosts in setup experience are sent a filtered subset of policy queries,
+	// so their stale set is not meaningful and nothing is deleted.
+	resetInvoked()
+	inSetupExperience = true
+	submit(policyResults)
+	require.False(t, ds.ClearHostPolicyMembershipForPoliciesFuncInvoked)
+	require.False(t, ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked)
+
+	// No stale policies: nothing is deleted and the setup experience gate is
+	// not even checked.
+	resetInvoked()
+	inSetupExperience = false
+	stalePolicyIDs = nil
+	submit(policyResults)
+	require.False(t, ds.ClearHostPolicyMembershipForPoliciesFuncInvoked)
+	require.False(t, ds.GetHostAwaitingConfigurationFuncInvoked)
+
+	// The "no policies in scope" wildcard also cleans up stale rows.
+	resetInvoked()
+	stalePolicyIDs = []uint{7}
+	submit(map[string][]map[string]string{
+		hostNoPoliciesWildcard: {{"1": "1"}},
+	})
+	require.Equal(t, []uint{7}, clearedPolicyIDs)
+	require.True(t, ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked)
+}
+
 func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
 	ds := new(mock.Store)
 	lq := live_query_mock.New(t)
@@ -3666,10 +3896,10 @@ func TestPolicyWebhooks(t *testing.T) {
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
-	) error {
+	) ([]uint, error) {
 		recordedResults = results
 		host = gotHost
-		return nil
+		return nil, nil
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -3716,11 +3946,11 @@ func TestPolicyWebhooks(t *testing.T) {
 	var recordedNewlyPassing []uint
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
-	) error {
+	) ([]uint, error) {
 		recordedResults = results
 		recordedNewlyPassing = newlyPassingPolicyIDs
 		host = gotHost
-		return nil
+		return nil, nil
 	}
 
 	flippingCallCount = 0
@@ -4049,6 +4279,28 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"last_opened_at":    "",
 		"installed_path":    "/some/zoobar/path",
 	}
+	artisanAdobePlugin := map[string]string{
+		"name":              "Artisan Pro X",
+		"version":           "1.3.3",
+		"bundle_identifier": "",
+		"extension_id":      "com.vendorx.artisanprox",
+		"extension_for":     "",
+		"source":            "adobe_plugins",
+		"vendor":            "VendorX",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/CEP/extensions/com.vendorx.artisanprox",
+	}
+	colorizerAdobePlugin := map[string]string{
+		"name":              "Colorizer",
+		"version":           "2.0.1",
+		"bundle_identifier": "",
+		"extension_id":      "com.vendory.colorizer",
+		"extension_for":     "",
+		"source":            "adobe_plugins",
+		"vendor":            "VendorY",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/UXP/extensions/com.vendory.colorizer",
+	}
 	someRow := map[string]string{
 		"1": "1",
 	}
@@ -4182,6 +4434,79 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					zoobarApp,
 					foobarVSCodeExtension,
 					zoobarVSCodeExtension,
+				},
+			},
+		},
+		{
+			name: "software query works and there are adobe plugins in extra",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_adobe_plugins": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_adobe_plugins": []map[string]string{
+					artisanAdobePlugin,
+					colorizerAdobePlugin,
+				},
+			},
+
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					artisanAdobePlugin,
+					colorizerAdobePlugin,
+				},
+			},
+		},
+		{
+			name: "windows software query works and there are adobe plugins in extra",
+			host: &fleet.Host{ID: 1, Platform: "windows"},
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_windows":       fleet.StatusOK,
+				hostDetailQueryPrefix + "software_adobe_plugins": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_adobe_plugins": []map[string]string{
+					artisanAdobePlugin,
+				},
+			},
+
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					foobarApp,
+					artisanAdobePlugin,
+				},
+			},
+		},
+		{
+			// A host without the adobe_plugins table doesn't run the query at all
+			// (discovery filters it out), so it reports no status — that path is covered
+			// by the "status and results are not returned" case below. Here the query ran
+			// and failed, which must leave the main software results untouched.
+			name: "software query works, but the adobe_plugins query fails",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_adobe_plugins": fleet.OsqueryStatus(1),
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_adobe_plugins": []map[string]string{},
+			},
+
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
 				},
 			},
 		},
@@ -4609,6 +4934,17 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			preProcessSoftwareResults(t.Context(), host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, slog.New(slog.DiscardHandler))
 			require.Equal(t, tc.resultsExpected, tc.resultsIn)
 		})
+	}
+}
+
+func TestDetailQueriesAdobePlugins(t *testing.T) {
+	// Adobe Creative Cloud only runs on macOS and Windows, so the query must not be
+	// sent anywhere else.
+	for _, platform := range []string{"darwin", "windows"} {
+		require.Contains(t, expectedDetailQueriesForPlatform(platform), "software_adobe_plugins")
+	}
+	for _, platform := range append(fleet.HostLinuxOSs, "chrome") {
+		require.NotContains(t, expectedDetailQueriesForPlatform(platform), "software_adobe_plugins")
 	}
 }
 

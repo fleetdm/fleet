@@ -214,6 +214,7 @@ reports:
   - path: ../lib/all/reports/collect-chromium-browser-extensions.yml
   - path: ../lib/all/reports/collect-firefox-browser-extensions.yml
   - path: ../lib/all/reports/collect-listening-ports.yml
+  - path: ../lib/windows/reports/collect-windows-11-hardware-readiness.yml
 software:
   packages:
     # macOS apps
@@ -299,13 +300,6 @@ software:
     #     - Browsers
     #   labels_include_any:
     #     - "ARM-based Windows hosts"
-    - path: ../lib/windows/software/okta-verify.yml # Okta Verify for Windows (x86)
-      self_service: true
-      setup_experience: true
-      categories:
-        - Security
-      labels_include_any:
-        - "x86-based Windows hosts"
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
@@ -550,6 +544,13 @@ software:
       setup_experience: true
       categories:
         - Communication
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: okta-verify/windows # Okta Verify for Windows (x86)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows

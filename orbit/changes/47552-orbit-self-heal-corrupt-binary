@@ -1,1 +1,0 @@
-- Fixed an issue where a corrupt osqueryd or Fleet Desktop binary (e.g. from a truncated update download) would cause orbit to crash-loop indefinitely. Orbit now detects an executable that fails to run, removes the corrupt component, and re-downloads it from the update server.

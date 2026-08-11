@@ -78,7 +78,7 @@ const LoadingMenu = (
   return (
     <components.Menu {...props}>
       <div className={`${baseClass}__menu-loading`}>
-        <Spinner includeContainer={false} />
+        <Spinner />
       </div>
     </components.Menu>
   );

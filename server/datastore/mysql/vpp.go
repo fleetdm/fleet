@@ -2726,6 +2726,12 @@ func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Contex
 		return nil, nil, ctxerr.New(ctx, fmt.Sprintf("softwareType %s not supported", softwareType))
 	}
 
+	// The activities returned to the caller are derived solely from failedCmds, which
+	// is scoped to still-pending installs (verification_failed_at IS NULL AND
+	// verification_at IS NULL AND canceled = 0). This makes the function idempotent for
+	// the Android DELETED path: a duplicate Pub/Sub DELETED delivery finds those rows
+	// already marked failed, so the SELECT returns an empty set and no duplicate
+	// failed-install activities are emitted.
 	const loadFailedCmdsStmt = `
 SELECT
 	command_uuid
@@ -3107,25 +3113,35 @@ func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtConte
 		return nil
 	}
 
+	// is_user_enrollment must reflect the actual MDM enrollment channel, NOT
+	// host_mdm.is_personal_enrollment: the latter is also set for
+	// manual-profile BYOD, which is device-channel and must install
+	// device-scoped like company-owned manual. Only Account-Driven User
+	// Enrollment (ADUE) is user-scoped, and its primary enrollment row
+	// (id = host UUID) has type 'User Enrollment (Device)' — every other
+	// device-channel enrollment is 'Device'. See #48879.
 	const getHostUUIDStmt = `
 SELECT
 	h.uuid,
 	h.platform,
 	h.team_id,
 	h.hardware_serial,
-	COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
+	COALESCE((
+		SELECT 1 FROM nano_enrollments ne
+		WHERE ne.id = h.uuid AND ne.type = 'User Enrollment (Device)' AND ne.enabled = 1
+		LIMIT 1
+	), 0) AS is_user_enrollment
 FROM
 	hosts h
-	LEFT JOIN host_mdm hm ON hm.host_id = h.id
 WHERE
 	h.id = ?
 `
 	var hostData struct {
-		UUID                 string `db:"uuid"`
-		Platform             string `db:"platform"`
-		TeamID               *uint  `db:"team_id"`
-		HardwareSerial       string `db:"hardware_serial"`
-		IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
+		UUID             string `db:"uuid"`
+		Platform         string `db:"platform"`
+		TeamID           *uint  `db:"team_id"`
+		HardwareSerial   string `db:"hardware_serial"`
+		IsUserEnrollment bool   `db:"is_user_enrollment"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host info for vpp install")
@@ -3216,7 +3232,7 @@ WHERE
 			HostPlatform:     hostData.Platform,
 			ITunesStoreID:    p.AdamID,
 			Configuration:    cfg,
-			IsUserEnrollment: hostData.IsPersonalEnrollment,
+			IsUserEnrollment: hostData.IsUserEnrollment,
 		})
 		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
 		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)

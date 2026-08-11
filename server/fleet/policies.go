@@ -75,6 +75,9 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ContinuousAutomationsEnabled bool
+
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -105,6 +108,9 @@ type NewTeamPolicyPayload struct {
 	CalendarEventsEnabled bool
 	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
 	SoftwareTitleID *uint
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When nil, the policy defaults to the title's first-added package.
+	SoftwareInstallerID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	ScriptID *uint
 	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
@@ -125,6 +131,8 @@ type NewTeamPolicyPayload struct {
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.
 	ContinuousAutomationsEnabled bool
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool
 }
 
 var (
@@ -141,6 +149,8 @@ var (
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
+	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -151,6 +161,9 @@ const MaxPolicyAutomationRetries = 3
 
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
+	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
+		return errPolicyPatchWhenClosedRequiresPatch
+	}
 	if p.Type == PolicyTypePatch {
 		if p.QueryID != nil {
 			return errPolicyPatchAndQuerySet
@@ -262,6 +275,21 @@ func verifyPolicyPlatforms(platforms string) error {
 	return nil
 }
 
+// ValidatePolicyPlatformFilter validates the platform query parameter used to
+// filter policies on list/count endpoints. An empty string means "no filter"
+// and is always valid; otherwise the value must be a single supported
+// platform token.
+func ValidatePolicyPlatformFilter(platform string) error {
+	if platform == "" {
+		return nil
+	}
+	switch platform {
+	case "windows", "linux", "darwin", "chrome":
+		return nil
+	}
+	return NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", or "chrome".`)
+}
+
 func verifyPatchPolicy(team string, typ string) error {
 	if typ == PolicyTypePatch && emptyString(team) {
 		return errPatchPolicyRequiresTeam
@@ -300,6 +328,11 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareTitleID optjson.Any[uint] `json:"software_title_id" premium:"true"`
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When omitted (or 0), the policy defaults to the title's first-added package.
+	//
+	// Only applies to team policies.
+	SoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" premium:"true"`
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	// Value 0 will unset the current script from the policy.
 	//
@@ -325,10 +358,15 @@ type ModifyPolicyPayload struct {
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"-"`
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed *bool `json:"patch_when_closed" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
+	if p.PatchWhenClosed != nil && *p.PatchWhenClosed && p.Type != PolicyTypePatch {
+		return errPolicyPatchWhenClosedRequiresPatch
+	}
 	if p.Type == PolicyTypePatch {
 		if p.Name != nil {
 			if err := verifyPolicyName(*p.Name); err != nil {
@@ -426,6 +464,9 @@ type PolicyData struct {
 	//
 	// Only applies to team policies.
 	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
+
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool `json:"patch_when_closed" db:"patch_when_closed"`
 
 	UpdateCreateTimestamps
 }
@@ -530,6 +571,65 @@ type HostPolicy struct {
 	Response string `json:"response" db:"response"`
 }
 
+// DevicePolicy is a device-safe representation of a policy in the context of
+// a host, for device-authenticated ("My device") endpoints. It intentionally
+// omits fields that must not be exposed to end users holding only a device
+// token, such as the policy author's name and email and the raw SQL query.
+type DevicePolicy struct {
+	// ID is the unique ID of the policy.
+	ID uint `json:"id"`
+	// Name is the name of the policy.
+	Name string `json:"name"`
+	// Description describes the policy.
+	Description string `json:"description"`
+	// Resolution describes how to solve a failing policy.
+	Resolution *string `json:"resolution,omitempty"`
+	// Platform is a comma-separated string to indicate the target platforms.
+	//
+	// Empty string targets all platforms.
+	Platform string `json:"platform"`
+	// Critical marks the policy as high impact.
+	Critical bool `json:"critical"`
+	// ConditionalAccessEnabled indicates whether this is a policy used for
+	// conditional access.
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+	// Response can be one of the following values:
+	//	- "pass": if the policy was executed and passed.
+	//	- "fail": if the policy was executed and did not pass.
+	//	- "": if the policy did not run yet.
+	Response string `json:"response"`
+}
+
+// ToDevicePolicy returns the device-safe representation of the host policy.
+func (p *HostPolicy) ToDevicePolicy() *DevicePolicy {
+	return &DevicePolicy{
+		ID:                       p.ID,
+		Name:                     p.Name,
+		Description:              p.Description,
+		Resolution:               p.Resolution,
+		Platform:                 p.Platform,
+		Critical:                 p.Critical,
+		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
+		Response:                 p.Response,
+	}
+}
+
+// HostPoliciesToDevicePolicies converts host policies to their device-safe
+// representation for device-authenticated endpoints.
+func HostPoliciesToDevicePolicies(policies []*HostPolicy) []*DevicePolicy {
+	if policies == nil {
+		return nil
+	}
+	devicePolicies := make([]*DevicePolicy, 0, len(policies))
+	for _, p := range policies {
+		if p == nil {
+			continue
+		}
+		devicePolicies = append(devicePolicies, p.ToDevicePolicy())
+	}
+	return devicePolicies
+}
+
 // PolicySpec is used to hold policy data to apply policy specs.
 //
 // Policies are currently identified by name (unique).
@@ -573,6 +673,8 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled"`
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool `json:"patch_when_closed"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
@@ -583,6 +685,13 @@ type PolicySpec struct {
 type PolicySoftwareTitle struct {
 	// SoftwareTitleID is the ID of the title associated to the policy.
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
+	// SoftwareInstallerID is the ID of the specific package the policy pins
+	// on a multi-package title. Nil for VPP-backed policies (which pin via
+	// vpp_apps_teams_id, not an installer). The multi-package policy
+	// automation UI reads this on load to reflect the user's non-default
+	// package choice; when nil, the UI falls back to the title's first-added
+	// package.
+	SoftwareInstallerID *uint `json:"software_installer_id,omitempty"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
 	Name        string `json:"name" db:"name"`
@@ -618,6 +727,12 @@ func (p PolicySpec) Verify() error {
 	}
 	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
 		return err
+	}
+	if p.Type != PolicyTypePatch && p.FleetMaintainedAppSlug != "" {
+		return errPolicyFMASlugRequiresPatch
+	}
+	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
+		return errPolicyPatchWhenClosedRequiresPatch
 	}
 	return p.VerifyLabelScopes()
 }

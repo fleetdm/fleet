@@ -51,14 +51,49 @@ There are three cases. Check `PR_STATE` first, then `MERGE_COMMIT`.
 
 ### If the PR is OPEN and not yet merged (`PR_STATE == "OPEN"`) — retarget path
 
-The simplest and correct approach: retarget the original PR from the source docs branch to the target docs branch. This avoids creating a revert branch with an empty diff (a git revert against a branch that doesn't have the changes yet is always a no-op).
+Retarget the original PR from the source docs branch to the target docs branch. This avoids creating a revert branch with an empty diff (a git revert against a branch that doesn't have the changes yet is always a no-op).
 
-1. Retarget the original PR. Always use the REST API — `gh pr edit --base` fails on fleetdm/fleet with a GraphQL "Projects (classic)" deprecation error:
+**⚠️ Before retargeting, you MUST check whether the two docs branches have diverged.** A GitHub PR diff is `merge-base(HEAD, base)...HEAD` — everything on the branch since it last diverged from its base. The PR branch was cut from `<SOURCE_DOCS_BRANCH>`. If `<TARGET_DOCS_BRANCH>` does not contain `<SOURCE_DOCS_BRANCH>` (they've diverged onto separate lines), retargeting moves the merge-base back to an *old* shared ancestor, and every commit that's on `<SOURCE_DOCS_BRANCH>` but not on `<TARGET_DOCS_BRANCH>` leaks into the PR diff — files the author never touched. A plain retarget is only safe when the source branch is an ancestor of the target.
+
+1. Fetch the PR head branch and both docs branches so local refs are current:
+   ```
+   git fetch upstream <SOURCE_DOCS_BRANCH> <TARGET_DOCS_BRANCH> <HEAD_REF> 2>&1
+   ```
+   (`<HEAD_REF>` = the PR's `headRefName`. For a PR from a fork, fetch it from the fork remote instead — or use `gh pr checkout <PR_NUMBER>`.)
+
+2. **Divergence check** — is the source branch already contained in the target?
+   ```
+   git merge-base --is-ancestor upstream/<SOURCE_DOCS_BRANCH> upstream/<TARGET_DOCS_BRANCH> && echo "CONTAINED" || echo "DIVERGED"
+   ```
+   - **`CONTAINED`** → safe to retarget as-is. Skip to step 5.
+   - **`DIVERGED`** → the diff will leak unrelated commits. Rebase the branch onto the target first (steps 3–4) before retargeting.
+
+3. **Rebase the PR branch onto the target** (DIVERGED case only). Find the fork point — where the branch diverged from the source — and replay only the PR's own commits on top of the target tip:
+   ```
+   FORK_POINT=$(git merge-base <HEAD_COMMIT> upstream/<SOURCE_DOCS_BRANCH>)
+   git checkout -B <HEAD_REF> <HEAD_COMMIT>
+   git rebase --onto upstream/<TARGET_DOCS_BRANCH> "$FORK_POINT"
+   ```
+   If there are conflicts, resolve them (the target may have changed the same files), then `git add <file> && git rebase --continue`.
+
+4. **Verify the diff before pushing.** Confirm only the author's intended files remain:
+   ```
+   git diff upstream/<TARGET_DOCS_BRANCH>...HEAD --stat
+   ```
+   Compare against the original PR's file/line count (`git diff "$FORK_POINT"...<HEAD_COMMIT> --stat`, or the diff GitHub showed while the PR targeted `<SOURCE_DOCS_BRANCH>`). They must match. If extra files still appear, the fork point is wrong — stop and investigate; do not push.
+
+   Then force-push the rebased branch to wherever the PR head lives (rewrites history, so `--force-with-lease`):
+   ```
+   git push --force-with-lease origin <HEAD_REF>
+   ```
+   If this push is denied by a permission rule, hand the exact command to the user to run in their own terminal — do not abandon the rebase.
+
+5. Retarget the original PR. Always use the REST API — `gh pr edit --base` fails on fleetdm/fleet with a GraphQL "Projects (classic)" deprecation error:
    ```
    gh api repos/<UPSTREAM_REPO>/pulls/<PR_NUMBER> --method PATCH --field base=<TARGET_DOCS_BRANCH> --jq '.base.ref'
    ```
-2. Report to the user: "PR #N has been retargeted from `<SOURCE_DOCS_BRANCH>` to `<TARGET_DOCS_BRANCH>`. No separate revert or apply PR is needed — the existing PR now targets the correct branch."
-3. **Stop here.** Steps 3 and 4 are not needed for the open/unmerged case.
+6. Report to the user: "PR #N has been retargeted from `<SOURCE_DOCS_BRANCH>` to `<TARGET_DOCS_BRANCH>`." If you rebased, add: "The branch was rebased onto `<TARGET_DOCS_BRANCH>` first because the two docs branches had diverged — otherwise unrelated 4.x commits would have leaked into the diff." No separate revert or apply PR is needed.
+7. **Stop here.** The "Create the revert PR" and "Create the apply PR" sections below are not needed for the open/unmerged case.
 
 ### If the PR is CLOSED without merging (`PR_STATE == "CLOSED"` and `MERGE_COMMIT` is null) — apply-only path
 

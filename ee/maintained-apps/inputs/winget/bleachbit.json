@@ -1,0 +1,12 @@
+{
+  "name": "BleachBit",
+  "slug": "bleachbit/windows",
+  "package_identifier": "BleachBit.BleachBit",
+  "unique_identifier": "BleachBit",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/bleachbit_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/bleachbit_uninstall.ps1",
+  "default_categories": ["Utilities"]
+}

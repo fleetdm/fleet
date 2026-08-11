@@ -6,5 +6,6 @@
   "slug": "worksheet-crafter/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

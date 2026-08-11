@@ -42,5 +42,5 @@ jobs:
 
       - name: Run upgrade test
         run: |
-          cd test/upgrade
+          cd tools/upgrade
           FLEET_VERSION_A=${{ github.event.inputs.from-version }} FLEET_VERSION_B=${{ github.event.inputs.to-version }} go test -v

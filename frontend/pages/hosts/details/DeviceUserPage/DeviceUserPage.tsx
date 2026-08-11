@@ -344,7 +344,7 @@ const DeviceUserPage = ({
                 responseHost.platform === "ipados";
               if (!isIOSOrIPadOS) {
                 notify.error(
-                  "We're having trouble fetching fresh vitals for this host. Please try again later."
+                  "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
                 );
               }
             }
@@ -731,6 +731,7 @@ const DeviceUserPage = ({
             diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             mdmManualEnrolmentUrl={mdmManualEnrollUrl}
             lastMdmEnrolledAt={host.last_mdm_enrolled_at}
+            detailUpdatedAt={host.detail_updated_at}
           />
           <HostHeader
             summaryData={summaryData}
@@ -804,8 +805,6 @@ const DeviceUserPage = ({
                   className={fullWidthCardClass}
                   canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
-                  disableFullNameTooltip
-                  disableGroupsTooltip
                 />
                 {isAppleHost && !!deviceCertificates?.certificates.length && (
                   <CertificatesCard
@@ -953,7 +952,7 @@ const DeviceUserPage = ({
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
                   {isLoadingDupDetails ? (
-                    <Spinner includeContainer={false} centered={false} />
+                    <Spinner centered={false} />
                   ) : (
                     <OrgLogoIcon className="logo" src={orgLogoURL} />
                   )}

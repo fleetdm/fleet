@@ -14,13 +14,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"log/slog"
+	"maps"
 	mrand "math/rand"
+	mathrand2 "math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
@@ -50,6 +54,12 @@ type TestAppleMDMClient struct {
 
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
+
+	// SimulateSCEPRenewal, when true, makes the device omit the new-enrollment Subject OU from its SCEP
+	// CSR even if the fetched profile carries one. Real SCEP renewals re-key from a pushed renewal
+	// profile (which never carries the marker), so tests set this to exercise renewal (rather than
+	// fresh-enrollment) checkin behavior while still replaying the full re-enroll flow.
+	SimulateSCEPRenewal bool
 
 	// UserUUID is a random fake unique ID of a simulated user. Only filled in if a user enrollment
 	// is done
@@ -198,6 +208,13 @@ type AppleEnrollInfo struct {
 	// Currently, this is only used for certain enrollment scenarios when
 	// config.mdm.apple_require_hardware_attestation is true.
 	ACMEURL string
+
+	// SCEPSubjectOUs holds the Organizational Unit values parsed from the enrollment profile's SCEP or
+	// ACME payload Subject (SCEP covers account-driven enrollments too, which use a SCEP payload). Fleet
+	// marks new-enrollment (non-renewal) profiles with a distinguishing OU; the device includes these in
+	// its CSR (doSCEP for SCEP, ACMEEnroll for ACME) so the issued identity cert carries them, mirroring
+	// a real device. This lets tests exercise the fresh-enrollment-vs-SCEP-renewal checkin logic.
+	SCEPSubjectOUs []string
 
 	// RawProfile contains the raw bytes of the enrollment profile. This is useful for tests that
 	// want to inspect the actual profile content. This field is populated regardless of the value
@@ -407,9 +424,17 @@ func (c *TestAppleMDMClient) Reenroll() error {
 }
 
 func (c *TestAppleMDMClient) UserEnroll() error {
+	c.GenerateUserIdentity()
+	return c.UserTokenUpdate()
+}
+
+// GenerateUserIdentity assigns a new random identity to the simulated user of
+// the user channel. Callers that retry the enrollment should generate the
+// identity once and retry UserTokenUpdate, otherwise each attempt enrolls a
+// distinct user.
+func (c *TestAppleMDMClient) GenerateUserIdentity() {
 	c.UserUUID = strings.ToUpper(uuid.New().String())
 	c.Username = "fleetie" + randStr(5)
-	return c.UserTokenUpdate()
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
@@ -574,6 +599,8 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	<string>%s</string>
 	<key>VERSION</key>
 	<string>22A5316k</string>
+	<key>SOFTWARE_UPDATE_DEVICE_ID</key>
+	<string>bogus-OTA-update-id</string>
 </dict>
 </plist>`, c.Model, c.SerialNumber, c.UUID))
 
@@ -757,6 +784,15 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 	return nil
 }
 
+// enrollmentSubjectOUs returns the Subject OUs to place in the device's CSR (SCEP or ACME). It honors
+// SimulateSCEPRenewal by omitting them, since a renewal profile carries no new-enrollment marker OU.
+func (c *TestAppleMDMClient) enrollmentSubjectOUs() []string {
+	if c.SimulateSCEPRenewal {
+		return nil
+	}
+	return c.EnrollInfo.SCEPSubjectOUs
+}
+
 func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *rsa.PrivateKey, error) {
 	var logger *slog.Logger
 	if c.debug {
@@ -768,8 +804,9 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 	cert, key, err := performSCEPExchange(context.Background(), scepExchangeRequest{
 		URL: url,
 		Subject: pkix.Name{
-			CommonName:   cn,
-			Organization: []string{"fleet-organization"},
+			CommonName:         cn,
+			Organization:       []string{"fleet-organization"},
+			OrganizationalUnit: c.enrollmentSubjectOUs(),
 		},
 		Challenge: challenge,
 	}, logger)
@@ -851,7 +888,7 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("challenge not valid after acceptance, status: %s", challenge.Status)
 	}
 
-	encoded, acmeKey, err := testhelpers.GenerateCSRDER(c.SerialNumber)
+	encoded, acmeKey, err := testhelpers.GenerateCSRDER(c.SerialNumber, c.enrollmentSubjectOUs()...)
 	if err != nil {
 		return fmt.Errorf("generate CSR DER: %w", err)
 	}
@@ -1079,6 +1116,73 @@ func (c *TestAppleMDMClient) NotNow(cmdUUID string) (*mdm.Command, error) {
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+// UserIdle sends an Idle message on the user channel. The user channel is keyed
+// off UDID + UserID, so UserID is what makes the server resolve this to the user-channel
+// enrollment rather than the device channel.
+func (c *TestAppleMDMClient) UserIdle() (*mdm.Command, error) {
+	if c.UserUUID == "" {
+		return nil, errors.New("user UUID must be set for a user channel idle")
+	}
+	payload := map[string]any{
+		"Status": "Idle",
+		"UDID":   c.UUID,
+		"UserID": c.UserUUID,
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// UserAcknowledge sends an Acknowledge message on the user channel.
+func (c *TestAppleMDMClient) UserAcknowledge(cmdUUID string) (*mdm.Command, error) {
+	if c.UserUUID == "" {
+		return nil, errors.New("user UUID must be set for a user channel acknowledge")
+	}
+	payload := map[string]any{
+		"Status":      "Acknowledged",
+		"UDID":        c.UUID,
+		"UserID":      c.UserUUID,
+		"CommandUUID": cmdUUID,
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// UserNotNow sends a NotNow message on the user channel.
+func (c *TestAppleMDMClient) UserNotNow(cmdUUID string) (*mdm.Command, error) {
+	if c.UserUUID == "" {
+		return nil, errors.New("user UUID must be set for a user channel not now")
+	}
+	payload := map[string]any{
+		"Status":      "NotNow",
+		"UDID":        c.UUID,
+		"UserID":      c.UserUUID,
+		"CommandUUID": cmdUUID,
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// UserDeclarativeManagement sends a DeclarativeManagement checkin request on the
+// user channel. UserID makes the server serve the user-scoped declarations
+// (tokens, declaration-items, declaration content and status are all scoped to
+// the user channel).
+func (c *TestAppleMDMClient) UserDeclarativeManagement(endpoint string, data ...fleet.MDMAppleDDMStatusReport) (*http.Response, error) {
+	if c.UserUUID == "" {
+		return nil, errors.New("user UUID must be set for user channel declarative management")
+	}
+	payload := map[string]any{
+		"MessageType": "DeclarativeManagement",
+		"UDID":        c.UUID,
+		"UserID":      c.UserUUID,
+		"Endpoint":    endpoint,
+	}
+	if len(data) != 0 {
+		rawData, err := json.Marshal(data[0])
+		if err != nil {
+			return nil, fmt.Errorf("marshaling status report: %w", err)
+		}
+		payload["Data"] = rawData
+	}
+	return c.request("application/x-apple-aspen-mdm-checkin", payload)
+}
+
 func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName, timeZone string) (*mdm.Command, error) {
 	return c.AcknowledgeDeviceInformationWithExtra(udid, cmdUUID, deviceName, productName, timeZone, "", "")
 }
@@ -1088,6 +1192,37 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 // If supplementalOSVersionExtra is non-empty it is included as SupplementalOSVersionExtra
 // in the response, representing a Rapid Security Response suffix such as "(a)".
 func (c *TestAppleMDMClient) AcknowledgeDeviceInformationWithExtra(udid, cmdUUID, deviceName, productName, timeZone, osVersion, supplementalOSVersionExtra string) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":         "Acknowledged",
+		"UDID":           udid,
+		"CommandUUID":    cmdUUID,
+		"QueryResponses": deviceInformationQueryResponses(deviceName, productName, timeZone, osVersion, supplementalOSVersionExtra),
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// AcknowledgeDeviceInformationWithVitals is AcknowledgeDeviceInformationWithExtra
+// plus the iOS/iPadOS device vitals Fleet requests (see deviceInformationQueryKeys
+// in server/mdm/apple/commander.go). It exists separately so that existing callers
+// keep reporting the smaller response they assert against today.
+//
+// Values are derived from udid so synthetic hosts don't all report byte-identical
+// vitals, and the attestation chain is sized like a real one so load tests see
+// representative write volume — it dominates the row (see the sizing note on
+// DevicePropertiesAttestation below).
+func (c *TestAppleMDMClient) AcknowledgeDeviceInformationWithVitals(udid, cmdUUID, deviceName, productName, timeZone, osVersion, supplementalOSVersionExtra string) (*mdm.Command, error) {
+	queryResponses := deviceInformationQueryResponses(deviceName, productName, timeZone, osVersion, supplementalOSVersionExtra)
+	maps.Copy(queryResponses, deviceVitalsQueryResponses(udid))
+	payload := map[string]any{
+		"Status":         "Acknowledged",
+		"UDID":           udid,
+		"CommandUUID":    cmdUUID,
+		"QueryResponses": queryResponses,
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+func deviceInformationQueryResponses(deviceName, productName, timeZone, osVersion, supplementalOSVersionExtra string) map[string]any {
 	if osVersion == "" {
 		osVersion = "17.5.1"
 	}
@@ -1104,13 +1239,132 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformationWithExtra(udid, cmdUUID
 	if supplementalOSVersionExtra != "" {
 		queryResponses["SupplementalOSVersionExtra"] = supplementalOSVersionExtra
 	}
-	payload := map[string]any{
-		"Status":         "Acknowledged",
-		"UDID":           udid,
-		"CommandUUID":    cmdUUID,
-		"QueryResponses": queryResponses,
+	return queryResponses
+}
+
+// deviceVitalsQueryResponses builds the device-vitals half of a DeviceInformation
+// response, varied per udid so that a fleet of synthetic hosts produces distinct
+// rows rather than one value repeated N times.
+func deviceVitalsQueryResponses(udid string) map[string]any {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(udid))
+	seed := h.Sum64()
+	// Spread the derived values across independent bits of the hash so they don't
+	// all flip together between two adjacent udids.
+	bit := func(n uint) bool { return seed>>(n%64)&1 == 1 }
+	octet := func(n uint) byte { return byte(seed >> n) } //nolint:gosec // dismiss G115
+
+	return map[string]any{
+		"AccessibilitySettings": map[string]any{
+			"BoldTextEnabled":            bit(0),
+			"GrayscaleEnabled":           bit(1),
+			"IncreaseContrastEnabled":    bit(2),
+			"ReduceMotionEnabled":        bit(3),
+			"ReduceTransparencyEnabled":  bit(4),
+			"TextSize":                   seed % 12,
+			"TouchAccommodationsEnabled": bit(5),
+			"VoiceOverEnabled":           bit(6),
+			"ZoomEnabled":                bit(7),
+		},
+		"AppAnalyticsEnabled":   bit(8),
+		"AwaitingConfiguration": bit(20),
+		"BatteryLevel":          float64(seed%101) / 100,
+		"BluetoothMAC": fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
+			octet(0), octet(8), octet(16), octet(24), octet(32), octet(40)),
+		"CellularTechnology":            seed % 4,
+		"DataRoamingEnabled":            bit(9),
+		"DevicePropertiesAttestation":   syntheticAttestationChain(seed),
+		"DiagnosticSubmissionEnabled":   bit(10),
+		"EASDeviceIdentifier":           fmt.Sprintf("%016x", seed),
+		"IsCloudBackupEnabled":          bit(11),
+		"IsDeviceLocatorServiceEnabled": bit(12),
+		"IsDoNotDisturbInEffect":        bit(13),
+		"IsNetworkTethered":             bit(14),
+		"iTunesStoreAccountHash":        fmt.Sprintf("%016x%016x", seed, seed*2654435761),
+		"iTunesStoreAccountIsActive":    bit(15),
+		"LastCloudBackupDate":           time.Now().UTC().Add(-time.Duration(seed%720) * time.Hour),
+		"MDMOptions": map[string]any{
+			"ActivationLockAllowedWhileSupervised":             bit(16),
+			"BootstrapTokenAllowed":                            bit(17),
+			"PromptUserToAllowBootstrapTokenForAuthentication": bit(18),
+		},
+		"ModelNumber":          fmt.Sprintf("MT%03dLL/A", seed%1000),
+		"ModemFirmwareVersion": fmt.Sprintf("%d.%02d.00", seed%10, seed%100),
+		"OrganizationInfo": map[string]any{
+			"OrganizationName":    "Fleet Device Management",
+			"OrganizationAddress": "123 Example St",
+			"OrganizationPhone":   "+15555550100",
+			"OrganizationEmail":   "it@example.com",
+			"OrganizationMagic":   fmt.Sprintf("%016x", seed),
+		},
+		"PersonalHotspotEnabled":   bit(19),
+		"PushToken":                []byte(fmt.Sprintf("%016x%016x", seed, seed*31)),
+		"ServiceSubscriptions":     syntheticServiceSubscriptions(seed),
+		"SupplementalBuildVersion": "21F90",
+		"UDID":                     udid,
 	}
-	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// syntheticAttestationChain returns a leaf + intermediate pair sized like the
+// real Apple Enterprise Attestation chain. Real X.509 certificates in a DER
+// chain run roughly 1 KB each, and since Fleet stores this as a JSON array of
+// base64 strings it is by far the largest column in host_mdm_apple_device_vitals
+// (~3 KB of the ~4 KB row) — the whole point of sending it from osquery-perf is
+// that a load test writes representative bytes rather than a stub.
+//
+// The contents are not parseable certificates: Fleet stores the chain verbatim
+// without decoding it, so only the size and shape matter here.
+func syntheticAttestationChain(seed uint64) [][]byte {
+	chain := make([][]byte, 2)
+	for i := range chain {
+		// mathrand2 (not this file's crypto/rand) since the bytes only need to be
+		// deterministic per seed, not random in any meaningful sense.
+		rng := mathrand2.New(mathrand2.NewPCG(seed, uint64(i))) // nolint:gosec,G404 // load testing, not security-sensitive
+		der := make([]byte, 1024)
+		for j := range der {
+			der[j] = byte(rng.Uint64()) //nolint:gosec // dismiss G115
+		}
+		chain[i] = der
+	}
+	return chain
+}
+
+// syntheticServiceSubscriptions returns one or two subscriptions, mirroring the
+// single-SIM and dual-SIM (physical + eSIM) shapes a real device reports. The
+// second (eSIM) slot only carries Slot/EID/IMEI, matching what an
+// inactive/unprovisioned eSIM reports on a real dual-SIM iPhone (see
+// MDMAppleServiceSubscription's doc comment in
+// server/fleet/mdm_apple_device_vitals.go).
+func syntheticServiceSubscriptions(seed uint64) []map[string]any {
+	subs := []map[string]any{
+		{
+			"CarrierSettingsVersion":   fmt.Sprintf("%d.0", seed%60),
+			"CurrentCarrierNetwork":    "Example Mobile",
+			"CurrentMCC":               fmt.Sprintf("%03d", seed%1000),
+			"CurrentMNC":               fmt.Sprintf("%03d", (seed/1000)%1000),
+			"EID":                      fmt.Sprintf("%032d", seed%1e16),
+			"ICCID":                    fmt.Sprintf("%020d", seed%1e18),
+			"IMEI":                     fmt.Sprintf("%015d", seed%1e15),
+			"IsDataPreferred":          true,
+			"IsRoaming":                seed%7 == 0,
+			"IsVoicePreferred":         true,
+			"Label":                    "Primary",
+			"LabelID":                  fmt.Sprintf("%016X", seed),
+			"MEID":                     fmt.Sprintf("%014X", seed%1e14),
+			"PhoneNumber":              fmt.Sprintf("+1555%07d", seed%1e7),
+			"SubscriberCarrierNetwork": "Example Mobile",
+			"Slot":                     "CTSubscriptionSlotOne",
+		},
+	}
+	if seed%2 == 0 {
+		n := seed * 31
+		subs = append(subs, map[string]any{
+			"Slot": "CTSubscriptionSlotTwo",
+			"EID":  fmt.Sprintf("%032d", n%1e16),
+			"IMEI": fmt.Sprintf("%015d", n%1e15),
+		})
+	}
+	return subs
 }
 
 func (c *TestAppleMDMClient) AcknowledgeDeviceLocation(udid, cmdUUID string, lat, long float64) (*mdm.Command, error) {
@@ -1409,7 +1663,36 @@ func parseSCEPEnrollmentPayload(enrollInfo AppleEnrollInfo, payloadContent map[s
 
 	enrollInfo.SCEPChallenge = scepChallenge
 	enrollInfo.SCEPURL = scepURL
+	enrollInfo.SCEPSubjectOUs = extractSubjectOUs(payloadContent["Subject"])
 	return &enrollInfo, nil
+}
+
+// extractSubjectOUs pulls the OU values from a parsed mobileconfig SCEP/ACME Subject, which has the
+// shape [][][]string, e.g. [[[O Fleet]] [[OU Fleet Device Enrollment]] [[CN Fleet Identity]]].
+func extractSubjectOUs(subject any) []string {
+	rdnSets, ok := subject.([]any)
+	if !ok {
+		return nil
+	}
+	var ous []string
+	for _, rdnSet := range rdnSets {
+		rdns, ok := rdnSet.([]any)
+		if !ok {
+			continue
+		}
+		for _, rdn := range rdns {
+			pair, ok := rdn.([]any)
+			if !ok || len(pair) != 2 {
+				continue
+			}
+			if key, _ := pair[0].(string); key == "OU" {
+				if val, _ := pair[1].(string); val != "" {
+					ous = append(ous, val)
+				}
+			}
+		}
+	}
+	return ous
 }
 
 func parseACMEEnrollmentPayload(enrollInfo AppleEnrollInfo, payloadContent map[string]any) (*AppleEnrollInfo, error) {
@@ -1436,6 +1719,7 @@ func parseACMEEnrollmentPayload(enrollInfo AppleEnrollInfo, payloadContent map[s
 
 	// TODO: Directory URL or just base URL with identifier
 	enrollInfo.ACMEURL = directoryURL
+	enrollInfo.SCEPSubjectOUs = extractSubjectOUs(payloadContent["Subject"])
 	return &enrollInfo, nil
 }
 

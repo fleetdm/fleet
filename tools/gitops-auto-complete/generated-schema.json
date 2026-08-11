@@ -1,0 +1,6153 @@
+{
+  "$defs": {
+    "ActivitiesWebhookSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "destination_url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_activities_webhook": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ActivityExpirySettings": {
+      "additionalProperties": false,
+      "description": "ActivityExpirySettings contains settings pertaining to automatic activities cleanup.",
+      "properties": {
+        "activity_expiry_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "activity_expiry_window": {
+          "description": "type: `integer`"
+        },
+        "preserve_host_activities_on_reenrollment": {
+          "description": "PreserveHostActivitiesOnReenrollment controls whether existing host\nactivities, MDM commands, etc. are kept when a managed host re-enrolls.\nDefaults to true for upgraded installs (preserves prior behavior) and\nfalse for fresh installs.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "AgentOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "command_line_flags": {
+          "additionalProperties": false,
+          "description": "type: `object`",
+          "properties": {
+            "alarm_timeout": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "allow_unsafe": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "alsologtostderr": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_accept_socket_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_apparmor_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_config": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_failed_socket_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_fim_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_fork_process_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_kill_process_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_null_accept_socket_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_process_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_seccomp_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_selinux_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_sockets": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_user_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_backlog_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "audit_backlog_wait_time": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "audit_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_fim_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_fim_show_accesses": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_force_reconfigure": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_force_unconfigure": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_persist": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_show_partial_fim_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_show_untracked_res_warnings": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "augeas_lenses": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_access_key_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_disable_imdsv1_fallback": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_enable_proxy": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_enforce_fips": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_firehose_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_firehose_period": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "aws_firehose_region": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_firehose_stream": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_imdsv2_request_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "aws_imdsv2_request_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "aws_kinesis_disable_log_status": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_kinesis_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_kinesis_period": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "aws_kinesis_random_partition_key": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_kinesis_region": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_kinesis_stream": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_profile_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_proxy_host": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_proxy_password": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_proxy_port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "aws_proxy_scheme": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_proxy_username": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_region": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_secret_access_key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_session_token": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_sts_arn_role": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_sts_region": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_sts_session_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_sts_timeout": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "bpf_buffer_storage_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "bpf_perf_event_array_exp": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "buffered_log_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "carver_block_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "carver_compression": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "carver_continue_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "carver_disable_function": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "carver_expiry": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "carver_start_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "config_accelerated_refresh": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "config_check": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "config_dump": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "config_enable_backup": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "config_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "config_plugin": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "config_refresh": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "config_tls_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "config_tls_max_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "daemonize": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "database_dump": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "database_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "decorations_top_level": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_audit": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_caching": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_carver": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_database": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_decorators": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_distributed": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_endpointsecurity": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_endpointsecurity_fim": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_enrollment": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_extensions": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_hash_cache": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_logging": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_memory": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_reenrollment": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_tables": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "disable_watchdog": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "distributed_denylist_duration": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "distributed_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "distributed_loginfo": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "distributed_plugin": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "distributed_tls_max_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "distributed_tls_read_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "distributed_tls_write_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "dns_resolver_refresh_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "docker_socket": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "enable_bpf_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_dns_lookup_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_extensions_watchdog": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_file_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_foreign": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_keyboard_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_mouse_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_ntfs_event_publisher": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_numeric_monitoring": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_powershell_events_subscriber": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_process_etw_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_syslog": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_tables": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "enable_watchdog_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_windows_events_publisher": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_windows_events_subscriber": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enroll_always": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enroll_secret_env": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "enroll_secret_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "enroll_tls_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ephemeral": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "es_fim_enable_open_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "es_fim_mute_path_literal": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "es_fim_mute_path_prefix": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "etw_kernel_trace_buffer_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_kernel_trace_flush_timer": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_kernel_trace_maximum_buffers": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_kernel_trace_minimum_buffers": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_userspace_trace_buffer_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_userspace_trace_flush_timer": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_userspace_trace_maximum_buffers": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_userspace_trace_minimum_buffers": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "events_expiry": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "events_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "events_optimize": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "events_streaming_plugin": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "experiment_list": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "experiments_linuxevents_circular_buffer_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "experiments_linuxevents_perf_output_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "extensions_autoload": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "extensions_default_index": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "extensions_interval": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "extensions_require": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "extensions_socket": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "extensions_timeout": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "force": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "groups_service_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "groups_service_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "hardware_disabled_types": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "hash_cache_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "host_identifier": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ignore_registry_exceptions": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "ignore_table_exceptions": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "install": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "keep_container_worker_open": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "keychain_access_cache": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "keychain_access_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "log_dir": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logbufsecs": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_event_type": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_kafka_acks": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_kafka_brokers": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_kafka_compression": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_kafka_topic": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_min_status": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_min_stderr": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_mode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_numerics": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_plugin": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_rotate": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_rotate_max_files": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_rotate_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_snapshot_event_type": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_stderr": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_syslog_facility": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_syslog_prepend_cee": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_tls_backoff_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_tls_compress": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_tls_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_tls_max_lines": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_tls_max_linesize": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_tls_period": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logtostderr": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "lxd_socket": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "malloc_trim_threshold": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "max_log_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "minloglevel": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "ntfs_event_publisher_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "nullvalue": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "numeric_monitoring_filesystem_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "numeric_monitoring_plugins": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "numeric_monitoring_pre_aggregation_time": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "pack_delimiter": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "pack_refresh_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "pidfile": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "proxy_hostname": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "read_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_default_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_epoch": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_lognames": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "schedule_max_drift": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_reload": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_splay_percent": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_timeout": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "specified_identifier": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "stderrthreshold": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "stop_logging_if_full_disk": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "syslog_events_expiry": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "syslog_events_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "syslog_pipe_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "syslog_rate_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "table_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "thrift_string_size_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "thrift_timeout": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "thrift_verbose": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tls_accept_gzip": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tls_client_cert": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tls_client_key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tls_disable_status_log": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tls_dump": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tls_enroll_max_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "tls_enroll_max_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "tls_hostname": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tls_server_certs": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tls_session_reuse": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tls_session_timeout": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "uninstall": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "users_service_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "users_service_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "usn_journal_reader_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "verbose": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "vmodule": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "watchdog_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "watchdog_forced_shutdown_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "watchdog_latency_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "watchdog_level": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "watchdog_memory_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "watchdog_utilization_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "windows_event_channels": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "yara_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "yara_sigurl_authenticate": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "config": {
+          "description": "type: `object`",
+          "properties": {
+            "options": {
+              "additionalProperties": false,
+              "description": "type: `object`",
+              "properties": {
+                "allow_unsafe": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "alsologtostderr": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_accept_socket_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_apparmor_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_config": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_failed_socket_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_fim_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_fork_process_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_kill_process_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_null_accept_socket_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_process_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_seccomp_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_selinux_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_sockets": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_user_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_backlog_limit": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "audit_backlog_wait_time": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "audit_debug": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_fim_debug": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_fim_show_accesses": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_force_reconfigure": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_force_unconfigure": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_persist": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_show_partial_fim_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_show_untracked_res_warnings": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "augeas_lenses": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_access_key_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_debug": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "aws_disable_imdsv1_fallback": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "aws_enable_proxy": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "aws_firehose_endpoint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_firehose_period": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "aws_firehose_region": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_firehose_stream": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_imdsv2_request_attempts": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "aws_imdsv2_request_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "aws_kinesis_disable_log_status": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "aws_kinesis_endpoint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_kinesis_period": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "aws_kinesis_random_partition_key": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "aws_kinesis_region": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_kinesis_stream": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_profile_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_proxy_host": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_proxy_password": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_proxy_port": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "aws_proxy_scheme": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_proxy_username": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_region": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_secret_access_key": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_session_token": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_sts_arn_role": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_sts_region": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_sts_session_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aws_sts_timeout": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "bpf_buffer_storage_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "bpf_perf_event_array_exp": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "buffered_log_max": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "decorations_top_level": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_audit": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_caching": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_database": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_decorators": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_distributed": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_endpointsecurity": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_endpointsecurity_fim": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_hash_cache": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_logging": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_memory": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "distributed_denylist_duration": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "distributed_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "distributed_loginfo": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "distributed_plugin": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "distributed_tls_max_attempts": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "distributed_tls_read_endpoint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "distributed_tls_write_endpoint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "dns_resolver_refresh_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "docker_socket": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "enable_bpf_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_dns_lookup_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_file_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_foreign": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_keyboard_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_mouse_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_ntfs_event_publisher": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_numeric_monitoring": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_powershell_events_subscriber": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_process_etw_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_syslog": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_windows_events_publisher": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_windows_events_subscriber": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "ephemeral": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "es_fim_enable_open_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "es_fim_mute_path_literal": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "es_fim_mute_path_prefix": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "etw_kernel_trace_buffer_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_kernel_trace_flush_timer": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_kernel_trace_maximum_buffers": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_kernel_trace_minimum_buffers": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_userspace_trace_buffer_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_userspace_trace_flush_timer": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_userspace_trace_maximum_buffers": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_userspace_trace_minimum_buffers": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "events_expiry": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "events_max": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "events_optimize": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "events_streaming_plugin": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "experiment_list": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "experiments_linuxevents_circular_buffer_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "experiments_linuxevents_perf_output_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "extensions_default_index": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "groups_service_delay": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "groups_service_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "hardware_disabled_types": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "hash_cache_max": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "host_identifier": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ignore_registry_exceptions": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "ignore_table_exceptions": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "keep_container_worker_open": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "keychain_access_cache": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "keychain_access_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "log_dir": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "logbufsecs": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "logger_event_type": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "logger_kafka_acks": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "logger_kafka_brokers": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "logger_kafka_compression": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "logger_kafka_topic": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "logger_min_status": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "logger_min_stderr": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "logger_numerics": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "logger_path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "logger_rotate": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "logger_rotate_max_files": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "logger_rotate_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "logger_snapshot_event_type": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "logger_syslog_facility": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "logger_syslog_prepend_cee": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "logger_tls_backoff_max": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "logger_tls_compress": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "logger_tls_endpoint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "logger_tls_max_lines": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "logger_tls_max_linesize": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "logger_tls_period": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "lxd_socket": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "malloc_trim_threshold": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "max_log_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "minloglevel": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "ntfs_event_publisher_debug": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "nullvalue": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "numeric_monitoring_filesystem_path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "numeric_monitoring_plugins": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "numeric_monitoring_pre_aggregation_time": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "pack_delimiter": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pack_refresh_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "read_max": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "schedule_default_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "schedule_epoch": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "schedule_lognames": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "schedule_max_drift": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "schedule_reload": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "schedule_splay_percent": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "schedule_timeout": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "specified_identifier": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "stop_logging_if_full_disk": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "syslog_events_expiry": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "syslog_events_max": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "syslog_pipe_path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "syslog_rate_limit": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "table_delay": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "thrift_string_size_limit": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "thrift_timeout": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "thrift_verbose": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "tls_disable_status_log": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "tls_dump": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "users_service_delay": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "users_service_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "usn_journal_reader_debug": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "verbose": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "vmodule": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "windows_event_channels": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "yara_delay": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "yara_sigurl_authenticate": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "type": [
+                "object",
+                "null"
+              ]
+            }
+          },
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "extensions": {
+          "description": "Extensions are the orbit managed extensions\n\ntype: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "orbit": {
+          "$ref": "#/$defs/OrbitAgentOptions",
+          "description": "Orbit-agent options. Kept separate from osquery so they bypass the\nosquery schema validator.\n\ntype: `OrbitAgentOptions`"
+        },
+        "overrides": {
+          "$ref": "#/$defs/AgentOptionsOverrides",
+          "description": "Overrides includes any platform-based overrides.\n\ntype: `AgentOptionsOverrides`"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "script_execution_timeout": {
+          "description": "ScriptExecutionTimeout is the maximum time in seconds that a script can run.\n\ntype: `integer`"
+        },
+        "update_channels": {
+          "description": "UpdateChannels holds the configured channels for fleetd components.\n\ntype: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "AgentOptionsOverrides": {
+      "additionalProperties": false,
+      "properties": {
+        "platforms": {
+          "additionalProperties": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "description": "Platforms is a map from platform name to the config override.\n\ntype: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "AndroidSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "certificates": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration_profiles": {
+          "description": "NOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "custom_settings": {
+          "deprecated": true,
+          "deprecationMessage": "'custom_settings' is deprecated, use 'configuration_profiles' instead",
+          "description": "NOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "AppleAccountProvisioning": {
+      "additionalProperties": false,
+      "description": "AppleAccountProvisioning is the macOS local account provisioning / Platform SSO password sync configuration stored on AppConfig.MDM.",
+      "properties": {
+        "oauth_idp_client_id": {
+          "description": "OAuthIdPClientID is the client/application ID registered with the upstream IdP.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "oauth_idp_client_secret": {
+          "description": "OAuthIdPClientSecret is the client secret registered with the upstream IdP.\nStored in mdm_config_assets, not here; this field carries the masked value\nin API responses and the caller-supplied value on writes.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "oauth_idp_token_url": {
+          "description": "OAuthIdPTokenURL is the upstream OIDC token endpoint used for the ROPG\n(grant_type=password) flow at sign-in.\nOkta example:  https://dev-12345.okta.com/oauth2/default/v1/token\nEntra example: https://login.microsoftonline.com/\u003ctenant\u003e/oauth2/v2.0/token\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "AppleOSUpdateSettings": {
+      "additionalProperties": false,
+      "description": "AppleOSUpdateSettings is the common type that contains the settings for OS updates on Apple devices.",
+      "properties": {
+        "deadline": {
+          "description": "Deadline the required installation date for Nudge to enforce the required\noperating system version.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "minimum_version": {
+          "description": "MinimumVersion is the required minimum operating system version.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "update_new_hosts": {
+          "description": "UpdateNewHosts if true, only enforce the latest macOS version for new hosts (during enrollment)\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "BaseItem": {
+      "additionalProperties": false,
+      "description": "BaseItem provides path/paths fields for types that can reference external files in GitOps YAML configurations.",
+      "properties": {
+        "path": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ConditionalAccessSettings": {
+      "additionalProperties": false,
+      "description": "ConditionalAccessSettings holds the global settings for the \"Conditional access\" feature.",
+      "properties": {
+        "bypass_disabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "microsoft_entra_connection_configured": {
+          "description": "MicrosoftEntraConnectionConfigured is true when the tenant has been configured\nfor \"Conditional access\" on Entra and Fleet.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "microsoft_entra_tenant_id": {
+          "description": "MicrosoftEntraTenantID is the Entra's tenant ID.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "okta_assertion_consumer_service_url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "okta_audience_uri": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "okta_certificate": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "okta_idp_id": {
+          "description": "Okta conditional access settings - using optjson for partial updates\nAll four fields must be set together or all must be empty.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ControlsWithTypes": {
+      "additionalProperties": false,
+      "properties": {
+        "android_enabled_and_configured": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "android_settings": {
+          "$ref": "#/$defs/AndroidSettings",
+          "description": "type: `AndroidSettings`"
+        },
+        "apple_account_provisioning": {
+          "$ref": "#/$defs/AppleAccountProvisioning",
+          "description": "type: `AppleAccountProvisioning`"
+        },
+        "apple_require_hardware_attestation": true,
+        "apple_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "description": "type: `MacOSSettings`"
+        },
+        "enable_disk_encryption": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_recovery_lock_password": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_turn_on_windows_mdm_manually": true,
+        "ios_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "ipados_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "macos_migration": true,
+        "macos_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "deprecated": true,
+          "deprecationMessage": "'macos_settings' is deprecated, use 'apple_settings' instead",
+          "description": "type: `MacOSSettings`"
+        },
+        "macos_setup": {
+          "$ref": "#/$defs/MacOSSetup",
+          "deprecated": true,
+          "deprecationMessage": "'macos_setup' is deprecated, use 'setup_experience' instead",
+          "description": "type: `MacOSSetup`"
+        },
+        "macos_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "name_template": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scripts": {
+          "description": "type: `array\u003cBaseItem\u003e`",
+          "items": {
+            "$ref": "#/$defs/BaseItem"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "setup_experience": {
+          "$ref": "#/$defs/MacOSSetup",
+          "description": "type: `MacOSSetup`"
+        },
+        "windows_enabled_and_configured": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "windows_entra_client_ids": true,
+        "windows_entra_tenant_ids": true,
+        "windows_migration_enabled": true,
+        "windows_require_bitlocker_pin": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "windows_settings": {
+          "$ref": "#/$defs/WindowsSettings",
+          "description": "type: `WindowsSettings`"
+        },
+        "windows_updates": {
+          "$ref": "#/$defs/WindowsUpdates",
+          "description": "type: `WindowsUpdates`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "FailingPoliciesWebhookSettings": {
+      "additionalProperties": false,
+      "description": "FailingPoliciesWebhookSettings holds the settings for failing policy webhooks.",
+      "properties": {
+        "destination_url": {
+          "description": "DestinationURL is the webhook's URL.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_failing_policies_webhook": {
+          "description": "Enable indicates whether the webhook for failing policies is enabled.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "host_batch_size": {
+          "description": "HostBatchSize allows sending multiple requests in batches of hosts for each policy.\nA value of 0 means no batching.\n\ntype: `integer`"
+        },
+        "policy_ids": {
+          "description": "PolicyIDs is a list of policy IDs for which the webhook will be configured.\n\ntype: `array\u003cinteger\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "Features": {
+      "additionalProperties": false,
+      "properties": {
+        "additional_queries": {
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "detail_query_overrides": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "enable_host_users": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_software_inventory": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "historical_data": {
+          "$ref": "#/$defs/HistoricalDataSettings",
+          "description": "type: `HistoricalDataSettings`"
+        },
+        "vulnerability_exposure_historical_reporting": {
+          "$ref": "#/$defs/VulnExposureFilterSettings",
+          "description": "VulnerabilityExposureHistoricalReporting holds the GitOps-managed default\nfilter state for the Vulnerability exposure dashboard chart. It is a\ndisplay-only concern: it seeds the chart's filter controls on load and\ndoes NOT affect what vulnerability data is collected. Premium-only.\n\nAll fields are pointers so the config has sparse/PATCH semantics: a field\npresent in YAML is persisted and respected by the frontend, while an\nomitted field stays nil and the frontend falls back to its own built-in\ndefault for that control.\n\ntype: `VulnExposureFilterSettings`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "FleetDesktopSettings": {
+      "additionalProperties": false,
+      "description": "FleetDesktopSettings contains settings used to configure Fleet Desktop.",
+      "properties": {
+        "alternative_browser_host": {
+          "description": "AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;\nthis is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transparency_url": {
+          "description": "TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "exceptions": {
+          "$ref": "#/$defs/GitOpsExceptions",
+          "description": "type: `GitOpsExceptions`"
+        },
+        "gitops_mode_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "repository_url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsCustomHostVital": {
+      "additionalProperties": false,
+      "description": "GitOpsCustomHostVital defines the valid keys for an item in the top-level `custom_host_vitals:` list.",
+      "properties": {
+        "name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsExceptions": {
+      "additionalProperties": false,
+      "properties": {
+        "labels": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "secrets": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "software": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsFleetSettings": {
+      "additionalProperties": false,
+      "description": "GitOpsFleetSettings defines the valid keys for the top-level `settings:` section (fleet-level).",
+      "properties": {
+        "agent_options": {
+          "description": "AgentOptions is the options for osquery and Orbit.\n\ntype: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "features": {
+          "$ref": "#/$defs/Features",
+          "description": "the below aren't serialized as-is into config JSON column in the teams table\n\ntype: `Features`"
+        },
+        "host_expiry_settings": {
+          "$ref": "#/$defs/HostExpirySettings",
+          "description": "type: `HostExpirySettings`\n\nGitOps: kept unchanged when omitted or null; cleared when set to an empty value."
+        },
+        "integrations": {
+          "$ref": "#/$defs/TeamIntegrations",
+          "description": "type: `TeamIntegrations`"
+        },
+        "mdm": {
+          "$ref": "#/$defs/TeamMDM",
+          "description": "type: `TeamMDM`"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scripts": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "secrets": true,
+        "software": {
+          "$ref": "#/$defs/SoftwareSpec",
+          "description": "type: `SoftwareSpec`"
+        },
+        "webhook_settings": {
+          "$ref": "#/$defs/TeamWebhookSettings",
+          "description": "type: `TeamWebhookSettings`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsOrgSettings": {
+      "additionalProperties": false,
+      "description": "GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.",
+      "properties": {
+        "activity_expiry_settings": {
+          "$ref": "#/$defs/ActivityExpirySettings",
+          "description": "type: `ActivityExpirySettings`"
+        },
+        "agent_options": {
+          "description": "AgentOptions holds osquery configuration.\n\nThis field is a pointer to avoid returning this information to non-global-admins.\n\ntype: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "certificate_authorities": true,
+        "conditional_access": {
+          "$ref": "#/$defs/ConditionalAccessSettings",
+          "description": "ConditionalAccess holds the Okta conditional access settings that are stored in AppConfig.\nNote: In API responses, this is combined with Microsoft Entra settings from the database.\n\ntype: `ConditionalAccessSettings`"
+        },
+        "features": {
+          "$ref": "#/$defs/Features",
+          "description": "Features allows to globally enable or disable features\n\ntype: `Features`"
+        },
+        "fleet_desktop": {
+          "$ref": "#/$defs/FleetDesktopSettings",
+          "description": "FleetDesktop holds settings for Fleet Desktop that can be changed via the API.\n\ntype: `FleetDesktopSettings`"
+        },
+        "gitops": {
+          "$ref": "#/$defs/GitOpsConfig",
+          "description": "type: `GitOpsConfig`\n\nGitOps: kept unchanged when omitted, null, or empty."
+        },
+        "host_expiry_settings": {
+          "$ref": "#/$defs/HostExpirySettings",
+          "description": "type: `HostExpirySettings`\n\nGitOps: kept unchanged when omitted or null; cleared when set to an empty value."
+        },
+        "host_settings": {
+          "$ref": "#/$defs/Features",
+          "description": "type: `Features`"
+        },
+        "integrations": {
+          "$ref": "#/$defs/Integrations",
+          "description": "type: `Integrations`"
+        },
+        "mdm": {
+          "$ref": "#/$defs/MDM",
+          "description": "type: `MDM`"
+        },
+        "org_info": {
+          "$ref": "#/$defs/OrgInfo",
+          "description": "type: `OrgInfo`"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scripts": {
+          "description": "Scripts is a slice of script file paths.\n\nNOTE: These are only present here for informational purposes.\n(The source of truth for scripts is in MySQL.)\n\ntype: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "secrets": true,
+        "server_settings": {
+          "$ref": "#/$defs/ServerSettings",
+          "description": "type: `ServerSettings`"
+        },
+        "smtp_settings": {
+          "$ref": "#/$defs/SMTPSettings",
+          "description": "SMTPSettings holds the SMTP integration settings.\n\nThis field is a pointer to avoid returning this information to non-global-admins.\n\ntype: `SMTPSettings`"
+        },
+        "smtp_test": {
+          "description": "SMTPTest is a flag that if set will cause the server to test email configuration\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sso_settings": {
+          "$ref": "#/$defs/SSOSettings",
+          "description": "SSOSettings is single sign on integration settings.\n\nThis field is a pointer to avoid returning this information to non-global-admins.\n\ntype: `SSOSettings`"
+        },
+        "vulnerability_settings": {
+          "$ref": "#/$defs/VulnerabilitySettings",
+          "description": "VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software\n\ntype: `VulnerabilitySettings`"
+        },
+        "webhook_settings": {
+          "$ref": "#/$defs/WebhookSettings",
+          "description": "type: `WebhookSettings`"
+        },
+        "yara_rules": {
+          "description": "type: `array\u003cYaraRule\u003e`",
+          "items": {
+            "$ref": "#/$defs/YaraRule"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsPolicySpec": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A policy must set name (or reference a file with path/paths).",
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "errorMessage": "A policy must set name (or reference a file with path/paths).",
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "errorMessage": "A policy must set name (or reference a file with path/paths).",
+          "required": [
+            "paths"
+          ]
+        }
+      ],
+      "properties": {
+        "calendar_events_enabled": {
+          "description": "CalendarEventsEnabled indicates whether calendar events are enabled for the policy.\n\nOnly applies to team policies.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "conditional_access_enabled": {
+          "description": "ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.\n\nOnly applies to team policies.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "continuous_automations_enabled": {
+          "description": "ContinuousAutomationsEnabled indicates whether software/script automations\nshould run on every failing policy result, not just on pass→fail transitions.\n\nOnly applies to team policies.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "critical": {
+          "description": "Critical marks the policy as high impact.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "Description describes the policy.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fleet": {
+          "description": "Team is the name of the team.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fleet_maintained_app_slug": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "install_software": {
+          "anyOf": [
+            {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            {
+              "type": [
+                "object",
+                "null"
+              ]
+            }
+          ],
+          "description": "type: `boolean or object`"
+        },
+        "labels_exclude_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Name is the name of the policy.\n\ntype: `string`",
+          "type": "string"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "platform": {
+          "description": "Platform is a comma-separated string to indicate the target platforms.\n\nEmpty string targets all platforms.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "query": {
+          "description": "Query is the policy's SQL query.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolution": {
+          "description": "Resolution describes how to solve a failing policy.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run_script": {
+          "$ref": "#/$defs/PolicyRunScript",
+          "description": "type: `PolicyRunScript`"
+        },
+        "script_id": {
+          "description": "ScriptID is the ID of the script associated with this policy (team policies only).\nWhen editing a policy, if this is nil or 0 then the script ID is unset from the policy.\n\ntype: `integer`"
+        },
+        "software_title_id": {
+          "description": "SoftwareTitleID is the title ID of the installer associated with this policy (team policies only).\nWhen editing a policy, if this is nil or 0 then the title ID is unset from the policy.\n\ntype: `integer`"
+        },
+        "team": {
+          "deprecated": true,
+          "deprecationMessage": "'team' is deprecated, use 'fleet' instead",
+          "description": "Team is the name of the team.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "webhooks_and_tickets_enabled": {
+          "description": "WebhooksAndTicketsEnabled indicates whether failing policy webhooks/tickets\nshould be enabled for this policy. This is a gitops-only convenience that\ntranslates to adding the policy's ID to the failing_policies_webhook.policy_ids list.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsSoftware": {
+      "additionalProperties": false,
+      "properties": {
+        "app_store_apps": {
+          "description": "type: `array\u003cTeamSpecAppStoreApp\u003e`",
+          "items": {
+            "$ref": "#/$defs/TeamSpecAppStoreApp"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "fleet_maintained_apps": {
+          "description": "type: `array\u003cMaintainedAppSpec\u003e`",
+          "items": {
+            "$ref": "#/$defs/MaintainedAppSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "packages": {
+          "description": "type: `array\u003cSoftwarePackageSpec\u003e`",
+          "items": {
+            "$ref": "#/$defs/SoftwarePackageSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GoogleCalendarApiKey": {
+      "additionalProperties": false,
+      "description": "GoogleCalendarApiKey is a custom type for the Google Calendar API key JSON.",
+      "properties": {
+        "values": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": "Values contains the actual API key fields when not masked\n\ntype: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GoogleCalendarIntegration": {
+      "additionalProperties": false,
+      "properties": {
+        "api_key_json": {
+          "$ref": "#/$defs/GoogleCalendarApiKey",
+          "description": "type: `GoogleCalendarApiKey`\n\nGitOps: kept unchanged when omitted, null, or empty."
+        },
+        "domain": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GoogleWorkspaceIntegration": {
+      "additionalProperties": false,
+      "description": "GoogleWorkspaceIntegration configures syncing IdP host vitals (users, groups, and departments) from Google Workspace via the Admin SDK Directory API, using a service account with domain-wide delegation.",
+      "properties": {
+        "api_key_json": {
+          "$ref": "#/$defs/GoogleCalendarApiKey",
+          "description": "ApiKey holds the service account JSON (client_email, private_key). It reuses\nthe GoogleCalendarApiKey masking type because the credential format and the\nmasking/preserve-on-update behavior are identical.\n\ntype: `GoogleCalendarApiKey`\n\nGitOps: kept unchanged when omitted, null, or empty."
+        },
+        "domain": {
+          "description": "Domain is the Google Workspace primary domain whose directory is synced.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "impersonated_user_email": {
+          "description": "ImpersonatedUserEmail is the Google Workspace admin user that the service\naccount impersonates via domain-wide delegation. The Admin SDK Directory API\nonly accepts requests on behalf of a real admin user (the JWT Subject).\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HistoricalDataSettings": {
+      "additionalProperties": false,
+      "description": "HistoricalDataSettings controls per-dataset collection of the time-series rollups that drive the dashboard charts.",
+      "properties": {
+        "uptime": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "vulnerabilities": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HostExpirySettings": {
+      "additionalProperties": false,
+      "description": "HostExpirySettings contains settings pertaining to automatic host expiry.",
+      "properties": {
+        "host_expiry_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "host_expiry_window": {
+          "description": "type: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HostStatusWebhookSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "days_count": {
+          "description": "type: `integer`"
+        },
+        "destination_url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_host_status_webhook": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "host_percentage": {
+          "description": "type: `number`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HostsSlice": {
+      "items": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "Integrations": {
+      "additionalProperties": false,
+      "description": "Integrations configures the integrations with external systems.",
+      "properties": {
+        "conditional_access_enabled": {
+          "description": "ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for \"No team\".\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "google_calendar": {
+          "description": "type: `array\u003cGoogleCalendarIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/GoogleCalendarIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "google_workspace": {
+          "description": "type: `array\u003cGoogleWorkspaceIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/GoogleWorkspaceIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "jira": {
+          "description": "type: `array\u003cJiraIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/JiraIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "zendesk": {
+          "description": "type: `array\u003cZendeskIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/ZendeskIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "JiraIntegration": {
+      "additionalProperties": false,
+      "description": "JiraIntegration configures an instance of an integration with the Jira system.",
+      "properties": {
+        "api_token": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_failing_policies": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_software_vulnerabilities": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "project_key": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "username": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "LabelSpec": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A label must set name (or reference a file with path/paths).",
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "errorMessage": "A label must set name (or reference a file with path/paths).",
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "errorMessage": "A label must set name (or reference a file with path/paths).",
+          "required": [
+            "paths"
+          ]
+        }
+      ],
+      "properties": {
+        "criteria": {
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fleet_id": {
+          "description": "type: `integer`"
+        },
+        "hosts": {
+          "$ref": "#/$defs/HostsSlice",
+          "description": "type: `HostsSlice`\n\nGitOps: kept unchanged when omitted; cleared when set to null or empty."
+        },
+        "id": {
+          "description": "type: `integer`"
+        },
+        "label_membership_type": {
+          "description": "type: `integer`"
+        },
+        "label_type": {
+          "description": "type: `integer`"
+        },
+        "name": {
+          "description": "type: `string`",
+          "type": "string"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "platform": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "query": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "team_id": {
+          "deprecated": true,
+          "deprecationMessage": "'team_id' is deprecated, use 'fleet_id' instead",
+          "description": "type: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MDM": {
+      "additionalProperties": false,
+      "description": "MDM is part of AppConfig and defines the mdm settings.",
+      "properties": {
+        "android_enabled_and_configured": {
+          "description": "AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "android_settings": {
+          "$ref": "#/$defs/AndroidSettings",
+          "description": "type: `AndroidSettings`"
+        },
+        "apple_account_provisioning": {
+          "$ref": "#/$defs/AppleAccountProvisioning",
+          "description": "AppleAccountProvisioning holds the macOS local account provisioning /\nPlatform SSO password sync configuration. The IdP client secret is stored\nin mdm_config_assets, not in this JSON; only the masked value is returned.\n\ntype: `AppleAccountProvisioning`"
+        },
+        "apple_bm_default_team": {
+          "description": "Deprecated: use AppleBusinessManager instead\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "apple_bm_enabled_and_configured": {
+          "description": "AppleBMEnabledAndConfigured is set to true if Fleet has been\nconfigured with the required Apple BM key pair or token. It can't be set\nmanually via the PATCH /config API, it's only set automatically when\nthe server starts.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "apple_bm_terms_expired": {
+          "description": "AppleBMTermsExpired is set to true if an Apple Business request\nfailed due to Apple's terms and conditions having changed and need the\nuser to explicitly accept them. It cannot be set manually via the\nPATCH /config API, it is only set automatically, internally, by detecting\nthe 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM\nAPI.\n\nIt is set to true as soon as one of the ABM tokens receives this error\ncode, and is set to false only once all ABM tokens have agreed to the new\nterms.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "apple_business": {
+          "description": "AppleBusinessManager defines the associations between AB tokens\nand the fleets used to assign hosts when they're ingested from Apple\nBusiness.\n\ntype: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "apple_business_manager": {
+          "deprecated": true,
+          "deprecationMessage": "'apple_business_manager' is deprecated, use 'apple_business' instead",
+          "description": "AppleBusinessManager defines the associations between AB tokens\nand the fleets used to assign hosts when they're ingested from Apple\nBusiness.\n\ntype: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "apple_require_hardware_attestation": {
+          "description": "AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for\ncertain Apple MDM enrollments.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "apple_server_url": {
+          "description": "AppleServerURL is an alternate URL to be used in MDM configuration profiles to differentiate MDM\nrequests from fleetd requests on customer networks. AppleServerURL DNS should resolve to the\nsame IP as the Fleet Server URL.\nIf not set, the server will use Fleet server URL (recommended).\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "apple_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "description": "type: `MacOSSettings`"
+        },
+        "enable_disk_encryption": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_recovery_lock_password": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_turn_on_windows_mdm_manually": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enabled_and_configured": {
+          "description": "EnabledAndConfigured is set to true if Fleet has been\nconfigured with the required APNS and SCEP certificates. It can't be set\nmanually via the PATCH /config API, it's only set automatically when\nthe server starts.\n\nTODO: should ideally be renamed to AppleEnabledAndConfigured, but it\nimplies a lot of changes to existing code across both frontend and\nbackend, should be done only after careful analysis.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "end_user_authentication": {
+          "$ref": "#/$defs/MDMEndUserAuthentication",
+          "description": "type: `MDMEndUserAuthentication`"
+        },
+        "end_user_license_agreement": true,
+        "ios_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "IOSUpdates defines the OS update settings for iOS devices.\n\ntype: `AppleOSUpdateSettings`"
+        },
+        "ipados_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "IPadOSUpdates defines the OS update settings for iPadOS devices.\n\ntype: `AppleOSUpdateSettings`"
+        },
+        "macos_migration": {
+          "$ref": "#/$defs/MacOSMigration",
+          "description": "type: `MacOSMigration`"
+        },
+        "macos_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "deprecated": true,
+          "deprecationMessage": "'macos_settings' is deprecated, use 'apple_settings' instead",
+          "description": "type: `MacOSSettings`"
+        },
+        "macos_setup": {
+          "$ref": "#/$defs/MacOSSetup",
+          "deprecated": true,
+          "deprecationMessage": "'macos_setup' is deprecated, use 'setup_experience' instead",
+          "description": "type: `MacOSSetup`"
+        },
+        "macos_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "MacOSUpdates defines the OS update settings for macOS devices.\n\ntype: `AppleOSUpdateSettings`"
+        },
+        "name_template": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "setup_experience": {
+          "$ref": "#/$defs/MacOSSetup",
+          "description": "type: `MacOSSetup`"
+        },
+        "volume_purchasing_program": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "windows_enabled_and_configured": {
+          "description": "WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.\nThere is no other configuration required for Windows other than enabling\nthe support, but it is still called \"EnabledAndConfigured\" for consistency\nwith the similarly named macOS-specific fields.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "windows_entra_client_ids": {
+          "description": "WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for\nWindows automatic enrollment.\n\ntype: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "windows_entra_tenant_ids": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "windows_migration_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "windows_require_bitlocker_pin": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "windows_settings": {
+          "$ref": "#/$defs/WindowsSettings",
+          "description": "type: `WindowsSettings`"
+        },
+        "windows_updates": {
+          "$ref": "#/$defs/WindowsUpdates",
+          "description": "WindowsUpdates defines the OS update settings for Windows devices.\n\ntype: `WindowsUpdates`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MDMEndUserAuthentication": {
+      "additionalProperties": false,
+      "description": "MDMEndUserAuthentication contains settings related to end user authentication to gate certain MDM features (eg: enrollment)",
+      "properties": {
+        "entity_id": {
+          "description": "EntityID is a uri that identifies this service provider\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "idp_name": {
+          "description": "IDPName is a human friendly name for the IDP\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "issuer_uri": {
+          "description": "IssuerURI is the uri that identifies the identity provider\n\nDeprecated: Not used, only left here to not break the API\n(\"unsupported key provided\" error)\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata": {
+          "description": "Metadata contains IDP metadata XML\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata_url": {
+          "description": "MetadataURL is a URL provided by the IDP which can be used to download\nmetadata\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MDMProfileSpec": {
+      "additionalProperties": false,
+      "description": "MDMProfileSpec represents the spec used to define configuration profiles via yaml files.",
+      "properties": {
+        "labels": {
+          "description": "Deprecated: the Labels field is now deprecated, it is superseded by\nLabelsIncludeAll, so any value set via this field will be transferred to\nLabelsIncludeAll.\n\ntype: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_exclude_any": {
+          "description": "LabelsExcludeAll is a list of label names that the host must not be a\nmember of in order to receive the profile. It must not be a member of any\nof the listed labels.\n\ntype: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "LabelsIncludeAll is a list of label names that the host must be a member\nof in order to receive the profile. It must be a member of all listed\nlabels.\n\ntype: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "LabelsIncludeAny is a list of label names that the host must be a member\nof in order to receive the profile. It may be a member of\nany listed labels.\n\ntype: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MacOSMigration": {
+      "additionalProperties": false,
+      "description": "MacOSMigration contains settings related to the MDM migration work flow.",
+      "properties": {
+        "enable": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "mode": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "webhook_url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MacOSSettings": {
+      "additionalProperties": false,
+      "description": "MacOSSettings contains settings specific to macOS.",
+      "properties": {
+        "assets": {
+          "description": "Assets is a slice of Apple DDM asset (com.apple.asset) declaration file\npaths. Unlike CustomSettings, assets are not stored on the AppConfig/team\nspec: this field is only populated while parsing a GitOps file so the\nassets can be applied via their own batch endpoint. It is intentionally\nomitted from ToMap/FromMap.\n\ntype: `array\u003cMDMProfileSpec\u003e`",
+          "items": {
+            "$ref": "#/$defs/MDMProfileSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration_profiles": {
+          "description": "CustomSettings is a slice of configuration profile file paths.\n\nNOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cMDMProfileSpec\u003e`",
+          "items": {
+            "$ref": "#/$defs/MDMProfileSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "custom_settings": {
+          "deprecated": true,
+          "deprecationMessage": "'custom_settings' is deprecated, use 'configuration_profiles' instead",
+          "description": "CustomSettings is a slice of configuration profile file paths.\n\nNOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cMDMProfileSpec\u003e`",
+          "items": {
+            "$ref": "#/$defs/MDMProfileSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "enable_disk_encryption": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MacOSSetup": {
+      "additionalProperties": false,
+      "description": "MacOSSetup contains settings related to the setup of DEP enrolled devices.",
+      "properties": {
+        "apple_enable_release_device_manually": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "apple_setup_assistant": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bootstrap_package": {
+          "deprecated": true,
+          "deprecationMessage": "'bootstrap_package' is deprecated, use 'macos_bootstrap_package' instead",
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_create_local_admin_account": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_end_user_authentication": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_managed_local_account": {
+          "deprecated": true,
+          "deprecationMessage": "'enable_managed_local_account' is deprecated, use 'enable_create_local_admin_account' instead",
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_release_device_manually": {
+          "deprecated": true,
+          "deprecationMessage": "'enable_release_device_manually' is deprecated, use 'apple_enable_release_device_manually' instead",
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "end_user_local_account_type": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lock_end_user_info": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "macos_bootstrap_package": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "macos_manual_agent_install": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "macos_script": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "macos_setup_assistant": {
+          "deprecated": true,
+          "deprecationMessage": "'macos_setup_assistant' is deprecated, use 'apple_setup_assistant' instead",
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "manual_agent_install": {
+          "deprecated": true,
+          "deprecationMessage": "'manual_agent_install' is deprecated, use 'macos_manual_agent_install' instead",
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "require_all_software_macos": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "require_all_software_windows": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "script": {
+          "deprecated": true,
+          "deprecationMessage": "'script' is deprecated, use 'macos_script' instead",
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "software": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MaintainedAppSpec": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A fleet_maintained_apps entry must set slug.",
+          "required": [
+            "slug"
+          ]
+        }
+      ],
+      "properties": {
+        "categories": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "icon": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "install_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "post_install_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "pre_install_query": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "self_service": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "setup_experience": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "setup_experience_platform": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "slug": {
+          "description": "type: `string`",
+          "type": "string"
+        },
+        "uninstall_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "version": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "OrbitAgentOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "debug_logging_on_enroll_duration": {
+          "description": "DebugLoggingOnEnrollDuration is the number of seconds (0 to\nMaxOrbitDebugLoggingOnEnrollDurationSeconds) that every host enrolling\nunder this scope is stamped with orbit_debug_until = now() + duration.\n\ntype: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "OrgInfo": {
+      "additionalProperties": false,
+      "description": "OrgInfo contains general info about the organization using Fleet.",
+      "properties": {
+        "contact_url": {
+          "description": "ContactURL is the URL displayed for users to contact support. By default,\nhttps://fleetdm.com/company/contact is used.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "org_logo_url": {
+          "description": "Deprecated: use OrgLogoURLDarkMode.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "org_logo_url_dark_mode": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "org_logo_url_light_background": {
+          "description": "Deprecated: use OrgLogoURLLightMode.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "org_logo_url_light_mode": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "org_name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "PolicyRunScript": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "Query": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A report must set name and query (or reference a file with path/paths).",
+          "required": [
+            "name",
+            "query"
+          ]
+        },
+        {
+          "errorMessage": "A report must set name and query (or reference a file with path/paths).",
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "errorMessage": "A report must set name and query (or reference a file with path/paths).",
+          "required": [
+            "paths"
+          ]
+        }
+      ],
+      "properties": {
+        "automations_enabled": {
+          "description": "AutomationsEnabled is set to false if not set.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "Description is the description of the query.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "discard_data": {
+          "description": "DiscardData indicates if the scheduled query results should be discarded (true)\nor kept (false) in a query report.\n\nIf not set, then the default value is false.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "fleet": {
+          "description": "TeamName is the team's name, the default \"\" means the query will be\ncreated globally. This field is only used when creating a query,\nwhen editing a query this field is ignored.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "interval": {
+          "description": "Interval is set to 0 if not set.\n\ntype: `integer`"
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "logging": {
+          "description": "Logging is set to \"snapshot\" if not set.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "min_osquery_version": {
+          "description": "MinOsqueryVersion is set to empty if not set.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Name is the name of the query (which is unique in its team or globally).\nThis field must be non-empty.\n\ntype: `string`",
+          "type": "string"
+        },
+        "observer_can_run": {
+          "description": "ObserverCanRun is set to false if not set.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "platform": {
+          "description": "Platform is set to empty if not set when creating a query.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "query": {
+          "description": "Query is the actual osquery SQL query. This field must be non-empty.\n\ntype: `string`",
+          "type": "string"
+        },
+        "team": {
+          "deprecated": true,
+          "deprecationMessage": "'team' is deprecated, use 'fleet' instead",
+          "description": "TeamName is the team's name, the default \"\" means the query will be\ncreated globally. This field is only used when creating a query,\nwhen editing a query this field is ignored.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "SMTPSettings": {
+      "additionalProperties": false,
+      "description": "SMTPSettings is part of the AppConfig which defines the wire representation of the app config endpoints",
+      "properties": {
+        "authentication_method": {
+          "description": "SMTPAuthenticationMethod authentication method smtp server will use\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "authentication_type": {
+          "description": "SMTPAuthenticationType type of authentication for SMTP\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "configured": {
+          "description": "SMTPConfigured is a flag that indicates if smtp has been successfully\ntested with the settings provided by an admin user.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "domain": {
+          "description": "SMTPDomain optional domain for SMTP\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_smtp": {
+          "description": "SMTPEnabled indicates whether the user has selected that SMTP is\nenabled in the UI.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_ssl_tls": {
+          "description": "SMTPEnableSSLTLS whether to use SSL/TLS for SMTP\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_start_tls": {
+          "description": "SMTPEnableStartTLS detects of TLS is enabled on mail server and starts to use it (default true)\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "password": {
+          "description": "SMTPPassword must be provided if SMTPAuthenticationType is UserNamePassword\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "port": {
+          "description": "SMTPPort port SMTP server will use\n\ntype: `integer`"
+        },
+        "sender_address": {
+          "description": "SMTPSenderAddress is the email address that will appear in emails sent\nfrom Fleet\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "server": {
+          "description": "SMTPServer is the host name of the SMTP server Fleet will use to send mail\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "user_name": {
+          "description": "SMTPUserName must be provided if SMTPAuthenticationType is UserNamePassword\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verify_ssl_certs": {
+          "description": "SMTPVerifySSLCerts defaults to true but can be turned off if self signed\nSSL certs are used by the SMTP server\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "SSOSettings": {
+      "additionalProperties": false,
+      "description": "SSOSettings wire format for SSO settings",
+      "properties": {
+        "enable_jit_provisioning": {
+          "description": "EnableJITProvisioning allows user accounts to be created the first time\nusers try to log in\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_jit_role_sync": {
+          "description": "EnableJITRoleSync is deprecated.\n\nEnableJITRoleSync sets whether the roles of existing accounts will be updated\nevery time SSO users log in (does not have effect if EnableJITProvisioning is false).\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_sso": {
+          "description": "EnableSSO flag to determine whether or not to enable SSO\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_sso_idp_login": {
+          "description": "EnableSSOIdPLogin flag to determine whether or not to allow IdP-initiated\nlogin.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "entity_id": {
+          "description": "EntityID is a uri that identifies this service provider\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "idp_image_url": {
+          "description": "IDPImageURL is a link to a logo or other image that is used for UX\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "idp_name": {
+          "description": "IDPName is a human friendly name for the IDP\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "issuer_uri": {
+          "description": "IssuerURI is the uri that identifies the identity provider\n\nDeprecated: Not used, only left here to not break the API\n(\"unsupported key provided\" error)\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata": {
+          "description": "Metadata contains IDP metadata XML\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata_url": {
+          "description": "MetadataURL is a URL provided by the IDP which can be used to download\nmetadata\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sso_server_url": {
+          "description": "SSOServerURL is an optional URL to use for SSO authentication.\nWhen set, SSO will only work from this URL, not from the server URL.\nThis is useful for organizations with separate URLs for admin access vs agent/API access.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ServerSettings": {
+      "additionalProperties": false,
+      "description": "ServerSettings contains general settings about the Fleet application.",
+      "properties": {
+        "ai_features_disabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "debug_host_ids": {
+          "description": "type: `array\u003cinteger\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "deferred_save_host": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "discard_reports_data": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_analytics": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "live_query_disabled": {
+          "deprecated": true,
+          "deprecationMessage": "'live_query_disabled' is deprecated, use 'live_reporting_disabled' instead",
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "live_reporting_disabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "query_report_cap": {
+          "deprecated": true,
+          "deprecationMessage": "'query_report_cap' is deprecated, use 'report_cap' instead",
+          "description": "type: `integer`"
+        },
+        "query_reports_disabled": {
+          "deprecated": true,
+          "deprecationMessage": "'query_reports_disabled' is deprecated, use 'discard_reports_data' instead",
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "report_cap": {
+          "description": "type: `integer`"
+        },
+        "scripts_disabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "server_url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "SoftwarePackageSpec": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A package must set one of: url, hash_sha256, or path.",
+          "required": [
+            "url"
+          ]
+        },
+        {
+          "errorMessage": "A package must set one of: url, hash_sha256, or path.",
+          "required": [
+            "hash_sha256"
+          ]
+        },
+        {
+          "errorMessage": "A package must set one of: url, hash_sha256, or path.",
+          "required": [
+            "path"
+          ]
+        }
+      ],
+      "properties": {
+        "always_download": {
+          "description": "AlwaysDownload disables conditional HTTP downloads using ETag headers.\nWhen false (the default), Fleet sends If-None-Match with the stored ETag\non subsequent downloads. If the server returns 304 Not Modified, the\ndownload is skipped entirely.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "categories": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "Configuration is the managed app configuration file path; only meaningful for .ipa packages.\n\ntype: `TeamSpecSoftwareAsset`"
+        },
+        "display_name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hash_sha256": {
+          "description": "type: `string`",
+          "type": "string"
+        },
+        "icon": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "install_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "post_install_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "pre_install_query": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "referenced_yaml_path": {
+          "description": "ReferencedYamlPath is the resolved path of the file used to fill the\nsoftware package. Only present after parsing a GitOps file on the fleetctl\nside of processing. This is required to match a setup_experience.software to\nits corresponding software package, as we do this matching by yaml path.\n\nIt must be JSON-marshaled because it gets set during gitops file processing,\nwhich is then re-marshaled to JSON from this struct and later re-unmarshaled\nduring ApplyGroup...\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "self_service": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "setup_experience": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "setup_experience_platform": {
+          "description": "SetupExperiencePlatform selects the installer for the setup experience,\nas a comma-separated string of platforms (e.g. \"darwin,linux\"),\nconsistent with the query/policy `platform` field. Additive with\nInstallDuringSetup: the native platform is controlled by that bool, the\nnon-native entries feed the setup_experience_software_installers\ncross-table. Only meaningful for packages whose file can run on more than\none platform (today: .sh).\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "slug": {
+          "description": "FMA\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uninstall_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "url": {
+          "description": "type: `string`",
+          "type": "string"
+        },
+        "version": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "SoftwareSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "app_store_apps": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "fleet_maintained_apps": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "packages": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamGoogleCalendarIntegration": {
+      "additionalProperties": false,
+      "properties": {
+        "enable_calendar_events": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "webhook_url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamIntegrations": {
+      "additionalProperties": false,
+      "description": "TeamIntegrations contains the configuration for external services' integrations for a specific team.",
+      "properties": {
+        "conditional_access_enabled": {
+          "description": "ConditionalAccessEnabled indicates whether the conditional access feature is enabled on this team.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "google_calendar": {
+          "$ref": "#/$defs/TeamGoogleCalendarIntegration",
+          "description": "type: `TeamGoogleCalendarIntegration`"
+        },
+        "jira": {
+          "description": "type: `array\u003cTeamJiraIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/TeamJiraIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "zendesk": {
+          "description": "type: `array\u003cTeamZendeskIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/TeamZendeskIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamJiraIntegration": {
+      "additionalProperties": false,
+      "description": "TeamJiraIntegration configures an instance of an integration with the Jira system for a team.",
+      "properties": {
+        "enable_failing_policies": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "project_key": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamMDM": {
+      "additionalProperties": false,
+      "properties": {
+        "android_settings": {
+          "$ref": "#/$defs/AndroidSettings",
+          "description": "type: `AndroidSettings`"
+        },
+        "apple_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "description": "type: `MacOSSettings`"
+        },
+        "enable_disk_encryption": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_recovery_lock_password": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ios_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "ipados_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "macos_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "deprecated": true,
+          "deprecationMessage": "'macos_settings' is deprecated, use 'apple_settings' instead",
+          "description": "type: `MacOSSettings`"
+        },
+        "macos_setup": {
+          "$ref": "#/$defs/MacOSSetup",
+          "deprecated": true,
+          "deprecationMessage": "'macos_setup' is deprecated, use 'setup_experience' instead",
+          "description": "type: `MacOSSetup`"
+        },
+        "macos_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "name_template": {
+          "description": "HostNameTemplate is the template used to compute a host's display name from\nhost-identity Fleet variables (e.g. $FLEET_VAR_HOST_HARDWARE_SERIAL).\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "setup_experience": {
+          "$ref": "#/$defs/MacOSSetup",
+          "description": "type: `MacOSSetup`"
+        },
+        "windows_require_bitlocker_pin": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "windows_settings": {
+          "$ref": "#/$defs/WindowsSettings",
+          "description": "type: `WindowsSettings`"
+        },
+        "windows_updates": {
+          "$ref": "#/$defs/WindowsUpdates",
+          "description": "type: `WindowsUpdates`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamSpecAppStoreApp": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "An app_store_apps entry must set app_store_id.",
+          "required": [
+            "app_store_id"
+          ]
+        }
+      ],
+      "properties": {
+        "app_store_id": {
+          "description": "type: `string`",
+          "type": "string"
+        },
+        "auto_update_enabled": {
+          "description": "Auto-update fields for VPP apps\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "auto_update_window_end": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "auto_update_window_start": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "categories": {
+          "description": "Categories is the list of names of software categories associated with this VPP app.\n\ntype: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "display_name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "icon": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "platform": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "self_service": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "setup_experience": {
+          "description": "InstallDuringSetup indicates whether a package should be incorporated into setup experience;\nif not supplied (Valid field is false) then the server-side value for setup experience membership\nis not changed, for compatibility with the old fleetctl apply format\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamSpecSoftwareAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamWebhookSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "failing_policies_webhook": {
+          "$ref": "#/$defs/FailingPoliciesWebhookSettings",
+          "description": "type: `FailingPoliciesWebhookSettings`"
+        },
+        "host_status_webhook": {
+          "$ref": "#/$defs/HostStatusWebhookSettings",
+          "description": "HostStatusWebhook can be nil to match the TeamSpec webhook settings\n\ntype: `HostStatusWebhookSettings`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamZendeskIntegration": {
+      "additionalProperties": false,
+      "description": "TeamZendeskIntegration configures an instance of an integration with the external Zendesk service for a team.",
+      "properties": {
+        "enable_failing_policies": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "group_id": {
+          "description": "type: `integer`"
+        },
+        "url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "VulnExposureFilterSettings": {
+      "additionalProperties": false,
+      "description": "VulnExposureFilterSettings is the persisted default filter state for the Vulnerability exposure (CVE) dashboard chart.",
+      "properties": {
+        "cvss_max": {
+          "description": "type: `number`"
+        },
+        "cvss_min": {
+          "description": "type: `number`"
+        },
+        "epss_max": {
+          "description": "type: `number`"
+        },
+        "epss_min": {
+          "description": "type: `number`"
+        },
+        "exclude_vulnerabilities": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "has_known_exploit": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "software_filters": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "VulnerabilitiesWebhookSettings": {
+      "additionalProperties": false,
+      "description": "VulnerabilitiesWebhookSettings holds the settings for vulnerabilities webhooks.",
+      "properties": {
+        "destination_url": {
+          "description": "DestinationURL is the webhook's URL.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_vulnerabilities_webhook": {
+          "description": "Enable indicates whether the webhook for vulnerabilities is enabled.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "host_batch_size": {
+          "description": "HostBatchSize allows sending multiple requests in batches of hosts for each vulnerable software found.\nA value of 0 means no batching.\n\ntype: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "VulnerabilitySettings": {
+      "additionalProperties": false,
+      "description": "VulnerabilitySettings is part of the AppConfig which defines how fleet will behave while scanning for vulnerabilities in the host software",
+      "properties": {
+        "databases_path": {
+          "description": "DatabasesPath is the directory where fleet will store the different databases\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "WebhookSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "activities_webhook": {
+          "$ref": "#/$defs/ActivitiesWebhookSettings",
+          "description": "type: `ActivitiesWebhookSettings`"
+        },
+        "failing_policies_webhook": {
+          "$ref": "#/$defs/FailingPoliciesWebhookSettings",
+          "description": "type: `FailingPoliciesWebhookSettings`"
+        },
+        "host_status_webhook": {
+          "$ref": "#/$defs/HostStatusWebhookSettings",
+          "description": "type: `HostStatusWebhookSettings`"
+        },
+        "interval": {
+          "description": "Interval is the interval for running the webhooks.\n\nThis value currently configures both the host status and failing policies webhooks.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vulnerabilities_webhook": {
+          "$ref": "#/$defs/VulnerabilitiesWebhookSettings",
+          "description": "type: `VulnerabilitiesWebhookSettings`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "WindowsSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "configuration_profiles": {
+          "description": "NOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "custom_settings": {
+          "deprecated": true,
+          "deprecationMessage": "'custom_settings' is deprecated, use 'configuration_profiles' instead",
+          "description": "NOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "WindowsUpdates": {
+      "additionalProperties": false,
+      "description": "WindowsUpdates is part of AppConfig and defines the Windows update settings.",
+      "properties": {
+        "deadline_days": {
+          "description": "type: `integer`"
+        },
+        "grace_period_days": {
+          "description": "type: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "YaraRule": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A yara_rules entry must set path.",
+          "required": [
+            "path"
+          ]
+        }
+      ],
+      "properties": {
+        "path": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ZendeskIntegration": {
+      "additionalProperties": false,
+      "description": "ZendeskIntegration configures an instance of an integration with the external Zendesk service.",
+      "properties": {
+        "api_token": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_failing_policies": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_software_vulnerabilities": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "group_id": {
+          "description": "type: `integer`"
+        },
+        "url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent_options": {
+      "$ref": "#/$defs/AgentOptions",
+      "description": "type: `AgentOptions`"
+    },
+    "controls": {
+      "$ref": "#/$defs/ControlsWithTypes",
+      "description": "type: `ControlsWithTypes`"
+    },
+    "custom_host_vitals": {
+      "description": "type: `array\u003cGitOpsCustomHostVital\u003e`",
+      "items": {
+        "$ref": "#/$defs/GitOpsCustomHostVital"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "labels": {
+      "description": "type: `array\u003cLabelSpec\u003e`",
+      "items": {
+        "$ref": "#/$defs/LabelSpec"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "name": {
+      "description": "type: `string`",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "org_settings": {
+      "$ref": "#/$defs/GitOpsOrgSettings",
+      "description": "type: `GitOpsOrgSettings`"
+    },
+    "policies": {
+      "description": "type: `array\u003cGitOpsPolicySpec\u003e`",
+      "items": {
+        "$ref": "#/$defs/GitOpsPolicySpec"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "reports": {
+      "description": "type: `array\u003cQuery\u003e`",
+      "items": {
+        "$ref": "#/$defs/Query"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "settings": {
+      "$ref": "#/$defs/GitOpsFleetSettings",
+      "description": "type: `GitOpsFleetSettings`"
+    },
+    "software": {
+      "$ref": "#/$defs/GitOpsSoftware",
+      "description": "type: `GitOpsSoftware`"
+    }
+  },
+  "type": [
+    "object",
+    "null"
+  ]
+}

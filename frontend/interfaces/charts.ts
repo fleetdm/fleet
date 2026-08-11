@@ -27,7 +27,7 @@ export const CVE_SOFTWARE_CATEGORIES = [
   {
     value: "browsers",
     label: "Browsers",
-    tooltipLabel: "browsers",
+    tooltipLabel: "Browsers",
     description: "Google Chrome, Safari, Mozilla Firefox, Brave, and Opera",
   },
   {

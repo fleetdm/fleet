@@ -1,1 +1,0 @@
-* Fixed a macOS detail query error caused by app bundles (such as Apple's XProtect) that declare an executable in their Info.plist but ship no binary at that path; the executable SHA256 is now left empty instead of failing the query.

@@ -26,7 +26,7 @@ import {
 } from "pages/SoftwarePage/helpers";
 
 import { generateFormValidation, getUniqueAppId } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySelector";
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 const baseClass = "software-vpp-form";
 
@@ -319,6 +319,20 @@ const SoftwareVppForm = ({
             These apps were added in Apple Business (AB). To add more apps, head
             to <CustomLink url="https://business.apple.com" text="AB" newTab />
           </div>
+          {formData.selectedApp && (
+            <SoftwareOptionsSelector
+              platform={formData.selectedApp.platform}
+              formData={formData}
+              onToggleSelfService={onToggleSelfService}
+              onSelectCategory={onSelectCategory}
+              onClickPreviewEndUserExperience={() =>
+                onClickPreviewEndUserExperience(
+                  isIpadOrIphoneSoftware(formData.selectedApp?.platform || "")
+                )
+              }
+              teamId={teamId}
+            />
+          )}
           {showDeploySoftwareSlider && (
             <SoftwareDeploySlider
               deploySoftware={formData.automaticInstall}
@@ -350,7 +364,7 @@ const SoftwareVppForm = ({
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
             entityType="software"
-            position="bottom"
+            position="top"
             tipOffset={8}
             renderChildren={(disableChildren) => (
               <Button
@@ -363,7 +377,7 @@ const SoftwareVppForm = ({
               </Button>
             )}
           />
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

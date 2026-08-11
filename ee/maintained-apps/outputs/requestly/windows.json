@@ -4,7 +4,8 @@
       "version": "26.3.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Requestly %' AND publisher = 'BrowserStack Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Requestly %' AND publisher = 'BrowserStack Inc.' AND version_compare(version, '26.3.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Requestly %' AND publisher = 'BrowserStack Inc.' AND version_compare(version, '26.3.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'requestly.exe');"
       },
       "installer_url": "https://github.com/requestly/requestly-desktop-app/releases/download/v26.3.3/Requestly-Setup-26.3.3.exe",
       "install_script_ref": "2b4dd196",

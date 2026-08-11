@@ -396,9 +396,11 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           defaultSortHeader="name"
           defaultSortDirection="asc"
           actionButton={{
-            name: isGlobalAdmin ? "add user" : "create user",
-            buttonText: isGlobalAdmin ? "Add users" : "Create user",
-            variant: "default",
+            name: "add user",
+            buttonText: isGlobalAdmin ? "Add users" : "Add user",
+            variant: "secondary",
+            iconSvg: "plus",
+            iconPosition: "left",
             onClick: isGlobalAdmin ? toggleAddUserModal : toggleCreateUserModal,
             hideButton: userIds.length === 0 && searchString === "",
           }}

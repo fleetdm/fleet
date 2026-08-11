@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -23,7 +24,13 @@ type EnterpriseOverrides struct {
 	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
 	// UpdateTeamMDMDiskEncryption is the team-specific service method for when
 	// a team ID is provided to the UpdateMDMDiskEncryption method.
-	UpdateTeamMDMDiskEncryption func(ctx context.Context, tm *Team, enable *bool, requireBitLockerPIN *bool) error
+	UpdateTeamMDMDiskEncryption   func(ctx context.Context, tm *Team, enable *bool, requireBitLockerPIN *bool) error
+	UpdateTeamMDMHostNameTemplate func(ctx context.Context, tm *Team, nameTemplate string) error
+
+	// ApplyHostNameTemplateChange reconciles host-name enforcement rows and emits
+	// the edited_host_name_template activity for the given scope (a nil team =
+	// "No team").
+	ApplyHostNameTemplateChange func(ctx context.Context, team *Team, nameTemplate string) error
 
 	// The next two functions are implemented by the ee/service, and called
 	// properly when called from an ee/service method (e.g. Modify Team), but
@@ -104,6 +111,10 @@ type ActivityLookupService interface {
 
 	// GetActivitiesWebhookSettings returns the webhook settings for activities.
 	GetActivitiesWebhookSettings(ctx context.Context) (ActivitiesWebhookSettings, error)
+	// GetHostActivitiesWebhookSettings returns the enabled host-activities
+	// webhook settings of the fleets the given hosts belong to, deduplicated by
+	// fleet. Returns nil on Fleet Free.
+	GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]HostActivitiesWebhookDelivery, error)
 	// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
 	ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error
 }
@@ -455,8 +466,10 @@ type Service interface {
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 
-	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
-	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
+	// ListDevicePolicies lists all policies for the given host in their
+	// device-safe representation (which excludes the policy author's identity
+	// and the raw SQL query), including passing / failing responses.
+	ListDevicePolicies(ctx context.Context, host *Host) ([]*DevicePolicy, error)
 
 	// BypassConditionalAccess lets a host skip conditional access checks for one check
 	BypassConditionalAccess(ctx context.Context, host *Host) error
@@ -475,7 +488,12 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
-	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error
+	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
+
+	// EscrowWindowsManagedLocalAccountPassword stores the device-generated password that Windows fleetd escrows after
+	// creating the managed local admin account. When clientError is set no password is stored; the account is marked failed
+	// and the device-reported reason is recorded on it.
+	EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
@@ -534,6 +552,8 @@ type Service interface {
 	AppConfigObfuscated(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
+	// MaxInstallerSizeBytes returns the configured maximum size for software installer uploads.
+	MaxInstallerSizeBytes() int64
 	AppConfigUrls(ctx context.Context) (urls *AppConfigUrls, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -741,14 +761,14 @@ type Service interface {
 	// GlobalPolicyService
 
 	NewGlobalPolicy(ctx context.Context, p PolicyPayload) (*Policy, error)
-	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
+	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)
 	ResetPolicy(ctx context.Context, policyID uint) error
 	ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts ListOptions, status string) ([]*PolicyAutomationActivity, *PaginationMetadata, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
-	CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error)
+	CountGlobalPolicies(ctx context.Context, matchQuery string, platform string) (int, error)
 	AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
@@ -768,7 +788,7 @@ type Service interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
-	SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name, displayName string, err error)
+	SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error)
 
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
@@ -792,13 +812,7 @@ type Service interface {
 	// Returns a request UUID that can be used to track an ongoing batch request (with GetBatchSetSoftwareInstallersResult).
 	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []*SoftwareInstallerPayload, dryRun bool) (string, error)
 	// GetBatchSetSoftwareInstallersResult polls for the status of a batch-apply started by BatchSetSoftwareInstallers.
-	// Return values:
-	//	- 'status': status of the batch-apply which can be "processing", "completed" or "failed".
-	//	- 'message': which contains error information when the status is "failed".
-	//	- 'packages': Contains the list of the applied software packages (when status is "completed"). This is always empty for a dry run.
-	//	- 'deleted_packages': Contains the list of packages the batch deleted (dry run: would delete), when status is "completed".
-	//  - 'categories': Contains the list of categories the batch uses/added, when status is "completed".
-	GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []SoftwarePackageResponse, deletedPackages []DeletedSoftwarePackage, categories []string, err error)
+	GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*BatchSetSoftwareInstallersResult, error)
 
 	// SelfServiceInstallSoftwareTitle installs a software title
 	// initiated by the user
@@ -806,8 +820,9 @@ type Service interface {
 
 	// SelfServiceInstallAllSoftwareTitles queues a self-service install for every available self-service software
 	// title on the host that isn't already installed. When categoryID is non-nil, only titles assigned to that
-	// self-service category on the host's fleet are queued.
-	SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *Host, categoryID *uint) error
+	// self-service category on the host's fleet are queued. When matchQuery is non-empty, only titles whose name
+	// matches the query (same semantics as the self-service list endpoint) are queued.
+	SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *Host, categoryID *uint, matchQuery string) error
 
 	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
 	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
@@ -853,7 +868,7 @@ type Service interface {
 	// the host, and associates the host if byod idp was enabled.
 	//
 	// [1]: https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1
-	MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret, idpUUID string, deviceInfo MDMAppleMachineInfo) ([]byte, error)
+	MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret, idpUUID string, personal bool, deviceInfo MDMAppleMachineInfo) ([]byte, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
@@ -873,11 +888,11 @@ type Service interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, p NewTeamPolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, mergeInherited bool, automationType string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, mergeInherited bool, automationType string, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByID(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
-	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error)
+	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Geolocation
@@ -922,14 +937,17 @@ type Service interface {
 
 	// GetHostDEPAssignmentDetails retrieves Fleet's DEP assignment record and
 	// Apple's live device details from ABM for the given host ID.
-	// Returns (nil, nil, nil) for non-DEP hosts.
-	// If ABM returns an error, dep_device is nil and the error is logged.
-	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.Device, error)
+	// Returns (nil, nil, "", nil) for non-DEP hosts.
+	// If ABM returns an error, dep_device is nil, depError classifies why, and
+	// the original error is logged rather than returned to the caller.
+	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleDeclaration, error)
+	// activation is an optional custom activation declaration to attach to the
+	// declaration; nil or empty means Fleet generates the activation.
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -1084,6 +1102,10 @@ type Service interface {
 	// specified team or for hosts with no team.
 	UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error
 
+	// UpdateMDMHostNameTemplate updates the host name template for the specified
+	// fleet. An empty template clears the setting; clearing never renames hosts.
+	UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint, nameTemplate string) error
+
 	// VerifyMDMAppleConfigured verifies that the server is configured for
 	// Apple MDM. If an error is returned, authorization is skipped so the
 	// error can be raised to the user.
@@ -1150,7 +1172,7 @@ type Service interface {
 	// for MDM macOS migration.
 	TriggerMigrateMDMDevice(ctx context.Context, host *Host) error
 
-	GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error)
+	GetMDMManualEnrollmentProfile(ctx context.Context, personal bool) ([]byte, error)
 
 	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
 
@@ -1158,7 +1180,9 @@ type Service interface {
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
 
 	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
-	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string) ([]byte, error)
+	// personal indicates whether the end user selected "Personal (BYOD)" on the /enroll page; it is
+	// baked into the POST-back URL so the OTA enrollment handler can set the correct access rights.
+	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string, personal bool) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
@@ -1178,9 +1202,6 @@ type Service interface {
 
 	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
 	GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*DiscoverResponse, error)
-
-	// GetMDMMicrosoftSTSAuthResponse returns a valid STS auth page
-	GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error)
 
 	// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
 	GetMDMWindowsPolicyResponse(ctx context.Context, authToken *HeaderBinarySecurityToken) (*GetPoliciesResponse, error)
@@ -1232,9 +1253,20 @@ type Service interface {
 	// unsupported extension is uploaded.
 	NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error
 
+	// Called when an activation is uploaded alongside a profile that isn't an
+	// Apple declaration. Exists, like the two below, so the error goes through
+	// an authorization check.
+	NewMDMActivationUnsupportedProfile(ctx context.Context, teamID uint) error
+
 	// NewMDMInvalidJSONConfigProfile is called when a JSON profile is uploaded with contents that
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
+
+	// UpdateMDMConfigProfile updates an existing configuration profile's
+	// contents and/or label targeting in place. Supported for Apple
+	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and
+	// Android profiles.
+	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
@@ -1284,6 +1316,11 @@ type Service interface {
 
 	// ResendHostMDMProfile resends the MDM profile to the host.
 	ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error
+
+	// ResendHostNameTemplate resets a host's host-name template enforcement so
+	// the cron re-sends the Settings/DeviceName command on its next run. Only
+	// hosts in a "failed" or "verified" state can be resent.
+	ResendHostNameTemplate(ctx context.Context, hostID uint) error
 
 	// ResendDeviceHostMDMProfile resends the MDM profile to the device host that requested it.
 	ResendDeviceHostMDMProfile(ctx context.Context, host *Host, profileUUID string) error
@@ -1389,12 +1426,12 @@ type Service interface {
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	UpdateSoftwareInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload) (*SoftwareInstaller, error)
-	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error
-	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error)
+	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error
+	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error)
 	GetSoftwareInstallerTokenMetadata(ctx context.Context, token string, titleID uint) (*SoftwareInstallerTokenMetadata, error)
 	GetSoftwareInstallerMetadata(ctx context.Context, skipAuthz bool, titleID uint, teamID *uint) (*SoftwareInstaller, error)
 	DownloadSoftwareInstaller(ctx context.Context, skipAuthz bool, alt string, titleID uint,
-		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
+		teamID *uint, installerID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
 	/////////////////////////////////////////////////////////////////////////////////
@@ -1491,6 +1528,15 @@ type Service interface {
 	// Returns a NotFoundError error if there's no secret variable with such ID.
 	DeleteSecretVariable(ctx context.Context, id uint) error
 
+	ListCustomHostVitals(ctx context.Context, opts ListOptions) (customHostVitals []CustomHostVital, meta *PaginationMetadata, count int, err error)
+	CreateCustomHostVital(ctx context.Context, name string) (*CustomHostVital, error)
+	UpdateCustomHostVital(ctx context.Context, id uint, name string) (*CustomHostVital, error)
+	DeleteCustomHostVital(ctx context.Context, id uint) error
+	SetHostCustomHostVitalValue(ctx context.Context, hostID uint, vitalID uint, value string) error
+	// UpsertCustomHostVitals declaratively reconciles custom host vital definitions (GitOps):
+	// names present are upserted, names absent from customHostVitals are deleted.
+	UpsertCustomHostVitals(ctx context.Context, customHostVitals []CustomHostVital, dryRun bool) error
+
 	// ListAPIEndpoints returns all API endpoints
 	ListAPIEndpoints(ctx context.Context) (endpoints []APIEndpoint, err error)
 
@@ -1545,6 +1591,47 @@ type Service interface {
 
 	// UnenrollMDM unenrolls the host from MDM
 	UnenrollMDM(ctx context.Context, hostID uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple Platform SSO (PSSO)
+
+	// PSSONonce issues a fresh single-use nonce for the Mac extension to
+	// embed in subsequent token-request JWTs.
+	PSSONonce(ctx context.Context) (string, error)
+	// PSSORegisterDevice validates the device-key payload POSTed by the Mac
+	// extension and persists the registration.
+	PSSORegisterDevice(ctx context.Context, req PSSODeviceRegistrationRequest) error
+	// PSSOToken handles the per-sign-in protocol message: parses the inbound
+	// signed JWT, dispatches on grant_type (password login) or request_type
+	// (key_request / key_exchange), and returns the JWE response body.
+	PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, error)
+	// PSSOJWKS returns the JSON web key set that publishes Fleet's PSSO
+	// signing public key.
+	PSSOJWKS(ctx context.Context) ([]byte, error)
+	// PSSOAASA returns the apple-app-site-association JSON used by Apple's
+	// framework to bind the extension's authsrv: entitlement to a Team+Bundle ID.
+	PSSOAASA(ctx context.Context) ([]byte, error)
+
+	//////////////////////////////////////////////////////////////////////////////
+	// Apple MDM Assets
+
+	// ListAppleDDMAssets returns a list of assets used for Apple DDM belonging to the specified team, in their API representation.
+	ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*DDMAsset, error)
+	// GetAppleDDMAsset returns the asset with the given UUID, in its API representation.
+	GetAppleDDMAsset(ctx context.Context, assetUUID string) (*DDMAsset, error)
+	// DownloadAppleDDMAsset returns the filename and contents of the asset with the given UUID.
+	DownloadAppleDDMAsset(ctx context.Context, assetUUID string) (filename string, data []byte, err error)
+	// CreateAppleDDMAsset creates a new asset used for Apple DDM. It returns the UUID of the created asset.
+	CreateAppleDDMAsset(ctx context.Context, teamID *uint, name string, data []byte) (string, error)
+	// DeleteAppleDDMAsset deletes the asset with the given UUID.
+	DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error
+	// BatchSetAppleDDMAssets sets the complete desired set of Apple DDM assets
+	// for a team (used by GitOps). It upserts the given assets and deletes any
+	// existing assets not in the set.
+	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []MDMAppleDDMAssetBatchPayload, dryRun bool) error
+
+	// ReleaseABDevices releases the specified Apple Business devices.
+	ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*ABReleaseDeviceResponse, error)
 }
 
 type KeyValueStore interface {

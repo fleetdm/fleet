@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -37,7 +38,7 @@ var (
 )
 
 var (
-	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "h.hardware_serial", "primary_ip"}
+	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "h.hardware_serial", "primary_ip", "public_ip"}
 	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
 )
 
@@ -608,6 +609,7 @@ var hostRefs = []string{
 	"host_vpp_software_installs",
 	"host_last_known_locations",
 	"host_issues",
+	"host_custom_host_vitals",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -626,20 +628,48 @@ var hostRefs = []string{
 // Orbit re-enrollment recreates the host row and the existing password row remains
 // reachable for view/rotate. Apple-MDM unenroll/re-enroll is handled separately by
 // MDMResetEnrollment, which soft-deletes the row.
+// - mdm_apple_psso_devices / mdm_apple_psso_keys: keyed by host_uuid, intentionally
+// preserved across host deletion for the same reason — the Mac may still be
+// MDM-enrolled with Platform SSO active, and its registered keys must keep
+// authenticating token requests. ADE re-enrollment clears them via
+// MDMAppleResetOnReenrollment.
 
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
+//
+// Note on host_mdm_apple_enrollment_permissions: this row is hard-deleted here along
+// with the host_mdm row. This is safe even for a still-MDM-enrolled device that is
+// deleted in Fleet and later "comes back", because of how SCEP/ACME renewal is gated:
+//   - GetHostCertAssociationsToExpire JOINs the live hosts row, so a host with no hosts
+//     row is never selected for renewal. A deleted device therefore receives no renewal
+//     profile while it is gone.
+//   - The only checkin handler that recreates a deleted host is Authenticate, and the
+//     device hits it using its installed profile's ServerURL, which still carries byod=1
+//     for BYOD enrollments. That Authenticate (not a Fleet-issued SCEP renewal) re-runs
+//     SetHostMDMAppleEnrollmentPermissions with the correct narrowed bitmask before the
+//     host is ever eligible for renewal again.
+//
+// So by the time a returned device can be renewed, its permissions row is already
+// correct. The only residual gap is the narrow race where a renewal command is enqueued
+// while the device is offline and the host is then deleted/recreated; the enqueued
+// command already has the profile baked in, so it does not widen on its own.
 var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_profiles":               "host_uuid",
 	"host_mdm_apple_bootstrap_packages":     "host_uuid",
 	"host_mdm_windows_profiles":             "host_uuid",
+	"host_mdm_windows_profiles_status":      "host_uuid",
 	"host_mdm_apple_declarations":           "host_uuid",
 	"host_mdm_apple_awaiting_configuration": "host_uuid",
 	"setup_experience_status_results":       "host_uuid",
 	"host_mdm_android_profiles":             "host_uuid",
 	"host_certificate_templates":            "host_uuid",
+	"host_mdm_apple_enrollment_permissions": "host_uuid",
+	"host_mdm_apple_device_names":           "host_uuid",
+	"host_mdm_apple_device_vitals":          "host_uuid",
+	"host_mdm_apple_service_subscriptions":  "host_uuid",
+	"host_mdm_apple_os_updates":             "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -856,7 +886,8 @@ SELECT
   COALESCE(host_issues.total_issues_count, 0) AS total_issues_count,
   hoi.version AS orbit_version,
   hoi.desktop_version AS fleet_desktop_version,
-  hoi.scripts_enabled AS scripts_enabled
+  hoi.scripts_enabled AS scripts_enabled,
+  IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
   ` + hostMDMSelect + `
 FROM
   hosts h
@@ -1142,9 +1173,20 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	sql += hostMDMSelect
 
 	if opt.DeviceMapping {
-		sql += `,
-    COALESCE(dm.device_mapping, 'null') as device_mapping
-		`
+		// Use a correlated subquery in the SELECT list (rather than a derived-table
+		// LEFT JOIN with GROUP BY) so the aggregation over host_emails is evaluated only
+		// for the rows actually returned by the outer query, each as an indexed lookup on
+		// idx_host_emails_host_id_email.
+		// GROUP_CONCAT without ORDER BY has no guaranteed order; sort to match
+		// listHostDeviceMappingDB so all endpoints return device_mapping in the
+		// same order.
+		sql += fmt.Sprintf(`,
+    COALESCE((
+        SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s) ORDER BY he.email, he.source), ']')
+        FROM host_emails he
+        WHERE he.host_id = h.id
+    ), 'null') as device_mapping
+		`, deviceMappingTranslateSourceColumn("he"))
 	}
 
 	if !opt.DisableIssues {
@@ -1286,18 +1328,6 @@ func (ds *Datastore) applyHostFilters(
 	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
 	var whereParams, joinParams []interface{}
 
-	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
-		SELECT
-			host_id,
-			CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', %s)), ']') AS device_mapping
-		FROM
-			host_emails
-		GROUP BY
-			host_id) dm ON dm.host_id = h.id`, deviceMappingTranslateSourceColumn(""))
-	if !opt.DeviceMapping {
-		deviceMappingJoin = ""
-	}
-
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
 	if opt.PolicyIDFilter == nil {
 		policyMembershipJoin = ""
@@ -1410,12 +1440,14 @@ func (ds *Datastore) applyHostFilters(
 	mdmAppleProfilesStatusJoin := ""
 	mdmAppleDeclarationsStatusJoin := ""
 	mdmRecoveryLockStatusJoin := ""
+	mdmDeviceNameStatusJoin := ""
 	mdmAndroidProfilesStatusJoin := ""
 	if opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
 		mdmRecoveryLockStatusJoin = sqlJoinRecoveryLockStatus()
+		mdmDeviceNameStatusJoin = sqlJoinDeviceNameStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1466,7 +1498,7 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
-    %s
+	%s
 	%s
 	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
@@ -1474,7 +1506,6 @@ func (ds *Datastore) applyHostFilters(
 
 		// JOINs
 		hostMDMJoin,
-		deviceMappingJoin,
 		policyMembershipJoin,
 		softwareStatusJoin,
 		failingPoliciesJoin,
@@ -1485,6 +1516,7 @@ func (ds *Datastore) applyHostFilters(
 		mdmAppleProfilesStatusJoin,
 		mdmAppleDeclarationsStatusJoin,
 		mdmRecoveryLockStatusJoin,
+		mdmDeviceNameStatusJoin,
 		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
 		hostMDMSeenJoin,
@@ -1751,7 +1783,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql stri
 	// supported linux platforms if disk encryption is enabled.
 	includeLinuxCond := "FALSE"
 	if diskEncryptionConfig.Enabled {
-		includeLinuxCond = `(h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%')`
+		includeLinuxCond = `(h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%')`
 	}
 
 	sqlFmt := ` AND (
@@ -1877,7 +1909,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		return sql, params
 	}
 
-	sqlFmt := " AND h.platform IN('windows', 'darwin', 'ubuntu', 'rhel')"
+	sqlFmt := " AND h.platform IN('windows', 'darwin', 'ubuntu', 'zorin', 'rhel')"
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
@@ -1886,7 +1918,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 	sqlFmt += ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1 AND hmdm.is_server = 0 AND %s) -- windows
 		OR (h.platform = 'darwin' AND ne.id IS NOT NULL AND hmdm.enrolled = 1 AND %s) -- apple
-		OR ((h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
+		OR ((h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
 	)`
 
 	var subqueryMacOS string
@@ -2074,6 +2106,8 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 	opt.PerPage = 0
 	// We don't need the issue counts of each host for counting hosts.
 	opt.DisableIssues = true
+	// device_mapping is never selected when counting, so skip its (expensive) subquery.
+	opt.DeviceMapping = false
 
 	var params []interface{}
 
@@ -3621,6 +3655,16 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsT
 					return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
 				}
 
+				// Reconcile host-name template enforcement against the destination
+				// team: eligible hosts moving into a template team get queued rows,
+				// and hosts moving to a template-less team or "No team" have their rows deleted.
+				// This runs after the team_id update above; teamID is the authoritative
+				// destination for the whole batch, so the template is resolved once
+				// rather than per row.
+				if err := reconcileHostDeviceNamesForTeamDB(ctx, tx, teamID, hostIDsBatch); err != nil {
+					return ctxerr.Wrap(ctx, err, "AddHostsToTeam reconcile host device names")
+				}
+
 				return nil
 			},
 		)
@@ -4230,7 +4274,7 @@ func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {
 
 		// remove an scim associations, if present. Note that this will not delete the associated row in
 		// scim_users, if it exists
-		if err := deleteHostSCIMUserMapping(ctx, tx, id); err != nil {
+		if _, err := deleteHostSCIMUserMapping(ctx, tx, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing host SCIM user mapping")
 		}
 
@@ -4645,6 +4689,45 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	)
 }
 
+func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+	// Drive the lookup off host_mdm so we always learn the device's
+	// is_personal_enrollment (the authoritative BYOD signal needed by SCEP/ACME
+	// renewal to reconstruct the original ServerURL). The permissions row may
+	// be missing if a transient write failure during the initial Authenticate
+	// dropped it (the persist is non-fatal); in that case AccessRights falls
+	// back to the unrestricted default, matching pre-feature behavior, while
+	// IsPersonalEnrollment still reflects reality from host_mdm.
+	var p fleet.HostMDMApplePermissions
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &p,
+		`SELECT
+			h.uuid AS host_uuid,
+			COALESCE(p.access_rights, ?) AS access_rights,
+			COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
+		 FROM hosts h
+		 LEFT JOIN host_mdm hm ON hm.host_id = h.id
+		 LEFT JOIN host_mdm_apple_enrollment_permissions p ON p.host_uuid = h.uuid
+		 WHERE h.uuid = ?`, apple_mdm.MDMAccessRightAll, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("HostMDMAppleEnrollmentPermissions").WithName(hostUUID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
+	}
+	return &p, nil
+}
+
+func (ds *Datastore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string, accessRights int) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_mdm_apple_enrollment_permissions (host_uuid, access_rights)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE access_rights = VALUES(access_rights)
+	`, hostUUID, accessRights)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set host mdm apple enrollment permissions")
+	}
+	return nil
+}
+
 func (ds *Datastore) UpdateMDMData(
 	ctx context.Context,
 	hostID uint,
@@ -4742,22 +4825,21 @@ WHERE %s`
 		}
 	}
 
-	// NOTE: We don't have good unique constraints around hosts.uuid so we'll play it safe and
-	// log if we find multiple hosts for SCIM scim user (expected behavior is to find no more
-	// than one match).
-	var hid uint
-	switch {
-	case len(hostIDs) == 0:
-		logger.InfoContext(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: no host ids found for scim user", "scim_user_id", user.ID)
+	if len(hostIDs) == 0 {
+		logger.DebugContext(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: no host ids found for scim user", "scim_user_id", user.ID)
 		return nil
-	case len(hostIDs) > 1:
-		logger.InfoContext(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: multiple host ids found for scim user", "scim_user_id", user.ID, "host_ids", fmt.Sprintf("%+v", hostIDs))
-		// TODO: confirm desired behavior here, for now we'll just use the first one
 	}
-	hid = hostIDs[0]
 
-	if err := associateHostWithScimUser(ctx, tx, hid, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: associate host with scim user")
+	// A single IdP user can legitimately be associated with multiple hosts (e.g. a
+	// laptop and a desktop belonging to the same person), so associate every matching
+	// host rather than only the first one — otherwise only one host would receive the
+	// user's IdP host vitals and profile updates. associateHostWithScimUser is keyed on
+	// host_id (INSERT ... ON DUPLICATE KEY UPDATE) and handles its own profile resend,
+	// so calling it once per host is safe.
+	for _, hid := range hostIDs {
+		if _, err := associateHostWithScimUser(ctx, tx, hid, user.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: associate host %d with scim user", hid)
+		}
 	}
 
 	return nil
@@ -4829,7 +4911,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 		return nil
 	}
 
-	err = associateHostWithScimUser(ctx, tx, hostID, scimUser.ID)
+	_, err = associateHostWithScimUser(ctx, tx, hostID, scimUser.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "associate host with scim user")
 	}
@@ -4839,11 +4921,12 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 
 func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+		_, err := associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+		return err
 	})
 }
 
-func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {
+func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	// On conflict with host_scim_user.PRIMARY (host_id), reassign the host to the current SCIM user.
 	result, err := tx.ExecContext(
 		ctx,
@@ -4852,14 +4935,14 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 		hostID, scimUserID,
 	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
+		return nil, ctxerr.Wrap(ctx, err, "insert into host_scim_user")
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "host_scim_user rows affected")
+		return nil, ctxerr.Wrap(ctx, err, "host_scim_user rows affected")
 	}
 	if rows == 0 {
-		return nil
+		return nil, nil
 	}
 	// resend profiles that depend on the user now associated with that host
 	//
@@ -4869,37 +4952,68 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 }
 
 // deleteHostSCIMUserMapping is a helper function to delete SCIM user mapping for a host
-func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID uint) error {
-	_, err := exec.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
+func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	result, err := exec.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
+		return nil, ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "delete host SCIM user mapping rows affected")
+	}
+	if rows == 0 {
+		return nil, nil
 	}
 
-	return triggerResendProfilesUsingVariables(ctx, exec, []uint{hostID},
-		[]fleet.FleetVarName{
-			fleet.FleetVarHostEndUserIDPUsername,
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-			fleet.FleetVarHostEndUserIDPGroups,
-			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname,
-		})
+	vars := []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+		fleet.FleetVarHostEndUserIDPGroups,
+		fleet.FleetVarHostEndUserIDPDepartment,
+		fleet.FleetVarHostEndUserIDPFullname,
+	}
+	resentCerts, err := selectCertTemplatesToResend(ctx, exec, []uint{hostID}, fleetVarNamesToDBVars(vars))
+	if err != nil {
+		return nil, err
+	}
+	if err := triggerResendProfilesUsingVariables(ctx, exec, []uint{hostID}, vars); err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
-func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Remove any existing SCIM user mapping for this host
-		if err := deleteHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	var resentCerts []fleet.ActivityTypeResentCertificate
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		resentCerts = nil
+		if _, err := deleteHostSCIMUserMapping(ctx, tx, hostID); err != nil {
 			return err
 		}
 
-		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+		certs, err := associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+		if err != nil {
+			return err
+		}
+		resentCerts = certs
+		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
-func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return deleteHostSCIMUserMapping(ctx, tx, hostID)
+func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	var resentCerts []fleet.ActivityTypeResentCertificate
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var txErr error
+		resentCerts, txErr = deleteHostSCIMUserMapping(ctx, tx, hostID)
+		return txErr
 	})
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
@@ -5060,6 +5174,9 @@ func (ds *Datastore) GetHostMunkiVersion(ctx context.Context, hostID uint) (stri
 
 func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	var hmdm fleet.HostMDM
+	// connected_to_fleet field mirrors IsHostConnectedToFleetMDM (and the connected_to_fleet condition in hostMDMSelect): the
+	// host_mdm row must be enrolled and the platform-specific enrollment record must be active. NOTE: if you change any of these
+	// conditions, also update IsHostConnectedToFleetMDM and the hostMDMSelect constant.
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hmdm, `
 		SELECT
 			hm.host_id,
@@ -5071,9 +5188,27 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 			hm.managed_apple_id,
 			COALESCE(hm.is_server, false) AS is_server,
 			COALESCE(mdms.name, ?) AS name,
-			hdep.assign_profile_response AS dep_profile_assign_status
+			hdep.assign_profile_response AS dep_profile_assign_status,
+			CASE
+				WHEN hm.enrolled = 1 AND h.platform = 'windows' THEN EXISTS (
+					SELECT 1 FROM mdm_windows_enrollments mwe
+					WHERE mwe.host_uuid = h.uuid
+					AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
+				)
+				WHEN hm.enrolled = 1 AND h.platform IN ('ios', 'ipados', 'darwin') THEN EXISTS (
+					SELECT 1 FROM nano_enrollments ne
+					WHERE ne.id = h.uuid
+					AND ne.enabled = 1
+					AND ne.type IN ('Device', 'User Enrollment (Device)')
+				)
+				WHEN hm.enrolled = 1 AND h.platform = 'android' THEN 1
+				ELSE 0
+			END AS connected_to_fleet
 		FROM
 			host_mdm hm
+		LEFT OUTER JOIN
+			hosts h
+			ON h.id = hm.host_id
 		LEFT OUTER JOIN
 			mobile_device_management_solutions mdms
 			ON hm.mdm_id = mdms.id
@@ -6351,6 +6486,33 @@ SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE 
 	return count, nil
 }
 
+// numHostsFleetMDMEnrolledDB returns the number of macOS and Windows hosts that are currently enrolled in Fleet's own
+// MDM. It excludes hosts enrolled in a third-party MDM, server hosts (host_mdm.is_server = 1), and hosts that are not
+// currently enrolled (host_mdm.enrolled = 0, which includes ABM-pending and unenrolled hosts).
+func numHostsFleetMDMEnrolledDB(ctx context.Context, db sqlx.QueryerContext) (macOS int, windows int, err error) {
+	var counts struct {
+		MacOS   int `db:"macos"`
+		Windows int `db:"windows"`
+	}
+	const stmt = `
+SELECT
+	COALESCE(SUM(CASE WHEN h.platform = 'darwin' THEN 1 ELSE 0 END), 0) AS macos,
+	COALESCE(SUM(CASE WHEN h.platform = 'windows' THEN 1 ELSE 0 END), 0) AS windows
+FROM host_mdm hm
+	JOIN hosts h ON h.id = hm.host_id
+	JOIN mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
+WHERE hm.enrolled = 1
+	AND NOT COALESCE(hm.is_server, false)
+	AND mdms.name = ?
+	AND h.platform IN ('darwin', 'windows')
+	`
+	if err := sqlx.GetContext(ctx, db, &counts, stmt, fleet.WellKnownMDMFleet); err != nil {
+		return 0, 0, err
+	}
+
+	return counts.MacOS, counts.Windows, nil
+}
+
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
 	result := map[string]*fleet.Host{}
 	if len(serials) == 0 {
@@ -6503,6 +6665,7 @@ const hostLiteColumns = `
 	h.hardware_serial,
 	h.distributed_interval,
 	h.config_tls_refresh,
+	h.created_at,
 	COALESCE(hst.seen_time, h.created_at) AS seen_time`
 
 func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *string) (*fleet.HostLite, error) {

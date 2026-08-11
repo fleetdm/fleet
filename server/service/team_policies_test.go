@@ -27,7 +27,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) (tpol, ipol []*fleet.Policy, err error) {
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string) (tpol, ipol []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
@@ -155,7 +155,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, _, err = svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{}, false, "")
+			_, _, err = svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{}, false, "", "")
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetTeamPolicyByID(ctx, 1, 1)
@@ -202,6 +202,143 @@ func TestTeamPolicyVPPAutomationRejectsNonMacOS(t *testing.T) {
 		SoftwareTitleID: ptr.Uint(123),
 	})
 	require.ErrorContains(t, err, "is associated to an iOS or iPadOS VPP app")
+}
+
+func TestTeamPolicyPatchWhenClosed(t *testing.T) {
+	const (
+		teamID               = uint(1)
+		policyID             = uint(42)
+		patchSoftwareTitleID = uint(401)
+	)
+	patchType := fleet.PolicyTypePatch
+
+	freshPatchPolicy := func() *fleet.Policy {
+		tID := teamID
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				ID:                   policyID,
+				TeamID:               &tID,
+				Name:                 "macOS - App up to date",
+				Type:                 fleet.PolicyTypePatch,
+				PatchSoftwareTitleID: new(patchSoftwareTitleID),
+			},
+		}
+	}
+
+	adminCtx := func(ctx context.Context) context.Context {
+		return viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+	}
+
+	setupDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+			return freshPatchPolicy(), nil
+		}
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+			return &fleet.SoftwareInstaller{TitleID: new(patchSoftwareTitleID), SoftwareTitle: "App", DisplayName: "App"}, nil
+		}
+		ds.ClearPreInstallQueryForTitleFunc = func(ctx context.Context, teamID uint, titleID uint) error {
+			return nil
+		}
+		return ds
+	}
+
+	// Creating a patch-when-closed policy with continuous automations on succeeds and clears the
+	// title's managed pre-install query.
+	t.Run("create patch-when-closed policy", func(t *testing.T) {
+		ds := setupDS()
+		var captured fleet.PolicyPayload
+		ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+			captured = args
+			created := freshPatchPolicy()
+			created.PatchWhenClosed = true
+			return created, nil
+		}
+		opts := &TestServerOpts{}
+		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
+			Type:                         &patchType,
+			PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+			PatchWhenClosed:              true,
+			ContinuousAutomationsEnabled: true,
+		})
+		require.NoError(t, err)
+		assert.True(t, captured.PatchWhenClosed)
+		assert.True(t, captured.ContinuousAutomationsEnabled)
+		// enabling patch_when_closed cancels the title's pending installs so they re-evaluate
+		assert.True(t, ds.ClearPreInstallQueryForTitleFuncInvoked)
+	})
+
+	// continuous_automations_enabled=false with patch_when_closed=true is rejected on create too.
+	t.Run("create rejects disabling continuous automations", func(t *testing.T) {
+		ds := setupDS()
+		svc, baseCtx := newTestService(t, ds, nil, nil)
+		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
+			Type:                         &patchType,
+			PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+			PatchWhenClosed:              true,
+			ContinuousAutomationsEnabled: false,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "continuous_automations_enabled")
+	})
+
+	// patch_when_closed only applies to patch policies.
+	t.Run("create rejects patch_when_closed on non-patch policy", func(t *testing.T) {
+		ds := setupDS()
+		svc, baseCtx := newTestService(t, ds, nil, nil)
+		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
+			Name:  "dynamic policy",
+			Query: "SELECT 1;",
+			// Continuous automations must be on, otherwise that check rejects the payload first.
+			PatchWhenClosed:              true,
+			ContinuousAutomationsEnabled: true,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "only supported for patch policies")
+	})
+
+	// An explicit continuous_automations_enabled=false alongside patch_when_closed=true is rejected;
+	// omitting it (see next case) still auto-sets it to true.
+	t.Run("modify rejects disabling continuous automations", func(t *testing.T) {
+		ds := setupDS()
+		svc, baseCtx := newTestService(t, ds, nil, nil)
+		_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, fleet.ModifyPolicyPayload{
+			PatchWhenClosed:              new(true),
+			ContinuousAutomationsEnabled: new(false),
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "continuous_automations_enabled")
+	})
+
+	// Enabling patch_when_closed on modify forces continuous automations on.
+	t.Run("modify auto-sets continuous automations", func(t *testing.T) {
+		ds := setupDS()
+		var saved *fleet.Policy
+		ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
+			saved = p
+			return nil
+		}
+		opts := &TestServerOpts{}
+		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, fleet.ModifyPolicyPayload{
+			PatchWhenClosed: new(true),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, saved)
+		assert.True(t, saved.PatchWhenClosed)
+		assert.True(t, saved.ContinuousAutomationsEnabled)
+		// enabling patch_when_closed cancels the title's pending installs so they re-evaluate
+		assert.True(t, ds.ClearPreInstallQueryForTitleFuncInvoked)
+	})
 }
 
 // TestTeamPolicyAutomationsPopulated verifies that every endpoint that
@@ -257,10 +394,10 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		ds.TeamPolicyFunc = func(ctx context.Context, tID uint, id uint) (*fleet.Policy, error) {
 			return freshPolicy(), nil
 		}
-		ds.ListTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		ds.ListTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string) ([]*fleet.Policy, []*fleet.Policy, error) {
 			return []*fleet.Policy{freshPolicy()}, nil, nil
 		}
-		ds.ListMergedTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, error) {
+		ds.ListMergedTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, automationFilter string, platform string) ([]*fleet.Policy, error) {
 			return []*fleet.Policy{freshPolicy()}, nil
 		}
 		ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
@@ -272,6 +409,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 			require.Equal(t, softwareInstallerID, id)
 			return &fleet.SoftwareInstaller{
+				InstallerID:   softwareInstallerID,
 				TitleID:       ptr.Uint(softwareInstallerTitle),
 				SoftwareTitle: installerSoftwareTitle,
 				DisplayName:   installerDisplayName,
@@ -309,6 +447,10 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		assert.Equal(t, softwareInstallerTitle, p.InstallSoftware.SoftwareTitleID)
 		assert.Equal(t, installerSoftwareTitle, p.InstallSoftware.Name)
 		assert.Equal(t, installerDisplayName, p.InstallSoftware.DisplayName)
+		// SoftwareInstallerID lets the FE pre-fill the "Select package" pin
+		// on reload instead of always re-deriving first-added.
+		require.NotNil(t, p.InstallSoftware.SoftwareInstallerID, "install_software.software_installer_id should be populated")
+		assert.Equal(t, softwareInstallerID, *p.InstallSoftware.SoftwareInstallerID)
 
 		require.NotNil(t, p.RunScript, "run_script should be populated")
 		assert.Equal(t, scriptID, p.RunScript.ID)
@@ -318,6 +460,9 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		assert.Equal(t, patchInstallerTitleID, p.PatchSoftware.SoftwareTitleID)
 		assert.Equal(t, patchSoftwareTitleName, p.PatchSoftware.Name)
 		assert.Equal(t, patchSoftwareDisplay, p.PatchSoftware.DisplayName)
+		// Patch policies target FMA titles (single installer per title), so
+		// per-package pinning doesn't apply and the field stays nil.
+		assert.Nil(t, p.PatchSoftware.SoftwareInstallerID, "patch_software.software_installer_id should stay nil")
 	}
 
 	// requireSoftwareIconURLs verifies that install_software.icon_url is set to the
@@ -384,7 +529,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		svc, baseCtx := newTestService(t, ds, nil, nil)
 		ctx := adminCtx(baseCtx)
 
-		teamPols, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, false, "")
+		teamPols, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, false, "", "")
 		require.NoError(t, err)
 		require.Len(t, teamPols, 1)
 		requireAutomationsPopulated(t, teamPols[0])
@@ -396,7 +541,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		svc, baseCtx := newTestService(t, ds, nil, nil)
 		ctx := adminCtx(baseCtx)
 
-		merged, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, true, "")
+		merged, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, true, "", "")
 		require.NoError(t, err)
 		require.Len(t, merged, 1)
 		requireAutomationsPopulated(t, merged[0])

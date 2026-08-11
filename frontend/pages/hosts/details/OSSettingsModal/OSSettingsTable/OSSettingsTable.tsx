@@ -10,20 +10,24 @@ const baseClass = "os-settings-table";
 interface IOSSettingsTableProps {
   canResendProfiles: boolean;
   canRotateRecoveryLockPassword?: boolean;
+  canResendHostNameTemplate?: boolean;
   tableData: IHostMdmProfileWithAddedStatus[];
   resendRequest: (profileUUID: string) => Promise<void>;
   resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
   rotateRecoveryLockPassword?: () => Promise<void>;
+  resendHostNameTemplate?: () => Promise<void>;
   onProfileResent: () => void;
 }
 
 const OSSettingsTable = ({
   canResendProfiles,
   canRotateRecoveryLockPassword = false,
+  canResendHostNameTemplate = false,
   tableData,
   resendRequest,
   resendCertificateRequest,
   rotateRecoveryLockPassword,
+  resendHostNameTemplate,
   onProfileResent,
 }: IOSSettingsTableProps) => {
   // useMemo prevents tooltip flashing during host data refetch
@@ -35,7 +39,9 @@ const OSSettingsTable = ({
         onProfileResent,
         resendCertificateRequest,
         canRotateRecoveryLockPassword,
-        rotateRecoveryLockPassword
+        rotateRecoveryLockPassword,
+        canResendHostNameTemplate,
+        resendHostNameTemplate
       ),
     [
       canResendProfiles,
@@ -43,6 +49,8 @@ const OSSettingsTable = ({
       onProfileResent,
       canRotateRecoveryLockPassword,
       rotateRecoveryLockPassword,
+      canResendHostNameTemplate,
+      resendHostNameTemplate,
       resendCertificateRequest,
     ]
   );

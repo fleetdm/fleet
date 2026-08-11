@@ -253,7 +253,7 @@ spec:
       /usr/bin/sudo /bin/launchctl bootout system/com.apple.screensharing
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM launchd WHERE label = 'com.apple.screensharing'
+      SELECT 1 FROM listening_ports WHERE port = 5900 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -281,7 +281,7 @@ spec:
       /usr/bin/sudo /bin/launchctl bootout system/com.apple.smbd
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM launchd WHERE label = 'com.apple.smbd'
+      SELECT 1 FROM listening_ports WHERE port = 445 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -334,7 +334,7 @@ spec:
       (confirm with "yes" when prompted)
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM launchd WHERE label = 'com.openssh.sshd'
+      SELECT 1 FROM listening_ports WHERE port = 22 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -388,7 +388,7 @@ spec:
       /usr/bin/sudo /usr/sbin/systemsetup -setremoteappleevents off
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM launchd WHERE label = 'com.apple.AEServer'
+      SELECT 1 FROM listening_ports WHERE port = 3031 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -420,10 +420,7 @@ spec:
       - Key: forceInternetSharingOff, Value: <true/>
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM plist
-      WHERE path = '/Library/Preferences/SystemConfiguration/com.apple.nat'
-        AND key = 'Enabled'
-        AND value = '1'
+      SELECT 1 FROM sharing_preferences WHERE internet_sharing = 1
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -534,10 +531,7 @@ spec:
       /usr/bin/sudo -u <username> /usr/bin/defaults -currentHost write com.apple.Bluetooth PrefKeyServicesEnabled -bool false
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM preferences
-      WHERE domain = 'com.apple.Bluetooth'
-        AND key = 'PrefKeyServicesEnabled'
-        AND value = '1'
+      SELECT 1 FROM sharing_preferences WHERE bluetooth_sharing = 1
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -722,11 +716,19 @@ spec:
       8. Set Encrypt Backup to enabled
       9. Enter a password in the New Password and the same password in the Re-enter Password fields
   query: |
-    SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM plist
-      WHERE path = '/Library/Preferences/com.apple.TimeMachine.plist'
-        AND value = 'NotEncrypted'
-    );
+    SELECT 1 WHERE
+      NOT EXISTS (
+        SELECT 1 FROM preferences
+        WHERE domain = 'com.apple.TimeMachine'
+          AND key = 'AutoBackup'
+          AND value = 'true'
+      )
+      OR EXISTS (
+        SELECT 1 FROM disk_encryption de
+        JOIN mounts m ON m.device = de.name
+        WHERE de.encrypted = 1
+          AND m.path LIKE '/Volumes/%'
+      );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
@@ -1765,14 +1767,14 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Screen Saver Corners Are Secure (FDA Required)
+  name: CIS - Ensure Screen Saver Hot Corners Are Secure For Current User (FDA Required)
   cis_id: "2.7.1"
   platforms: macOS
   platform: darwin
   description: |
-    Hot Corners can be configured to disable the screen saver by moving the mouse cursor to a corner of the screen. Setting a hot corner to disable the screen saver poses a potential security risk since an unauthorized person could use this to bypass the login screen and gain access to the system.
+    Hot Corners can be configured to disable the screen saver by moving the mouse cursor to a corner of the screen. This can only be accomplished by the current user, so that is the only user that needs to be audited. Setting a hot corner to disable the screen saver poses a potential security risk since an unauthorized person could use this to bypass the login screen and gain access to the system.
 
-    FDA (Full Disk Access) is required to read the configuration of all users on the device (`/Users/*/Library/Preferences/com.apple.dock.plist`).
+    FDA (Full Disk Access) is required to read the current console user's Dock configuration (`/Users/<current user>/Library/Preferences/com.apple.dock.plist`).
   resolution: |
     Graphical Method:
       1. Open System Settings
@@ -1780,20 +1782,26 @@ spec:
       3. Select Hot Corners...
       4. Verify that Disable Screen Saver (value 6) is not set to any of the corners
 
-    Terminal Method (per user):
-      /usr/bin/sudo -u <user> /usr/bin/defaults write com.apple.dock wvous-tl-corner -int 0
-      /usr/bin/sudo -u <user> /usr/bin/defaults write com.apple.dock wvous-tr-corner -int 0
-      /usr/bin/sudo -u <user> /usr/bin/defaults write com.apple.dock wvous-bl-corner -int 0
-      /usr/bin/sudo -u <user> /usr/bin/defaults write com.apple.dock wvous-br-corner -int 0
+    Terminal Method (current user):
+      /usr/bin/sudo -u <current user> /usr/bin/defaults write com.apple.dock wvous-tl-corner -int 0
+      /usr/bin/sudo -u <current user> /usr/bin/defaults write com.apple.dock wvous-tr-corner -int 0
+      /usr/bin/sudo -u <current user> /usr/bin/defaults write com.apple.dock wvous-bl-corner -int 0
+      /usr/bin/sudo -u <current user> /usr/bin/defaults write com.apple.dock wvous-br-corner -int 0
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM plist
-      WHERE path LIKE '/Users/%/Library/Preferences/com.apple.dock.plist'
+      WHERE path = (
+          SELECT '/Users/' || user || '/Library/Preferences/com.apple.dock.plist'
+          FROM logged_in_users
+          WHERE type = 'user' AND tty = 'console'
+          ORDER BY time DESC
+          LIMIT 1
+        )
         AND key IN ('wvous-tl-corner', 'wvous-tr-corner', 'wvous-bl-corner', 'wvous-br-corner')
         AND value = 6
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
@@ -1961,24 +1969,22 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Security Auditing Retention Is Enabled
+  name: CIS - Ensure Security Auditing Logs Are Retained for 30 Days
   cis_id: "3.4"
   platforms: macOS
   platform: darwin
   description: |
-    The macOS audit capability contains important information to investigate security or operational issues. This resource is only completely useful if it is retained long enough to allow technical staff to find the root cause of anomalies in the records. Retention should respect both size and longevity — at least 60 days or 5 gigabytes of audit records.
+    The macOS audit capability contains important information to investigate security or operational issues. This resource is only completely useful if it is retained long enough to allow technical staff to find the root cause of anomalies in the records. The recommendation is to retain audit logs for at least 30 days (expire-after:30d). If your organization has storage constraints, a size clause may be added in addition to the days retained, for example: expire-after:30d OR 5G.
   resolution: |
     Terminal Method:
-      Edit /etc/security/audit_control so that expire-after: is at least 60d OR 5G.
+      Edit /etc/security/audit_control so that expire-after: is at least 30d.
   query: |
     SELECT 1 WHERE EXISTS (
-      SELECT line,
-             CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 1) AS INTEGER) AS days,
-             CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 2) AS INTEGER) AS size
+      SELECT 1
       FROM file_lines
       WHERE path = '/etc/security/audit_control'
-        AND days >= 60
-        AND size >= 5
+        AND line LIKE 'expire-after:%'
+        AND CAST(regex_match(line, 'expire-after:\s*(\d+)d', 1) AS INTEGER) >= 30
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -2243,6 +2249,8 @@ spec:
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM file f
       WHERE f.path LIKE '/Library/%'
+        -- Exclude the non-accessible /Library/AppStore folder (per CIS audit)
+        AND NOT (f.path = '/Library/AppStore' OR f.path LIKE '/Library/AppStore/%')
         AND f.type = 'directory'
         AND (CAST(SUBSTR(f.mode, -1) AS INTEGER) & 2) = 2
         AND CAST(SUBSTR(f.mode, 1, 1) AS INTEGER) NOT IN (1, 3, 5, 7)
@@ -2290,18 +2298,11 @@ spec:
       - Key: minLength
       - Value: <integer>15</integer> (or any value ≥ 15)
   query: |
-    SELECT 1
-    FROM (
-      SELECT CAST(lengthtxt AS INTEGER) AS minlength
-      FROM (
-        SELECT SUBSTRING(length, 1, 2) AS lengthtxt
-        FROM (
-          SELECT split(policy_content, '{', 1) AS length
-          FROM password_policy
-          WHERE policy_identifier LIKE '%minLength'
-        )
-      )
-      WHERE minlength >= 15
+    SELECT 1 FROM (
+      SELECT CAST(JSON_EXTRACT(policy_parameters, '$.minimumLength') AS INTEGER) AS minlength
+      FROM password_policy
+      WHERE policy_identifier LIKE '%minChars'
+      AND minlength >= 15
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -2344,6 +2345,43 @@ spec:
       - Key: pinHistory
       - Value: <integer>24</integer> (or any value ≥ 24)
   query: SELECT 1 FROM pwd_policy WHERE history_depth >= 24;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure all internal user storage APFS volumes are encrypted (Fleetd Required)
+  cis_id: "5.3.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple developed the APFS (Apple File System) structure primarily for flash and solid-state
+    drives. This file structure was first made available in 10.12 and then became the default in
+    10.13. macOS computers generally have several volumes created as part of APFS formatting,
+    including Preboot, Recovery and Virtual Memory (VM), as well as traditional user disks.
+    All APFS volumes that do not have specific roles and do not require encryption should be
+    encrypted. "Role" disks include Preboot, Recovery and VM. User disks are labelled with "(No
+    specific role)" by default.
+
+    Note: The fleetd `apfs_volumes` table does not distinguish internal from external disks, so
+    this query evaluates all non-role APFS volumes. External APFS/HFS+ volumes (CIS 5.3.2) are
+    not separately covered — see the README limitations.
+  resolution: |
+    Manual method:
+    Use Disk Utility to erase a user disk and format as APFS (Encrypted).
+    Note: APFS Encrypted disks will be described as "FileVault" whether they are the boot volume or not in the ap list.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM apfs_volumes WHERE
+        role != "VM" AND
+        role != "Update" AND
+        role != "Recovery" AND
+        role != "Preboot" AND
+        role != "xART" AND
+        role != "Hardware" AND
+        filevault != 1
+    );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
@@ -2403,10 +2441,12 @@ spec:
   platform: darwin
   description: |
     Enabling and using the root account puts the system at risk since any successful exploit or mistake while the root account is in use could have unlimited access privileges within the system. Using sudo allows users to perform functions as root while limiting and password-protecting the access privileges.
+
+    If root was ever enabled it may have been granted a secure token that is not removed when the account is disabled. The audit verifies that root has no secure token — even when the account is not enabled — by confirming the AuthenticationAuthority key is absent for /Users/root.
   resolution: |
     Terminal Method:
-      /usr/bin/sudo /usr/sbin/dsenableroot -d
-      /usr/bin/sudo /usr/bin/dscl . -create /Users/root UserShell /usr/bin/false
+      /usr/bin/sudo /usr/bin/fdesetup remove -user root
+      /usr/bin/sudo /usr/bin/dscl /Local/Default delete /Users/root AuthenticationAuthority
   query: SELECT 1 FROM dscl WHERE command = 'read' AND path = '/Users/root' AND key = 'AuthenticationAuthority' AND value = '';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -2431,6 +2471,7 @@ spec:
       FROM authdb
       WHERE right_name = 'system.login.screensaver'
         AND rule LIKE '%authenticate-session-owner%'
+        AND rule NOT LIKE '%authenticate-session-owner-or-admin%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -2492,11 +2533,8 @@ spec:
       /usr/bin/sudo /usr/bin/xprotect update
   query: |
     SELECT 1 WHERE (
-      SELECT COUNT(*) FROM launchd
-      WHERE path IN (
-        '/Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist',
-        '/Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist'
-      )
+      SELECT COUNT(DISTINCT name) FROM processes
+      WHERE name IN ('xprotectd', 'XProtectPluginService') AND uid = 0
     ) = 2;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -2516,9 +2554,8 @@ spec:
         Defaults log_allowed
   query: |
     SELECT 1 WHERE EXISTS (
-      SELECT COALESCE(JSON_EXTRACT(json_result, '$.Log when a command is allowed by sudoers'), '') AS log_allowed
-      FROM sudo_info
-      WHERE log_allowed LIKE '%true%' OR log_allowed = '1'
+      SELECT 1 FROM sudo_info
+      WHERE json_type(json_result, '$.Log when a command is allowed by sudoers') IS NOT NULL
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1

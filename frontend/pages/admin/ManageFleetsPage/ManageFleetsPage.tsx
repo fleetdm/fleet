@@ -64,7 +64,7 @@ const ManageFleetsPage = ({
   const [isUpdatingFleets, setIsUpdatingFleets] = useState(false);
   const [showCreateFleetModal, setShowCreateFleetModal] = useState(false);
 
-  // Mirror the gate used by the in-page "Create fleet" button:
+  // Mirror the gate used by the in-page "Add fleet" button:
   // Primo mode and GitOps mode both disable creation.
   const isCreateFleetDisabled =
     !!config?.partnerships?.enable_primo ||
@@ -344,7 +344,7 @@ const ManageFleetsPage = ({
           defaultSortDirection="asc"
           actionButton={{
             name: "create fleet",
-            buttonText: "Create fleet",
+            buttonText: "Add fleet",
             variant: "default",
             onClick: toggleCreateFleetModal,
             hideButton: false,
@@ -358,7 +358,7 @@ const ManageFleetsPage = ({
                 onClick={toggleCreateFleetModal}
                 className={`${noFleetsClass}__create-button`}
               >
-                Create fleet
+                Add fleet
               </Button>
             );
             const primaryButton = disabledPrimaryActionTooltip ? (
@@ -377,7 +377,7 @@ const ManageFleetsPage = ({
             return (
               <EmptyState
                 header="No fleets yet"
-                info="Create a fleet to add hosts and assign users."
+                info="Add a fleet to add hosts and assign users."
                 primaryButton={primaryButton}
               />
             );

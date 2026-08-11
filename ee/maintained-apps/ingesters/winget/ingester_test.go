@@ -481,6 +481,11 @@ func TestIngestValidations(t *testing.T) {
 			if c.wantPatchedContains != "" {
 				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
 			}
+			// The managed "is app open" query matches a process named "<title>.exe".
+			require.Equal(t,
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');",
+				out.Queries.Open,
+			)
 		})
 	}
 }
@@ -556,4 +561,160 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
 	}))
+}
+
+// newTwoVersionServer serves a package with version dirs 2.0 and 1.0; the 2.0 installer
+// manifest responds with the given status.
+func newTwoVersionServer(t *testing.T, latestInstallerStatus int) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeYAMLContent := func(v any) {
+			bytes, err := yaml.Marshal(v)
+			if err != nil {
+				t.Errorf("marshaling fixture: %v", err)
+				return
+			}
+			str := string(bytes)
+			content := &github.RepositoryContent{Name: new("Foo"), Content: &str}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+		}
+		manifest := installerManifest{
+			ProductCode:    "{ABCDEF}",
+			InstallerType:  "msi",
+			Scope:          "machine",
+			PackageVersion: "1.0",
+			Installers: []installer{
+				{Architecture: "x64", InstallerType: "msi", ProductCode: "{ABCDEF}", Scope: "machine"},
+			},
+		}
+
+		switch r.URL.Path {
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
+			content := []github.RepositoryContent{
+				{Name: new("2.0"), Type: new("dir")},
+				{Name: new("1.0"), Type: new("dir")},
+			}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/2.0/Foo.installer.yaml":
+			w.WriteHeader(latestInstallerStatus)
+			_, _ = w.Write([]byte(`{"message": "gitmon refuses to schedule us"}`))
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+			writeYAMLContent(manifest)
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+			writeYAMLContent(localeManifest{PackageName: "foo", Publisher: "Bar, Inc."})
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+}
+
+func TestIngestOneVersionWalk(t *testing.T) {
+	ctx := context.Background()
+	input := inputApp{
+		Name:              "Foo",
+		UniqueIdentifier:  "Foo",
+		PackageIdentifier: "Foo",
+		Slug:              "foo/windows",
+		InstallerArch:     "x64",
+		InstallerType:     "msi",
+		InstallerScope:    "machine",
+	}
+
+	newIngester := func(srv *httptest.Server) *wingetIngester {
+		gc := github.NewClient(srv.Client())
+		u, err := url.Parse(srv.URL + "/")
+		require.NoError(t, err)
+		gc.BaseURL = u
+		return &wingetIngester{logger: slog.New(slog.DiscardHandler), githubClient: gc}
+	}
+
+	t.Run("404 on the latest version dir falls through to the next", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusNotFound)
+		t.Cleanup(srv.Close)
+
+		out, err := newIngester(srv).ingestOne(ctx, input)
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
+	})
+
+	t.Run("429 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusTooManyRequests)
+		t.Cleanup(srv.Close)
+
+		_, err := newIngester(srv).ingestOne(ctx, input)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "429")
+		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
+	})
+
+	t.Run("504 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusGatewayTimeout)
+		t.Cleanup(srv.Close)
+
+		_, err := newIngester(srv).ingestOne(ctx, input)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "504")
+		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
+	})
+}
+
+func TestNormalizeSourceForgeURL(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			// CrystalDiskMark's manifest omits the suffix, so a bare fetch gets
+			// SourceForge's HTML landing page instead of the installer.
+			name: "project file URL gets the download suffix",
+			in:   "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe",
+			want: "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe/download",
+		},
+		{
+			name: "already suffixed URL is left alone",
+			in:   "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
+			want: "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
+		},
+		{
+			name: "www host is normalized too",
+			in:   "https://www.sourceforge.net/projects/foo/files/bar.exe",
+			want: "https://www.sourceforge.net/projects/foo/files/bar.exe/download",
+		},
+		{
+			// This host serves the bytes directly; a suffix would 404.
+			name: "downloads subdomain is untouched",
+			in:   "https://downloads.sourceforge.net/project/crystaldiskmark/9.0.3/CrystalDiskMark9_0_3.exe",
+			want: "https://downloads.sourceforge.net/project/crystaldiskmark/9.0.3/CrystalDiskMark9_0_3.exe",
+		},
+		{
+			name: "non-file sourceforge path is untouched",
+			in:   "https://sourceforge.net/projects/crystaldiskmark/",
+			want: "https://sourceforge.net/projects/crystaldiskmark/",
+		},
+		{
+			name: "other hosts are untouched",
+			in:   "https://github.com/owner/repo/releases/download/v1/app.exe",
+			want: "https://github.com/owner/repo/releases/download/v1/app.exe",
+		},
+		{
+			name: "query string is preserved",
+			in:   "https://sourceforge.net/projects/foo/files/bar.exe?use_mirror=psychz",
+			want: "https://sourceforge.net/projects/foo/files/bar.exe/download?use_mirror=psychz",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, normalizeSourceForgeURL(tt.in))
+		})
+	}
 }

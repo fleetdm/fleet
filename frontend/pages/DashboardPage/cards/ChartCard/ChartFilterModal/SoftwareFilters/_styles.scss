@@ -33,6 +33,10 @@
     gap: $pad-small;
   }
 
+  &__advanced-toggle {
+    align-self: flex-start;
+  }
+
   &__advanced {
     display: flex;
     flex-direction: column;

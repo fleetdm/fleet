@@ -34,6 +34,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Critical:                     req.Critical,
 		CalendarEventsEnabled:        req.CalendarEventsEnabled,
 		SoftwareTitleID:              req.SoftwareTitleID,
+		SoftwareInstallerID:          req.SoftwareInstallerID,
 		ScriptID:                     req.ScriptID,
 		LabelsIncludeAny:             req.LabelsIncludeAny,
 		LabelsIncludeAll:             req.LabelsIncludeAll,
@@ -43,6 +44,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		ContinuousAutomationsEnabled: req.ContinuousAutomationsEnabled,
 		Type:                         req.Type,
 		PatchSoftwareTitleID:         req.PatchSoftwareTitleID,
+		PatchWhenClosed:              req.PatchWhenClosed,
 	})
 	if err != nil {
 		return fleet.TeamPolicyResponse{Err: err}, nil
@@ -100,6 +102,13 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 
 	if err := svc.populateAutomationsForTeamPolicy(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
+	}
+
+	//nolint:nilaway // ds.NewTeamPolicy returns an error whenever policy is nil
+	if policy.Type == fleet.PolicyTypePatch && policy.PatchWhenClosed && policy.PatchSoftwareTitleID != nil {
+		if err := svc.ds.ClearPreInstallQueryForTitle(ctx, teamID, *policy.PatchSoftwareTitleID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clear pre-install query for title")
+		}
 	}
 
 	if teamID == 0 {
@@ -172,9 +181,10 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
 		}
 		p.InstallSoftware = &fleet.PolicySoftwareTitle{
-			SoftwareTitleID: *installerMetadata.TitleID,
-			Name:            installerMetadata.SoftwareTitle,
-			DisplayName:     installerMetadata.DisplayName,
+			SoftwareTitleID:     *installerMetadata.TitleID,
+			SoftwareInstallerID: new(installerMetadata.InstallerID),
+			Name:                installerMetadata.SoftwareTitle,
+			DisplayName:         installerMetadata.DisplayName,
 		}
 		return nil
 	} else if p.VPPAppsTeamsID != nil {
@@ -206,6 +216,8 @@ func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Po
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by title id")
 		}
+		// SoftwareInstallerID intentionally omitted — patch policies target FMA
+		// titles (single installer per title) so per-package pinning doesn't apply.
 		p.PatchSoftware = &fleet.PolicySoftwareTitle{
 			SoftwareTitleID: *installerMetadata.TitleID,
 			Name:            installerMetadata.SoftwareTitle,
@@ -293,10 +305,16 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		policyType = fleet.PolicyTypePatch
 	}
 
-	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
+	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID, p.SoftwareInstallerID)
 	if err != nil {
 		return fleet.PolicyPayload{}, err
 	}
+
+	// Continuous automations must be enabled so the patch policy keeps retrying until the app is closed.
+	if p.PatchWhenClosed && !p.ContinuousAutomationsEnabled {
+		return fleet.PolicyPayload{}, &fleet.BadRequestError{Message: errPatchWhenClosedRequiresContinuousAutomations}
+	}
+
 	return fleet.PolicyPayload{
 		QueryID:                      p.QueryID,
 		Name:                         p.Name,
@@ -315,6 +333,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsExcludeAll:             p.LabelsExcludeAll,
 		ConditionalAccessEnabled:     p.ConditionalAccessEnabled,
 		ContinuousAutomationsEnabled: p.ContinuousAutomationsEnabled,
+		PatchWhenClosed:              p.PatchWhenClosed,
 		Type:                         policyType,
 		PatchSoftwareTitleID:         p.PatchSoftwareTitleID,
 	}, nil
@@ -334,20 +353,24 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 		OrderKey:       req.InheritedOrderKey,
 	}
 
-	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited, req.AutomationType)
+	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited, req.AutomationType, req.Platform)
 	if err != nil {
 		return fleet.ListTeamPoliciesResponse{Err: err}, nil
 	}
 	return fleet.ListTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
 }
 
-func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string, platform string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
 		},
 	}, fleet.ActionRead); err != nil {
 		return nil, nil, err
+	}
+
+	if err := fleet.ValidatePolicyPlatformFilter(platform); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
 	if teamID > 0 {
@@ -357,7 +380,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if mergeInherited {
-		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter)
+		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter, platform)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -372,7 +395,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		return policies, nil, nil
 	}
 
-	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts, automationFilter)
+	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts, automationFilter, platform)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -395,20 +418,24 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.CountTeamPoliciesRequest)
-	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited, req.AutomationType)
+	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited, req.AutomationType, req.Platform)
 	if err != nil {
 		return fleet.CountTeamPoliciesResponse{Err: err}, nil
 	}
 	return fleet.CountTeamPoliciesResponse{Count: count, InheritedPolicyCount: inheritedCount}, nil
 }
 
-func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error) {
+func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
 		},
 	}, fleet.ActionRead); err != nil {
 		return 0, 0, err
+	}
+
+	if err := fleet.ValidatePolicyPlatformFilter(platform); err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err)
 	}
 
 	if teamID > 0 {
@@ -418,18 +445,24 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 	}
 
 	if mergeInherited {
-		count, err := svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery, automationType)
+		count, err := svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery, automationType, platform)
 		if err != nil {
 			return 0, 0, err
 		}
-		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery, automationType)
+		// CountPolicies ignores automationType when teamID is nil, so the
+		// inherited count would be wrong (too high) when an automation filter
+		// is active. Short-circuit to 0 in that case.
+		if automationType != "" {
+			return count, 0, nil
+		}
+		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery, automationType, platform)
 		if err != nil {
 			return 0, 0, err
 		}
 		return count, inheritedCount, nil
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, &teamID, matchQuery, automationType)
+	count, err := svc.ds.CountPolicies(ctx, &teamID, matchQuery, automationType, platform)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -682,12 +715,35 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.ContinuousAutomationsEnabled != nil {
 		policy.ContinuousAutomationsEnabled = *p.ContinuousAutomationsEnabled
 	}
+	patchWhenClosed := policy.PatchWhenClosed
+	if p.PatchWhenClosed != nil {
+		patchWhenClosed = *p.PatchWhenClosed
+	}
+	// patch_when_closed needs continuous automations: reject an explicit false, otherwise force it on.
+	if patchWhenClosed && p.ContinuousAutomationsEnabled != nil && !*p.ContinuousAutomationsEnabled {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: errPatchWhenClosedRequiresContinuousAutomations})
+	}
+	if patchWhenClosed {
+		policy.ContinuousAutomationsEnabled = true
+	}
+	policy.PatchWhenClosed = patchWhenClosed
 	if removeStats {
 		policy.FailingHostCount = 0
 		policy.PassingHostCount = 0
 	}
+	// A chosen installer without a title has nothing to resolve against (the software block below
+	// only runs when the title is set), so reject it rather than silently ignore the choice.
+	if !p.SoftwareTitleID.Set && p.SoftwareInstallerID.Set && p.SoftwareInstallerID.Value != 0 {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "software_installer_id can only be set together with software_title_id",
+		})
+	}
 	if p.SoftwareTitleID.Set {
-		softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, teamID, &p.SoftwareTitleID.Value)
+		var chosenInstallerID *uint
+		if p.SoftwareInstallerID.Set && p.SoftwareInstallerID.Value != 0 {
+			chosenInstallerID = &p.SoftwareInstallerID.Value
+		}
+		softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, teamID, &p.SoftwareTitleID.Value, chosenInstallerID)
 		if err != nil {
 			return nil, err
 		}
@@ -744,6 +800,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	if err := svc.populateAutomationsForTeamPolicy(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
+	}
+
+	if policy.Type == fleet.PolicyTypePatch && policy.PatchWhenClosed && policy.PatchSoftwareTitleID != nil {
+		if err := svc.ds.ClearPreInstallQueryForTitle(ctx, ptr.ValOrZero(teamID), *policy.PatchSoftwareTitleID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clear pre-install query for title")
+		}
 	}
 
 	if teamID == nil {
@@ -816,19 +878,41 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	return policy, nil
 }
 
-func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *uint, softwareTitleID *uint) (installerID *uint, vppAppsTeamsID *uint, err error) {
-	if softwareTitleID == nil {
-		return nil, nil, nil
-	}
+func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *uint, softwareTitleID *uint, chosenInstallerID *uint) (installerID *uint, vppAppsTeamsID *uint, err error) {
+	installerChosen := chosenInstallerID != nil && *chosenInstallerID != 0
 
-	// If *p.SoftwareTitleID with value 0 is used to unset the current installer from the policy.
-	if *softwareTitleID == 0 {
+	// SoftwareTitleID value 0 (or nil) unsets the current installer from the policy. A chosen
+	// installer without a title has nothing to resolve against, so reject it rather than silently drop it.
+	if softwareTitleID == nil || *softwareTitleID == 0 {
+		if installerChosen {
+			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "software_installer_id can only be set together with software_title_id",
+			})
+		}
 		return nil, nil, nil
 	}
 
 	if teamID == nil {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "Software title ID cannot be set on global policies",
+		})
+	}
+
+	// When the caller selects a specific package, honor it. A chosen installer is always a custom
+	// package (VPP apps have no per-package selection). Validate it against the title's active
+	// packages so it belongs to this title/team and isn't an inactive row.
+	if installerChosen {
+		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, *softwareTitleID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list packages for chosen policy installer")
+		}
+		for _, p := range pkgs {
+			if p.InstallerID == *chosenInstallerID {
+				return new(*chosenInstallerID), nil, nil
+			}
+		}
+		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("Software installer with ID %d does not belong to software title ID %d on team ID %d", *chosenInstallerID, *softwareTitleID, *teamID),
 		})
 	}
 

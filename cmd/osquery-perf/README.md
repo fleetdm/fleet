@@ -116,6 +116,56 @@ Example of running the agent with MDM. Note that `enroll_secret` is not needed f
 go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep_challenge 0d53306e-6d7a-9d14-a372-f9e53f9d62db
 ```
 
+`mdm_prob` determines the probability of MDM enrollment for each host. The default is 0 (0%). You can set it to 1.0 to ensure all hosts enroll in MDM.
+
+`mdm_user_prob` determines the probability of MDM user enrollment for each host. The default is 0 (0%). You can set it to 1.0 to ensure all hosts enroll in MDM user enrollment. This probability stacks with `mdm_prob`. So this probability is based on the hosts who end up MDM enrolling.
+
+`mdm_ios_byod_prob` determines the probability that a simulated iOS/iPadOS device (`iphone_14.6`, `ipad_13.18`, `iphone_17` templates) reports as a personal (BYOD) enrollment, which omits the newer device vitals fields from its `DeviceInformation` ack, matching what Fleet's server asks a real BYOD device for. The default is 0 (all simulated iOS/iPadOS devices report the full vitals set).
+
+### Apple Platform SSO (PSSO)
+
+A subset of macOS MDM agents can additionally exercise Apple Platform SSO: device
+registration, password login (proxied through Fleet to your IdP), and the
+offline-unlock key request/exchange. This requires a server that has account
+provisioning configured (with a reachable ROPG IdP) and the PSSO configuration
+profile assigned to the enrolled hosts — the agent obtains its Fleet-signed
+registration token from the delivered profile, so nothing happens until that
+profile reconciles onto the host.
+
+Each selected agent registers once (staggered across `--mdm_psso_interval` to
+avoid a thundering herd), does one login and one key request/exchange during
+setup, and then, on each interval, performs a login and/or a key request/exchange
+according to their probabilities — spread across the interval rather than on the
+tick boundary.
+
+- `--mdm_psso_prob`: default 0, probability an MDM-enrolled macOS host also simulates PSSO [0, 1]
+- `--mdm_psso_client_id`: IdP/extension client ID, must match the server's account provisioning config (PSSO is skipped when empty)
+- `--mdm_psso_username` / `--mdm_psso_password`: IdP credentials used for logins (must be accepted by the IdP Fleet proxies to)
+- `--mdm_psso_interval`: default 4h, window for staggering registrations and recurring logins/key operations
+- `--mdm_psso_login_prob`: default 1.0, probability of a login during each interval after registration [0, 1]
+- `--mdm_psso_key_prob`: default 0.1, probability of a key request/exchange during each interval after registration [0, 1]
+
+```
+go run agent.go --host_count 100 --mdm_prob 1.0 --mdm_scep_challenge <challenge> \
+  --mdm_psso_prob 0.5 --mdm_psso_client_id <client-id> \
+  --mdm_psso_username loadtest@example.com --mdm_psso_password <password> \
+  --mdm_psso_interval 4h --mdm_psso_login_prob 1.0 --mdm_psso_key_prob 0.1
+```
+
+### Synthetically reproducing MDM device protocol failures
+
+#### NotNow'ing profiles
+
+> Currently only supported for macOS and `InstallProfile` commands
+
+To force an osquery-perf agent to respond with `NotNow` once to an `InstallProfile` command, the payload has to contain `NotNow` anywhere in the profile. It will NotNow once, then acknowledge it on next check-in. To force a new `NotNow` response, you have to change the `ProfileIdentifier`.
+
+#### Forcing a certain error code and failure for InstallApplication
+
+> Currently only supported for macOS.
+
+To force a certain ErrorCode and failure for an `InstallApplication` command, the `iTunesStoreID` payload field has to have a value below 100_000. The agent will respond with a failure and the specified error code, which helps QA and repro logic scenarios on certain error codes.
+
 ## Installing software
 
 The agent can install software for "macos", "ubuntu", and "windows" OSs when running with orbit agent. The following options control the installation behavior:

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -248,9 +249,9 @@ func getScimUserLiteByHostID(ctx context.Context, q sqlx.QueryerContext, hostID 
 }
 
 // ReplaceScimUser replaces an existing SCIM user in the database
-func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {
+func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
 	if err := validateScimUserFields(user); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Validate that at most one email is marked as primary
@@ -261,17 +262,19 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 	}
 	if primaryCount > 1 {
-		return ctxerr.New(ctx, "only one email can be marked as primary")
+		return nil, ctxerr.New(ctx, "only one email can be marked as primary")
 	}
 
 	// Get current emails and check if they need to be updated
 	currentEmails, err := ds.getScimUserEmails(ctx, user.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	emailsNeedUpdate := emailsRequireUpdate(currentEmails, user.Emails)
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var resentCerts []fleet.ActivityTypeResentCertificate
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		resentCerts = nil
 		// load the username and department before updating the user, to check if it changed
 		old := struct {
 			UserName   string  `db:"user_name"`
@@ -355,14 +358,19 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 
 		// resend profiles that depend on this username if it changed
 		if usernameChanged || departmentChanged || nameChanged {
-			err = triggerResendProfilesForIDPUserChange(ctx, tx, user.ID)
+			certs, err := triggerResendProfilesForIDPUserChange(ctx, tx, user.ID)
 			if err != nil {
 				return err
 			}
+			resentCerts = append(resentCerts, certs...)
 		}
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser) error {
@@ -399,14 +407,18 @@ func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser)
 }
 
 // DeleteScimUser deletes a SCIM user from the database
-func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	var resentCerts []fleet.ActivityTypeResentCertificate
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		resentCerts = nil
+
 		// trigger resend of profiles that depend on this SCIM user (must be done
 		// _before_ deleting the scim user so that we can find the affected hosts)
-		err := triggerResendProfilesForIDPUserDeleted(ctx, tx, id)
+		certs, err := triggerResendProfilesForIDPUserDeleted(ctx, tx, id)
 		if err != nil {
 			return err
 		}
+		resentCerts = append(resentCerts, certs...)
 
 		// Delete the user
 		const deleteUserQuery = `DELETE FROM scim_users WHERE id = ?`
@@ -426,6 +438,10 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 // ListScimUsers retrieves a list of SCIM users with optional filtering
@@ -590,12 +606,23 @@ func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]flee
 }
 
 func getScimUserGroups(ctx context.Context, q sqlx.QueryerContext, userID uint) ([]fleet.ScimUserGroup, error) {
+	// A user's effective group membership is the set of groups they are a direct
+	// member of, plus every ancestor group reachable by walking parent -> child
+	// edges upward (nested groups, as provisioned by Entra ID). The recursive CTE
+	// seeds from the user's direct groups and walks up to each parent group. UNION
+	// (not UNION ALL) dedupes and guarantees termination even if a cycle exists.
 	const query = `
-		SELECT
-			sg.id, sg.display_name
+		WITH RECURSIVE user_groups AS (
+			SELECT group_id FROM scim_user_group WHERE scim_user_id = ?
+			UNION
+			SELECT gg.parent_group_id
+			FROM user_groups ug
+			JOIN scim_group_group gg ON gg.child_group_id = ug.group_id
+		)
+		SELECT sg.id, sg.display_name
 		FROM scim_groups sg
-		JOIN scim_user_group sug ON sg.id = sug.group_id
-		WHERE sug.scim_user_id = ? ORDER BY sg.id ASC
+		JOIN user_groups ug ON sg.id = ug.group_id
+		ORDER BY sg.id ASC
 	`
 	var groups []fleet.ScimUserGroup
 	err := sqlx.SelectContext(ctx, q, &groups, query, userID)
@@ -668,15 +695,30 @@ func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup
 		group.ID = uint(id) // nolint:gosec // dismiss G115
 		groupID = group.ID
 
+		// Insert nested child group edges if any
+		if len(group.ChildGroups) > 0 {
+			if err := insertScimGroupChildren(ctx, tx, group.ID, group.ChildGroups); err != nil {
+				return err
+			}
+		}
+
 		// Insert user-group relationships if any
 		if len(group.ScimUsers) > 0 {
 			if err := insertScimGroupUsers(ctx, tx, group.ID, group.ScimUsers); err != nil {
 				return err
 			}
-			// this is a new group, but it is associated with existing users -
-			// trigger a resend of profiles that use the IdP groups variable for
-			// hosts related to this group's users.
-			return triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, group.ScimUsers)
+		}
+
+		// this is a new group, but it may already be associated with existing
+		// users (directly, or transitively through nested child groups) - trigger
+		// a resend of profiles that use the IdP groups variable for the affected
+		// hosts.
+		if len(group.ScimUsers) > 0 || len(group.ChildGroups) > 0 {
+			affectedUsers, err := getTransitiveScimGroupUserIDs(ctx, tx, group.ID)
+			if err != nil {
+				return err
+			}
+			return triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, affectedUsers)
 		}
 
 		return nil
@@ -721,7 +763,7 @@ func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, groupID uint,
 }
 
 // ScimGroupByID retrieves a SCIM group by ID
-// If excludeUsers is true, the group's users will not be fetched
+// If excludeUsers is true, the group's users (and nested child groups) will not be fetched
 func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint, excludeUsers bool) (*fleet.ScimGroup, error) {
 	const query = `
 		SELECT
@@ -738,16 +780,135 @@ func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint, excludeUsers bo
 		return nil, ctxerr.Wrap(ctx, err, "select scim group")
 	}
 
-	// Get the group's users if not excluded
+	// Get the group's members (users and nested child groups) if not excluded
 	if !excludeUsers {
 		users, err := getScimGroupUsers(ctx, ds.reader(ctx), id)
 		if err != nil {
 			return nil, err
 		}
 		group.ScimUsers = users
+
+		children, err := getScimGroupChildren(ctx, ds.reader(ctx), id)
+		if err != nil {
+			return nil, err
+		}
+		group.ChildGroups = children
 	}
 
 	return group, nil
+}
+
+// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore.
+// If the slice is empty, it returns true. This mirrors ScimUsersExist.
+func (ds *Datastore) ScimGroupsExist(ctx context.Context, ids []uint) (bool, error) {
+	if len(ids) == 0 {
+		return true, nil
+	}
+
+	// Create a set to track which IDs we've found
+	foundIDs := make(map[uint]struct{}, len(ids))
+
+	batchSize := 10000
+	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
+		query, args, err := sqlx.In(`
+			SELECT id
+			FROM scim_groups
+			WHERE id IN (?)
+		`, batchIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare scim groups exist batch query")
+		}
+
+		var foundBatchIDs []uint
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if scim groups exist in batch")
+		}
+
+		for _, id := range foundBatchIDs {
+			foundIDs[id] = struct{}{}
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// Verify that all requested IDs were found
+	for _, id := range ids {
+		if _, ok := foundIDs[id]; !ok {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// insertScimGroupChildren inserts direct parent -> child SCIM group edges
+func insertScimGroupChildren(ctx context.Context, tx sqlx.ExtContext, parentGroupID uint, childGroupIDs []uint) error {
+	if len(childGroupIDs) == 0 {
+		return nil
+	}
+
+	batchSize := 10000
+	return common_mysql.BatchProcessSimple(childGroupIDs, batchSize, func(childIDsInBatch []uint) error {
+		valueStrings := make([]string, 0, len(childIDsInBatch))
+		valueArgs := make([]any, 0, len(childIDsInBatch)*2)
+		for _, childID := range childIDsInBatch {
+			valueStrings = append(valueStrings, "(?, ?)")
+			valueArgs = append(valueArgs, parentGroupID, childID)
+		}
+
+		insertQuery := `
+		INSERT INTO scim_group_group (
+			parent_group_id, child_group_id
+		) VALUES ` + strings.Join(valueStrings, ",") + `
+		ON DUPLICATE KEY UPDATE created_at = scim_group_group.created_at` // no-op update to avoid duplicate key errors
+
+		if _, err := tx.ExecContext(ctx, insertQuery, valueArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert scim group children")
+		}
+		return nil
+	})
+}
+
+// getScimGroupChildren retrieves the IDs of the direct (nested) child groups of a SCIM group
+func getScimGroupChildren(ctx context.Context, q sqlx.QueryerContext, groupID uint) ([]uint, error) {
+	const query = `
+		SELECT
+			child_group_id
+		FROM scim_group_group
+		WHERE parent_group_id = ? ORDER BY child_group_id ASC
+	`
+	var childIDs []uint
+	err := sqlx.SelectContext(ctx, q, &childIDs, query, groupID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select scim group children")
+	}
+	return childIDs, nil
+}
+
+// getTransitiveScimGroupUserIDs returns the IDs of all SCIM users who are
+// effective members of the given group -- that is, direct members of the group
+// or of any of its (recursively) nested child groups.
+func getTransitiveScimGroupUserIDs(ctx context.Context, q sqlx.QueryerContext, groupID uint) ([]uint, error) {
+	const query = `
+		WITH RECURSIVE descendants AS (
+			SELECT ? AS group_id
+			UNION
+			SELECT gg.child_group_id
+			FROM descendants d
+			JOIN scim_group_group gg ON gg.parent_group_id = d.group_id
+		)
+		SELECT DISTINCT sug.scim_user_id
+		FROM descendants d
+		JOIN scim_user_group sug ON sug.group_id = d.group_id
+	`
+	var userIDs []uint
+	err := sqlx.SelectContext(ctx, q, &userIDs, query, groupID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select transitive scim group users")
+	}
+	return userIDs, nil
 }
 
 // ScimGroupByDisplayName retrieves a SCIM group by display name
@@ -768,12 +929,18 @@ func (ds *Datastore) ScimGroupByDisplayName(ctx context.Context, displayName str
 		return nil, ctxerr.Wrap(ctx, err, "select scim group by displayName")
 	}
 
-	// Get the group's users
+	// Get the group's members (users and nested child groups)
 	users, err := getScimGroupUsers(ctx, ds.reader(ctx), group.ID)
 	if err != nil {
 		return nil, err
 	}
 	group.ScimUsers = users
+
+	children, err := getScimGroupChildren(ctx, ds.reader(ctx), group.ID)
+	if err != nil {
+		return nil, err
+	}
+	group.ChildGroups = children
 
 	return group, nil
 }
@@ -902,18 +1069,103 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 			}
 		}
 
+		// Reconcile nested child group edges the same way. Collect the users whose
+		// effective membership changed (the whole subtree of each added/removed
+		// child) so we can resend affected profiles below.
+		existingChildren, err := getScimGroupChildren(ctx, tx, group.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get existing scim group children")
+		}
+		childrenToAdd, childrenToRemove := diffUintSlices(existingChildren, group.ChildGroups)
+
+		if len(childrenToAdd) > 0 {
+			if err = insertScimGroupChildren(ctx, tx, group.ID, childrenToAdd); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert new scim group children")
+			}
+		}
+		if len(childrenToRemove) > 0 {
+			batchSize := 10000
+			err = common_mysql.BatchProcessSimple(childrenToRemove, batchSize, func(childIDsInBatch []uint) error {
+				params := make([]any, len(childIDsInBatch)+1)
+				params[0] = group.ID
+				for i, childID := range childIDsInBatch {
+					params[i+1] = childID
+				}
+
+				deleteQuery := "DELETE FROM scim_group_group WHERE parent_group_id = ? AND child_group_id IN (" +
+					strings.Repeat("?, ", len(childIDsInBatch)-1) + "?)"
+
+				_, err = tx.ExecContext(ctx, deleteQuery, params...)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "delete removed scim group children")
+				}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+
 		// resend profiles that depend on the updated group to hosts that are
 		// related to the users in the updated group (only for those users that
 		// were affected by the group change)
 		if groupNameChanged {
-			// if the name of the group changed, all hosts with users part of this group
-			// are affected
-			err = triggerResendProfilesForIDPGroupChange(ctx, tx, group.ID)
-		} else if len(usersToAdd) > 0 || len(usersToRemove) > 0 {
-			err = triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, append(append([]uint{}, usersToAdd...), usersToRemove...))
+			// if the name of the group changed, all hosts with users part of this
+			// group (directly or through nested child groups) are affected
+			affectedUsers, err := getTransitiveScimGroupUserIDs(ctx, tx, group.ID)
+			if err != nil {
+				return err
+			}
+			err = triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, affectedUsers)
+			if err != nil {
+				return err
+			}
+		} else {
+			affectedUsers := append(append([]uint{}, usersToAdd...), usersToRemove...)
+			// A child group edge change affects every user in that child's subtree,
+			// since their effective membership in this group (and its ancestors)
+			// changed.
+			for _, childID := range append(append([]uint{}, childrenToAdd...), childrenToRemove...) {
+				subtreeUsers, err := getTransitiveScimGroupUserIDs(ctx, tx, childID)
+				if err != nil {
+					return err
+				}
+				affectedUsers = append(affectedUsers, subtreeUsers...)
+			}
+			if len(affectedUsers) > 0 {
+				if err = triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, affectedUsers); err != nil {
+					return err
+				}
+			}
 		}
-		return err
+		return nil
 	})
+}
+
+// diffUintSlices returns the elements to add (in want but not in have) and to
+// remove (in have but not in want). toAdd is deduplicated, preserving order:
+// want may come straight from a SCIM payload, which can repeat members.
+func diffUintSlices(have, want []uint) (toAdd, toRemove []uint) {
+	haveSet := make(map[uint]struct{}, len(have))
+	for _, id := range have {
+		haveSet[id] = struct{}{}
+	}
+	wantSet := make(map[uint]struct{}, len(want))
+	for _, id := range want {
+		wantSet[id] = struct{}{}
+	}
+	for _, id := range want {
+		if _, ok := haveSet[id]; !ok {
+			toAdd = append(toAdd, id)
+			haveSet[id] = struct{}{}
+		}
+	}
+	for _, id := range have {
+		if _, ok := wantSet[id]; !ok {
+			toRemove = append(toRemove, id)
+		}
+	}
+	return toAdd, toRemove
 }
 
 // DeleteScimGroup deletes a SCIM group from the database
@@ -1175,38 +1427,53 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 	return hostIDs, nil
 }
 
-func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, updatedScimUserID uint) error {
+func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, updatedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, updatedScimUserID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]fleet.FleetVarName{
-			fleet.FleetVarHostEndUserIDPUsername,
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname,
-		})
+	vars := []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+		fleet.FleetVarHostEndUserIDPDepartment,
+		fleet.FleetVarHostEndUserIDPFullname,
+	}
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, fleetVarNamesToDBVars(vars))
+	if err != nil {
+		return nil, err
+	}
+	if err := triggerResendProfilesUsingVariables(ctx, tx, hostIDs, vars); err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
-func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtContext, deletedScimUserID uint) error {
+func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtContext, deletedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, deletedScimUserID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]fleet.FleetVarName{
-			fleet.FleetVarHostEndUserIDPUsername,
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-			fleet.FleetVarHostEndUserIDPGroups,
-			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname,
-		})
+	vars := []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+		fleet.FleetVarHostEndUserIDPGroups,
+		fleet.FleetVarHostEndUserIDPDepartment,
+		fleet.FleetVarHostEndUserIDPFullname,
+	}
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, fleetVarNamesToDBVars(vars))
+	if err != nil {
+		return nil, err
+	}
+	if err := triggerResendProfilesUsingVariables(ctx, tx, hostIDs, vars); err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtContext, updatedScimGroupID uint) error {
-	// get the updated list of users for that group
-	userIDs, err := getScimGroupUsers(ctx, tx, updatedScimGroupID)
+	// get the updated list of effective users for that group (direct members plus
+	// members of any nested child groups)
+	userIDs, err := getTransitiveScimGroupUserIDs(ctx, tx, updatedScimGroupID)
 	if err != nil {
 		return err
 	}
@@ -1236,25 +1503,114 @@ func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.
 		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 }
 
-func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, updatedScimUserID uint) error {
+func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, updatedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	// check that this user is indeed the scim IdP user for this host (and not an
 	// extra, unused one)
 	user, err := getScimUserLiteByHostID(ctx, tx, hostID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if updatedScimUserID != user.ID {
 		// host is not impacted, updated user is not its IdP user
-		return nil
+		return nil, nil
 	}
-	return triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID},
-		[]fleet.FleetVarName{
-			fleet.FleetVarHostEndUserIDPUsername,
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPGroups,
-			fleet.FleetVarHostEndUserIDPFullname,
+	vars := []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+		fleet.FleetVarHostEndUserIDPDepartment,
+		fleet.FleetVarHostEndUserIDPGroups,
+		fleet.FleetVarHostEndUserIDPFullname,
+	}
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, []uint{hostID}, fleetVarNamesToDBVars(vars))
+	if err != nil {
+		return nil, err
+	}
+	if err := triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID}, vars); err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
+}
+
+func selectCertTemplatesToResend(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, vars []any) ([]fleet.ActivityTypeResentCertificate, error) {
+	if len(hostIDs) == 0 || len(vars) == 0 {
+		return nil, nil
+	}
+
+	const query = `
+	SELECT DISTINCT
+		h.id AS host_id,
+		COALESCE(h.computer_name, '') AS computer_name,
+		COALESCE(h.hostname, '') AS hostname,
+		COALESCE(h.hardware_model, '') AS hardware_model,
+		COALESCE(h.hardware_serial, '') AS hardware_serial,
+		ct.id AS certificate_template_id,
+		ct.name AS certificate_name
+	FROM
+		host_certificate_templates hct
+		JOIN hosts h
+			ON h.uuid = hct.host_uuid
+		JOIN certificate_templates ct
+			ON ct.id = hct.certificate_template_id AND
+			   ct.team_id = COALESCE(h.team_id, 0)
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.certificate_template_id = ct.id
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	WHERE
+		h.id IN (:host_ids) AND
+		hct.operation_type = :operation_type_install AND
+		hct.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
+	namedParams := map[string]any{
+		"host_ids":               hostIDs,
+		"operation_type_install": fleet.MDMOperationTypeInstall,
+		"affected_vars":          vars,
+	}
+
+	stmt, args, err := sqlx.Named(query, namedParams)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare select cert templates to resend names")
+	}
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare select cert templates to resend arguments")
+	}
+
+	type row struct {
+		HostID                uint   `db:"host_id"`
+		ComputerName          string `db:"computer_name"`
+		Hostname              string `db:"hostname"`
+		HardwareModel         string `db:"hardware_model"`
+		HardwareSerial        string `db:"hardware_serial"`
+		CertificateTemplateID uint   `db:"certificate_template_id"`
+		CertificateName       string `db:"certificate_name"`
+	}
+	var rows []row
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select cert templates to resend")
+	}
+
+	activities := make([]fleet.ActivityTypeResentCertificate, 0, len(rows))
+	for _, r := range rows {
+		activities = append(activities, fleet.ActivityTypeResentCertificate{
+			HostID:                r.HostID,
+			HostDisplayName:       fleet.HostDisplayName(r.ComputerName, r.Hostname, r.HardwareModel, r.HardwareSerial),
+			CertificateTemplateID: r.CertificateTemplateID,
+			CertificateName:       r.CertificateName,
+			Automated:             true,
 		})
+	}
+	return activities, nil
+}
+
+func fleetVarNamesToDBVars(vars []fleet.FleetVarName) []any {
+	result := make([]any, len(vars))
+	for i, v := range vars {
+		result[i] = "FLEET_VAR_" + string(v)
+	}
+	return result
 }
 
 func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
@@ -1327,8 +1683,11 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		JOIN mdm_apple_declarations mad
 			ON (mad.team_id = h.team_id OR (COALESCE(mad.team_id, 0) = 0 AND h.team_id IS NULL)) AND
 				 mad.declaration_uuid = hmad.declaration_uuid
+		LEFT JOIN mdm_apple_ddm_activations act
+			ON act.declaration_uuid = mad.declaration_uuid
 		JOIN mdm_configuration_profile_variables mcpv
 			ON mcpv.apple_declaration_uuid = mad.declaration_uuid
+				OR mcpv.apple_ddm_activation_uuid = act.activation_uuid
 		JOIN fleet_variables fv
 			ON mcpv.fleet_variable_id = fv.id
 	SET
@@ -1341,17 +1700,69 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		fv.name IN (:affected_vars)
 `
 
+	const certTemplateUpdateStatusQuery = `
+	UPDATE
+		host_certificate_templates hct
+		JOIN hosts h
+			ON h.uuid = hct.host_uuid
+		JOIN certificate_templates ct
+			ON ct.id = hct.certificate_template_id AND
+			   ct.team_id = COALESCE(h.team_id, 0)
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.certificate_template_id = ct.id
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	SET
+		hct.status = :cert_pending_status,
+		hct.uuid = UUID_TO_BIN(UUID(), true),
+		hct.fleet_challenge = NULL,
+		hct.not_valid_before = NULL,
+		hct.not_valid_after = NULL,
+		hct.serial = NULL,
+		hct.detail = NULL,
+		hct.retry_count = 0
+	WHERE
+		h.id IN (:host_ids) AND
+		hct.operation_type = :operation_type_install AND
+		hct.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
 	vars := make([]any, len(affectedVars))
 	for i, v := range affectedVars {
 		vars[i] = "FLEET_VAR_" + string(v)
 	}
 
-	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery} {
-		updateStmt, args, err := sqlx.Named(query, map[string]any{
-			"host_ids":               hostIDs,
-			"operation_type_install": fleet.MDMOperationTypeInstall,
-			"affected_vars":          vars,
-		})
+	namedParams := map[string]any{
+		"host_ids":               hostIDs,
+		"operation_type_install": fleet.MDMOperationTypeInstall,
+		"affected_vars":          vars,
+	}
+
+	const androidUpdateStatusQuery = `
+	UPDATE
+		host_mdm_android_profiles hmap
+		JOIN hosts h
+			ON h.uuid = hmap.host_uuid
+		JOIN mdm_android_configuration_profiles macp
+			ON (macp.team_id = COALESCE(h.team_id, 0)) AND
+				 macp.profile_uuid = hmap.profile_uuid
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.android_profile_uuid = macp.profile_uuid
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	SET
+		hmap.status = NULL,
+		hmap.detail = NULL
+	WHERE
+		h.id IN (:host_ids) AND
+		hmap.operation_type = :operation_type_install AND
+		hmap.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
+	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery, androidUpdateStatusQuery} {
+		updateStmt, args, err := sqlx.Named(query, namedParams)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
 		}
@@ -1364,6 +1775,167 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		_, err = tx.ExecContext(ctx, updateStmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "execute resend profiles")
+		}
+	}
+
+	// Resend certificate templates that use affected variables.
+	certParams := map[string]any{
+		"host_ids":               hostIDs,
+		"operation_type_install": fleet.MDMOperationTypeInstall,
+		"affected_vars":          vars,
+		"cert_pending_status":    fleet.CertificateTemplatePending,
+	}
+	certStmt, certArgs, err := sqlx.Named(certTemplateUpdateStatusQuery, certParams)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare resend certificate templates replace names")
+	}
+	certStmt, certArgs, err = sqlx.In(certStmt, certArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare resend certificate templates arguments")
+	}
+	if _, err = tx.ExecContext(ctx, certStmt, certArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "execute resend certificate templates")
+	}
+
+	// Queue make_android_app_available jobs for managed app configs that use affected variables,
+	// scoped to the teams of the affected hosts.
+	if err := queueManagedConfigResendJobs(ctx, tx, hostIDs, vars); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue managed config resend jobs")
+	}
+
+	// Re-enqueue host name templates that use an affected IdP variable.
+	if err := triggerResendDeviceNamesForIDPChange(ctx, tx, hostIDs, affectedVars); err != nil {
+		return ctxerr.Wrap(ctx, err, "resend host name templates for idp change")
+	}
+
+	return nil
+}
+
+// triggerResendDeviceNamesForIDPChange re-queues host-name enforcement rows so the
+// device-name cron re-resolves with the updated IdP value and enqueues a fresh
+// DeviceName command.
+func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	// Restrict to the affected variables that are actually supported in host name
+	// templates.
+	varNames := make([]string, 0, len(affectedVars))
+	for _, v := range affectedVars {
+		if fleet.IsHostNameTemplateIDPVar(string(v)) {
+			varNames = append(varNames, string(v))
+		}
+	}
+	if len(varNames) == 0 {
+		return nil
+	}
+
+	// A host's governing template is its team template, or the global "No team"
+	// template when it has no team. Match it against the changed variables with a
+	// single alternation (the names are [A-Z_], safe to embed in the pattern); the
+	// pattern value is bound as a parameter.
+	const selectStmt = `
+		SELECT h.id
+		FROM hosts h
+		LEFT JOIN teams t ON t.id = h.team_id
+		WHERE h.id IN (?)
+			AND COALESCE(CASE WHEN h.team_id IS NULL
+				THEN ` + deviceNameNoTeamTemplateExpr + `
+				ELSE t.config->>'$.mdm.name_template' END, '') REGEXP ?`
+
+	// The trailing word boundary keeps a changed HOST_END_USER_IDP_USERNAME from
+	// matching a template that only uses HOST_END_USER_IDP_USERNAME_LOCAL_PART, the
+	// same guard the secret-change path uses.
+	stmt, args, err := sqlx.In(selectStmt, hostIDs, "FLEET_VAR_("+strings.Join(varNames, "|")+`)\b`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build select device name hosts for idp change")
+	}
+	var affectedHostIDs []uint
+	if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select device name hosts for idp change")
+	}
+	if len(affectedHostIDs) == 0 {
+		return nil
+	}
+	return reconcileHostDeviceNamesForHostsDB(ctx, tx, affectedHostIDs)
+}
+
+// queueManagedConfigResendJobs finds android app configs that reference any of
+// the affected fleet variables and inserts worker jobs to re-push the managed
+// configuration with the updated values.
+func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	// Find app configs that use any of the affected variables.
+	const findAffectedApps = `
+	SELECT DISTINCT
+		aac.application_id,
+		vat.id AS app_team_id
+	FROM
+		mdm_configuration_profile_variables mcpv
+		JOIN android_app_configurations aac
+			ON mcpv.android_app_configuration_id = aac.id
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+		JOIN vpp_apps_teams vat
+			ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id AND vat.platform = 'android'
+		JOIN hosts h
+			ON aac.global_or_team_id = COALESCE(h.team_id, 0)
+	WHERE
+		fv.name IN (?) AND
+		h.id IN (?)
+`
+
+	findStmt, findArgs, err := sqlx.In(findAffectedApps, affectedVars, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare find affected app configs")
+	}
+
+	type affectedApp struct {
+		ApplicationID string `db:"application_id"`
+		AppTeamID     uint   `db:"app_team_id"`
+	}
+	var apps []affectedApp
+	if err := sqlx.SelectContext(ctx, tx, &apps, findStmt, findArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "find affected app configs")
+	}
+
+	if len(apps) == 0 {
+		return nil
+	}
+
+	// Get the enterprise name from the DB.
+	var enterpriseID string
+	if err := sqlx.GetContext(ctx, tx, &enterpriseID, `SELECT enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// No enterprise configured — nothing to do.
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get android enterprise id")
+	}
+	enterpriseName := "enterprises/" + enterpriseID
+
+	// Insert a job for each affected app config.
+	const insertJob = `
+	INSERT INTO jobs (name, args, state, error)
+	VALUES (?, ?, 'queued', '')
+`
+	for _, app := range apps {
+		args, err := json.Marshal(map[string]any{
+			"task":               "make_android_app_available",
+			"application_id":     app.ApplicationID,
+			"app_team_id":        app.AppTeamID,
+			"enterprise_name":    enterpriseName,
+			"app_config_changed": true,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshal job args for managed config resend")
+		}
+		if _, err := tx.ExecContext(ctx, insertJob, "software_worker", json.RawMessage(args)); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert managed config resend job")
 		}
 	}
 

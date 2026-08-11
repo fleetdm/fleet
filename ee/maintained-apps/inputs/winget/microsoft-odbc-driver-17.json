@@ -1,0 +1,11 @@
+{
+  "name": "Microsoft ODBC Driver 17 for SQL Server",
+  "slug": "microsoft-odbc-driver-17/windows",
+  "package_identifier": "Microsoft.msodbcsql.17",
+  "unique_identifier": "Microsoft ODBC Driver 17 for SQL Server",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_odbc_driver_17_install.ps1",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

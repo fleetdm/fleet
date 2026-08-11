@@ -37,25 +37,29 @@
         "enable_recovery_lock_password": false,
         "ios_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
         "ipados_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
         "macos_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
+        "name_template": "",
         "setup_experience": {
           "apple_enable_release_device_manually": false,
           "apple_setup_assistant": null,
-          "enable_create_local_admin_account": null,
+          "enable_create_local_admin_account": false,
           "enable_end_user_authentication": false,
-          "end_user_local_account_type": null,
+          "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
           "macos_bootstrap_package": null,
           "macos_manual_agent_install": null,
@@ -66,7 +70,10 @@
         },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "configuration_profiles": null
+          "configuration_profiles": null,
+          "managed_local_account_settings": {
+            "enabled": false
+          }
         },
         "windows_updates": {
           "deadline_days": null,
@@ -83,6 +90,7 @@
           "host_batch_size": 0,
           "policy_ids": null
         },
+        "host_activities_webhook": null,
         "host_status_webhook": null
       }
     },
@@ -118,11 +126,13 @@
         "enable_recovery_lock_password": false,
         "ios_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
         "ipados_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
@@ -132,9 +142,9 @@
         "macos_setup": {
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
-          "enable_managed_local_account": null,
+          "enable_managed_local_account": false,
           "enable_release_device_manually": false,
-          "end_user_local_account_type": null,
+          "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
@@ -145,12 +155,17 @@
         },
         "macos_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
+        "name_template": "",
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "custom_settings": null
+          "custom_settings": null,
+          "managed_local_account_settings": {
+            "enabled": false
+          }
         },
         "windows_updates": {
           "deadline_days": null,
@@ -167,6 +182,7 @@
           "host_batch_size": 0,
           "policy_ids": null
         },
+        "host_activities_webhook": null,
         "host_status_webhook": null
       }
     }
@@ -226,25 +242,29 @@
         "enable_recovery_lock_password": true,
         "ios_updates": {
           "deadline": "2022-11-15",
+          "deadline_days": null,
           "minimum_version": "17.5",
           "update_new_hosts": null
         },
         "ipados_updates": {
           "deadline": "2023-01-01",
+          "deadline_days": null,
           "minimum_version": "18.0",
           "update_new_hosts": null
         },
         "macos_updates": {
           "deadline": "2021-12-14",
+          "deadline_days": null,
           "minimum_version": "12.3.1",
           "update_new_hosts": null
         },
+        "name_template": "",
         "setup_experience": {
           "apple_enable_release_device_manually": false,
           "apple_setup_assistant": null,
-          "enable_create_local_admin_account": null,
+          "enable_create_local_admin_account": false,
           "enable_end_user_authentication": false,
-          "end_user_local_account_type": null,
+          "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
           "macos_bootstrap_package": null,
           "macos_manual_agent_install": null,
@@ -255,7 +275,10 @@
         },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "configuration_profiles": null
+          "configuration_profiles": null,
+          "managed_local_account_settings": {
+            "enabled": false
+          }
         },
         "windows_updates": {
           "deadline_days": 7,
@@ -272,6 +295,7 @@
           "host_batch_size": 0,
           "policy_ids": null
         },
+        "host_activities_webhook": null,
         "host_status_webhook": null
       }
     },
@@ -322,11 +346,13 @@
         "enable_recovery_lock_password": true,
         "ios_updates": {
           "deadline": "2022-11-15",
+          "deadline_days": null,
           "minimum_version": "17.5",
           "update_new_hosts": null
         },
         "ipados_updates": {
           "deadline": "2023-01-01",
+          "deadline_days": null,
           "minimum_version": "18.0",
           "update_new_hosts": null
         },
@@ -336,9 +362,9 @@
         "macos_setup": {
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
-          "enable_managed_local_account": null,
+          "enable_managed_local_account": false,
           "enable_release_device_manually": false,
-          "end_user_local_account_type": null,
+          "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
@@ -349,12 +375,17 @@
         },
         "macos_updates": {
           "deadline": "2021-12-14",
+          "deadline_days": null,
           "minimum_version": "12.3.1",
           "update_new_hosts": null
         },
+        "name_template": "",
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "custom_settings": null
+          "custom_settings": null,
+          "managed_local_account_settings": {
+            "enabled": false
+          }
         },
         "windows_updates": {
           "deadline_days": 7,
@@ -371,6 +402,7 @@
           "host_batch_size": 0,
           "policy_ids": null
         },
+        "host_activities_webhook": null,
         "host_status_webhook": null
       }
     }

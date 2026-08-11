@@ -33,7 +33,7 @@ const ClearPasscodeModal = ({
 
   const isAndroidHost = isAndroid(hostPlatform);
   const isAndroidBYO =
-    isAndroidHost && hostMdmEnrollmentStatus === "On (personal)";
+    isAndroidHost && hostMdmEnrollmentStatus === "On (manual - personal)";
 
   const onClearPasscode = async () => {
     setIsClearingPasscode(true);
@@ -103,7 +103,7 @@ const ClearPasscodeModal = ({
         >
           Clear passcode
         </Button>
-        <Button onClick={onExit} variant="inverse-alert">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>

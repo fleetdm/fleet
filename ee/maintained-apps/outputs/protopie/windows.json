@@ -4,7 +4,8 @@
       "version": "8.3.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ProtoPie' AND publisher = 'Studio XID, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ProtoPie' AND publisher = 'Studio XID, Inc.' AND version_compare(version, '8.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ProtoPie' AND publisher = 'Studio XID, Inc.' AND version_compare(version, '8.3.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'protopie.exe');"
       },
       "installer_url": "https://release.protopie.io/ProtoPie-8.3.1-x64-Setup.exe",
       "install_script_ref": "9421f99b",

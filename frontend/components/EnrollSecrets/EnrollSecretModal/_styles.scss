@@ -8,10 +8,9 @@
     color: $ui-error;
   }
 
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  &__description {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .empty-table__container {

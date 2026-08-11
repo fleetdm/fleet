@@ -16,7 +16,7 @@
 
     &__textarea {
       font-family: "SourceCodePro", $monospace;
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
       line-height: $line-height;
       line-break: anywhere;
       padding: 12px $pad-xlarge 12px $pad-medium;
@@ -30,9 +30,12 @@
     }
   }
 
+  &__advanced--fleet-certificate {
+    @include flex-column-8px-gap;
+  }
+
   &__certificate-loading {
     color: $ui-fleet-black-50;
-    padding-top: $pad-xsmall;
   }
 
   &__certificate-error {
@@ -69,6 +72,15 @@
         height: 190px;
       }
     }
+  }
+
+  &__command-line-tool.custom-link {
+    color: inherit;
+    font-weight: $bold;
+  }
+
+  &__advanced--osqueryd .custom-link {
+    font-weight: $bold;
   }
 
   .download-certificate--tooltip {

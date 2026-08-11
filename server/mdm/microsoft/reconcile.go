@@ -25,24 +25,27 @@ func ComputeWindowsReconcileDeltas(
 
 		labelsForHost := hostLabels[host.HostID]
 
-		for _, p := range teamProfiles {
-			// Determine if this profile should be on this host
-			if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, labelsForHost) {
-				continue
-			}
-			desired[p.ProfileUUID] = p
-		}
-
 		current := currentByHost[host.UUID]
 		currentByProfile := make(map[string]*fleet.MDMWindowsProfilePayload, len(current))
 		for _, c := range current {
 			currentByProfile[c.ProfileUUID] = c
 		}
 
+		for _, p := range teamProfiles {
+			// Determine if this profile should be on this host
+			if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, labelsForHost, profileOnHost(currentByProfile, p.ProfileUUID)) {
+				continue
+			}
+			desired[p.ProfileUUID] = p
+		}
+
 		// Install set
 		for profUUID, p := range desired {
 			c, present := currentByProfile[profUUID]
 			needsInstall := false
+			// previousInstalledChecksum is set only when the install is triggered by a content change (a modify): it is the version
+			// the host currently has, which the cron uses to look up the LocURIs the edit removed so it can <Delete> them.
+			var previousInstalledChecksum []byte
 			switch {
 			case !present:
 				// profile in desired (A) but not in current (B).
@@ -50,6 +53,7 @@ func ComputeWindowsReconcileDeltas(
 			case !bytes.Equal(c.Checksum, p.Checksum):
 				// profile content changed (hmwp.checksum != ds.checksum).
 				needsInstall = true
+				previousInstalledChecksum = c.Checksum
 			case p.SecretsUpdatedAt != nil && c.SecretsUpdatedAt != nil && c.SecretsUpdatedAt.Before(*p.SecretsUpdatedAt):
 				// secret variables updated. Matches
 				// IFNULL(hmwp.secrets_updated_at < ds.secrets_updated_at, FALSE):
@@ -69,11 +73,12 @@ func ComputeWindowsReconcileDeltas(
 			}
 
 			toInstall = append(toInstall, &fleet.MDMWindowsProfilePayload{
-				ProfileUUID:      p.ProfileUUID,
-				ProfileName:      p.ProfileName,
-				HostUUID:         host.UUID,
-				Checksum:         p.Checksum,
-				SecretsUpdatedAt: p.SecretsUpdatedAt,
+				ProfileUUID:               p.ProfileUUID,
+				ProfileName:               p.ProfileName,
+				HostUUID:                  host.UUID,
+				Checksum:                  p.Checksum,
+				SecretsUpdatedAt:          p.SecretsUpdatedAt,
+				PreviousInstalledChecksum: previousInstalledChecksum,
 			})
 		}
 
@@ -99,6 +104,10 @@ func ComputeWindowsReconcileDeltas(
 				Detail:        c.Detail,
 				Status:        c.Status,
 				CommandUUID:   c.CommandUUID,
+				// The version the host has installed. The reconciler builds this host's <Delete> from this exact version's retained
+				// content when available, and writing it to the remove row keeps that retained version alive (reference-counted GC)
+				// until the remove resolves.
+				Checksum: c.Checksum,
 			})
 		}
 	}
@@ -106,21 +115,30 @@ func ComputeWindowsReconcileDeltas(
 }
 
 // DesiredWindowsProfileUUIDsByHost returns, for each host UUID, the live profile UUIDs that apply to it (its desired state), using the
-// same team+label applicability rules as ComputeWindowsReconcileDeltas. The reconciler uses this to protect LocURIs that a remove target
-// shares with a profile still desired on the same host: a <Delete> must not revert a setting another applicable profile still enforces.
-// Applicability is evaluated per host, so a label-scoped profile only protects the hosts it actually applies to.
+// same team+label applicability rules as ComputeWindowsReconcileDeltas (including currentByHost-driven preservation of profiles whose
+// dynamic label membership is still unknown). The reconciler uses this to protect LocURIs that a remove target shares with a profile
+// still desired on the same host: a <Delete> must not revert a setting another applicable profile still enforces. Applicability is
+// evaluated per host, so a label-scoped profile only protects the hosts it actually applies to.
 func DesiredWindowsProfileUUIDsByHost(
 	hosts []*fleet.WindowsHostReconcileInfo,
 	hostLabels map[uint]map[uint]struct{},
+	currentByHost map[string][]*fleet.MDMWindowsProfilePayload,
 	profilesByTeam map[uint][]*fleet.WindowsProfileForReconcile,
 ) map[string][]string {
 	out := make(map[string][]string, len(hosts))
 	for _, host := range hosts {
 		teamProfiles := profilesByTeam[host.EffectiveTeamID()]
 		labelsForHost := hostLabels[host.HostID]
+
+		current := currentByHost[host.UUID]
+		currentByProfile := make(map[string]*fleet.MDMWindowsProfilePayload, len(current))
+		for _, c := range current {
+			currentByProfile[c.ProfileUUID] = c
+		}
+
 		var desired []string
 		for _, p := range teamProfiles {
-			if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, labelsForHost) {
+			if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, labelsForHost, profileOnHost(currentByProfile, p.ProfileUUID)) {
 				continue
 			}
 			desired = append(desired, p.ProfileUUID)
@@ -130,6 +148,14 @@ func DesiredWindowsProfileUUIDsByHost(
 		}
 	}
 	return out
+}
+
+// profileOnHost reports whether the profile currently has an install-operation row on the host (any status, including failed —
+// Fleet still intends it to be there). Remove-operation rows and absent rows mean not on host. The shared dispatcher uses this
+// to preserve the host's current state when a dynamic label's membership is still unknown.
+func profileOnHost(currentByProfile map[string]*fleet.MDMWindowsProfilePayload, profileUUID string) bool {
+	c, ok := currentByProfile[profileUUID]
+	return ok && c != nil && c.OperationType == fleet.MDMOperationTypeInstall
 }
 
 // isTerminalRemoveStatus reports whether a remove row's status is one that the install query treats as "leave alone"

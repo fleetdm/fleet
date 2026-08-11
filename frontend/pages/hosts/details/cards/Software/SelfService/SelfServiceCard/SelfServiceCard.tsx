@@ -22,7 +22,9 @@ import SelfServiceTable from "../components/SelfServiceTable";
 import SelfServiceTiles from "../components/SelfServiceTiles";
 import {
   countUninstalledForInstallAll,
+  filterCategoriesWithSoftware,
   filterSoftwareByCustomCategory,
+  filterSoftwareByQuery,
   hasInProgressInstallAllItems,
 } from "../helpers";
 
@@ -94,24 +96,47 @@ const SelfServiceCard = ({
 
   const categories = useMemo(() => categoriesData ?? [], [categoriesData]);
 
+  // Hide categories with no software. enhancedSoftware is the host's full
+  // self-service list (unpaginated), so everything downstream keys off this.
+  const visibleCategories = useMemo(
+    () => filterCategoriesWithSoftware(categories, enhancedSoftware),
+    [categories, enhancedSoftware]
+  );
+
   const softwareInSelectedCategory = useMemo(
     () =>
       filterSoftwareByCustomCategory(
         enhancedSoftware,
-        categories,
+        visibleCategories,
         queryParams.category_id
       ),
-    [enhancedSoftware, categories, queryParams.category_id]
+    [enhancedSoftware, visibleCategories, queryParams.category_id]
+  );
+
+  // Trim the URL-supplied search once here so the desktop table filter, mobile
+  // list, install-all count, and install-all POST all share identical
+  // semantics. Without this, a deep-linked or trailing-space query like
+  // `?query=%20fox%20` would leave react-table matching the raw value while
+  // the helper/API used the trimmed one, contradicting the on-screen count.
+  const normalizedQuery = queryParams.query?.trim() ?? "";
+
+  // The install-all button count and target must match what's on screen. Layer
+  // the search filter on top of the category filter so `uninstalledCount` and
+  // the request sent to install_all both reflect the filtered subset.
+  const softwareInSelectedCategoryMatchingQuery = useMemo(
+    () => filterSoftwareByQuery(softwareInSelectedCategory, normalizedQuery),
+    [softwareInSelectedCategory, normalizedQuery]
   );
 
   const uninstalledCount = useMemo(
-    () => countUninstalledForInstallAll(softwareInSelectedCategory),
-    [softwareInSelectedCategory]
+    () =>
+      countUninstalledForInstallAll(softwareInSelectedCategoryMatchingQuery),
+    [softwareInSelectedCategoryMatchingQuery]
   );
 
   const hasInProgress = useMemo(
-    () => hasInProgressInstallAllItems(softwareInSelectedCategory),
-    [softwareInSelectedCategory]
+    () => hasInProgressInstallAllItems(softwareInSelectedCategoryMatchingQuery),
+    [softwareInSelectedCategoryMatchingQuery]
   );
 
   const onClientSidePaginationChange = useCallback(
@@ -186,19 +211,29 @@ const SelfServiceCard = ({
   );
 
   // Recover from stale links: if the URL has a category_id that doesn't match
-  // any loaded category (admin deleted it, or the list resolved empty), the
-  // trigger label would fall through to "All" while filterSoftwareByCustomCategory
-  // returns [] — contradicting what the label promises. Drop the param so the
-  // user lands back on a real "All" view.
+  // any visible category (admin deleted it, the list resolved empty, or the
+  // category no longer has any self-service software), the trigger label would
+  // fall through to "All" while filterSoftwareByCustomCategory returns [] —
+  // contradicting what the label promises. Drop the param so the user lands
+  // back on a real "All" view.
   useEffect(() => {
-    if (!isCategoriesSuccess || queryParams.category_id === undefined) return;
-    const idIsKnown = categories.some((c) => c.id === queryParams.category_id);
+    // Wait for software too, else a valid category_id is cleared mid-load.
+    if (
+      !isCategoriesSuccess ||
+      !selfServiceData ||
+      queryParams.category_id === undefined
+    )
+      return;
+    const idIsKnown = visibleCategories.some(
+      (c) => c.id === queryParams.category_id
+    );
     if (!idIsKnown) {
       onCategoryChange(undefined);
     }
   }, [
     isCategoriesSuccess,
-    categories,
+    selfServiceData,
+    visibleCategories,
     queryParams.category_id,
     onCategoryChange,
   ]);
@@ -225,28 +260,25 @@ const SelfServiceCard = ({
 
   // Search query filter required for mobile view only ( desktop view has filter built into TableContainer)
   const filteredSoftware = isMobileView
-    ? softwareInSelectedCategory.filter((software) => {
-        const query = queryParams.query?.toLowerCase().trim() ?? "";
-        if (!query) return true;
-        return software.name.toLowerCase().includes(query);
-      })
+    ? softwareInSelectedCategoryMatchingQuery
     : softwareInSelectedCategory;
 
-  // The button is shown on desktop in the "All" filter and in any selected
-  // category. On
-  // "All", `categoryId` is undefined; the click posts to install_all without a
-  // category_id query param and the BE installs every eligible (uninstalled,
-  // not-in-progress) self-service item. Visibility, count, and disabled state
-  // are owned by InstallAllInCategoryButton — see #47855 for the full rules.
-  const installAllButton = !isMobileView ? (
-    <InstallAllInCategoryButton
-      uninstalledCount={uninstalledCount}
-      hasInProgressInCategory={hasInProgress}
-      deviceToken={deviceToken}
-      categoryId={queryParams.category_id}
-      onSuccess={() => onInstallAllSuccess?.()}
-    />
-  ) : null;
+  // The button is shown on desktop ONLY when a specific category is selected
+  // (`category_id` is defined). On the unfiltered "All" view we suppress it so a
+  // single click can't queue an install of the entire catalog — see #48485.
+  // Visibility beyond this (count / in-progress / disabled state) is owned by
+  // InstallAllInCategoryButton — see #47855 for the full rules.
+  const installAllButton =
+    !isMobileView && queryParams.category_id !== undefined ? (
+      <InstallAllInCategoryButton
+        uninstalledCount={uninstalledCount}
+        hasInProgressInCategory={hasInProgress}
+        deviceToken={deviceToken}
+        categoryId={queryParams.category_id}
+        query={normalizedQuery}
+        onSuccess={() => onInstallAllSuccess?.()}
+      />
+    ) : null;
 
   if (isMobileView) {
     return (
@@ -256,7 +288,7 @@ const SelfServiceCard = ({
           <SelfServiceFilters
             query={queryParams.query}
             categoryId={queryParams.category_id}
-            categories={categories}
+            categories={visibleCategories}
             onSearchQueryChange={onSearchQueryChange}
             onCategoryChange={onCategoryChange}
           />
@@ -292,7 +324,7 @@ const SelfServiceCard = ({
         <SelfServiceFilters
           query={queryParams.query}
           categoryId={queryParams.category_id}
-          categories={categories}
+          categories={visibleCategories}
           onSearchQueryChange={onSearchQueryChange}
           onCategoryChange={onCategoryChange}
           installAllSlot={installAllButton}
@@ -300,7 +332,7 @@ const SelfServiceCard = ({
         <SelfServiceTable
           baseClass={baseClass}
           contactUrl={contactUrl}
-          queryParams={queryParams}
+          queryParams={{ ...queryParams, query: normalizedQuery }}
           enhancedSoftware={filteredSoftware}
           selfServiceData={selfServiceData}
           tableConfig={tableConfig}

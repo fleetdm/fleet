@@ -6,7 +6,11 @@
     font-size: $x-small;
     font-weight: $bold;
     @include ellipse-text;
-    max-width: 48vw;
+    max-width: 60vw;
+
+    @media (max-width: $break-md) {
+      max-width: 48vw;
+    }
   }
 
   &__info {
@@ -21,11 +25,5 @@
     gap: $pad-xsmall;
     font-size: $xx-small;
     align-items: center;
-  }
-
-  &__sha256 {
-    display: flex;
-    align-items: center;
-    gap: $pad-xsmall;
   }
 }

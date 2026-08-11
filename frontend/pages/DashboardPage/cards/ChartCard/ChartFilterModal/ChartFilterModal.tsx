@@ -31,8 +31,7 @@ const baseClass = "chart-filter-modal";
 
 export type ChartFilterTab = "hosts" | "software";
 
-// Exported for testing. Mobile platforms (ios/ipados/android) are selectable
-// here; the chart excludes them by default via ChartCard's DEFAULT_CHART_PLATFORMS.
+// Exported for testing.
 export const PLATFORM_OPTIONS = [
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
@@ -416,12 +415,12 @@ const ChartFilterModal = ({
       )}
       <div className={`${baseClass}__btn-wrap`}>
         {hasFilters && (
-          <Button variant="inverse" onClick={handleClear}>
+          <Button variant="secondary" onClick={handleClear}>
             Clear all
           </Button>
         )}
         <div className={`${baseClass}__btn-actions`}>
-          <Button variant="inverse" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
           {applyDisabled ? (

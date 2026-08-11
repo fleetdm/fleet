@@ -167,8 +167,18 @@ func TestMFA(t *testing.T) {
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return user, nil
 	}
+	var failedLoginActivity bool
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		if activity.ActivityName() == (fleet.ActivityTypeUserFailedLogin{}).ActivityName() {
+			failedLoginActivity = true
+		}
+		return nil
+	}
 	_, _, err := svc.Login(ctx, "foo@example.com", test.GoodPassword, false)
-	require.Equal(t, err, mfaNotSupportedForClient)
+	var authErr *fleet.AuthFailedError
+	require.ErrorAs(t, err, &authErr)
+	require.Equal(t, "Authentication failed", err.Error())
+	require.True(t, failedLoginActivity)
 
 	var sentMail fleet.Email
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error {
@@ -182,15 +192,26 @@ func TestMFA(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	svcForMailing := validationMiddleware{&Service{
+	innerSvc := &Service{
 		ds:          ds,
 		config:      config.TestConfig(),
 		mailService: mailer,
-	}, ds, nil}
+	}
+	var mfaRequestedActivity bool
+	innerSvc.SetActivityService(&mock.MockActivityService{
+		NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			if activity.ActivityName() == (fleet.ActivityTypeUserMFARequested{}).ActivityName() {
+				mfaRequestedActivity = true
+			}
+			return nil
+		},
+	})
+	svcForMailing := validationMiddleware{innerSvc, ds, nil}
 	_, _, err = svcForMailing.Login(ctx, "foo@example.com", test.GoodPassword, true)
 	require.Equal(t, err, sendingMFAEmail)
 	require.Equal(t, "foo@example.com", sentMail.To[0])
 	require.Equal(t, "Log in to Fleet", sentMail.Subject)
+	require.True(t, mfaRequestedActivity)
 
 	var session *fleet.Session
 	var mfaUser *fleet.User
@@ -557,6 +578,72 @@ func TestInitiateSSOWithSSOServerURL(t *testing.T) {
 	// The ACS URL should use the SSO server URL
 	// We can't directly test the ACS URL in the SAML request here since it's embedded in the XML,
 	// but the integration test verifies this works correctly
+}
+
+func TestInitiateSSOACSURLWithURLPrefix(t *testing.T) {
+	// With url_prefix set, the ACS callback URL must carry the subpath exactly
+	// once, regardless of whether server_url was configured with or without the
+	// subpath. The latter is the configuration older deployments may have used.
+	testCases := []struct {
+		name      string
+		serverURL string
+	}{
+		{
+			name:      "server_url includes the subpath",
+			serverURL: "https://fleet.example.com/apps/fleet",
+		},
+		{
+			name:      "server_url omits the subpath",
+			serverURL: "https://fleet.example.com",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			pool := redistest.NopRedis()
+
+			cfg := config.TestConfig()
+			cfg.Server.URLPrefix = "/apps/fleet"
+
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+				Pool: pool,
+			})
+
+			appConfig := &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: tc.serverURL,
+				},
+				SSOSettings: &fleet.SSOSettings{
+					EnableSSO: true,
+					SSOProviderSettings: fleet.SSOProviderSettings{
+						EntityID: "fleet",
+						IDPName:  "TestIDP",
+						Metadata: testSSOMetadata(),
+					},
+				},
+			}
+			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+				return appConfig, nil
+			}
+
+			_, _, idpURL, err := svc.InitiateSSO(ctx, "/dashboard")
+			require.NoError(t, err)
+			require.NotEmpty(t, idpURL)
+
+			parsed, err := url.Parse(idpURL)
+			require.NoError(t, err)
+			encoded := parsed.Query().Get("SAMLRequest")
+			require.NotEmpty(t, encoded)
+
+			authReq := inflate(t, encoded)
+			require.NotNil(t, authReq.AssertionConsumerServiceURL)
+			require.Equal(t,
+				"https://fleet.example.com/apps/fleet/api/v1/fleet/sso/callback",
+				authReq.AssertionConsumerServiceURL,
+			)
+		})
+	}
 }
 
 func TestInitiateSSOWithTrailingSlash(t *testing.T) {

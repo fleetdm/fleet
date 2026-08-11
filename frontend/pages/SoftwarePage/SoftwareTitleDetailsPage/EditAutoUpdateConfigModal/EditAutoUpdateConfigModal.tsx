@@ -295,12 +295,12 @@ const EditAutoUpdateConfigModal = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button onClick={onExit} variant="inverse">
+            <Button onClick={onExit} variant="secondary">
               Cancel
             </Button>
             <GitOpsModeTooltipWrapper
               entityType="software"
-              position="right"
+              position="top"
               tipOffset={8}
               renderChildren={(disableChildren) => (
                 <Button

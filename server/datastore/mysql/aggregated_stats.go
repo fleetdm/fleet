@@ -82,15 +82,30 @@ func setP50AndP95Map(
 }
 
 func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
-	err := walkIdsInTable(
-		ctx, ds.reader(ctx), "queries", func(queryID uint) error {
-			return ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
-		})
+	// Only process queries that actually have execution data in
+	// scheduled_query_stats, instead of walking all query IDs (most of
+	// which are saved/unscheduled queries with no stats). This avoids
+	// running 5 expensive percentile queries per query that would all
+	// return no rows.
+	rows, err := ds.reader(ctx).QueryxContext(ctx,
+		`SELECT DISTINCT scheduled_query_id FROM scheduled_query_stats WHERE executions > 0`)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "looping through query ids")
+		return ctxerr.Wrap(ctx, err, "querying query ids with execution data")
 	}
+	defer rows.Close()
 
-	return nil
+	for rows.Next() {
+		var queryID uint
+		if err := rows.Scan(&queryID); err != nil {
+			return ctxerr.Wrap(ctx, err, "scanning query id")
+		}
+		if err := ds.CalculateAggregatedPerfStatsPercentiles(
+			ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "calculating stats for query")
+		}
+	}
+	return rows.Err()
 }
 
 // CalculateAggregatedPerfStatsPercentiles calculates the aggregated user/system time performance statistics for the given query.
@@ -145,29 +160,4 @@ func getTotalExecutionsQuery(aggregate fleet.AggregatedStatsType) string {
 		return scheduledQueryTotalExecutions
 	}
 	return ""
-}
-
-func walkIdsInTable(
-	ctx context.Context,
-	tx sqlx.QueryerContext,
-	table string,
-	visitFunc func(id uint) error,
-) error {
-	rows, err := tx.QueryxContext(ctx, fmt.Sprintf(`SELECT id FROM %s`, table))
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "querying %s ids", table)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id uint
-
-		if err := rows.Scan(&id); err != nil {
-			return ctxerr.Wrapf(ctx, err, "scanning id for %s", table)
-		}
-		if err := visitFunc(id); err != nil {
-			return ctxerr.Wrapf(ctx, err, "running visitFunc for %s", table)
-		}
-	}
-	return nil
 }

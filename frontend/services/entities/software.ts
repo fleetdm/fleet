@@ -38,6 +38,7 @@ import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/Soft
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
 import { ISoftwareConfigurationFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditConfigurationModal/EditConfigurationModal";
+import { IVersionPinFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/VersionsModal/VersionsModal";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -276,7 +277,8 @@ const handleDisplayNameForm = (
 const handleEditPackageForm = (
   data: IEditPackageFormData,
   formData: FormData,
-  orignalPackage: ISoftwarePackage
+  orignalPackage: ISoftwarePackage,
+  omitPreInstallQuery = false
 ) => {
   data.software && formData.append("software", data.software);
   formData.append("self_service", data.selfService.toString());
@@ -285,10 +287,12 @@ const handleEditPackageForm = (
     "install_script",
     encodeScriptBase64(data.installScript) || ""
   );
-  formData.append(
-    "pre_install_query",
-    encodeScriptBase64(data.preInstallQuery || "") || ""
-  );
+  if (!omitPreInstallQuery) {
+    formData.append(
+      "pre_install_query",
+      encodeScriptBase64(data.preInstallQuery || "") || ""
+    );
+  }
   formData.append(
     "post_install_script",
     encodeScriptBase64(data.postInstallScript || "") || ""
@@ -517,12 +521,16 @@ export default {
   addSoftwarePackage: ({
     data,
     teamId,
+    softwareTitleId,
     timeout,
     onUploadProgress,
     signal,
   }: {
     data: IPackageFormData;
     teamId?: number;
+    /** When set, add this package to an existing software title (multi-package flow).
+     * When omitted, the server creates a new title for the uploaded file (original flow). */
+    softwareTitleId?: number;
     timeout?: number;
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
     signal?: AbortSignal;
@@ -535,6 +543,8 @@ export default {
 
     const formData = new FormData();
     formData.append("software", data.software);
+    softwareTitleId !== undefined &&
+      formData.append("software_title_id", softwareTitleId.toString());
     formData.append("self_service", data.selfService.toString());
     // Base64 encode script fields to bypass WAF rules that block script patterns
     data.installScript &&
@@ -597,29 +607,42 @@ export default {
     data,
     orignalPackage,
     softwareId,
+    installerId,
     teamId,
     timeout,
     onUploadProgress,
     signal,
+    omitPreInstallQuery,
   }: {
     data:
       | IEditPackageFormData
       | ISoftwareDisplayNameFormData
-      | ISoftwareConfigurationFormData;
+      | ISoftwareConfigurationFormData
+      | IVersionPinFormData;
     orignalPackage?: ISoftwarePackage;
     softwareId: number;
+    /** Targets one specific package on a multi-package title. Omit on
+     * single-package titles to keep the legacy single-package edit behavior. */
+    installerId?: number;
     teamId: number;
     timeout?: number;
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
     signal?: AbortSignal;
+    omitPreInstallQuery?: boolean;
   }) => {
     const { EDIT_SOFTWARE_PACKAGE } = endpoints;
     const formData = new FormData();
     formData.append("fleet_id", teamId.toString());
+    installerId !== undefined &&
+      formData.append("installer_id", installerId.toString());
 
     if ("configuration" in data) {
       // Handles Edit configuration form (iOS/iPadOS in-house apps)
       formData.append("configuration", data.configuration);
+    } else if ("pinnedVersion" in data) {
+      // Handles the Versions modal: pin an FMA to a cached version. An empty
+      // string clears the pin (back to "Latest"); the backend reads `version`.
+      formData.append("version", data.pinnedVersion);
     } else if ("displayName" in data) {
       // Handles Edit display name form only
       handleDisplayNameForm(data, formData);
@@ -632,7 +655,8 @@ export default {
       handleEditPackageForm(
         data as IEditPackageFormData,
         formData,
-        orignalPackage
+        orignalPackage,
+        omitPreInstallQuery
       );
     }
 
@@ -753,22 +777,36 @@ export default {
     return sendRequest("PUT", path, formData);
   },
 
-  // Endpoint for deleting packages or VPP
-  deleteSoftwareInstaller: (softwareId: number, teamId: number) => {
+  // Endpoint for deleting packages or VPP. Pass `installerId` to delete one
+  // specific package on a multi-package title; omit to keep the legacy
+  // single-package / VPP behavior (deletes the whole installer slot).
+  deleteSoftwareInstaller: (
+    softwareId: number,
+    teamId: number,
+    installerId?: number
+  ) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
-    const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
-      softwareId
-    )}?fleet_id=${teamId}`;
+    const path = getPathWithQueryParams(
+      SOFTWARE_AVAILABLE_FOR_INSTALL(softwareId),
+      { fleet_id: teamId, installer_id: installerId }
+    );
     return sendRequest("DELETE", path);
   },
 
   getSoftwarePackageToken: (
     softwareTitleId: number,
-    teamId: number
+    teamId: number,
+    /** Pins the token to a specific package on a multi-package title. Omit for
+     * single-package titles to fall back to the first-added package. */
+    installerId?: number
   ): Promise<ISoftwareInstallTokenResponse> => {
     const path = `${endpoints.SOFTWARE_PACKAGE_TOKEN(
       softwareTitleId
-    )}?${buildQueryStringFromParams({ alt: "media", fleet_id: teamId })}`;
+    )}?${buildQueryStringFromParams({
+      alt: "media",
+      fleet_id: teamId,
+      installer_id: installerId,
+    })}`;
 
     return sendRequest("POST", path);
   },
@@ -815,7 +853,7 @@ export default {
       post_install_script: encodeScriptBase64(formData.postInstallScript),
       uninstall_script: encodeScriptBase64(formData.uninstallScript),
       self_service: formData.selfService,
-      automatic_install: formData.automaticInstall,
+      automatic_install: formData.forceInstall,
       categories: formData.categories,
     };
 

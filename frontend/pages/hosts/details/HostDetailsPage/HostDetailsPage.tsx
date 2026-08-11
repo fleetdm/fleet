@@ -1,5 +1,5 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -22,6 +22,7 @@ import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import commandAPI from "services/entities/command";
 
 import { IHost, IMacadminsResponse, IHostResponse } from "interfaces/host";
+import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
@@ -141,15 +142,18 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { getErrorMessage } from "./helpers";
+import { canShowMyDeviceButton, getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 import LocationModal from "../modals/LocationModal";
+import VitalsModal from "../modals/VitalsModal";
+import EditHostVitalModal from "../modals/EditHostVitalModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
 import ClearPasscodeModal from "./modals/ClearPasscodeModal";
+import ReleaseFromABModal from "./components/ReleaseFromABModal";
 
 const baseClass = "host-details";
 
@@ -249,6 +253,7 @@ const HostDetailsPage = ({
   const [showMDMStatusModal, setShowMDMStatusModal] = useState(
     location.query.show_mdm_status === "true"
   );
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
   // Sync MDM status modal state when the query param changes while mounted
   // (e.g., browser back/forward navigation).
   useEffect(() => {
@@ -256,6 +261,12 @@ const HostDetailsPage = ({
   }, [location.query.show_mdm_status]);
 
   const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
+  const [showReleaseFromABModal, setShowReleaseFromABModal] = useState(false);
+
+  const [
+    editingCustomHostVital,
+    setEditingCustomHostVital,
+  ] = useState<IHostCustomVital | null>(null);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -462,7 +473,7 @@ const HostDetailsPage = ({
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
               notify.error(
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
               );
               resetHostRefetchStates();
             }
@@ -643,19 +654,6 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
-  const getOSVersionRequirementFromMDMConfig = (hostPlatform: string) => {
-    switch (hostPlatform) {
-      case "darwin":
-        return mdmConfig?.macos_updates;
-      case "ipados":
-        return mdmConfig?.ipados_updates;
-      case "ios":
-        return mdmConfig?.ios_updates;
-      default:
-        return undefined;
-    }
-  };
-
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -703,6 +701,10 @@ const HostDetailsPage = ({
   const toggleLocationModal = useCallback(() => {
     setShowLocationModal(!showLocationModal);
   }, [showLocationModal, setShowLocationModal]);
+
+  const toggleVitalsModal = useCallback(() => {
+    setShowVitalsModal(!showVitalsModal);
+  }, [showVitalsModal, setShowVitalsModal]);
 
   const toggleMDMStatusModal = useCallback(() => {
     setShowMDMStatusModal((prev) => {
@@ -798,6 +800,13 @@ const HostDetailsPage = ({
       return new Promise(() => undefined);
     }
     return hostAPI.rotateRecoveryLockPassword(host.id);
+  }, [host?.id]);
+
+  const resendHostNameTemplate = useCallback((): Promise<void> => {
+    if (!host?.id) {
+      return Promise.resolve();
+    }
+    return hostAPI.resendNameTemplate(host.id);
   }, [host?.id]);
 
   const onChangeActivityTab = (tabIndex: number) => {
@@ -1017,6 +1026,9 @@ const HostDetailsPage = ({
       case "managedAccount":
         setShowManagedAccountModal(true);
         break;
+      case "releaseFromAB":
+        setShowReleaseFromABModal(true);
+        break;
       case "mdmOff":
         toggleUnenrollMdmModal();
         break;
@@ -1069,6 +1081,7 @@ const HostDetailsPage = ({
           !!host.mdm.encryption_key_archived
         }
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
+        isDEPAssignedToFleet={host.dep_assigned_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
         isRecoveryLockPasswordEnabled={
           mdmConfig?.enable_recovery_lock_password ?? false
@@ -1079,15 +1092,24 @@ const HostDetailsPage = ({
           false
         }
         isManagedLocalAccountEnabled={
-          mdmConfig?.macos_setup?.enable_managed_local_account ?? false
+          host.platform === "windows"
+            ? mdmConfig?.windows_settings?.managed_local_account_settings
+                ?.enabled ?? false
+            : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
         }
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
+        }
+        managedAccountDetail={
+          host.mdm.os_settings?.managed_local_account?.detail
         }
         managedAccountPasswordAvailable={
           host.mdm.os_settings?.managed_local_account?.password_available ??
           false
         }
+        wipeAllowed={host.mdm.wipe_allowed}
+        lockAllowed={host.mdm.lock_allowed}
+        clearPasscodeAllowed={host.mdm.clear_passcode_allowed}
       />
     );
   };
@@ -1302,17 +1324,23 @@ const HostDetailsPage = ({
 
   // "My device" link points to that host's end-user My device page. The URL
   // embeds the device auth token so it acts as a credential, hence global
-  // admin only. The endpoint guarantees a valid link on every fetch — it
-  // refreshes an expired token or generates one for a host that has never
-  // had one — so we don't gate visibility on orbit/MDM state.
-  const canViewMyDeviceLink = isGlobalAdmin;
+  // admin only. Also hide it on hosts that have no live end-user surface —
+  // no Fleet Desktop (so no token, and no page to load) or wiped.
+  const canViewMyDeviceLink = isGlobalAdmin && canShowMyDeviceButton(host);
+
+  const canEditCustomHostVitals =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer;
 
   const showSoftwareLibraryTab = isPremiumTier;
   const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    isAppleDeviceHost && !!hostCertificates?.certificates.length;
+    (isAppleDeviceHost || isWindowsHost) &&
+    (isErrorHostCertificates || !!hostCertificates?.certificates.length);
 
   const renderSoftwareCard = () => {
     return (
@@ -1442,6 +1470,7 @@ const HostDetailsPage = ({
               diskIsEncrypted={host?.disk_encryption_enabled}
               diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
               lastMdmEnrolledAt={host?.last_mdm_enrolled_at}
+              detailUpdatedAt={host?.detail_updated_at}
             />
           )}
           <div className={`${baseClass}__header-links`}>
@@ -1499,11 +1528,17 @@ const HostDetailsPage = ({
                   vitalsData={vitalsData}
                   munki={macadmins?.munki}
                   mdm={host?.mdm}
-                  osVersionRequirement={getOSVersionRequirementFromMDMConfig(
-                    host.platform
-                  )}
+                  osUpdateMinimumVersion={host.os_update_minimum_version}
+                  osUpdateDeadline={host.os_update_deadline}
                   toggleLocationModal={toggleLocationModal}
                   toggleMDMStatusModal={toggleMDMStatusModal}
+                  toggleVitalsModal={toggleVitalsModal}
+                  customHostVitals={host.custom_host_vitals}
+                  onEditCustomHostVital={
+                    canEditCustomHostVitals
+                      ? setEditingCustomHostVital
+                      : undefined
+                  }
                 />
                 <ActivityCard
                   className={
@@ -1726,6 +1761,29 @@ const HostDetailsPage = ({
               policy={selectedPolicy}
             />
           )}
+          {!!host && showReleaseFromABModal && (
+            <ReleaseFromABModal
+              host={{
+                display_name: host.display_name,
+                id: host.id,
+                enrollment_status: host.mdm.enrollment_status,
+              }}
+              onExit={() => setShowReleaseFromABModal(false)}
+              onRelease={() => {
+                if (host.mdm.enrollment_status === "Pending") {
+                  router.push(
+                    filteredHostsPath ||
+                      getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                        fleet_id: location.query.fleet_id,
+                      })
+                  );
+                  return;
+                }
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
+            />
+          )}
           {showOSSettingsModal && (
             <OSSettingsModal
               canResendProfiles={canResendProfiles}
@@ -1735,12 +1793,14 @@ const HostDetailsPage = ({
                 isHostTeamAdmin ||
                 isHostTeamMaintainer
               }
+              canResendHostNameTemplate={canResendProfiles}
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
               resendRequest={resendProfile}
               resendCertificateRequest={resendCertificate}
               rotateRecoveryLockPassword={rotateRecoveryLockPassword}
+              resendHostNameTemplate={resendHostNameTemplate}
               onProfileResent={refetchHostDetails}
             />
           )}
@@ -1776,10 +1836,12 @@ const HostDetailsPage = ({
             <ManagedAccountModal
               hostId={host.id}
               canRotatePassword={
-                isGlobalAdmin ||
-                isGlobalMaintainer ||
-                isHostTeamAdmin ||
-                isHostTeamMaintainer
+                // Rotation is macOS-only for now, so Windows hosts get neither the rotate button nor the auto-rotate banner.
+                host.platform === "darwin" &&
+                (isGlobalAdmin ||
+                  isGlobalMaintainer ||
+                  isHostTeamAdmin ||
+                  isHostTeamMaintainer)
               }
               onCancel={() => {
                 setShowManagedAccountModal(false);
@@ -1859,26 +1921,6 @@ const HostDetailsPage = ({
           {!!mdmCommandDetails && (
             <CommandResultsModal
               command={mdmCommandDetails}
-              contentBody={
-                mdmCommandDetails.name === null
-                  ? (cls, result) => (
-                      <IconStatusMessage
-                        className={`${cls}__status-message`}
-                        iconName={getIconName(result.status)}
-                        message={
-                          <span>
-                            {formatMdmCommandNameForActivityItem(
-                              result.request_type
-                            )}
-                            {" on "}
-                            <b>{result.hostname}</b>
-                            {"."}
-                          </span>
-                        }
-                      />
-                    )
-                  : undefined
-              }
               onDone={onCancelMdmCommandDetailsModal}
             />
           )}
@@ -1891,8 +1933,8 @@ const HostDetailsPage = ({
                 const cmdDisplayName = getMdmCommandDisplayName(
                   result.request_type
                 );
-                const timeAgo = result.updated_at
-                  ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+                const timeAgoText = result.updated_at
+                  ? ` (${timeAgo(new Date(result.updated_at), {
                       addSuffix: true,
                     })})`
                   : "";
@@ -1914,7 +1956,7 @@ const HostDetailsPage = ({
                           )}
                           {" is pending on "}
                           <b>{result.hostname}</b>
-                          {`${timeAgo}.`}
+                          {`${timeAgoText}.`}
                         </span>
                       ) : (
                         <span>
@@ -2024,6 +2066,35 @@ const HostDetailsPage = ({
               setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
+          />
+        )}
+        {showVitalsModal && (
+          <VitalsModal
+            host={host}
+            vitalsData={vitalsData}
+            munki={macadmins?.munki}
+            mdm={host?.mdm}
+            osUpdateMinimumVersion={host.os_update_minimum_version}
+            osUpdateDeadline={host.os_update_deadline}
+            toggleLocationModal={toggleLocationModal}
+            toggleMDMStatusModal={toggleMDMStatusModal}
+            customHostVitals={host.custom_host_vitals}
+            onEditCustomHostVital={
+              canEditCustomHostVitals ? setEditingCustomHostVital : undefined
+            }
+            onExit={toggleVitalsModal}
+          />
+        )}
+        {editingCustomHostVital && (
+          <EditHostVitalModal
+            hostId={host.id}
+            vital={editingCustomHostVital}
+            onCancel={() => setEditingCustomHostVital(null)}
+            onSave={() => {
+              refetchHostDetails();
+              refetchPastActivities();
+              setEditingCustomHostVital(null);
+            }}
           />
         )}
         {showMDMStatusModal && host.mdm.enrollment_status && (

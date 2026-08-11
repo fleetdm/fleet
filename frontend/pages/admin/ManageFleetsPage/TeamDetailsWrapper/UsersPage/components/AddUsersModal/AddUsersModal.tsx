@@ -63,7 +63,7 @@ const AddUsersModal = ({
         <p>
           User not here?&nbsp;
           <Button onClick={onCreateNewTeamUser} variant="link">
-            Create a user
+            Add a user
           </Button>
         </p>
         <div className="modal-cta-wrap">
@@ -74,7 +74,7 @@ const AddUsersModal = ({
           >
             Add users
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

@@ -150,6 +150,17 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			expectError: true,
 			errorMsg:    "Couldn't update configuration. Unsupported variable $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_MyCA.",
 		},
+		{
+			name:        "valid - custom host vital",
+			config:      json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_7"}}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - malformed custom host vital reference",
+			config:      json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_asset_tag"}}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. Invalid custom host vital reference "$FLEET_HOST_VITAL_asset_tag"; the value after $FLEET_HOST_VITAL_ must be a custom host vital ID`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -219,6 +230,47 @@ func TestValidateUserProvided_FleetVariables(t *testing.T) {
 			rawJSON:   `{"name": "ok", "maximumTimeToLock": "$FLEET_VAR_HOST_UUID"}`,
 			wantErr:   true,
 			errSubstr: "Invalid JSON payload",
+		},
+		{
+			name:    "custom host vital in JSON string value is allowed",
+			rawJSON: `{"name": "$FLEET_HOST_VITAL_7"}`,
+			wantErr: false,
+		},
+		{
+			name:    "custom host vital alongside a supported Fleet variable is allowed",
+			rawJSON: `{"name": "$FLEET_VAR_HOST_UUID $FLEET_HOST_VITAL_7"}`,
+			wantErr: false,
+		},
+		{
+			name:      "custom host vital in a nested JSON key must be inside a string value",
+			rawJSON:   `{"name": "ok", "passwordRequirements": {"$FLEET_HOST_VITAL_7": "value"}}`,
+			wantErr:   true,
+			errSubstr: "Custom host vital $FLEET_HOST_VITAL_7 must be inside a JSON string value",
+		},
+		{
+			// A zero-padded ID normalizes to the same vital ("007" -> 7); the
+			// string-value-position check must recognize that rather than
+			// falsely reporting it as not found in a string value.
+			name:    "custom host vital with a zero-padded ID in a string value is allowed",
+			rawJSON: `{"name": "$FLEET_HOST_VITAL_007"}`,
+			wantErr: false,
+		},
+		{
+			name:      "malformed custom host vital reference is rejected",
+			rawJSON:   `{"name": "$FLEET_HOST_VITAL_asset_tag"}`,
+			wantErr:   true,
+			errSubstr: "Invalid custom host vital reference",
+		},
+		{
+			// A vital token present in the raw upload but shadowed by a
+			// duplicate JSON key (json.Unmarshal keeps only the last value for
+			// a repeated key) ends up neither a decoded key nor a decoded
+			// string value, exercising the "not in string value" branch
+			// distinctly from the "used as a key" case above.
+			name:      "custom host vital shadowed by a duplicate JSON key is rejected",
+			rawJSON:   `{"name": "ok", "passwordRequirements": {"a": "$FLEET_HOST_VITAL_7", "a": "no-vital-here"}}`,
+			wantErr:   true,
+			errSubstr: "Custom host vital $FLEET_HOST_VITAL_7 must be inside a JSON string value",
 		},
 	}
 

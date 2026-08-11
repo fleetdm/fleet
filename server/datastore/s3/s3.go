@@ -39,6 +39,13 @@ type s3store struct {
 	prefix           string
 	cloudFrontConfig *config.S3CloudFrontConfig
 	gcs              bool
+	// signedURL, when true, makes Sign() return a presigned GET URL generated
+	// with this store's client/credentials (used for GCS, where there is no
+	// CloudFront-style signer). Gated by config and validated to require a GCS
+	// endpoint.
+	signedURL bool
+	// presignClient is built once when signedURL is enabled and reused by Sign().
+	presignClient *s3.PresignClient
 }
 
 type installerNotFoundError struct{}
@@ -57,6 +64,21 @@ func (p installerNotFoundError) IsNotFound() bool {
 func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 	var opts []func(*aws_config.LoadOptions) error
 	gcsEndpoint := cfg.EndpointURL != "" && isGCS(cfg.EndpointURL)
+
+	// SignedURL presigns with SigV4 HMAC credentials, but GCSIAMAuth swaps those
+	// for placeholder static credentials plus bearer-token middleware that
+	// presigning drops (APIOptions is cleared when presigning). The two together
+	// would produce presigned URLs that can't authenticate, so reject the
+	// combination up front.
+	if cfg.SignedURL && cfg.GCSIAMAuth {
+		return nil, errors.New("software installers signed URL cannot be combined with gcs iam auth; configure HMAC credentials (access key/secret) for presigning")
+	}
+
+	// An STS assume-role provider likewise replaces the HMAC credentials with
+	// temporary AWS credentials GCS can't verify, so reject that combination too.
+	if cfg.SignedURL && cfg.StsAssumeRoleArn != "" {
+		return nil, errors.New("software installers signed URL cannot be combined with sts assume role; configure HMAC credentials (access key/secret) for presigning")
+	}
 
 	if cfg.GCSIAMAuth {
 		switch {
@@ -170,12 +192,27 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		}
 	})
 
+	// Build the presign client once and reuse it in Sign(). Clear the inherited
+	// APIOptions: the GCS workarounds (ignoreSigningHeaders, disableTrailingChecksum)
+	// insert middleware at the "Signing" step, which the presign stack lacks, and
+	// they only matter for real upload/download requests.
+	var presignClient *s3.PresignClient
+	if cfg.SignedURL {
+		presignClient = s3.NewPresignClient(s3Client, func(po *s3.PresignOptions) {
+			po.ClientOptions = append(po.ClientOptions, func(o *s3.Options) {
+				o.APIOptions = nil
+			})
+		})
+	}
+
 	return &s3store{
 		s3Client:         s3Client,
 		bucket:           cfg.Bucket,
 		prefix:           cfg.Prefix,
 		cloudFrontConfig: cfg.CloudFrontConfig,
 		gcs:              gcsEndpoint,
+		signedURL:        cfg.SignedURL,
+		presignClient:    presignClient,
 	}, nil
 }
 
@@ -237,31 +274,36 @@ func (s *s3store) CreateTestBucket(ctx context.Context, name string) error {
 // store. Only recommended for local testing. If the bucket no longer exists,
 // it returns nil.
 func (s *s3store) CleanupTestBucket(ctx context.Context) error {
-	resp, err := s.s3Client.ListObjects(ctx, &s3.ListObjectsInput{
+	// Delete every object page-by-page (the SDK paginator handles continuation
+	// tokens) so buckets with more than one page of objects are fully emptied
+	// before DeleteBucket.
+	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
 		Bucket: &s.bucket,
 	})
-	var noSuchBucket *types.NoSuchBucket
-	if errors.As(err, &noSuchBucket) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	var objs []types.ObjectIdentifier
-	for _, o := range resp.Contents {
-		objs = append(objs, types.ObjectIdentifier{Key: o.Key})
-	}
-	if len(objs) > 0 {
-		if _, err := s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
-			Bucket: &s.bucket,
-			Delete: &types.Delete{Objects: objs},
-		}); err != nil {
+	for paginator.HasMorePages() {
+		resp, err := paginator.NextPage(ctx)
+		if _, ok := errors.AsType[*types.NoSuchBucket](err); ok {
+			return nil
+		}
+		if err != nil {
 			return err
+		}
+
+		var objs []types.ObjectIdentifier
+		for _, o := range resp.Contents {
+			objs = append(objs, types.ObjectIdentifier{Key: o.Key})
+		}
+		if len(objs) > 0 {
+			if _, err := s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+				Bucket: &s.bucket,
+				Delete: &types.Delete{Objects: objs},
+			}); err != nil {
+				return err
+			}
 		}
 	}
 
-	_, err = s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
+	_, err := s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: &s.bucket,
 	})
 	return err

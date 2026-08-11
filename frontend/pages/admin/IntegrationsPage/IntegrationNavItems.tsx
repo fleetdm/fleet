@@ -9,12 +9,13 @@ import CertificateAuthorities from "./cards/CertificateAuthorities";
 import ConditionalAccess from "./cards/ConditionalAccess";
 import IdentityProviders from "./cards/IdentityProviders";
 import Sso from "./cards/Sso";
+import AccountProvisioning from "./cards/AccountProvisioning";
 import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
 
 const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
   const items: ISideNavItem<any>[] = [
     {
-      title: "Ticket destinations",
+      title: "Ticketing",
       urlSection: "ticket-destinations",
       path: PATHS.ADMIN_INTEGRATIONS_TICKET_DESTINATIONS,
       Card: TicketDestinations,
@@ -26,7 +27,7 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       Card: MdmSettings,
     },
     {
-      title: "Calendars",
+      title: "Calendar events",
       urlSection: "calendars",
       path: PATHS.ADMIN_INTEGRATIONS_CALENDARS,
       Card: Calendars,
@@ -38,10 +39,22 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       Card: ChangeManagement,
     },
     {
-      title: "Single sign-on (SSO)",
+      title: "Authentication (SSO)",
       urlSection: "sso",
       path: PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS,
       Card: Sso,
+    },
+    {
+      title: "Account provisioning",
+      urlSection: "account-provisioning",
+      path: PATHS.ADMIN_INTEGRATIONS_FPSSO,
+      Card: AccountProvisioning,
+    },
+    {
+      title: "User mapping",
+      urlSection: "identity-provider",
+      path: PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
+      Card: IdentityProviders,
     },
     {
       title: "Certificate authorities",
@@ -50,13 +63,7 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       Card: CertificateAuthorities,
     },
     {
-      title: "Identity provider (IdP)",
-      urlSection: "identity-provider",
-      path: PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
-      Card: IdentityProviders,
-    },
-    {
-      title: "Host status webhook",
+      title: "Host status alerts",
       urlSection: "host-status-webhook",
       path: PATHS.ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK,
       Card: GlobalHostStatusWebhook,

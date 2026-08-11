@@ -138,6 +138,16 @@ const CommandPalette = (): JSX.Element | null => {
     isAnyTeamMaintainer ||
     isTechnician;
 
+  // The Variables section (and its Global variables / Custom host vitals
+  // sub-tabs) is hidden from technicians in the Controls sub-nav — they only
+  // get OS settings and Scripts (see ManageControlsPage). canAccessControls
+  // includes technicians, so use this narrower flag for Variables.
+  const canAccessVariables =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamAdmin ||
+    isAnyTeamMaintainer;
+
   // Custom variables are admin-tier global config (mirrors Variables.tsx
   // `canEdit`). Team admins/maintainers/technicians lack the role even
   // though they have `canWrite`, so the destination page would render
@@ -154,6 +164,16 @@ const CommandPalette = (): JSX.Element | null => {
     !!isGlobalMaintainer ||
     !!isTeamAdmin ||
     !!isTeamMaintainer;
+
+  // Admin/maintainer-only Controls sub-items (Certificates, Passwords, Host
+  // names). Technicians can reach Controls (canAccessControls) but not these,
+  // so gate them on the positive admin/maintainer role rather than
+  // `!isTechnician`.
+  const isAdminOrMaintainer =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamAdmin ||
+    isAnyTeamMaintainer;
 
   // Observer+ users can run live queries even though they can't write.
   const canRunLiveReport =
@@ -203,6 +223,12 @@ const CommandPalette = (): JSX.Element | null => {
   // command for users who are admin of *some* team but observer of the
   // current one — they'd land on Reports and see no button.
   const canManageReportAutomations = isGlobalAdmin || isTeamAdmin;
+
+  // Host activity automations: per-fleet setting on the Hosts page, admin
+  // only (mirrors ManageHostsPage's canManageHostActivityAutomations). The
+  // destination opens the modal from `?manage_automations=1` and re-checks
+  // the same gate.
+  const canManageHostActivityAutomations = isGlobalAdmin || isTeamAdmin;
 
   const canAccessSettings = isGlobalAdmin;
 
@@ -403,14 +429,17 @@ const CommandPalette = (): JSX.Element | null => {
         availableTeams,
         config,
         canAccessControls,
+        canAccessVariables,
         canWrite,
         canRunLiveReport,
         canAccessSettings,
         canManagePolicyAutomations,
         canManageSoftwareAutomations,
         canManageReportAutomations,
+        canManageHostActivityAutomations,
         canEditCustomVariable,
         canAddSoftware,
+        isAdminOrMaintainer,
         isTechnician,
         isPremiumTier,
         isPrimoMode,
@@ -438,14 +467,17 @@ const CommandPalette = (): JSX.Element | null => {
       availableTeams,
       config,
       canAccessControls,
+      canAccessVariables,
       canWrite,
       canRunLiveReport,
       canAccessSettings,
       canManagePolicyAutomations,
       canManageSoftwareAutomations,
       canManageReportAutomations,
+      canManageHostActivityAutomations,
       canEditCustomVariable,
       canAddSoftware,
+      isAdminOrMaintainer,
       isTechnician,
       isPremiumTier,
       isPrimoMode,

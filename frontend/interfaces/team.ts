@@ -49,6 +49,7 @@ export interface ITeam extends ITeamSummary {
   mdm?: {
     enable_disk_encryption: boolean;
     enable_recovery_lock_password: boolean;
+    name_template?: string;
     windows_require_bitlocker_pin: boolean;
     macos_updates: IAppleDeviceUpdates;
     ios_updates: IAppleDeviceUpdates;
@@ -72,6 +73,11 @@ export interface ITeam extends ITeamSummary {
     macos_setup?: {
       enable_managed_local_account?: boolean;
     };
+    windows_settings?: {
+      managed_local_account_settings?: {
+        enabled?: boolean;
+      };
+    };
     windows_updates: {
       deadline_days: number | null;
       grace_period_days: number | null;
@@ -88,7 +94,10 @@ export interface ITeam extends ITeamSummary {
  */
 export type ITeamWebhookSettings = Pick<
   IWebhookSettings,
-  "vulnerabilities_webhook" | "failing_policies_webhook" | "host_status_webhook"
+  | "vulnerabilities_webhook"
+  | "failing_policies_webhook"
+  | "host_status_webhook"
+  | "host_activities_webhook"
 >;
 
 /**

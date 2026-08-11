@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.23.0",
+      "version": "7.29.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Notion %' AND publisher = 'Notion Labs, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Notion %' AND publisher = 'Notion Labs, Inc' AND version_compare(version, '7.23.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Notion %' AND publisher = 'Notion Labs, Inc' AND version_compare(version, '7.29.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'notion.exe');"
       },
-      "installer_url": "https://desktop-release.notion-static.com/Notion%20Setup%207.23.0.exe",
+      "installer_url": "https://desktop-release.notion-static.com/Notion%20Setup%207.29.0.exe",
       "install_script_ref": "0803ad8c",
       "uninstall_script_ref": "a8fdd9b7",
-      "sha256": "70f5b9379a668f24106cd41cebebf0dfc9a3a55bb226bb3ca1984d59c2fbefef",
+      "sha256": "5e731fe1eb16da91a3a322fda0f31f24fca95def1fc908c26d871d9eac67e3a2",
       "default_categories": [
         "Productivity"
       ]

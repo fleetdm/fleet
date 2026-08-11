@@ -57,7 +57,11 @@ data "aws_caller_identity" "current" {}
 locals {
   customer       = "fleet-dogfood"
   fleet_image    = var.fleet_image # Set this to the version of fleet to be deployed
-  geolite2_image = "${aws_ecr_repository.fleet.repository_url}:${split(":", var.fleet_image)[1]}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
+  # Tag component for the geolite2 image. Handle both ":tag" and "@sha256:digest" refs
+  # so deploying a digest-pinned image (e.g. from main) yields a clean tag, not a 64-char hex.
+  # For tag refs, take the last ":" segment so registries with a port (host:5000/repo:tag) still resolve to the tag.
+  fleet_image_tag = strcontains(var.fleet_image, "@sha256:") ? "sha256-${substr(split("@sha256:", var.fleet_image)[1], 0, 12)}" : reverse(split(":", var.fleet_image))[0]
+  geolite2_image  = "${aws_ecr_repository.fleet.repository_url}:${local.fleet_image_tag}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
   extra_environment_variables = {
     FLEET_LICENSE_KEY             = var.fleet_license
     FLEET_LOGGING_DEBUG           = "true"

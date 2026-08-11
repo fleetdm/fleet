@@ -11,6 +11,7 @@ export type TooltipContent = ReactNode;
 
 export interface IDropdownOption {
   disabled?: boolean;
+  hasDividerBefore?: boolean;
   label: string | JSX.Element;
   value: string | number;
   helpText?: ReactNode;

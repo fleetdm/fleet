@@ -1,0 +1,8 @@
+{
+  "name": "Mozilla VPN",
+  "slug": "mozilla-vpn/darwin",
+  "unique_identifier": "org.mozilla.macos.FirefoxVPN",
+  "token": "mozilla-vpn",
+  "installer_format": "pkg",
+  "default_categories": ["Security"]
+}

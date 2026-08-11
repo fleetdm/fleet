@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -21,6 +22,36 @@ func TestHostLinuxPlatformPackageCompatibility(t *testing.T) {
 		}
 
 		require.True(t, h.PlatformSupportsDebPackages() || h.PlatformSupportsRpmPackages())
+	}
+}
+
+func TestIsLUKSSupported(t *testing.T) {
+	for _, tc := range []struct {
+		platform  string
+		osVersion string
+		expected  bool
+	}{
+		{platform: "ubuntu", expected: true},
+		{platform: "zorin", expected: true},
+		// Fedora hosts report their platform as "rhel", so they are identified by OS version.
+		{platform: "rhel", osVersion: "Fedora Linux 41", expected: true},
+		{platform: "rhel", osVersion: "CentOS Linux 7.9.2009", expected: false},
+		// Arch and its derivatives.
+		{platform: "arch", expected: true},
+		{platform: "archarm", expected: true},
+		{platform: "manjaro", expected: true},
+		{platform: "manjaro-arm", expected: true},
+		{platform: "cachyos", expected: true},
+		{platform: "omarchy", expected: true},
+		// Linux platforms without LUKS support, and non-Linux platforms.
+		{platform: "debian", expected: false},
+		{platform: "darwin", expected: false},
+		{platform: "windows", expected: false},
+	} {
+		t.Run(tc.platform+" "+tc.osVersion, func(t *testing.T) {
+			h := &Host{Platform: tc.platform, OSVersion: tc.osVersion}
+			require.Equal(t, tc.expected, h.IsLUKSSupported())
+		})
 	}
 }
 
@@ -155,6 +186,10 @@ func TestPlatformFromHost(t *testing.T) {
 			expPlatform: "linux",
 		},
 		{
+			host:        "omarchy",
+			expPlatform: "linux",
+		},
+		{
 			host:        "darwin",
 			expPlatform: "darwin",
 		},
@@ -224,7 +259,7 @@ func TestMDMEnrollmentStatus(t *testing.T) {
 		},
 		{
 			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false, IsPersonalEnrollment: true},
-			expected: "On (personal)",
+			expected: "On (manual - personal)",
 		},
 		{
 			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: true},
@@ -507,4 +542,19 @@ func TestIsPlaceholderHardwareSerial(t *testing.T) {
 			assert.Equal(t, tc.want, IsPlaceholderHardwareSerial(tc.serial))
 		})
 	}
+}
+
+func TestHostMDMHostNameSettingJSON(t *testing.T) {
+	// Omitted entirely when there is no enforcement (host_name is a nil pointer
+	// with omitempty), matching the recovery-lock treatment for ineligible hosts.
+	b, err := json.Marshal(HostMDMOSSettings{})
+	require.NoError(t, err)
+	require.NotContains(t, string(b), "host_name")
+
+	// Present with the fleets-forward status/detail contract the frontend consumes.
+	b, err = json.Marshal(HostMDMOSSettings{
+		HostName: &HostMDMHostNameSetting{Status: HostNameSettingFailed, Detail: "boom"},
+	})
+	require.NoError(t, err)
+	require.Contains(t, string(b), `"host_name":{"status":"failed","detail":"boom"}`)
 }

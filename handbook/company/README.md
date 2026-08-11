@@ -15,7 +15,7 @@ This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.co
 ## Culture
 
 ### All remote
-Fleet Device Management Inc. is an all-remote company with 60+ team members spread across four continents and nine time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
+Fleet Device Management Inc. is an all-remote company with 70+ team members spread across four continents and nine time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 ### Open source
 Fleet is open by design.  The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
@@ -94,7 +94,7 @@ Take the time to make [yourself](https://fleetdm.com/handbook/company/communica
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
 - **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
 - **Public by default.** Get comfortable making decisions, being wrong, and being right in front of others. Redact [non-public info](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) carefully.
-- **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way). 
+- **Speak freely.** Interrupt and be interrupted.  Give pointed, respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way) and commit to the [DRI's](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) decision.
 
 <!--
 ### 🪩 Dumb luck
