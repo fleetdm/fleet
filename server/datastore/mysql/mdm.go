@@ -2960,10 +2960,23 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account email")
 	}
 
+	// manually set IdP mappings (source "idp", written by
+	// SetOrUpdateIDPHostDeviceMapping) are reported by the API under the same
+	// "mdm_idp_accounts" source, so both sources form a single logical mapping
+	// and must be reconciled together to avoid duplicate device mappings.
 	var hostEmails []fleet.HostDeviceMapping
-	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source = ?`
-	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source IN (?, ?)`
+	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host_emails")
+	}
+
+	var mdmIdpEmails, manualIdpEmails []fleet.HostDeviceMapping
+	for _, he := range hostEmails {
+		if he.Source == fleet.DeviceMappingIDP {
+			manualIdpEmails = append(manualIdpEmails, he)
+			continue
+		}
+		mdmIdpEmails = append(mdmIdpEmails, he)
 	}
 
 	// TODO: discuss email vs. username with Victor
@@ -2973,11 +2986,13 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 		idpAccountUUID = idp.UUID
 	}
 
-	// if we don't have idp info, we can just delete any prior host mdm idp account emails
+	// if we don't have idp info, we can just delete any prior host mdm idp account
+	// emails; manually set mappings are left alone since they don't come from an
+	// enrollment
 	if idpEmail == "" {
-		if len(hostEmails) == 0 {
+		if len(mdmIdpEmails) == 0 {
 			// nothing to do
-			logger.InfoContext(ctx, "reconcile host emails: no mdm idp account and no host emails", "host_id", hostID, "account_uuid", idpAccountUUID)
+			logger.InfoContext(ctx, "reconcile host emails: no mdm idp account and no host emails", "host_id", hostID, "account_uuid", idpAccountUUID, "manual_idp_mappings", len(manualIdpEmails))
 			return nil, nil
 		}
 		// delete any prior host mdm idp account emails
@@ -2991,13 +3006,19 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	// analyze existing host emails to see if we have a match; we also want to handle potential
 	// duplicates because we don't have good constraints on the host_emails table
 	hits, misses := []fleet.HostDeviceMapping{}, []fleet.HostDeviceMapping{}
-	for _, he := range hostEmails {
+	for _, he := range mdmIdpEmails {
 		if he.Email == idp.Email {
 			hits = append(hits, he)
 		} else {
 			misses = append(misses, he)
 		}
 	}
+
+	// the authenticated IdP account supersedes any manually set mapping; otherwise the
+	// API would report both under the "mdm_idp_accounts" source as a duplicate device
+	// mapping. This mirrors SetOrUpdateIDPHostDeviceMapping, which deletes both sources
+	// before inserting.
+	misses = append(misses, manualIdpEmails...)
 
 	maxCapacity := len(misses)
 	if len(hits) > 1 {
