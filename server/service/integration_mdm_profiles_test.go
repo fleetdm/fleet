@@ -4532,6 +4532,31 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		verifyHostProfileStatus(atomicInstallCmds, mdmResponseStatus)
 	}
 
+	// drainCommands triggers the profile schedule, then acks every command the device is handed with 200 OK and returns them.
+	// Several subtests below need the device brought to a clean state before exercising the behaviour they actually assert on.
+	drainCommands := func(device *mdmtest.TestWindowsMDMClient) map[string]fleet.ProtoCmdOperation {
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := device.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := device.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			cmdID := c.Cmd.CmdID
+			status := syncml.CmdStatusOK
+			device.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     new(c.Verb),
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = device.SendResponse()
+		require.NoError(t, err)
+		return cmds
+	}
+
 	checkHostsProfilesMatch := func(host *fleet.Host, wantUUIDs []string) {
 		var gotUUIDs []string
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -4869,24 +4894,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		tmResp := teamResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": null, "grace_period_days": null} }}`), http.StatusOK, &tmResp)
 		// Drain any OS updates removal commands
-		s.awaitTriggerProfileSchedule(t)
-		cmds, err := mdmDevice.StartManagementSession()
-		require.NoError(t, err)
-		msgID, err := mdmDevice.GetCurrentMsgID()
-		require.NoError(t, err)
-		for _, c := range cmds {
-			cmdID := c.Cmd.CmdID
-			mdmDevice.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &cmdID.Value,
-				Cmd:     ptr.String(c.Verb),
-				Data:    ptr.String(syncml.CmdStatusOK),
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			})
-		}
-		_, err = mdmDevice.SendResponse()
-		require.NoError(t, err)
+		drainCommands(mdmDevice)
 		verifyProfiles(mdmDevice, 0, false) // drain remaining
 
 		// Create a team with no profiles
@@ -4941,25 +4949,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 		// Trigger profile sync: device gets the new profile + delete commands for old profiles.
 		// Drain all commands from the device without asserting exact counts (cleanup varies).
-		s.awaitTriggerProfileSchedule(t)
-		cmds, err := mdmDevice.StartManagementSession()
-		require.NoError(t, err)
-		msgID, err := mdmDevice.GetCurrentMsgID()
-		require.NoError(t, err)
-		for _, c := range cmds {
-			cmdID := c.Cmd.CmdID
-			status := syncml.CmdStatusOK
-			mdmDevice.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &cmdID.Value,
-				Cmd:     ptr.String(c.Verb),
-				Data:    &status,
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			})
-		}
-		_, err = mdmDevice.SendResponse()
-		require.NoError(t, err)
+		drainCommands(mdmDevice)
 
 		// Drain any remaining commands until the device is clean.
 		verifyProfiles(mdmDevice, 0, false)
@@ -4976,12 +4966,12 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		// - 1 Atomic install for the updated profile (from reconciler checksum mismatch)
 		// Total: 2 Status + 1 Delete + 1 Atomic = 4 commands
 		s.awaitTriggerProfileSchedule(t)
-		cmds, err = mdmDevice.StartManagementSession()
+		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
 		require.Len(t, cmds, 4, "expected 2 status + 1 delete + 1 install")
 
 		var gotDelete, gotInstall bool
-		msgID, err = mdmDevice.GetCurrentMsgID()
+		msgID, err := mdmDevice.GetCurrentMsgID()
 		require.NoError(t, err)
 		for _, c := range cmds {
 			cmdID := c.Cmd.CmdID
@@ -5036,25 +5026,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 		// Drain install commands.
-		s.awaitTriggerProfileSchedule(t)
-		cmds, err := mdmDevice.StartManagementSession()
-		require.NoError(t, err)
-		msgID, err := mdmDevice.GetCurrentMsgID()
-		require.NoError(t, err)
-		for _, c := range cmds {
-			cmdID := c.Cmd.CmdID
-			status := syncml.CmdStatusOK
-			mdmDevice.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &cmdID.Value,
-				Cmd:     ptr.String(c.Verb),
-				Data:    &status,
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			})
-		}
-		_, err = mdmDevice.SendResponse()
-		require.NoError(t, err)
+		drainCommands(mdmDevice)
 		verifyProfiles(mdmDevice, 0, false)
 
 		// Edit profile A to remove AllowCamera (shared with B), keep only AllowCortana.
@@ -5068,10 +5040,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		// Trigger sync: should get an install for the updated A, but NO delete
 		// for AllowCamera since profile B still uses it.
 		s.awaitTriggerProfileSchedule(t)
-		cmds, err = mdmDevice.StartManagementSession()
+		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
 
-		msgID, err = mdmDevice.GetCurrentMsgID()
+		msgID, err := mdmDevice.GetCurrentMsgID()
 		require.NoError(t, err)
 		for _, c := range cmds {
 			if c.Verb == "Delete" {
@@ -5095,8 +5067,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	t.Run("delete_profile_fully_protected_removes_host_row", func(t *testing.T) {
 		// If profile A and profile B enforce the same LocURI and A is deleted, there is no <Delete> to send because B still
-		// enforces it. The host's row for A must still be cleaned up, otherwise the deleted profile stays listed on the host
-		// forever. This is the common rename case: a rename is a delete plus a create with a new profile UUID.
+		// enforces it. The host's row for A must still be cleaned up.
 		sharedProfile := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Privacy/AllowInputPersonalization</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace>`
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -5104,31 +5075,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 				{Name: "fully-protected-B", Contents: []byte(sharedProfile)},
 			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
-		drainCommands := func() map[string]fleet.ProtoCmdOperation {
-			s.awaitTriggerProfileSchedule(t)
-			cmds, err := mdmDevice.StartManagementSession()
-			require.NoError(t, err)
-			msgID, err := mdmDevice.GetCurrentMsgID()
-			require.NoError(t, err)
-			for _, c := range cmds {
-				cmdID := c.Cmd.CmdID
-				status := syncml.CmdStatusOK
-				mdmDevice.AppendResponse(fleet.SyncMLCmd{
-					XMLName: xml.Name{Local: fleet.CmdStatus},
-					MsgRef:  &msgID,
-					CmdRef:  &cmdID.Value,
-					Cmd:     new(c.Verb),
-					Data:    &status,
-					CmdID:   fleet.CmdID{Value: uuid.NewString()},
-				})
-			}
-			_, err = mdmDevice.SendResponse()
-			require.NoError(t, err)
-			return cmds
-		}
-
 		// Deliver both profiles so profile A has a host row to leak.
-		drainCommands()
+		drainCommands(mdmDevice)
 
 		var profileAUUID string
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -5152,7 +5100,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 		// No <Delete> goes out, since profile B still enforces the LocURI.
-		for _, c := range drainCommands() {
+		for _, c := range drainCommands(mdmDevice) {
 			require.NotContains(t, c.Cmd.GetTargetURI(), "AllowInputPersonalization",
 				"should NOT delete AllowInputPersonalization because profile B still enforces it")
 		}
@@ -5166,10 +5114,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		for _, p := range *gotHostResp.Host.MDM.Profiles {
 			require.NotEqual(t, "fully-protected-A", p.Name, "deleted profile must not remain listed on the host")
 		}
-
-		// The rollup refresh that BulkDeleteMDMWindowsHostsConfigProfiles performs on delete is covered discriminatingly in
-		// testWindowsProfilesStatusRollup (a failed profile deleted -> the host recomputes to verified), so it is not
-		// re-asserted here: every row left on this host is in the same state, so a stale rollup and a fresh one look identical.
 	})
 }
 
