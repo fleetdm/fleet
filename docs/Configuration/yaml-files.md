@@ -106,11 +106,15 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To automatically install the app when this policy fails, you can add an automation by setting `install_software` to `true`.
+To automatically patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
 
-To notify the end user before the app is updated, set `notify_before_patching` to `true`. Fleet shows a notification listing the apps that will be updated, waits 1 hour, then installs. A reminder is shown 5 minutes before the install, and anything the end user updates themselves in the meantime is skipped. Nothing is installed until the end user has been notified and the hour has elapsed. Also, `continuous_automations_enabled` is automatically set to `true`.
+To automatically patch the app when this policy fails and app is not open, set `patch_when_closed` to `true`.
 
-`notify_before_patching` requires macOS and [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Patch policies targeting other platforms install without notifying.
+To notify the end user before the app is patched, set `notify_before_patching` to `true`. Fleet shows a notification listing the apps that will be updated, waits 1 hour, then installs patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires Fleet Desktop app (available as Fleet-maintained app).
+
+Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, the `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled.. 
+
+Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
 #### Automations
 
