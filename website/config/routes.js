@@ -269,6 +269,22 @@ module.exports.routes = {
     }
   },// handles /engineering/foo
 
+  'GET /newsletters': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /newsletters/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /newsletters/foo
+
 
   'GET /docs/?*': {
     skipAssets: false,

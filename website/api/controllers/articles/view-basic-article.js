@@ -76,6 +76,7 @@ module.exports = {
       'announcements': 'Announcements',
       'podcasts': 'Podcasts',
       'report': 'Reports',
+      'newsletters': 'Newsletters',
       'articles': 'Blog',
     };
     let categoryFriendlyName = categoryFriendlyNamesByCategorySlug[articleCategorySlug];
