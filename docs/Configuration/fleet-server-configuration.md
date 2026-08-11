@@ -3750,13 +3750,9 @@ Enabling this bypasses checks for forbidden declaration types, reserved identifi
 
 *Available in Fleet Premium.*
 
-Allows users to add custom [activations](https://developer.apple.com/documentation/devicemanagement/activationsimple) to Apple configuration declarations (DDM profiles), using the API or GitOps.
+> On macOS 26.5, an invalid predicate can leave a host unmanageable, and you can't recover it remotely. Apple tracks this as FB24193230. Test each predicate on one host before you add the profile to more hosts.
 
-An activation includes a predicate. Apple defines predicate syntax, so Fleet can't check a predicate before it reaches a host.
-
-On macOS 26.5, an invalid predicate can leave a host unmanageable. The host stops applying declarations, other MDM commands never finish, and removing the MDM enrollment profile from the host fails. You can't recover the host remotely. Apple tracks this as FB24193230.
-
-Custom activations are off for this reason. If you turn them on, test each predicate on one host before you add the profile to more hosts.
+Allows users to add custom [activations](https://developer.apple.com/documentation/devicemanagement/activationsimple) to Apple configuration declarations (DDM profiles), using the API or GitOps. Apple defines predicate syntax, so Fleet can't check a predicate before it reaches a host.
 
 You can remove an activation you already added, whether or not this setting is turned on.
 
