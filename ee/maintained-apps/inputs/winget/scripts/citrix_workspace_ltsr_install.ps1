@@ -9,17 +9,25 @@
 # The Citrix bootstrapper leaves resident processes running after install
 # (e.g. its self-service/notification tray app), so Start-Process -Wait
 # never returns -- it waits on the whole process tree, not just the
-# installer itself. Start without -Wait and poll Programs and Features for
-# the app's own registry entry instead of trusting the installer process's
-# exit code.
+# installer itself. Start without -Wait and poll Programs and Features
+# instead of trusting the installer process's exit code.
+#
+# The bootstrap installs several components as separate, sequential MSI
+# transactions (confirmed by CI: "Citrix Workspace Inside" registers before
+# "Citrix Workspace(USB)" does). Declaring success as soon as the FIRST
+# entry appears races the still-running later components -- our uninstall
+# script would then only find and remove whichever ones had registered so
+# far. Require at least one entry AND no msiexec.exe process running,
+# stable across two consecutive polls, before declaring the install done.
 
-$softwareNameLike = "Citrix Workspace *"
+$softwareNameLike = "Citrix Workspace*"
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
   'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 )
 $timeoutSeconds = 480
 $pollIntervalSeconds = 10
+$requiredStableChecks = 2
 
 function Test-CitrixWorkspaceInstalled {
   [array]$uninstallKeys = Get-ChildItem `
@@ -43,16 +51,26 @@ Start-Process -FilePath "${env:INSTALLER_PATH}" `
   -PassThru | Out-Null
 
 $elapsed = 0
+$stableChecks = 0
 while ($elapsed -lt $timeoutSeconds) {
-  if (Test-CitrixWorkspaceInstalled) {
-    Write-Host "Citrix Workspace registered in Programs and Features after ${elapsed}s"
-    Exit 0
+  $registered = Test-CitrixWorkspaceInstalled
+  $msiexecIdle = -not (Get-Process -Name "msiexec" -ErrorAction SilentlyContinue)
+
+  if ($registered -and $msiexecIdle) {
+    $stableChecks++
+    if ($stableChecks -ge $requiredStableChecks) {
+      Write-Host "Citrix Workspace registered and no MSI transaction in flight after ${elapsed}s"
+      Exit 0
+    }
+  } else {
+    $stableChecks = 0
   }
+
   Start-Sleep -Seconds $pollIntervalSeconds
   $elapsed += $pollIntervalSeconds
 }
 
-Write-Host "Timed out after ${timeoutSeconds}s waiting for Citrix Workspace to register"
+Write-Host "Timed out after ${timeoutSeconds}s waiting for Citrix Workspace to finish installing"
 Exit 1
 
 } catch {
