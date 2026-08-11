@@ -318,7 +318,7 @@ func setupRealReplica(t testing.TB, testName string, ds *mysql.Datastore, option
 		func() {
 			if out, err := exec.Command(
 				"docker", "compose", "exec", "-T", "mysql_replica_test",
-				"mysql",
+				testing_utils.DBClient(),
 				"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 				"-e",
 				"STOP REPLICA; RESET REPLICA ALL;",
@@ -375,7 +375,7 @@ func setupRealReplica(t testing.TB, testName string, ds *mysql.Datastore, option
 
 	if out, err := exec.Command(
 		"docker", "compose", "exec", "-T", "mysql_replica_test",
-		"mysql",
+		testing_utils.DBClient(),
 		"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 		"-e",
 		fmt.Sprintf(

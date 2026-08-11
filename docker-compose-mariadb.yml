@@ -1,29 +1,35 @@
 ---
-# Docker Compose override file for MariaDB support
-# Usage: docker compose -f docker-compose.yml -f docker-compose-mariadb.yml up
+# Overrides the MySQL services in docker-compose.yml to run MariaDB instead.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose-mariadb.yml up -d mysql_test
+#
+# Only `image` and `command` are overridden -- the service names, ports, tmpfs
+# and environment are inherited, so everything that talks to mysql_test keeps
+# working unchanged. The MariaDB image accepts the MYSQL_* environment
+# variables as legacy aliases, so the shared environment anchor is reused.
+#
+# The commands differ from their MySQL counterparts in three ways:
+#   * the server binary is `mariadbd`;
+#   * `--enforce-gtid-consistency` and `--binlog-expire-logs-seconds` do not
+#     exist in MariaDB (`--expire-logs-days` is the equivalent of the latter);
+#   * `--sql-mode=` clears ONLY_FULL_GROUP_BY, which MariaDB enables by default
+#     and MySQL does not. Delete that line to test with it enabled.
 services:
-  database:
-    image: mariadb:11.6
-    platform: linux/x86_64
-    volumes:
-      - mariadb-persistent-volume:/var/lib/mysql
+  mysql:
+    image: ${FLEET_MYSQL_IMAGE:-mariadb:11.4}
     command: [
         "mariadbd",
-        "--datadir=/var/lib/mysql",
+        "--datadir=/tmp/mysqldata",
         "--log-bin=bin.log",
         "--server-id=1",
         "--max_allowed_packet=536870912",
-        "--sql-mode=",  # <-- delete this line to turn on ONLY_FULL_GROUP_BY
+        "--expire-logs-days=1",
+        "--sql-mode=",
       ]
-    environment: &mariadb-default-environment
-      MARIADB_ROOT_PASSWORD: toor
-      MARIADB_DATABASE: fleet
-      MARIADB_USER: fleet
-      MARIADB_PASSWORD: insecure
 
-  database_test:
-    image: mariadb:11.6
-    platform: linux/x86_64
+  mysql_test:
+    image: ${FLEET_MYSQL_IMAGE:-mariadb:11.4}
     command: [
         "mariadbd",
         "--datadir=/tmpfs",
@@ -35,13 +41,12 @@ services:
         "--log-bin=bin.log",
         "--server-id=1",
         "--max_allowed_packet=536870912",
-        "--sql-mode=",  # <-- delete this line to turn on ONLY_FULL_GROUP_BY
+        "--expire-logs-days=1",
+        "--sql-mode=",
       ]
-    environment: *mariadb-default-environment
 
-  database_replica_test:
-    image: mariadb:11.6
-    platform: linux/x86_64
+  mysql_replica_test:
+    image: ${FLEET_MYSQL_IMAGE:-mariadb:11.4}
     command: [
         "mariadbd",
         "--datadir=/tmpfs",
@@ -53,9 +58,6 @@ services:
         "--log-bin=bin.log",
         "--server-id=2",
         "--max_allowed_packet=536870912",
-        "--sql-mode=",  # <-- delete this line to turn on ONLY_FULL_GROUP_BY
+        "--expire-logs-days=1",
+        "--sql-mode=",
       ]
-    environment: *mariadb-default-environment
-
-volumes:
-  mariadb-persistent-volume:
