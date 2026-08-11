@@ -228,6 +228,11 @@ export interface IHostMdmProfile {
   managed_local_account: string | null;
   // identifier when this profile represents an Android certificate template
   certificate_template_id?: number;
+  /** Automatic retries Fleet has already used, and the number it is allowed. Only present on
+   * Android certificate templates, where a retryable failure leaves the profile in an
+   * in-progress status. */
+  retry_count?: number;
+  max_retries?: number;
 }
 
 // TODO - move disk encryption related types to dedicated file

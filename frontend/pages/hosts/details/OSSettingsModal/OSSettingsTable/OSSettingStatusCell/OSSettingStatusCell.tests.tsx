@@ -4,6 +4,7 @@ import { createCustomRenderer } from "test/test-utils";
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+  IHostMdmProfile,
   ProfileOperationType,
 } from "interfaces/mdm";
 import { HOST_NAME_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
@@ -196,6 +197,149 @@ describe("OS setting status cell", () => {
       expect(
         screen.getByText(/The host is running the command/)
       ).toBeInTheDocument();
+    });
+  });
+
+  // Android certificate templates Fleet is automatically retrying after a failure. These keep an
+  // in-progress status while carrying the detail from the failed attempt.
+  describe("retrying Android certificate", () => {
+    const SCEP_ERROR =
+      "Network error during SCEP enrollment: Failed to communicate with SCEP server";
+
+    const createRetryingCertProfile = (
+      overrides?: Partial<IHostMdmProfile>
+    ): IHostMdmProfile =>
+      createMockHostMdmProfile({
+        profile_uuid: FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+        name: "BeyondCorp",
+        platform: "android",
+        operation_type: "install",
+        status: "delivered",
+        detail: SCEP_ERROR,
+        certificate_template_id: 4,
+        retry_count: 1,
+        max_retries: 3,
+        ...overrides,
+      });
+
+    const renderStatusCell = (profile: IHostMdmProfile) =>
+      createCustomRenderer()(
+        <OSSettingStatusCell
+          profileName={profile.name}
+          status={profile.status}
+          operationType={profile.operation_type}
+          hostPlatform="android"
+          profileUUID={profile.profile_uuid}
+          profile={profile}
+        />
+      );
+
+    it.each(["pending", "delivering", "delivered"] as const)(
+      "displays 'Retrying' with the error and attempt count for '%s' status",
+      async (status) => {
+        const profile = createRetryingCertProfile({ status });
+        const { user } = renderStatusCell(profile);
+
+        const statusText = screen.getByText("Retrying");
+        expect(statusText).toBeInTheDocument();
+
+        await user.hover(statusText);
+        await waitFor(() => {
+          // The attempt numbers count the initial attempt, so one retry of a maximum three
+          // means this is attempt two of four.
+          expect(
+            screen.getByText(`${SCEP_ERROR}. Retrying enrollment (2 of 4).`)
+          ).toBeInTheDocument();
+        });
+      }
+    );
+
+    it("counts the final attempt when the retries are used up", async () => {
+      const profile = createRetryingCertProfile({ retry_count: 3 });
+      const { user } = renderStatusCell(profile);
+
+      await user.hover(screen.getByText("Retrying"));
+      await waitFor(() => {
+        expect(
+          screen.getByText(`${SCEP_ERROR}. Retrying enrollment (4 of 4).`)
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("does not repeat the period when the detail already ends in one", async () => {
+      const profile = createRetryingCertProfile({
+        detail: "Failed to communicate with SCEP server.",
+      });
+      const { user } = renderStatusCell(profile);
+
+      await user.hover(screen.getByText("Retrying"));
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "Failed to communicate with SCEP server. Retrying enrollment (2 of 4)."
+          )
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("displays 'Enforcing' on a first delivery that has not failed", () => {
+      const profile = createRetryingCertProfile({
+        detail: "",
+        retry_count: 0,
+      });
+      renderStatusCell(profile);
+
+      expect(screen.getByText("Enforcing")).toBeInTheDocument();
+      expect(screen.queryByText("Retrying")).not.toBeInTheDocument();
+    });
+
+    it("displays 'Enforcing' after a manual resend, which clears the detail", () => {
+      // A resend sets the retry count to the maximum so the next failure is terminal, but it
+      // clears the detail, so it must not read as an automatic retry.
+      const profile = createRetryingCertProfile({
+        detail: "",
+        retry_count: 3,
+      });
+      renderStatusCell(profile);
+
+      expect(screen.getByText("Enforcing")).toBeInTheDocument();
+      expect(screen.queryByText("Retrying")).not.toBeInTheDocument();
+    });
+
+    it("displays 'Removing enforcement' for a removal, which is never retried", () => {
+      const profile = createRetryingCertProfile({ operation_type: "remove" });
+      renderStatusCell(profile);
+
+      expect(screen.getByText("Removing enforcement")).toBeInTheDocument();
+      expect(screen.queryByText("Retrying")).not.toBeInTheDocument();
+    });
+
+    it("still displays 'Failed' with the raw detail once the retries are exhausted", async () => {
+      const profile = createRetryingCertProfile({
+        status: "failed",
+        retry_count: 3,
+      });
+      const { user } = renderStatusCell(profile);
+
+      const statusText = screen.getByText("Failed");
+      expect(statusText).toBeInTheDocument();
+
+      await user.hover(statusText);
+      await waitFor(() => {
+        expect(screen.getByText(SCEP_ERROR)).toBeInTheDocument();
+      });
+    });
+
+    it("omits the attempt count when the server does not report the retry allowance", async () => {
+      const profile = createRetryingCertProfile({ max_retries: undefined });
+      const { user } = renderStatusCell(profile);
+
+      await user.hover(screen.getByText("Retrying"));
+      await waitFor(() => {
+        expect(
+          screen.getByText(`${SCEP_ERROR}. Retrying enrollment.`)
+        ).toBeInTheDocument();
+      });
     });
   });
 

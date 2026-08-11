@@ -24,8 +24,11 @@ import {
 import TooltipContent from "./components/Tooltip/TooltipContent";
 import generateErrorTooltip from "./errorTooltipHelpers";
 import {
+  ANDROID_CERT_RETRYING_DISPLAY_CONFIG,
+  getAndroidCertificateRetryTooltip,
   HOST_NAME_DISPLAY_CONFIG,
   isDiskEncryptionProfile,
+  isRetryingAndroidCertificate,
   LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG,
   PROFILE_DISPLAY_CONFIG,
   ProfileDisplayOption,
@@ -54,6 +57,8 @@ const OSSettingStatusCell = ({
   profileUUID,
   profile,
 }: IOSSettingStatusCellProps) => {
+  const isRetryingCertificate = isRetryingAndroidCertificate(profile);
+
   let displayOption: ProfileDisplayOption = null;
   if (hostPlatform === "linux") {
     displayOption =
@@ -72,42 +77,46 @@ const OSSettingStatusCell = ({
     hostPlatform === "android" &&
     profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID
   ) {
-    switch (status) {
-      case "pending":
-      case "delivering":
-      case "delivered":
-        if (operationType === "install") {
+    if (isRetryingCertificate) {
+      displayOption = ANDROID_CERT_RETRYING_DISPLAY_CONFIG;
+    } else {
+      switch (status) {
+        case "pending":
+        case "delivering":
+        case "delivered":
+          if (operationType === "install") {
+            displayOption = {
+              statusText: "Enforcing",
+              iconName: "pending-outline",
+              tooltip:
+                "The host is running the command to apply settings or will run it when the host comes online.",
+            };
+          } else {
+            displayOption = {
+              statusText: "Removing enforcement",
+              iconName: "pending-outline",
+              tooltip:
+                "The host is running the command to remove settings or will run it when the host comes online.",
+            };
+          }
+          break;
+        case "verified":
           displayOption = {
-            statusText: "Enforcing",
-            iconName: "pending-outline",
-            tooltip:
-              "The host is running the command to apply settings or will run it when the host comes online.",
+            statusText: "Verified",
+            iconName: "success",
+            tooltip: () => "The host applied the setting. Fleet verified",
           };
-        } else {
+          break;
+        case "failed":
           displayOption = {
-            statusText: "Removing enforcement",
-            iconName: "pending-outline",
-            tooltip:
-              "The host is running the command to remove settings or will run it when the host comes online.",
+            statusText: "Failed",
+            iconName: "error",
+            tooltip: null,
           };
-        }
-        break;
-      case "verified":
-        displayOption = {
-          statusText: "Verified",
-          iconName: "success",
-          tooltip: () => "The host applied the setting. Fleet verified",
-        };
-        break;
-      case "failed":
-        displayOption = {
-          statusText: "Failed",
-          iconName: "error",
-          tooltip: null,
-        };
-        break;
-      default:
-        displayOption = null;
+          break;
+        default:
+          displayOption = null;
+      }
     }
   }
 
@@ -141,9 +150,19 @@ const OSSettingStatusCell = ({
     // "Enforcing" tooltip.
     const pendingDetailTooltip =
       profile?.status === "pending" && profile.detail ? profile.detail : null;
+    // A retrying certificate keeps an in-progress status, so its failure detail is only
+    // reachable here.
+    const retryDetailTooltip =
+      isRetryingCertificate && profile
+        ? getAndroidCertificateRetryTooltip(profile)
+        : null;
 
     let tipContent: React.ReactNode;
-    if (pendingDetailTooltip) {
+    if (retryDetailTooltip) {
+      tipContent = (
+        <span className="tooltip__tooltip-text">{retryDetailTooltip}</span>
+      );
+    } else if (pendingDetailTooltip) {
       tipContent = (
         <span className="tooltip__tooltip-text">{pendingDetailTooltip}</span>
       );

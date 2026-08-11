@@ -1,4 +1,5 @@
 import {
+  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   HostNameSettingStatus,
   ProfileOperationType,
@@ -11,7 +12,10 @@ import {
   TooltipInnerContentOption,
 } from "./components/Tooltip/TooltipContent";
 
-import { OsSettingsTableStatusValue } from "../OSSettingsTableConfig";
+import {
+  IHostMdmProfileWithAddedStatus,
+  OsSettingsTableStatusValue,
+} from "../OSSettingsTableConfig";
 import TooltipInnerContentActionRequired from "./components/Tooltip/ActionRequired";
 
 export const isDiskEncryptionProfile = (profileName: string) => {
@@ -23,6 +27,64 @@ export type ProfileDisplayOption = {
   iconName: IconNames;
   tooltip: TooltipInnerContentOption | null;
 } | null;
+
+/** Statuses an Android certificate template reports while its install is still in flight. */
+const ANDROID_CERT_IN_PROGRESS_STATUSES = [
+  "pending",
+  "delivering",
+  "delivered",
+];
+
+/**
+ * When an Android certificate install fails, Fleet resets the certificate and delivers it again,
+ * so the profile goes back to an in-progress status while carrying the detail from the failed
+ * attempt. Without this the row is indistinguishable from a first delivery and the admin gets no
+ * signal that anything went wrong.
+ */
+export const isRetryingAndroidCertificate = (
+  profile?: IHostMdmProfileWithAddedStatus
+) => {
+  if (
+    !profile ||
+    profile.profile_uuid !== FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID ||
+    // Only installs are retried, removals never are.
+    profile.operation_type !== "install" ||
+    !ANDROID_CERT_IN_PROGRESS_STATUSES.includes(profile.status)
+  ) {
+    return false;
+  }
+
+  // A manual resend also sets a retry count, but it clears the detail, so both are required to
+  // tell an automatic retry apart from a resend.
+  return !!profile.detail && !!profile.retry_count;
+};
+
+/**
+ * Builds the tooltip for a retrying Android certificate, e.g. "Network error during SCEP
+ * enrollment. Retrying enrollment (2 of 4)." The attempt numbers count the initial attempt, so
+ * they run one higher than the retries Fleet reports.
+ */
+export const getAndroidCertificateRetryTooltip = (
+  profile: IHostMdmProfileWithAddedStatus
+) => {
+  const detail = profile.detail.trim();
+  const sentence = /[.!?]$/.test(detail) ? detail : `${detail}.`;
+
+  if (profile.max_retries === undefined || profile.retry_count === undefined) {
+    return `${sentence} Retrying enrollment.`;
+  }
+
+  const attempt = profile.retry_count + 1;
+  const attempts = profile.max_retries + 1;
+  return `${sentence} Retrying enrollment (${attempt} of ${attempts}).`;
+};
+
+export const ANDROID_CERT_RETRYING_DISPLAY_CONFIG: ProfileDisplayOption = {
+  statusText: "Retrying",
+  iconName: "warning",
+  // The tooltip is built from the profile's detail, see getAndroidCertificateRetryTooltip.
+  tooltip: null,
+};
 
 type MacProfileSpecificStatus = "success" | "acknowledged";
 type AndroidCertSpecificStatus = "delivered" | "delivering";
