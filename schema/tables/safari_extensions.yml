@@ -21,7 +21,7 @@ notes: |-
   Requirements:
 
   - [Give osquery full disk access](https://fleetdm.com/guides/enroll-hosts#grant-full-disk-access-to-osquery-on-macos). Safari stores per-user extension state under `~/Library/Containers/com.apple.Safari/`, which macOS protects with TCC.
-  - Constrain `uid` with a [`JOIN`/`CROSS JOIN` against the `users` table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table), or with `WHERE uid = ...`. This is a per-user table.
+  - Constrain `uid` with a JOIN/CROSS JOIN against the `users` table, or with `WHERE uid = ...`. This is a per-user table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
 
   How results are built (osquery 5.14+):
 
