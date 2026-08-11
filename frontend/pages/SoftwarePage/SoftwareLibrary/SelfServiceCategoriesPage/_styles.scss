@@ -4,10 +4,7 @@
 
   &__fleet-row {
     align-self: stretch;
-
-    .fleet-dropdown-wrapper {
-      @include normalize-team-header;
-    }
+    @include normalize-team-header;
   }
 
   &__premium-card {

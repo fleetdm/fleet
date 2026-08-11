@@ -53,6 +53,14 @@ const withAppContext = (isGlobalAdmin: boolean) => (
   </AppContext.Provider>
 );
 
+const withStretchedHeader = (Story: React.ComponentType) => (
+  <div className="self-service-categories-page">
+    <div className="self-service-categories-page__fleet-row">
+      <Story />
+    </div>
+  </div>
+);
+
 const meta: Meta<typeof FleetsDropdown> = {
   title: "Components/FleetsDropdown",
   component: FleetsDropdown,
@@ -154,4 +162,10 @@ export const LongFleetName: Story = {
     selectedFleetId: 1,
   },
   decorators: [withAppContext(true)],
+};
+
+export const OnStretchedPageHeader: Story = {
+  name: "On a stretched page header (menu position repro)",
+  args: { currentUserFleets: FLEETS_FEW },
+  decorators: [withStretchedHeader, withAppContext(true)],
 };
