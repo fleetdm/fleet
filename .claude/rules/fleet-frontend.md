@@ -88,6 +88,9 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - `stripQuotes(str)`, `strToBool(str)` — input parsing
 - `enforceFleetSentenceCasing(str)` — respects Fleet stylization rules
 
+## Buttons
+Prefer `<Button icon="name">` over `<Button><Icon /></Button>` — the prop auto-sizes (16px default, 12px small) and auto-colors; the child pattern is only for a genuinely non-default color or an Icon `className`, and icon-only buttons must set `ariaLabel`.
+
 ## Software titles
 
 ### Display name
