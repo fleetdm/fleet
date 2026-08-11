@@ -1,0 +1,1 @@
+- Added a tvOS tab to Controls > Setup experience > Install software, so App Store apps can be installed on Apple TVs during Automated Device Enrollment.

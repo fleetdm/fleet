@@ -281,6 +281,7 @@ export const SETUP_EXPERIENCE_PLATFORMS = [
   "linux",
   "ios",
   "ipados",
+  "tvos",
   "android",
 ] as const;
 

@@ -44,12 +44,15 @@ const baseClass = "install-software";
 // available for install so we can correctly display the selected count.
 const PER_PAGE_SIZE = 3000;
 
+// The order here selects the tab panel by index, so it must stay in lockstep
+// with the <Tab> order in the TabList below.
 export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "macos",
   "windows",
   "linux",
   "ios",
   "ipados",
+  "tvos",
   "android",
 ];
 export interface InstallSoftwareLocation {
@@ -156,7 +159,10 @@ const InstallSoftware = ({
         globalConfig?.mdm.enabled_and_configured &&
         globalConfig?.mdm.apple_bm_enabled_and_configured;
       const turnOnAppleMdm =
-        (platform === "macos" || platform === "ios" || platform === "ipados") &&
+        (platform === "macos" ||
+          platform === "ios" ||
+          platform === "ipados" ||
+          platform === "tvos") &&
         !appleMdmAndAbmEnabled;
 
       const turnOnAndroidMdm = platform === "android" && !isAndroidMdmEnabled;
@@ -256,6 +262,9 @@ const InstallSoftware = ({
                 </Tab>
                 <Tab>
                   <TabText>iPadOS</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>tvOS</TabText>
                 </Tab>
                 <Tab>
                   <TabText>Android</TabText>
