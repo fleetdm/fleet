@@ -514,8 +514,9 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
 	for _, appID := range appIDs {
 		var androidAppConfig struct {
-			ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-			WorkProfileWidgets   string          `json:"workProfileWidgets"`
+			ManagedConfiguration     json.RawMessage `json:"managedConfiguration"`
+			WorkProfileWidgets       string          `json:"workProfileWidgets"`
+			CredentialProviderPolicy string          `json:"credentialProviderPolicy"`
 		}
 		if config := configsByAppID[appID]; config != nil {
 			if err := json.Unmarshal(config, &androidAppConfig); err != nil {
@@ -527,12 +528,14 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 			// config.
 			androidAppConfig.ManagedConfiguration = json.RawMessage{}
 			androidAppConfig.WorkProfileWidgets = "WORK_PROFILE_WIDGETS_UNSPECIFIED"
+			androidAppConfig.CredentialProviderPolicy = "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"
 		}
 		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
-			PackageName:          appID,
-			InstallType:          installType,
-			ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
-			WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
+			PackageName:              appID,
+			InstallType:              installType,
+			ManagedConfiguration:     googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
+			WorkProfileWidgets:       androidAppConfig.WorkProfileWidgets,
+			CredentialProviderPolicy: androidAppConfig.CredentialProviderPolicy,
 		})
 	}
 	return appPolicies, nil

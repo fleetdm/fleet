@@ -4624,7 +4624,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// 1. made the apps available to the host (for self-service), without any config provided
 	require.Len(t, patchAppsPolicies, 1)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED"},
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"}, // #nosec G101 - AMAPI enum value, not a credential
 	}, patchAppsPolicies[0])
 
 	patchAppsPolicies = nil
@@ -4683,7 +4683,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// 1. made the app available with its config cleared
 	require.Len(t, patchAppsPolicies, 1)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED"},
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"}, // #nosec G101 - AMAPI enum value, not a credential
 	}, patchAppsPolicies[0])
 }
 
