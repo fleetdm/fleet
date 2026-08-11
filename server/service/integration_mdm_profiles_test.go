@@ -5092,6 +5092,105 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		_, err = mdmDevice.SendResponse()
 		require.NoError(t, err)
 	})
+
+	t.Run("delete_profile_fully_protected_removes_host_row", func(t *testing.T) {
+		// If profile A and profile B enforce the same LocURI and A is deleted, there is no <Delete> to send because B still
+		// enforces it. The host's row for A must still be cleaned up, otherwise the deleted profile stays listed on the host
+		// forever. This is the common rename case: a rename is a delete plus a create with a new profile UUID.
+		sharedProfile := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Privacy/AllowInputPersonalization</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace>`
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "fully-protected-A", Contents: []byte(sharedProfile)},
+				{Name: "fully-protected-B", Contents: []byte(sharedProfile)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		drainCommands := func() map[string]fleet.ProtoCmdOperation {
+			s.awaitTriggerProfileSchedule(t)
+			cmds, err := mdmDevice.StartManagementSession()
+			require.NoError(t, err)
+			msgID, err := mdmDevice.GetCurrentMsgID()
+			require.NoError(t, err)
+			for _, c := range cmds {
+				cmdID := c.Cmd.CmdID
+				status := syncml.CmdStatusOK
+				mdmDevice.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  &cmdID.Value,
+					Cmd:     new(c.Verb),
+					Data:    &status,
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				})
+			}
+			_, err = mdmDevice.SendResponse()
+			require.NoError(t, err)
+			return cmds
+		}
+
+		// Deliver both profiles so profile A has a host row to leak.
+		drainCommands()
+
+		var profileAUUID string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &profileAUUID,
+				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?`, "fully-protected-A", tm.ID)
+		})
+		hostProfileRowCount := func(profileUUID string) int {
+			var count int
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(context.Background(), q, &count,
+					`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, host.UUID, profileUUID)
+			})
+			return count
+		}
+		require.Equal(t, 1, hostProfileRowCount(profileAUUID))
+
+		// Delete profile A by batch-setting only profile B, which keeps the shared LocURI enforced.
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "fully-protected-B", Contents: []byte(sharedProfile)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// No <Delete> goes out, since profile B still enforces the LocURI.
+		for _, c := range drainCommands() {
+			require.NotContains(t, c.Cmd.GetTargetURI(), "AllowInputPersonalization",
+				"should NOT delete AllowInputPersonalization because profile B still enforces it")
+		}
+
+		// The host's row for the deleted profile must be gone even though no command was ever sent, so the deleted profile
+		// stops showing up in the host's OS settings.
+		require.Zero(t, hostProfileRowCount(profileAUUID))
+		var gotHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &gotHostResp)
+		require.NotNil(t, gotHostResp.Host.MDM.Profiles)
+		for _, p := range *gotHostResp.Host.MDM.Profiles {
+			require.NotEqual(t, "fully-protected-A", p.Name, "deleted profile must not remain listed on the host")
+		}
+
+		// The per-host rollup must be refreshed off the remaining rows rather than left reflecting the deleted profile.
+		var rollupStatus, recomputedStatus string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(context.Background(), q, &rollupStatus,
+				`SELECT status FROM host_mdm_windows_profiles_status WHERE host_uuid = ?`, host.UUID); err != nil {
+				return err
+			}
+			stmt, args, err := sqlx.In(`
+				SELECT CASE
+					WHEN SUM(status = 'failed' AND profile_name NOT IN (?)) > 0 THEN 'failed'
+					WHEN SUM((status IS NULL OR status = 'pending') AND profile_name NOT IN (?)) > 0 THEN 'pending'
+					WHEN SUM(operation_type = 'install' AND status = 'verifying' AND profile_name NOT IN (?)) > 0 THEN 'verifying'
+					WHEN SUM(operation_type = 'install' AND status = 'verified' AND profile_name NOT IN (?)) > 0 THEN 'verified'
+					ELSE '' END
+				FROM host_mdm_windows_profiles WHERE host_uuid = ?`,
+				servermdm.ListFleetReservedWindowsProfileNames(), servermdm.ListFleetReservedWindowsProfileNames(),
+				servermdm.ListFleetReservedWindowsProfileNames(), servermdm.ListFleetReservedWindowsProfileNames(), host.UUID)
+			if err != nil {
+				return err
+			}
+			return sqlx.GetContext(context.Background(), q, &recomputedStatus, stmt, args...)
+		})
+		require.Equal(t, recomputedStatus, rollupStatus)
+	})
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {

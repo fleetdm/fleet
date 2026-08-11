@@ -1081,6 +1081,300 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 		"no zombie row should be written when the profile is gone")
 }
 
+// TestReconcileWindowsProfilesDeletesFullyProtectedRemoveRows covers a profile that is removed from a host while every one of its
+// LocURIs is still enforced by a profile that remains applicable to that host. There is no <Delete> to send, so no command ack will
+// ever arrive to clean the host's row up; the reconciler has to delete the row itself or the removed profile stays listed on the
+// host (and counted in the profile summary) forever.
+func TestReconcileWindowsProfilesDeletesFullyProtectedRemoveRows(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	const (
+		hostUUID       = "host-a"
+		keptProfile    = "kept-profile-uuid"
+		removedProfile = "removed-profile-uuid"
+	)
+	// Both profiles enforce the same single LocURI, so the removed one is fully protected by the kept one.
+	sharedSyncML := []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Data>0</Data></Item></Replace>`)
+	checksum := []byte("test-checksum")
+
+	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{})
+
+	// One host in team 1. Only the kept profile is live, so the host's existing row for the removed profile becomes a remove
+	// target. The kept profile's row already matches the live checksum, so nothing is re-installed this tick.
+	ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+		[]*fleet.WindowsHostReconcileInfo,
+		[]*fleet.WindowsProfileForReconcile,
+		map[uint]map[uint]struct{},
+		map[string][]*fleet.MDMWindowsProfilePayload,
+		error,
+	) {
+		if after != "" {
+			return nil, nil, nil, nil, nil
+		}
+		teamID := uint(1)
+		hosts := []*fleet.WindowsHostReconcileInfo{{HostID: 1, UUID: hostUUID, TeamID: &teamID}}
+		profiles := []*fleet.WindowsProfileForReconcile{
+			{ProfileUUID: keptProfile, ProfileName: "Kept", TeamID: teamID, Checksum: checksum},
+		}
+		current := map[string][]*fleet.MDMWindowsProfilePayload{
+			hostUUID: {
+				{
+					ProfileUUID: keptProfile, ProfileName: "Kept", HostUUID: hostUUID,
+					OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified, Checksum: checksum,
+				},
+				{
+					ProfileUUID: removedProfile, ProfileName: "Removed", HostUUID: hostUUID,
+					OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified, Checksum: checksum,
+				},
+			},
+		}
+		return hosts, profiles, nil, current, nil
+	}
+
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		out := make(map[string]fleet.MDMWindowsProfileContents, len(profileUUIDs))
+		for _, uuid := range profileUUIDs {
+			out[uuid] = fleet.MDMWindowsProfileContents{SyncML: sharedSyncML, Checksum: checksum}
+		}
+		return out, nil
+	}
+
+	var enqueuedCommands []*fleet.MDMWindowsCommand
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		enqueuedCommands = append(enqueuedCommands, cmd)
+		return nil
+	}
+
+	var deletedRows []*fleet.MDMWindowsProfilePayload
+	ds.BulkDeleteMDMWindowsHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error {
+		deletedRows = append(deletedRows, payload...)
+		return nil
+	}
+
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+
+	for _, cmd := range enqueuedCommands {
+		require.NotContains(t, string(cmd.RawCommand), "<Delete",
+			"no <Delete> can be sent while another profile still enforces the LocURI")
+	}
+	require.True(t, ds.BulkDeleteMDMWindowsHostsConfigProfilesFuncInvoked,
+		"the suppressed remove must delete the host's row instead of leaving it behind")
+	require.Len(t, deletedRows, 1)
+	require.Equal(t, removedProfile, deletedRows[0].ProfileUUID)
+	require.Equal(t, hostUUID, deletedRows[0].HostUUID)
+}
+
+// TestReconcileWindowsProfilesDeletesRowAfterTransferToMirroredTeam covers transferring a host between two teams whose profiles
+// enforce the same LocURIs. The outgoing team's profile still exists (it just no longer applies to this host), and the incoming
+// team's profile protects every one of its LocURIs, so no <Delete> is sent. The outgoing profile's host row still has to go, or the
+// same setting is listed twice on Host details > OS settings with no way to clear it short of unenforcing the setting.
+func TestReconcileWindowsProfilesDeletesRowAfterTransferToMirroredTeam(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	const (
+		hostUUID     = "transferred-host"
+		teamAProfile = "team-a-profile-uuid"
+		teamBProfile = "team-b-profile-uuid"
+	)
+	// Mirrored profiles: two distinct profiles, in two distinct teams, enforcing an identical LocURI set.
+	mirroredSyncML := []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Data>0</Data></Item></Replace>`)
+	checksum := []byte("test-checksum")
+
+	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{})
+
+	// The host has already been moved to team B. It still carries the verified row for team A's profile, and team B's mirrored
+	// profile is not installed on it yet, so this tick both installs B's profile and makes A's profile a remove target.
+	ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+		[]*fleet.WindowsHostReconcileInfo,
+		[]*fleet.WindowsProfileForReconcile,
+		map[uint]map[uint]struct{},
+		map[string][]*fleet.MDMWindowsProfilePayload,
+		error,
+	) {
+		if after != "" {
+			return nil, nil, nil, nil, nil
+		}
+		teamBID := uint(2)
+		hosts := []*fleet.WindowsHostReconcileInfo{{HostID: 1, UUID: hostUUID, TeamID: &teamBID}}
+		profiles := []*fleet.WindowsProfileForReconcile{
+			{ProfileUUID: teamBProfile, ProfileName: "Mirrored", TeamID: teamBID, Checksum: checksum},
+		}
+		current := map[string][]*fleet.MDMWindowsProfilePayload{
+			hostUUID: {
+				{
+					ProfileUUID: teamAProfile, ProfileName: "Mirrored", HostUUID: hostUUID,
+					OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified, Checksum: checksum,
+				},
+			},
+		}
+		return hosts, profiles, nil, current, nil
+	}
+
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		out := make(map[string]fleet.MDMWindowsProfileContents, len(profileUUIDs))
+		for _, uuid := range profileUUIDs {
+			out[uuid] = fleet.MDMWindowsProfileContents{SyncML: mirroredSyncML, Checksum: checksum}
+		}
+		return out, nil
+	}
+
+	// Both profiles still exist; only the host's team membership changed. This is what separates this case from a deleted profile.
+	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+		out := make(map[string]struct{}, len(profileUUIDs))
+		for _, u := range profileUUIDs {
+			out[u] = struct{}{}
+		}
+		return out, nil
+	}
+
+	var enqueuedCommands []*fleet.MDMWindowsCommand
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		enqueuedCommands = append(enqueuedCommands, cmd)
+		return nil
+	}
+	ds.MDMWindowsBulkInsertCommandsFunc = func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
+		enqueuedCommands = append(enqueuedCommands, cmds...)
+		return nil
+	}
+
+	var deletedRows []*fleet.MDMWindowsProfilePayload
+	ds.BulkDeleteMDMWindowsHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error {
+		deletedRows = append(deletedRows, payload...)
+		return nil
+	}
+
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+
+	// The setting is never lifted from the device: team B's profile installs and no <Delete> goes out for the shared LocURI.
+	for _, cmd := range enqueuedCommands {
+		require.NotContains(t, string(cmd.RawCommand), "<Delete",
+			"the transfer must not open an enforcement gap on a LocURI the incoming profile still enforces")
+	}
+	// Only the outgoing team's row is dropped, keyed by (profile, host), so the profile itself and other hosts still in team A
+	// are untouched.
+	require.True(t, ds.BulkDeleteMDMWindowsHostsConfigProfilesFuncInvoked,
+		"the outgoing team's row must not stay listed alongside the incoming team's profile")
+	require.Len(t, deletedRows, 1)
+	require.Equal(t, teamAProfile, deletedRows[0].ProfileUUID)
+	require.Equal(t, hostUUID, deletedRows[0].HostUUID)
+}
+
+// TestReconcileWindowsProfilesDeletesSuppressedRemoveRowsInOneBatch covers batch-replacing a team's whole profile set with
+// differently-named profiles carrying the same LocURIs. Every removed profile is fully protected by its replacement, so every
+// remove is suppressed at once. All the stale rows have to go, and they should go in a single datastore call: that call recomputes
+// the status rollup for every host it is handed, so one call per removed profile would redo the same rollup work for the same hosts
+// once per profile.
+func TestReconcileWindowsProfilesDeletesSuppressedRemoveRowsInOneBatch(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	const (
+		profileCount = 25
+		hostCount    = 4
+	)
+	checksum := []byte("test-checksum")
+	// Each old profile is replaced by a differently-named new profile targeting the identical LocURI.
+	syncMLFor := func(i int) []byte {
+		return []byte(fmt.Sprintf(
+			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/Setting%d</LocURI></Target><Data>0</Data></Item></Replace>`, i))
+	}
+	oldProfileUUID := func(i int) string { return fmt.Sprintf("old-profile-%d", i) }
+	newProfileUUID := func(i int) string { return fmt.Sprintf("new-profile-%d", i) }
+	hostUUIDFor := func(i int) string { return fmt.Sprintf("host-%d", i) }
+
+	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{})
+
+	ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+		[]*fleet.WindowsHostReconcileInfo,
+		[]*fleet.WindowsProfileForReconcile,
+		map[uint]map[uint]struct{},
+		map[string][]*fleet.MDMWindowsProfilePayload,
+		error,
+	) {
+		if after != "" {
+			return nil, nil, nil, nil, nil
+		}
+		teamID := uint(1)
+		hosts := make([]*fleet.WindowsHostReconcileInfo, 0, hostCount)
+		current := make(map[string][]*fleet.MDMWindowsProfilePayload, hostCount)
+		for h := range hostCount {
+			hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: uint(h + 1), UUID: hostUUIDFor(h), TeamID: &teamID})
+			rows := make([]*fleet.MDMWindowsProfilePayload, 0, profileCount)
+			for p := range profileCount {
+				// Only the old set is installed; the new set has just been applied and is not on the hosts yet.
+				rows = append(rows, &fleet.MDMWindowsProfilePayload{
+					ProfileUUID: oldProfileUUID(p), ProfileName: fmt.Sprintf("Old %d", p), HostUUID: hostUUIDFor(h),
+					OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified, Checksum: checksum,
+				})
+			}
+			current[hostUUIDFor(h)] = rows
+		}
+		profiles := make([]*fleet.WindowsProfileForReconcile, 0, profileCount)
+		for p := range profileCount {
+			profiles = append(profiles, &fleet.WindowsProfileForReconcile{
+				ProfileUUID: newProfileUUID(p), ProfileName: fmt.Sprintf("New %d", p), TeamID: teamID, Checksum: checksum,
+			})
+		}
+		return hosts, profiles, nil, current, nil
+	}
+
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		out := make(map[string]fleet.MDMWindowsProfileContents, len(profileUUIDs))
+		for _, uuid := range profileUUIDs {
+			var idx int
+			if _, err := fmt.Sscanf(uuid, "old-profile-%d", &idx); err != nil {
+				if _, err := fmt.Sscanf(uuid, "new-profile-%d", &idx); err != nil {
+					continue
+				}
+			}
+			out[uuid] = fleet.MDMWindowsProfileContents{SyncML: syncMLFor(idx), Checksum: checksum}
+		}
+		return out, nil
+	}
+
+	var enqueuedCommands []*fleet.MDMWindowsCommand
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		enqueuedCommands = append(enqueuedCommands, cmd)
+		return nil
+	}
+	ds.MDMWindowsBulkInsertCommandsFunc = func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
+		enqueuedCommands = append(enqueuedCommands, cmds...)
+		return nil
+	}
+
+	var deleteCallCount int
+	var deletedRows []*fleet.MDMWindowsProfilePayload
+	ds.BulkDeleteMDMWindowsHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error {
+		deleteCallCount++
+		deletedRows = append(deletedRows, payload...)
+		return nil
+	}
+
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+
+	for _, cmd := range enqueuedCommands {
+		require.NotContains(t, string(cmd.RawCommand), "<Delete",
+			"every removed LocURI is still enforced by its replacement, so no <Delete> may be sent")
+	}
+	// Every (old profile, host) pair is cleaned up, and the whole batch goes out in one call.
+	require.Len(t, deletedRows, profileCount*hostCount)
+	require.Equal(t, 1, deleteCallCount, "suppressed removes must be deleted in one batch, not one call per profile")
+	gotPairs := make(map[string]struct{}, len(deletedRows))
+	for _, row := range deletedRows {
+		gotPairs[row.ProfileUUID+"|"+row.HostUUID] = struct{}{}
+	}
+	for p := range profileCount {
+		for h := range hostCount {
+			require.Contains(t, gotPairs, oldProfileUUID(p)+"|"+hostUUIDFor(h))
+		}
+	}
+}
+
 // TestReconcileWindowsProfilesSkipsInsertLag covers the asymmetric race
 // where a profile was just inserted on the primary but the replica
 // hasn't caught up: GetMDMWindowsProfilesContents (replica) misses the
