@@ -161,10 +161,15 @@ const ManageFleetsPage = ({
         .then((response: ILoadTeamResponse) => {
           // Splice the created fleet into the cached list so we don't
           // trigger a re-read that could return stale data under replica lag.
-          queryClient.setQueryData<ILoadTeamsResponse>(["teams"], (old) => {
-            if (!old) return old;
-            return { ...old, teams: [response.team, ...old.teams] };
-          });
+          const cached = queryClient.getQueryData<ILoadTeamsResponse>([
+            "teams",
+          ]);
+          if (cached) {
+            queryClient.setQueryData<ILoadTeamsResponse>(["teams"], {
+              ...cached,
+              teams: [response.team, ...cached.teams],
+            });
+          }
           setBackendValidators({});
           toggleCreateFleetModal();
           // Team memberships on /me may shift when the current user's roles
@@ -212,13 +217,15 @@ const ManageFleetsPage = ({
         .then(() => {
           // Drop the deleted fleet from the cached list so we don't
           // trigger a re-read that could return stale data under replica lag.
-          queryClient.setQueryData<ILoadTeamsResponse>(["teams"], (old) => {
-            if (!old) return old;
-            return {
-              ...old,
-              teams: old.teams.filter((t) => t.id !== fleetEditing.id),
-            };
-          });
+          const cached = queryClient.getQueryData<ILoadTeamsResponse>([
+            "teams",
+          ]);
+          if (cached) {
+            queryClient.setQueryData<ILoadTeamsResponse>(["teams"], {
+              ...cached,
+              teams: cached.teams.filter((t) => t.id !== fleetEditing.id),
+            });
+          }
           if (currentTeam?.id === fleetEditing.id) {
             setCurrentTeam(undefined);
           }
@@ -256,15 +263,17 @@ const ManageFleetsPage = ({
           .then((response: ILoadTeamResponse) => {
             // Splice the renamed fleet into the cached list so we don't
             // trigger a re-read that could return stale data under replica lag.
-            queryClient.setQueryData<ILoadTeamsResponse>(["teams"], (old) => {
-              if (!old) return old;
-              return {
-                ...old,
-                teams: old.teams.map((t) =>
+            const cached = queryClient.getQueryData<ILoadTeamsResponse>([
+              "teams",
+            ]);
+            if (cached) {
+              queryClient.setQueryData<ILoadTeamsResponse>(["teams"], {
+                ...cached,
+                teams: cached.teams.map((t) =>
                   t.id === fleetEditing.id ? response.team : t
                 ),
-              };
-            });
+              });
+            }
             setBackendValidators({});
             toggleRenameFleetModal();
             notify.success(

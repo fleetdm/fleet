@@ -339,15 +339,15 @@ const TeamDetailsWrapper = ({
         const response = await teamsAPI.update(updatedAttrs, teamIdForApi);
         // Splice the updated team into the cached teams list so we don't
         // trigger a re-read that could return stale data under replica lag.
-        queryClient.setQueryData<ILoadTeamsResponse>(["teams"], (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            teams: old.teams.map((t) =>
+        const cached = queryClient.getQueryData<ILoadTeamsResponse>(["teams"]);
+        if (cached) {
+          queryClient.setQueryData<ILoadTeamsResponse>(["teams"], {
+            ...cached,
+            teams: cached.teams.map((t) =>
               t.id === teamIdForApi ? response.team : t
             ),
-          };
-        });
+          });
+        }
         setBackendValidators({});
         // Fresh /me since team memberships / display names on the current
         // user can change as a side effect of a team rename.

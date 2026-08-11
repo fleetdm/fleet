@@ -153,18 +153,17 @@ const ConfigurationProfiles = ({
     setIsDeleting(true);
     try {
       await mdmAPI.deleteProfile(profileId);
-      queryClient.setQueryData<IMdmProfilesResponse>(
-        profilesQueryKey,
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            profiles: (old.profiles ?? []).filter(
-              (p) => p.profile_uuid !== profileId
-            ),
-          };
-        }
+      const cached = queryClient.getQueryData<IMdmProfilesResponse>(
+        profilesQueryKey
       );
+      if (cached) {
+        queryClient.setQueryData<IMdmProfilesResponse>(profilesQueryKey, {
+          ...cached,
+          profiles: (cached.profiles ?? []).filter(
+            (p) => p.profile_uuid !== profileId
+          ),
+        });
+      }
       onMutation();
       notify.success("Successfully deleted.");
     } catch (e) {
