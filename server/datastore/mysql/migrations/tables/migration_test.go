@@ -94,6 +94,17 @@ func getMigrationVersion(t *testing.T) int64 {
 //
 // It returns the database connection to perform additional queries and migrations.
 func applyUpToPrev(t *testing.T) *sqlx.DB {
+	// Reaching any given migration means replaying every migration before it,
+	// and the pre-2025 migrations do not run on MariaDB (the first failure is
+	// 20240905200000_UninstallPackages). Applied migrations cannot be rewritten,
+	// so per-migration tests are MySQL-only; MariaDB coverage comes from the
+	// other suites, which start from the schema-mariadb.sql baseline.
+	//
+	// See https://github.com/fleetdm/fleet/issues/34952.
+	if os.Getenv("FLEET_DB_CLIENT") == "mariadb" {
+		t.Skip("replaying migration history is not supported on MariaDB; see fleetdm/fleet#34952")
+	}
+
 	// Run migration tests up to 2 months old. Our releases are on a 3-week
 	// cadence so this safely catches every migration in the release with a bit
 	// of buffer in case of delayed releases.
