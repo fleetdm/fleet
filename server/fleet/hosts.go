@@ -1135,6 +1135,12 @@ type HostDetail struct {
 	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
 
 	ConditionalAccessBypassed bool `json:"conditional_access_bypassed"`
+
+	// IDOnly marks a result where the caller was allowed to resolve the host but
+	// not to read it, so only ID is populated. Handlers must render it as an
+	// id-only response rather than a full one with everything zeroed out, which
+	// would advertise fields the caller never had access to.
+	IDOnly bool `json:"-"`
 }
 
 type HostEndUser struct {
