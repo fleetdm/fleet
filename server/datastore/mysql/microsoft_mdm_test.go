@@ -5529,6 +5529,31 @@ func testWindowsMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.NotNil(t, profile)
 
+			// A profile being removed must no longer resolve, so its identifier can't be replayed against the unauthenticated SCEP proxy.
+			t.Run("profile being removed is not returned", func(t *testing.T) {
+				upsertOperationType := func(operationType fleet.MDMOperationType) {
+					err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+						{
+							ProfileUUID:   initialCP.ProfileUUID,
+							ProfileName:   initialCP.Name,
+							HostUUID:      host.UUID,
+							Status:        &fleet.MDMDeliveryPending,
+							OperationType: operationType,
+							CommandUUID:   "command-uuid",
+							Checksum:      []byte("checksum"),
+						},
+					})
+					require.NoError(t, err)
+				}
+				// Restore the install operation so the subtests that follow see the original state.
+				defer upsertOperationType(fleet.MDMOperationTypeInstall)
+
+				upsertOperationType(fleet.MDMOperationTypeRemove)
+				removedProfile, err := ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				assert.Nil(t, removedProfile)
+			})
+
 			serial := "8ABADCAFEF684D6348F5EC95AEFF468F237A9D75"
 
 			t.Run("Non renewal scenario 1 - validity window > 30 days but not yet time to renew", func(t *testing.T) {

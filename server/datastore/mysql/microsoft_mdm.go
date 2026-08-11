@@ -3380,6 +3380,9 @@ func (ds *Datastore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host
 	})
 }
 
+// GetWindowsHostMDMCertificateProfile returns the certificate profile backing a SCEP proxy identifier. Only profiles being installed are
+// returned: once a profile flips to "remove", its identifier must no longer resolve, so the unauthenticated SCEP proxy stops relaying to
+// the CA for it.
 func (ds *Datastore) GetWindowsHostMDMCertificateProfile(ctx context.Context, hostUUID string,
 	profileUUID string, caName string,
 ) (*fleet.HostMDMCertificateProfile, error) {
@@ -3399,9 +3402,10 @@ func (ds *Datastore) GetWindowsHostMDMCertificateProfile(ctx context.Context, ho
 	JOIN host_mdm_managed_certificates hmmc
 		ON hmwp.host_uuid = hmmc.host_uuid AND hmwp.profile_uuid = hmmc.profile_uuid
 	WHERE
-		hmmc.host_uuid = ? AND hmmc.profile_uuid = ? AND hmmc.ca_name = ?`
+		hmmc.host_uuid = ? AND hmmc.profile_uuid = ? AND hmmc.ca_name = ? AND hmwp.operation_type = ?`
 	var profile fleet.HostMDMCertificateProfile
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID, caName); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID, caName,
+		fleet.MDMOperationTypeInstall); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}

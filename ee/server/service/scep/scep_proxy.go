@@ -233,9 +233,20 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context, identifier string) (
 	}
 	res, err := client.GetCACaps(ctx)
 	if err != nil {
-		return res, ctxerr.Wrapf(ctx, err, "Could not GetCACaps from SCEP server %s", scepURL)
+		svc.debugLogger.ErrorContext(ctx, "SCEP proxy GetCACaps failed", "scep_url", scepURL, "err", err)
+		return res, sanitizeUpstreamError(ctx, err, "Could not GetCACaps from SCEP server")
 	}
 	return res, nil
+}
+
+// sanitizeUpstreamError converts an error from the upstream CA into one that is safe to hand back to the SCEP client. The proxy route is
+// unauthenticated and the transport writes the error text straight into the response body, so the CA URL (dial errors embed it) and the
+// CA's response body must stay in the logs only. A deadline-exceeded cause is preserved because the endpoint maps it to a 408.
+func sanitizeUpstreamError(ctx context.Context, err error, message string) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return ctxerr.Wrap(ctx, context.DeadlineExceeded, message)
+	}
+	return ctxerr.New(ctx, message)
 }
 
 // GetCACert returns the CA certificate(s) from SCEP server.
@@ -252,7 +263,8 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string, iden
 	}
 	res, num, err := client.GetCACert(ctx, message)
 	if err != nil {
-		return res, num, ctxerr.Wrapf(ctx, err, "Could not GetCACert from SCEP server %s", scepURL)
+		svc.debugLogger.ErrorContext(ctx, "SCEP proxy GetCACert failed", "scep_url", scepURL, "err", err)
+		return res, num, sanitizeUpstreamError(ctx, err, "Could not GetCACert from SCEP server")
 	}
 	return res, num, nil
 }
@@ -273,8 +285,8 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	res, err := client.PKIOperation(ctx, data)
 	if err != nil {
 		svc.recordWindowsSCEPProxyFailure(ctx, identifier, "PKIOperation", err)
-		return res, ctxerr.Wrapf(ctx, err,
-			"Could not do PKIOperation on SCEP server %s", scepURL)
+		svc.debugLogger.ErrorContext(ctx, "SCEP proxy PKIOperation failed", "scep_url", scepURL, "err", err)
+		return res, sanitizeUpstreamError(ctx, err, "Could not do PKIOperation on SCEP server")
 	}
 	return res, nil
 }
@@ -499,11 +511,6 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			}
 		}
 
-		if strings.HasPrefix(certReq.GetProfileUUID(), fleet.MDMWindowsProfileUUIDPrefix) {
-			// TODO: Early return for Windows profiles as they do not support resending yet.
-			return scepURL, nil
-		}
-
 		if checkChallenge {
 			if err := svc.handleFleetChallenge(ctx, fleetChallenge, hostUUID, profileUUID); err != nil {
 				// FIXME: The layered logging implementation of the scepProxyService not
@@ -558,10 +565,18 @@ func (svc *scepProxyService) GetNextCACert(_ context.Context) ([]byte, error) {
 func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChallenge string, hostUUID string, profileUUID string) error {
 	var errs []error
 
+	// ResendHostCertificateProfile only touches the Apple tables, so a Windows profile whose challenge was rejected would never be resent
+	// and would stay stuck. Route Windows through the platform-aware resend. (Android resends are a separate pre-existing gap: its SCEP
+	// flow is backed by certificate templates rather than a host profile row, so it is left on the existing path here.)
+	resendProfile := svc.ds.ResendHostCertificateProfile
+	if strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+		resendProfile = svc.ds.ResendHostMDMProfile
+	}
+
 	if err := svc.ds.ConsumeChallenge(ctx, fleetChallenge); err != nil {
 		errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: validating challenge"))
 		// FIXME: See comment in datastore method regarding how we resend profiles with dynamic content
-		if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
+		if err := resendProfile(ctx, hostUUID, profileUUID); err != nil {
 			errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: resending host mdm profile"))
 		}
 	}
