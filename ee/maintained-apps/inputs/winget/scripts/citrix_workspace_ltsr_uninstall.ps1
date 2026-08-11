@@ -11,6 +11,11 @@
 # from the registry string. If the selected entry isn't MSI-based, fall back
 # to re-running its own uninstaller exe with Citrix's documented silent
 # switches.
+#
+# The Citrix bootstrapper installs several components; other internal MSI
+# transactions can still hold the Windows Installer mutex right after our own
+# install script returns, so msiexec /x fails transiently with 1618
+# (ERROR_INSTALL_ALREADY_RUNNING). Retry a few times with a short delay.
 
 $softwareNameLike = "Citrix Workspace *"
 
@@ -21,6 +26,19 @@ $paths = @(
 
 $exitCode = 0
 $timeoutSeconds = 180
+$maxMsiAttempts = 5
+$msiRetryDelaySeconds = 15
+
+function Wait-ProcessBounded {
+    param($Process, [int]$TimeoutSeconds)
+
+    if (-not $Process.WaitForExit($TimeoutSeconds * 1000)) {
+        Write-Host "Uninstaller did not exit within ${TimeoutSeconds}s, stopping it."
+        Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
+        return $null
+    }
+    return $Process.ExitCode
+}
 
 try {
 
@@ -71,9 +89,25 @@ if ($uninstallCommand -match '(?i)msiexec') {
     }
 
     Write-Host "Uninstalling product code: $productCode"
-    $process = Start-Process -FilePath "msiexec.exe" `
-        -ArgumentList "/x $productCode /qn /norestart" `
-        -PassThru
+
+    for ($attempt = 1; $attempt -le $maxMsiAttempts; $attempt++) {
+        $process = Start-Process -FilePath "msiexec.exe" `
+            -ArgumentList "/x $productCode /qn /norestart" `
+            -PassThru
+
+        $exitCode = Wait-ProcessBounded -Process $process -TimeoutSeconds $timeoutSeconds
+        if ($null -eq $exitCode) {
+            Exit 1
+        }
+        Write-Host "Uninstall exit code: $exitCode (attempt $attempt of $maxMsiAttempts)"
+
+        if ($exitCode -ne 1618) {
+            break
+        }
+
+        Write-Host "Windows Installer busy (1618) -- another of Citrix's own component installs likely still holds the mutex. Retrying in ${msiRetryDelaySeconds}s."
+        Start-Sleep -Seconds $msiRetryDelaySeconds
+    }
 } else {
     # Non-MSI entry (e.g. TrolleyExpress.exe / CWAInstaller.exe): re-run the
     # vendor's own uninstaller with its documented silent switches.
@@ -91,17 +125,13 @@ if ($uninstallCommand -match '(?i)msiexec') {
     Write-Host "Uninstall command: $exePath"
     $process = Start-Process -FilePath $exePath -ArgumentList "/uninstall /cleanup /silent" `
         -PassThru
-}
 
-$exited = $process.WaitForExit($timeoutSeconds * 1000)
-if (-not $exited) {
-    Write-Host "Uninstaller did not exit within ${timeoutSeconds}s, stopping it."
-    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-    Exit 1
+    $exitCode = Wait-ProcessBounded -Process $process -TimeoutSeconds $timeoutSeconds
+    if ($null -eq $exitCode) {
+        Exit 1
+    }
+    Write-Host "Uninstall exit code: $exitCode"
 }
-
-$exitCode = $process.ExitCode
-Write-Host "Uninstall exit code: $exitCode"
 
 # Treat msiexec-style reboot-required codes as success too.
 if ($exitCode -eq 3010 -or $exitCode -eq 1641) {
