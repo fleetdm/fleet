@@ -22,6 +22,7 @@ import Spinner from "components/Spinner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
 import { isHistoricalDataEnabled } from "interfaces/charts";
 import { IConfig } from "interfaces/config";
@@ -100,6 +101,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isPremiumTier,
     isOnGlobalTeam,
   } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const {
     currentTeamId,
@@ -199,11 +201,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setSelectedPlatform(platformByPathname);
   }, [pathname]);
 
-  const { data: config, refetch: refetchConfig } = useQuery<
-    IConfig,
-    Error,
-    IConfig
-  >(["config"], () => configAPI.loadAll(), { ...DEFAULT_USE_QUERY_OPTIONS });
+  const { data: config } = useQuery<IConfig, Error, IConfig>(
+    ["config"],
+    () => configAPI.loadAll(),
+    { ...DEFAULT_USE_QUERY_OPTIONS }
+  );
 
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
     ILoadTeamsResponse,
@@ -577,7 +579,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           formData.url !==
             config?.webhook_settings.activities_webhook.destination_url
         ) {
-          await configAPI.update({
+          const updatedConfig = await configAPI.update({
             webhook_settings: {
               activities_webhook: {
                 enable_activities_webhook: formData.enabled,
@@ -585,6 +587,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               },
             },
           });
+          updateAppConfig(updatedConfig);
         }
         notify.success("Successfully updated activity feed automations.");
         setShowActivityFeedAutomationsModal(false);
@@ -595,14 +598,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         );
       } finally {
         setUpdatingActivityFeedAutomations(false);
-        refetchConfig();
         refetchActivities();
       }
     },
     [
       config?.webhook_settings.activities_webhook.destination_url,
       config?.webhook_settings.activities_webhook.enable_activities_webhook,
-      refetchConfig,
+      updateAppConfig,
     ]
   );
 

@@ -5,6 +5,7 @@ import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 const baseClass = "delete-entra-tenant-modal";
 
@@ -17,7 +18,8 @@ const DeleteEntraTenantModal = ({
   tenantId,
   onExit,
 }: IDeleteEntraTenantModalProps) => {
-  const { setConfig, config } = useContext(AppContext);
+  const { config } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -32,7 +34,7 @@ const DeleteEntraTenantModal = ({
           windows_entra_tenant_ids: updatedTenantIds,
         },
       });
-      setConfig(updateData);
+      updateAppConfig(updateData);
       notify.success("Tenant deleted successfully.");
       onExit();
     } catch (err) {

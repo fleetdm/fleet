@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
@@ -34,6 +35,7 @@ const IntegrationsPage = ({
     section = "sso";
   }
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
+  const updateAppConfig = useUpdateAppConfig();
 
   // // // settings that live under the integrations page
 
@@ -41,7 +43,6 @@ const IntegrationsPage = ({
     data: appConfig,
     isLoading: isLoadingAppConfig,
     isFetching: isFetchingAppConfig,
-    refetch: refetchConfig,
   } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
   });
@@ -57,9 +58,9 @@ const IntegrationsPage = ({
       const diff = deepDifference(formUpdates, appConfig);
 
       // If there's no actual change, don't make the API call to update config.
-      // Still refetch in case settings were changed inside a card (like end-user auth).
+      // Cards that make their own writes update the cache directly via
+      // useUpdateAppConfig, so no refetch is needed here.
       if (Object.keys(diff).length === 0) {
-        refetchConfig();
         return true;
       }
 
@@ -69,9 +70,9 @@ const IntegrationsPage = ({
       diff.agent_options = formUpdates.agent_options;
 
       try {
-        await configAPI.update(diff);
+        const updatedConfig = await configAPI.update(diff);
+        updateAppConfig(updatedConfig);
         notify.success("Successfully updated settings.");
-        refetchConfig();
         return true;
       } catch (err: unknown) {
         notify.error("Could not update settings", { response: err });
@@ -80,7 +81,7 @@ const IntegrationsPage = ({
         setIsUpdatingSettings(false);
       }
     },
-    [appConfig, refetchConfig]
+    [appConfig, updateAppConfig]
   );
 
   if (!appConfig) return <></>;

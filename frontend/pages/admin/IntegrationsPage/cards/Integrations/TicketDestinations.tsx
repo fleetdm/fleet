@@ -19,6 +19,7 @@ import {
   IGlobalIntegrations,
 } from "interfaces/integration";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import configAPI from "services/entities/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -39,6 +40,7 @@ const UNKNOWN_ERROR =
   "We experienced an error when attempting to connect. Please try again later.";
 
 const TicketDestinations = (): JSX.Element => {
+  const updateAppConfig = useUpdateAppConfig();
   const [
     showAddTicketDestinationModal,
     setShowAddTicketDestinationModal,
@@ -63,7 +65,6 @@ const TicketDestinations = (): JSX.Element => {
     data: integrations,
     isLoading: isLoadingIntegrations,
     error: loadingIntegrationsError,
-    refetch: refetchIntegrations,
   } = useQuery<IConfig, Error, IGlobalIntegrations>(
     ["integrations"],
     () => configAPI.loadAll(),
@@ -121,7 +122,10 @@ const TicketDestinations = (): JSX.Element => {
       setTestingConnection(true);
       return configAPI
         .update({ integrations: destination() })
-        .then(() => {
+        .then((updatedConfig) => {
+          updateAppConfig(updatedConfig);
+          setJiraIntegrations(updatedConfig.integrations.jira);
+          setZendeskIntegrations(updatedConfig.integrations.zendesk);
           notify.success(
             <>
               Successfully added{" "}
@@ -135,7 +139,6 @@ const TicketDestinations = (): JSX.Element => {
             </>
           );
           toggleAddTicketDestinationModal();
-          refetchIntegrations();
         })
         .catch((addError: { data: IApiError }) => {
           if (addError.data?.message.includes("Validation Failed")) {
@@ -186,7 +189,7 @@ const TicketDestinations = (): JSX.Element => {
           setTestingConnection(false);
         });
     },
-    [toggleAddTicketDestinationModal]
+    [toggleAddTicketDestinationModal, updateAppConfig]
   );
 
   const onDeleteSubmit = useCallback(() => {
@@ -211,7 +214,10 @@ const TicketDestinations = (): JSX.Element => {
       };
       setIsUpdatingIntegration(true);
       deleteIntegrationDestination()
-        .then(() => {
+        .then((updatedConfig) => {
+          updateAppConfig(updatedConfig);
+          setJiraIntegrations(updatedConfig.integrations.jira);
+          setZendeskIntegrations(updatedConfig.integrations.zendesk);
           notify.success(
             <>
               Successfully deleted{" "}
@@ -222,7 +228,6 @@ const TicketDestinations = (): JSX.Element => {
               </b>
             </>
           );
-          refetchIntegrations();
         })
         .catch((deleteError: unknown) => {
           notify.error(
@@ -243,7 +248,7 @@ const TicketDestinations = (): JSX.Element => {
           toggleDeleteIntegrationModal();
         });
     }
-  }, [integrationEditing, toggleDeleteIntegrationModal]);
+  }, [integrationEditing, toggleDeleteIntegrationModal, updateAppConfig]);
 
   const onActionSelection = useCallback(
     (action: string, integration: IIntegrationTableData): void => {

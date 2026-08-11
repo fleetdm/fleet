@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
 
@@ -14,6 +14,7 @@ import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
 import { SelectedPlatform } from "interfaces/platform";
@@ -173,6 +174,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     isTeamMaintainer,
     isPremiumTier,
   } = useContext(AppContext);
+  const queryClient = useQueryClient();
+  const updateAppConfig = useUpdateAppConfig();
 
   const isPrimoMode =
     globalConfigFromContext?.partnerships?.enable_primo || false;
@@ -241,7 +244,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     data: softwareConfig,
     error: softwareConfigError,
     isFetching: isFetchingSoftwareConfig,
-    refetch: refetchSoftwareConfig,
   } = useQuery<
     IConfig | ILoadTeamResponse,
     Error,
@@ -308,11 +310,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     configSoftwareAutomations: ISoftwareAutomations
   ) => {
     try {
-      const request = configAPI.update(configSoftwareAutomations);
-      await request.then(() => {
-        notify.success("Successfully updated vulnerability automations.");
-        refetchSoftwareConfig();
-      });
+      const updatedConfig = await configAPI.update(configSoftwareAutomations);
+      updateAppConfig(updatedConfig);
+      queryClient.setQueryData(
+        [{ scope: "softwareConfig", teamId: teamIdForApi }],
+        updatedConfig
+      );
+      notify.success("Successfully updated vulnerability automations.");
     } catch {
       notify.error(
         "Could not update vulnerability automations. Please try again."

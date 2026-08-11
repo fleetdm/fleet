@@ -12,6 +12,7 @@ jest.mock("services/entities/config");
 
 const renderPage = (mdm: Partial<IMdmConfig> = {}, isPremiumTier = true) => {
   const render = createCustomRenderer({
+    withBackendMock: true,
     context: {
       app: {
         isPremiumTier,

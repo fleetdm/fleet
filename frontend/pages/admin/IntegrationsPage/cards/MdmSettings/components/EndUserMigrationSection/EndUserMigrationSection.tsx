@@ -14,6 +14,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatu
 import SectionHeader from "components/SectionHeader";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { getErrorReason } from "interfaces/errors";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PATHS from "router/paths";
@@ -48,7 +49,8 @@ const validateWebhookUrl = (val: string) => {
 };
 
 const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
-  const { config, isPremiumTier, setConfig } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [formData, setFormData] = useState<IEndUserMigrationFormData>({
     isEnabled: config?.mdm.macos_migration.enable || false,
@@ -111,8 +113,8 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           },
         },
       });
+      updateAppConfig(updatedConfig);
       notify.success("Successfully updated end user migration.");
-      setConfig(updatedConfig);
     } catch (err) {
       if (
         getErrorReason(err, {
