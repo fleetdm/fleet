@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
@@ -53,30 +53,28 @@ const AgentOptionsPage = ({
   const [formData, setFormData] = useState<{ agentOptions?: string }>({});
   const [formErrors, setFormErrors] = useState<any>({});
   const [isUpdatingAgentOptions, setIsUpdatingAgentOptions] = useState(false);
+  const queryClient = useQueryClient();
 
   const { agentOptions } = formData;
 
   const handlePageError = useErrorHandler();
 
-  const {
-    isFetching: isFetchingTeamOptions,
-    refetch: refetchTeamOptions,
-  } = useQuery<ILoadTeamResponse, Error, ITeam>(
-    ["team_details", teamIdForApi],
-    () => teamsAPI.load(teamIdForApi),
-    {
-      enabled: isRouteOk && !!teamIdForApi,
-      select: (data: ILoadTeamResponse) => data.team,
-      onSuccess: (data) => {
-        setFormData({
-          agentOptions: agentOptionsToYaml(data.agent_options),
-        });
-        setTeamName(data.name);
-      },
-      onError: (error) => handlePageError(error),
-      refetchOnWindowFocus: false,
-    }
-  );
+  const { isFetching: isFetchingTeamOptions } = useQuery<
+    ILoadTeamResponse,
+    Error,
+    ITeam
+  >(["team_details", teamIdForApi], () => teamsAPI.load(teamIdForApi), {
+    enabled: isRouteOk && !!teamIdForApi,
+    select: (data: ILoadTeamResponse) => data.team,
+    onSuccess: (data) => {
+      setFormData({
+        agentOptions: agentOptionsToYaml(data.agent_options),
+      });
+      setTeamName(data.name);
+    },
+    onError: (error) => handlePageError(error),
+    refetchOnWindowFocus: false,
+  });
 
   const validateForm = () => {
     const errors: any = {};
@@ -108,9 +106,13 @@ const AgentOptionsPage = ({
 
     osqueryOptionsAPI
       .updateTeam(teamIdForApi, formDataToSubmit)
-      .then(() => {
+      .then((response: ILoadTeamResponse) => {
+        queryClient.setQueryData(["team_details", teamIdForApi], response);
+        setFormData({
+          agentOptions: agentOptionsToYaml(response.team.agent_options),
+        });
+        setTeamName(response.team.name);
         notify.success(`Successfully updated ${teamName} fleet agent options.`);
-        refetchTeamOptions();
       })
       .catch((response: { data: IApiError }) => {
         console.error(response);

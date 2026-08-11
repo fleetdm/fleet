@@ -4,6 +4,7 @@ import { useQueryClient } from "react-query";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { IConfig } from "interfaces/config";
 import configAPI from "services/entities/config";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
 import { notify } from "components/ToastNotification";
@@ -65,6 +66,7 @@ const GoogleWorkspaceSection = ({
   appConfig,
 }: IGoogleWorkspaceSectionProps): JSX.Element => {
   const queryClient = useQueryClient();
+  const updateAppConfig = useUpdateAppConfig();
 
   const [formData, setFormData] = useState<IGoogleWorkspaceFormData>({
     domain: "",
@@ -166,14 +168,14 @@ const GoogleWorkspaceSection = ({
         googleWorkspace = [entry];
       }
 
-      await configAPI.update({
+      const updatedConfig = await configAPI.update({
         integrations: { google_workspace: googleWorkspace },
       });
+      updateAppConfig(updatedConfig);
+      await queryClient.invalidateQueries(["scim_details"]);
       notify.success(
         "Successfully saved Google Workspace integration settings."
       );
-      await queryClient.invalidateQueries(["config"]);
-      await queryClient.invalidateQueries(["scim_details"]);
     } catch (e) {
       notify.error("Could not save Google Workspace integration settings.", {
         response: e,

@@ -1,9 +1,9 @@
 import React, { useState, useContext, useCallback, useEffect } from "react";
-import { useQueryClient } from "react-query";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import paths from "router/paths";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
@@ -80,7 +80,7 @@ const baseClass = "calendars-integration";
 
 const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
   const { currentTeam, isPremiumTier } = useContext(AppContext);
-  const queryClient = useQueryClient();
+  const updateAppConfig = useUpdateAppConfig();
 
   const [formData, setFormData] = useState<ICalendarsFormData>({
     domain: "",
@@ -202,9 +202,11 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
     };
 
     try {
-      await configAPI.update({ integrations: destination });
+      const updatedConfig = await configAPI.update({
+        integrations: destination,
+      });
+      updateAppConfig(updatedConfig);
       notify.success("Successfully saved calendar integration settings.");
-      await queryClient.invalidateQueries(["config"]);
     } catch (e) {
       notify.error("Could not save calendar integration settings.", {
         response: e,

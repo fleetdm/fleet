@@ -1,5 +1,5 @@
 import React, { useContext, useRef, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
@@ -51,6 +51,8 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const selectedAsset = useRef<IMdmAsset | null>(null);
+  const queryClient = useQueryClient();
+  const assetsQueryKey = [{ scope: "assets", team_id: currentTeamId }];
 
   const {
     data: assets,
@@ -58,7 +60,7 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
     isError: isErrorAssets,
     refetch: refetchAssets,
   } = useQuery<IListAssetsResponse, unknown, IMdmAsset[]>(
-    [{ scope: "assets", team_id: currentTeamId }],
+    assetsQueryKey,
     () => mdmAPI.getAssets({ fleet_id: currentTeamId }),
     {
       enabled: isPremiumTier && mdmAppleEnabled,
@@ -85,7 +87,13 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
     setIsDeleting(true);
     try {
       await mdmAPI.deleteAsset(assetUuid);
-      refetchAssets();
+      queryClient.setQueryData<IListAssetsResponse>(assetsQueryKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          assets: (old.assets ?? []).filter((a) => a.asset_uuid !== assetUuid),
+        };
+      });
       notify.success("Successfully deleted.");
     } catch (e) {
       notify.error(getErrorReason(e) || "Couldn't delete. Please try again.", {
