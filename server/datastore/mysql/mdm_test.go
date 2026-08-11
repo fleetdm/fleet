@@ -4078,6 +4078,26 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 
 	requireConnected(t, byodIpadH, true)
 
+	// An Apple TV enrolls over MDM like any other Apple device. Leaving tvos out
+	// of the platform switch makes every MDM-gated action (wipe, install, MDM
+	// commands) report the host as not enrolled.
+	tvOSH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "tvos-test",
+		OsqueryHostID: new("osquery-tvos"),
+		NodeKey:       new("node-key-tvos"),
+		UUID:          uuid.NewString(),
+		Platform:      "tvos",
+	})
+	require.NoError(t, err)
+
+	requireConnected(t, tvOSH, false)
+
+	nanoEnroll(t, ds, tvOSH, false)
+	err = ds.SetOrUpdateMDMData(ctx, tvOSH.ID, false, true, "http://foo.com", false, "foo", "", false)
+	require.NoError(t, err)
+
+	requireConnected(t, tvOSH, true)
+
 	windowsH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "windows-test",
 		OsqueryHostID: ptr.String("osquery-windows"),

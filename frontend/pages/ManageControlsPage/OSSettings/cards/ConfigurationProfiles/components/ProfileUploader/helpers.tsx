@@ -30,7 +30,7 @@ export const parseFile = async (file: File): Promise<IParseFileResult> => {
       };
     }
     case "mobileconfig": {
-      return { name, platform: "macOS, iOS, iPadOS", ext };
+      return { name, platform: "macOS, iOS, iPadOS, tvOS", ext };
     }
     case "json": {
       return { name, platform: "Android or macOS(DDM)", ext };

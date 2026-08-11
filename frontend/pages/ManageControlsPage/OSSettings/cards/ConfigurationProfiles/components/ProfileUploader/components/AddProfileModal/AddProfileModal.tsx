@@ -51,7 +51,7 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
       title="Upload configuration profile"
       message={
         <>
-          .mobileconfig and .json for macOS, iOS, and iPadOS.
+          .mobileconfig and .json for macOS, iOS, iPadOS, and tvOS.
           <br />
           .json for Android.
           <br />

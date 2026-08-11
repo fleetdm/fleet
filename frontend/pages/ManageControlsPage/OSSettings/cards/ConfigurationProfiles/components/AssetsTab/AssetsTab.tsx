@@ -108,7 +108,7 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
         <EmptyState
           variant="header-list"
           header="Manage assets"
-          info="Supported on macOS, iOS, and iPadOS."
+          info="Supported on macOS, iOS, iPadOS, and tvOS."
           primaryButton={
             canTurnOnMdm ? (
               <Button

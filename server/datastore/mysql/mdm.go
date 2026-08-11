@@ -951,16 +951,16 @@ ORDER BY
 // (including verified/failed, not just pending) and, for Apple, soft-disables nano_enrollments so the Apple profile
 // reconciler does not recreate pending rows after MDM is re-enabled. Called when MDM is toggled off globally.
 //
-// The platform argument is a platform family. Passing any of "darwin", "ios", or "ipados" cleans up all three Apple
-// platforms, because Apple MDM is controlled by a single AppConfig.MDM.EnabledAndConfigured flag.
+// The platform argument is a platform family. Passing any of "darwin", "ios", "ipados" or "tvos" cleans up all the
+// Apple platforms, because Apple MDM is controlled by a single AppConfig.MDM.EnabledAndConfigured flag.
 //
 // host_mdm.server_url and host_mdm.mdm_id are intentionally preserved. The Apple host_mdm upsert path
 // (upsertMDMAppleHostMDMInfoDB) only updates enrolled on duplicate-key, so clearing those columns here would leave them
-// blank for iOS/iPadOS hosts (which have no osquery to repopulate them) after a re-enable cycle.
+// blank for iOS/iPadOS/tvOS hosts (which have no osquery to repopulate them) after a re-enable cycle.
 func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		switch platform {
-		case "darwin", "ios", "ipados":
+		case "darwin", "ios", "ipados", "tvos":
 			// The Apple reconciler filters on nano_enrollments.enabled = 1, so this prevents pending rows from being recreated when
 			// Apple MDM is re-enabled with a new APNS cert.
 			if _, err := tx.ExecContext(ctx,
@@ -1202,7 +1202,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -1242,7 +1242,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -1295,7 +1295,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -1332,7 +1332,7 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 	}
 
 	switch host.Platform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host)
 	default:
 		return nil, fmt.Errorf("unsupported platform: %s", host.Platform)
@@ -1645,7 +1645,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		stmt = darwinStmt
 	case "windows":
 		stmt = windowsStmt
@@ -1682,7 +1682,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		stmt = darwinStmt
 	case "windows":
 		stmt = windowsStmt
@@ -2235,7 +2235,7 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	res := make(map[string]bool, len(hosts))
 	for _, h := range hosts {
 		switch h.Platform {
-		case "darwin", "ipados", "ios":
+		case "darwin", "ipados", "ios", "tvos":
 			appleUUIDs = append(appleUUIDs, h.UUID)
 		case "windows":
 			winUUIDs = append(winUUIDs, h.UUID)
@@ -2306,7 +2306,7 @@ func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.
 	switch host.Platform {
 	case "windows":
 		return isWindowsHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
-	case "darwin", "ipados", "ios":
+	case "darwin", "ipados", "ios", "tvos":
 		return isAppleHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
 	case "android":
 		// Android hosts can only enroll via MDM
@@ -2669,7 +2669,7 @@ FROM
 	hosts h
 	JOIN host_mdm_apple_profiles hmap ON h.uuid = hmap.host_uuid
 WHERE
-	platform IN ('darwin', 'ios', 'ipados') AND
+	platform IN ('darwin', 'ios', 'ipados', 'tvos') AND
 	hmap.profile_uuid = :profile_uuid AND
 	( hmap.status NOT IN (:status_verified, :status_verifying) OR hmap.operation_type = :operation_install )
 GROUP BY
@@ -2744,7 +2744,7 @@ FROM
 	hosts h
 	JOIN host_mdm_apple_declarations hmad ON h.uuid = hmad.host_uuid
 WHERE
-	h.platform IN ('darwin', 'ios', 'ipados') AND
+	h.platform IN ('darwin', 'ios', 'ipados', 'tvos') AND
 	( hmad.status NOT IN (:status_verified, :status_verifying) OR hmad.operation_type = :operation_install ) AND
 	hmad.declaration_uuid = :declaration_uuid
 GROUP BY

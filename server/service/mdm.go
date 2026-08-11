@@ -3723,7 +3723,7 @@ func getProfileToResendDetails(ctx context.Context, profileUUID string, svc *Ser
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
 		}
-		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
+		if !fleet.IsApplePlatform(host.Platform) {
 			return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
 		}
 		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)

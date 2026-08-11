@@ -87,7 +87,7 @@ describe("AssetsTab", () => {
       );
 
       expect(
-        screen.getByText("Supported on macOS, iOS, and iPadOS.")
+        screen.getByText("Supported on macOS, iOS, iPadOS, and tvOS.")
       ).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Turn on Apple MDM" })

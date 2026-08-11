@@ -3219,11 +3219,12 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 		detail = fmt.Sprintf("Failed to remove: %s", detail)
 	}
 
-	// Check whether we want to set a install operation as 'verifying' for an iOS/iPadOS device.
-	var isIOSIPadOSInstallVerifiying bool
+	// Check whether we want to set an install operation as 'verifying' for a
+	// device Fleet manages over MDM only.
+	var isMDMOnlyInstallVerifying bool
 	if profile.OperationType == fleet.MDMOperationTypeInstall && profile.Status != nil && *profile.Status == fleet.MDMDeliveryVerifying {
-		if err := ds.writer(ctx).GetContext(ctx, &isIOSIPadOSInstallVerifiying, `
-          SELECT platform = 'ios' OR platform = 'ipados' FROM hosts WHERE uuid = ?`,
+		if err := ds.writer(ctx).GetContext(ctx, &isMDMOnlyInstallVerifying, `
+          SELECT platform IN ('ios', 'ipados', 'tvos') FROM hosts WHERE uuid = ?`,
 			profile.HostUUID,
 		); err != nil {
 			return err
@@ -3231,8 +3232,8 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	}
 
 	status := profile.Status
-	if isIOSIPadOSInstallVerifiying {
-		// iOS/iPadOS devices do not have osquery,
+	if isMDMOnlyInstallVerifying {
+		// iOS/iPadOS/tvOS devices do not have osquery,
 		// thus they go from 'pending' straight to 'verified'
 		status = &fleet.MDMDeliveryVerified
 	}
@@ -3461,7 +3462,7 @@ FROM
 	%s
 	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 WHERE
-	platform IN('darwin', 'ios', 'ipados') AND %s
+	platform IN('darwin', 'ios', 'ipados', 'tvos') AND %s
 GROUP BY
 	status HAVING status IS NOT NULL`
 

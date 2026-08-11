@@ -8784,6 +8784,17 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	iPod, err := ds.HostByIdentifier(ctx, "iPod_UUID")
 	require.NoError(t, err)
 	nanoEnroll(t, ds, iPod, false)
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           "tvOS0_UUID",
+		HardwareSerial: "tvOS0_SERIAL",
+		HardwareModel:  "AppleTV14,1",
+		Platform:       "tvos",
+		OsqueryHostID:  ptr.String("tvOS0_OSQUERY_HOST_ID"),
+	}, false)
+	require.NoError(t, err)
+	tvOS0, err := ds.HostByIdentifier(ctx, "tvOS0_UUID")
+	require.NoError(t, err)
+	nanoEnroll(t, ds, tvOS0, false)
 
 	someProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
@@ -8807,6 +8818,33 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, profiles, 1)
 	require.Equal(t, someProfile.Name, profiles[0].Name)
+
+	// Apple TVs reconcile like the other MDM-only platforms, and the macOS-only
+	// profiles (fleetd config, FileVault) are filtered out for them too.
+	profiles, err = ds.GetHostMDMAppleProfiles(ctx, "tvOS0_UUID")
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	require.Equal(t, someProfile.Name, profiles[0].Name)
+
+	// Without osquery there is nothing to verify with, so an install ack takes
+	// the profile straight to "verified" rather than parking it in "verifying".
+	var tvOSCommandUUID string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &tvOSCommandUUID,
+			`SELECT command_uuid FROM host_mdm_apple_profiles WHERE host_uuid = ?`, "tvOS0_UUID")
+	})
+	require.NoError(t, ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		HostUUID:      "tvOS0_UUID",
+		CommandUUID:   tvOSCommandUUID,
+		ProfileUUID:   profiles[0].ProfileUUID,
+		OperationType: fleet.MDMOperationTypeInstall,
+		Status:        &fleet.MDMDeliveryVerifying,
+	}))
+	profiles, err = ds.GetHostMDMAppleProfiles(ctx, "tvOS0_UUID")
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	require.NotNil(t, profiles[0].Status)
+	require.Equal(t, fleet.MDMDeliveryVerified, *profiles[0].Status)
 }
 
 func testReconcileAppleProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {

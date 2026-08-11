@@ -44,7 +44,7 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 		JOIN nano_devices nd
 			ON nd.id = ne.device_id
 		WHERE
-			(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
+			h.platform IN ('darwin', 'ios', 'ipados', 'tvos')
 			AND h.uuid > ?
 			AND EXISTS (
 				SELECT 1 FROM host_mdm hmdm WHERE hmdm.enrolled = 1 AND hmdm.host_id = h.id
@@ -114,7 +114,7 @@ func (ds *Datastore) GetAppleMDMHostForReconcile(
 		JOIN nano_devices nd
 			ON nd.id = ne.device_id
 		WHERE
-			(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
+			h.platform IN ('darwin', 'ios', 'ipados', 'tvos')
 			AND h.uuid = ?
 		ORDER BY h.id DESC
 		LIMIT 1

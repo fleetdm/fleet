@@ -53,8 +53,8 @@ const ProfileDetails = ({
         return "Linux";
       default:
         return isDDM
-          ? "macOS, iOS, iPadOS (declaration)"
-          : "macOS, iOS, iPadOS";
+          ? "macOS, iOS, iPadOS, tvOS (declaration)"
+          : "macOS, iOS, iPadOS, tvOS";
     }
   };
 

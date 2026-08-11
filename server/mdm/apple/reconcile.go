@@ -51,7 +51,7 @@ func EntityAppliesToHost(
 // IsEligiblePlatform reports whether the host's platform is one of the
 // Apple platforms this reconciler can manage.
 func IsEligiblePlatform(platform string) bool {
-	return platform == "darwin" || platform == "ios" || platform == "ipados"
+	return fleet.IsApplePlatform(platform)
 }
 
 // ComputeReconcileDeltas evaluates desired profile state for each host in

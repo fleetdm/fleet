@@ -989,7 +989,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet."
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for macOS, iOS, iPadOS, and tvOS hosts assigned to the <b>Workstations</b> fleet."
         );
       })
     ).toBeInTheDocument();
@@ -1008,7 +1008,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> edited configuration profiles for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet via fleetctl."
+          "<b>Test User </b> edited configuration profiles for macOS, iOS, iPadOS, and tvOS hosts assigned to the <b>Workstations</b> fleet via fleetctl."
         );
       })
     ).toBeInTheDocument();
@@ -1068,7 +1068,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> edited the declaration (DDM) profile <b>Test Declaration</b> for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet."
+          "<b>Test User </b> edited the declaration (DDM) profile <b>Test Declaration</b> for macOS, iOS, iPadOS, and tvOS hosts assigned to the <b>Workstations</b> fleet."
         );
       })
     ).toBeInTheDocument();

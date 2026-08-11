@@ -1,0 +1,1 @@
+- Added support for delivering configuration profiles and DDM declarations to tvOS (Apple TV) hosts. Apple TVs now appear in OS settings summaries and host details, and profiles reach "Verified" on install acknowledgement since Apple TVs have no osquery to verify with.

@@ -56,7 +56,7 @@ const getProfilesPlatformDisplayName = (
 ) => {
   switch (platform) {
     case "apple":
-      return "macOS, iOS, and iPadOS";
+      return "macOS, iOS, iPadOS, and tvOS";
     case "android":
       return "Android";
     case "windows":
