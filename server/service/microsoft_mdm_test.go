@@ -1097,17 +1097,16 @@ type windowsReconcileResult struct {
 	deleteCalls int
 }
 
-// deletedPairs returns the deleted rows as a "profileUUID|hostUUID" set, which is how the tests below assert on them.
-func (r windowsReconcileResult) deletedPairs() map[string]struct{} {
-	out := make(map[string]struct{}, len(r.deletedRows))
+// deletedPairs returns the deleted rows as a set of (host, profile) keys, which is how the tests below assert on them.
+func (r windowsReconcileResult) deletedPairs() map[hostProfileKey]struct{} {
+	out := make(map[hostProfileKey]struct{}, len(r.deletedRows))
 	for _, row := range r.deletedRows {
-		out[row.ProfileUUID+"|"+row.HostUUID] = struct{}{}
+		out[hostProfileKey{hostUUID: row.HostUUID, profileUUID: row.ProfileUUID}] = struct{}{}
 	}
 	return out
 }
 
-// requireNoDeleteCommands asserts the tick sent no <Delete> at all. Every suppressed-remove test needs this: the whole point of
-// LocURI protection is that the setting stays enforced on the device, so cleaning up the host row must not open an enforcement gap.
+// requireNoDeleteCommands asserts the tick sent no <Delete> at all.
 func (r windowsReconcileResult) requireNoDeleteCommands(t *testing.T, msg string) {
 	t.Helper()
 	for _, cmd := range r.commands {
@@ -1121,7 +1120,7 @@ const windowsReconcileTestChecksum = "test-checksum"
 // differ only in the snapshot they set up and the assertions they make, so the mock wiring lives here.
 func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) windowsReconcileResult {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	ds := new(mock.Store)
 	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{})
 
@@ -1186,45 +1185,103 @@ func windowsTestProfileSyncML(setting string) []byte {
 		`</LocURI></Target><Data>0</Data></Item></Replace>`)
 }
 
-// TestReconcileWindowsProfilesDeletesFullyProtectedRemoveRows covers a profile that is removed from a host while every one of its
-// LocURIs is still enforced by a profile that remains applicable to that host. There is no <Delete> to send, so no command ack will
-// ever arrive to clean the host's row up; the reconciler has to delete the row itself or the removed profile stays listed on the
-// host (and counted in the profile summary) forever.
-func TestReconcileWindowsProfilesDeletesFullyProtectedRemoveRows(t *testing.T) {
-	const (
-		hostUUID       = "host-a"
-		keptProfile    = "kept-profile-uuid"
-		removedProfile = "removed-profile-uuid"
-	)
-	// Both profiles enforce the same single LocURI, so the removed one is fully protected by the kept one.
-	shared := windowsTestProfileSyncML("Experience/AllowCortana")
-	teamID := uint(1)
-
-	// Only the kept profile is live, so the host's row for the removed profile becomes a remove target. The kept profile's row
-	// already matches the live checksum, so nothing is re-installed this tick.
-	result := runWindowsReconcileOnce(t, windowsReconcileSnapshot{
-		hosts: []*fleet.WindowsHostReconcileInfo{{HostID: 1, UUID: hostUUID, TeamID: &teamID}},
-		profiles: []*fleet.WindowsProfileForReconcile{
-			{ProfileUUID: keptProfile, ProfileName: "Kept", TeamID: teamID, Checksum: []byte(windowsReconcileTestChecksum)},
-		},
-		current: map[string][]*fleet.MDMWindowsProfilePayload{
-			hostUUID: {
-				installedRow(keptProfile, "Kept", hostUUID),
-				installedRow(removedProfile, "Removed", hostUUID),
+// TestReconcileWindowsProfilesDeletesSuppressedRemoveRows covers profiles removed from a host while every one of their LocURIs is
+// still enforced by a profile that remains applicable to that host. There is no <Delete> to send, so no command ack will ever
+// arrive to clean the host rows up; the reconciler has to delete them itself.
+func TestReconcileWindowsProfilesDeletesSuppressedRemoveRows(t *testing.T) {
+	// singleProfileReplaced: one host, one removed profile fully protected by the one profile still live on its team.
+	singleProfileReplaced := func() (windowsReconcileSnapshot, []hostProfileKey) {
+		const (
+			hostUUID       = "host-a"
+			keptProfile    = "kept-profile-uuid"
+			removedProfile = "removed-profile-uuid"
+		)
+		// Both profiles enforce the same single LocURI, so the removed one is fully protected by the kept one. The kept profile is
+		// already installed here, which is what makes this the minimal case: the tick sends nothing at all.
+		shared := windowsTestProfileSyncML("Experience/AllowCortana")
+		teamID := uint(1)
+		return windowsReconcileSnapshot{
+			hosts: []*fleet.WindowsHostReconcileInfo{{HostID: 1, UUID: hostUUID, TeamID: &teamID}},
+			profiles: []*fleet.WindowsProfileForReconcile{
+				{ProfileUUID: keptProfile, ProfileName: "Kept", TeamID: teamID, Checksum: []byte(windowsReconcileTestChecksum)},
 			},
-		},
-		contents: map[string][]byte{keptProfile: shared, removedProfile: shared},
-	})
+			current: map[string][]*fleet.MDMWindowsProfilePayload{
+				hostUUID: {
+					installedRow(keptProfile, "Kept", hostUUID),
+					installedRow(removedProfile, "Removed", hostUUID),
+				},
+			},
+			contents: map[string][]byte{keptProfile: shared, removedProfile: shared},
+		}, []hostProfileKey{{hostUUID: hostUUID, profileUUID: removedProfile}}
+	}
 
-	result.requireNoDeleteCommands(t, "no <Delete> can be sent while another profile still enforces the LocURI")
-	require.Len(t, result.deletedRows, 1, "the suppressed remove must delete the host's row instead of leaving it behind")
-	require.Contains(t, result.deletedPairs(), removedProfile+"|"+hostUUID)
+	// wholeSetReplaced: a team's entire profile set batch-replaced by differently-named profiles carrying the same LocURIs, so
+	// every remove is suppressed on the same tick. The replacements are not installed yet, so they install on this tick too and
+	// the no-<Delete> check has real commands to scan.
+	wholeSetReplaced := func() (windowsReconcileSnapshot, []hostProfileKey) {
+		const (
+			profileCount = 25
+			hostCount    = 4
+		)
+		oldProfileUUID := func(i int) string { return fmt.Sprintf("old-profile-%d", i) }
+		newProfileUUID := func(i int) string { return fmt.Sprintf("new-profile-%d", i) }
+		hostUUIDFor := func(i int) string { return fmt.Sprintf("host-%d", i) }
+		teamID := uint(1)
+
+		snapshot := windowsReconcileSnapshot{
+			current:  make(map[string][]*fleet.MDMWindowsProfilePayload, hostCount),
+			contents: make(map[string][]byte, profileCount*2),
+		}
+		var want []hostProfileKey
+		for h := range hostCount {
+			snapshot.hosts = append(snapshot.hosts, &fleet.WindowsHostReconcileInfo{HostID: uint(h + 1), UUID: hostUUIDFor(h), TeamID: &teamID})
+			rows := make([]*fleet.MDMWindowsProfilePayload, 0, profileCount)
+			for p := range profileCount {
+				// Only the old set is installed; the new set has just been applied and is not on the hosts yet.
+				rows = append(rows, installedRow(oldProfileUUID(p), fmt.Sprintf("Old %d", p), hostUUIDFor(h)))
+				want = append(want, hostProfileKey{hostUUID: hostUUIDFor(h), profileUUID: oldProfileUUID(p)})
+			}
+			snapshot.current[hostUUIDFor(h)] = rows
+		}
+		for p := range profileCount {
+			snapshot.profiles = append(snapshot.profiles, &fleet.WindowsProfileForReconcile{
+				ProfileUUID: newProfileUUID(p), ProfileName: fmt.Sprintf("New %d", p), TeamID: teamID,
+				Checksum: []byte(windowsReconcileTestChecksum),
+			})
+			// Each old profile is replaced by a differently-named new profile targeting the identical LocURI.
+			shared := windowsTestProfileSyncML(fmt.Sprintf("Experience/Setting%d", p))
+			snapshot.contents[oldProfileUUID(p)] = shared
+			snapshot.contents[newProfileUUID(p)] = shared
+		}
+		return snapshot, want
+	}
+
+	for _, tc := range []struct {
+		name  string
+		build func() (windowsReconcileSnapshot, []hostProfileKey)
+	}{
+		{name: "single profile replaced", build: singleProfileReplaced},
+		{name: "whole profile set replaced", build: wholeSetReplaced},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			snapshot, wantPairs := tc.build()
+
+			result := runWindowsReconcileOnce(t, snapshot)
+
+			result.requireNoDeleteCommands(t, "no <Delete> may be sent while another profile still enforces the LocURI")
+			require.Len(t, result.deletedRows, len(wantPairs),
+				"every suppressed remove must delete its host row instead of leaving it behind")
+			require.Equal(t, 1, result.deleteCalls, "suppressed removes must be deleted in one batch, not one call per profile")
+			gotPairs := result.deletedPairs()
+			for _, want := range wantPairs {
+				require.Contains(t, gotPairs, want)
+			}
+		})
+	}
 }
 
 // TestReconcileWindowsProfilesDeletesRemoveRowsWithNoLocURIs covers a removed profile whose content yields no LocURIs, so the
-// command comes back nil for a reason other than LocURI protection and the row would be stuck just the same. The parser's own
-// handling of empty, malformed, and Replace/Add-free content is covered by TestExtractLocURIsFromProfileBytes; all the reconciler
-// needs to handle is the empty result.
+// command comes back nil for a reason other than LocURI protection.
 func TestReconcileWindowsProfilesDeletesRemoveRowsWithNoLocURIs(t *testing.T) {
 	const (
 		hostUUID       = "host-a"
@@ -1248,18 +1305,17 @@ func TestReconcileWindowsProfilesDeletesRemoveRowsWithNoLocURIs(t *testing.T) {
 		},
 		contents: map[string][]byte{
 			keptProfile:    windowsTestProfileSyncML("Camera/AllowCamera"),
-			removedProfile: []byte(""),
+			removedProfile: []byte(""), // empty (no LocURIs)
 		},
 	})
 
 	require.Len(t, result.deletedRows, 1, "a profile with no LocURIs must not stay stuck on the host")
-	require.Contains(t, result.deletedPairs(), removedProfile+"|"+hostUUID)
+	require.Contains(t, result.deletedPairs(), hostProfileKey{hostUUID: hostUUID, profileUUID: removedProfile})
 }
 
 // TestReconcileWindowsProfilesDeletesRowAfterTransferToMirroredTeam covers transferring a host between two teams whose profiles
 // enforce the same LocURIs. Unlike the deleted-profile case, the outgoing profile still exists (it just no longer applies here)
-// and the protecting profile is not installed yet: it is only desired, and it installs on this same tick. That is what makes this
-// distinct — protection has to come from the desired set, not from what is already on the host.
+// and the protecting profile is not installed yet: it is only desired, and it installs on this same tick.
 func TestReconcileWindowsProfilesDeletesRowAfterTransferToMirroredTeam(t *testing.T) {
 	const (
 		hostUUID     = "transferred-host"
@@ -1283,61 +1339,9 @@ func TestReconcileWindowsProfilesDeletesRowAfterTransferToMirroredTeam(t *testin
 	})
 
 	result.requireNoDeleteCommands(t, "the transfer must not open an enforcement gap on a LocURI the incoming profile still enforces")
-	// Only the outgoing team's row is dropped, keyed by (profile, host), so the profile itself and other hosts still in team A
-	// are untouched.
+	// Only the outgoing team's row is dropped, keyed by (profile, host), so the profile itself and other hosts still in team A are untouched.
 	require.Len(t, result.deletedRows, 1, "the outgoing team's row must not stay listed alongside the incoming team's profile")
-	require.Contains(t, result.deletedPairs(), teamAProfile+"|"+hostUUID)
-}
-
-// TestReconcileWindowsProfilesDeletesSuppressedRemoveRowsInOneBatch covers batch-replacing a team's whole profile set with
-// differently-named profiles carrying the same LocURIs, which suppresses every remove at once. All the stale rows have to go, and
-// they should go in a single datastore call: that call recomputes the status rollup for every host it is handed, so one call per
-// removed profile would redo the same rollup work for the same hosts once per profile.
-func TestReconcileWindowsProfilesDeletesSuppressedRemoveRowsInOneBatch(t *testing.T) {
-	const (
-		profileCount = 25
-		hostCount    = 4
-	)
-	oldProfileUUID := func(i int) string { return fmt.Sprintf("old-profile-%d", i) }
-	newProfileUUID := func(i int) string { return fmt.Sprintf("new-profile-%d", i) }
-	hostUUIDFor := func(i int) string { return fmt.Sprintf("host-%d", i) }
-	teamID := uint(1)
-
-	snapshot := windowsReconcileSnapshot{
-		current:  make(map[string][]*fleet.MDMWindowsProfilePayload, hostCount),
-		contents: make(map[string][]byte, profileCount*2),
-	}
-	for h := range hostCount {
-		snapshot.hosts = append(snapshot.hosts, &fleet.WindowsHostReconcileInfo{HostID: uint(h + 1), UUID: hostUUIDFor(h), TeamID: &teamID})
-		rows := make([]*fleet.MDMWindowsProfilePayload, 0, profileCount)
-		for p := range profileCount {
-			// Only the old set is installed; the new set has just been applied and is not on the hosts yet.
-			rows = append(rows, installedRow(oldProfileUUID(p), fmt.Sprintf("Old %d", p), hostUUIDFor(h)))
-		}
-		snapshot.current[hostUUIDFor(h)] = rows
-	}
-	for p := range profileCount {
-		snapshot.profiles = append(snapshot.profiles, &fleet.WindowsProfileForReconcile{
-			ProfileUUID: newProfileUUID(p), ProfileName: fmt.Sprintf("New %d", p), TeamID: teamID,
-			Checksum: []byte(windowsReconcileTestChecksum),
-		})
-		// Each old profile is replaced by a differently-named new profile targeting the identical LocURI.
-		shared := windowsTestProfileSyncML(fmt.Sprintf("Experience/Setting%d", p))
-		snapshot.contents[oldProfileUUID(p)] = shared
-		snapshot.contents[newProfileUUID(p)] = shared
-	}
-
-	result := runWindowsReconcileOnce(t, snapshot)
-
-	result.requireNoDeleteCommands(t, "every removed LocURI is still enforced by its replacement, so no <Delete> may be sent")
-	require.Len(t, result.deletedRows, profileCount*hostCount)
-	require.Equal(t, 1, result.deleteCalls, "suppressed removes must be deleted in one batch, not one call per profile")
-	gotPairs := result.deletedPairs()
-	for p := range profileCount {
-		for h := range hostCount {
-			require.Contains(t, gotPairs, oldProfileUUID(p)+"|"+hostUUIDFor(h))
-		}
-	}
+	require.Contains(t, result.deletedPairs(), hostProfileKey{hostUUID: hostUUID, profileUUID: teamAProfile})
 }
 
 // TestReconcileWindowsProfilesSkipsInsertLag covers the asymmetric race
