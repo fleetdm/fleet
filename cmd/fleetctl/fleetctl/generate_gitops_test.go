@@ -909,6 +909,18 @@ func (MockClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredent
 	return nil, nil
 }
 
+// graphCredClient returns one stored credential, as the endpoint does once one is configured. The secret comes back
+// masked from the API, so generate-gitops must not emit it.
+type graphCredClient struct{ MockClient }
+
+func (graphCredClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
+	return []*fleet.MicrosoftGraphCredential{{
+		TenantID:     "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+		ClientID:     "122349c0-2458-448d-a9ae-f40b81a63213",
+		ClientSecret: fleet.MaskedPassword,
+	}}, nil
+}
+
 func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 	res := fleet.GroupedCertificateAuthorities{
 		DigiCert: []fleet.DigiCertCA{
@@ -1335,6 +1347,55 @@ func TestGenerateOrgSettings(t *testing.T) {
 	we, present := mdmSettings["windows_enrollment"]
 	require.True(t, present, "windows_enrollment key should still be emitted")
 	require.Nil(t, we, "unset windows_enrollment must serialize as null so applying it is a no-op")
+}
+
+// generate-gitops must round-trip the Microsoft Graph credential's identifiers so a generated file can be applied
+// back, while never emitting the secret: the API only ever returns the mask.
+func TestGenerateOrgSettingsMicrosoftGraphCredentials(t *testing.T) {
+	fleetClient := &graphCredClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+	var orgSettings map[string]any
+	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
+
+	// It belongs under org_settings, alongside certificate_authorities, not under controls: controls are not generated
+	// for the global file on Premium, so emitting it there would put it in the Unassigned file where apply ignores it.
+	raw, present := orgSettings["microsoft_graph_credentials"]
+	require.True(t, present, "microsoft_graph_credentials must be emitted under org_settings")
+	creds, ok := raw.([]any)
+	require.True(t, ok)
+	require.Len(t, creds, 1)
+	cred := creds[0].(map[string]any)
+
+	assert.Equal(t, "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4", cred["tenant_id"])
+	assert.Equal(t, "122349c0-2458-448d-a9ae-f40b81a63213", cred["client_id"])
+
+	secret, ok := cred["client_secret"].(string)
+	require.True(t, ok, "client_secret should be a string placeholder")
+	assert.Contains(t, secret, "GITOPS_COMMENT", "the secret must be a TODO comment, not a value")
+	assert.NotContains(t, secret, fleet.MaskedPassword, "emitting the mask would write it back literally on the next apply")
+
+	var foundWarning bool
+	for _, w := range cmd.Messages.SecretWarnings {
+		if w.Key == "microsoft_graph_credentials.client_secret" {
+			foundWarning = true
+			assert.Equal(t, "default.yml", w.Filename, "the credential is global, so the warning names default.yml")
+		}
+	}
+	assert.True(t, foundWarning, "expected a SecretWarning for microsoft_graph_credentials.client_secret")
 }
 
 func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
