@@ -1426,7 +1426,10 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 			Message: fmt.Sprintf("%sInvalid NDES SCEP username. Please correct and try again.", errPrefix),
 		}
 	}
-	if ndesSCEP.Password != nil && *ndesSCEP.Password == "" {
+	// The GET endpoint returns the password masked, so the mask is rejected along with the
+	// empty string (as in the GitOps batch path): changing NDES credentials always requires
+	// re-supplying the actual password.
+	if ndesSCEP.Password != nil && (*ndesSCEP.Password == "" || *ndesSCEP.Password == fleet.MaskedPassword) {
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("%sInvalid NDES SCEP password. Please correct and try again.", errPrefix),
 		}
@@ -1445,6 +1448,15 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 			Password: cmp.Or(ptr.ValOrZero(ndesSCEP.Password), ptr.ValOrZero(oldCA.Password)),
 		}
 
+		// If the merged set matches what's already stored there's nothing new to validate.
+		// Skip the round-trip so a no-op update doesn't consume a slot in NDES's password
+		// cache (each validation retrieves an enrollment challenge password).
+		if NDESProxy.AdminURL == ptr.ValOrZero(oldCA.AdminURL) &&
+			NDESProxy.Username == ptr.ValOrZero(oldCA.Username) &&
+			NDESProxy.Password == ptr.ValOrZero(oldCA.Password) {
+			return nil
+		}
+
 		if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, NDESProxy); err != nil {
 			svc.logger.ErrorContext(ctx, "Failed to validate NDES SCEP admin URL", "err", err)
 			switch {
@@ -1452,8 +1464,12 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
 			case errors.As(err, &scep.NDESInsufficientPermissionsError{}):
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sInsufficient permissions for NDES SCEP admin URL. Please correct and try again.", errPrefix)}
-			default:
+			case errors.As(err, &scep.NDESInvalidError{}):
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL or credentials. Please correct and try again.", errPrefix)}
+			default:
+				// anything else means the admin URL couldn't be reached at all (timeout, DNS
+				// failure, connection refused), not that the server rejected the credentials
+				return &fleet.BadRequestError{Message: fmt.Sprintf("%sCouldn't connect to NDES SCEP admin URL. Please correct and try again.", errPrefix)}
 			}
 		}
 	}

@@ -18,6 +18,27 @@ describe("AddCertAuthorityModal helpers", () => {
       );
     });
 
+    it.each([
+      [
+        "Couldn't edit certificate authority. Invalid NDES SCEP admin URL. Please correct and try again.",
+        "Invalid admin URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't edit certificate authority. Invalid NDES SCEP username. Please correct and try again.",
+        "Invalid username. Please correct and try again.",
+      ],
+      [
+        "Couldn't edit certificate authority. Invalid NDES SCEP password. Please correct and try again.",
+        "Invalid password. Please correct and try again.",
+      ],
+      [
+        "Couldn't edit certificate authority. Couldn't connect to NDES SCEP admin URL. Please correct and try again.",
+        "Couldn't connect to admin URL. Please correct and try again.",
+      ],
+    ])("returns a specific error for: %s", (reason, expected) => {
+      expect(getDisplayErrMessage(apiError(reason))).toBe(expected);
+    });
+
     it("returns the SCEP URL error", () => {
       expect(
         getDisplayErrMessage(

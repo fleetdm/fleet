@@ -1777,24 +1777,70 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid NDES SCEP password. Please correct and try again.")
 		})
 
-		t.Run("Bad admin URL generic error", func(t *testing.T) {
+		t.Run("Masked password is rejected", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			// changing NDES credentials requires re-supplying the actual password, so the
+			// mask the GET endpoint returns in place of the real one is not accepted
+			scepConfig := &scep_mock.SCEPConfigService{
+				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
+					return errors.New("should not be called")
+				},
+			}
+			svc.scepConfigService = scepConfig
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					Username: new("updated-username"),
+					Password: new(fleet.MaskedPassword),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid NDES SCEP password. Please correct and try again.")
+			require.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
+		})
+
+		t.Run("Unchanged credentials skip validation against the NDES server", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			scepConfig := &scep_mock.SCEPConfigService{
+				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
+					return errors.New("should not be called")
+				},
+			}
+			svc.scepConfigService = scepConfig
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					Username: new("ndes-username"),
+					Password: new("ndes-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "mock error to avoid NewActivity panic")
+			require.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
+		})
+
+		t.Run("Unreachable admin URL", func(t *testing.T) {
 			svc, ctx := baseSetupForCATests()
 
 			svc.scepConfigService = &scep_mock.SCEPConfigService{
 				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-					return errors.New("some error")
+					return errors.New("sending request: dial tcp: connection refused")
 				},
 			}
 
 			payload := fleet.CertificateAuthorityUpdatePayload{
 				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
-					AdminURL: ptr.String("https://ndes.example.com"),
-					Password: ptr.String("updated-password"),
+					AdminURL: new("https://ndes.example.com"),
+					Password: new("updated-password"),
 				},
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
-			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid NDES SCEP admin URL or credentials. Please correct and try again.")
+			require.EqualError(t, err, "Couldn't edit certificate authority. Couldn't connect to NDES SCEP admin URL. Please correct and try again.")
 		})
 
 		t.Run("Bad admin URL NDES Invalid error", func(t *testing.T) {

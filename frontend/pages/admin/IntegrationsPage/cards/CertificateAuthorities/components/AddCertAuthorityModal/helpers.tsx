@@ -203,6 +203,14 @@ const INVALID_SCEP_URL_ERROR =
   "Invalid SCEP URL. Please correct and try again.";
 const INVALID_ADMIN_URL_OR_CREDENTIALS_ERROR =
   "Invalid admin URL or credentials. Please correct and try again.";
+const INVALID_ADMIN_URL_ERROR =
+  "Invalid admin URL. Please correct and try again.";
+const INVALID_USERNAME_ERROR =
+  "Invalid username. Please correct and try again.";
+const INVALID_PASSWORD_ERROR =
+  "Invalid password. Please correct and try again.";
+const ADMIN_URL_CONNECTION_ERROR =
+  "Couldn't connect to admin URL. Please correct and try again.";
 const NDES_PASSWORD_CACHE_FULL_ERROR =
   "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again.";
 const INVALID_CHALLENGE_ERROR =
@@ -231,10 +239,19 @@ export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
     message = PRIVATE_KEY_NOT_CONFIGURED_ERROR;
   } else if (reason.includes("invalid scep url")) {
     message = INVALID_SCEP_URL_ERROR;
+  } else if (reason.includes("admin url or credentials")) {
     // the server names the CA type in this message, e.g. "Invalid NDES SCEP admin URL or
     // credentials", so match on the part that doesn't vary
-  } else if (reason.includes("admin url or credentials")) {
     message = INVALID_ADMIN_URL_OR_CREDENTIALS_ERROR;
+  } else if (reason.includes("invalid ndes scep admin url")) {
+    // must be checked after "admin url or credentials", which contains this string
+    message = INVALID_ADMIN_URL_ERROR;
+  } else if (reason.includes("invalid ndes scep username")) {
+    message = INVALID_USERNAME_ERROR;
+  } else if (reason.includes("invalid ndes scep password")) {
+    message = INVALID_PASSWORD_ERROR;
+  } else if (reason.includes("couldn't connect to ndes scep admin url")) {
+    message = ADMIN_URL_CONNECTION_ERROR;
   } else if (reason.includes("password cache is full")) {
     message = NDES_PASSWORD_CACHE_FULL_ERROR;
   } else if (reason.includes("invalid challenge url")) {
