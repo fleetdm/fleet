@@ -15,7 +15,6 @@ import Card from "components/Card/Card";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
@@ -189,9 +188,9 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
                 size="small"
                 onClick={() => setShowAddAssetModal(true)}
                 disabled={disableChildren}
+                icon="plus"
               >
-                <Icon name="plus" size="small" />
-                <span>Add asset</span>
+                Add asset
               </Button>
             )}
           />

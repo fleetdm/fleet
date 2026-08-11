@@ -1,10 +1,11 @@
 {
   "versions": [
     {
-      "version": "8.0.0.3",
+      "version": "8.0.0.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'digiSeal reader' AND publisher = 'secrypt GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'digiSeal reader' AND publisher = 'secrypt GmbH' AND version_compare(version, '8.0.0.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'digiSeal reader' AND publisher = 'secrypt GmbH' AND version_compare(version, '8.0.0.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'digiseal reader.exe');"
       },
       "installer_url": "https://www.secrypt.de/downloads/setup_digiSeal_reader.exe",
       "install_script_ref": "76c7506c",

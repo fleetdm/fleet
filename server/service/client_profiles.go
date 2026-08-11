@@ -71,6 +71,21 @@ func (c *Client) GetProfileContents(profileID string) ([]byte, error) {
 	return nil, nil
 }
 
+// GetProfileActivation returns the custom activation attached to a declaration,
+// or nil if it has none. GetProfileContents can't serve this because alt=media
+// returns the declaration file itself, not the payload the activation rides on.
+func (c *Client) GetProfileActivation(profileID string) ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/mdm/profiles/"+profileID
+	var responseBody getMDMConfigProfileResponse
+	if err := c.authenticatedRequest(nil, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	if responseBody.MDMConfigProfilePayload == nil {
+		return nil, nil
+	}
+	return responseBody.MDMConfigProfilePayload.Activation, nil
+}
+
 // ListDDMAssets returns the Apple DDM assets for the given team.
 func (c *Client) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
 	verb, path := "GET", "/api/latest/fleet/assets"

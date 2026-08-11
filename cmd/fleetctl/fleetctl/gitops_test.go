@@ -2410,7 +2410,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -4670,6 +4670,225 @@ software:
 			// Second real run, now that all the teams are saved
 			out, err = runAppNoChecks(args)
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
+		})
+	}
+}
+
+func TestGitOpsWindowsEnrollment(t *testing.T) {
+	global := func(mdm string) string {
+		return fmt.Sprintf(`
+controls:
+queries:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: "https://foo.example.com"
+  org_info:
+    org_name: GitOps Test
+  secrets:
+    - secret: "global"
+  mdm:
+    %s
+ `, mdm)
+	}
+
+	team := func(name string) string {
+		return fmt.Sprintf(`
+name: %s
+team_settings:
+  secrets:
+    - secret: "%s-secret"
+agent_options:
+controls:
+policies:
+queries:
+software:
+`, name, name)
+	}
+
+	workstations := team("💻 Workstations")
+
+	cases := []struct {
+		name             string
+		cfgs             []string
+		extraArgs        []string
+		seedTeamName     string
+		dryRunAssertion  func(t *testing.T, out string, defaultTeamID *uint, err error)
+		realRunAssertion func(t *testing.T, out string, defaultTeamID *uint, err error)
+	}{
+		{
+			name: "delete-other-fleets cannot delete the default fleet",
+			cfgs: []string{
+				global(`windows_enrollment:
+      default_fleet: "💻 Workstations"`),
+				team("Other team"),
+			},
+			extraArgs:    []string{"--delete-other-fleets"},
+			seedTeamName: "💻 Workstations",
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.ErrorContains(t, err, "windows_enrollment default_fleet 💻 Workstations cannot be deleted")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.ErrorContains(t, err, "windows_enrollment default_fleet 💻 Workstations cannot be deleted")
+			},
+		},
+		{
+			name: "fleet declared in the same run",
+			cfgs: []string{
+				global(`windows_enrollment:
+      default_fleet: "💻 Workstations"`),
+				workstations,
+			},
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Nil(t, defaultTeamID, "dry run must not persist the default fleet")
+				assert.Contains(t, out, "[!] would apply Windows enrollment default fleet")
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.NotNil(t, defaultTeamID)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "unknown fleet errors",
+			cfgs: []string{
+				global(`windows_enrollment:
+      default_fleet: "Ghosts"`),
+				workstations,
+			},
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.ErrorContains(t, err, `windows_enrollment default_fleet "Ghosts" not found in team configs`)
+				assert.Nil(t, defaultTeamID)
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.ErrorContains(t, err, `windows_enrollment default_fleet "Ghosts" not found in team configs`)
+				assert.Nil(t, defaultTeamID)
+			},
+		},
+		{
+			name: "empty value is accepted and clears",
+			cfgs: []string{
+				global(`windows_enrollment:
+      default_fleet: ""`),
+				workstations,
+			},
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Nil(t, defaultTeamID)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "omitted key is a no-op",
+			cfgs: []string{
+				global(""),
+				workstations,
+			},
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Nil(t, defaultTeamID)
+				assert.NotContains(t, out, "applying Windows enrollment default fleet")
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+				return nil, nil
+			}
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{}, nil
+			}
+			ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+				return 0, nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+				return nil
+			}
+			ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+				var res []*fleet.TeamSummary
+				for _, tm := range savedTeams {
+					res = append(res, &fleet.TeamSummary{Name: (*tm).Name, ID: (*tm).ID})
+				}
+				return res, nil
+			}
+			ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+				return nil
+			}
+			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+			}
+			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+				return nil, nil
+			}
+			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+				return nil
+			}
+
+			if tt.seedTeamName != "" {
+				seeded := &fleet.Team{ID: 99, Name: tt.seedTeamName}
+				savedTeams[tt.seedTeamName] = &seeded
+			}
+
+			// Track the persisted default fleet, overriding the helper's stateful default so the test can assert on it directly.
+			var defaultTeamID *uint
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				if defaultTeamID == nil {
+					return nil, "", nil
+				}
+				for _, tm := range savedTeams {
+					if (*tm).ID == *defaultTeamID {
+						return defaultTeamID, (*tm).Name, nil
+					}
+				}
+				return nil, "", nil
+			}
+			ds.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, teamID *uint) error {
+				defaultTeamID = teamID
+				return nil
+			}
+
+			args := []string{"gitops"}
+			for _, cfg := range tt.cfgs {
+				if cfg != "" {
+					tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+					require.NoError(t, err)
+					_, err = tmpFile.WriteString(cfg)
+					require.NoError(t, err)
+					args = append(args, "-f", tmpFile.Name())
+				}
+			}
+			args = append(args, tt.extraArgs...)
+
+			// Dry run
+			out, err := runAppNoChecks(append(args, "--dry-run"))
+			tt.dryRunAssertion(t, out.String(), defaultTeamID, err)
+			if t.Failed() {
+				t.FailNow()
+			}
+
+			// Real run
+			out, err = runAppNoChecks(args)
+			tt.realRunAssertion(t, out.String(), defaultTeamID, err)
+
+			// Second real run, now that all the teams are saved
+			out, err = runAppNoChecks(args)
+			tt.realRunAssertion(t, out.String(), defaultTeamID, err)
 		})
 	}
 }
@@ -7174,7 +7393,7 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
@@ -7278,6 +7497,23 @@ software:
 			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
 				return false, nil
 			}
+		})
+
+		t.Run("update_new_hosts derives true in latest mode", func(t *testing.T) {
+			savedTeam = existingTeamWithMacOSUpdates("", "")
+
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			// "latest" has no deadline, so deriving from the deadline alone would
+			// leave new hosts unenforced.
+			_, err = teamFile.WriteString(teamYAML(
+				"  macos_updates:\n    minimum_version: \"latest\"\n    deadline_days: 7"))
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+
+			require.Equal(t, optjson.SetBool(true), savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts)
+			require.Equal(t, optjson.SetInt(7), savedTeam.Config.MDM.MacOSUpdates.DeadlineDays)
 		})
 	})
 
@@ -7714,7 +7950,7 @@ func TestGitOpsWindowsOSUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
 	}
 	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {

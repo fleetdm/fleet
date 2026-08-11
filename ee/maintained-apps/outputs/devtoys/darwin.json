@@ -4,7 +4,8 @@
       "version": "2.0.9.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.devtoys';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devtoys' AND version_compare(bundle_short_version, '2.0.9.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devtoys' AND version_compare(bundle_short_version, '2.0.9.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.devtoys');"
       },
       "installer_url": "https://github.com/DevToys-app/DevToys/releases/download/v2.0.9.0/devtoys_osx_arm64.zip",
       "install_script_ref": "8e3d636a",

@@ -4,7 +4,8 @@
       "version": "1.7.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'fr.chachatelier.pierre.Chalk';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fr.chachatelier.pierre.Chalk' AND version_compare(bundle_short_version, '1.7.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fr.chachatelier.pierre.Chalk' AND version_compare(bundle_short_version, '1.7.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'fr.chachatelier.pierre.Chalk');"
       },
       "installer_url": "https://pierre.chachatelier.fr/chalk/downloads/Chalk-1_7_5.dmg",
       "install_script_ref": "6cef1855",

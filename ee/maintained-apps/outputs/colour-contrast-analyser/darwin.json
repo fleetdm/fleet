@@ -4,7 +4,8 @@
       "version": "3.5.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.cca';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.cca' AND version_compare(bundle_short_version, '3.5.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.cca' AND version_compare(bundle_short_version, '3.5.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.electron.cca');"
       },
       "installer_url": "https://github.com/ThePacielloGroup/CCAe/releases/download/v3.5.5/CCA-3.5.5.dmg",
       "install_script_ref": "1e8f2d84",

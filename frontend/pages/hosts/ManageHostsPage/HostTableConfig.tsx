@@ -732,6 +732,37 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       );
     },
   },
+  // Added to Fleet
+  {
+    title: "Added to Fleet",
+    Header: (cellProps: IHostTableHeaderProps) => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={
+            <>
+              The last time the <br /> host enrolled with Fleet.
+            </>
+          }
+        >
+          Added to Fleet
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      );
+    },
+    accessor: "last_enrolled_at",
+    id: "last_enrolled_at",
+    Cell: (cellProps: IHostTableStringCellProps) => (
+      <TextCell
+        value={{ timeString: cellProps.cell.value }}
+        formatter={HumanTimeDiffWithFleetLaunchCutoff}
+      />
+    ),
+  },
 ];
 
 const defaultHiddenColumns = [
@@ -752,6 +783,7 @@ const defaultHiddenColumns = [
   "seen_time",
   "hardware_model",
   "hardware_serial",
+  "last_enrolled_at",
 ];
 
 /**

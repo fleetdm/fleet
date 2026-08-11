@@ -4,7 +4,8 @@
       "version": "9.007",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE '3DF Zephyr Free %' AND publisher = '3Dflow srl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '3DF Zephyr Free %' AND publisher = '3Dflow srl' AND version_compare(version, '9.007') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '3DF Zephyr Free %' AND publisher = '3Dflow srl' AND version_compare(version, '9.007') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '3df zephyr free.exe');"
       },
       "installer_url": "https://3df-eu.fra1.digitaloceanspaces.com/9.007/3DF%20Zephyr%20Free%20v9.007%20(x64).exe",
       "install_script_ref": "df7f059c",

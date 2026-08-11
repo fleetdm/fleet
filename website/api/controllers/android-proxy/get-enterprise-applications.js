@@ -65,6 +65,7 @@ module.exports = {
       let { google } = require('googleapis');
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Applications.html#get
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
       let getApplicationsResult = await androidManagementConnection.enterprises.applications.get({
         name: `enterprises/${androidEnterpriseId}/applications/${applicationId}`,
       });

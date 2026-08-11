@@ -1087,6 +1087,51 @@ func TestGetProfilesContents(t *testing.T) {
 	}
 }
 
+func TestGetProfilesContentsActivation(t *testing.T) {
+	tempDir := t.TempDir()
+
+	activation := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.example.act","Payload":{"StandardConfigurations":["com.example.decl"]}}`)
+	activationPath := filepath.Join(tempDir, "activation.json")
+	require.NoError(t, os.WriteFile(activationPath, activation, 0o644))
+
+	declPath := filepath.Join(tempDir, "decl.json")
+	require.NoError(t, os.WriteFile(declPath,
+		[]byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.example.decl","Payload":{}}`), 0o644))
+
+	mobileconfigPath := filepath.Join(tempDir, "profile.mobileconfig")
+	require.NoError(t, os.WriteFile(mobileconfigPath, mobileconfigForTest("bar", "I"), 0o644))
+
+	t.Run("declaration carries the activation contents", func(t *testing.T) {
+		got, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: declPath, Activation: activationPath}}, nil, nil, false)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Equal(t, activation, got[0].Activation)
+	})
+
+	t.Run("no activation leaves the payload field empty", func(t *testing.T) {
+		got, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: declPath}}, nil, nil, false)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Empty(t, got[0].Activation)
+	})
+
+	t.Run("mobileconfig with an activation is rejected", func(t *testing.T) {
+		_, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: mobileconfigPath, Activation: activationPath}}, nil, nil, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "activation is only supported for declaration (DDM) profiles")
+	})
+
+	t.Run("unreadable activation file reports the path", func(t *testing.T) {
+		_, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: declPath, Activation: filepath.Join(tempDir, "missing.json")}}, nil, nil, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "reading activation")
+	})
+}
+
 func TestGitOpsErrors(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

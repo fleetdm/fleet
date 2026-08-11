@@ -4,7 +4,8 @@
       "version": "1.4.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.okatbest.boop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.okatbest.boop' AND version_compare(bundle_short_version, '1.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.okatbest.boop' AND version_compare(bundle_short_version, '1.4.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.okatbest.boop');"
       },
       "installer_url": "https://github.com/IvanMathy/Boop/releases/download/1.4.0/Boop.zip",
       "install_script_ref": "fbdec4bb",

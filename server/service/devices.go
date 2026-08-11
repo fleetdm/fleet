@@ -183,6 +183,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			resp.ComputerName = ""
 			resp.DisplayText = ""
 			resp.DisplayName = ""
+			resp.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{}
 
 			// Scrub sensitive data from the license response
 			scrubbedLicense := *license

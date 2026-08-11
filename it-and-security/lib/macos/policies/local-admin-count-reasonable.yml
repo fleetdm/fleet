@@ -1,4 +1,4 @@
-- name: macOS - Local admin accounts within limit
+- name: Local admin accounts within limit
   query: |-
     SELECT 1 WHERE (
       SELECT COUNT(DISTINCT u.uid)
