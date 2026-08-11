@@ -73,9 +73,10 @@ func newTokenError(retrieveErr *oauth2.RetrieveError) *Error {
 		status = retrieveErr.Response.StatusCode
 	}
 
+	// Bounded for the same reason a Graph body is.
 	message := retrieveErr.ErrorDescription
 	if message == "" {
-		message = string(retrieveErr.Body)
+		message = truncateBody(retrieveErr.Body)
 	}
 
 	return &Error{StatusCode: status, Code: retrieveErr.ErrorCode, Message: message, Err: retrieveErr}

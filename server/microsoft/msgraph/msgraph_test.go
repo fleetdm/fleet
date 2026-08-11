@@ -76,7 +76,7 @@ func writeDevices(t *testing.T, w http.ResponseWriter, nextLink string, devices 
 		body["@odata.nextLink"] = nextLink
 	}
 	w.Header().Set("Content-Type", "application/json")
-	require.NoError(t, json.NewEncoder(w).Encode(body))
+	assert.NoError(t, json.NewEncoder(w).Encode(body))
 }
 
 // newSingleHostClient points both the token endpoint and Graph at one server, for tests that need to control the
