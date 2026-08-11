@@ -22,6 +22,14 @@
 # transactions, so uninstalling one can transiently fail with 1618
 # (ERROR_INSTALL_ALREADY_RUNNING) while another is still mid-transaction.
 # Retry a few times with a short delay.
+#
+# One entry (DisplayName "Citrix Workspace <version>", UninstallString
+# bootstrapperhelper.exe rather than msiexec) is the master entry: removing
+# it cascades and removes the other MSI sub-components (USB, SSON, Inside,
+# DV, ...) too. Since every entry was already snapshotted before any
+# uninstall ran, a later msiexec /x for an already-cascaded component fails
+# with 1605 (ERROR_UNKNOWN_PRODUCT, "not currently installed") -- that's
+# success, not a failure.
 
 $softwareNameLike = "Citrix Workspace*"
 
@@ -122,8 +130,9 @@ function Uninstall-CitrixEntry {
         Write-Host "Uninstall exit code: $exitCode"
     }
 
-    # Treat msiexec-style reboot-required codes as success too.
-    if ($exitCode -eq 3010 -or $exitCode -eq 1641) {
+    # Treat msiexec-style reboot-required codes as success, and 1605 (product
+    # already removed, e.g. by another entry's cascade) as success too.
+    if ($exitCode -eq 3010 -or $exitCode -eq 1641 -or $exitCode -eq 1605) {
         return 0
     }
     return $exitCode
