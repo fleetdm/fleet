@@ -82,7 +82,7 @@ func TestHostCertificateTemplate(t *testing.T) {
 				template: &HostCertificateTemplate{
 					Status:        CertificateTemplateDelivered,
 					OperationType: MDMOperationTypeInstall,
-					Detail:        ptr.String("Network error during SCEP enrollment"),
+					Detail:        new("Network error during SCEP enrollment"),
 					RetryCount:    1,
 				},
 				expectation: func(t *testing.T, profile HostMDMProfile) {
