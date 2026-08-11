@@ -71,13 +71,13 @@ module.exports = {
     customRenderer.heading = function(textHTML, level) {
       let inlineStyles;
       if(level === 1) { // For h1s
-        inlineStyles = 'font-weight: 800; font-size: 24px; line-height: 32px; margin-bottom: 16px;';
+        inlineStyles = 'color: #192147; font-weight: 800; font-size: 32px; line-height: 150%; margin-bottom: 32px;';
       } else if (level === 2) { // For h2s
-        inlineStyles = 'font-weight: 700; font-size: 20px; line-height: 28px; margin-bottom: 16px; margin-top: 32px;';
+        inlineStyles = 'color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;';
       } else if (level === 3) { // for h3s
-        inlineStyles = 'font-weight: 700; font-size: 20px; line-height: 24px; margin-bottom: 16px;';
+        inlineStyles = 'color: #192147; font-weight: 700; font-size: 20px; line-height: 150%; margin-bottom: 24px;';
       } else {// H4s or higher
-        inlineStyles = 'font-weight: 700; font-size: 16px; line-height: 20px; margin-bottom: 16px;';
+        inlineStyles = 'color: #192147; font-weight: 700; font-size: 16px; line-height: 20px; margin-bottom: 16px;';
       }
       return `<h${level} style="${inlineStyles}">\n${textHTML}\n</h${level}>\n`;
     };
@@ -98,7 +98,7 @@ module.exports = {
 
     // For list items
     customRenderer.listitem = function(textHTML) {
-      return `<li style="margin-bottom: 16px;">\n${textHTML}\n</li>\n`;
+      return `<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">\n${textHTML}\n</span></li>\n`;
     };
 
     customRenderer.paragraph = function(text) {
