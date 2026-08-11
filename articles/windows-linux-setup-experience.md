@@ -32,7 +32,7 @@ Learn how to enforce authentication in the [setup experience guide](https://flee
 
 When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, IdP authentication won't be enforced when it re-enrolls.
 
-> By default, IdP authentication isn't enforced if the Fleet agent (fleetd) installed on the host is older than version 1.50.0. So, a technical end user can skip it by installing an older fleetd or by enrolling with a script that calls [Fleet's enroll API endpoint](TODO) directly. To enforce authentication on older version of fleetd, you can disable the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass).
+> By default, IdP authentication isn't enforced if the Fleet agent (fleetd) installed on the host is older than version 1.50.0. A technical end user can skip authentication by installing an older fleetd or by enrolling via a [script that bypasses authentication](https://github.com/fleetdm/fleet/issues/46644#issuecomment-5026981749). To enforce authentication always, you can disable the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass).
 
 ### Skip authentication
 
