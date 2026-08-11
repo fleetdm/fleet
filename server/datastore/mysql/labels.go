@@ -567,7 +567,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 	for _, spec := range specs {
 		if spec.LabelType != fleet.LabelTypeBuiltIn &&
 			spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-			if err := ds.getLabelHostIDs(ctx, spec); err != nil {
+			if err := ds.getLabelHostIDs(ctx, spec, filter); err != nil {
 				return nil, err
 			}
 		}
@@ -599,7 +599,7 @@ WHERE l.name = ?`, filter, name)
 	spec := specs[0]
 	if spec.LabelType != fleet.LabelTypeBuiltIn &&
 		spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-		err := ds.getLabelHostIDs(ctx, spec)
+		err := ds.getLabelHostIDs(ctx, spec, filter)
 		if err != nil {
 			return nil, err
 		}
@@ -608,18 +608,24 @@ WHERE l.name = ?`, filter, name)
 	return spec, nil
 }
 
-func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec) error {
-	sql := `
-		SELECT id
-		FROM hosts
-		WHERE id IN
-		(
-			SELECT host_id
-			FROM label_membership
-			WHERE label_id = (SELECT id FROM labels WHERE name = ?)
+func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec, filter fleet.TeamFilter) error {
+	// Global roles (including gitops, which needs the full list to round-trip
+	// specs) see every member; team-scoped users must not learn about host IDs
+	// outside their teams. filter.TeamID scopes which labels are returned, not
+	// which hosts are visible, so it is left out of the host filter.
+	hostFilter := "TRUE"
+	if filter.User == nil || !filter.User.HasAnyGlobalRole() {
+		hostFilter = ds.whereFilterHostsByTeams(
+			fleet.TeamFilter{User: filter.User, IncludeObserver: filter.IncludeObserver}, "h",
 		)
-	`
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &label.Hosts, sql, label.Name)
+	}
+	sql := fmt.Sprintf(`
+		SELECT h.id
+		FROM hosts h
+		JOIN label_membership lm ON lm.host_id = h.id
+		WHERE lm.label_id = ? AND %s
+	`, hostFilter)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &label.Hosts, sql, label.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get hostnames for label")
 	}

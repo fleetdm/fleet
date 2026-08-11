@@ -13017,6 +13017,71 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 	}
 }
 
+func (s *integrationEnterpriseTestSuite) TestLabelSpecHostsAreTeamFiltered() {
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	t := s.T()
+	ctx := t.Context()
+
+	hosts := s.createHosts(t, "debian", "darwin", "windows")
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "label spec team1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "label spec team2"})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm1.ID, []uint{hosts[0].ID})))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm2.ID, []uint{hosts[1].ID})))
+
+	observer := fleet.UserPayload{
+		Name:                     new("label spec team1 observer"),
+		Email:                    new("labelspec-tm1observer@example.com"),
+		Password:                 new(test.GoodPassword),
+		AdminForcedPasswordReset: new(false),
+		Teams:                    &[]fleet.UserTeam{{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleObserver}},
+	}
+	var createUser createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", observer, http.StatusOK, &createUser)
+
+	labelName := "labelspec-global-manual"
+	var createLbl fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  labelName,
+			Hosts: []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID},
+		},
+	}, http.StatusOK, &createLbl)
+
+	var getSpec fleet.GetLabelSpecResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(labelName)), nil, http.StatusOK, &getSpec)
+	require.ElementsMatch(t,
+		[]string{fmt.Sprint(hosts[0].ID), fmt.Sprint(hosts[1].ID), fmt.Sprint(hosts[2].ID)},
+		[]string(getSpec.Spec.Hosts),
+	)
+
+	// the team observer must not learn about hosts outside their team
+	s.setTokenForTest(t, *observer.Email, *observer.Password)
+
+	getSpec = fleet.GetLabelSpecResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(labelName)), nil, http.StatusOK, &getSpec)
+	require.Equal(t, []string{fmt.Sprint(hosts[0].ID)}, []string(getSpec.Spec.Hosts))
+
+	var listSpecs fleet.GetLabelSpecsResponse
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listSpecs)
+	var found bool
+	for _, spec := range listSpecs.Specs {
+		if spec.Name == labelName {
+			found = true
+			require.Equal(t, []string{fmt.Sprint(hosts[0].ID)}, []string(spec.Hosts))
+		}
+	}
+	require.True(t, found, "global manual label spec should be listed for the team observer")
+
+	// the members left out of the spec are the ones the observer can't reach directly
+	for _, h := range []*fleet.Host{hosts[1], hosts[2]} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusForbidden, &getHostResponse{})
+	}
+}
+
 func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	t := s.T()
 	ctx := context.Background()
