@@ -37,6 +37,11 @@ type fakeDevice struct {
 	PendingCertificates  []uint   `json:"pending_certificates"`
 }
 
+// maxRestorablePolicyVersion bounds the policy version a device may report when it
+// registers again, so a bogus value can't push the version counter near overflow and turn
+// every later version negative. It is far above any version a load test will reach.
+const maxRestorablePolicyVersion = 1 << 40
+
 // deviceStore is the in-memory registry of fake devices and policy versions.
 type deviceStore struct {
 	mu sync.RWMutex
@@ -44,25 +49,39 @@ type deviceStore struct {
 	byESID map[string]*fakeDevice
 	// byName maps AMAPI device resource name -> device
 	byName map[string]*fakeDevice
+	// deletedESIDs records devices Fleet deleted through AMAPI. Deletion is a real
+	// unenrollment, not lost state, so such a device must never come back: a device that
+	// registered again after being deleted would re-enroll itself in Fleet and produce an
+	// unenroll/enroll flip-flop.
+	deletedESIDs map[string]struct{}
 
 	// policyVersions tracks the latest version for each policy name.
 	// Fleet uses per-device policies named enterprises/{id}/policies/{hostUUID}.
+	// policyVersion is the counter versions are issued from; it is guarded by policyMu so
+	// issuing a version and recording it against a policy is one atomic step.
 	policyMu       sync.RWMutex
 	policyVersions map[string]int64
+	policyVersion  int64
 }
 
 func newDeviceStore() *deviceStore {
 	return &deviceStore{
 		byESID:         make(map[string]*fakeDevice),
 		byName:         make(map[string]*fakeDevice),
+		deletedESIDs:   make(map[string]struct{}),
 		policyVersions: make(map[string]int64),
+		policyVersion:  1,
 	}
 }
 
-func (ds *deviceStore) setPolicyVersion(policyName string, version int64) {
+// nextPolicyVersion issues the next version and records it as the current version of
+// policyName.
+func (ds *deviceStore) nextPolicyVersion(policyName string) int64 {
 	ds.policyMu.Lock()
 	defer ds.policyMu.Unlock()
-	ds.policyVersions[policyName] = version
+	ds.policyVersion++
+	ds.policyVersions[policyName] = ds.policyVersion
+	return ds.policyVersion
 }
 
 func (ds *deviceStore) getPolicyVersion(policyName string) int64 {
@@ -71,11 +90,69 @@ func (ds *deviceStore) getPolicyVersion(policyName string) int64 {
 	return ds.policyVersions[policyName]
 }
 
+// raisePolicyVersionCounter pulls the counter up to a version a device reports when it
+// registers again after this process lost its state, so versions issued from here on stay
+// above the version the device already told Fleet about.
+//
+// It deliberately does NOT record the version against the policy: doing so would let a
+// device claim a high applied version that this process never issued, and Fleet verifies
+// profiles whose included_in_policy_version is <= the applied version — so pending profiles
+// would flip to Verified without the policy ever having been applied, hiding the very
+// "stuck in Pending" bugs this harness exists to find.
+func (ds *deviceStore) raisePolicyVersionCounter(version int64) {
+	if version <= 0 || version > maxRestorablePolicyVersion {
+		return
+	}
+	ds.policyMu.Lock()
+	defer ds.policyMu.Unlock()
+	if ds.policyVersion < version {
+		ds.policyVersion = version
+	}
+}
+
+// register adds a device, or updates the identity and policy fields of one that is already
+// known. An existing device is updated in place so that state other handlers hold a pointer
+// to (pending commands, pending certificates) survives a device registering again.
 func (ds *deviceStore) register(d *fakeDevice) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
+
+	if existing, ok := ds.byESID[d.EnterpriseSpecificID]; ok {
+		existing.mu.Lock()
+		delete(ds.byName, existing.DeviceName)
+		existing.DeviceName = d.DeviceName
+		existing.EnterpriseID = d.EnterpriseID
+		existing.PolicyName = d.PolicyName
+		existing.PolicyVersion = d.PolicyVersion
+		existing.mu.Unlock()
+		ds.byName[existing.DeviceName] = existing
+		return
+	}
+
 	ds.byESID[d.EnterpriseSpecificID] = d
 	ds.byName[d.DeviceName] = d
+}
+
+// markDeleted removes a device and records that it was deleted, not merely forgotten.
+func (ds *deviceStore) markDeleted(name string) (*fakeDevice, bool) {
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+	d, ok := ds.byName[name]
+	if !ok {
+		return nil, false
+	}
+	delete(ds.byName, name)
+	delete(ds.byESID, d.EnterpriseSpecificID)
+	ds.deletedESIDs[d.EnterpriseSpecificID] = struct{}{}
+	return d, true
+}
+
+// wasDeleted reports whether this process deleted the device with the given ESID.
+func (ds *deviceStore) wasDeleted(esid string) bool {
+	ds.mu.RLock()
+	defer ds.mu.RUnlock()
+	_, ok := ds.deletedESIDs[esid]
+	return ok
 }
 
 func (ds *deviceStore) getByESID(esid string) *fakeDevice {
@@ -100,9 +177,6 @@ func (ds *deviceStore) allDeviceNames() []string {
 	return names
 }
 
-// policyVersionCounter is a global atomic counter for policy versions.
-var policyVersionCounter atomic.Int64
-
 // hasSeenRealDevice indicates that a real device has been seen.
 var hasSeenRealDevice atomic.Bool
 
@@ -119,8 +193,6 @@ func main() {
 		credJSON = os.Getenv("GOOGLE_CREDENTIALS")
 	}
 
-	policyVersionCounter.Store(1)
-
 	store := newDeviceStore()
 
 	// Set up authenticated Google API client for real device forwarding
@@ -134,6 +206,21 @@ func main() {
 		log.Printf("Google credentials loaded — forwarding real device requests to Google AMAPI")
 	}
 
+	mux := newMux(store, google, *latencyMean, *errorRate)
+
+	srv := &http.Server{
+		Addr:         *listen,
+		Handler:      mux,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+	}
+	log.Printf("Mock AMAPI proxy listening on %s", *listen)
+	log.Fatal(srv.ListenAndServe())
+}
+
+// newMux registers every mock route. Route patterns matter to the handlers (they read path
+// values), so this is shared between main and the tests rather than duplicated.
+func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Duration, errorRate float64) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// ---- Health check ----
@@ -147,7 +234,7 @@ func main() {
 
 	// sim wraps AMAPI handlers with simulated latency and occasional errors
 	sim := func(h http.HandlerFunc) http.HandlerFunc {
-		return simulateLatencyAndErrors(*latencyMean, *errorRate, h)
+		return simulateLatencyAndErrors(latencyMean, errorRate, h)
 	}
 
 	// ---- AMAPI: Devices ----
@@ -171,29 +258,36 @@ func main() {
 	// Catch-all for unmatched /v1/ requests
 	mux.HandleFunc("/v1/", handleCatchAll(google))
 
-	srv := &http.Server{
-		Addr:         *listen,
-		Handler:      mux,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-	}
-	log.Printf("Mock AMAPI proxy listening on %s", *listen)
-	log.Fatal(srv.ListenAndServe())
+	return mux
 }
 
 // ---- Route helpers ----
 
+// trimAction removes an AMAPI custom method suffix (":issueCommand",
+// ":modifyPolicyApplications", ...) from a resource ID. Every action is routed to a single
+// handler per method, so the suffix is stripped generically: naming the known actions here
+// would silently reintroduce the resource-lookup bug the moment AMAPI grows another one.
+// Resource IDs themselves are UUIDs or numeric IDs and never contain a colon.
+func trimAction(resourceID string) string {
+	if i := strings.IndexByte(resourceID, ':'); i >= 0 {
+		return resourceID[:i]
+	}
+	return resourceID
+}
+
 // deviceName builds the AMAPI resource name from path values.
 func deviceName(r *http.Request) string {
-	did := r.PathValue("did")
-	did = strings.TrimSuffix(did, ":issueCommand")
-	return "enterprises/" + r.PathValue("eid") + "/devices/" + did
+	return "enterprises/" + r.PathValue("eid") + "/devices/" + trimAction(r.PathValue("did"))
+}
+
+// policyID returns the policy ID from path values with any action suffix removed.
+// Fleet names per-device policies after the host UUID (the enterpriseSpecificID for
+// Android), so callers can use this to look up the fake device the policy belongs to.
+func policyID(r *http.Request) string {
+	return trimAction(r.PathValue("pid"))
 }
 
 // policyName builds the AMAPI policy resource name from path values.
 func policyName(r *http.Request) string {
-	pid := r.PathValue("pid")
-	pid = strings.TrimSuffix(pid, ":modifyPolicyApplications")
-	pid = strings.TrimSuffix(pid, ":removePolicyApplications")
-	return "enterprises/" + r.PathValue("eid") + "/policies/" + pid
+	return "enterprises/" + r.PathValue("eid") + "/policies/" + policyID(r)
 }
