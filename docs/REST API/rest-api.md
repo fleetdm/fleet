@@ -3463,11 +3463,11 @@ the `software` table.
 
 ### List hosts
 
+`GET /api/v1/fleet/hosts`
+
 > `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
 > Searching with `query` and setting `device_mapping=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
-
-`GET /api/v1/fleet/hosts`
 
 #### Parameters
 
@@ -3980,11 +3980,12 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 ### Get host
 
-> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
-
 Returns the information of the specified host.
 
 `GET /api/v1/fleet/hosts/:id`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
 
 #### Parameters
 
@@ -4290,15 +4291,15 @@ Returns the information of the specified host.
 
 ### Get host by identifier
 
-> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
-
 Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
+
+`GET /api/v1/fleet/hosts/identifier/:identifier`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. 
 
-> In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
-
-`GET /api/v1/fleet/hosts/identifier/:identifier`
+In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
 
 #### Parameters
 
@@ -4528,15 +4529,16 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 ### Get host by Fleet Desktop token
 
-> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
-
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
+
+`GET /api/v1/fleet/device/:token`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
 This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS and iPadOS, this is the host's hardware UUID.
 
-`GET /api/v1/fleet/device/:token`
 
 ##### Parameters
 
