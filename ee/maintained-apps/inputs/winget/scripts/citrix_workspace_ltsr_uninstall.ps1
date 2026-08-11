@@ -1,21 +1,26 @@
 # Uninstall for Citrix Workspace App LTSR.
 #
-# The Programs and Features entry that's actually visible is Citrix's
-# bundled "ReceiverInside" component (DisplayName "Citrix Workspace Inside"),
-# whose UninstallString is a standard MSI reference (MsiExec.exe
-# /I{ProductCode}, the maintenance/repair form) -- not the TrolleyExpress.exe
-# or CWAInstaller.exe bootstrapper uninstaller some older community docs
-# describe for this DisplayName pattern. Resolve the ProductCode (registry
-# key name, or the first GUID in the UninstallString) and run a clean
-# "msiexec /x {ProductCode} /qn /norestart" -- never reuse the /I switch
-# from the registry string. If the selected entry isn't MSI-based, fall back
-# to re-running its own uninstaller exe with Citrix's documented silent
+# The bootstrap registers multiple separate Programs and Features entries
+# (confirmed by CI: "Citrix Workspace Inside" plus a distinct "Citrix
+# Workspace(USB)" entry, and possibly others depending on selected
+# components) -- removing just the first one found still leaves the app
+# detectable. Enumerate every entry matching the "Citrix Workspace " prefix
+# and publisher, and uninstall each one.
+#
+# Most of these entries' UninstallStrings are standard MSI references
+# (MsiExec.exe /I{ProductCode}, the maintenance/repair form) -- not the
+# TrolleyExpress.exe or CWAInstaller.exe bootstrapper uninstaller some older
+# community docs describe for this DisplayName pattern. Resolve the
+# ProductCode (registry key name, or the first GUID in the UninstallString)
+# and run a clean "msiexec /x {ProductCode} /qn /norestart" -- never reuse
+# the /I switch from the registry string. If an entry isn't MSI-based, fall
+# back to re-running its own uninstaller exe with Citrix's documented silent
 # switches.
 #
-# The Citrix bootstrapper installs several components; other internal MSI
-# transactions can still hold the Windows Installer mutex right after our own
-# install script returns, so msiexec /x fails transiently with 1618
-# (ERROR_INSTALL_ALREADY_RUNNING). Retry a few times with a short delay.
+# The Citrix bootstrapper installs several components as separate MSI
+# transactions, so uninstalling one can transiently fail with 1618
+# (ERROR_INSTALL_ALREADY_RUNNING) while another is still mid-transaction.
+# Retry a few times with a short delay.
 
 $softwareNameLike = "Citrix Workspace *"
 
@@ -24,7 +29,6 @@ $paths = @(
   'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 )
 
-$exitCode = 0
 $timeoutSeconds = 180
 $maxMsiAttempts = 5
 $msiRetryDelaySeconds = 15
@@ -40,105 +44,121 @@ function Wait-ProcessBounded {
     return $Process.ExitCode
 }
 
-try {
+function Uninstall-CitrixEntry {
+    param($Entry)
 
-[array]$uninstallKeys = Get-ChildItem `
-    -Path $paths `
-    -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
+    Write-Host "Uninstalling component: $($Entry.DisplayName)"
 
-$selected = $null
-foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike `
-        -and $key.Publisher -eq "Citrix Systems, Inc.") {
-        $selected = $key
-        break
+    $uninstallCommand = if ($Entry.QuietUninstallString) {
+        $Entry.QuietUninstallString
+    } else {
+        $Entry.UninstallString
     }
-}
 
-if (-not $selected) {
-    # Already uninstalled (or never installed) -- nothing to do.
-    Write-Host "Uninstall entry not found for $softwareNameLike"
-    Exit 0
-}
+    if (-not $uninstallCommand) {
+        Write-Host "Entry has no UninstallString: $($Entry.DisplayName)"
+        return 1
+    }
 
-Write-Host "Selected entry DisplayName: $($selected.DisplayName)"
-
-$uninstallCommand = if ($selected.QuietUninstallString) {
-    $selected.QuietUninstallString
-} else {
-    $selected.UninstallString
-}
-
-if (-not $uninstallCommand) {
-    Write-Host "Selected entry has no UninstallString: $($selected.DisplayName)"
-    Exit 1
-}
-
-if ($uninstallCommand -match '(?i)msiexec') {
-    # MSI-based entry: resolve the ProductCode and run a clean uninstall,
-    # ignoring whatever switches are already in the registry string.
-    $productCode = $selected.PSChildName
-    if ($productCode -notmatch '^\{[0-9A-Fa-f-]+\}$') {
-        if ($uninstallCommand -match '(\{[0-9A-Fa-f-]+\})') {
-            $productCode = $matches[1]
+    if ($uninstallCommand -match '(?i)msiexec') {
+        # MSI-based entry: resolve the ProductCode and run a clean uninstall,
+        # ignoring whatever switches are already in the registry string.
+        $productCode = $Entry.PSChildName
+        if ($productCode -notmatch '^\{[0-9A-Fa-f-]+\}$') {
+            if ($uninstallCommand -match '(\{[0-9A-Fa-f-]+\})') {
+                $productCode = $matches[1]
+            }
         }
-    }
-    if ($productCode -notmatch '^\{[0-9A-Fa-f-]+\}$') {
-        Throw "Could not determine ProductCode from: $uninstallCommand"
-    }
+        if ($productCode -notmatch '^\{[0-9A-Fa-f-]+\}$') {
+            Write-Host "Could not determine ProductCode from: $uninstallCommand"
+            return 1
+        }
 
-    Write-Host "Uninstalling product code: $productCode"
+        Write-Host "Uninstalling product code: $productCode"
 
-    for ($attempt = 1; $attempt -le $maxMsiAttempts; $attempt++) {
-        $process = Start-Process -FilePath "msiexec.exe" `
-            -ArgumentList "/x $productCode /qn /norestart" `
+        $exitCode = 1
+        for ($attempt = 1; $attempt -le $maxMsiAttempts; $attempt++) {
+            $process = Start-Process -FilePath "msiexec.exe" `
+                -ArgumentList "/x $productCode /qn /norestart" `
+                -PassThru
+
+            $exitCode = Wait-ProcessBounded -Process $process -TimeoutSeconds $timeoutSeconds
+            if ($null -eq $exitCode) {
+                return 1
+            }
+            Write-Host "Uninstall exit code: $exitCode (attempt $attempt of $maxMsiAttempts)"
+
+            if ($exitCode -ne 1618) {
+                break
+            }
+
+            Write-Host "Windows Installer busy (1618) -- another of Citrix's own component installs likely still holds the mutex. Retrying in ${msiRetryDelaySeconds}s."
+            Start-Sleep -Seconds $msiRetryDelaySeconds
+        }
+    } else {
+        # Non-MSI entry (e.g. TrolleyExpress.exe / CWAInstaller.exe): re-run
+        # the vendor's own uninstaller with its documented silent switches.
+        $exePath = ""
+        if ($uninstallCommand -match '^\s*"([^"]+)"') {
+            # Quoted path
+            $exePath = $matches[1]
+        } elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)') {
+            # Unquoted path that may contain spaces (e.g. "C:\Program Files (x86)\...")
+            $exePath = $matches[1]
+        } else {
+            Write-Host "Could not parse uninstaller path from: $uninstallCommand"
+            return 1
+        }
+
+        Write-Host "Uninstall command: $exePath"
+        $process = Start-Process -FilePath $exePath -ArgumentList "/uninstall /cleanup /silent" `
             -PassThru
 
         $exitCode = Wait-ProcessBounded -Process $process -TimeoutSeconds $timeoutSeconds
         if ($null -eq $exitCode) {
-            Exit 1
+            return 1
         }
-        Write-Host "Uninstall exit code: $exitCode (attempt $attempt of $maxMsiAttempts)"
-
-        if ($exitCode -ne 1618) {
-            break
-        }
-
-        Write-Host "Windows Installer busy (1618) -- another of Citrix's own component installs likely still holds the mutex. Retrying in ${msiRetryDelaySeconds}s."
-        Start-Sleep -Seconds $msiRetryDelaySeconds
-    }
-} else {
-    # Non-MSI entry (e.g. TrolleyExpress.exe / CWAInstaller.exe): re-run the
-    # vendor's own uninstaller with its documented silent switches.
-    $exePath = ""
-    if ($uninstallCommand -match '^\s*"([^"]+)"') {
-        # Quoted path
-        $exePath = $matches[1]
-    } elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)') {
-        # Unquoted path that may contain spaces (e.g. "C:\Program Files (x86)\...")
-        $exePath = $matches[1]
-    } else {
-        Throw "Could not parse uninstaller path from: $uninstallCommand"
+        Write-Host "Uninstall exit code: $exitCode"
     }
 
-    Write-Host "Uninstall command: $exePath"
-    $process = Start-Process -FilePath $exePath -ArgumentList "/uninstall /cleanup /silent" `
-        -PassThru
-
-    $exitCode = Wait-ProcessBounded -Process $process -TimeoutSeconds $timeoutSeconds
-    if ($null -eq $exitCode) {
-        Exit 1
+    # Treat msiexec-style reboot-required codes as success too.
+    if ($exitCode -eq 3010 -or $exitCode -eq 1641) {
+        return 0
     }
-    Write-Host "Uninstall exit code: $exitCode"
+    return $exitCode
 }
 
-# Treat msiexec-style reboot-required codes as success too.
-if ($exitCode -eq 3010 -or $exitCode -eq 1641) {
+try {
+
+[array]$uninstallKeys = Get-ChildItem `
+    -Path $paths `
+    -ErrorAction SilentlyContinue -ErrorVariable readErrors |
+        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
+
+if (@($readErrors).Count -ge $paths.Count) {
+    Throw "Failed to read the registry uninstall keys: $($readErrors -join '; ')"
+}
+
+[array]$entries = $uninstallKeys | Where-Object {
+    $_.DisplayName -and $_.DisplayName -like $softwareNameLike `
+        -and $_.Publisher -eq "Citrix Systems, Inc."
+}
+
+if ($entries.Count -eq 0) {
+    # Already uninstalled (or never installed) -- nothing to do.
+    Write-Host "No entries found matching $softwareNameLike"
     Exit 0
 }
 
-Exit $exitCode
+$overallExitCode = 0
+foreach ($entry in $entries) {
+    $result = Uninstall-CitrixEntry -Entry $entry
+    if ($result -ne 0) {
+        $overallExitCode = $result
+    }
+}
+
+Exit $overallExitCode
 
 } catch {
     Write-Host "Error: $_"
