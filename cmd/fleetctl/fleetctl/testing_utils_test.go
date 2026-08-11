@@ -270,8 +270,6 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) { return 0, nil }
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
 
-	// Microsoft Graph credentials. Config reads hydrate these from their own table (they are never stored in the app
-	// config JSON), so every test that reads the config needs them stubbed. Default to none configured.
 	ds.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
 		return nil, nil
 	}

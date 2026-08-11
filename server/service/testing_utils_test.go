@@ -114,8 +114,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 				return nil, "", nil
 			}
 		}
-		// Config reads also hydrate Microsoft Graph credentials from their own table, since they are never stored in
-		// the app config JSON. Default to none configured so tests that don't care don't panic on a nil mock.
+		// Default to none configured so tests that don't care don't panic on a nil mock.
 		if mockDS.ListMicrosoftGraphCredentialsFunc == nil {
 			mockDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
 				return nil, nil
