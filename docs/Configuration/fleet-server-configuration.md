@@ -3730,7 +3730,7 @@ For Windows, allows users to add custom Windows profiles for BitLocker.
 
 ### mdm.allow_all_declarations
 
-> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations are [coming in Fleet 4.91.0](https://github.com/fleetdm/fleet/issues/48222).
+> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations are turned on separately with [`mdm.allow_custom_activations`](#mdm-allow-custom-activations).
 
 If disabled (default), Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
 
@@ -3744,6 +3744,26 @@ Enabling this bypasses checks for forbidden declaration types, reserved identifi
   ```yaml
   mdm:
     allow_all_declarations: true
+  ```
+
+### mdm.allow_custom_activations
+
+Allows custom [activations](https://developer.apple.com/documentation/devicemanagement/activationsimple) to be uploaded with Apple configuration declarations (DDM profiles), using the API or GitOps.
+
+An activation includes a predicate. Predicate syntax is defined by Apple, so Fleet can't check it before sending it to a host. On macOS 26.5, an invalid predicate can leave a host unmanageable: declaration commands stop completing, other MDM commands are never finished, and removing the MDM enrollment profile on the host fails. The host can't be recovered remotely. Apple is tracking this as FB24193230.
+
+Custom activations are turned off because of this. If you turn them on, test each predicate on a single host before you add the profile to a fleet.
+
+An activation that's already uploaded can be removed whether or not this setting is turned on.
+
+Custom activations require Fleet Premium.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_custom_activations: true
   ```
 
 ### mdm.allow_orbit_end_user_auth_bypass
