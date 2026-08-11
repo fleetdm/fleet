@@ -4,7 +4,8 @@
       "version": "2.21.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Fork' AND publisher = 'Fork';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Fork' AND publisher = 'Fork' AND version_compare(version, '2.21.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Fork' AND publisher = 'Fork' AND version_compare(version, '2.21.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'fork.exe');"
       },
       "installer_url": "https://cdn.fork.dev/win/Fork-2.21.0.exe",
       "install_script_ref": "51b8d74f",

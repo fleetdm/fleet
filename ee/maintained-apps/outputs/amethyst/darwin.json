@@ -4,7 +4,8 @@
       "version": "0.24.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.amethyst.Amethyst';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.amethyst.Amethyst' AND version_compare(bundle_short_version, '0.24.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.amethyst.Amethyst' AND version_compare(bundle_short_version, '0.24.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.amethyst.Amethyst');"
       },
       "installer_url": "https://github.com/ianyh/Amethyst/releases/download/v0.24.3/Amethyst.zip",
       "install_script_ref": "6c35aeb2",

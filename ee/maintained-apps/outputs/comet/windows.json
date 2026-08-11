@@ -4,7 +4,8 @@
       "version": "150.0.7871.230",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Comet' AND publisher = 'PERPLEXITY AI, INC.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Comet' AND publisher = 'PERPLEXITY AI, INC.' AND version_compare(version, '150.0.7871.230') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Comet' AND publisher = 'PERPLEXITY AI, INC.' AND version_compare(version, '150.0.7871.230') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'comet.exe');"
       },
       "installer_url": "https://www.perplexity.ai/rest/browser/download?platform=win_x64&channel=stable",
       "install_script_ref": "9f163ee3",

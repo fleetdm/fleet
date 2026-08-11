@@ -43,7 +43,7 @@ describe("HostHeader", () => {
     expect(screen.getByText("My device")).toBeInTheDocument();
     expect(screen.getByText(/unavailable/i)).toBeInTheDocument();
   });
-  it("does not render refetch button for Android", () => {
+  it("renders a disabled refetch button for Android", () => {
     render(
       <HostHeader
         summaryData={{ ...defaultSummaryData, platform: "android" }}
@@ -53,10 +53,10 @@ describe("HostHeader", () => {
         hostMdmEnrollmentStatus={null}
       />
     );
-    expect(screen.queryByText("Refetch")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /refetch/i })).toBeDisabled();
   });
 
-  it("shows a tooltip explaining the missing refetch button for Android hosts", async () => {
+  it("shows a tooltip on the disabled refetch button explaining why Android hosts can't be refetched", async () => {
     const { user } = renderWithSetup(
       <HostHeader
         summaryData={{ ...defaultSummaryData, platform: "android" }}
@@ -67,11 +67,9 @@ describe("HostHeader", () => {
       />
     );
 
-    await user.hover(screen.getByText(/Last fetched/i));
+    await user.hover(screen.getByText("Refetch"));
 
-    expect(
-      await screen.findByText(/there's no Refetch button/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/there's no manual/i)).toBeInTheDocument();
   });
 
   it("disables refetch button when host is offline", () => {

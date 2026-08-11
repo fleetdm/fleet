@@ -4,7 +4,8 @@
       "version": "8.18.0.51429",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Omnissa Horizon Client' AND publisher = 'Omnissa, LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Omnissa Horizon Client' AND publisher = 'Omnissa, LLC' AND version_compare(version, '8.18.0.51429') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Omnissa Horizon Client' AND publisher = 'Omnissa, LLC' AND version_compare(version, '8.18.0.51429') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'omnissa horizon client.exe');"
       },
       "installer_url": "https://download3.omnissa.com/software/CART27FQ1_WIN_2603/Omnissa-Horizon-Client-2603-8.18.0-24230927696.exe",
       "install_script_ref": "8bdcbfb2",

@@ -4,7 +4,8 @@
       "version": "11.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.lunasea.lunasea';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.lunasea.lunasea' AND version_compare(bundle_short_version, '11.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.lunasea.lunasea' AND version_compare(bundle_short_version, '11.0.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'app.lunasea.lunasea');"
       },
       "installer_url": "https://github.com/JagandeepBrar/LunaSea/releases/download/v11.0.0/lunasea-macos-amd64.zip",
       "install_script_ref": "c48005df",

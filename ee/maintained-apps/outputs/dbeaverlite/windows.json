@@ -4,7 +4,8 @@
       "version": "26.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DBeaverLite %' AND publisher = 'DBeaver Corp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaverLite %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaverLite %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dbeaver.exe');"
       },
       "installer_url": "https://downloads.dbeaver.net/lite/26.1.0/dbeaver-le-26.1.0-windows-x86_64.exe",
       "install_script_ref": "f305c446",

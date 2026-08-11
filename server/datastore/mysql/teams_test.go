@@ -44,6 +44,7 @@ func TestTeams(t *testing.T) {
 		{"TestTeamsNameSort", testTeamsNameSort},
 		{"TeamIDsWithSetupExperienceIdPEnabled", testTeamIDsWithSetupExperienceIdPEnabled},
 		{"DefaultTeamConfig", testDefaultTeamConfig},
+		{"TeamLitesByIDs", testTeamLitesByIDs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1203,4 +1204,39 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "https://updated.com/webhook", finalConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 	assert.Equal(t, []uint{4, 5}, finalConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	assert.Equal(t, 50, finalConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+}
+
+func testTeamLitesByIDs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "lites-a"})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "lites-b",
+		Config: fleet.TeamConfig{WebhookSettings: fleet.TeamWebhookSettings{
+			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{Enable: true, DestinationURL: "https://example.com/hook"},
+		}},
+	})
+	require.NoError(t, err)
+
+	lites, err := ds.TeamLitesByIDs(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, lites)
+
+	lites, err = ds.TeamLitesByIDs(ctx, []uint{teamA.ID, teamB.ID, teamB.ID + 1000, 0})
+	require.NoError(t, err)
+	require.Len(t, lites, 3)
+	byID := make(map[uint]*fleet.TeamLite, len(lites))
+	for _, l := range lites {
+		byID[l.ID] = l
+	}
+	liteA, liteB := byID[teamA.ID], byID[teamB.ID]
+	require.NotNil(t, liteA)
+	require.NotNil(t, liteB)
+	require.Equal(t, "lites-a", liteA.Name)
+	noTeam := byID[0]
+	require.NotNil(t, noTeam)
+	require.Equal(t, fleet.ReservedNameNoTeam, noTeam.Name)
+	webhook := liteB.Config.WebhookSettings.HostActivitiesWebhook
+	require.NotNil(t, webhook)
+	require.Equal(t, "https://example.com/hook", webhook.DestinationURL)
 }

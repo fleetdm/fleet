@@ -358,6 +358,7 @@ type mdmAgent struct {
 	mdmProfileFailureProb      float64
 	osVersion                  string
 	supplementalOSVersionExtra string
+	isPersonalEnrollment       bool
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -439,6 +440,7 @@ type agent struct {
 	hostIndexOffset               int
 	softwareCount                 softwareEntityCount
 	softwareVSCodeExtensionsCount softwareExtraEntityCount
+	softwareAdobePluginsCount     softwareExtraEntityCount
 	userCount                     entityCount
 	policyPassProb                float64
 	munkiIssueProb                float64
@@ -520,6 +522,7 @@ type agent struct {
 
 	softwareQueryFailureProb         float64
 	softwareVSCodeExtensionsFailProb float64
+	softwareAdobePluginsFailProb     float64
 
 	softwareInstaller softwareInstaller
 
@@ -663,9 +666,11 @@ func newAgent(
 	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
 	softwareQueryFailureProb float64,
 	softwareVSCodeExtensionsQueryFailureProb float64,
+	softwareAdobePluginsQueryFailureProb float64,
 	softwareInstaller softwareInstaller,
 	softwareCount softwareEntityCount,
 	softwareVSCodeExtensionsCount softwareExtraEntityCount,
+	softwareAdobePluginsCount softwareExtraEntityCount,
 	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
@@ -748,6 +753,7 @@ func newAgent(
 		serverAddress:                 serverAddress,
 		softwareCount:                 softwareCount,
 		softwareVSCodeExtensionsCount: softwareVSCodeExtensionsCount,
+		softwareAdobePluginsCount:     softwareAdobePluginsCount,
 		userCount:                     userCount,
 		strings:                       make(map[string]string),
 		policyPassProb:                policyPassProb,
@@ -770,6 +776,7 @@ func newAgent(
 
 		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
+		softwareAdobePluginsFailProb:     softwareAdobePluginsQueryFailureProb,
 		softwareInstaller:                softwareInstaller,
 
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
@@ -1417,6 +1424,8 @@ func (a *agent) runMacosMDMLoop() {
 					IncrementDeclarationItemsSuccess: a.stats.IncrementDDMDeclarationItemsSuccess,
 					IncrementConfigurationErrors:     a.stats.IncrementDDMConfigurationErrors,
 					IncrementConfigurationSuccess:    a.stats.IncrementDDMConfigurationSuccess,
+					IncrementManagementErrors:        a.stats.IncrementDDMManagementErrors,
+					IncrementManagementSuccess:       a.stats.IncrementDDMManagementSuccess,
 					IncrementActivationErrors:        a.stats.IncrementDDMActivationErrors,
 					IncrementActivationSuccess:       a.stats.IncrementDDMActivationSuccess,
 					IncrementStatusErrors:            a.stats.IncrementDDMStatusErrors,
@@ -1595,6 +1604,8 @@ func (a *agent) runMacosMDMLoop() {
 						IncrementDeclarationItemsSuccess: a.stats.IncrementUserDDMDeclarationItemsSuccess,
 						IncrementConfigurationErrors:     a.stats.IncrementUserDDMConfigurationErrors,
 						IncrementConfigurationSuccess:    a.stats.IncrementUserDDMConfigurationSuccess,
+						IncrementManagementErrors:        a.stats.IncrementDDMManagementErrors,
+						IncrementManagementSuccess:       a.stats.IncrementDDMManagementSuccess,
 						IncrementActivationErrors:        a.stats.IncrementUserDDMActivationErrors,
 						IncrementActivationSuccess:       a.stats.IncrementUserDDMActivationSuccess,
 						IncrementStatusErrors:            a.stats.IncrementUserDDMStatusErrors,
@@ -2646,6 +2657,78 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	return software
 }
 
+// adobePluginsExtensionsDir returns the directory Adobe plugins are reported from, for
+// the simulated host's platform (not the platform osquery-perf runs on).
+func (a *agent) adobePluginsExtensionsDir() string {
+	if a.os == "windows" {
+		return `C:\Program Files\Common Files\Adobe\CEP\extensions\`
+	}
+	return "/Library/Application Support/Adobe/CEP/extensions/"
+}
+
+// adobePlugin returns one plugin with a readable manifest, with the columns of the
+// software_adobe_plugins detail query. dirName is the extension's directory name, which is
+// also its bundle id. bundle_identifier and extension_for are always empty, and the bundle id
+// is reported as extension_id, as the detail query reports them.
+func (a *agent) adobePlugin(name, dirName, baseVersion, alternateVersion string) map[string]string {
+	return map[string]string{
+		"name":              name,
+		"version":           a.selectSoftwareVersion(name, baseVersion, alternateVersion),
+		"bundle_identifier": "",
+		"extension_id":      dirName,
+		"extension_for":     "",
+		"source":            "adobe_plugins",
+		"vendor":            "Fleet Test Vendor",
+		"last_opened_at":    "",
+		"installed_path":    a.adobePluginsExtensionsDir() + dirName,
+	}
+}
+
+// softwareAdobePlugins generates the Adobe plugins reported by fleetd's adobe_plugins
+// table.
+func (a *agent) softwareAdobePlugins() []map[string]string {
+	commonPlugins := make([]map[string]string, a.softwareAdobePluginsCount.common)
+	for i := range commonPlugins {
+		dirName := fmt.Sprintf("com.fleetdm.osquery-perf.adobe_plugin_%d", i)
+		commonPlugins[i] = a.adobePlugin(fmt.Sprintf("Common Adobe Plugin %d", i), dirName, "0.0.1", "0.0.2")
+
+		// Hosts also report plugins whose manifest is missing or unparseable: fleetd falls
+		// back to the extension's directory name and reports no version, vendor or bundle ID.
+		// Report the last common plugin that way so inventory covers those rows too.
+		if len(commonPlugins) > 1 && i == len(commonPlugins)-1 {
+			commonPlugins[i]["name"] = dirName
+			commonPlugins[i]["version"] = ""
+			commonPlugins[i]["vendor"] = ""
+			commonPlugins[i]["extension_id"] = ""
+		}
+	}
+	if a.softwareAdobePluginsCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareAdobePluginsCount.commonSoftwareUninstallProb {
+		rand.Shuffle(len(commonPlugins), func(i, j int) {
+			commonPlugins[i], commonPlugins[j] = commonPlugins[j], commonPlugins[i]
+		})
+		commonPlugins = commonPlugins[:max(0, a.softwareAdobePluginsCount.common-a.softwareAdobePluginsCount.commonSoftwareUninstallCount)]
+	}
+
+	uniquePlugins := make([]map[string]string, a.softwareAdobePluginsCount.unique)
+	for i := range uniquePlugins {
+		dirName := fmt.Sprintf("com.fleetdm.osquery-perf.adobe_plugin_%s_%d", a.CachedString("hostname"), i)
+		uniquePlugins[i] = a.adobePlugin(fmt.Sprintf("Unique Adobe Plugin %s %d", a.CachedString("hostname"), i), dirName, "1.1.1", "1.1.2")
+	}
+	if a.softwareAdobePluginsCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareAdobePluginsCount.uniqueSoftwareUninstallProb {
+		rand.Shuffle(len(uniquePlugins), func(i, j int) {
+			uniquePlugins[i], uniquePlugins[j] = uniquePlugins[j], uniquePlugins[i]
+		})
+		uniquePlugins = uniquePlugins[:max(0, a.softwareAdobePluginsCount.unique-a.softwareAdobePluginsCount.uniqueSoftwareUninstallCount)]
+	}
+
+	plugins := commonPlugins
+	plugins = append(plugins, uniquePlugins...)
+	rand.Shuffle(len(plugins), func(i, j int) {
+		plugins[i], plugins[j] = plugins[j], plugins[i]
+	})
+	return plugins
+}
+
 func selectKernels(kernelList []map[string]string) []map[string]string {
 	// Determine number of kernels based on probability distribution
 	r := rand.Float64()
@@ -3509,6 +3592,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.softwareVSCodeExtensions()
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_adobe_plugins":
+		ss := fleet.StatusOK
+		if a.softwareAdobePluginsFailProb > 0.0 && rand.Float64() <= a.softwareAdobePluginsFailProb {
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			results = a.softwareAdobePlugins()
+		}
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -3765,8 +3857,16 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			a.stats.IncrementMDMCommandsReceived()
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
-				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithExtra(udid, mdmCommandPayload.CommandUUID, deviceName,
-					productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
+				if a.isPersonalEnrollment {
+					// A personal (BYOD) enrollment doesn't get asked for the
+					// newer device vitals fields (see byodDeviceInformationQueryKeys
+					// in server/mdm/apple/commander.go), so it shouldn't report them.
+					mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithExtra(udid, mdmCommandPayload.CommandUUID, deviceName,
+						productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
+				} else {
+					mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithVitals(udid, mdmCommandPayload.CommandUUID, deviceName,
+						productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
+				}
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
@@ -3887,6 +3987,7 @@ func main() {
 		// during hosts enroll.
 		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
 		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
+		softwareAdobePluginsQueryFailureProb     = flag.Float64("software_adobe_plugins_query_fail_prob", 0.0, "Probability of the software adobe_plugins query failing")
 
 		softwareInstallerPreInstallFailureProb = flag.Float64("software_installer_pre_install_fail_prob", 0.05,
 			"Probability of the pre-install query failing")
@@ -3897,6 +3998,9 @@ func main() {
 
 		commonSoftwareCount                          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
 		commonVSCodeExtensionsSoftwareCount          = flag.Int("common_vscode_extensions_software_count", 5, "Number of common vscode_extensions installed applications reported to fleet")
+		commonAdobePluginsSoftwareCount              = flag.Int("common_adobe_plugins_software_count", 5, "Number of common adobe_plugins installed plugins reported to fleet")
+		commonAdobePluginsSoftwareUninstallCount     = flag.Int("common_adobe_plugins_software_uninstall_count", 1, "Number of common adobe_plugins plugins to uninstall")
+		commonAdobePluginsSoftwareUninstallProb      = flag.Float64("common_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling common_adobe_plugins_software_uninstall_count common plugin/s")
 		commonSoftwareUninstallCount                 = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
 		commonVSCodeExtensionsSoftwareUninstallCount = flag.Int("common_vscode_extensions_software_uninstall_count", 1, "Number of common vscode_extensions software to uninstall")
 		commonSoftwareUninstallProb                  = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
@@ -3904,6 +4008,9 @@ func main() {
 
 		uniqueSoftwareCount                          = flag.Int("unique_software_count", 1, "Number of unique software installed on each host")
 		uniqueVSCodeExtensionsSoftwareCount          = flag.Int("unique_vscode_extensions_software_count", 1, "Number of unique vscode_extensions software installed on each host")
+		uniqueAdobePluginsSoftwareCount              = flag.Int("unique_adobe_plugins_software_count", 1, "Number of unique adobe_plugins plugins installed on each host")
+		uniqueAdobePluginsSoftwareUninstallCount     = flag.Int("unique_adobe_plugins_software_uninstall_count", 1, "Number of unique adobe_plugins plugins to uninstall")
+		uniqueAdobePluginsSoftwareUninstallProb      = flag.Float64("unique_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling unique_adobe_plugins_software_uninstall_count unique plugin/s")
 		uniqueSoftwareUninstallCount                 = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
 		uniqueVSCodeExtensionsSoftwareUninstallCount = flag.Int("unique_vscode_extensions_software_uninstall_count", 1, "Number of unique vscode_extensions software to uninstall")
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
@@ -3946,6 +4053,7 @@ func main() {
 		mdmUserProb           = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
 		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
 		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
+		mdmIOSBYODProb        = flag.Float64("mdm_ios_byod_prob", 0.0, "Probability of a simulated iOS/iPadOS device (os_templates iphone_14.6/ipad_13.18/iphone_17) reporting as a personal (BYOD) enrollment, which omits the newer device vitals fields from its DeviceInformation ack [0, 1]")
 
 		mdmPSSOProb      = flag.Float64("mdm_psso_prob", 0.0, "Probability of an MDM-enrolled macOS host also simulating Apple Platform SSO [0, 1]. Requires the Fleet server to have account provisioning configured and the PSSO profile assigned to the host")
 		mdmPSSOClientID  = flag.String("mdm_psso_client_id", "", "Apple Platform SSO IdP/extension client ID. Must match the Fleet server's account provisioning config; PSSO is skipped when empty")
@@ -4021,6 +4129,18 @@ func main() {
 	}
 	if *uniqueSoftwareUninstallCount > *uniqueSoftwareCount {
 		log.Fatalf("Argument unique_software_uninstall_count cannot be bigger than unique_software_count")
+	}
+	if *commonAdobePluginsSoftwareCount < 0 {
+		log.Fatalf("Argument common_adobe_plugins_software_count cannot be negative, got %d", *commonAdobePluginsSoftwareCount)
+	}
+	if *uniqueAdobePluginsSoftwareCount < 0 {
+		log.Fatalf("Argument unique_adobe_plugins_software_count cannot be negative, got %d", *uniqueAdobePluginsSoftwareCount)
+	}
+	if *commonAdobePluginsSoftwareUninstallCount > *commonAdobePluginsSoftwareCount {
+		log.Fatalf("Argument common_adobe_plugins_software_uninstall_count cannot be bigger than common_adobe_plugins_software_count")
+	}
+	if *uniqueAdobePluginsSoftwareUninstallCount > *uniqueAdobePluginsSoftwareCount {
+		log.Fatalf("Argument unique_adobe_plugins_software_uninstall_count cannot be bigger than unique_adobe_plugins_software_count")
 	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
@@ -4115,6 +4235,7 @@ func main() {
 				serverAddress:              *serverURL,
 				osVersion:                  osVersion,
 				supplementalOSVersionExtra: supplementalOSVersionExtra,
+				isPersonalEnrollment:       rand.Float64() < *mdmIOSBYODProb, // nolint:gosec,G404 // load testing, not security-sensitive
 				softwareCount: softwareEntityCount{
 					entityCount: entityCount{
 						common: *commonSoftwareCount,
@@ -4170,6 +4291,7 @@ func main() {
 			*mdmCheckInInterval,
 			*softwareQueryFailureProb,
 			*softwareVSCodeExtensionsQueryFailureProb,
+			*softwareAdobePluginsQueryFailureProb,
 			softwareInstaller{
 				preInstallFailureProb:  *softwareInstallerPreInstallFailureProb,
 				installFailureProb:     *softwareInstallerInstallFailureProb,
@@ -4201,6 +4323,16 @@ func main() {
 				commonSoftwareUninstallProb:  *commonVSCodeExtensionsSoftwareUninstallProb,
 				uniqueSoftwareUninstallCount: *uniqueVSCodeExtensionsSoftwareUninstallCount,
 				uniqueSoftwareUninstallProb:  *uniqueVSCodeExtensionsSoftwareUninstallProb,
+			},
+			softwareExtraEntityCount{
+				entityCount: entityCount{
+					common: *commonAdobePluginsSoftwareCount,
+					unique: *uniqueAdobePluginsSoftwareCount,
+				},
+				commonSoftwareUninstallCount: *commonAdobePluginsSoftwareUninstallCount,
+				commonSoftwareUninstallProb:  *commonAdobePluginsSoftwareUninstallProb,
+				uniqueSoftwareUninstallCount: *uniqueAdobePluginsSoftwareUninstallCount,
+				uniqueSoftwareUninstallProb:  *uniqueAdobePluginsSoftwareUninstallProb,
 			},
 			entityCount{
 				common: *commonUserCount,

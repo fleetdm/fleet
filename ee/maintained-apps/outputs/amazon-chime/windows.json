@@ -4,7 +4,8 @@
       "version": "5.23.32138",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon Chime' AND publisher = 'Amazon.com Services LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Chime' AND publisher = 'Amazon.com Services LLC' AND version_compare(version, '5.23.32138') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Chime' AND publisher = 'Amazon.com Services LLC' AND version_compare(version, '5.23.32138') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('amazon chime.exe','chime.exe'));"
       },
       "installer_url": "https://clients.chime.aws/win-nme/Chime-5.23.32138.exe",
       "install_script_ref": "9b209374",

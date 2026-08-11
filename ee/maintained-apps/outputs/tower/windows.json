@@ -4,7 +4,8 @@
       "version": "13.1.576",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Tower' AND publisher = 'saas.group';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tower' AND publisher = 'saas.group' AND version_compare(version, '13.1.576') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tower' AND publisher = 'saas.group' AND version_compare(version, '13.1.576') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tower.exe');"
       },
       "installer_url": "https://www.git-tower.com/apps/tower3-win/576-01812649/Tower-13.1.576.msi",
       "install_script_ref": "22e48c46",

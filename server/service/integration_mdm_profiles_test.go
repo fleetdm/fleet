@@ -507,7 +507,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
 	s.lastActivityMatches(
 		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q}`, host.ID, host.DisplayName(), "name-"+mcUUID),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q, "profile_uuid": %q}`, host.ID, host.DisplayName(), "name-"+mcUUID, mcUUID),
 		0)
 
 	// add a declaration to the team
@@ -6601,6 +6601,9 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 
 	// it also doesn't get installed to a new host not a member of any labels
 	appleHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// simulate reporting label results for the new host, otherwise exclude-any
+	// profiles are withheld until label membership is known
+	require.NoError(t, s.ds.AsyncBatchUpdateLabelTimestamp(ctx, []uint{appleHost2.ID}, time.Now()))
 	s.awaitRunAppleMDMWorkerSchedule()
 	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+appleHost2.UUID)
 	require.NoError(t, err)
@@ -7343,7 +7346,7 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusAccepted)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeResentConfigurationProfileBatch{}.ActivityName(),
-		fmt.Sprintf(`{"profile_name": %q, "host_count": %d}`, "N2", 2),
+		fmt.Sprintf(`{"profile_name": %q, "profile_uuid": %q, "host_count": %d}`, "N2", profNameToPayload["N2"].ProfileUUID, 2),
 		0,
 	)
 
@@ -7394,7 +7397,7 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeResentConfigurationProfileBatch{}.ActivityName(),
-		fmt.Sprintf(`{"profile_name": %q, "host_count": %d}`, "N3", 1),
+		fmt.Sprintf(`{"profile_name": %q, "profile_uuid": %q, "host_count": %d}`, "N3", profNameToPayload["N3"].ProfileUUID, 1),
 		0,
 	)
 
