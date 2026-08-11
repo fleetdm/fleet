@@ -2937,6 +2937,11 @@ type Datastore interface {
 	// downloaded first.
 	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]FleetMaintainedVersion, error)
 
+	// MarkFleetMaintainedAppVersionCurrent moves a cached version's uploaded_at to
+	// now, so the version the manifest publishes today sorts ahead of versions that
+	// were downloaded after it.
+	MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error
+
 	// ListFleetMaintainedAppActiveInstallers returns the active installer for
 	// every (team, title) backed by a Fleet-maintained app, across all teams.
 	// Used by the auto-update cron to decide whether to advance versions.
@@ -2978,8 +2983,9 @@ type Datastore interface {
 	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error
 
 	// HasFMAInstallerVersion returns true if the given FMA version is already
-	// cached as a software installer for the given team, and its storage hash.
-	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
+	// cached as a software installer for the given team, along with the installer
+	// id of that cached row and its storage hash.
+	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, installerID uint, storageID string, err error)
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
 	// FMA installer version, including install/uninstall scripts, URL, SHA256,

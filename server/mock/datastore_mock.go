@@ -1660,6 +1660,8 @@ type GetSoftwarePackagesForTitlesFunc func(ctx context.Context, teamID *uint, ti
 
 type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error)
 
+type MarkFleetMaintainedAppVersionCurrentFunc func(ctx context.Context, installerID uint) error
+
 type ListFleetMaintainedAppActiveInstallersFunc func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error)
 
 type GetSoftwareInstallerMetadataByStorageIDFunc func(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error)
@@ -1676,7 +1678,7 @@ type SetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint, 
 
 type DeletePinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) error
 
-type HasFMAInstallerVersionFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
+type HasFMAInstallerVersionFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, installerID uint, storageID string, err error)
 
 type GetCachedFMAInstallerMetadataFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error)
 
@@ -4760,6 +4762,9 @@ type DataStore struct {
 
 	GetFleetMaintainedVersionsByTitleIDFunc        GetFleetMaintainedVersionsByTitleIDFunc
 	GetFleetMaintainedVersionsByTitleIDFuncInvoked bool
+
+	MarkFleetMaintainedAppVersionCurrentFunc        MarkFleetMaintainedAppVersionCurrentFunc
+	MarkFleetMaintainedAppVersionCurrentFuncInvoked bool
 
 	ListFleetMaintainedAppActiveInstallersFunc        ListFleetMaintainedAppActiveInstallersFunc
 	ListFleetMaintainedAppActiveInstallersFuncInvoked bool
@@ -11452,6 +11457,13 @@ func (s *DataStore) GetSoftwarePackagesForTitles(ctx context.Context, teamID *ui
 	return s.GetSoftwarePackagesForTitlesFunc(ctx, teamID, titleIDs)
 }
 
+func (s *DataStore) MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error {
+	s.mu.Lock()
+	s.MarkFleetMaintainedAppVersionCurrentFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkFleetMaintainedAppVersionCurrentFunc(ctx, installerID)
+}
+
 func (s *DataStore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
 	s.mu.Lock()
 	s.GetFleetMaintainedVersionsByTitleIDFuncInvoked = true
@@ -11515,7 +11527,7 @@ func (s *DataStore) DeletePinnedVersion(ctx context.Context, teamID *uint, title
 	return s.DeletePinnedVersionFunc(ctx, teamID, titleID)
 }
 
-func (s *DataStore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error) {
+func (s *DataStore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, installerID uint, storageID string, err error) {
 	s.mu.Lock()
 	s.HasFMAInstallerVersionFuncInvoked = true
 	s.mu.Unlock()

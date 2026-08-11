@@ -1141,8 +1141,8 @@ func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, te
 
 // getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
 // for the given title IDs and team, keyed by title ID, most recently downloaded first.
-// Fleet only caches what the manifest published and never rewrites a cached version, so
-// download order follows the manifest.
+// Fleet only caches what the manifest published and never rewrites a cached row's version,
+// so download order follows the manifest.
 func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint) (map[uint][]fleet.FleetMaintainedVersion, error) {
 	if len(titleIDs) == 0 {
 		return nil, nil
@@ -1178,19 +1178,35 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 	return result, nil
 }
 
-func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error) {
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &storageID, `
-		SELECT storage_id FROM software_installers
+// MarkFleetMaintainedAppVersionCurrent moves a cached version's uploaded_at to now, so the
+// version the manifest publishes today sorts ahead of versions that were downloaded after
+// it. Used when the manifest goes back to a version Fleet already cached.
+func (ds *Datastore) MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE software_installers SET uploaded_at = NOW(6) WHERE id = ?`, installerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marking fleet maintained app version current")
+	}
+	return nil
+}
+
+func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, installerID uint, storageID string, err error) {
+	var row struct {
+		ID        uint   `db:"id"`
+		StorageID string `db:"storage_id"`
+	}
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+		SELECT id, storage_id FROM software_installers
 			WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
 		LIMIT 1
 	`, ptr.ValOrZero(teamID), fmaID, version)
 	if errors.Is(err, sql.ErrNoRows) {
-		return false, "", nil
+		return false, 0, "", nil
 	}
 	if err != nil {
-		return false, "", ctxerr.Wrap(ctx, err, "get FMA installer version storage id")
+		return false, 0, "", ctxerr.Wrap(ctx, err, "get FMA installer version storage id")
 	}
-	return true, storageID, nil
+	return true, row.ID, row.StorageID, nil
 }
 
 func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {

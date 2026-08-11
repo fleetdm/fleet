@@ -962,11 +962,46 @@ FROM software_installers WHERE id = ?`,
 		)
 		if err != nil {
 			if IsDuplicate(err) {
-				// Version already cached for this team/title; return the existing row.
-				return sqlx.GetContext(ctx, tx, &installerID, `
-					SELECT id FROM software_installers
+				// Version already cached for this team/title. When the manifest republished it
+				// with different bytes, refresh the row in place with the same fields
+				// BatchSetSoftwareInstallers rewrites and move uploaded_at, so both paths treat
+				// a rebuilt package the same way.
+				var cached struct {
+					ID        uint   `db:"id"`
+					StorageID string `db:"storage_id"`
+				}
+				if err := sqlx.GetContext(ctx, tx, &cached, `
+					SELECT id, storage_id FROM software_installers
 					WHERE global_or_team_id = ? AND title_id = ? AND version = ?`,
-					src.GlobalOrTeamID, src.TitleID, payload.Version)
+					src.GlobalOrTeamID, src.TitleID, payload.Version,
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "load cached fleet-maintained app version")
+				}
+				installerID = cached.ID
+				if cached.StorageID == payload.StorageID {
+					return nil
+				}
+
+				if _, err := tx.ExecContext(ctx, `
+					UPDATE software_installers SET
+						storage_id = ?, filename = ?, extension = ?, url = ?, upgrade_code = ?,
+						install_script_content_id = ?, uninstall_script_content_id = ?,
+						patch_query = ?, app_open_query = ?, package_ids = ?, uploaded_at = NOW(6)
+					WHERE id = ?`,
+					payload.StorageID, payload.Filename, payload.Extension, payload.URL, payload.UpgradeCode,
+					installScriptID, uninstallScriptID,
+					payload.PatchQuery, payload.AppOpenQuery, strings.Join(payload.PackageIDs, ","),
+					installerID,
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "refresh cached fleet-maintained app version")
+				}
+
+				// A host with an install queued on this row would otherwise receive the new
+				// bytes under the version it was promised.
+				if _, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, installerID, false, true, true); err != nil {
+					return ctxerr.Wrap(ctx, err, "side effects for refreshed fleet-maintained app version")
+				}
+				return nil
 			}
 			return ctxerr.Wrap(ctx, err, "insert fleet-maintained app version")
 		}
@@ -3501,11 +3536,8 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			}
 
 			// pull existing installer state if it exists so we can diff for side effects post-update.
-			// Both flags compare the incoming payload against existing[0], which is not
-			// necessarily the row this apply ends up touching: for an FMA it is the active row
-			// whatever its version, for a custom package it is the row with the same content
-			// hash. So IsPackageModified reads as "the incoming package is not the one that is
-			// active", and it is always false for a custom package since the hash matched.
+			// The flags describe existing[0], which is the active installer for an FMA or the
+			// same-hash row for a custom package, not whichever row this apply updates.
 			type existingInstallerUpdateCheckResult struct {
 				InstallerID        uint `db:"id"`
 				IsPackageModified  bool `db:"is_package_modified"`

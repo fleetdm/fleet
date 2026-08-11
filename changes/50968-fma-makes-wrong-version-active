@@ -1,0 +1,1 @@
+- Fixed Fleet-maintained apps making the wrong cached version active. Versions whose numbering isn't semver, such as Chrome's `151.0.7922.109`, were compared as text, so `151.0.7922.76` was treated as the newer one. Cached versions are now ordered by when Fleet downloaded them, which follows the app's published version.

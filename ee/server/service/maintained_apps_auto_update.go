@@ -167,11 +167,19 @@ func downloadNewVersionIfEligible(
 		if pin != "" && !versionMatchesMajor(app.Version, strings.TrimPrefix(pin, "^")) {
 			return nil
 		}
-		versionExists, _, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, app.Version)
+		versionExists, cachedInstallerID, cachedHash, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, app.Version)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking cached version")
 		}
-		if versionExists {
+		// A version only counts as cached while its bytes still match the manifest, matching
+		// the GitOps path: a rebuilt package (same version, new hash) is downloaded and
+		// replaces them. A manifest without a hash can't be compared, so it downloads again.
+		if versionExists && cachedHash == app.SHA256 {
+			// Nothing to download. The manifest moved to a version already cached, so mark
+			// that one as the newest and the promotion below advances to it.
+			if app.Version != c.Version {
+				return ds.MarkFleetMaintainedAppVersionCurrent(ctx, cachedInstallerID)
+			}
 			return nil
 		}
 	}
@@ -253,11 +261,15 @@ func downloadNewVersionIfEligible(
 		return nil
 	}
 	if version != app.Version {
-		versionExists, _, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, version)
+		versionExists, cachedInstallerID, cachedHash, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, version)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking cached version")
 		}
-		if versionExists {
+		// Same as above, except the hash to compare is the one just downloaded.
+		if versionExists && cachedHash == storageID {
+			if version != c.Version {
+				return ds.MarkFleetMaintainedAppVersionCurrent(ctx, cachedInstallerID)
+			}
 			return nil
 		}
 	}
