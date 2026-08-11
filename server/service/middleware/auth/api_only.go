@@ -57,11 +57,13 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 		requestMethod, _ := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
 		routeTemplate, _ := eu.RouteTemplateFromContext(ctx)
 
-		// A missing method or route template means the transport wasn't wired
-		// with RouteTemplateRequestFunc; fail closed with a reason that points
-		// at the misconfiguration instead of a misleading catalog miss.
-		if requestMethod == "" || routeTemplate == "" {
-			return nil, endpointRestrictionDenied(ctx, routeTemplate, "request method or route template missing from request context")
+		// Missing method or route template means the transport wasn't wired
+		// with RouteTemplateRequestFunc; fail closed naming the misconfiguration.
+		if requestMethod == "" {
+			return nil, endpointRestrictionDenied(ctx, routeTemplate, "request method missing from request context")
+		}
+		if routeTemplate == "" {
+			return nil, endpointRestrictionDenied(ctx, routeTemplate, "route template missing from request context")
 		}
 
 		fp := fleet.NewAPIEndpointFromTpl(requestMethod, routeTemplate).Fingerprint()
@@ -81,19 +83,14 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 	}
 }
 
-// EndpointRestrictionDeniedMessage is returned in the 403 response body when a
-// request is denied by an API-only user's endpoint restrictions, so callers
-// can tell these denials apart from role-based permission denials. The
-// restriction list is not secret from the caller (they hold a valid token), so
-// naming the gate here discloses nothing.
+// EndpointRestrictionDeniedMessage is the 403 response body for
+// endpoint-restriction denials, distinct from role-based permission denials.
 const EndpointRestrictionDeniedMessage = "endpoint not permitted for this API-only user"
 
 // endpointRestrictionDenied rejects the request with a 403 that identifies the
-// endpoint restriction (rather than the user's role) as the gate. The denial
-// is surfaced on the request log line at info level — role-based 403s log at
-// debug, which is how endpoint-restriction denials went unnoticed during
-// debugging. The user email and request method are already logged on that
-// line; the route template and denial reason are added as extras.
+// endpoint restriction (rather than the user's role) as the gate, and forces
+// the request log line to info level (role-based 403s log at debug, which is
+// how these denials went unnoticed during debugging).
 func endpointRestrictionDenied(ctx context.Context, routeTemplate, reason string) error {
 	if ac, ok := authz.FromContext(ctx); ok {
 		ac.SetChecked()

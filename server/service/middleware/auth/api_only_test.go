@@ -327,23 +327,33 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 	t.Run("denial surfaces route and reason on the request log line at info level", func(t *testing.T) {
 		cases := []struct {
 			name       string
+			method     string
 			routeTpl   string
 			wantReason string
 		}{
 			{
 				name:       "endpoint not in catalog",
+				method:     "POST",
 				routeTpl:   muxTemplate("fleet/secret_admin_endpoint"),
 				wantReason: "endpoint not in API endpoint catalog",
 			},
 			{
 				name:       "endpoint not in allow-list",
+				method:     "POST",
 				routeTpl:   muxTemplate("fleet/scripts/run"),
 				wantReason: "endpoint not in user's allowed API endpoints",
 			},
 			{
+				name:       "request method missing from context",
+				method:     "",
+				routeTpl:   muxTemplate("fleet/scripts/run"),
+				wantReason: "request method missing from request context",
+			},
+			{
 				name:       "route template missing from context",
+				method:     "POST",
 				routeTpl:   "", // RouteTemplateRequestFunc not wired
-				wantReason: "request method or route template missing from request context",
+				wantReason: "route template missing from request context",
 			},
 		}
 		for _, c := range cases {
@@ -351,7 +361,9 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 				next, called := newNext()
 				lc := &logging.LoggingContext{}
 				ctx := logging.NewContext(t.Context(), lc)
-				ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, "POST")
+				if c.method != "" {
+					ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, c.method)
+				}
 				if c.routeTpl != "" {
 					ctx = eu.WithRouteTemplate(ctx, c.routeTpl)
 				}
@@ -392,11 +404,6 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 	})
 }
 
-// TestEndpointRestrictionDeniedEncoding pins the HTTP response an
-// endpoint-restriction denial encodes to: 403 with the distinct message in the
-// body. This guards the UserMessageError wrapping — a bare PermissionError's
-// message is discarded by the encoder and rendered as a generic "Permission
-// Denied" body.
 func TestEndpointRestrictionDeniedEncoding(t *testing.T) {
 	err := endpointRestrictionDenied(t.Context(), muxTemplate("fleet/hosts"), "endpoint not in user's allowed API endpoints")
 
