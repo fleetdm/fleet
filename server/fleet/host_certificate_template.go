@@ -40,6 +40,8 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 
 	status := string(p.Status)
 	certTemplateID := p.CertificateTemplateID
+	retryCount := p.RetryCount
+	maxRetries := MaxCertificateInstallRetries
 	profile := HostMDMProfile{
 		HostUUID:              p.HostUUID,
 		Name:                  p.Name,
@@ -48,6 +50,8 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 		OperationType:         p.OperationType,
 		ProfileUUID:           AndroidCertificateTemplateProfileID,
 		CertificateTemplateID: &certTemplateID,
+		RetryCount:            &retryCount,
+		MaxRetries:            &maxRetries,
 	}
 	if p.Detail != nil {
 		profile.Detail = *p.Detail

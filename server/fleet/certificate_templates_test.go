@@ -23,6 +23,8 @@ func TestHostCertificateTemplate(t *testing.T) {
 					require.Equal(t, "", profile.Platform)
 					require.Nil(t, profile.Status)
 					require.Nil(t, profile.CertificateTemplateID)
+					require.Nil(t, profile.RetryCount)
+					require.Nil(t, profile.MaxRetries)
 				},
 			},
 			{
@@ -60,6 +62,38 @@ func TestHostCertificateTemplate(t *testing.T) {
 				},
 				expectation: func(t *testing.T, profile HostMDMProfile) {
 					require.Equal(t, "some error", profile.Detail)
+				},
+			},
+			{
+				name: "reports the retry allowance on a first attempt",
+				template: &HostCertificateTemplate{
+					Status:        CertificateTemplateDelivered,
+					OperationType: MDMOperationTypeInstall,
+				},
+				expectation: func(t *testing.T, profile HostMDMProfile) {
+					require.NotNil(t, profile.RetryCount)
+					require.EqualValues(t, 0, *profile.RetryCount)
+					require.NotNil(t, profile.MaxRetries)
+					require.Equal(t, MaxCertificateInstallRetries, *profile.MaxRetries)
+				},
+			},
+			{
+				name: "reports an in-progress retry after a failure",
+				template: &HostCertificateTemplate{
+					Status:        CertificateTemplateDelivered,
+					OperationType: MDMOperationTypeInstall,
+					Detail:        ptr.String("Network error during SCEP enrollment"),
+					RetryCount:    1,
+				},
+				expectation: func(t *testing.T, profile HostMDMProfile) {
+					// The status stays in-progress while Fleet retries, so the retry count and
+					// the preserved detail are the only signal that the last attempt failed.
+					require.EqualValues(t, CertificateTemplateDelivered, *profile.Status)
+					require.Equal(t, "Network error during SCEP enrollment", profile.Detail)
+					require.NotNil(t, profile.RetryCount)
+					require.EqualValues(t, 1, *profile.RetryCount)
+					require.NotNil(t, profile.MaxRetries)
+					require.Equal(t, MaxCertificateInstallRetries, *profile.MaxRetries)
 				},
 			},
 		}

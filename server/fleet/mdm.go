@@ -551,6 +551,12 @@ type HostMDMProfile struct {
 	Scope                 *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
 	ManagedLocalAccount   *string          `db:"-" json:"managed_local_account"`
 	CertificateTemplateID *uint            `db:"-" json:"certificate_template_id,omitempty"`
+	// RetryCount is the number of automatic retries Fleet has already used for this profile and
+	// MaxRetries the number it is allowed. Both are only set for Android certificate templates,
+	// where a failure that is still retryable leaves the profile in an in-progress status.
+	// Clients use them to tell an initial delivery apart from a retry after a failure.
+	RetryCount *uint `db:"-" json:"retry_count,omitempty"`
+	MaxRetries *uint `db:"-" json:"max_retries,omitempty"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
