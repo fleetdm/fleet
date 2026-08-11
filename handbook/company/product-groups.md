@@ -192,7 +192,7 @@ Continuous flow does not use story points or track velocity. [T-shirt sizing](#t
 ### Working the board
 
 - **Multiple issues in flight is OK.** Contributors can run several agents in parallel and have many issues open at once. Use judgment; don't start more than you can shepherd through review.
-- **Pick up unassigned work as you finish in-flight items.** When an issue moves to the next column (e.g. Ready for review), pick the next unassigned item from **Ready**. For bugs, use the standard [bug prioritization order](#bug-prioritization).
+- **Pick up unassigned work as you finish in-flight items.** When an issue moves to the next column (e.g. Ready for review), pick the next unassigned item from **Ready** using the standard [issue prioritization order](#issue-prioritization).
 - **Help finish in-flight work when nothing in Ready is available.** Assist with code review, QA, or sub-issues for active stories.
 - **Hit a blocker or have a question?** It's okay — blockers happen. Move the issue to **Blocked** and try to resolve it async (in the group's Slack channel, with the relevant collaborator, etc.) rather than waiting for standup. If it isn't resolved async, the next standup is the latest it should go without being addressed.
 
@@ -1158,6 +1158,16 @@ Product group boards are exclusively composed of the following types of work ite
 
 > Product group boards do not accommodate any other type of ticket. By strictly adhering to these work items, we maintain an organized and focused workflow that consistently adds value for our users.
 
+## Issue prioritization
+
+When selecting which issue to work on next, prioritize in the following order:
+
+1. **P0, P1, P2 issues**: [High-priority](#high-priority-user-stories-and-bugs) issues take precedence over all other work.
+2. **Customer promises due this release**: Issues with the `~customer promise` label whose due date falls within the current release.
+3. **Customer activation blockers**: Issues with the `~activation-blocker` label.
+4. **Reliability issues**: Issues with the `reliability` label that the product group agreed to work on this release cycle.
+5. **Bugs**: Issues with the `bug` label, ordered by the [bug prioritization](#bug-prioritization) list below.
+6. **Other roadmap stories**: The remaining user stories in the group's **Ready** column.
 
 ## Bug prioritization
 
