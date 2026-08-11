@@ -238,14 +238,14 @@ func (ds *Datastore) customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtConte
 		{
 			desc: "get host name template contents",
 			stmt: `SELECT 'host_name_template' AS entity, 'Host name' AS name,
-				t.name AS team_name, t.config->>'$.mdm.name_template' AS contents
+				t.name AS team_name, JSON_UNQUOTE(JSON_EXTRACT(t.config, '$.mdm.name_template')) AS contents
 				FROM teams t
-				WHERE COALESCE(t.config->>'$.mdm.name_template', '') != ''
+				WHERE COALESCE(JSON_UNQUOTE(JSON_EXTRACT(t.config, '$.mdm.name_template')), '') != ''
 				UNION ALL
 				SELECT 'host_name_template' AS entity, 'Host name' AS name,
-				'Unassigned' AS team_name, json_value->>'$.mdm.name_template' AS contents
+				'Unassigned' AS team_name, JSON_UNQUOTE(JSON_EXTRACT(json_value, '$.mdm.name_template')) AS contents
 				FROM app_config_json
-				WHERE COALESCE(json_value->>'$.mdm.name_template', '') != '';`,
+				WHERE COALESCE(JSON_UNQUOTE(JSON_EXTRACT(json_value, '$.mdm.name_template')), '') != '';`,
 		},
 	}
 

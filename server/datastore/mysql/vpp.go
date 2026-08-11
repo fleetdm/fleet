@@ -1483,7 +1483,7 @@ VALUES
 //     lookup works either before or after ds.CancelHostUpcomingActivity.
 //  2. Pre-activation install — host_vpp_software_installs has no row (it's
 //     created at activation time), and the reservation lives only in
-//     upcoming_activities.payload->>'$.associated_event_id' +
+//     JSON_UNQUOTE(JSON_EXTRACT(upcoming_activities.payload, '$.associated_event_id')) +
 //     vpp_app_upcoming_activities.adam_id. The cancel transaction
 //     unconditionally deletes the upcoming_activities row, so callers MUST
 //     invoke this BEFORE ds.CancelHostUpcomingActivity for the

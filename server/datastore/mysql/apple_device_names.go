@@ -54,7 +54,7 @@ const deviceNameEligibleHostsWhere = `
 // matching the empty-string semantics the Go optjson value uses.
 const deviceNameNoTeamTemplateExpr = `(SELECT IF(
 	JSON_TYPE(JSON_EXTRACT(json_value, '$.mdm.name_template')) = 'STRING',
-	json_value->>'$.mdm.name_template', '') FROM app_config_json LIMIT 1)`
+	JSON_UNQUOTE(JSON_EXTRACT(json_value, '$.mdm.name_template')), '') FROM app_config_json LIMIT 1)`
 
 func deviceNameTeamScope(teamID *uint) (filter string, args []any) {
 	if teamID != nil && *teamID > 0 {
@@ -328,7 +328,7 @@ func (ds *Datastore) resendDeviceNamesForSecretChange(ctx context.Context, chang
 	// Teams whose template references a changed secret.
 	var teamIDs []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs,
-		`SELECT id FROM teams WHERE COALESCE(config->>'$.mdm.name_template', '') REGEXP ?`, pattern); err != nil {
+		`SELECT id FROM teams WHERE COALESCE(JSON_UNQUOTE(JSON_EXTRACT(config, '$.mdm.name_template')), '') REGEXP ?`, pattern); err != nil {
 		return ctxerr.Wrap(ctx, err, "select teams using changed secret in device name template")
 	}
 
@@ -366,7 +366,7 @@ func resendDeviceNameForCustomHostVital(ctx context.Context, tx sqlx.ExtContext,
 		SELECT COALESCE(
 			CASE WHEN h.team_id IS NULL
 				THEN `+deviceNameNoTeamTemplateExpr+`
-				ELSE (SELECT t.config->>'$.mdm.name_template' FROM teams t WHERE t.id = h.team_id)
+				ELSE (SELECT JSON_UNQUOTE(JSON_EXTRACT(t.config, '$.mdm.name_template')) FROM teams t WHERE t.id = h.team_id)
 			END, '')
 		FROM hosts h WHERE h.id = ?`, hostID)
 	if err != nil {
@@ -451,7 +451,7 @@ func reconcileHostDeviceNamesForHostsDB(ctx context.Context, tx sqlx.ExtContext,
 		AND COALESCE(
 			CASE WHEN h.team_id IS NULL
 				THEN `+deviceNameNoTeamTemplateExpr+`
-				ELSE (SELECT t.config->>'$.mdm.name_template' FROM teams t WHERE t.id = h.team_id)
+				ELSE (SELECT JSON_UNQUOTE(JSON_EXTRACT(t.config, '$.mdm.name_template')) FROM teams t WHERE t.id = h.team_id)
 			END, '') != ''`)
 }
 
@@ -470,7 +470,7 @@ func reconcileHostDeviceNamesForTeamDB(ctx context.Context, tx sqlx.ExtContext, 
 	var tmpl string
 	if teamID != nil && *teamID > 0 {
 		if err := sqlx.GetContext(ctx, tx, &tmpl,
-			`SELECT COALESCE(config->>'$.mdm.name_template', '') FROM teams WHERE id = ?`, *teamID); err != nil {
+			`SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(config, '$.mdm.name_template')), '') FROM teams WHERE id = ?`, *teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "resolve team name template")
 		}
 	} else if err := sqlx.GetContext(ctx, tx, &tmpl,

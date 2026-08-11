@@ -336,14 +336,14 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 			// optjson that serializes to null when unset, so filter both on a
 			// non-empty resolved value rather than IS NOT NULL.
 			`SELECT 'host_name_template' AS entity, 'Host name' AS name,
-			t.name AS team_name, t.config->>'$.mdm.name_template' AS contents
+			t.name AS team_name, JSON_UNQUOTE(JSON_EXTRACT(t.config, '$.mdm.name_template')) AS contents
 			FROM teams t
-			WHERE COALESCE(t.config->>'$.mdm.name_template', '') != ''
+			WHERE COALESCE(JSON_UNQUOTE(JSON_EXTRACT(t.config, '$.mdm.name_template')), '') != ''
 			UNION ALL
 			SELECT 'host_name_template' AS entity, 'Host name' AS name,
-			'Unassigned' AS team_name, json_value->>'$.mdm.name_template' AS contents
+			'Unassigned' AS team_name, JSON_UNQUOTE(JSON_EXTRACT(json_value, '$.mdm.name_template')) AS contents
 			FROM app_config_json
-			WHERE COALESCE(json_value->>'$.mdm.name_template', '') != '';`,
+			WHERE COALESCE(JSON_UNQUOTE(JSON_EXTRACT(json_value, '$.mdm.name_template')), '') != '';`,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "get host name template contents")
 		}

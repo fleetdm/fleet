@@ -100,7 +100,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     ua.host_id AS host_id,
     ua.execution_id AS execution_id,
     siua.software_installer_id AS installer_id,
-		ua.payload->'$.self_service' AS self_service,
+		JSON_EXTRACT(ua.payload, '$.self_service') AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
     COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
@@ -2246,16 +2246,16 @@ SELECT
 	NULL AS post_install_script_output,
 	NULL AS install_script_output,
 	ua.host_id AS host_id,
-	COALESCE(st.name, ua.payload->>'$.software_title_name') AS software_title,
+	COALESCE(st.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.software_title_name'))) AS software_title,
 	siua.software_title_id,
 	siua.software_installer_id,
 	si.storage_id AS hash_sha256,
 	'pending_install' AS status,
-	ua.payload->>'$.installer_filename' AS software_package,
+	JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.installer_filename')) AS software_package,
 	ua.user_id AS user_id,
 	NULL AS post_install_script_exit_code,
 	NULL AS install_script_exit_code,
-	ua.payload->'$.self_service' AS self_service,
+	JSON_EXTRACT(ua.payload, '$.self_service') AS self_service,
 	NULL AS host_deleted_at,
 	siua.policy_id AS policy_id,
 	ua.created_at as created_at,
@@ -3931,7 +3931,7 @@ func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, 
 
 	UNION
 
-	SELECT st.name, COALESCE(ua.payload->'$.self_service', FALSE) self_service
+	SELECT st.name, COALESCE(JSON_EXTRACT(ua.payload, '$.self_service'), FALSE) self_service
 	FROM
 		software_titles st
 		INNER JOIN software_installers si ON si.title_id = st.id

@@ -9847,9 +9847,9 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 	getConfigSettings := func(teamID uint, key string) *fleet.AppleOSUpdateSettings {
 		var settings fleet.AppleOSUpdateSettings
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			stmt := fmt.Sprintf(`SELECT json_value->'$.mdm.%s_updates' FROM app_config_json`, key)
+			stmt := fmt.Sprintf(`SELECT JSON_EXTRACT(json_value, '$.mdm.%s_updates') FROM app_config_json`, key)
 			if teamID > 0 {
-				stmt = fmt.Sprintf(`SELECT config->'$.mdm.%s_updates' FROM teams WHERE id = %d`, key, teamID)
+				stmt = fmt.Sprintf(`SELECT JSON_EXTRACT(config, '$.mdm.%s_updates') FROM teams WHERE id = %d`, key, teamID)
 			}
 			var raw json.RawMessage
 			if err := sqlx.GetContext(context.Background(), q, &raw, stmt); err != nil {
