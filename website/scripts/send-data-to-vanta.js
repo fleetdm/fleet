@@ -81,6 +81,13 @@ module.exports = {
         return;
       }
 
+      // If the Fleet instance's /users endpoint did not return an array of users, we'll add an error to the errorReportById object and bail early for this connection.
+      // This prevents a "TypeError: responseFromUserEndpoint.users is not iterable" error in the for...of loop below when the response is missing or has an unexpected shape.
+      if(!responseFromUserEndpoint || !_.isArray(responseFromUserEndpoint.users)) {
+        errorReportById[connectionIdAsString] = new Error(`When sending a request to the /users endpoint of a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance returned an unexpected response that did not contain an array of users.`);
+        return;
+      }
+
       let usersToSyncWithVanta = [];
       // Iterate through the users list, creating user objects to send to Vanta.
       for(let user of responseFromUserEndpoint.users) {
