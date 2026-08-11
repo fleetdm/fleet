@@ -87,13 +87,17 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
     setIsDeleting(true);
     try {
       await mdmAPI.deleteAsset(assetUuid);
-      queryClient.setQueryData<IListAssetsResponse>(assetsQueryKey, (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          assets: (old.assets ?? []).filter((a) => a.asset_uuid !== assetUuid),
-        };
-      });
+      const cached = queryClient.getQueryData<IListAssetsResponse>(
+        assetsQueryKey
+      );
+      if (cached) {
+        queryClient.setQueryData<IListAssetsResponse>(assetsQueryKey, {
+          ...cached,
+          assets: (cached.assets ?? []).filter(
+            (a) => a.asset_uuid !== assetUuid
+          ),
+        });
+      }
       notify.success("Successfully deleted.");
     } catch (e) {
       notify.error(getErrorReason(e) || "Couldn't delete. Please try again.", {
