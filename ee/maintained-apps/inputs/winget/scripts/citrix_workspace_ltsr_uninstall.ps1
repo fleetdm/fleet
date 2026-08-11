@@ -4,8 +4,9 @@
 # (confirmed by CI: "Citrix Workspace Inside" plus a distinct "Citrix
 # Workspace(USB)" entry, and possibly others depending on selected
 # components) -- removing just the first one found still leaves the app
-# detectable. Enumerate every entry matching the "Citrix Workspace " prefix
-# and publisher, and uninstall each one.
+# detectable. Enumerate every entry matching the "Citrix Workspace" prefix
+# and publisher, and uninstall each one. No space before the wildcard: some
+# entries (e.g. "Citrix Workspace(USB)") have no space after "Workspace".
 #
 # Most of these entries' UninstallStrings are standard MSI references
 # (MsiExec.exe /I{ProductCode}, the maintenance/repair form) -- not the
@@ -22,7 +23,7 @@
 # (ERROR_INSTALL_ALREADY_RUNNING) while another is still mid-transaction.
 # Retry a few times with a short delay.
 
-$softwareNameLike = "Citrix Workspace *"
+$softwareNameLike = "Citrix Workspace*"
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
