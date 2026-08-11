@@ -5808,7 +5808,7 @@ To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a W
 
 Sends a command to wipe the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is wiped once it comes online.
 
-Wiping an company-owned (fully managed) Android host is available in Fleet Free and Fleet Premium; wipe is [free for company-owned Android and not other platforms](https://github.com/fleetdm/fleet/issues/41683) because "Wipe" used to be "Unenroll", which was free tier. 
+Wiping a company-owned (fully managed) Android host is available in Fleet Free and Fleet Premium. (This feature was [previously "Unenroll"](https://github.com/fleetdm/fleet/issues/41683).)
 
 Wiping a macOS, iOS, iPadOS, Linux, Windows, or personal (BYOD) Android host is available in Fleet Premium.
 
