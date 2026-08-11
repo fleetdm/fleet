@@ -20,6 +20,7 @@ $paths = @(
 )
 
 $exitCode = 0
+$timeoutSeconds = 180
 
 try {
 
@@ -72,7 +73,7 @@ if ($uninstallCommand -match '(?i)msiexec') {
     Write-Host "Uninstalling product code: $productCode"
     $process = Start-Process -FilePath "msiexec.exe" `
         -ArgumentList "/x $productCode /qn /norestart" `
-        -PassThru -Wait
+        -PassThru
 } else {
     # Non-MSI entry (e.g. TrolleyExpress.exe / CWAInstaller.exe): re-run the
     # vendor's own uninstaller with its documented silent switches.
@@ -89,7 +90,14 @@ if ($uninstallCommand -match '(?i)msiexec') {
 
     Write-Host "Uninstall command: $exePath"
     $process = Start-Process -FilePath $exePath -ArgumentList "/uninstall /cleanup /silent" `
-        -PassThru -Wait
+        -PassThru
+}
+
+$exited = $process.WaitForExit($timeoutSeconds * 1000)
+if (-not $exited) {
+    Write-Host "Uninstaller did not exit within ${timeoutSeconds}s, stopping it."
+    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    Exit 1
 }
 
 $exitCode = $process.ExitCode
