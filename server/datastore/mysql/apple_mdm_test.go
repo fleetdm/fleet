@@ -8297,7 +8297,7 @@ func testReconcileAppleProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {
 
 	// Source dedup: the reconcile snapshot must surface the UUID exactly once,
 	// keeping the highest host id.
-	hosts, _, _, _, err := ds.GetAppleProfileReconcileSnapshot(ctx, "", 5000)
+	hosts, _, _, _, _, err := ds.GetAppleProfileReconcileSnapshot(ctx, "", 5000)
 	require.NoError(t, err)
 	var forUUID []*fleet.AppleHostReconcileInfo
 	for _, h := range hosts {
@@ -8311,7 +8311,7 @@ func testReconcileAppleProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {
 	// Force the duplicate group across a batch boundary: with batchSize=1 the
 	// query returns a single row, and the h.id DESC tiebreak must make it the
 	// highest-id host rather than an arbitrary one.
-	boundaryHosts, _, _, _, err := ds.GetAppleProfileReconcileSnapshot(ctx, "", 1)
+	boundaryHosts, _, _, _, _, err := ds.GetAppleProfileReconcileSnapshot(ctx, "", 1)
 	require.NoError(t, err)
 	require.Len(t, boundaryHosts, 1)
 	require.Equal(t, hHigh.ID, boundaryHosts[0].HostID)

@@ -18,6 +18,13 @@ import (
 // by uuid, along with the fields the batched reconciler needs to compute
 // desired state in memory.
 //
+// pageFull reports whether the underlying SQL page hit batchSize BEFORE the
+// Go-side dedupe below. Callers paginating with a cursor must use pageFull —
+// not len(hosts) — to decide whether more hosts may remain: duplicate-UUID
+// rows are collapsed after the LIMIT, so a full page can come back shorter
+// than batchSize, and treating that as the end of the host universe would
+// wrap the cursor early and starve every host later in the UUID ordering.
+//
 // Selection criteria mirror the host-side filters in the legacy desired-
 // state query (generateDesiredStateQuery): platform in (darwin, ios, ipados),
 // an enabled nano_enrollment of type Device or "User Enrollment (Device)",
@@ -27,7 +34,7 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 	tx common_mysql.DBReadTx,
 	afterHostUUID string,
 	batchSize int,
-) ([]*fleet.AppleHostReconcileInfo, error) {
+) (hosts []*fleet.AppleHostReconcileInfo, pageFull bool, err error) {
 	const stmt = `
 		SELECT
 			h.id              AS id,
@@ -53,9 +60,8 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 		LIMIT ?
 	`
 
-	var hosts []*fleet.AppleHostReconcileInfo
 	if err := sqlx.SelectContext(ctx, tx, &hosts, stmt, afterHostUUID, batchSize); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list apple mdm hosts for reconcile batch")
+		return nil, false, ctxerr.Wrap(ctx, err, "list apple mdm hosts for reconcile batch")
 	}
 
 	// In the rare case multiple hosts rows share the same UUID (e.g. from past bugs
@@ -63,7 +69,7 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 	// We dedupe in Go, keeping the highest host ID. The ORDER BY h.id DESC ensures
 	// that if a duplicate UUID lands on a page boundary, the highest-ID row is the
 	// one that makes it into the page.
-	return dedupeHostsByUUID(hosts), nil
+	return dedupeHostsByUUID(hosts), len(hosts) >= batchSize, nil
 }
 
 // dedupeHostsByUUID collapses reconcile records that share a UUID down to one,
@@ -418,11 +424,12 @@ func (ds *Datastore) GetAppleProfileReconcileSnapshot(
 	allProfiles []*fleet.AppleProfileForReconcile,
 	hostLabels map[uint]map[uint]struct{},
 	currentByHost map[string][]*fleet.MDMAppleProfilePayload,
+	pageFull bool,
 	err error,
 ) {
 	err = ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var inner error
-		hosts, inner = ds.listAppleMDMHostsForReconcileBatchTransaction(ctx, tx, afterHostUUID, batchSize)
+		hosts, pageFull, inner = ds.listAppleMDMHostsForReconcileBatchTransaction(ctx, tx, afterHostUUID, batchSize)
 		if inner != nil {
 			return inner
 		}
@@ -469,9 +476,9 @@ func (ds *Datastore) GetAppleProfileReconcileSnapshot(
 		return inner
 	})
 	if err != nil {
-		return nil, nil, nil, nil, ctxerr.Wrap(ctx, err, "apple profile reconcile snapshot")
+		return nil, nil, nil, nil, false, ctxerr.Wrap(ctx, err, "apple profile reconcile snapshot")
 	}
-	return hosts, allProfiles, hostLabels, currentByHost, nil
+	return hosts, allProfiles, hostLabels, currentByHost, pageFull, nil
 }
 
 // GetMDMAppleReconcileCursor returns the persisted host_uuid cursor used by
@@ -829,11 +836,12 @@ func (ds *Datastore) GetAppleDeclarationReconcileSnapshot(
 	allDecls []*fleet.AppleDeclarationForReconcile,
 	hostLabels map[uint]map[uint]struct{},
 	currentByHost map[string][]*fleet.MDMAppleHostDeclaration,
+	pageFull bool,
 	err error,
 ) {
 	err = ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var inner error
-		hosts, inner = ds.listAppleMDMHostsForReconcileBatchTransaction(ctx, tx, afterHostUUID, batchSize)
+		hosts, pageFull, inner = ds.listAppleMDMHostsForReconcileBatchTransaction(ctx, tx, afterHostUUID, batchSize)
 		if inner != nil {
 			return inner
 		}
@@ -880,9 +888,9 @@ func (ds *Datastore) GetAppleDeclarationReconcileSnapshot(
 		return inner
 	})
 	if err != nil {
-		return nil, nil, nil, nil, ctxerr.Wrap(ctx, err, "apple declaration reconcile snapshot")
+		return nil, nil, nil, nil, false, ctxerr.Wrap(ctx, err, "apple declaration reconcile snapshot")
 	}
-	return hosts, allDecls, hostLabels, currentByHost, nil
+	return hosts, allDecls, hostLabels, currentByHost, pageFull, nil
 }
 
 // GetMDMAppleDeclarationReconcileCursor / SetMDMAppleDeclarationReconcileCursor
