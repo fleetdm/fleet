@@ -51,7 +51,7 @@ between the parser and its callers so they don't duplicate the literal.
 
 ### Generated artifact
 
-`tools/openapi/openapi.yml` is generated on demand, never committed. CI validates that generation succeeds (and the output passes OpenAPI 3.1 validation) on every PR touching the docs or the tool, and uploads the result as a workflow artifact. Goreleaser generates it in a `before` hook, failing fast on any generation or validation error, and attaches it to the release via `release.extra_files`.
+`tools/openapi/openapi.yml` is generated on demand, never committed. CI validates that generation succeeds (and the output passes OpenAPI 3.1 validation) on every PR touching the docs or the tool, and uploads the result as a workflow artifact.
 
 Rationale: at full-API scale a committed generated file churns on every docs edit and creates merge conflicts, without adding contract protection beyond what CI validation already provides.
 
@@ -65,14 +65,14 @@ Triggered on pull requests touching `docs/REST API/**` or `tools/openapi/**`. On
 
 Earlier revisions of this work included a `verify` subcommand and a `contract-verify` CI job: a hand-built contract test that exercised 10 commonly integrated endpoints against a live server and validated real responses against the generated schemas. It proved the spec functions as a validation contract (last green run: https://github.com/fleetdm/fleet/actions/runs/31528481208, commit 0c28085b4a) and was then removed before merge: it was ~500 lines of Go plus the workflow's heaviest job (a full server build on every docs PR) for ~4% endpoint coverage, and its failure modes (server bootstrap flakes in CI) weren't actionable by docs authors. If the spec gains consumers that need contract guarantees, live verification should come back as a nightly or release-time job rather than a docs-PR check.
 
-## Release wiring
+## Release wiring (follow-up PR)
 
-In `.goreleaser.yml`:
+Attaching the spec to releases is deliberately not part of the initial PR: a `make openapi` failure in the release build would fail the release, so the generator gates docs PRs for at least one release cycle first. Once the CI check has proven itself on a release-cycle docs PR, a follow-up PR adds, in `.goreleaser.yml`:
 
-- A `before.hooks` entry runs the generator. If generation or validation fails, the release fails fast (issue edge case: broken script must not publish a stale or missing artifact).
-- `release.extra_files` (goreleaser-pro feature, already in use via the pro distribution) attaches `openapi.yml` to the GitHub release alongside the binaries.
+- A `before.hooks` entry that runs the generator. If generation or validation fails, the release fails fast (issue edge case: broken script must not publish a stale or missing artifact).
+- `release.extra_files` (goreleaser-pro feature, already in use via the pro distribution) to attach `openapi.yml` to the GitHub release alongside the binaries.
 
-No changes to `.github/workflows/goreleaser-fleet.yaml`.
+That follow-up also carries the changelog entry (the spec becomes user-visible when it ships on a release) and the REST API reference note below. No changes to `.github/workflows/goreleaser-fleet.yaml` either way.
 
 ## Docs
 
@@ -82,7 +82,7 @@ A short subsection in the introduction of `docs/REST API/rest-api.md` (renders a
 
 - Go unit tests in `parser/` (table extraction, request-line parsing, schema inference edge cases: nulls, empty arrays, `:id` paths, `json`/`form` params, hard-skip classification) and `spec/` (assembly of every parsed endpoint, duplicate operationId detection).
 - CI regenerating and validating `openapi.yml` on every relevant PR acts as the end-to-end test.
-- Manual, once at the end: import `openapi.yml` into Postman and Stoplight, confirm both render the generated endpoints; confirm the artifact appears on an RC release.
+- Manual, once at the end: import `openapi.yml` into Postman and Stoplight, confirm both render the generated endpoints. Confirming the artifact appears on an RC release happens with the release-wiring follow-up PR.
 
 ## Out of scope
 

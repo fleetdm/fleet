@@ -10,7 +10,6 @@ before:
   hooks:
     - make deps
     - make generate
-    - make openapi
 
 # gomod:
 #   proxy: true
@@ -160,5 +159,3 @@ release:
     name: fleet
   draft: true
   prerelease: auto
-  extra_files:
-    - glob: ./tools/openapi/openapi.yml

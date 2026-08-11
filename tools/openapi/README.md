@@ -17,8 +17,8 @@ make openapi
 This writes `tools/openapi/openapi.yml`, which is gitignored. Every PR that
 touches the docs or this tool gets CI generation and validation, and the
 result is uploaded as a workflow artifact named `openapi-spec` (see the
-"Actions" tab on the PR). Releases generate and attach `openapi.yml`
-automatically, no committed file to keep in sync.
+"Actions" tab on the PR). There's no committed file to keep in sync.
+Attaching the spec to releases lands in a follow-up PR (see DESIGN.md).
 
 The generator covers every documented endpoint: every `### ` section in
 `rest-api.md` that has a request line becomes an operation in the spec.

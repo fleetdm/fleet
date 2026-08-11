@@ -298,7 +298,8 @@ lint: lint-go lint-js
 endif
 
 # Generate (and validate) the OpenAPI spec from docs/REST API/rest-api.md.
-# Used by goreleaser at release time. See tools/openapi/DESIGN.md and #45279.
+# Used by CI on PRs that touch the REST API docs or the tool.
+# See tools/openapi/DESIGN.md and #45279.
 openapi:
 	cd tools/openapi && go run . generate
 
