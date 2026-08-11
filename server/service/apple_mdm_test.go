@@ -79,7 +79,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	cfg := config.TestConfig()
 	// Custom activations are opt-in on the server (#50764). Tests that exercise
 	// them need them on; pass a tweak to turn them back off.
-	cfg.MDM.EnableCustomActivations = true
+	cfg.MDM.AllowCustomActivations = true
 	for _, fn := range tweakCfg {
 		fn(&cfg)
 	}
@@ -10106,7 +10106,7 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 	// the server explicitly opts in.
 	t.Run("activation is refused when the server hasn't enabled activations", func(t *testing.T) {
 		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium},
-			func(c *config.FleetConfig) { c.MDM.EnableCustomActivations = false })
+			func(c *config.FleetConfig) { c.MDM.AllowCustomActivations = false })
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 			return d, nil
