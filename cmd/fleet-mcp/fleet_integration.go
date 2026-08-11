@@ -42,6 +42,7 @@ type PlatformBreakdown struct {
 	ChromeOS int `json:"chromeos"`
 	IOS      int `json:"ios"`
 	IPadOS   int `json:"ipados"`
+	TvOS     int `json:"tvos"`
 	Android  int `json:"android"`
 	Other    int `json:"other"`
 	Total    int `json:"total"`
@@ -915,6 +916,8 @@ func (fc *FleetClient) GetEndpointsWithAggregations(ctx context.Context) (*Aggre
 			platformBreakdown.IOS += p.HostsCount
 		case "ipados":
 			platformBreakdown.IPadOS += p.HostsCount
+		case "tvos":
+			platformBreakdown.TvOS += p.HostsCount
 		case "android":
 			platformBreakdown.Android += p.HostsCount
 		default:

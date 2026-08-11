@@ -177,6 +177,13 @@ func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 		},
 		{
+			Name:                "tvOS",
+			Platform:            "tvos",
+			Query:               "",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+		{
 			Name:                "Fedora Linux",
 			Platform:            "rhel",
 			Query:               "select 1 from os_version where name = 'Fedora Linux';",

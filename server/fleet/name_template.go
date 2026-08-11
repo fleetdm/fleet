@@ -173,6 +173,7 @@ var hostNameTemplatePlatformDisplayNames = map[string]string{
 	"darwin": "macOS",
 	"ios":    "iOS",
 	"ipados": "iPadOS",
+	"tvos":   "tvOS",
 }
 
 // ResolveHostNameTemplate substitutes the host-identity built-in variables

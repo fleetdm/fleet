@@ -10101,3 +10101,178 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+// An Apple TV's DeviceInformation ack must be typed as tvOS end-to-end: the
+// operating system row gets the tvOS prefix, and the iOS/iPadOS-only side
+// effects (storage rollup, lost-mode reconciliation) are skipped because tvOS
+// reports neither.
+func TestMDMCommandAndReportResultsTvOSRefetchDevice(t *testing.T) {
+	ctx := t.Context()
+	hostUUID := "TVOS-HOST-UUID"
+	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + uuid.NewString()
+
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:       9,
+			UUID:     hostUUID,
+			Platform: "tvos",
+			MDM:      fleet.MDMHostData{EnrollmentStatus: new("Pending")},
+		}, nil
+	}
+	var gotHost *fleet.Host
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		gotHost = host
+		return nil
+	}
+	var gotOS fleet.OperatingSystem
+	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+		gotOS = hostOS
+		return nil
+	}
+	var gotVitals fleet.MDMAppleDeviceVitals
+	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
+		gotVitals = vitals
+		return nil
+	}
+	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error { return nil }
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string) error {
+		return nil
+	}
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
+		return nil
+	}
+	ds.UpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool) error { return nil }
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
+		return nil
+	}
+	ds.GetLatestAppleMDMCommandOfTypeFunc = func(ctx context.Context, incomingHostUUID, commandType string) (*fleet.MDMCommand, error) {
+		return nil, &notFoundErr{}
+	}
+
+	_, err := svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Raw: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>CommandUUID</key>
+        <string>` + commandUUID + `</string>
+        <key>QueryResponses</key>
+        <dict>
+                <key>DeviceName</key>
+                <string>Lobby Apple TV</string>
+                <key>OSVersion</key>
+                <string>18.4</string>
+                <key>ProductName</key>
+                <string>AppleTV14,1</string>
+                <key>WiFiMAC</key>
+                <string>aa:bb:cc:dd:ee:ff</string>
+                <key>BluetoothMAC</key>
+                <string>aa:bb:cc:dd:ee:00</string>
+                <key>UDID</key>
+                <string>` + hostUUID + `</string>
+                <key>TimeZone</key>
+                <string>America/New_York</string>
+        </dict>
+        <key>Status</key>
+        <string>Acknowledged</string>
+        <key>UDID</key>
+        <string>` + hostUUID + `</string>
+</dict>
+</plist>`),
+		},
+	)
+	require.NoError(t, err)
+
+	require.NotNil(t, gotHost)
+	require.Equal(t, "Lobby Apple TV", gotHost.ComputerName)
+	require.Equal(t, "tvOS 18.4", gotHost.OSVersion)
+	require.Equal(t, "AppleTV14,1", gotHost.HardwareModel)
+	require.False(t, gotHost.RefetchRequested)
+
+	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+	require.Equal(t, "tvOS", gotOS.Name)
+	require.Equal(t, "18.4", gotOS.Version)
+	require.Equal(t, "tvos", gotOS.Platform)
+
+	// tvOS reports no storage capacity, so there is nothing to roll up.
+	require.False(t, ds.SetOrUpdateHostDisksSpaceFuncInvoked)
+	// tvOS has no lost mode, so the lock reconciliation must not run — it errors
+	// out when it can't find a matching EnableLostMode command.
+	require.False(t, ds.GetLatestAppleMDMCommandOfTypeFuncInvoked)
+
+	require.True(t, ds.SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked)
+	require.Equal(t, "aa:bb:cc:dd:ee:00", *gotVitals.BluetoothMAC)
+	require.Equal(t, hostUUID, *gotVitals.UDID)
+	require.Nil(t, gotVitals.BatteryLevel)
+	require.Nil(t, gotVitals.CellularTechnology)
+}
+
+// An Apple TV's InstalledApplicationList ack must land under the tvos_apps
+// source, which is what keeps its titles from colliding with macOS titles that
+// share a bundle identifier.
+func TestMDMCommandAndReportResultsTvOSRefetchApps(t *testing.T) {
+	ctx := t.Context()
+	hostUUID := "TVOS-APPS-HOST-UUID"
+	commandUUID := fleet.RefetchAppsCommandUUIDPrefix + uuid.NewString()
+
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		return &fleet.Host{ID: 10, UUID: hostUUID, Platform: "tvos"}, nil
+	}
+	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error { return nil }
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string) error {
+		return nil
+	}
+	var gotSoftware []fleet.Software
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		gotSoftware = software
+		return nil, nil
+	}
+
+	_, err := svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Raw: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>CommandUUID</key>
+        <string>` + commandUUID + `</string>
+        <key>InstalledApplicationList</key>
+        <array>
+                <dict>
+                        <key>Identifier</key>
+                        <string>com.netflix.Netflix</string>
+                        <key>Name</key>
+                        <string>Netflix</string>
+                        <key>Version</key>
+                        <string>17.2.0</string>
+                </dict>
+        </array>
+        <key>Status</key>
+        <string>Acknowledged</string>
+        <key>UDID</key>
+        <string>` + hostUUID + `</string>
+</dict>
+</plist>`),
+		},
+	)
+	require.NoError(t, err)
+
+	require.True(t, ds.UpdateHostSoftwareFuncInvoked)
+	require.Len(t, gotSoftware, 1)
+	require.Equal(t, "tvos_apps", gotSoftware[0].Source)
+	require.Equal(t, "Netflix", gotSoftware[0].Name)
+	require.Equal(t, "com.netflix.Netflix", gotSoftware[0].BundleIdentifier)
+}

@@ -1173,7 +1173,7 @@ func TestMDMAppleCommanderDeviceInformation(t *testing.T) {
 		}
 
 		cmdUUID := uuid.New().String()
-		err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID, false)
+		err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID, DeviceInformationKeysFull)
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 
@@ -1229,7 +1229,7 @@ func TestMDMAppleCommanderDeviceInformation(t *testing.T) {
 		mdmStorage.EnqueueCommandFuncInvoked = false
 
 		cmdUUID := uuid.New().String()
-		err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID, true)
+		err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID, DeviceInformationKeysPersonalEnrollment)
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 
@@ -1248,5 +1248,49 @@ func TestMDMAppleCommanderDeviceInformation(t *testing.T) {
 			"IsMDMLostModeEnabled",
 			"TimeZone",
 		}, gotCommand.Command.Queries)
+	})
+
+	t.Run("tvOS only requests the fields Apple TV answers", func(t *testing.T) {
+		var gotCommand gotCommandType
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &gotCommand))
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		cmdUUID := uuid.New().String()
+		err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID, DeviceInformationKeysTvOS)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+
+		require.Equal(t, "DeviceInformation", gotCommand.Command.RequestType)
+		require.Equal(t, []string{
+			"DeviceName",
+			"OSVersion",
+			"SupplementalOSVersionExtra",
+			"WiFiMAC",
+			"ProductName",
+			"TimeZone",
+			"AwaitingConfiguration",
+			"BluetoothMAC",
+			"DeviceID",
+			"DevicePropertiesAttestation",
+			"iTunesStoreAccountHash",
+			"iTunesStoreAccountIsActive",
+			"MDMOptions",
+			"ModelNumber",
+			"OrganizationInfo",
+			"SupplementalBuildVersion",
+			"UDID",
+		}, gotCommand.Command.Queries)
+
+		// Apple TV has no battery, storage, cellular or lost mode.
+		for _, unsupported := range []string{
+			"BatteryLevel", "DeviceCapacity", "AvailableDeviceCapacity",
+			"CellularTechnology", "ServiceSubscriptions", "IsMDMLostModeEnabled",
+			"IsDeviceLocatorServiceEnabled", "PersonalHotspotEnabled",
+		} {
+			require.NotContains(t, gotCommand.Command.Queries, unsupported)
+		}
 	})
 }

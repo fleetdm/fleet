@@ -1138,7 +1138,7 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 // can turn MDM on for a platform at all, use MDMTurnedOnSupported instead.
 func ClassicMDMPlatform(hostPlatform string) string {
 	switch hostPlatform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		return "darwin"
 	case "windows":
 		return "windows"
@@ -1162,11 +1162,11 @@ func MDMTurnedOnSupported(hostPlatform string) bool {
 }
 
 // FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices
-// if the profile target's platform is ios/ipados.
+// if the profile target's platform is one of the MDM-only Apple platforms (ios/ipados/tvos).
 func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []*MDMAppleProfilePayload {
 	i := 0
 	for _, profilePayload := range profiles {
-		if (profilePayload.HostPlatform == "ios" || profilePayload.HostPlatform == "ipados") &&
+		if IsAppleMDMOnlyPlatform(profilePayload.HostPlatform) &&
 			(profilePayload.ProfileName == mdm_types.FleetdConfigProfileName ||
 				profilePayload.ProfileName == mdm_types.FleetFileVaultProfileName) {
 			continue
@@ -1316,12 +1316,29 @@ const (
 	MacOSPlatform   InstallableDevicePlatform = "darwin"
 	IOSPlatform     InstallableDevicePlatform = "ios"
 	IPadOSPlatform  InstallableDevicePlatform = "ipados"
+	TVOSPlatform    InstallableDevicePlatform = "tvos"
 	AndroidPlatform InstallableDevicePlatform = "android"
 )
 
 var AppStoreAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
 
 var ApplePlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+
+// AppleSoftwareSourceForPlatform returns the software.source value Fleet stores
+// for apps inventoried from an Apple host, either through osquery (macOS) or an
+// MDM InstalledApplicationList command (iOS/iPadOS/tvOS).
+func AppleSoftwareSourceForPlatform(hostPlatform string) string {
+	switch hostPlatform {
+	case string(IOSPlatform):
+		return "ios_apps"
+	case string(IPadOSPlatform):
+		return "ipados_apps"
+	case string(TVOSPlatform):
+		return "tvos_apps"
+	default:
+		return "apps"
+	}
+}
 
 // SupportsAppStoreApps returns whether or not the given platform supports app store apps.
 func (p InstallableDevicePlatform) SupportsAppStoreApps() bool {
@@ -1336,6 +1353,7 @@ func (p InstallableDevicePlatform) IsApplePlatform() bool {
 type AppleDevicesToRefetch struct {
 	HostID               uint                   `db:"host_id"`
 	UUID                 string                 `db:"uuid"`
+	Platform             string                 `db:"platform"`
 	InstalledFromDEP     bool                   `db:"installed_from_dep"`
 	IsPersonalEnrollment bool                   `db:"is_personal_enrollment"`
 	CommandsAlreadySent  MDMCommandsAlreadySent `db:"commands_already_sent"`

@@ -4410,7 +4410,7 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 		return &fleet.BadRequestError{
 			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
 		}
-	case "ios", "ipados", "darwin":
+	case "ios", "ipados", "tvos", "darwin":
 		if err := svc.enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, host); err != nil {
 			return ctxerr.Wrap(ctx, err, "unenrolling apple host")
 		}

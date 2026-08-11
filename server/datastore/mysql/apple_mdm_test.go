@@ -105,6 +105,8 @@ func TestMDMApple(t *testing.T) {
 		{"GetHostDEPAssignmentsByHostIDs", testGetHostDEPAssignmentsByHostIDs},
 		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
+		{"ListAppleMDMOnlyDevicesToRefetchIncludesTvOS", testListAppleMDMOnlyDevicesToRefetchIncludesTvOS},
+		{"MDMAppleUpsertHostTvOS", testMDMAppleUpsertHostTvOS},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
@@ -2381,43 +2383,21 @@ func testGetMDMAppleProfilesContents(t *testing.T, ds *Datastore) {
 // extant for MDM flows
 func createBuiltinLabels(t *testing.T, ds *Datastore) {
 	// Labels are deleted when truncating tables in between tests.
-	// We need to delete the iOS/iPadOS labels because these two are created on a table migration,
+	// We need to delete the iOS/iPadOS/tvOS labels because these are created on a table migration,
 	// and also we want to keep their indexes higher than "All Hosts" and "macOS" (to not break existing tests).
 	_, err := ds.writer(t.Context()).Exec(`
-		DELETE FROM labels WHERE name = 'iOS' OR name = 'iPadOS'`,
+		DELETE FROM labels WHERE name IN ('iOS', 'iPadOS', 'tvOS')`,
 	)
 	require.NoError(t, err)
 
-	_, err = ds.writer(t.Context()).Exec(`
-		INSERT INTO labels (
-			name,
-			description,
-			query,
-			platform,
-			label_type
-		) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)`,
-		"All Hosts",
-		"",
-		"",
-		"",
-		fleet.LabelTypeBuiltIn,
-		"macOS",
-		"",
-		"",
-		"",
-		fleet.LabelTypeBuiltIn,
-		"iOS",
-		"",
-		"",
-		"",
-		fleet.LabelTypeBuiltIn,
-		"iPadOS",
-		"",
-		"",
-		"",
-		fleet.LabelTypeBuiltIn,
-	)
-	require.NoError(t, err)
+	for _, name := range []string{"All Hosts", "macOS", fleet.BuiltinLabelIOS, fleet.BuiltinLabelIPadOS, fleet.BuiltinLabelTvOS} {
+		_, err = ds.writer(t.Context()).Exec(`
+			INSERT INTO labels (name, description, query, platform, label_type)
+			VALUES (?, '', '', '', ?)`,
+			name, fleet.LabelTypeBuiltIn,
+		)
+		require.NoError(t, err)
+	}
 }
 
 func nanoEnrollAndSetHostMDMData(t *testing.T, ds *Datastore, host *fleet.Host, withUser bool) {
@@ -8048,6 +8028,106 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.Empty(t, devices)
 }
 
+func testListAppleMDMOnlyDevicesToRefetchIncludesTvOS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	// Apple TVs must be picked up by the same refetcher as iPhones/iPads: they
+	// have no osquery, so this cron is the only source of their inventory.
+	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           "tvOS0_UUID",
+		HardwareSerial: "tvOS0_SERIAL",
+		HardwareModel:  "AppleTV14,1",
+		Platform:       "tvos",
+	}, false)
+	require.NoError(t, err)
+	tvOS0, err := ds.HostByIdentifier(ctx, "tvOS0_SERIAL")
+	require.NoError(t, err)
+	nanoEnroll(t, ds, tvOS0, false)
+
+	// Freshly enrolled: refetch_requested carries it into the very next tick
+	// rather than waiting out the staleness window.
+	require.True(t, tvOS0.RefetchRequested)
+
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, "tvOS0_UUID", devices[0].UUID)
+	// The refetcher buckets by platform to pick the right DeviceInformation
+	// query keys, so the platform has to come back with the row.
+	require.Equal(t, "tvos", devices[0].Platform)
+
+	// Once the DeviceInformation ack clears the flag, only staleness brings it back.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE hosts SET refetch_requested = 0, detail_updated_at = DATE_SUB(NOW(), INTERVAL 30 MINUTE) WHERE id = ?`, tvOS0.ID)
+		return err
+	})
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
+	require.NoError(t, err)
+	require.Empty(t, devices)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, tvOS0.ID)
+		return err
+	})
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, "tvOS0_UUID", devices[0].UUID)
+
+	// The reviver re-creates Apple TVs that check in after being deleted from
+	// Fleet, same as iPhones/iPads.
+	ids, err := ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 10)
+	require.NoError(t, err)
+	require.Empty(t, ids)
+
+	require.NoError(t, ds.DeleteHost(ctx, tvOS0.ID))
+
+	ids, err = ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, []string{"tvOS0_UUID"}, ids)
+}
+
+func testMDMAppleUpsertHostTvOS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	tvOSHost := &fleet.Host{
+		UUID:           "tvos-uuid",
+		HardwareSerial: "tvos-serial",
+		HardwareModel:  "AppleTV14,1",
+		Platform:       "tvos",
+	}
+
+	// Insert path.
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, tvOSHost, false))
+	host, err := ds.HostByIdentifier(ctx, "tvos-serial")
+	require.NoError(t, err)
+	require.Equal(t, "tvos", host.Platform)
+	require.Equal(t, "AppleTV14,1", host.HardwareModel)
+	require.True(t, host.RefetchRequested)
+	// MDM-only devices get last_enrolled_at from the MDM enroll, not osquery.
+	require.NotEqual(t, "2000-01-01 00:00:00 +0000 UTC", host.LastEnrolledAt.String())
+
+	// The host lands in the tvOS builtin label, not macOS.
+	labels, err := ds.ListLabelsForHost(ctx, host.ID)
+	require.NoError(t, err)
+	labelNames := make([]string, 0, len(labels))
+	for _, l := range labels {
+		labelNames = append(labelNames, l.Name)
+	}
+	require.ElementsMatch(t, []string{"All Hosts", fleet.BuiltinLabelTvOS}, labelNames)
+
+	// Update path.
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, tvOSHost, false))
+	host, err = ds.HostByIdentifier(ctx, "tvos-serial")
+	require.NoError(t, err)
+	require.Equal(t, "tvos", host.Platform)
+	require.True(t, host.RefetchRequested)
+}
+
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	createBuiltinLabels(t, ds)
@@ -8514,6 +8594,8 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 		{SerialNumber: "iOS0_SERIAL", DeviceFamily: "iPhone", OpType: "added"},
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
 		{SerialNumber: "iPod_SERIAL", DeviceFamily: "iPod", OpType: "added"},
+		{SerialNumber: "tvOS0_SERIAL", DeviceFamily: "AppleTV", OpType: "added"},
+		{SerialNumber: "mac0_SERIAL", DeviceFamily: "Mac", OpType: "added"},
 	}
 
 	encTok := uuid.NewString()
@@ -8523,7 +8605,7 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, nil, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, int64(3), n)
+	require.Equal(t, int64(5), n)
 
 	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{
 		User: &fleet.User{
@@ -8531,13 +8613,23 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 		},
 	}, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 3)
-	require.Equal(t, "ios", hosts[0].Platform)
-	require.Equal(t, false, hosts[0].RefetchRequested)
-	require.Equal(t, "ipados", hosts[1].Platform)
-	require.Equal(t, false, hosts[1].RefetchRequested)
-	require.Equal(t, "ios", hosts[2].Platform)
-	require.Equal(t, false, hosts[2].RefetchRequested)
+	require.Len(t, hosts, 5)
+
+	platformsBySerial := map[string]string{}
+	for _, h := range hosts {
+		platformsBySerial[h.HardwareSerial] = h.Platform
+		// Apple MDM devices are only flagged for refetch once they actually
+		// enroll, not while they are still DEP-pending. macOS refetches via
+		// osquery instead.
+		require.Equal(t, h.Platform == "darwin", h.RefetchRequested, h.HardwareSerial)
+	}
+	require.Equal(t, map[string]string{
+		"iOS0_SERIAL":    "ios",
+		"iPadOS0_SERIAL": "ipados",
+		"iPod_SERIAL":    "ios",
+		"tvOS0_SERIAL":   "tvos",
+		"mac0_SERIAL":    "darwin",
+	}, platformsBySerial)
 }
 
 func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {

@@ -1534,9 +1534,10 @@ var appleSiliconMajorThreshold = map[string]int{
 func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 	if strings.HasPrefix(modelIdentifier, "iPhone") ||
 		strings.HasPrefix(modelIdentifier, "iPod") ||
-		strings.HasPrefix(modelIdentifier, "iPad") {
-		// If the model identifier starts with iPhone, iPod, or iPad, we'll return false with no
-		// error; however, other non-Mac Apple devices like AppleTV will return an error
+		strings.HasPrefix(modelIdentifier, "iPad") ||
+		strings.HasPrefix(modelIdentifier, "AppleTV") {
+		// Model identifiers for the non-Mac Apple platforms Fleet manages return false with no
+		// error; identifiers we don't recognize at all still return an error.
 		return false, "", 0, nil
 	}
 
@@ -1564,8 +1565,8 @@ func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 }
 
 // IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
-// starts with iPhone, iPod, or iPad, it returns false with no error; however, other non-Mac Apple
-// devices like AppleTV will return an error.
+// belongs to one of the non-Mac Apple platforms Fleet manages (iPhone, iPod, iPad, AppleTV), it
+// returns false with no error; unrecognized identifiers return an error.
 func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
 	isMac, family, major, err := IsMacIdentifier(modelIdentifier)
 	if err != nil {

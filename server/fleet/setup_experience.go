@@ -229,7 +229,7 @@ type SetupExperienceStatusPayload struct {
 // TODO: Setup Experience supports a wide range of platforms now but has a feature matrix where not all
 // platforms support all features. May be worth refactoring to check for supported features instead
 func IsSetupExperienceSupported(hostPlatform string) bool {
-	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados" ||
+	return hostPlatform == "darwin" || IsAppleMDMOnlyPlatform(hostPlatform) ||
 		hostPlatform == "windows" || hostPlatform == "android" || IsLinux(hostPlatform)
 }
 
@@ -251,7 +251,7 @@ type DeviceSetupExperienceStatusPayload struct {
 // use the host.OsqueryHostID as UUID. For Windows/Linux devices, the "Setup experience" will be triggered after orbit
 // and osquery enrollment, thus host.OsqueryHostID will always be set and unique.
 func HostUUIDForSetupExperience(host *Host) (string, error) {
-	if host.Platform == string(MacOSPlatform) || host.Platform == string(IOSPlatform) || host.Platform == string(IPadOSPlatform) ||
+	if host.Platform == string(MacOSPlatform) || IsAppleMDMOnlyPlatform(host.Platform) ||
 		host.Platform == string(AndroidPlatform) {
 		return host.UUID, nil
 	}
@@ -273,6 +273,7 @@ var SetupExperienceSupportedPlatforms = []string{
 	"macos",
 	"ios",
 	"ipados",
+	"tvos",
 	"windows",
 	"linux",
 	"android",

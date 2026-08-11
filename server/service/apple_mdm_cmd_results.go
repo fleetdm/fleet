@@ -36,16 +36,7 @@ func (i *installedApplicationListResult) AvailableApps() []fleet.Software { retu
 func (i *installedApplicationListResult) HostPlatform() string            { return i.hostPlatform }
 
 func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uuid, hostUUID, hostPlatform string) (InstalledApplicationListResult, error) {
-	var source string
-	switch hostPlatform {
-	case "ios":
-		source = "ios_apps"
-	case "ipados":
-		source = "ipados_apps"
-	default:
-		source = "apps"
-	}
-	list, err := unmarshalAppList(ctx, rawResult, source)
+	list, err := unmarshalAppList(ctx, rawResult, fleet.AppleSoftwareSourceForPlatform(hostPlatform))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshal app list for new installed application list result")
 	}

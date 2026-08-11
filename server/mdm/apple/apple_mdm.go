@@ -1754,38 +1754,36 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 
-	// DeviceInformation is last because the refetch response clears the refetch_requested flag
-	deviceInfoUUIDs := struct {
-		Personal []string
-		Other    []string
-	}{}
+	// DeviceInformation is last because the refetch response clears the refetch_requested flag.
+	// One command targets many devices, so devices are grouped by the set of query keys they
+	// can answer (BYOD enrollments and Apple TVs each answer a reduced set).
+	deviceInfoUUIDs := map[DeviceInformationKeySet][]string{}
 	for _, device := range devices {
 		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchDeviceCommandUUIDPrefix) {
-			if device.IsPersonalEnrollment {
-				deviceInfoUUIDs.Personal = append(deviceInfoUUIDs.Personal, device.UUID)
-			} else {
-				deviceInfoUUIDs.Other = append(deviceInfoUUIDs.Other, device.UUID)
-			}
+			keySet := DeviceInformationKeySetForHost(device.Platform, device.IsPersonalEnrollment)
+			deviceInfoUUIDs[keySet] = append(deviceInfoUUIDs[keySet], device.UUID)
 			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
 				HostID:      device.HostID,
 				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
 			})
 		}
 	}
-	for i, uuids := range [][]string{deviceInfoUUIDs.Personal, deviceInfoUUIDs.Other} {
-		isPersonalEnrollment := i == 0
+	for _, keySet := range []DeviceInformationKeySet{
+		DeviceInformationKeysFull, DeviceInformationKeysPersonalEnrollment, DeviceInformationKeysTvOS,
+	} {
+		uuids := deviceInfoUUIDs[keySet]
 		if len(uuids) == 0 {
 			continue
 		}
 
 		commandUUID := uuid.NewString()
-		err := commander.DeviceInformation(ctx, uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, isPersonalEnrollment)
+		err := commander.DeviceInformation(ctx, uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, keySet)
 		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
 		if turnedOffError != nil {
 			return turnedOffError
 		}
 		if err != nil && !turnedOff {
-			return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
+			return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios, ipados and tvos devices")
 		}
 	}
 
@@ -1882,7 +1880,7 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 
 	ids, err := ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 500)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to revive")
+		return ctxerr.Wrap(ctx, err, "list ios, ipados and tvos devices to revive")
 	}
 	if len(ids) == 0 {
 		return nil

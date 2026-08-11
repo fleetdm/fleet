@@ -1570,7 +1570,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	}
 
 	// TODO(android): add android to this list?
-	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
+	if host != nil && fleet.IsAppleMDMOnlyPlatform(host.Platform) {
 		// Get MDM commands already sent
 		commands, err := svc.ds.GetHostMDMCommands(ctx, host.ID)
 		if err != nil {
@@ -1630,7 +1630,8 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 
 		if doDeviceInfoRefetch {
 			// DeviceInformation is last because the refetch response clears the refetch_requested flag
-			err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID, hostMDM.IsPersonalEnrollment)
+			keySet := apple_mdm.DeviceInformationKeySetForHost(host.Platform, hostMDM.IsPersonalEnrollment)
+			err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID, keySet)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch host with MDM")
 			}
@@ -1650,7 +1651,8 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "refetch host: get host location data")
 		}
 
-		if adeData.IsDEPAssignedToFleet() && lwStatus.IsLocked() {
+		// Apple TV has no lost mode, so there is no location to ask for.
+		if !fleet.IsAppleTVPlatform(host.Platform) && adeData.IsDEPAssignedToFleet() && lwStatus.IsLocked() {
 			err = svc.mdmAppleCommander.DeviceLocation(ctx, []string{host.UUID}, cmdUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch host: get location with MDM")
@@ -3428,10 +3430,10 @@ func (svc *Service) OSVersions(
 
 	if platform != nil {
 		switch *platform {
-		case "darwin", "windows", "linux", "chrome", "ios", "ipados", "android":
+		case "darwin", "windows", "linux", "chrome", "ios", "ipados", "tvos", "android":
 			// valid platform
 		default:
-			return nil, count, nil, fleet.NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", "chrome", "ios", "ipados", or "android".`)
+			return nil, count, nil, fleet.NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", "chrome", "ios", "ipados", "tvos", or "android".`)
 		}
 	}
 

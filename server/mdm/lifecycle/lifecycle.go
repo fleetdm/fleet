@@ -78,7 +78,7 @@ func New(ds fleet.Datastore, logger *slog.Logger, newActivityFn NewActivityFunc)
 // Do executes the provided HostAction based on the platform requested
 func (t *HostLifecycle) Do(ctx context.Context, opts HostOptions) error {
 	switch opts.Platform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		err := t.doApple(ctx, opts)
 		return ctxerr.Wrapf(ctx, err, "running apple lifecycle action %s", opts.Action)
 	case "windows":
@@ -415,6 +415,9 @@ func (t *HostLifecycle) getDefaultTeamForABMToken(ctx context.Context, host *fle
 		abmDefaultTeamID = tok.IOSDefaultTeamID
 	case "ipados":
 		abmDefaultTeamID = tok.IPadOSDefaultTeamID
+	case "tvos":
+		// TODO: switch to the token's tvOS default team once abm_tokens has one.
+		abmDefaultTeamID = tok.MacOSDefaultTeamID
 	default:
 		return nil, ctxerr.NewWithData(ctx, "attempting to get default ABM team for host with invalid platform", map[string]any{"host_platform": host.FleetPlatform(), "host_id": host.ID})
 	}

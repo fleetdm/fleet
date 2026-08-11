@@ -1069,6 +1069,14 @@ func TestIsMacIdentifier(t *testing.T) {
 		{product: "iPad13,18", want: false},
 		{product: "iPodTouch9,1", want: false},
 
+		// --- Apple TV (managed over MDM, never a Mac) ---
+		// These must not error: callers treat an error as a hard failure, which
+		// would break Apple TV enrollment (see isMacACMESupported).
+		{product: "AppleTV5,3", want: false},
+		{product: "AppleTV6,2", want: false},
+		{product: "AppleTV11,1", want: false},
+		{product: "AppleTV14,1", want: false},
+
 		// --- Virtual Mac machines ---
 		{product: "VirtualMac2,1", want: true},
 
@@ -1079,9 +1087,8 @@ func TestIsMacIdentifier(t *testing.T) {
 		{product: "MacBookPro18", wantErr: true},
 		// Garbage input
 		{product: "not-a-model", wantErr: true},
-		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
-		{product: "AppleTV6,2", wantErr: true},
-		{product: "AppleTV14,1", wantErr: true},
+		// Unrecognized Apple platforms still error
+		{product: "Watch7,1", wantErr: true},
 	}
 
 	for _, tc := range cases {
@@ -1160,6 +1167,8 @@ func TestIsMacAppleSilicon(t *testing.T) {
 		{product: "iPhone14,3", wantAS: false},
 		{product: "iPad13,18", wantAS: false},
 		{product: "iPodTouch9,1", wantAS: false},
+		{product: "AppleTV6,2", wantAS: false},
+		{product: "AppleTV14,1", wantAS: false},
 
 		// --- Error cases ---
 		// Empty string
@@ -1168,9 +1177,8 @@ func TestIsMacAppleSilicon(t *testing.T) {
 		{product: "MacBookPro18", wantErr: true},
 		// Garbage input
 		{product: "not-a-model", wantErr: true},
-		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
-		{product: "AppleTV6,2", wantErr: true},
-		{product: "AppleTV14,1", wantErr: true},
+		// Unrecognized Apple platforms still error
+		{product: "Watch7,1", wantErr: true},
 		{product: "VirtualMac2,1", wantErr: true},
 	}
 

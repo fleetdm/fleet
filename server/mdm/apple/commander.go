@@ -513,10 +513,64 @@ var deviceInformationQueryKeys = []string{
 	"UDID",
 }
 
-func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs []string, cmdUUID string, isPersonalEnrollment bool) error {
+// tvosDeviceInformationQueryKeys are the query keys tvOS answers. Apple's
+// DeviceInformation schema supports far fewer keys on tvOS than on
+// iOS/iPadOS/macOS: there is no battery, no storage capacity, no cellular, no
+// lost mode and no Ethernet MAC (the ABM/DEP sync carries that one instead).
+// Asking for unsupported keys isn't fatal — the device just omits them — but
+// keeping the list accurate documents what Fleet can actually collect.
+var tvosDeviceInformationQueryKeys = []string{
+	"DeviceName",
+	"OSVersion",
+	"SupplementalOSVersionExtra",
+	"WiFiMAC",
+	"ProductName",
+	"TimeZone",
+	"AwaitingConfiguration",
+	"BluetoothMAC",
+	"DeviceID",
+	"DevicePropertiesAttestation",
+	"iTunesStoreAccountHash",
+	"iTunesStoreAccountIsActive",
+	"MDMOptions",
+	"ModelNumber",
+	"OrganizationInfo",
+	"SupplementalBuildVersion",
+	"UDID",
+}
+
+// DeviceInformationKeySet selects which query keys a DeviceInformation command
+// asks for. The sets differ by what Apple actually answers: personal (BYOD)
+// enrollments omit most device details, and tvOS supports far fewer keys than
+// iOS/iPadOS/macOS. A single command can target many devices, so callers must
+// group hosts that share a key set.
+type DeviceInformationKeySet int
+
+const (
+	DeviceInformationKeysFull DeviceInformationKeySet = iota
+	DeviceInformationKeysPersonalEnrollment
+	DeviceInformationKeysTvOS
+)
+
+// DeviceInformationKeySetForHost returns the key set a host can answer.
+func DeviceInformationKeySetForHost(platform string, isPersonalEnrollment bool) DeviceInformationKeySet {
+	switch {
+	case isPersonalEnrollment:
+		return DeviceInformationKeysPersonalEnrollment
+	case fleet.IsAppleTVPlatform(platform):
+		return DeviceInformationKeysTvOS
+	default:
+		return DeviceInformationKeysFull
+	}
+}
+
+func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs []string, cmdUUID string, keySet DeviceInformationKeySet) error {
 	keys := deviceInformationQueryKeys
-	if isPersonalEnrollment {
+	switch keySet {
+	case DeviceInformationKeysPersonalEnrollment:
 		keys = byodDeviceInformationQueryKeys
+	case DeviceInformationKeysTvOS:
+		keys = tvosDeviceInformationQueryKeys
 	}
 
 	var queries strings.Builder

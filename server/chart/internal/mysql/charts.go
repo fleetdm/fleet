@@ -25,9 +25,9 @@ import (
 // bounded context must not depend on server/fleet — arch test enforced.
 const onlineIntervalBufferSeconds = 60
 
-// mobileOnlineWindowSeconds is the window within which a mobile
-// (iOS/iPadOS/Android) host's most recent MDM activity signal must fall for it
-// to count as online. Mobile MDM devices have no osquery check-in interval
+// mobileOnlineWindowSeconds is the window within which an MDM-only
+// (iOS/iPadOS/tvOS/Android) host's most recent MDM activity signal must fall for
+// it to count as online. These devices have no osquery check-in interval
 // (distributed_interval/config_tls_refresh are 0), so instead of a per-host
 // interval we anchor the window to the iOS/iPadOS refetch cadence (1 hour; see
 // ListIOSAndIPadOSToRefetch) plus the same grace buffer used for osquery hosts.
@@ -97,7 +97,7 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 //     falls within the host's own check-in interval (LEAST of
 //     distributed_interval and config_tls_refresh) plus the OnlineIntervalBuffer
 //     grace period.
-//   - Mobile hosts (iOS, iPadOS, Android) have no osquery check-in interval, so
+//   - MDM-only hosts (iOS, iPadOS, tvOS, Android) have no osquery check-in interval, so
 //     they use their MDM activity signal — the most recent of
 //     nano_enrollments.last_seen_at (bumped on every MDM check-in, and only
 //     considered for enabled enrollments since last_seen_at is also bumped when
@@ -116,7 +116,7 @@ func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disab
 				AND ne.type IN ('Device', 'User Enrollment (Device)')
 		WHERE (
 			(
-				h.platform NOT IN ('ios', 'ipados', 'android')
+				h.platform NOT IN ('ios', 'ipados', 'tvos', 'android')
 				AND hst.seen_time IS NOT NULL
 				AND DATE_ADD(hst.seen_time,
 					INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
@@ -124,7 +124,7 @@ func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disab
 			)
 			OR
 			(
-				h.platform IN ('ios', 'ipados', 'android')
+				h.platform IN ('ios', 'ipados', 'tvos', 'android')
 				AND DATE_ADD(
 					COALESCE(
 						GREATEST(

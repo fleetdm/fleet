@@ -731,6 +731,18 @@ func TestFilterMacOSOnlyProfilesFromIOSIPadOS(t *testing.T) {
 					ProfileName:  fleetmdm.FleetFileVaultProfileName,
 					HostPlatform: "ipados",
 				},
+				{
+					ProfileName:  fleetmdm.FleetdConfigProfileName,
+					HostPlatform: "tvos",
+				},
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "tvos",
+				},
+				{
+					ProfileName:  "SomeProfile4",
+					HostPlatform: "tvos",
+				},
 			},
 			expectedProfiles: []*fleet.MDMAppleProfilePayload{
 				{
@@ -748,6 +760,10 @@ func TestFilterMacOSOnlyProfilesFromIOSIPadOS(t *testing.T) {
 				{
 					ProfileName:  "SomeProfile3",
 					HostPlatform: "ipados",
+				},
+				{
+					ProfileName:  "SomeProfile4",
+					HostPlatform: "tvos",
 				},
 			},
 		},

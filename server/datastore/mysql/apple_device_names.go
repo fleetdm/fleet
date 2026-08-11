@@ -40,7 +40,7 @@ const deviceNameEligibleHostsJoins = `
 	JOIN host_mdm hm ON hm.host_id = h.id`
 
 const deviceNameEligibleHostsWhere = `
-	h.platform IN ('darwin', 'ios', 'ipados')
+	h.platform IN ('darwin', 'ios', 'ipados', 'tvos')
 	AND ne.enabled = 1
 	AND ne.type = 'Device'
 	AND hm.enrolled = 1

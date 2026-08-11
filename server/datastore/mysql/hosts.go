@@ -1043,7 +1043,7 @@ const hostMDMSelect = `,
 			)
 			WHEN h.platform = 'android' THEN
 				CASE WHEN hmdm.enrolled = 1 THEN CAST(TRUE AS JSON) ELSE CAST(FALSE AS JSON) END
-			WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (` +
+			WHEN h.platform IN ('ios', 'ipados', 'tvos', 'darwin') THEN (` +
 	// NOTE: if you change any of the conditions in this
 	// query, please update the AreHostsConnectedToFleetMDM
 	// datastore method and any relevant filters.
@@ -1654,7 +1654,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		}
 	}
 	if opt.MDMNameFilter != nil || opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
-		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN ('darwin', 'windows', 'ios', 'ipados', 'android')`
+		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN ('darwin', 'windows', 'ios', 'ipados', 'tvos', 'android')`
 	}
 	return sql, params
 }
@@ -2341,7 +2341,7 @@ func matchHostDuringEnrollment(
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND platform IN ('darwin', 'ios', 'ipados', 'tvos') ORDER BY id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, serial)
 	}
 
@@ -5195,7 +5195,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 					WHERE mwe.host_uuid = h.uuid
 					AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
 				)
-				WHEN hm.enrolled = 1 AND h.platform IN ('ios', 'ipados', 'darwin') THEN EXISTS (
+				WHEN hm.enrolled = 1 AND h.platform IN ('ios', 'ipados', 'tvos', 'darwin') THEN EXISTS (
 					SELECT 1 FROM nano_enrollments ne
 					WHERE ne.id = h.uuid
 					AND ne.enabled = 1
@@ -5497,7 +5497,7 @@ func (ds *Datastore) AggregatedMDMSolutions(ctx context.Context, teamID *uint, p
 
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	var (
-		platforms = []string{"", "darwin", "windows", "ios", "ipados", "android"}
+		platforms = []string{"", "darwin", "windows", "ios", "ipados", "tvos", "android"}
 		teamIDs   []uint
 	)
 
@@ -6477,7 +6477,7 @@ func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) 
 func numHostsABMPendingDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var count int
 	const stmt = `
-SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE h.platform IN ('darwin', 'ios', 'ipados') AND hmdm.enrollment_status = 'Pending';
+SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE h.platform IN ('darwin', 'ios', 'ipados', 'tvos') AND hmdm.enrollment_status = 'Pending';
   	`
 	if err := sqlx.GetContext(ctx, db, &count, stmt); err != nil {
 		return 0, err

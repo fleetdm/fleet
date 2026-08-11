@@ -1513,12 +1513,12 @@ func mdmHostEnrollFields(mdmHost *fleet.Host) (refetchRequested bool, lastEnroll
 		// Given the device does not have osquery, we set the last_enrolled_at as the MDM enroll time.
 		lastEnrolledAt = time.Now()
 	}
-	// iOS/iPadOS have no osquery, so their inventory only comes from MDM
-	// refetch commands. Flag freshly-enrolled iPhones/iPads so the
+	// iOS/iPadOS/tvOS have no osquery, so their inventory only comes from MDM
+	// refetch commands. Flag freshly-enrolled iPhones/iPads/Apple TVs so the
 	// iphone_ipad_refetcher cron picks them up on its next tick instead of
 	// waiting for the 1-hour staleness window — without this the host page
 	// shows no installable software until the user manually clicks Refetch.
-	refetchRequested = supportsOsquery || mdmHost.Platform == "ios" || mdmHost.Platform == "ipados"
+	refetchRequested = supportsOsquery || fleet.IsAppleMDMOnlyPlatform(mdmHost.Platform)
 	return refetchRequested, lastEnrolledAt
 }
 
@@ -1565,10 +1565,10 @@ func updateMDMAppleHostDB(
 		hostID,
 	}
 
-	// Only update last_enrolled_at if this is a iOS/iPadOS device.
+	// Only update last_enrolled_at if this is an iOS/iPadOS/tvOS device.
 	// macOS should not update last_enrolled_at as it is set when osquery enrolls.
 	lastEnrolledAtColumn := ""
-	if mdmHost.Platform == "ios" || mdmHost.Platform == "ipados" {
+	if fleet.IsAppleMDMOnlyPlatform(mdmHost.Platform) {
 		lastEnrolledAtColumn = "last_enrolled_at = ?,"
 		args = append([]interface{}{lastEnrolledAt}, args...)
 	}
@@ -1707,6 +1707,7 @@ type hostToCreateFromMDM struct {
 	// - contains "iphone" the platform is "ios"
 	// - contains "ipod" the platform is "ios"
 	// - contains "ipad" the platform is "ipados"
+	// - contains "appletv" the platform is "tvos"
 	// - otherwise the platform is "darwin"
 	PlatformHint string
 	// Optional UUID to be set before authenticate mdm
@@ -1744,7 +1745,7 @@ func createHostFromMDMDB(
 				'`+server.NeverTimestamp+`' AS last_enrolled_at,
 				'`+server.NeverTimestamp+`' AS detail_updated_at,
 				NULL AS osquery_host_id,
-				IF(us.platform = 'ios' OR us.platform = 'ipados', 0, 1) AS refetch_requested,
+				IF(us.platform IN ('ios', 'ipados', 'tvos'), 0, 1) AS refetch_requested,
 				CASE
 					WHEN us.platform = 'ios' THEN ?
 					WHEN us.platform = 'ipados' THEN ?
@@ -2210,58 +2211,54 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	// query results are received; however, we want to insert pending MDM hosts
 	// now because it may still be some time before osquery is running on these
 	// devices. Because these are Apple devices, we're adding them to the "All
-	// Hosts" and one of "macOS", "iOS", "iPadOS" labels.
+	// Hosts" and one of "macOS", "iOS", "iPadOS", "tvOS" labels.
+	platformLabelNames := map[string]string{
+		"ios":    fleet.BuiltinLabelIOS,
+		"ipados": fleet.BuiltinLabelIPadOS,
+		"tvos":   fleet.BuiltinLabelTvOS,
+		// at this point, any other platform is assumed to be "darwin"
+		"darwin": fleet.BuiltinLabelNameMacOS,
+	}
+	wantedLabelNames := append(slices.Collect(maps.Values(platformLabelNames)), fleet.BuiltinLabelNameAllHosts)
+	slices.Sort(wantedLabelNames) // keep the generated statement stable across calls
+
 	labels := []struct {
 		ID   uint   `db:"id"`
 		Name string `db:"name"`
 	}{}
-	err := sqlx.SelectContext(ctx, tx, &labels, `SELECT id, name FROM labels WHERE label_type = 1 AND (name = 'All Hosts' OR name = 'macOS' OR name = 'iOS' OR name = 'iPadOS')`)
+	stmt, selectArgs, err := sqlx.In(`SELECT id, name FROM labels WHERE label_type = 1 AND name IN (?)`, wantedLabelNames)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build builtin labels query")
+	}
+	err = sqlx.SelectContext(ctx, tx, &labels, stmt, selectArgs...)
 	switch {
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get builtin labels")
-	case len(labels) != 4:
+	case len(labels) != len(wantedLabelNames):
 		// Builtin labels can get deleted so it is important that we check that
 		// they still exist before we continue.
-		logger.ErrorContext(ctx, fmt.Sprintf("expected 4 builtin labels but got %d", len(labels)))
+		logger.ErrorContext(ctx, fmt.Sprintf("expected %d builtin labels but got %d", len(wantedLabelNames), len(labels)))
 		return nil
 	default:
 		// continue
 	}
 
 	// We cannot assume IDs on labels, thus we look by name.
-	var (
-		allHostsLabelID uint
-		macOSLabelID    uint
-		iOSLabelID      uint
-		iPadOSLabelID   uint
-	)
+	labelIDsByName := make(map[string]uint, len(labels))
 	for _, label := range labels {
-		switch label.Name {
-		case "All Hosts":
-			allHostsLabelID = label.ID
-		case "macOS":
-			macOSLabelID = label.ID
-		case "iOS":
-			iOSLabelID = label.ID
-		case "iPadOS":
-			iPadOSLabelID = label.ID
-		}
+		labelIDsByName[label.Name] = label.ID
 	}
+	allHostsLabelID := labelIDsByName[fleet.BuiltinLabelNameAllHosts]
 
 	parts := []string{}
 	args := []interface{}{}
 	for _, h := range hosts {
-		var osLabelID uint
-		switch h.Platform {
-		case "ios":
-			osLabelID = iOSLabelID
-		case "ipados":
-			osLabelID = iPadOSLabelID
-		default: // at this point, assume "darwin"
-			osLabelID = macOSLabelID
+		labelName, ok := platformLabelNames[h.Platform]
+		if !ok {
+			labelName = fleet.BuiltinLabelNameMacOS
 		}
 		parts = append(parts, "(?,?),(?,?)")
-		args = append(args, h.ID, allHostsLabelID, h.ID, osLabelID)
+		args = append(args, h.ID, allHostsLabelID, h.ID, labelIDsByName[labelName])
 	}
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 			INSERT INTO label_membership (host_id, label_id) VALUES %s
@@ -2280,6 +2277,7 @@ func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sq
 		"darwin":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
 		"ios":     {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
 		"ipados":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
+		"tvos":    {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
 		"windows": {"host_mdm_windows_profiles"},
 		"android": {"host_mdm_android_profiles"},
 	}
@@ -2384,8 +2382,8 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 		// NOTE: intentionally keeping disk encryption keys and bootstrap
 		// package information.
 
-		// iPhones and iPads have no osquery thus we don't need to refetch.
-		if host.Platform == "ios" || host.Platform == "ipados" {
+		// iPhones, iPads and Apple TVs have no osquery thus we don't need to refetch.
+		if fleet.IsAppleMDMOnlyPlatform(host.Platform) {
 			return nil
 		}
 
@@ -2412,6 +2410,10 @@ func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []inte
 			platform = string(fleet.IOSPlatform)
 		case strings.Contains(normalizedHint, "ipad"):
 			platform = string(fleet.IPadOSPlatform)
+		// Matches both the DEP sync device_family ("AppleTV") and OTA-style product
+		// strings ("AppleTV14,1").
+		case strings.Contains(normalizedHint, "appletv"):
+			platform = string(fleet.TVOSPlatform)
 		}
 		args = append(args, d.HardwareSerial, d.HardwareModel, platform)
 	}
@@ -4727,8 +4729,8 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 
 		// Do platform-specific cleanup.
 		switch host.Platform {
-		case "ios", "ipados":
-			// Clear refetch commands for iOS and iPadOS hosts.
+		case "ios", "ipados", "tvos":
+			// Clear refetch commands for iOS, iPadOS and tvOS hosts.
 			// FIXME: Do we care about wipe/lock commands? How can we consolidate this with host deletion? See https://github.com/fleetdm/fleet/pull/29283/files#r2098735905
 			_, err = tx.ExecContext(ctx, `
 					DELETE FROM host_mdm_commands
@@ -6443,6 +6445,7 @@ func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval tim
 SELECT
 	h.id as host_id,
 	h.uuid as uuid,
+	h.platform,
 	hmdm.installed_from_dep,
 	hmdm.is_personal_enrollment,
 	JSON_ARRAYAGG(hmc.command_type) as commands_already_sent
@@ -6451,7 +6454,7 @@ FROM hosts h
 	INNER JOIN nano_enrollments ne ON ne.id = h.uuid
 	LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?)
 WHERE
-	(h.platform = 'ios' OR h.platform = 'ipados')
+	h.platform IN ('ios', 'ipados', 'tvos')
 	AND TRIM(h.uuid) != ''
 	AND (
 		TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
@@ -7195,6 +7198,9 @@ LIMIT 1`
 			settings = ac.MDM.IPadOSUpdates
 		case "darwin":
 			settings = ac.MDM.MacOSUpdates
+		case "tvos":
+			// tvOS has no OS update settings yet; leaving them unset means no
+			// minimum version is enforced, so enrollment proceeds.
 		default:
 			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
 		}
@@ -7211,6 +7217,9 @@ LIMIT 1`
 			settings = tm.Config.MDM.IPadOSUpdates
 		case "darwin":
 			settings = tm.Config.MDM.MacOSUpdates
+		case "tvos":
+			// tvOS has no OS update settings yet; leaving them unset means no
+			// minimum version is enforced, so enrollment proceeds.
 		default:
 			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
 		}
@@ -7351,7 +7360,7 @@ FROM
 WHERE
 	e.type IN ('Device', 'User Enrollment (Device)') AND
 	e.enabled = 1 AND
-	d.platform IN ('ios', 'ipados') AND
+	d.platform IN ('ios', 'ipados', 'tvos') AND
 	h.id IS NULL
 LIMIT ?
 `

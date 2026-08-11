@@ -1272,7 +1272,7 @@ func (h *Host) SupportsOsquery() bool {
 
 // PlatformSupportsOsquery returns whether osquery is supported on this platform.
 func PlatformSupportsOsquery(platform string) bool {
-	return platform != "ios" && platform != "ipados" && platform != "android"
+	return platform != "ios" && platform != "ipados" && platform != "tvos" && platform != "android"
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
@@ -1352,7 +1352,7 @@ func IsLinux(hostPlatform string) bool {
 }
 
 func IsApplePlatform(hostPlatform string) bool {
-	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
+	return hostPlatform == "darwin" || IsAppleMDMOnlyPlatform(hostPlatform)
 }
 
 func IsMacOSPlatform(hostPlatform string) bool {
@@ -1362,6 +1362,22 @@ func IsMacOSPlatform(hostPlatform string) bool {
 // Return true if the platform is either iOS or iPadOS
 func IsAppleMobilePlatform(hostPlatform string) bool {
 	return hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
+func IsAppleTVPlatform(hostPlatform string) bool {
+	return hostPlatform == "tvos"
+}
+
+// IsAppleMDMOnlyPlatform reports whether the platform is an Apple platform that
+// Fleet manages exclusively over the MDM protocol (no osquery/fleetd): iOS,
+// iPadOS or tvOS.
+//
+// Prefer this over IsAppleMobilePlatform for anything tvOS shares with
+// iPhone/iPad — managed app installs, refetch semantics, the absence of
+// scripts/queries/policies. IsAppleMobilePlatform stays narrow for the
+// capabilities Apple TV lacks: passcodes, lost mode, location and battery.
+func IsAppleMDMOnlyPlatform(hostPlatform string) bool {
+	return IsAppleMobilePlatform(hostPlatform) || IsAppleTVPlatform(hostPlatform)
 }
 
 func IsAndroidPlatform(hostPlatform string) bool {
@@ -1396,6 +1412,7 @@ func PlatformFromHost(hostPlatform string) string {
 		hostPlatform == "chrome",
 		hostPlatform == "ios",
 		hostPlatform == "ipados",
+		hostPlatform == "tvos",
 		hostPlatform == "android":
 		return hostPlatform
 	default:
