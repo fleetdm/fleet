@@ -69,6 +69,7 @@ const InfoBanner = ({
             <Button
               variant="subdued"
               icon="close"
+              ariaLabel="Close"
               onClick={() => setHideBanner(true)}
               className={`${baseClass}__close`}
             />
