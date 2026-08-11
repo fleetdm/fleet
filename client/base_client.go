@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -14,6 +15,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -21,6 +24,11 @@ import (
 )
 
 var ErrInvalidScheme = errors.New("address must start with https:// for remote connections")
+
+// defaultStallCheckInterval is the floor for how often the download stall
+// watchdog polls for progress. The watchdog ticks at max(StallTimeout/4, floor),
+// so it only takes effect for sub-4s timeouts (i.e. tests).
+const defaultStallCheckInterval = time.Second
 
 // HTTPClient interface allows the HTTP methods to be mocked.
 type HTTPClient interface {
@@ -226,6 +234,14 @@ type FileResponse struct {
 	DestFilePath  string
 	SkipMediaType bool
 	ProgressFunc  func(n int)
+	// StallTimeout, if > 0, aborts the download when no bytes are read for this
+	// duration. Any read resets the clock, so a slow-but-progressing transfer is
+	// never aborted; only a silently stalled connection (e.g. a network filter
+	// dropping packets) is. Zero disables the watchdog.
+	StallTimeout time.Duration
+	// stallCheckInterval overrides the stall watchdog's poll floor. Zero uses
+	// defaultStallCheckInterval; tests set it small to exercise the watchdog fast.
+	stallCheckInterval time.Duration
 }
 
 func (f *FileResponse) Handle(resp *http.Response) error {
@@ -256,15 +272,59 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	}
 	defer destFile.Close()
 
+	// Track the time of the last read so a stall watchdog can distinguish a
+	// silently stalled connection from a slow-but-progressing one.
+	var lastProgress atomic.Int64
+	lastProgress.Store(time.Now().UnixNano())
+
 	var respBodyReader io.Reader = resp.Body
-	if f.ProgressFunc != nil {
+	if f.ProgressFunc != nil || f.StallTimeout > 0 {
 		respBodyReader = &progressReader{
-			Reader:       respBodyReader,
-			progressFunc: f.ProgressFunc,
+			Reader: respBodyReader,
+			progressFunc: func(n int) {
+				if n > 0 {
+					lastProgress.Store(time.Now().UnixNano())
+				}
+				if f.ProgressFunc != nil {
+					f.ProgressFunc(n)
+				}
+			},
 		}
 	}
 
+	// Stall watchdog: if no bytes are read for StallTimeout, close the body to
+	// unblock the io.Copy below. We surface the result as a DeadlineExceeded so
+	// callers treat it as transient/retryable (installer.isNetworkOrTransientError).
+	var stalled atomic.Bool
+	if f.StallTimeout > 0 {
+		stopWatchdog := make(chan struct{})
+		defer close(stopWatchdog)
+		checkInterval := f.stallCheckInterval
+		if checkInterval <= 0 {
+			checkInterval = defaultStallCheckInterval
+		}
+		go func() {
+			ticker := time.NewTicker(max(f.StallTimeout/4, checkInterval))
+			defer ticker.Stop()
+			for {
+				select {
+				case <-stopWatchdog:
+					return
+				case <-ticker.C:
+					if time.Since(time.Unix(0, lastProgress.Load())) >= f.StallTimeout {
+						stalled.Store(true)
+						resp.Body.Close()
+						return
+					}
+				}
+			}
+		}()
+	}
+
 	_, err = io.Copy(destFile, respBodyReader)
+	if stalled.Load() {
+		return fmt.Errorf("download stalled: no data received for %s: %w", f.StallTimeout, context.DeadlineExceeded)
+	}
 	if err != nil {
 		return fmt.Errorf("copying from http stream to file: %w", err)
 	}
