@@ -139,7 +139,7 @@ Here's an example DDM (`com.apple.configuration.*`) snippet:
 ```json
 {
     "Type": "com.apple.configuration.passcode.settings",
-    "PayloadScope":"User",
+    "PayloadScope": "User",
     "Identifier": "EB13EE2B-5D63-4EBA-810F-5B81D07F5017",
     "ServerToken": "E180CA9A-F089-4FA3-BBDF-94CC159C4AE8",
     "Payload": {
