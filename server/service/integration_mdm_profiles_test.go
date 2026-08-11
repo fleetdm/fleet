@@ -5167,29 +5167,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			require.NotEqual(t, "fully-protected-A", p.Name, "deleted profile must not remain listed on the host")
 		}
 
-		// The per-host rollup must be refreshed off the remaining rows rather than left reflecting the deleted profile.
-		var rollupStatus, recomputedStatus string
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			if err := sqlx.GetContext(context.Background(), q, &rollupStatus,
-				`SELECT status FROM host_mdm_windows_profiles_status WHERE host_uuid = ?`, host.UUID); err != nil {
-				return err
-			}
-			stmt, args, err := sqlx.In(`
-				SELECT CASE
-					WHEN SUM(status = 'failed' AND profile_name NOT IN (?)) > 0 THEN 'failed'
-					WHEN SUM((status IS NULL OR status = 'pending') AND profile_name NOT IN (?)) > 0 THEN 'pending'
-					WHEN SUM(operation_type = 'install' AND status = 'verifying' AND profile_name NOT IN (?)) > 0 THEN 'verifying'
-					WHEN SUM(operation_type = 'install' AND status = 'verified' AND profile_name NOT IN (?)) > 0 THEN 'verified'
-					ELSE '' END
-				FROM host_mdm_windows_profiles WHERE host_uuid = ?`,
-				servermdm.ListFleetReservedWindowsProfileNames(), servermdm.ListFleetReservedWindowsProfileNames(),
-				servermdm.ListFleetReservedWindowsProfileNames(), servermdm.ListFleetReservedWindowsProfileNames(), host.UUID)
-			if err != nil {
-				return err
-			}
-			return sqlx.GetContext(context.Background(), q, &recomputedStatus, stmt, args...)
-		})
-		require.Equal(t, recomputedStatus, rollupStatus)
+		// The rollup refresh that BulkDeleteMDMWindowsHostsConfigProfiles performs on delete is covered discriminatingly in
+		// testWindowsProfilesStatusRollup (a failed profile deleted -> the host recomputes to verified), so it is not
+		// re-asserted here: every row left on this host is in the same state, so a stale rollup and a fresh one look identical.
 	})
 }
 
