@@ -256,7 +256,12 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 				continue
 			}
 			platform = fleet.MacOSPlatform
-		case "appletv":
+		// Apple spells this platform three different ways across one
+		// request/response pair: "appletv" as the additionalPlatforms request
+		// parameter, "tvos" as the device family here, and "appletvos" as the
+		// platformAttributes key below. All three are required and none of them
+		// can be inferred from the others.
+		case "tvos":
 			// Apple TV apps are built against a separate SDK, so they carry
 			// their own platform entry rather than sharing the "ios" one.
 			data, ok = app.Attributes.Platforms["appletvos"]
@@ -289,6 +294,15 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 // getBaseURL returns the VPP app metadata base URL for the given storefront
 // region. The FLEET_DEV_VPP_REGION dev override, when set, takes precedence
 // over the caller-supplied region. An empty region falls back to "us".
+//
+// NOTE: platform / additionalPlatforms decides which platformAttributes Apple
+// returns at all. A platform missing from this list is absent from the
+// response, so ToVPPApps can never map it — adding a platform to ToVPPApps
+// without adding it here silently yields no apps for it.
+//
+// additionalPlatforms accepts: appletv, ipad, iphone, mac, realityDevice, web.
+// Fleet requests the ones it manages; realityDevice (visionOS) and web are
+// deliberately omitted.
 func getBaseURL(bearerTokenSupplied bool, region string) string {
 	if region == "" {
 		region = "us"
@@ -303,10 +317,10 @@ func getBaseURL(bearerTokenSupplied bool, region string) string {
 	}
 	// if a bearer token is supplied and we don't have an explicit further override, use Apple's endpoint directly
 	if urlFromEnvVar == "apple" || bearerTokenSupplied {
-		return fmt.Sprintf(appleHostAndScheme+"/v1/catalog/%s/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
+		return fmt.Sprintf(appleHostAndScheme+"/v1/catalog/%s/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", region)
 	}
 
-	return fmt.Sprintf("https://fleetdm.com/api/vpp/v1/metadata/%s?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
+	return fmt.Sprintf("https://fleetdm.com/api/vpp/v1/metadata/%s?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", region)
 }
 
 type authResp struct {
