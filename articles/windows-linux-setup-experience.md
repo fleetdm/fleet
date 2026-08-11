@@ -42,6 +42,7 @@ If end users authenticate before Fleet's agent (fleetd) is installed, for exampl
 fleetctl package --type msi --fleet-url <your_fleet_url> --enroll-secret <your_enroll_secret> --bypass-end-user-auth
 ```
 
+This flag only works if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to false.
 ## Install software
 
 ### End user experience
