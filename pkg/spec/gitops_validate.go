@@ -131,6 +131,7 @@ var anyFieldTypes = map[reflect.Type]map[string]reflect.Type{
 		"macos_updates":    reflect.TypeFor[fleet.AppleOSUpdateSettings](),
 		"ios_updates":      reflect.TypeFor[fleet.AppleOSUpdateSettings](),
 		"ipados_updates":   reflect.TypeFor[fleet.AppleOSUpdateSettings](),
+		"tvos_updates":     reflect.TypeFor[fleet.AppleOSUpdateSettings](),
 		"macos_migration":  reflect.TypeFor[fleet.MacOSMigration](),
 		"windows_updates":  reflect.TypeFor[fleet.WindowsUpdates](),
 		"macos_settings":   reflect.TypeFor[fleet.MacOSSettings](),

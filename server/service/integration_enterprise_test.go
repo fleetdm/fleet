@@ -333,6 +333,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
+		TvOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+			DeadlineDays:   optjson.Int{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true},
+		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.Int{Set: true},
 			GracePeriodDays: optjson.Int{Set: true},
@@ -469,6 +475,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
+		TvOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+			DeadlineDays:   optjson.Int{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true},
+		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(1),
 			GracePeriodDays: optjson.SetInt(1),
@@ -510,6 +522,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			DeadlineDays:   optjson.Int{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true},
+		},
+		TvOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
 			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
@@ -556,6 +574,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("2024-08-24"),
+			DeadlineDays:   optjson.Int{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true},
+		},
+		TvOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
 			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
@@ -3898,6 +3922,12 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			UpdateNewHosts: optjson.Bool{Set: true},
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+			DeadlineDays:   optjson.Int{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true, Valid: false, Value: false},
+		},
+		TvOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
 			DeadlineDays:   optjson.Int{Set: true},

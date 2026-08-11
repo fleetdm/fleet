@@ -536,6 +536,17 @@ func (a ActivityTypeEditedIPadOSMinVersion) ActivityName() string {
 	return "edited_ipados_min_version"
 }
 
+type ActivityTypeEditedTvOSMinVersion struct {
+	TeamID         *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName       *string `json:"team_name" renameto:"fleet_name"`
+	MinimumVersion string  `json:"minimum_version"`
+	Deadline       string  `json:"deadline"`
+}
+
+func (a ActivityTypeEditedTvOSMinVersion) ActivityName() string {
+	return "edited_tvos_min_version"
+}
+
 type ActivityTypeReadHostDiskEncryptionKey struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`

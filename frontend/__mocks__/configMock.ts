@@ -30,6 +30,11 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     deadline: "",
     deadline_days: null,
   },
+  tvos_updates: {
+    minimum_version: "",
+    deadline: "",
+    deadline_days: null,
+  },
   apple_settings: {
     configuration_profiles: null,
     enable_disk_encryption: false,

@@ -420,6 +420,9 @@ controls:
   ipados_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
     minimum_version: "18.1"
+  tvos_updates: # Available in Fleet Premium
+    deadline: "2024-12-31"
+    minimum_version: "18.4"
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
     grace_period_days: 2
@@ -478,6 +481,13 @@ controls:
 
 - `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
 - `minimum_version` specifies the minimum required iPadOS version (default: `""`).
+
+### tvos_updates
+
+- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
+- `minimum_version` specifies the minimum required tvOS version (default: `""`).
+
+Enforcing a minimum tvOS version requires tvOS 18.4 or later. Apple TVs on earlier versions report the setting as failed.
 
 ### windows_updates
 

@@ -1472,6 +1472,10 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		softwareUpdateIdentifier = "ipados" + softwareUpdateIdentSuffix
 		osUpdatesProfileName = mdm.FleetIPadOSUpdatesProfileName
 		labelName = fleet.BuiltinLabelIPadOS
+	case fleet.TvOS:
+		softwareUpdateIdentifier = "tvos" + softwareUpdateIdentSuffix
+		osUpdatesProfileName = mdm.FleetTvOSUpdatesProfileName
+		labelName = fleet.BuiltinLabelTvOS
 	default:
 		panic(fmt.Sprintf("invalid AppleDevice: %d", appleDevice))
 	}

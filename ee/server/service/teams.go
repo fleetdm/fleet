@@ -243,6 +243,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		macOSManagedLocalAccountUpdated bool
 		conditionalAccessUpdated        bool
 		nameTemplateUpdated             bool
+		tvOSMinVersionUpdated           bool
 	)
 	var windowsManagedLocalAccountUpdated bool
 	if payload.MDM != nil {
@@ -285,6 +286,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
+		if payload.MDM.TvOSUpdates != nil {
+			if err := payload.MDM.TvOSUpdates.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("tvos_updates", err.Error())
+			}
+			if payload.MDM.TvOSUpdates.MinimumVersion.Set || payload.MDM.TvOSUpdates.Deadline.Set || payload.MDM.TvOSUpdates.DeadlineDays.Set {
+				tvOSMinVersionUpdated = team.Config.MDM.TvOSUpdates.MinimumVersion.Value != payload.MDM.TvOSUpdates.MinimumVersion.Value ||
+					team.Config.MDM.TvOSUpdates.Deadline.Value != payload.MDM.TvOSUpdates.Deadline.Value ||
+					team.Config.MDM.TvOSUpdates.DeadlineDays.Value != payload.MDM.TvOSUpdates.DeadlineDays.Value ||
+					team.Config.MDM.TvOSUpdates.DeadlineDays.Valid != payload.MDM.TvOSUpdates.DeadlineDays.Valid
+				team.Config.MDM.TvOSUpdates = *payload.MDM.TvOSUpdates
+			}
+		}
+
 		// Only check whether specified versions are supported by Apple if they were updated in this request.
 		// Note that we're validating against the full, non-public asset set of OS versions here because
 		// in our DEP flow the minimum version just acts as the threshold for whether or not to update
@@ -303,8 +317,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if v, ok := m["ipados"]; ok && iPadOSMinVersionUpdated {
 			return nil, fleet.NewInvalidArgumentError("ipados_updates.minimum_version", v)
 		}
+		if v, ok := m["tvos"]; ok && tvOSMinVersionUpdated {
+			return nil, fleet.NewInvalidArgumentError("tvos_updates.minimum_version", v)
+		}
 
-		if payload.MDM != nil && (payload.MDM.MacOSUpdates != nil && payload.MDM.MacOSUpdates.Configured()) || (payload.MDM.IOSUpdates != nil && payload.MDM.IOSUpdates.Configured()) || (payload.MDM.IPadOSUpdates != nil && payload.MDM.IPadOSUpdates.Configured()) {
+		if payload.MDM != nil && (payload.MDM.MacOSUpdates != nil && payload.MDM.MacOSUpdates.Configured()) || (payload.MDM.IOSUpdates != nil && payload.MDM.IOSUpdates.Configured()) || (payload.MDM.IPadOSUpdates != nil && payload.MDM.IPadOSUpdates.Configured()) || (payload.MDM.TvOSUpdates != nil && payload.MDM.TvOSUpdates.Configured()) {
 			// Verify that we don't have a custom OS updates declaration
 			hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, teamID)
 			if err != nil {
@@ -600,6 +617,24 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team iPadOS min version edited")
+		}
+	}
+	if tvOSMinVersionUpdated {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.TvOS, team.Config.MDM.TvOSUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on tvOS updates change")
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedTvOSMinVersion{
+				TeamID:         &team.ID,
+				TeamName:       &team.Name,
+				MinimumVersion: team.Config.MDM.TvOSUpdates.MinimumVersion.Value,
+				Deadline:       team.Config.MDM.TvOSUpdates.Deadline.Value,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team tvOS min version edited")
 		}
 	}
 
@@ -1852,6 +1887,7 @@ func (svc *Service) editTeamFromSpec(
 		mdmMacOSUpdatesEdited   bool
 		mdmIOSUpdatesEdited     bool
 		mdmIPadOSUpdatesEdited  bool
+		mdmTvOSUpdatesEdited    bool
 		mdmWindowsUpdatesEdited bool
 	)
 	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set || spec.MDM.MacOSUpdates.DeadlineDays.Set || spec.MDM.MacOSUpdates.UpdateNewHosts.Set {
@@ -1875,8 +1911,15 @@ func (svc *Service) editTeamFromSpec(
 			team.Config.MDM.IPadOSUpdates.DeadlineDays.Valid != spec.MDM.IPadOSUpdates.DeadlineDays.Valid
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
 	}
+	if spec.MDM.TvOSUpdates.Deadline.Set || spec.MDM.TvOSUpdates.MinimumVersion.Set || spec.MDM.TvOSUpdates.DeadlineDays.Set {
+		mdmTvOSUpdatesEdited = team.Config.MDM.TvOSUpdates.MinimumVersion.Value != spec.MDM.TvOSUpdates.MinimumVersion.Value ||
+			team.Config.MDM.TvOSUpdates.Deadline.Value != spec.MDM.TvOSUpdates.Deadline.Value ||
+			team.Config.MDM.TvOSUpdates.DeadlineDays.Value != spec.MDM.TvOSUpdates.DeadlineDays.Value ||
+			team.Config.MDM.TvOSUpdates.DeadlineDays.Valid != spec.MDM.TvOSUpdates.DeadlineDays.Valid
+		team.Config.MDM.TvOSUpdates = spec.MDM.TvOSUpdates
+	}
 
-	if spec.MDM.MacOSUpdates.Configured() || spec.MDM.IOSUpdates.Configured() || spec.MDM.IPadOSUpdates.Configured() {
+	if spec.MDM.MacOSUpdates.Configured() || spec.MDM.IOSUpdates.Configured() || spec.MDM.IPadOSUpdates.Configured() || spec.MDM.TvOSUpdates.Configured() {
 		// Verify that we don't have a custom OS updates declaration
 		hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, team.ID)
 		if err != nil {
@@ -2311,6 +2354,11 @@ func (svc *Service) editTeamFromSpec(
 	}
 	if mdmIPadOSUpdatesEdited {
 		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IPadOS, team.Config.MDM.IPadOSUpdates); err != nil {
+			return err
+		}
+	}
+	if mdmTvOSUpdatesEdited {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.TvOS, team.Config.MDM.TvOSUpdates); err != nil {
 			return err
 		}
 	}

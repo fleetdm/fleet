@@ -92,13 +92,20 @@ func (a AssetMetadata) IsSupportedIOSVersion(version string, devicePrefix string
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 func GetLatestOSVersion(device fleet.MDMAppleMachineInfo, updateAssets map[string][]fleet.AppleSoftwareUpdateAsset) (*fleet.AppleSoftwareUpdateAsset, error) {
-	assetSet := updateAssets["macos"] // default to public asset set; note that if the device is not macOS, iPhone, iPad, or iPod we'll fail to match the supported device and return an error below
-	if strings.HasPrefix(device.Product, "iPhone") ||
-		strings.HasPrefix(device.Product, "iPod") ||
-		strings.HasPrefix(device.Product, "iPad") ||
-		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPhone") ||
-		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPod") ||
-		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPad") {
+	// Default to the public (macOS) asset set; if the device is none of the
+	// families below we'll fail to match a supported device and error out below.
+	// Apple publishes Apple TV builds in the iOS asset set, so tvOS reads from
+	// there too.
+	assetSet := updateAssets["macos"]
+	isIOSAssetSetDevice := func(identifier string) bool {
+		for _, prefix := range []string{"iPhone", "iPod", "iPad", "AppleTV"} {
+			if strings.HasPrefix(identifier, prefix) {
+				return true
+			}
+		}
+		return false
+	}
+	if isIOSAssetSetDevice(device.Product) || isIOSAssetSetDevice(device.SoftwareUpdateDeviceID) {
 		assetSet = updateAssets["ios"]
 	}
 	latestIdx := -1

@@ -691,13 +691,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// AppleOSUpdateSettings.UpdateNewHosts only applies to macOS ... so just ignore w/e posted for iOS/iPadOS
+	// AppleOSUpdateSettings.UpdateNewHosts only applies to macOS ... so just ignore w/e posted for iOS/iPadOS/tvOS
 	appConfig.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
 	appConfig.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
+	appConfig.MDM.TvOSUpdates.UpdateNewHosts = optjson.Bool{}
 
 	clearStaleAppleOSUpdateDeadline(&appConfig.MDM.MacOSUpdates, newAppConfig.MDM.MacOSUpdates)
 	clearStaleAppleOSUpdateDeadline(&appConfig.MDM.IOSUpdates, newAppConfig.MDM.IOSUpdates)
 	clearStaleAppleOSUpdateDeadline(&appConfig.MDM.IPadOSUpdates, newAppConfig.MDM.IPadOSUpdates)
+	clearStaleAppleOSUpdateDeadline(&appConfig.MDM.TvOSUpdates, newAppConfig.MDM.TvOSUpdates)
 
 	// Handle Google Calendar API key preservation/replacement.
 	// The custom GoogleCalendarApiKey type handles unmarshaling "********" as masked.
@@ -921,7 +923,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if appConfig.MDM.MacOSUpdates.Configured() || appConfig.MDM.IOSUpdates.Configured() || appConfig.MDM.IPadOSUpdates.Configured() {
+	if appConfig.MDM.MacOSUpdates.Configured() || appConfig.MDM.IOSUpdates.Configured() ||
+		appConfig.MDM.IPadOSUpdates.Configured() || appConfig.MDM.TvOSUpdates.Configured() {
 		// Verify that we don't have a custom OS updates declaration
 		hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, 0)
 		if err != nil {
@@ -1536,6 +1539,12 @@ func (svc *Service) processSavedAppConfigChanges(
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "process iPadOS OS updates config change")
 	}
+	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.TvOS,
+		oldAppConfig.MDM.TvOSUpdates,
+		appConfig.MDM.TvOSUpdates,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "process tvOS OS updates config change")
+	}
 
 	if appConfig.YaraRules != nil {
 		if err := svc.ds.ApplyYaraRules(ctx, appConfig.YaraRules); err != nil {
@@ -1868,6 +1877,11 @@ func (svc *Service) processAppleOSUpdateSettings(
 				MinimumVersion: newOSUpdateSettings.MinimumVersion.Value,
 				Deadline:       newOSUpdateSettings.Deadline.Value,
 			}
+		case fleet.TvOS:
+			activity = fleet.ActivityTypeEditedTvOSMinVersion{
+				MinimumVersion: newOSUpdateSettings.MinimumVersion.Value,
+				Deadline:       newOSUpdateSettings.Deadline.Value,
+			}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for app config apple min version modification")
@@ -2138,24 +2152,34 @@ func (svc *Service) validateMDM(
 		mdm.IPadOSUpdates.Deadline != oldMdm.IPadOSUpdates.Deadline
 	updatingIPadOSDeadlineDays := mdm.IPadOSUpdates.DeadlineDays.Valid &&
 		mdm.IPadOSUpdates.DeadlineDays != oldMdm.IPadOSUpdates.DeadlineDays
+	// TvOSUpdates
+	updatingTvOSVersion := mdm.TvOSUpdates.MinimumVersion.Value != "" &&
+		mdm.TvOSUpdates.MinimumVersion != oldMdm.TvOSUpdates.MinimumVersion
+	updatingTvOSDeadline := mdm.TvOSUpdates.Deadline.Value != "" &&
+		mdm.TvOSUpdates.Deadline != oldMdm.TvOSUpdates.Deadline
+	updatingTvOSDeadlineDays := mdm.TvOSUpdates.DeadlineDays.Valid &&
+		mdm.TvOSUpdates.DeadlineDays != oldMdm.TvOSUpdates.DeadlineDays
 
 	updatingMacOS := updatingMacOSVersion || updatingMacOSDeadline || updatingMacOSDeadlineDays
 	updatingIOS := updatingIOSVersion || updatingIOSDeadline || updatingIOSDeadlineDays
 	updatingIPadOS := updatingIPadOSVersion || updatingIPadOSDeadline || updatingIPadOSDeadlineDays
+	updatingTvOS := updatingTvOSVersion || updatingTvOSDeadline || updatingTvOSDeadlineDays
 
-	if updatingMacOS || updatingIOS || updatingIPadOS {
+	if updatingMacOS || updatingIOS || updatingIPadOS || updatingTvOS {
 		// TODO: Should we validate MDM configured on here too?
 
 		if !lic.IsPremium() {
-			// The gate is shared by all three platforms, so a fixed field name
+			// The gate is shared by all the platforms, so a fixed field name
 			// would report macOS for an iOS-only edit.
 			field := "macos_updates.minimum_version"
 			switch {
 			case updatingMacOS:
 			case updatingIOS:
 				field = "ios_updates.minimum_version"
-			default:
+			case updatingIPadOS:
 				field = "ipados_updates.minimum_version"
+			default:
+				field = "tvos_updates.minimum_version"
 			}
 			invalid.Append(field, ErrMissingLicense.Error())
 			return nil
@@ -2169,6 +2193,9 @@ func (svc *Service) validateMDM(
 	}
 	if err := mdm.IPadOSUpdates.Validate(); err != nil {
 		invalid.Append("ipados_updates", err.Error())
+	}
+	if err := mdm.TvOSUpdates.Validate(); err != nil {
+		invalid.Append("tvos_updates", err.Error())
 	}
 
 	// Only check whether specified versions are supported by Apple if they were updated in this request.
@@ -2189,6 +2216,9 @@ func (svc *Service) validateMDM(
 	}
 	if v, ok := m["ipados"]; ok && updatingIPadOSVersion {
 		invalid.Append("ipados_updates.minimum_version", v)
+	}
+	if v, ok := m["tvos"]; ok && updatingTvOSVersion {
+		invalid.Append("tvos_updates.minimum_version", v)
 	}
 
 	if err := mdm.MacOSSetup.ValidateAgainst(oldMdm.MacOSSetup); err != nil {

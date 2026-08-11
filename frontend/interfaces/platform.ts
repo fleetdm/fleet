@@ -3,6 +3,7 @@ export const APPLE_PLATFORM_DISPLAY_NAMES = {
   darwin: "macOS",
   ios: "iOS",
   ipados: "iPadOS",
+  tvos: "tvOS",
 } as const;
 
 export type ApplePlatform = keyof typeof APPLE_PLATFORM_DISPLAY_NAMES;
@@ -25,7 +26,12 @@ export const QUERYABLE_PLATFORMS = [
   "chrome",
 ] as const;
 
-export const NON_QUERYABLE_PLATFORMS = ["ios", "ipados", "android"] as const;
+export const NON_QUERYABLE_PLATFORMS = [
+  "ios",
+  "ipados",
+  "tvos",
+  "android",
+] as const;
 
 export type Platform = keyof typeof PLATFORM_DISPLAY_NAMES;
 export type DisplayPlatform = typeof PLATFORM_DISPLAY_NAMES[keyof typeof PLATFORM_DISPLAY_NAMES];

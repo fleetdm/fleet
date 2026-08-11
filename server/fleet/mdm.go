@@ -1366,6 +1366,7 @@ const (
 	MacOS AppleDevice = iota
 	IOS
 	IPadOS
+	TvOS
 )
 
 type InstallableDevicePlatform string

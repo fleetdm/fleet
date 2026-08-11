@@ -287,6 +287,10 @@ const (
 	// FleetIPadOSUpdatesProfileName is the name of the DDM profile used by Fleet
 	// to configure iPadOS OS updates.
 	FleetIPadOSUpdatesProfileName = "Fleet iPadOS OS Updates"
+
+	// FleetTvOSUpdatesProfileName is the name of the DDM profile used by Fleet
+	// to configure tvOS OS updates.
+	FleetTvOSUpdatesProfileName = "Fleet tvOS OS Updates"
 )
 
 // FleetReservedProfileNames returns a map of PayloadDisplayName or profile
@@ -299,6 +303,7 @@ func FleetReservedProfileNames() map[string]struct{} {
 		FleetMacOSUpdatesProfileName:     {},
 		FleetIOSUpdatesProfileName:       {},
 		FleetIPadOSUpdatesProfileName:    {},
+		FleetTvOSUpdatesProfileName:      {},
 		FleetCAConfigProfileName:         {},
 	}
 }
@@ -322,5 +327,6 @@ func ListFleetReservedMacOSDeclarationNames() []string {
 		FleetMacOSUpdatesProfileName,
 		FleetIOSUpdatesProfileName,
 		FleetIPadOSUpdatesProfileName,
+		FleetTvOSUpdatesProfileName,
 	}
 }

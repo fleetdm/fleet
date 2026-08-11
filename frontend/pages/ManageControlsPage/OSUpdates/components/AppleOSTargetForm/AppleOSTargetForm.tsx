@@ -113,6 +113,7 @@ const APPLE_PLATFORMS_TO_CONFIG_FIELDS = {
   darwin: "macos_updates",
   ios: "ios_updates",
   ipados: "ipados_updates",
+  tvos: "tvos_updates",
 };
 
 interface IAppleOSUpdatesFields {

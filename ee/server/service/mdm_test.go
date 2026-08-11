@@ -677,6 +677,7 @@ func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
 		{"macos", fleet.MacOS, mdm.FleetMacOSUpdatesProfileName, fleet.BuiltinLabelMacOS14Plus},
 		{"ios", fleet.IOS, mdm.FleetIOSUpdatesProfileName, fleet.BuiltinLabelIOS},
 		{"ipados", fleet.IPadOS, mdm.FleetIPadOSUpdatesProfileName, fleet.BuiltinLabelIPadOS},
+		{"tvos", fleet.TvOS, mdm.FleetTvOSUpdatesProfileName, fleet.BuiltinLabelTvOS},
 	}
 
 	t.Run("latest emits Fleet variable placeholders", func(t *testing.T) {

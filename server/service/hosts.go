@@ -2048,28 +2048,30 @@ func (svc *Service) getOSUpdateForHostDetails(ctx context.Context, host *fleet.H
 		return nil, nil, nil
 	}
 
-	macOSUpdates := appConfig.MDM.MacOSUpdates
-	iOSUpdates := appConfig.MDM.IOSUpdates
-	iPadOSUpdates := appConfig.MDM.IPadOSUpdates
-
+	mdmSettings := appConfig.MDM
 	if host.TeamID != nil {
 		team, err := svc.ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get team for host")
 		}
-		macOSUpdates = team.Config.MDM.MacOSUpdates
-		iOSUpdates = team.Config.MDM.IOSUpdates
-		iPadOSUpdates = team.Config.MDM.IPadOSUpdates
+		mdmSettings = fleet.MDM{
+			MacOSUpdates:  team.Config.MDM.MacOSUpdates,
+			IOSUpdates:    team.Config.MDM.IOSUpdates,
+			IPadOSUpdates: team.Config.MDM.IPadOSUpdates,
+			TvOSUpdates:   team.Config.MDM.TvOSUpdates,
+		}
 	}
 
 	var relevantOSUpdates fleet.AppleOSUpdateSettings
 	switch host.Platform {
 	case "darwin":
-		relevantOSUpdates = macOSUpdates
+		relevantOSUpdates = mdmSettings.MacOSUpdates
 	case "ios":
-		relevantOSUpdates = iOSUpdates
+		relevantOSUpdates = mdmSettings.IOSUpdates
 	case "ipados":
-		relevantOSUpdates = iPadOSUpdates
+		relevantOSUpdates = mdmSettings.IPadOSUpdates
+	case "tvos":
+		relevantOSUpdates = mdmSettings.TvOSUpdates
 	}
 
 	if !relevantOSUpdates.Configured() {

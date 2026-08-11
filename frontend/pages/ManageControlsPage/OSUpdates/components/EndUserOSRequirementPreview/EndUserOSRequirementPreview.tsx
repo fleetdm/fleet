@@ -62,6 +62,16 @@ const OSRequirementDescription = ({
           <h3>End user experience</h3>
         </>
       );
+    case "tvos":
+      return (
+        <>
+          <h3>End user experience</h3>
+          <p>
+            Enforcing a minimum tvOS version requires tvOS 18.4 or later. Apple
+            TVs on earlier versions report the setting as failed.
+          </p>
+        </>
+      );
     default:
       return <></>;
   }
@@ -80,6 +90,9 @@ const OSRequirementImage = ({
         return IOSUpdateScreenshot;
       case "ipados":
         return IPadOSUpdateScreenshot;
+      case "tvos":
+        // TODO: swap for a real Apple TV screenshot when design provides one.
+        return IOSUpdateScreenshot;
       default:
         return MacOSUpdateScreenshot;
     }

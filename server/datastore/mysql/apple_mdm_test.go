@@ -8789,7 +8789,7 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 		HardwareSerial: "tvOS0_SERIAL",
 		HardwareModel:  "AppleTV14,1",
 		Platform:       "tvos",
-		OsqueryHostID:  ptr.String("tvOS0_OSQUERY_HOST_ID"),
+		OsqueryHostID:  new("tvOS0_OSQUERY_HOST_ID"),
 	}, false)
 	require.NoError(t, err)
 	tvOS0, err := ds.HostByIdentifier(ctx, "tvOS0_UUID")

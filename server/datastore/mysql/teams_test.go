@@ -847,6 +847,10 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 						MinimumVersion: optjson.SetString("12.12.12"),
 						Deadline:       optjson.SetString("2023-03-03"),
 					},
+					TvOSUpdates: fleet.AppleOSUpdateSettings{
+						MinimumVersion: optjson.SetString("18.4"),
+						Deadline:       optjson.SetString("2022-02-02"),
+					},
 					WindowsUpdates: fleet.WindowsUpdates{
 						DeadlineDays:    optjson.SetInt(7),
 						GracePeriodDays: optjson.SetInt(3),
@@ -888,6 +892,12 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			IPadOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("12.12.12"),
 				Deadline:       optjson.SetString("2023-03-03"),
+				DeadlineDays:   optjson.Int{Set: true},
+				UpdateNewHosts: optjson.Bool{Set: true},
+			},
+			TvOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("18.4"),
+				Deadline:       optjson.SetString("2022-02-02"),
 				DeadlineDays:   optjson.Int{Set: true},
 				UpdateNewHosts: optjson.Bool{Set: true},
 			},

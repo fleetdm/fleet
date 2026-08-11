@@ -101,6 +101,8 @@ type TeamPayloadMDM struct {
 	IOSUpdates *AppleOSUpdateSettings `json:"ios_updates"`
 	// IPadOSUpdates defines the OS update settings for iPadOS devices.
 	IPadOSUpdates *AppleOSUpdateSettings `json:"ipados_updates"`
+	// TvOSUpdates defines the OS update settings for tvOS devices.
+	TvOSUpdates *AppleOSUpdateSettings `json:"tvos_updates"`
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates *WindowsUpdates `json:"windows_updates"`
 
@@ -440,6 +442,7 @@ type TeamMDM struct {
 	MacOSUpdates               AppleOSUpdateSettings `json:"macos_updates"`
 	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
 	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
+	TvOSUpdates                AppleOSUpdateSettings `json:"tvos_updates"`
 	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
 	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
 	MacOSSetup                 MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
@@ -523,6 +526,8 @@ type TeamSpecMDM struct {
 	IOSUpdates AppleOSUpdateSettings `json:"ios_updates"`
 	// IPadOSUpdates defines the OS update settings for iPadOS devices.
 	IPadOSUpdates AppleOSUpdateSettings `json:"ipados_updates"`
+	// TvOSUpdates defines the OS update settings for tvOS devices.
+	TvOSUpdates AppleOSUpdateSettings `json:"tvos_updates"`
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 

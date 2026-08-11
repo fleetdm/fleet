@@ -20,6 +20,7 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
   chrome: "chrome",
   ios: "iOS",
   ipados: "iPadOS",
+  tvos: "tvOS",
   android: "Android",
 } as const;
 

@@ -68,6 +68,12 @@
           "require_all_software_windows": false,
           "software": null
         },
+        "tvos_updates": {
+          "deadline": null,
+          "deadline_days": null,
+          "minimum_version": null,
+          "update_new_hosts": null
+        },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "configuration_profiles": null,
@@ -160,6 +166,12 @@
           "update_new_hosts": null
         },
         "name_template": "",
+        "tvos_updates": {
+          "deadline": null,
+          "deadline_days": null,
+          "minimum_version": null,
+          "update_new_hosts": null
+        },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "custom_settings": null,
@@ -273,6 +285,12 @@
           "require_all_software_windows": false,
           "software": null
         },
+        "tvos_updates": {
+          "deadline": null,
+          "deadline_days": null,
+          "minimum_version": null,
+          "update_new_hosts": null
+        },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "configuration_profiles": null,
@@ -380,6 +398,12 @@
           "update_new_hosts": null
         },
         "name_template": "",
+        "tvos_updates": {
+          "deadline": null,
+          "deadline_days": null,
+          "minimum_version": null,
+          "update_new_hosts": null
+        },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "custom_settings": null,

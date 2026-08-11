@@ -1499,38 +1499,30 @@ func (svc *Service) handleDeclarationSoftwareUpdate(
 }
 
 func isAppleOSUpdatesConfigured(ctx context.Context, teamID uint, svc *Service) (bool, error) {
-	type AppleOSUpdates struct {
-		MacOSUpdates  fleet.AppleOSUpdateSettings
-		IOSUpdates    fleet.AppleOSUpdateSettings
-		IPadOSUpdates fleet.AppleOSUpdateSettings
-	}
-
 	// Get the relevant team-config, to check for OS updates being configured
-	var appleOSUpdates AppleOSUpdates
+	var appleOSUpdates []fleet.AppleOSUpdateSettings
 	if teamID > 0 {
 		teamConfig, err := svc.ds.TeamMDMConfig(ctx, teamID)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "getting team config")
 		}
-		appleOSUpdates = AppleOSUpdates{
-			MacOSUpdates:  teamConfig.MacOSUpdates,
-			IOSUpdates:    teamConfig.IOSUpdates,
-			IPadOSUpdates: teamConfig.IPadOSUpdates,
+		appleOSUpdates = []fleet.AppleOSUpdateSettings{
+			teamConfig.MacOSUpdates, teamConfig.IOSUpdates, teamConfig.IPadOSUpdates, teamConfig.TvOSUpdates,
 		}
 	} else {
 		appConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "getting app config")
 		}
-		appleOSUpdates = AppleOSUpdates{
-			MacOSUpdates:  appConfig.MDM.MacOSUpdates,
-			IOSUpdates:    appConfig.MDM.IOSUpdates,
-			IPadOSUpdates: appConfig.MDM.IPadOSUpdates,
+		appleOSUpdates = []fleet.AppleOSUpdateSettings{
+			appConfig.MDM.MacOSUpdates, appConfig.MDM.IOSUpdates, appConfig.MDM.IPadOSUpdates, appConfig.MDM.TvOSUpdates,
 		}
 	}
 
-	if appleOSUpdates.MacOSUpdates.Configured() || appleOSUpdates.IOSUpdates.Configured() || appleOSUpdates.IPadOSUpdates.Configured() {
-		return true, nil
+	for _, updates := range appleOSUpdates {
+		if updates.Configured() {
+			return true, nil
+		}
 	}
 	return false, nil
 }

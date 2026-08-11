@@ -269,6 +269,7 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeEditedWindowsUpdates{},
 		fleet.ActivityTypeEditedIOSMinVersion{},
 		fleet.ActivityTypeEditedIPadOSMinVersion{},
+		fleet.ActivityTypeEditedTvOSMinVersion{},
 		fleet.ActivityTypeEnabledMacosDiskEncryption{},
 		fleet.ActivityTypeDisabledMacosDiskEncryption{},
 		fleet.ActivityTypeEnabledRecoveryLockPasswords{},

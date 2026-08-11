@@ -19,7 +19,9 @@ type GetDefaultFnParams = {
   teamConfig?: ITeamConfig;
 };
 
-const getDefaultUpdateNewHosts = ({
+/** Resolves the OS update settings for an Apple platform from the team config,
+ * or the app config when viewing "No team". */
+const getAppleOSUpdateSettings = ({
   osType,
   currentTeamId,
   appConfig,
@@ -30,80 +32,31 @@ const getDefaultUpdateNewHosts = ({
 
   switch (osType) {
     case "darwin":
-      return !!mdmData?.macos_updates.update_new_hosts;
+      return mdmData?.macos_updates;
     case "ios":
-      return !!mdmData?.ios_updates.update_new_hosts;
+      return mdmData?.ios_updates;
     case "ipados":
-      return !!mdmData?.ipados_updates.update_new_hosts;
+      return mdmData?.ipados_updates;
+    case "tvos":
+      return mdmData?.tvos_updates;
     default:
-      return false;
+      return undefined;
   }
 };
+
+const getDefaultUpdateNewHosts = (params: GetDefaultFnParams) =>
+  !!getAppleOSUpdateSettings(params)?.update_new_hosts;
 
 /** deadline_days is only set in "latest" mode; an empty string means unset,
  * matching how the version and deadline defaults are handled. */
-const getDefaultAppleDeadlineDays = ({
-  osType,
-  currentTeamId,
-  appConfig,
-  teamConfig,
-}: GetDefaultFnParams) => {
-  const mdmData =
-    currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
+const getDefaultAppleDeadlineDays = (params: GetDefaultFnParams) =>
+  getAppleOSUpdateSettings(params)?.deadline_days?.toString() ?? "";
 
-  switch (osType) {
-    case "darwin":
-      return mdmData?.macos_updates.deadline_days?.toString() ?? "";
-    case "ios":
-      return mdmData?.ios_updates.deadline_days?.toString() ?? "";
-    case "ipados":
-      return mdmData?.ipados_updates.deadline_days?.toString() ?? "";
-    default:
-      return "";
-  }
-};
+const getDefaultOSVersion = (params: GetDefaultFnParams) =>
+  getAppleOSUpdateSettings(params)?.minimum_version ?? "";
 
-const getDefaultOSVersion = ({
-  osType,
-  currentTeamId,
-  appConfig,
-  teamConfig,
-}: GetDefaultFnParams) => {
-  const mdmData =
-    currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
-
-  switch (osType) {
-    case "darwin":
-      return mdmData?.macos_updates.minimum_version ?? "";
-    case "ios":
-      return mdmData?.ios_updates.minimum_version ?? "";
-    case "ipados":
-      return mdmData?.ipados_updates.minimum_version ?? "";
-    default:
-      return "";
-  }
-};
-
-const getDefaultDeadline = ({
-  osType,
-  currentTeamId,
-  appConfig,
-  teamConfig,
-}: GetDefaultFnParams) => {
-  const mdmData =
-    currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
-
-  switch (osType) {
-    case "darwin":
-      return mdmData?.macos_updates.deadline ?? "";
-    case "ios":
-      return mdmData?.ios_updates.deadline ?? "";
-    case "ipados":
-      return mdmData?.ipados_updates.deadline ?? "";
-    default:
-      return "";
-  }
-};
+const getDefaultDeadline = (params: GetDefaultFnParams) =>
+  getAppleOSUpdateSettings(params)?.deadline ?? "";
 
 const getDefaultWindowsDeadlineDays = ({
   currentTeamId,
@@ -211,6 +164,24 @@ const TargetSection = ({
     appConfig,
     teamConfig,
   });
+  const defaultTvOSVersion = getDefaultOSVersion({
+    osType: "tvos",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
+  const defaultTvOSDeadline = getDefaultDeadline({
+    osType: "tvos",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
+  const defaultTvOSDeadlineDays = getDefaultAppleDeadlineDays({
+    osType: "tvos",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
   const defaultMacOSUpdateNewHosts = getDefaultUpdateNewHosts({
     osType: "darwin",
     currentTeamId,
@@ -253,6 +224,9 @@ const TargetSection = ({
         defaultIPadOSVersion={defaultIPadOSOSVersion}
         defaultIPadOSDeadline={defaultIPadOSDeadline}
         defaultIPadOSDeadlineDays={defaultIPadOSDeadlineDays}
+        defaultTvOSVersion={defaultTvOSVersion}
+        defaultTvOSDeadline={defaultTvOSDeadline}
+        defaultTvOSDeadlineDays={defaultTvOSDeadlineDays}
         defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
         defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
         defaultMacOSUpdateNewHosts={defaultMacOSUpdateNewHosts}

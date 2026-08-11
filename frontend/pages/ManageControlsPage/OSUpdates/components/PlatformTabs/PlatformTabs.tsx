@@ -27,6 +27,9 @@ interface IPlatformTabsProps {
   defaultIPadOSVersion: string;
   defaultIPadOSDeadline: string;
   defaultIPadOSDeadlineDays: string;
+  defaultTvOSVersion: string;
+  defaultTvOSDeadline: string;
+  defaultTvOSDeadlineDays: string;
   defaultWindowsDeadlineDays: string;
   defaultWindowsGracePeriodDays: string;
   selectedPlatform: OSUpdatesTargetPlatform;
@@ -49,6 +52,9 @@ const PlatformTabs = ({
   defaultIPadOSDeadline,
   defaultIPadOSDeadlineDays,
   defaultIPadOSVersion,
+  defaultTvOSDeadline,
+  defaultTvOSDeadlineDays,
+  defaultTvOSVersion,
   defaultWindowsDeadlineDays,
   defaultWindowsGracePeriodDays,
   selectedPlatform,
@@ -62,8 +68,8 @@ const PlatformTabs = ({
   // submitting.
 
   const platformByIndex: OSUpdatesTargetPlatform[] = isWindowsMdmEnabled
-    ? ["darwin", "windows", "ios", "ipados"]
-    : ["darwin", "ios", "ipados"];
+    ? ["darwin", "windows", "ios", "ipados", "tvos"]
+    : ["darwin", "ios", "ipados", "tvos"];
 
   if (isAndroidMdmEnabled) {
     platformByIndex.push("android");
@@ -79,6 +85,7 @@ const PlatformTabs = ({
   const isWindowsConfigured = !!defaultWindowsDeadlineDays;
   const isIOSConfigured = !!defaultIOSVersion;
   const isIPadOSConfigured = !!defaultIPadOSVersion;
+  const isTvOSConfigured = !!defaultTvOSVersion;
 
   return (
     <div className={baseClass}>
@@ -101,6 +108,9 @@ const PlatformTabs = ({
             </Tab>
             <Tab key="iPadOS" data-text="iPadOS">
               <TabText showCheck={isIPadOSConfigured}>iPadOS</TabText>
+            </Tab>
+            <Tab key="tvOS" data-text="tvOS">
+              <TabText showCheck={isTvOSConfigured}>tvOS</TabText>
             </Tab>
             {isAndroidMdmEnabled && (
               <Tab key="Android" data-text="Android">
@@ -167,6 +177,23 @@ const PlatformTabs = ({
               defaultMinOsVersion={defaultIPadOSVersion}
               defaultDeadline={defaultIPadOSDeadline}
               defaultDeadlineDays={defaultIPadOSDeadlineDays}
+              key={currentTeamId}
+              refetchAppConfig={refetchAppConfig}
+              refetchTeamConfig={refetchTeamConfig}
+            />
+            <div className={`${baseClass}__nudge-preview`}>
+              <EndUserOSRequirementPreview
+                platform={selectedPlatform as OSUpdatesSupportedPlatform}
+              />
+            </div>
+          </TabPanel>
+          <TabPanel className={`${baseClass}__tab-panel`}>
+            <AppleOSTargetForm
+              currentTeamId={currentTeamId}
+              applePlatform="tvos"
+              defaultMinOsVersion={defaultTvOSVersion}
+              defaultDeadline={defaultTvOSDeadline}
+              defaultDeadlineDays={defaultTvOSDeadlineDays}
               key={currentTeamId}
               refetchAppConfig={refetchAppConfig}
               refetchTeamConfig={refetchTeamConfig}

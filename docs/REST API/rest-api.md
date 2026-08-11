@@ -1803,6 +1803,10 @@ None.
       "minimum_version": "17.0.1",
       "deadline": "2024-08-01"
     },
+    "tvos_updates": {
+      "minimum_version": "18.4",
+      "deadline": "2024-08-01"
+    },
     "windows_updates": {
       "deadline_days": 5,
       "grace_period_days": 1
@@ -2190,6 +2194,10 @@ Modifies the Fleet's configuration with the supplied information.
     },
     "ipados_updates": {
       "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
+    "tvos_updates": {
+      "minimum_version": "18.4",
       "deadline": "2024-08-01"
     },
     "windows_updates": {
@@ -2854,6 +2862,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
+| tvos_updates           | object  | See [`mdm.tvos_updates`](#mdm-tvos-updates). |
 | windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience). |
@@ -2900,6 +2909,21 @@ _Available in Fleet Premium._
 _Available in Fleet Premium._
 
 `mdm.ipados_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | Hosts that are "Unassigned" will be prompted to update when their OS is below this version. |
+| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). |
+
+<br/>
+
+##### mdm.tvos_updates
+
+_Available in Fleet Premium._
+
+Requires tvOS 18.4 or later. Apple TVs on earlier versions report the setting as failed.
+
+`mdm.tvos_updates` is an object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -14749,6 +14773,7 @@ Returned when the requested name only differs from another fleet's name by lette
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates2). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
+| tvos_updates           | object  | See [`mdm.tvos_updates`](#mdm-tvos-updates2). |
 | windows_updates         | object  | See [`mdm.windows_updates`](#mdm-windows-updates2). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
 | apple_settings           | object  | See [`mdm.apple_settings`](#mdm-apple-settings2).     |
@@ -14785,6 +14810,20 @@ Returned when the requested name only differs from another fleet's name by lette
 ##### mdm.ipados_updates
 
 `mdm.ipados_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                 | string  | Hosts that belong to this fleet will be prompted to update when their OS is below this version.                                                                            |
+| deadline                        | string  | Hosts that belong to this fleet will be forced to update their OS after this deadline (7PM local time).                                                                    |
+
+
+<br/>
+
+##### mdm.tvos_updates
+
+Requires tvOS 18.4 or later. Apple TVs on earlier versions report the setting as failed.
+
+`mdm.tvos_updates` is an object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

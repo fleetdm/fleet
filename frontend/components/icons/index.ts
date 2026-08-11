@@ -141,6 +141,9 @@ export const ICON_MAP = {
   iPadOS,
   ios: iOS,
   iOS,
+  // TODO: swap for a dedicated tvOS glyph when design provides one.
+  tvos: Apple,
+  tvOS: Apple,
   android: Android,
   "premium-feature": PremiumFeature,
   profile: Profile,

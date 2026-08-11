@@ -3416,6 +3416,18 @@ func sqlJoinDeviceNameStatus() string {
 `
 }
 
+// quotedSQLStringList renders values as a comma-separated list of single-quoted
+// SQL literals, for the snippets that can't use placeholders because they are
+// composed into larger queries. Only ever called with Fleet's own compile-time
+// constants, never with user input.
+func quotedSQLStringList(values []string) string {
+	quoted := make([]string, len(values))
+	for i, v := range values {
+		quoted[i] = fmt.Sprintf("'%s'", v)
+	}
+	return strings.Join(quoted, ", ")
+}
+
 // sqlJoinMDMAppleDeclarationsStatus returns a SQL snippet that can be used to join a table derived from
 // host_mdm_apple_declarations (grouped by host_uuid and status) and the hosts table. For each host_uuid,
 // it derives a boolean value for each status category. The value will be 1 if the host has any
@@ -3429,7 +3441,7 @@ func sqlJoinMDMAppleDeclarationsStatus() string {
 		verifying         = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
 		verified          = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
 		install           = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
-		reservedDeclNames = fmt.Sprintf("'%s', '%s', '%s'", fleetmdm.FleetMacOSUpdatesProfileName, fleetmdm.FleetIOSUpdatesProfileName, fleetmdm.FleetIPadOSUpdatesProfileName)
+		reservedDeclNames = quotedSQLStringList(fleetmdm.ListFleetReservedMacOSDeclarationNames())
 	)
 	return `
 	LEFT JOIN (
@@ -7201,8 +7213,7 @@ LIMIT 1`
 		case "darwin":
 			settings = ac.MDM.MacOSUpdates
 		case "tvos":
-			// tvOS has no OS update settings yet; leaving them unset means no
-			// minimum version is enforced, so enrollment proceeds.
+			settings = ac.MDM.TvOSUpdates
 		default:
 			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
 		}
@@ -7220,8 +7231,7 @@ LIMIT 1`
 		case "darwin":
 			settings = tm.Config.MDM.MacOSUpdates
 		case "tvos":
-			// tvOS has no OS update settings yet; leaving them unset means no
-			// minimum version is enforced, so enrollment proceeds.
+			settings = tm.Config.MDM.TvOSUpdates
 		default:
 			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
 		}
@@ -9053,34 +9063,16 @@ func (ds *Datastore) ListAppleOSUpdateHostsForReconcile(ctx context.Context, cur
 				(hmaou.target_os_version != '' OR hmaou.resolved_at IS NOT NULL) -- include hosts not part of a team that already has a target update configured`
 	var args []any
 	args = append(args, cursor)
-	if len(teamsWithLatest["darwin"]) > 0 {
-		teamIds := slices.Collect(maps.Keys(teamsWithLatest["darwin"]))
-		query, inArgs, err := sqlx.In(`
-			OR (h.platform = 'darwin' AND IFNULL(h.team_id, 0) IN (?))`, teamIds)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "building team filter for darwin updates")
+	// Iterated in a fixed order so the generated statement is stable.
+	for _, platform := range []string{"darwin", "ios", "ipados", "tvos"} {
+		if len(teamsWithLatest[platform]) == 0 {
+			continue
 		}
-
-		stmt += query
-		args = append(args, inArgs...)
-	}
-	if len(teamsWithLatest["ios"]) > 0 {
-		teamIds := slices.Collect(maps.Keys(teamsWithLatest["ios"]))
+		teamIDs := slices.Collect(maps.Keys(teamsWithLatest[platform]))
 		query, inArgs, err := sqlx.In(`
-			OR (h.platform = 'ios' AND IFNULL(h.team_id, 0) IN (?))`, teamIds)
+			OR (h.platform = ? AND IFNULL(h.team_id, 0) IN (?))`, platform, teamIDs)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "building team filter for ios updates")
-		}
-
-		stmt += query
-		args = append(args, inArgs...)
-	}
-	if len(teamsWithLatest["ipados"]) > 0 {
-		teamIds := slices.Collect(maps.Keys(teamsWithLatest["ipados"]))
-		query, inArgs, err := sqlx.In(`
-			OR (h.platform = 'ipados' AND IFNULL(h.team_id, 0) IN (?))`, teamIds)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "building team filter for ipados updates")
+			return nil, ctxerr.Wrapf(ctx, err, "building team filter for %s updates", platform)
 		}
 
 		stmt += query
@@ -9163,8 +9155,13 @@ func (ds *Datastore) SetAppleOSUpdateTargetsAndResend(ctx context.Context, targe
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building sql for updating apple os update hosts to resend")
 		}
-		stmt += ` AND declaration_name IN (?, ?, ?)`
-		args = append(args, common_mdm.FleetMacOSUpdatesProfileName, common_mdm.FleetIOSUpdatesProfileName, common_mdm.FleetIPadOSUpdatesProfileName)
+		declNames := common_mdm.ListFleetReservedMacOSDeclarationNames()
+		declStmt, declArgs, err := sqlx.In(` AND declaration_name IN (?)`, declNames)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building declaration name filter")
+		}
+		stmt += declStmt
+		args = append(args, declArgs...)
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating apple os update hosts to resend")
 		}

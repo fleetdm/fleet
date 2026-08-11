@@ -759,6 +759,29 @@ This activity contains the following fields:
 }
 ```
 
+## edited_tvos_min_version
+
+Generated when the minimum required tvOS version or deadline is modified.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the minimum tvOS version applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the minimum tvOS version applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "minimum_version": The minimum tvOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "Apple TVs",
+  "fleet_id": 3,
+  "fleet_name": "Apple TVs",
+  "minimum_version": "18.4",
+  "deadline": "2023-06-01"
+}
+```
+
 ## edited_windows_updates
 
 Generated when the Windows OS updates deadline or grace period is modified.

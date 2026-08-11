@@ -1884,15 +1884,17 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 }
 
 func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T, excludeNonPublicAssetSets bool) (map[string]string, error) {
-	var macOSUpdates, iOSUpdates, iPadOSUpdates fleet.AppleOSUpdateSettings
+	var macOSUpdates, iOSUpdates, iPadOSUpdates, tvOSUpdates fleet.AppleOSUpdateSettings
 	if m, ok := any(settings).(fleet.MDM); ok {
 		macOSUpdates = m.MacOSUpdates
 		iOSUpdates = m.IOSUpdates
 		iPadOSUpdates = m.IPadOSUpdates
+		tvOSUpdates = m.TvOSUpdates
 	} else if t, ok := any(settings).(fleet.TeamMDM); ok {
 		macOSUpdates = t.MacOSUpdates
 		iOSUpdates = t.IOSUpdates
 		iPadOSUpdates = t.IPadOSUpdates
+		tvOSUpdates = t.TvOSUpdates
 	} else {
 		return nil, errors.New("invalid settings type")
 	}
@@ -1904,7 +1906,31 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		return s.MinimumVersion.Value != "" && !s.EnforcesLatestVersion()
 	}
 
-	if !needsVersionCheck(macOSUpdates) && !needsVersionCheck(iOSUpdates) && !needsVersionCheck(iPadOSUpdates) {
+	// Apple publishes Apple TV builds in the iOS asset set, so tvOS versions are
+	// looked up there with the AppleTV device prefix.
+	//
+	// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
+	// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
+	// and we want to avoid breaking workflows for users in that event
+	platforms := []struct {
+		key          string
+		updates      fleet.AppleOSUpdateSettings
+		devicePrefix string // empty means the macOS asset set
+	}{
+		{"macos", macOSUpdates, ""},
+		{"ios", iOSUpdates, "iphone"},
+		{"ipados", iPadOSUpdates, "ipad"},
+		{"tvos", tvOSUpdates, "appletv"},
+	}
+
+	var anyNeedsCheck bool
+	for _, p := range platforms {
+		if needsVersionCheck(p.updates) {
+			anyNeedsCheck = true
+			break
+		}
+	}
+	if !anyNeedsCheck {
 		// nothing to validate, so don't pay for the round trip to Apple.
 		return nil, nil
 	}
@@ -1917,23 +1943,19 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		return nil, errors.New("Apple asset metadata is not available")
 	}
 
-	invalid := make(map[string]string, 3)
-	if needsVersionCheck(macOSUpdates) {
-		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
-			invalid["macos"] = fleet.AppleOSVersionUnsupportedMessage
+	invalid := make(map[string]string, len(platforms))
+	for _, p := range platforms {
+		if !needsVersionCheck(p.updates) {
+			continue
 		}
-	}
-	if needsVersionCheck(iOSUpdates) {
-		// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
-		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
-		// and we want to avoid breaking workflows for users in that event
-		if ok := am.IsSupportedIOSVersion(iOSUpdates.MinimumVersion.Value, "iphone", excludeNonPublicAssetSets); !ok {
-			invalid["ios"] = fleet.AppleOSVersionUnsupportedMessage
+		var supported bool
+		if p.devicePrefix == "" {
+			supported = am.IsSupportedMacOSVersion(p.updates.MinimumVersion.Value, excludeNonPublicAssetSets)
+		} else {
+			supported = am.IsSupportedIOSVersion(p.updates.MinimumVersion.Value, p.devicePrefix, excludeNonPublicAssetSets)
 		}
-	}
-	if needsVersionCheck(iPadOSUpdates) {
-		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
-			invalid["ipados"] = fleet.AppleOSVersionUnsupportedMessage
+		if !supported {
+			invalid[p.key] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
 
@@ -2538,7 +2560,7 @@ computeOSTargets:
 		return ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
-	// Get a list of all teams that has latest configured for macOS, iOS, or iPadOS.
+	// Get a list of all teams that has latest configured for macOS, iOS, iPadOS or tvOS.
 	// We use admin global role to have access to all teams.
 	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
 		GlobalRole: new("admin"),
@@ -2552,6 +2574,7 @@ computeOSTargets:
 	teamsWithLatest["darwin"] = map[uint]int{}
 	teamsWithLatest["ios"] = map[uint]int{}
 	teamsWithLatest["ipados"] = map[uint]int{}
+	teamsWithLatest["tvos"] = map[uint]int{}
 
 	for _, team := range teams {
 		if team.Config.MDM.MacOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
@@ -2562,6 +2585,9 @@ computeOSTargets:
 		}
 		if team.Config.MDM.IPadOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
 			teamsWithLatest["ipados"][team.ID] = team.Config.MDM.IPadOSUpdates.DeadlineDays.Value
+		}
+		if team.Config.MDM.TvOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+			teamsWithLatest["tvos"][team.ID] = team.Config.MDM.TvOSUpdates.DeadlineDays.Value
 		}
 	}
 
@@ -2574,6 +2600,9 @@ computeOSTargets:
 	}
 	if appCfg.MDM.IPadOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
 		teamsWithLatest["ipados"][0] = appCfg.MDM.IPadOSUpdates.DeadlineDays.Value
+	}
+	if appCfg.MDM.TvOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+		teamsWithLatest["tvos"][0] = appCfg.MDM.TvOSUpdates.DeadlineDays.Value
 	}
 
 	updateAssets, err := ds.ListAppleOSUpdateAssets(ctx)
@@ -2621,10 +2650,14 @@ func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*f
 		if host.Platform == "darwin" {
 			updateAssetsPlatform = "macos"
 		} else {
-			updateAssetsPlatform = "ios" // covers iPhone, iPad, iPod
+			// Apple publishes Apple TV builds in the iOS asset set alongside
+			// iPhone/iPad/iPod, so tvOS reads from "ios" too. The per-host
+			// SupportedDevices filter below is what narrows it to the right
+			// device family.
+			updateAssetsPlatform = "ios"
 		}
 
-		// teamsWithLatest is configured per platform, one for macos, ios, ipados.
+		// teamsWithLatest is configured per platform, one for macos, ios, ipados, tvos.
 		teamsWithLatestForPlatform, ok := teamsWithLatest[host.Platform]
 		if !ok {
 			logger.DebugContext(ctx, "unsupported os update platform", "platform", host.Platform, "host_uuid", host.HostUUID)

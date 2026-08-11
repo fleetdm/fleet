@@ -20,6 +20,9 @@ const defaultProps = {
   defaultIPadOSVersion: "18.5",
   defaultIPadOSDeadline: "2024-12-31",
   defaultIPadOSDeadlineDays: "",
+  defaultTvOSVersion: "18.4",
+  defaultTvOSDeadline: "2024-12-31",
+  defaultTvOSDeadlineDays: "",
   defaultWindowsDeadlineDays: "5",
   defaultWindowsGracePeriodDays: "2",
   onSelectPlatform: noop,
@@ -48,6 +51,12 @@ describe("PlatformTabs", () => {
 
   it("renders the target dropdown on the iPadOS tab", () => {
     render(<PlatformTabs {...defaultProps} selectedPlatform="ipados" />);
+
+    expect(screen.getByLabelText(/Target/i)).toBeInTheDocument();
+  });
+
+  it("renders the target dropdown on the tvOS tab", () => {
+    render(<PlatformTabs {...defaultProps} selectedPlatform="tvos" />);
 
     expect(screen.getByLabelText(/Target/i)).toBeInTheDocument();
   });

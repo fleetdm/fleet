@@ -54,6 +54,10 @@ export interface IUpdateTeamFormData {
       minimum_version: string;
       deadline: string;
     };
+    tvos_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
     windows_updates?: {
       deadline_days: number | null;
       grace_period_days: number | null;

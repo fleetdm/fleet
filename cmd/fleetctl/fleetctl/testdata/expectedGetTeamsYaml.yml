@@ -35,6 +35,11 @@ spec:
         minimum_version: null
         deadline: null
         deadline_days: null
+      tvos_updates:
+        update_new_hosts: null
+        minimum_version: null
+        deadline: null
+        deadline_days: null
       windows_updates:
         deadline_days: null
         grace_period_days: null
@@ -96,6 +101,11 @@ spec:
         deadline: null
         deadline_days: null
       ipados_updates:
+        update_new_hosts: null
+        minimum_version: null
+        deadline: null
+        deadline_days: null
+      tvos_updates:
         update_new_hosts: null
         minimum_version: null
         deadline: null

@@ -74,7 +74,7 @@ const CurrentVersionSection = ({
       getOSVersions({
         teamId: currentTeamId,
         ...queryParams,
-        query: "windows,darwin,ios,ipados", // We only want to show windows mac, ios, ipados versions atm.
+        query: "windows,darwin,ios,ipados,tvos", // We only want to show windows, mac, ios, ipados, tvos versions atm.
       }),
     {
       retry: false,

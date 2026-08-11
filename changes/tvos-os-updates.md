@@ -1,0 +1,1 @@
+- Added tvOS OS update settings (`tvos_updates`). Minimum version and deadline can be enforced on Apple TVs from Controls > OS updates, the API, and GitOps, and are delivered as a declaration (DDM). Enforcement requires tvOS 18.4 or later; Apple TVs on earlier versions report the setting as failed.
