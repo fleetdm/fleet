@@ -26,7 +26,7 @@ import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
 } from "services/entities/hosts";
 import { ScriptBatchHostCountV1 } from "services/entities/scripts";
 
@@ -42,7 +42,6 @@ import {
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon/Icon";
 import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
 
 import FilterPill from "../FilterPill";
@@ -99,7 +98,7 @@ interface IHostsFilterBlockProps {
     scriptBatchRanAt: string | null;
     scriptBatchScriptName: string | null;
     depProfileError: string; // string "true" as we don't handle booleans
-    depAssignProfileResponse?: DepAssignProfileResponse;
+    depAssignProfileResponse?: DEPDeviceStatus;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -230,21 +229,23 @@ const HostsFilterBlock = ({
                         <Button
                           className={`${baseClass}__action-btn`}
                           onClick={onClickEditLabel}
-                          variant="icon"
+                          variant="secondary"
+                          size="small"
                           disabled={disableChildren}
-                        >
-                          <Icon name="pencil" size="small" />
-                        </Button>
+                          icon="pencil"
+                          ariaLabel="Edit label"
+                        />
                       )
                     }
                     <Button
                       className={`${baseClass}__action-btn`}
                       onClick={onClickDeleteLabel}
-                      variant="icon"
+                      variant="secondary"
+                      size="small"
                       disabled={disableChildren}
-                    >
-                      <Icon name="trash" size="small" />
-                    </Button>
+                      icon="trash"
+                      ariaLabel="Delete label"
+                    />
                   </>
                 )}
               />

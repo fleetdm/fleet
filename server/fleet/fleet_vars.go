@@ -55,7 +55,7 @@ func MaybeExpand(s string, mapping func(string, int, int) (string, bool)) string
 	for j := 0; j < len(s); j++ {
 		if s[j] == '$' && j+1 < len(s) {
 			if buf == nil {
-				buf = make([]byte, 0, 2*len(s))
+				buf = make([]byte, 0, len(s))
 			}
 			buf = append(buf, s[i:j]...)
 			name, w := getShellName(s[j+1:])

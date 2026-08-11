@@ -1,4 +1,4 @@
-- name: macOS - Gatekeeper enabled
+- name: Gatekeeper enabled
   query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
   critical: false
   description: |-

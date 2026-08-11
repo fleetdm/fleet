@@ -26,6 +26,7 @@ module.exports = {
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
+    deviceNotFound: {description: 'The specified device does not exist in this Android enterprise', responseType: 'notFound'}
   },
 
 
@@ -66,6 +67,7 @@ module.exports = {
       let { google } = require('googleapis');
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Devices.html#get
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
       let getDeviceResult = await androidManagementConnection.enterprises.devices.get({
         name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
       });
@@ -77,6 +79,9 @@ module.exports = {
     }).intercept({status: 403}, ()=>{
       // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
       return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};
+    }).intercept({status: 404}, ()=>{
+      // If the Android management API returns a 404 response, return a deviceNotFound (notFound) response to the Fleet server.
+      return 'deviceNotFound';
     }).intercept((err)=>{
       let errorString = err.toString();
       if (errorString.includes('Device is no longer being managed')) {

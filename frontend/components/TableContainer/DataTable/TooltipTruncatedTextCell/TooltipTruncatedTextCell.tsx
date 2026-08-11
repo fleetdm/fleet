@@ -23,10 +23,11 @@ interface ITooltipTruncatedTextCellProps {
    * `suffix` always sits flush against the right edge of the cell, instead
    * of hugging the end of the (variable-length) text. */
   justifySuffixEnd?: boolean;
-  /** When `true`, the tooltip is also shown whenever `suffix` is present,
-   * even if the text itself isn't visually truncated. Useful when `suffix`
-   * (a "+N" count) itself implies there's more info in the tooltip. */
-  showTooltipWithSuffix?: boolean;
+  /** When `true`, show the tooltip even when the text is not truncated. Use
+   * when the tooltip carries supplemental info (e.g. a raw identifier behind a
+   * friendlier display value, or a "+N" suffix implying there's more info)
+   * rather than just the truncated text. */
+  alwaysShowTooltip?: boolean;
 }
 
 const baseClass = "tooltip-truncated-cell";
@@ -39,7 +40,7 @@ const TooltipTruncatedTextCell = ({
   prefix,
   suffix,
   justifySuffixEnd = false,
-  showTooltipWithSuffix = false,
+  alwaysShowTooltip = false,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
@@ -75,7 +76,6 @@ const TooltipTruncatedTextCell = ({
       ? DEFAULT_EMPTY_CELL_VALUE
       : value;
   const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
-  const showBecauseOfSuffix = showTooltipWithSuffix && Boolean(suffix);
 
   return (
     <div className={classNames}>
@@ -85,7 +85,7 @@ const TooltipTruncatedTextCell = ({
         data-tip
         data-for={tooltipId}
         data-tip-disable={
-          isDefaultValue || (tooltipDisabled && !showBecauseOfSuffix)
+          isDefaultValue || (tooltipDisabled && !alwaysShowTooltip)
         }
       >
         <span

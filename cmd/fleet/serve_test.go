@@ -21,10 +21,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -1347,7 +1349,8 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 // the semconv version we import. A mismatch (e.g. after a dependabot SDK bump that doesn't
 // update our semconv import) causes a runtime error on server startup.
 func TestOTELResourceCreation(t *testing.T) {
-	res, err := resource.New(t.Context(),
+	res, err := resource.New(
+		t.Context(),
 		resource.WithSchemaURL(semconv.SchemaURL),
 		resource.WithAttributes(
 			semconv.ServiceName("fleet-test"),
@@ -1414,6 +1417,18 @@ func TestArgsToString(t *testing.T) {
 	}
 }
 
+func TestUseS3DevConfig(t *testing.T) {
+	t.Run("skip flag set", func(t *testing.T) {
+		dev_mode.SetOverride("FLEET_DEV_SKIP_S3_CONFIG", "1", t)
+		assert.False(t, useS3DevConfig())
+	})
+
+	t.Run("skip flag unset", func(t *testing.T) {
+		dev_mode.SetOverride("FLEET_DEV_SKIP_S3_CONFIG", "0", t)
+		assert.True(t, useS3DevConfig())
+	})
+}
+
 func TestGetTLSConfig(t *testing.T) {
 	t.Parallel()
 	expectedCurves := []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384}
@@ -1472,6 +1487,49 @@ func TestGetTLSConfigInvalidProfile(t *testing.T) {
 	require.Contains(t, capturedErr.Error(), "not-a-real-profile")
 	require.Contains(t, capturedErr.Error(), "is invalid")
 	require.Equal(t, "set TLS profile", capturedMsg)
+}
+
+func TestNetworkBlockingModeFor(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name           string
+		devModeEnabled bool
+		serverConfig   config.ServerConfig
+		expectedMode   fleethttp.NetworkBlockingMode
+	}{
+		{
+			name:         "production default blocks everything",
+			serverConfig: config.ServerConfig{},
+			expectedMode: fleethttp.BlockingFull,
+		},
+		{
+			name:         "allow_private_network_integrations allows private networks only",
+			serverConfig: config.ServerConfig{AllowPrivateNetworkIntegrations: true},
+			expectedMode: fleethttp.BlockingPrivateAllowed,
+		},
+		{
+			name:         "bypass_network_blocking bypasses all filtering",
+			serverConfig: config.ServerConfig{BypassNetworkBlocking: true},
+			expectedMode: fleethttp.BlockingBypassAll,
+		},
+		{
+			name:         "bypass_network_blocking takes precedence over allow_private_network_integrations",
+			serverConfig: config.ServerConfig{BypassNetworkBlocking: true, AllowPrivateNetworkIntegrations: true},
+			expectedMode: fleethttp.BlockingBypassAll,
+		},
+		{
+			name:           "dev mode bypasses all filtering regardless of config",
+			devModeEnabled: true,
+			serverConfig:   config.ServerConfig{},
+			expectedMode:   fleethttp.BlockingBypassAll,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.expectedMode, networkBlockingModeFor(c.devModeEnabled, c.serverConfig))
+		})
+	}
 }
 
 func TestInitLicense(t *testing.T) {

@@ -12,7 +12,11 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
-import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
+import {
+  ANDROID_NO_REFETCH_TOOLTIP_MESSAGE,
+  DEVICE_STATUS_TAGS,
+  REFETCH_TOOLTIP_MESSAGES,
+} from "./helpers";
 
 const baseClass = "host-header";
 
@@ -54,7 +58,7 @@ const RefetchButton = ({
             className={classNames}
             disabled={isDisabled || isFetching}
             onClick={onRefetchHost}
-            variant="inverse"
+            variant="secondary"
           >
             <Icon name="refresh" color="ui-fleet-black-75" size="small" />
             {buttonText}
@@ -97,7 +101,14 @@ const HostHeader = ({
 
   const renderRefetch = () => {
     if (isAndroid(platform)) {
-      return null;
+      return (
+        <RefetchButton
+          isDisabled
+          isFetching={false}
+          tooltip={ANDROID_NO_REFETCH_TOOLTIP_MESSAGE}
+          onRefetchHost={onRefetchHost}
+        />
+      );
     }
 
     const isOnline = summaryData.status === "online";
@@ -210,7 +221,6 @@ const HostHeader = ({
 
           <div className={`${baseClass}__last-fetched`}>
             {"Last fetched"} {lastFetched}
-            &nbsp;
           </div>
         </div>
       </div>

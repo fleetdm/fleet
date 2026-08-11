@@ -43,19 +43,16 @@ func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now ti
 	// Collect CVEs at all severities on the curated set of tracked software and
 	// OS vulnerabilities. Display-time narrowing (critical-only this round,
 	// plus user filters) happens at read time via ResolveCVEChartEntities.
-	// TODO: implement bitmap compression so we can track more CVEs.
 	tracked, err := store.CollectibleCVEs(ctx)
 	if err != nil {
 		return err
 	}
 
-	hostIDsByCVE, err := store.AffectedHostIDsByCVE(ctx, disabledFleetIDs, tracked)
+	// The store sets bits while streaming the vulnerability joins, so peak
+	// memory here is one bitmap per CVE — never the raw (CVE, host) pairs.
+	bitmaps, err := store.AffectedHostIDsByCVE(ctx, disabledFleetIDs, tracked)
 	if err != nil {
 		return err
-	}
-	bitmaps := make(map[string]*roaring.Bitmap, len(hostIDsByCVE))
-	for cve, hostIDs := range hostIDsByCVE {
-		bitmaps[cve] = NewBitmap(hostIDs)
 	}
 	bucketStart := now.UTC().Truncate(time.Hour)
 	// Always call RecordBucketData, even when bitmaps is empty: snapshot

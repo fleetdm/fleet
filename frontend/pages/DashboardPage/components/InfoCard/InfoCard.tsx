@@ -4,7 +4,6 @@ import { browserHistory } from "react-router";
 import Card from "components/Card";
 import Button from "components/buttons/Button";
 import AutomationsButton from "components/buttons/AutomationsButton";
-import Icon from "components/Icon";
 import classnames from "classnames";
 
 interface IInfoCardProps {
@@ -78,7 +77,7 @@ const useInfoCard = ({
         return (
           <Button
             className={`${baseClass}__action-button`}
-            variant="inverse"
+            variant="secondary"
             size="small"
             onClick={action.onClick}
           >
@@ -99,7 +98,7 @@ const useInfoCard = ({
 
         return (
           <Button
-            variant="inverse"
+            variant="secondary"
             onClick={onClick}
             className={`${baseClass}__action-button`}
             size="small"
@@ -107,7 +106,6 @@ const useInfoCard = ({
             <span className={`${baseClass}__action-button-text`}>
               {action.text}
             </span>
-            <Icon name="arrow-internal-link" color="ui-fleet-black-75" />
           </Button>
         );
       }

@@ -1,4 +1,4 @@
-- name: macOS - Santa Endpoint Security extension active
+- name: Santa Endpoint Security extension active
   platform: darwin
   description: Santa is installed but its Endpoint Security system extension is missing or not in the activated enabled state.
   resolution: "Fleet can run the remediation script to request extension activation. If it still fails, please reach out to help-it in Slack."

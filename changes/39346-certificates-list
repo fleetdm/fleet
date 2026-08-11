@@ -1,2 +1,0 @@
-- Added a "View certificate" modal to Controls > OS settings > Certificates so admins can inspect and copy an existing certificate's details.
-- Added a "no custom SCEP CA configured" empty state to the certificates card.

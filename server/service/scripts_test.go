@@ -1268,3 +1268,133 @@ func TestBatchScriptExecutionStatus(t *testing.T) {
 		})
 	})
 }
+
+func TestScriptFleetVariablesValidation(t *testing.T) {
+	newSvc := func(t *testing.T, tier string) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		lic := &fleet.LicenseInfo{Tier: tier, Expiration: time.Now().Add(24 * time.Hour)}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SkipCreateTestUsers: true})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, SeenTime: time.Now(), OrbitNodeKey: new("abc")}, nil
+		}
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+			return &fleet.HostScriptResult{HostID: request.HostID, ScriptContents: request.ScriptContents, ExecutionID: "exec-1"}, nil
+		}
+		ds.NewScriptFunc = func(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
+			newScript := *script
+			newScript.ID = 1
+			return &newScript, nil
+		}
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			return &fleet.Script{ID: id, Name: "test.sh"}, nil
+		}
+		ds.UpdateScriptContentsFunc = func(ctx context.Context, scriptID uint, contents string) (*fleet.Script, error) {
+			return &fleet.Script{ID: scriptID, Name: "test.sh", ScriptContents: contents}, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+			return nil
+		}
+		return svc, ctx, ds
+	}
+
+	const (
+		supportedVarContents   = "echo $FLEET_VAR_HOST_UUID on ${FLEET_VAR_HOST_PLATFORM}"
+		unsupportedVarContents = "echo $FLEET_VAR_NONEXISTENT"
+		unsupportedVarErrMsg   = "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts."
+	)
+
+	t.Run("premium", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t, fleet.TierPremium)
+
+		t.Run("run host script", func(t *testing.T) {
+			_, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: unsupportedVarContents}, 0)
+			require.ErrorContains(t, err, unsupportedVarErrMsg)
+
+			res, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: supportedVarContents}, 0)
+			require.NoError(t, err)
+			// contents are stored unexpanded; they resolve when fleetd fetches the script
+			require.Equal(t, supportedVarContents, res.ScriptContents)
+		})
+
+		t.Run("new script", func(t *testing.T) {
+			_, err := svc.NewScript(ctx, nil, "test.sh", strings.NewReader(unsupportedVarContents))
+			require.ErrorContains(t, err, unsupportedVarErrMsg)
+
+			saved, err := svc.NewScript(ctx, nil, "test.sh", strings.NewReader(supportedVarContents))
+			require.NoError(t, err)
+			require.Equal(t, supportedVarContents, saved.ScriptContents)
+		})
+
+		t.Run("update script", func(t *testing.T) {
+			_, err := svc.UpdateScript(ctx, 1, strings.NewReader(unsupportedVarContents))
+			require.ErrorContains(t, err, unsupportedVarErrMsg)
+
+			saved, err := svc.UpdateScript(ctx, 1, strings.NewReader(supportedVarContents))
+			require.NoError(t, err)
+			require.Equal(t, supportedVarContents, saved.ScriptContents)
+		})
+
+		t.Run("batch set scripts", func(t *testing.T) {
+			badPayload := []fleet.ScriptPayload{{Name: "test.sh", ScriptContents: []byte(unsupportedVarContents)}}
+			goodPayload := []fleet.ScriptPayload{{Name: "test.sh", ScriptContents: []byte(supportedVarContents)}}
+
+			// unsupported variables are rejected on dry run too, keyed on the
+			// indexed field so callers can tell which script failed
+			for _, dryRun := range []bool{true, false} {
+				_, err := svc.BatchSetScripts(ctx, nil, nil, badPayload, dryRun)
+				require.ErrorContains(t, err, unsupportedVarErrMsg, "dryRun=%v", dryRun)
+				require.ErrorContains(t, err, "scripts[0]", "dryRun=%v", dryRun)
+			}
+
+			ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+				require.Len(t, scripts, 1)
+				require.Equal(t, supportedVarContents, scripts[0].ScriptContents)
+				return []fleet.ScriptResponse{{ID: 1, Name: "test.sh"}}, nil
+			}
+			_, err := svc.BatchSetScripts(ctx, nil, nil, goodPayload, false)
+			require.NoError(t, err)
+			require.True(t, ds.BatchSetScriptsFuncInvoked)
+		})
+	})
+
+	t.Run("free returns license error for any variable", func(t *testing.T) {
+		svc, ctx, _ := newSvc(t, fleet.TierFree)
+
+		for name, contents := range map[string]string{
+			"supported":   supportedVarContents,
+			"unsupported": unsupportedVarContents,
+		} {
+			t.Run(name, func(t *testing.T) {
+				_, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: contents}, 0)
+				require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+				_, err = svc.NewScript(ctx, nil, "test.sh", strings.NewReader(contents))
+				require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+				_, err = svc.UpdateScript(ctx, 1, strings.NewReader(contents))
+				require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+				_, err = svc.BatchSetScripts(ctx, nil, nil,
+					[]fleet.ScriptPayload{{Name: "test.sh", ScriptContents: []byte(contents)}}, true)
+				require.ErrorIs(t, err, fleet.ErrMissingLicense)
+			})
+		}
+
+		t.Run("variable-free scripts still work", func(t *testing.T) {
+			res, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo hello"}, 0)
+			require.NoError(t, err)
+			require.Equal(t, "echo hello", res.ScriptContents)
+
+			_, err = svc.NewScript(ctx, nil, "test.sh", strings.NewReader("echo hello"))
+			require.NoError(t, err)
+		})
+	})
+}

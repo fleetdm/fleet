@@ -20,7 +20,7 @@
     display: flex;
     justify-content: flex-end;
     min-width: max-content;
-    gap: $pad-medium;
+    gap: $gap-action-elements;
   }
 
   &__query-name {

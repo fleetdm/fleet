@@ -32,8 +32,6 @@ import { notify } from "components/ToastNotification";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
@@ -634,12 +632,6 @@ const HostSoftwareLibrary = ({
     <div className={baseClass}>
       <div className={`${baseClass}__header`}>
         <CardHeader subheader="Software available to be installed on this host" />
-        {canAddSoftware && (
-          <Button variant="inverse" onClick={onAddSoftware}>
-            <Icon name="plus" />
-            <span>Add software</span>
-          </Button>
-        )}
       </div>
       {renderHostSoftware()}
       {selectedSoftwareUpdates && (

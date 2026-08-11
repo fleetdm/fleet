@@ -10,7 +10,6 @@ import {
   CA_REQUIRED_MSG,
   INVALID_NAME_MSG,
   NAME_REQUIRED_MSG,
-  NAME_TOO_LONG_MSG,
   SUBJECT_NAME_REQUIRED_MSG,
 } from "./helpers";
 
@@ -174,16 +173,13 @@ describe("AddCertModal", () => {
     });
   });
 
-  it("shows inline error for Name longer than 255 characters as user types", async () => {
-    const { user } = await renderModal();
+  it("caps the Name input at 255 characters (matches DB varchar(255))", async () => {
+    await renderModal();
 
-    // Paste rather than type to keep the test fast (256 simulated keypresses is slow).
-    await user.click(screen.getByPlaceholderText(NAME_PLACEHOLDER));
-    await user.paste("a".repeat(256));
-
-    await waitFor(() => {
-      expect(screen.getByText(NAME_TOO_LONG_MSG)).toBeInTheDocument();
-    });
+    const nameInput = screen.getByPlaceholderText(
+      NAME_PLACEHOLDER
+    ) as HTMLInputElement;
+    expect(nameInput.maxLength).toBe(255);
   });
 
   it("submits successfully without SAN (field omitted from request body)", async () => {

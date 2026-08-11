@@ -165,16 +165,8 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 	}, nil
 }
 
-var (
-	//goland:noinspection GoErrorStringFormat
-	sendingMFAEmail = errors.New("sending MFA email")
-
-	noMFASupported           = errors.New("client with no MFA email support")
-	mfaNotSupportedForClient = endpointer.BadRequestErr(
-		"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
-		noMFASupported,
-	)
-)
+//goland:noinspection GoErrorStringFormat
+var sendingMFAEmail = errors.New("sending MFA email")
 
 func (svc *Service) Login(ctx context.Context, email, password string, supportsEmailVerification bool) (*fleet.User, *fleet.Session, error) {
 	// skipauth: No user context available yet to authorize against.
@@ -191,7 +183,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 	// take ~1s and frustrate a timing attack.
 	var err error
 	defer func(start time.Time) {
-		if err != nil && !errors.Is(err, sendingMFAEmail) && !errors.Is(err, mfaNotSupportedForClient) {
+		if err != nil && !errors.Is(err, sendingMFAEmail) {
 			if err := svc.NewActivity(
 				ctx, nil, fleet.ActivityTypeUserFailedLogin{
 					Email:    email,
@@ -219,23 +211,41 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 	}
 
 	if user.SSOEnabled {
-		return nil, nil, fleet.NewAuthFailedError("password login disabled for sso users")
+		err = fleet.NewAuthFailedError("password login disabled for sso users")
+		return nil, nil, err
 	} else if user.MFAEnabled {
 		if !supportsEmailVerification {
-			return nil, nil, mfaNotSupportedForClient
+			err = fleet.NewAuthFailedError("client with no MFA email support")
+			return nil, nil, err
 		}
 
 		if err = svc.makeMFAEmail(ctx, *user); err != nil {
 			return nil, nil, fleet.NewAuthFailedError(err.Error())
 		}
 
-		return nil, nil, sendingMFAEmail
+		// A correct password on an MFA-enabled account triggers a verification
+		// email. Record it so this event is visible in the activity feed and
+		// audit stream, since it is otherwise the only observable signal that a
+		// valid password was submitted.
+		if actErr := svc.NewActivity(
+			ctx, nil, fleet.ActivityTypeUserMFARequested{
+				Email:    email,
+				PublicIP: publicip.FromContext(ctx),
+			}); actErr != nil {
+			logging.WithExtras(logging.WithNoUser(ctx),
+				"msg", "failed to generate MFA requested activity",
+			)
+		}
+
+		err = sendingMFAEmail
+		return nil, nil, err
 	}
 
 	// Do not allow login if on Fleet Free and the user has a Premium-only role.
 	if !license.IsPremium(ctx) {
 		if fleet.PremiumRolesPresent(user.GlobalRole, user.Teams) {
-			return nil, nil, fleet.ErrMissingLicense
+			err = fleet.ErrMissingLicense
+			return nil, nil, err
 		}
 	}
 

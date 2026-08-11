@@ -298,7 +298,7 @@ const QueriesTable = ({
             name: "delete reports",
             buttonText: "Delete",
             iconSvg: "trash",
-            variant: "inverse",
+            variant: "secondary",
             onClick: onDeleteQueryClick,
           }}
           emptyComponent={() => <EmptyState {...emptyParams} />}
