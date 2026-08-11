@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"math"
+	"net/http"
 	"testing"
 	"time"
 
@@ -10,7 +12,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,6 +58,47 @@ func (m *mockViewerProvider) ViewerScope(_ context.Context) (bool, []uint, error
 
 // globalViewer returns a viewer provider for a global user (sees everything).
 func globalViewer() *mockViewerProvider { return &mockViewerProvider{isGlobal: true} }
+
+// stubLicense implements license.LicenseChecker. The chart context can't import
+// server/fleet (arch_test forbids it, tests included), so tests can't build a
+// real fleet.LicenseInfo and stub the interface instead.
+type stubLicense struct{ premium bool }
+
+func (s stubLicense) IsPremium() bool               { return s.premium }
+func (s stubLicense) IsAllowDisableTelemetry() bool { return false }
+func (s stubLicense) GetTier() string {
+	if s.premium {
+		return "premium"
+	}
+	return "free"
+}
+func (s stubLicense) GetOrganization() string { return "test" }
+func (s stubLicense) GetDeviceCount() int     { return 1 }
+
+// requirePremiumRequired asserts err is the premium-license refusal. The
+// service returns a generic UserMessageError rather than a dedicated type, so
+// the 402 status is what identifies it — assert on that, not on the type, which
+// any 422 would also satisfy.
+func requirePremiumRequired(t *testing.T, err error) {
+	t.Helper()
+	var msgErr *platform_http.UserMessageError
+	require.ErrorAs(t, err, &msgErr)
+	require.Equal(t, http.StatusPaymentRequired, msgErr.StatusCode())
+	require.Contains(t, err.Error(), "Fleet Premium")
+}
+
+// premiumCtx returns a context carrying a premium license, as the server's base
+// context does in production.
+func premiumCtx(t *testing.T) context.Context {
+	t.Helper()
+	return license.NewContext(t.Context(), stubLicense{premium: true})
+}
+
+// freeCtx returns a context carrying a free-tier license.
+func freeCtx(t *testing.T) context.Context {
+	t.Helper()
+	return license.NewContext(t.Context(), stubLicense{premium: false})
+}
 
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
@@ -296,7 +341,7 @@ func TestGetChartDataCVEResolution(t *testing.T) {
 				return nil, nil
 			}
 
-			resp, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{Days: 30, Resolution: tc.resolution})
+			resp, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 30, Resolution: tc.resolution})
 			require.NoError(t, err)
 			assert.Equal(t, tc.resolutionStr, resp.Resolution)
 			assert.Equal(t, tc.bucketSize, gotBucketSize)
@@ -326,23 +371,74 @@ func TestGetChartDataUptimePassesNilEntityIDs(t *testing.T) {
 	assert.True(t, gotEntityIDsIsNil, "uptime must pass nil entityIDs — the CVE branch must not leak")
 }
 
-// TestGetChartDataCVEAlwaysResolvesEntities verifies the two load-bearing
-// read-path guarantees for the CVE metric: (1) entity resolution always runs
-// and its result is forwarded to GetSCDData as a concrete (never-nil) set, so
-// newly collected lower-severity CVEs can't leak into the chart; and (2) the
-// severity bounds are forced to critical [9.0, 10.0] this round regardless of
-// any client-supplied severity_min/severity_max.
+// newCVEService builds a service with the CVE dataset registered, which is the
+// setup nearly every CVE read-path test needs.
+func newCVEService(ds *mockDatastore) *Service {
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc.RegisterDataset(&chart.CVEDataset{})
+	return svc
+}
+
+// captureCVEFilter points the resolver at a recorder so a test can assert on
+// the filter the service built. Returns a pointer the caller reads after the
+// service call.
+func captureCVEFilter(ds *mockDatastore) *types.CVEChartFilter {
+	got := &types.CVEChartFilter{}
+	ds.resolveCVEEntitiesFn = func(_ context.Context, filter types.CVEChartFilter) ([]string, error) {
+		*got = filter
+		return []string{}, nil
+	}
+	return got
+}
+
+// TestGetChartDataCVESeverityPassthrough verifies severity bounds reach the
+// resolver untouched and are echoed back unchanged. An absent bound must stay
+// nil rather than being filled in with the range endpoint: nil drops the CVSS
+// predicate, while 0.0 or 10.0 would still exclude CVEs that have no score.
+func TestGetChartDataCVESeverityPassthrough(t *testing.T) {
+	cases := []struct {
+		name     string
+		min, max *float64
+	}{
+		{name: "no bounds"},
+		{name: "both bounds", min: new(1.0), max: new(5.0)},
+		{name: "lower bound only", min: new(7.0)},
+		{name: "upper bound only", max: new(3.9)},
+		{name: "full range is not the same as no bounds", min: new(0.0), max: new(10.0)},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := &mockDatastore{}
+			got := captureCVEFilter(ds)
+
+			resp, err := newCVEService(ds).GetChartData(premiumCtx(t), "cve", api.RequestOpts{
+				Days:        7,
+				SeverityMin: tc.min,
+				SeverityMax: tc.max,
+			})
+			require.NoError(t, err)
+
+			require.Equal(t, tc.min, got.CVSSMin, "severity_min must reach the resolver unchanged")
+			require.Equal(t, tc.max, got.CVSSMax, "severity_max must reach the resolver unchanged")
+
+			// What was applied is what gets echoed, on every case.
+			require.Equal(t, tc.min, resp.Filters.SeverityMin)
+			require.Equal(t, tc.max, resp.Filters.SeverityMax)
+		})
+	}
+}
+
+// TestGetChartDataCVEAlwaysResolvesEntities verifies that entity resolution
+// always runs for the CVE metric and its result is forwarded to GetSCDData as a
+// concrete (never-nil) set, so the chart never falls back to "all collected
+// entities", and that the remaining entity filters are forwarded intact.
 func TestGetChartDataCVEAlwaysResolvesEntities(t *testing.T) {
 	t.Run("no filters still resolves a concrete set", func(t *testing.T) {
 		ds := &mockDatastore{}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
-		svc.RegisterDataset(&chart.CVEDataset{})
-
-		var gotFilter types.CVEChartFilter
 		resolveCalled := false
-		ds.resolveCVEEntitiesFn = func(_ context.Context, filter types.CVEChartFilter) ([]string, error) {
+		ds.resolveCVEEntitiesFn = func(_ context.Context, _ types.CVEChartFilter) ([]string, error) {
 			resolveCalled = true
-			gotFilter = filter
 			return []string{"CVE-2026-0001"}, nil
 		}
 		var gotEntityIDs []string
@@ -351,45 +447,15 @@ func TestGetChartDataCVEAlwaysResolvesEntities(t *testing.T) {
 			return nil, nil
 		}
 
-		_, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{Days: 7})
+		_, err := newCVEService(ds).GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
 		require.NoError(t, err)
-		assert.True(t, resolveCalled, "the CVE metric must always resolve its entity set")
-		assert.Equal(t, []string{"CVE-2026-0001"}, gotEntityIDs, "resolved set must be forwarded to GetSCDData, never nil")
-		assert.InDelta(t, 9.0, gotFilter.CVSSMin, 0, "severity is forced to critical")
-		assert.InDelta(t, 10.0, gotFilter.CVSSMax, 0, "severity is forced to critical")
-	})
-
-	t.Run("client severity bounds are overridden to critical", func(t *testing.T) {
-		ds := &mockDatastore{}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
-		svc.RegisterDataset(&chart.CVEDataset{})
-
-		var gotFilter types.CVEChartFilter
-		ds.resolveCVEEntitiesFn = func(_ context.Context, filter types.CVEChartFilter) ([]string, error) {
-			gotFilter = filter
-			return []string{}, nil
-		}
-
-		_, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{
-			Days:        7,
-			SeverityMin: new(1.0),
-			SeverityMax: new(5.0),
-		})
-		require.NoError(t, err)
-		assert.InDelta(t, 9.0, gotFilter.CVSSMin, 0, "client severity_min must be ignored this round")
-		assert.InDelta(t, 10.0, gotFilter.CVSSMax, 0, "client severity_max must be ignored this round")
+		require.True(t, resolveCalled, "the CVE metric must always resolve its entity set")
+		require.Equal(t, []string{"CVE-2026-0001"}, gotEntityIDs, "resolved set must be forwarded to GetSCDData, never nil")
 	})
 
 	t.Run("entity filters are forwarded to the resolver", func(t *testing.T) {
 		ds := &mockDatastore{}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
-		svc.RegisterDataset(&chart.CVEDataset{})
-
-		var gotFilter types.CVEChartFilter
-		ds.resolveCVEEntitiesFn = func(_ context.Context, filter types.CVEChartFilter) ([]string, error) {
-			gotFilter = filter
-			return []string{}, nil
-		}
+		gotFilter := captureCVEFilter(ds)
 
 		opts := api.RequestOpts{
 			Days:            7,
@@ -399,14 +465,163 @@ func TestGetChartDataCVEAlwaysResolvesEntities(t *testing.T) {
 			EPSSMax:         new(1.0),
 			ExcludeCVEs:     []string{"CVE-2026-9999"},
 		}
-		_, err := svc.GetChartData(t.Context(), "cve", opts)
+		_, err := newCVEService(ds).GetChartData(premiumCtx(t), "cve", opts)
 		require.NoError(t, err)
-		assert.Equal(t, []string{api.CVECategoryBrowsers, api.CVECategoryAdobe}, gotFilter.Categories)
-		assert.True(t, gotFilter.KnownExploit)
-		require.NotNil(t, gotFilter.EPSSMin)
-		assert.InDelta(t, 0.5, *gotFilter.EPSSMin, 0)
-		assert.Equal(t, []string{"CVE-2026-9999"}, gotFilter.ExcludeCVEs)
+		require.Equal(t, []string{api.CVECategoryBrowsers, api.CVECategoryAdobe}, gotFilter.Categories)
+		require.True(t, gotFilter.KnownExploit)
+		require.Equal(t, new(0.5), gotFilter.EPSSMin)
+		require.Equal(t, []string{"CVE-2026-9999"}, gotFilter.ExcludeCVEs)
 	})
+}
+
+// TestGetChartDataCVERequiresPremium verifies the CVE metric is gated on a
+// premium license at the service layer, not just hidden in the UI, and that the
+// gate is scoped to that metric so the free-tier uptime chart keeps working.
+func TestGetChartDataCVERequiresPremium(t *testing.T) {
+	// The uptime dataset is registered alongside CVE so the "other metrics"
+	// case exercises a real free-tier chart rather than an unknown metric.
+	newSvc := func(ds *mockDatastore) *Service {
+		svc := newCVEService(ds)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+		return svc
+	}
+
+	t.Run("free tier is refused before any query runs", func(t *testing.T) {
+		ds := &mockDatastore{}
+		resolveCalled := false
+		ds.resolveCVEEntitiesFn = func(_ context.Context, _ types.CVEChartFilter) ([]string, error) {
+			resolveCalled = true
+			return []string{}, nil
+		}
+
+		_, err := newSvc(ds).GetChartData(freeCtx(t), "cve", api.RequestOpts{Days: 7})
+		requirePremiumRequired(t, err)
+		require.False(t, resolveCalled, "the gate must short-circuit before entity resolution")
+	})
+
+	t.Run("a missing license is treated as free", func(t *testing.T) {
+		_, err := newSvc(&mockDatastore{}).GetChartData(t.Context(), "cve", api.RequestOpts{Days: 7})
+		requirePremiumRequired(t, err)
+	})
+
+	t.Run("the license is checked before request validation", func(t *testing.T) {
+		// Ordering matters: an unlicensed caller gets the license error, not a
+		// validation error that would tell them how the filter behaves.
+		_, err := newSvc(&mockDatastore{}).GetChartData(freeCtx(t), "cve", api.RequestOpts{
+			Days:        7,
+			SeverityMin: new(8.0),
+			SeverityMax: new(2.0), // inverted, would otherwise be a 400
+		})
+		requirePremiumRequired(t, err)
+	})
+
+	t.Run("premium is allowed", func(t *testing.T) {
+		ds := &mockDatastore{}
+		captureCVEFilter(ds)
+		_, err := newSvc(ds).GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
+		require.NoError(t, err)
+	})
+
+	t.Run("the gate does not apply to other metrics", func(t *testing.T) {
+		_, err := newSvc(&mockDatastore{}).GetChartData(freeCtx(t), "uptime", api.RequestOpts{Days: 7})
+		require.NoError(t, err, "only the cve metric is premium-gated")
+	})
+}
+
+// TestGetChartDataSeverityValidation verifies severity bounds are validated as
+// a 0.0–10.0 CVSS range with min <= max, rejecting bad input rather than
+// clamping it, and that the guards only reject genuinely invalid input.
+func TestGetChartDataSeverityValidation(t *testing.T) {
+	cases := []struct {
+		name    string
+		min     *float64
+		max     *float64
+		wantErr bool
+	}{
+		{name: "no bounds", wantErr: false},
+		{name: "full range", min: new(0.0), max: new(10.0), wantErr: false},
+		{name: "equal bounds", min: new(5.0), max: new(5.0), wantErr: false},
+		{name: "min only", min: new(7.0), wantErr: false},
+		{name: "max only", max: new(3.9), wantErr: false},
+		{name: "min above range", min: new(10.1), wantErr: true},
+		{name: "max above range", max: new(11.0), wantErr: true},
+		{name: "min below range", min: new(-1.0), wantErr: true},
+		{name: "max below range", max: new(-0.1), wantErr: true},
+		{name: "min greater than max", min: new(8.0), max: new(2.0), wantErr: true},
+		// strconv.ParseFloat accepts "NaN", so a client can reach this with
+		// ?severity_min=NaN. Every ordered comparison against NaN is false, so
+		// the range and inversion guards let it through unless NaN is rejected
+		// explicitly — and a NaN in the response's filters echo fails to
+		// JSON-encode, turning a bad request into a server error.
+		{name: "min is NaN", min: new(math.NaN()), wantErr: true},
+		{name: "max is NaN", max: new(math.NaN()), wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := &mockDatastore{}
+			resolveCalled := false
+			ds.resolveCVEEntitiesFn = func(_ context.Context, _ types.CVEChartFilter) ([]string, error) {
+				resolveCalled = true
+				return []string{}, nil
+			}
+
+			_, err := newCVEService(ds).GetChartData(premiumCtx(t), "cve", api.RequestOpts{
+				Days:        7,
+				SeverityMin: tc.min,
+				SeverityMax: tc.max,
+			})
+			if !tc.wantErr {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			var badReq *platform_http.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+			require.False(t, resolveCalled, "an invalid bound must be rejected before any query runs")
+		})
+	}
+
+	// Severity is applied only to the CVE metric, so other metrics ignore the
+	// bounds rather than rejecting them, matching how software_filters,
+	// has_known_exploit, and the EPSS bounds are already ignored for uptime.
+	t.Run("non-CVE metrics ignore invalid severity bounds", func(t *testing.T) {
+		svc := NewService(&mockAuthorizer{}, &mockDatastore{}, globalViewer(), nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{
+			Days:        7,
+			SeverityMin: new(99.0),
+			SeverityMax: new(-1.0),
+		})
+		require.NoError(t, err)
+	})
+}
+
+// TestGetChartDataOmitsUnsetSeverityFromEcho verifies the response's filters
+// object reports absent bounds as absent. The echo is what the client reads back
+// to seed its controls, so filling in 0.0/10.0 here would claim a narrowing that
+// was never applied — and 0.0–10.0 is not equivalent to no bound, since it
+// excludes CVEs with no CVSS score.
+func TestGetChartDataOmitsUnsetSeverityFromEcho(t *testing.T) {
+	ds := &mockDatastore{}
+	ds.resolveCVEEntitiesFn = func(_ context.Context, _ types.CVEChartFilter) ([]string, error) {
+		return []string{}, nil
+	}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc.RegisterDataset(&chart.CVEDataset{})
+
+	resp, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
+	require.NoError(t, err)
+	require.Nil(t, resp.Filters.SeverityMin)
+	require.Nil(t, resp.Filters.SeverityMax)
+
+	// A one-sided request echoes only the side that was set.
+	resp, err = svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7, SeverityMax: new(3.9)})
+	require.NoError(t, err)
+	require.Nil(t, resp.Filters.SeverityMin)
+	require.NotNil(t, resp.Filters.SeverityMax)
+	require.InDelta(t, 3.9, *resp.Filters.SeverityMax, 0)
 }
 
 func TestGetChartDataWithHostFilters(t *testing.T) {

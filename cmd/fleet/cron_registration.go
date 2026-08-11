@@ -85,7 +85,8 @@ func startCronSchedules(ctx context.Context, deps cronSchedulesDeps) {
 func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesDeps) {
 	if os.Getenv("FLEET_SKIP_CHART_DATA_COLLECTION") == "" {
 		deps.register("failed to register chart_data_collection schedule", func() (fleet.CronSchedule, error) {
-			return newChartDataCollectionSchedule(ctx, deps.instanceID, deps.ds, deps.chartSvc, deps.logger)
+			return newChartDataCollectionSchedule(ctx, deps.instanceID, deps.ds, deps.chartSvc,
+				deps.license != nil && deps.license.IsPremium(), deps.logger)
 		})
 	} else {
 		deps.logger.InfoContext(ctx, "skipping chart data collection cron (FLEET_SKIP_CHART_DATA_COLLECTION is set)")

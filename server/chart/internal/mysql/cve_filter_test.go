@@ -54,6 +54,18 @@ func seedCVEMeta(t *testing.T, tdb *testutils.TestDB, cve string, cvss, epss flo
 	require.NoError(t, err)
 }
 
+// seedCVEMetaNoScore inserts cve_meta with a NULL cvss_score, which is what
+// Fleet stores for a CVE that NVD has no CVSS v3 base score for. Such a CVE is
+// invisible to any cvss_score comparison, so it only resolves when no severity
+// bound is set at all.
+func seedCVEMetaNoScore(t *testing.T, tdb *testutils.TestDB, cve string, epss float64, knownExploit bool) {
+	t.Helper()
+	_, err := tdb.DB.ExecContext(t.Context(),
+		`INSERT INTO cve_meta (cve, cvss_score, epss_probability, cisa_known_exploit) VALUES (?, NULL, ?, ?)`,
+		cve, epss, knownExploit)
+	require.NoError(t, err)
+}
+
 // TestCollectibleCVEs verifies the wide collection set: all severities on
 // tracked software and OS vulnerabilities are collected (even without cve_meta),
 // while CVEs on untracked software are excluded.
@@ -88,6 +100,9 @@ func TestCollectibleCVEs(t *testing.T) {
 //	CVE-D  kernel-x (rpm, OS)  cvss 9.1  epss 0.50  kev=false
 //	CVE-E  OS vuln (OS)        cvss 9.7  epss 0.90  kev=true
 //	CVE-F  Slack (untracked)   cvss 10.0 epss 0.99  kev=true   (never tracked)
+//	CVE-G  Chrome (browsers)   cvss NULL epss 0.40  kev=false  (no CVSS score)
+//	CVE-H  Chrome (browsers)   no cve_meta row at all         (no NVD metadata)
+//	CVE-I  OS vuln (OS)        no cve_meta row at all         (no NVD metadata)
 func TestResolveCVEChartEntities(t *testing.T) {
 	tdb := testutils.SetupTestDB(t, "chart_mysql")
 	defer tdb.TruncateTables(t)
@@ -106,9 +121,18 @@ func TestResolveCVEChartEntities(t *testing.T) {
 	seedCVEMeta(t, tdb, "CVE-E", 9.7, 0.90, true)
 	seedSoftware(t, tdb, "Slack", "apps", "CVE-F")
 	seedCVEMeta(t, tdb, "CVE-F", 10.0, 0.99, true)
+	seedSoftware(t, tdb, "Google Chrome", "apps", "CVE-G")
+	seedCVEMetaNoScore(t, tdb, "CVE-G", 0.40, false)
+	// No cve_meta row at all — the collector records these (severity unknown),
+	// so the resolver must be able to return them when nothing is filtered on
+	// cve_meta. Seeded on both sides because the software- and OS-side joins are
+	// built independently, so one side dropping the join proves nothing about
+	// the other.
+	seedSoftware(t, tdb, "Google Chrome", "apps", "CVE-H")
+	seedOSVuln(t, tdb, 1, "CVE-I")
 
-	// critical is the default service-forced severity band.
-	const critMin, critMax = 9.0, 10.0
+	// critical is what the UI seeds by default, so it's the band most cases use.
+	critMin, critMax := new(9.0), new(10.0)
 	allCats := types.CVEChartFilter{CVSSMin: critMin, CVSSMax: critMax}
 
 	cases := []struct {
@@ -155,6 +179,60 @@ func TestResolveCVEChartEntities(t *testing.T) {
 			name:   "combined: browsers AND known-exploit",
 			filter: types.CVEChartFilter{CVSSMin: critMin, CVSSMax: critMax, Categories: []string{api.CVECategoryBrowsers}, KnownExploit: true},
 			want:   []string{"CVE-A"},
+		},
+		{
+			// No cve_meta predicate at all: the cvss_score comparison is gone, and
+			// so is the cve_meta join, so CVEs with a NULL score (G) and CVEs with
+			// no metadata row whatsoever (H software-side, I OS-side) all resolve.
+			name:   "no severity bound includes every severity, unscored, and unknown-metadata CVEs",
+			filter: types.CVEChartFilter{},
+			want:   []string{"CVE-A", "CVE-B", "CVE-C", "CVE-D", "CVE-E", "CVE-G", "CVE-H", "CVE-I"},
+		},
+		{
+			// Pins the OS-side join drop on its own: the software side is skipped
+			// except for the kernel matcher, so CVE-I can only resolve if the OS
+			// query dropped its cve_meta join too. Without this case the OS branch
+			// is indistinguishable from an unconditional join.
+			name:   "OS category with no bounds keeps unknown-metadata OS vulns",
+			filter: types.CVEChartFilter{Categories: []string{api.CVECategoryOS}},
+			want:   []string{"CVE-D", "CVE-E", "CVE-I"},
+		},
+		{
+			// Filtering on any cve_meta column requires the row to exist, so an
+			// unknown-metadata CVE drops out even though the predicate is
+			// unrelated to severity.
+			name:   "a known-exploit filter still requires cve_meta",
+			filter: types.CVEChartFilter{KnownExploit: true},
+			want:   []string{"CVE-A", "CVE-E"},
+		},
+		{
+			name:   "an EPSS bound alone still requires cve_meta",
+			filter: types.CVEChartFilter{EPSSMin: new(0.30)},
+			want:   []string{"CVE-A", "CVE-D", "CVE-E", "CVE-G"},
+		},
+		{
+			// Category narrowing is a software-side predicate, so it does not
+			// reintroduce the cve_meta requirement.
+			name:   "category narrowing alone keeps unknown-metadata CVEs",
+			filter: types.CVEChartFilter{Categories: []string{api.CVECategoryBrowsers}},
+			want:   []string{"CVE-A", "CVE-B", "CVE-G", "CVE-H"},
+		},
+		{
+			// The counterpart: an explicit full range is still a comparison, and
+			// NULL fails every comparison, so the unscored CVE drops out.
+			name:   "explicit full range excludes unscored CVEs",
+			filter: types.CVEChartFilter{CVSSMin: new(0.0), CVSSMax: new(10.0)},
+			want:   []string{"CVE-A", "CVE-B", "CVE-C", "CVE-D", "CVE-E"},
+		},
+		{
+			name:   "lower bound only",
+			filter: types.CVEChartFilter{CVSSMin: new(9.0)},
+			want:   []string{"CVE-A", "CVE-C", "CVE-D", "CVE-E"},
+		},
+		{
+			name:   "upper bound only",
+			filter: types.CVEChartFilter{CVSSMax: new(3.9)},
+			want:   []string{"CVE-B"},
 		},
 	}
 
