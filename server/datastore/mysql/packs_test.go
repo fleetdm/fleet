@@ -34,6 +34,7 @@ func TestPacks(t *testing.T) {
 		{"ApplyStatsNotLocking", testPacksApplyStatsNotLocking},
 		{"ApplyStatsNotLockingTryTwo", testPacksApplyStatsNotLockingTryTwo},
 		{"ListForHostIncludesOnlyUserPacks", testListForHostIncludesOnlyUserPacks},
+		{"ListForHostExcludesDisabledPacks", testListForHostExcludesDisabledPacks},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -606,4 +607,34 @@ func testListForHostIncludesOnlyUserPacks(t *testing.T, ds *Datastore) {
 	if assert.Len(t, packs, 1) {
 		assert.Equal(t, "foo_pack", packs[0].Name)
 	}
+}
+
+func testListForHostExcludesDisabledPacks(t *testing.T, ds *Datastore) {
+	mockClock := clock.NewMockClock()
+	ctx := context.Background()
+
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", mockClock.Now())
+
+	// Create a pack targeted at the host via host_ids.
+	pack, err := ds.NewPack(ctx, &fleet.Pack{
+		Name:    "host_targeted_pack",
+		HostIDs: []uint{h1.ID},
+	})
+	require.NoError(t, err)
+
+	// The pack should appear when listing packs for the host.
+	packs, err := ds.ListPacksForHost(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, packs, 1)
+	assert.Equal(t, "host_targeted_pack", packs[0].Name)
+
+	// Disable the pack.
+	pack.Disabled = true
+	err = ds.SavePack(ctx, pack)
+	require.NoError(t, err)
+
+	// The disabled pack should no longer appear.
+	packs, err = ds.ListPacksForHost(ctx, h1.ID)
+	require.NoError(t, err)
+	assert.Len(t, packs, 0)
 }
