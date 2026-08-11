@@ -491,6 +491,19 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 			fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", name))
 	}
 
+	// case-variant names should also be rejected (MySQL collation is case-insensitive,
+	// so a case-variant name would overwrite the built-in label row)
+	for _, variant := range []string{"all hosts", "ALL HOSTS", "All hosts"} {
+		err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+			{
+				Name:      variant,
+				Query:     "select 1;",
+				LabelType: fleet.LabelTypeRegular,
+			},
+		}, nil, nil)
+		assert.ErrorContains(t, err, "conflicts with the name of a built-in label", "case variant %q should be rejected", variant)
+	}
+
 	const errorMessage = "cannot modify or add built-in label"
 	// not ok -- built-in label name doesn't exist
 	name = "not-foo"

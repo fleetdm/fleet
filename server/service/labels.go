@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -728,7 +729,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			continue
 		}
 		for name := range fleet.ReservedLabelNames() {
-			if spec.Name == name {
+			if strings.EqualFold(spec.Name, name) {
 				return fleet.NewUserMessageError(
 					ctxerr.Errorf(
 						ctx,
