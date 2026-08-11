@@ -132,7 +132,7 @@ The goal is to not go more than one business day without responding to the contr
    - Product changes (UI, user-facing behavior, API responses or endpoints, configuration options, CLI commands, or significant documentation changes that alter the product definition or meaning): the Product Designer (PD) decides.
    - Bug fixes, typo fixes, minor documentation improvements, and reliability issues: the Engineering Manager decides.
 
-   If the PR is not something we want to pursue, thank the contributor, explain the reasoning, optionally invite them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=), and close the PR.
+If the PR is not something we want to pursue, thank the contributor, explain the reasoning, optionally invite them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=), and close the PR.
 
 4. **Track the work**: Create an issue using the relevant [work item](https://fleetdm.com/handbook/company/product-groups#work-items) issue template. The issue then moves across the relevant product group's board following the [standard process](https://fleetdm.com/handbook/company/product-groups#how-issues-move).
 
