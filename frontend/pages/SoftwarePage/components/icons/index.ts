@@ -2330,6 +2330,8 @@ export const PLATFORM_NAME_TO_ICON_MAP = {
   chrome: ChromeOS,
   ios: iOS,
   ipados: iPadOS,
+  // TODO: swap for a dedicated tvOS glyph when design provides one.
+  tvos: MacOS,
   android: AndroidOS,
 } as const;
 
@@ -2348,6 +2350,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   apps: AppleApp,
   ios_apps: AppleApp,
   ipados_apps: AppleApp,
+  tvos_apps: AppleApp,
   programs: WindowsOS,
   android_apps: AndroidApp,
   chrome_extensions: Extension,

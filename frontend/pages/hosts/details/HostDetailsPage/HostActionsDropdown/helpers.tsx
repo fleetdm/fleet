@@ -7,6 +7,8 @@ import {
   isAppleDevice,
   isMacOS,
   isMobilePlatform,
+  isNonQueryablePlatform,
+  isAppleTV,
   isAndroid,
   isIPadOrIPhone,
 } from "interfaces/platform";
@@ -191,8 +193,8 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
 };
 
 const canQueryHost = ({ hostPlatform }: IHostActionConfigOptions) => {
-  // cannot query iOS, iPadOS, or Android hosts
-  return !isMobilePlatform(hostPlatform);
+  // cannot query the platforms Fleet manages without osquery
+  return !isNonQueryablePlatform(hostPlatform);
 };
 
 const canLockHost = ({
@@ -311,8 +313,11 @@ const canUnlock = ({
 }: IHostActionConfigOptions) => {
   // apple device hosts can be unlocked if they are enrolled in the Fleet MDM and the
   // MDM is enabled and configured.
+  // Apple TVs are excluded: they have neither DeviceLock nor lost mode, so they
+  // can never be locked and there is nothing to unlock.
   const canUnlockApple =
     isAppleDevice(hostPlatform) &&
+    !isAppleTV(hostPlatform) &&
     isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
@@ -354,7 +359,7 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   if (!isPremiumTier) {
     return false;
   }
-  if (isMobilePlatform(hostPlatform)) {
+  if (isNonQueryablePlatform(hostPlatform)) {
     return false;
   }
   // For Apple devices, the encryption key is only available when connected to Fleet MDM

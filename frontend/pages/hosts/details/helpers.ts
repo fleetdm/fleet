@@ -118,8 +118,12 @@ const generateHostNameSetting = (
   };
 };
 
-/** Platforms that can enforce a host name template (Apple only). */
-const HOST_NAME_TEMPLATE_PLATFORMS = ["darwin", "ios", "ipados"];
+/**
+ * Platforms that can enforce a host name template (Apple only). Must stay in
+ * sync with the platform filter the server enforces on, in
+ * server/datastore/mysql/apple_device_names.go.
+ */
+const HOST_NAME_TEMPLATE_PLATFORMS = ["darwin", "ios", "ipados", "tvos"];
 
 /**
  * Returns the synthetic "Host name" row when the host is an Apple host enrolled

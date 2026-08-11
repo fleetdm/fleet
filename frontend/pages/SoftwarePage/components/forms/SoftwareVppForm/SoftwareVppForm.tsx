@@ -5,7 +5,7 @@ import useGitOpsMode from "hooks/useGitOpsMode";
 
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import { IAppStoreApp, isIpadOrIphoneSoftware } from "interfaces/software";
+import { IAppStoreApp, isAppleMdmOnlySoftware } from "interfaces/software";
 import { IVppApp } from "services/entities/mdm_apple";
 
 import CustomLink from "components/CustomLink";
@@ -252,7 +252,7 @@ const SoftwareVppForm = ({
   const renderContent = () => {
     // Edit VPP form
     if (softwareVppForEdit) {
-      const isAppleMobile = isIpadOrIphoneSoftware(softwareVppForEdit.platform);
+      const isAppleMobile = isAppleMdmOnlySoftware(softwareVppForEdit.platform);
       return (
         <div className={`${baseClass}__form-fields`}>
           <FileDetails
@@ -303,7 +303,7 @@ const SoftwareVppForm = ({
     // Hides deploy slider for iOS/iPadOS apps
     const showDeploySoftwareSlider =
       !!formData.selectedApp &&
-      !isIpadOrIphoneSoftware(formData.selectedApp.platform);
+      !isAppleMdmOnlySoftware(formData.selectedApp.platform);
 
     // Add VPP form
     // 4.83+ has no additional options to select beyond the app
@@ -327,7 +327,7 @@ const SoftwareVppForm = ({
               onSelectCategory={onSelectCategory}
               onClickPreviewEndUserExperience={() =>
                 onClickPreviewEndUserExperience(
-                  isIpadOrIphoneSoftware(formData.selectedApp?.platform || "")
+                  isAppleMdmOnlySoftware(formData.selectedApp?.platform || "")
                 )
               }
               teamId={teamId}

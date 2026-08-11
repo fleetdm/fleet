@@ -33,6 +33,8 @@ var (
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."
 	CantLockManualIOSIpadOSHostsMessage          = "Couldn't lock. This command isn't available for manually enrolled iOS/iPadOS hosts."
+	CantLockTvOSHostsMessage                     = "Couldn't lock. Apple TVs don't support lock."
+	CantUnlockTvOSHostsMessage                   = "Couldn't unlock. Apple TVs don't support lock."
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."

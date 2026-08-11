@@ -21,7 +21,7 @@ import hostsCountAPI, {
 import {
   ISoftwareVersion,
   formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
   isAndroidSoftwareSource,
 } from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
@@ -56,7 +56,7 @@ const getVulnUnsupportedSourceText = (
   source: string
 ): DisplayPlatform | undefined => {
   if (isAndroidSoftwareSource(source)) return "Android";
-  if (isIpadOrIphoneSoftwareSource(source)) {
+  if (isAppleMdmOnlySoftwareSource(source)) {
     return source === "ios_apps" ? "iOS" : "iPadOS";
   }
   return undefined;

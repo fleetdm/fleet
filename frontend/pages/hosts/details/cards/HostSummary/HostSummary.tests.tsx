@@ -146,6 +146,33 @@ describe("Host Summary section", () => {
       expect(screen.getByText("OS settings")).toBeInTheDocument();
     });
 
+    it("renders the OS settings indicator for a tvOS host", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = {
+        ...createMockHostSummary({ platform: "tvos" }),
+        mdm: { enrollment_status: "On (automatic)" },
+      };
+
+      render(
+        <HostSummary
+          summaryData={summaryData}
+          hostSettings={[]}
+          osSettings={osSettingsWithHostName}
+          toggleOSSettingsModal={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("OS settings")).toBeInTheDocument();
+    });
+
     it("does not render the OS settings indicator when the host is not enrolled in MDM", () => {
       const render = createCustomRenderer({
         context: {

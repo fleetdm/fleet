@@ -25,7 +25,7 @@ interface ISoftwareAppStoreProps {
 }
 
 const platformOptions = [
-  { label: "Apple (macOS, iOS, and iPadOS)", value: "apple" },
+  { label: "Apple (macOS, iOS, iPadOS, and tvOS)", value: "apple" },
   { label: "Android", value: "android" },
 ];
 

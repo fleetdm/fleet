@@ -16,7 +16,7 @@ import { ILabelSoftwareTitle } from "interfaces/label";
 import {
   aggregateInstallStatusCounts,
   IAppStoreApp,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
   ISoftwareInstallPolicyUI,
   ISoftwarePackage,
   ISoftwareTitleDetails,
@@ -307,7 +307,7 @@ const SoftwareTitleDetailsPage = ({
       if (!appStore) return null;
       const { labels, kind } = pickLabels(appStore);
       const isAndroidPlayStoreApp = appStore.platform === "android";
-      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      const isIosOrIpadosApp = isAppleMdmOnlySoftwareSource(title.source);
       return (
         <LibraryItemAccordion
           filename={appStore.name}
@@ -348,7 +348,7 @@ const SoftwareTitleDetailsPage = ({
         installerResult?.meta.isLatestFmaVersion ?? false;
       const isScriptPackage =
         installerResult?.cardInfo.isScriptPackage ?? false;
-      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      const isIosOrIpadosApp = isAppleMdmOnlySoftwareSource(title.source);
       const perPackagePolicies = mergePolicies({
         automaticInstallPolicies: pkg.automatic_install_policies,
         patchPolicy: pkg.patch_policy,
@@ -517,7 +517,7 @@ const SoftwareTitleDetailsPage = ({
           data={title.versions ?? []}
           isLoading={isSoftwareTitleLoading}
           teamIdForApi={teamIdForApi}
-          isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}
+          isIPadOSOrIOSApp={isAppleMdmOnlySoftwareSource(title.source)}
           isAvailableForInstall={isAvailableForInstall}
           countsUpdatedAt={title.counts_updated_at}
         />

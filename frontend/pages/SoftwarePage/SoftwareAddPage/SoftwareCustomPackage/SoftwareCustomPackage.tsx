@@ -76,7 +76,7 @@ const SoftwareCustomPackage = ({
     setShowPreviewEndUserExperience,
   ] = useState(false);
   const [
-    isIpadOrIphoneSoftwareSource,
+    isAppleMdmOnlySoftwareSource,
     setIsIpadOrIphoneSoftwareSource,
   ] = useState(false);
 
@@ -202,7 +202,7 @@ const SoftwareCustomPackage = ({
           <CategoriesEndUserExperienceModal
             onCancel={onClickPreviewEndUserExperience}
             teamId={currentTeamId}
-            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource}
+            isIosOrIpadosApp={isAppleMdmOnlySoftwareSource}
           />
         )}
       </>

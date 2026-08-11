@@ -62,7 +62,7 @@ const AddPackageModal = ({
     setShowPreviewEndUserExperience,
   ] = useState(false);
   const [
-    isIpadOrIphoneSoftwareSource,
+    isAppleMdmOnlySoftwareSource,
     setIsIpadOrIphoneSoftwareSource,
   ] = useState(false);
 
@@ -154,7 +154,7 @@ const AddPackageModal = ({
         <CategoriesEndUserExperienceModal
           onCancel={onClickPreviewEndUserExperience}
           teamId={teamId}
-          isIosOrIpadosApp={isIpadOrIphoneSoftwareSource}
+          isIosOrIpadosApp={isAppleMdmOnlySoftwareSource}
         />
       )}
     </>

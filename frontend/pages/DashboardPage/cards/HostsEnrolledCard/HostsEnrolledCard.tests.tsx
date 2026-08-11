@@ -53,7 +53,8 @@ const builtInLabels: ILabelSummary[] = [
   { id: 13, name: "chrome", label_type: "builtin" },
   { id: 14, name: "iOS", label_type: "builtin" },
   { id: 15, name: "iPadOS", label_type: "builtin" },
-  { id: 16, name: "Android", label_type: "builtin" },
+  { id: 16, name: "tvOS", label_type: "builtin" },
+  { id: 17, name: "Android", label_type: "builtin" },
 ];
 
 const counts = {
@@ -63,6 +64,7 @@ const counts = {
   chrome: 7,
   ios: 0,
   ipados: 0,
+  tvos: 0,
   android: 0,
 };
 
@@ -125,6 +127,7 @@ describe("HostsEnrolledCard", () => {
       "ChromeOS",
       "iOS",
       "iPadOS",
+      "tvOS",
       "Android",
     ].forEach((label) => {
       expect(screen.getByText(label)).toBeInTheDocument();
@@ -166,7 +169,7 @@ describe("HostsEnrolledCard", () => {
         />
       );
 
-      // iOS/iPadOS/Android have a count of 0, so they should stay plain text.
+      // iOS/iPadOS/tvOS/Android have a count of 0, so they should stay plain text.
       expect(
         screen.queryByRole("button", { name: "iOS hosts" })
       ).not.toBeInTheDocument();

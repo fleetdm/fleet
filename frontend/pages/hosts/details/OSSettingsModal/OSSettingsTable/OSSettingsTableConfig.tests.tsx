@@ -25,7 +25,7 @@ describe("generateTableData - host name row", () => {
     detail: "",
   };
 
-  it.each(["darwin", "ios", "ipados"])(
+  it.each(["darwin", "ios", "ipados", "tvos"])(
     "appends the host name row for %s hosts when os_settings.host_name is present",
     (platform) => {
       const mdmData = createMockHostMdmData({
@@ -47,7 +47,7 @@ describe("generateTableData - host name row", () => {
     }
   );
 
-  it.each(["darwin", "ios", "ipados"])(
+  it.each(["darwin", "ios", "ipados", "tvos"])(
     "does not append the host name row for %s hosts when os_settings.host_name is omitted",
     (platform) => {
       const mdmData = createMockHostMdmData();
@@ -60,7 +60,7 @@ describe("generateTableData - host name row", () => {
     }
   );
 
-  it.each(["darwin", "ios", "ipados"])(
+  it.each(["darwin", "ios", "ipados", "tvos"])(
     "does not append the host name row for %s hosts that are not enrolled in MDM",
     (platform) => {
       const mdmData = createMockHostMdmData({

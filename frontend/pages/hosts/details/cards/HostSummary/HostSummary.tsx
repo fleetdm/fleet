@@ -11,7 +11,7 @@ import {
 import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
 import {
   isAndroid,
-  isIPadOrIPhone,
+  isAppleMdmOnlyPlatform,
   isDiskEncryptionSupportedLinuxPlatform,
   isOsSettingsDisplayPlatform,
 } from "interfaces/platform";
@@ -76,7 +76,7 @@ const HostSummary = ({
   let derivedHostSettings = hostSettings;
 
   const isAndroidHost = isAndroid(platform);
-  const isIosOrIpadosHost = isIPadOrIPhone(platform);
+  const isMdmOnlyAppleHost = isAppleMdmOnlyPlatform(platform);
 
   const renderIssues = () => (
     <DataSet
@@ -205,7 +205,7 @@ const HostSummary = ({
       : [hostNameSetting];
   }
 
-  const showStatus = !isIosOrIpadosHost && !isAndroidHost;
+  const showStatus = !isMdmOnlyAppleHost && !isAndroidHost;
   const showTeam = !!isPremiumTier;
   const showOsSettings =
     isOsSettingsDisplayPlatform(platform, os_version) &&
@@ -213,10 +213,10 @@ const HostSummary = ({
     derivedHostSettings.length > 0;
   const showIssues =
     summaryData.issues?.total_issues_count > 0 &&
-    !isIosOrIpadosHost &&
+    !isMdmOnlyAppleHost &&
     !isAndroidHost;
   const showBootstrapPackage =
-    !!bootstrapPackageData?.status && !isIosOrIpadosHost && !isAndroidHost;
+    !!bootstrapPackageData?.status && !isMdmOnlyAppleHost && !isAndroidHost;
   const showMaintenanceWindow =
     !!isPremiumTier &&
     // TODO - refactor normalizeEmptyValues pattern

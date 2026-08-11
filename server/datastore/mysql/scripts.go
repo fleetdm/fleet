@@ -1506,7 +1506,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 	}
 
 	switch hostPlatform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		if mdmActions.UnlockPIN != nil && hostPlatform == "darwin" {
 			// Unlock PIN is only available for macOS hosts
 			status.UnlockPIN = *mdmActions.UnlockPIN
@@ -1748,8 +1748,9 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 
 		// Collect command/script references based on platform
 		switch fleetPlatform {
-		case "darwin", "ios", "ipados":
-			// Apple platforms use MDM commands for lock, unlock (ios/ipados only), and wipe
+		case "darwin", "ios", "ipados", "tvos":
+			// Apple platforms use MDM commands for lock, unlock (ios/ipados only), and wipe.
+			// Apple TVs support neither lock nor unlock, so only the wipe ref applies.
 			if mdmActions.LockRef != nil {
 				appleCommandRefs = append(appleCommandRefs, refKey{
 					uuid:     *mdmActions.LockRef,

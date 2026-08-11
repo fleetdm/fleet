@@ -246,6 +246,7 @@ const PLATFORM_LABEL_NAMES_FROM_API = [
   "chrome",
   "iOS",
   "iPadOS",
+  "tvOS",
   "Android",
 ] as const;
 
@@ -268,6 +269,8 @@ export const PLATFORM_DISPLAY_NAMES: Record<string, DisplayPlatform> = {
   ChromeOS: "ChromeOS",
   ios: "iOS",
   ipados: "iPadOS",
+  tvos: "tvOS",
+  tvOS: "tvOS",
   android: "Android",
   Android: "Android",
 } as const;
@@ -287,6 +290,7 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<
   chrome: "ChromeOS",
   iOS: "iOS",
   iPadOS: "iPadOS",
+  tvOS: "tvOS",
   Android: "Android",
 } as const;
 
@@ -304,6 +308,7 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   chrome: "platform",
   iOS: "platform",
   iPadOS: "platform",
+  tvOS: "platform",
   Android: "platform",
 } as const;
 
@@ -324,6 +329,7 @@ export const PLATFORM_TYPE_ICONS = {
   chrome: "chrome",
   iOS: "iOS",
   iPadOS: "iPadOS",
+  tvOS: "tvOS",
   Android: "android",
 } as const;
 
@@ -337,7 +343,7 @@ export type PlatformLabelOptions = DisplayPlatform | "All";
 
 export type PlatformValueOptions = Platform | "all";
 
-/** Scheduled queries do not support ChromeOS, iOS, iPadOS, or Android */
+/** Scheduled queries do not support ChromeOS, iOS, iPadOS, tvOS, or Android */
 export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
   { label: "All", value: "" }, // API empty string runs on all platforms
   { label: "macOS", value: "darwin" },

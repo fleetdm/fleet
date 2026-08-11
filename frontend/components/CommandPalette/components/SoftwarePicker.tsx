@@ -8,7 +8,7 @@ import {
 } from "interfaces/team";
 import {
   formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
   ISoftwareTitle,
 } from "interfaces/software";
 import softwareAPI, {
@@ -42,7 +42,7 @@ const getInstallerProps = (title: ISoftwareTitle) => {
   return {
     isSelfService: installer.self_service,
     automaticInstallPoliciesCount: getAutomaticInstallPoliciesCount(title),
-    isIosOrIpadosApp: isIpadOrIphoneSoftwareSource(title.source),
+    isIosOrIpadosApp: isAppleMdmOnlySoftwareSource(title.source),
     isAndroidPlayStoreApp:
       !!title.app_store_app && title.source === "android_apps",
   };

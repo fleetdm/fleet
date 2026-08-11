@@ -6,7 +6,7 @@ type IPlatformDisplayName =
   | "macOS"
   | "Windows"
   | "Linux"
-  | "iOS/iPadOS"
+  | "iOS/iPadOS or tvOS"
   | "macOS & Linux";
 
 export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
@@ -25,7 +25,7 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   sh: "macOS & Linux",
   ps1: "Windows",
   py: "macOS & Linux",
-  ipa: "iOS/iPadOS",
+  ipa: "iOS/iPadOS or tvOS",
 };
 
 /** Currently only using tar.gz, but keeping the others for future use
@@ -72,7 +72,8 @@ export const getExtensionFromFileName = (fileName: string) => {
 
 /** This gets the platform display name from the file.
  * Script packages (.sh, .py) map to "macOS & Linux" since they run on both;
- * .ipa maps to iOS/iPadOS with a tooltip noting it covers both.
+ * .ipa maps to iOS/iPadOS or tvOS: the target platform is read from the app's
+ * Info.plist on upload, and an iOS app is added for both iPhone and iPad.
  */
 export const getPlatformDisplayName = (file: File) => {
   const fileExt = getExtensionFromFileName(file.name);
@@ -81,7 +82,7 @@ export const getPlatformDisplayName = (file: File) => {
   }
   if (fileExt === "ipa") {
     return (
-      <TooltipWrapper tipContent="Software will be added for both platforms.">
+      <TooltipWrapper tipContent="An iOS app will be added for both iPhone and iPad. A tvOS app will be added for Apple TV only.">
         {FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt]}
       </TooltipWrapper>
     );

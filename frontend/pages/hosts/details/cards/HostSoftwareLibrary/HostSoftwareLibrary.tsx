@@ -20,7 +20,11 @@ import {
   IVPPHostSoftware,
   ISoftware,
 } from "interfaces/software";
-import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
+import {
+  HostPlatform,
+  isAppleMdmOnlyPlatform,
+  isAndroid,
+} from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import permissions from "utilities/permissions";
@@ -140,7 +144,7 @@ const HostSoftwareLibrary = ({
 
   const isUnsupported = isAndroid(platform); // no Android software
   const isWindowsHost = platform === "windows";
-  const isIPadOrIPhoneHost = isIPadOrIPhone(platform);
+  const isMdmOnlyAppleHost = isAppleMdmOnlyPlatform(platform);
   const isAndroidHost = isAndroid(platform);
   const isMacOSHost = platform === "darwin";
 
@@ -372,7 +376,7 @@ const HostSoftwareLibrary = ({
     } = { fleet_id: hostTeamId };
 
     switch (true) {
-      case isIPadOrIPhoneHost || isAndroidHost:
+      case isMdmOnlyAppleHost || isAndroidHost:
         path = PATHS.SOFTWARE_ADD_APP_STORE;
         params.platform = isAndroidHost ? "android" : "apple";
         break;
@@ -386,7 +390,7 @@ const HostSoftwareLibrary = ({
     router.push(getPathWithQueryParams(path, params));
   }, [
     hostTeamId,
-    isIPadOrIPhoneHost,
+    isMdmOnlyAppleHost,
     isAndroidHost,
     isMacOSHost,
     isWindowsHost,

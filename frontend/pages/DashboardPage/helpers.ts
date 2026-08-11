@@ -9,6 +9,7 @@ export const PLATFORM_DROPDOWN_OPTIONS = [
   { label: "ChromeOS", value: "chrome", path: paths.DASHBOARD_CHROME },
   { label: "iOS", value: "ios", path: paths.DASHBOARD_IOS },
   { label: "iPadOS", value: "ipados", path: paths.DASHBOARD_IPADOS },
+  { label: "tvOS", value: "tvos", path: paths.DASHBOARD_TVOS },
   { label: "Android", value: "android", path: paths.DASHBOARD_ANDROID },
 ] as const;
 

@@ -7,7 +7,7 @@ import {
   ISoftwarePackage,
   IAppStoreApp,
   isSoftwarePackage,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
   InstallerType,
 } from "interfaces/software";
 import {
@@ -62,7 +62,7 @@ export const useSoftwareInstaller = (
     const cardInfo = getInstallerCardInfo(softwareTitle);
     const { softwareInstaller, source } = cardInfo;
 
-    const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
+    const isIosOrIpadosApp = isAppleMdmOnlySoftwareSource(source);
 
     const installerType: InstallerType = isSoftwarePackage(softwareInstaller)
       ? "package"

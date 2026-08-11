@@ -5,7 +5,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import {
   IAppStoreApp,
   isAndroidSoftwareSource,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
   ISoftwarePackage,
   InstallerType,
 } from "interfaces/software";
@@ -160,7 +160,7 @@ const EditIconModal = ({
   const queryClient = useQueryClient();
 
   const isSoftwarePackage = installerType === "package";
-  const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
+  const isIosOrIpadosApp = isAppleMdmOnlySoftwareSource(
     previewInfo?.source || ""
   );
   const isAndroidApp = isAndroidSoftwareSource(previewInfo?.source || "");

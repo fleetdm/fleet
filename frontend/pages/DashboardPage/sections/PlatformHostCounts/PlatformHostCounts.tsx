@@ -19,6 +19,7 @@ interface IPlatformHostCountsProps {
   chromeCount: number;
   iosCount: number;
   ipadosCount: number;
+  tvosCount: number;
   androidCount: number;
   builtInLabels?: IHostSummary["builtin_labels"];
   selectedPlatform?: PlatformValueOptions;
@@ -33,6 +34,7 @@ const PlatformHostCounts = ({
   chromeCount,
   iosCount,
   ipadosCount,
+  tvosCount,
   androidCount,
   builtInLabels,
   selectedPlatform,
@@ -187,6 +189,29 @@ const PlatformHostCounts = ({
     );
   };
 
+  const renderTvosCount = (teamId?: number) => {
+    const tvosLabelId = getBuiltinLabelId("tvos");
+
+    if (hidePlatformCard(tvosCount)) {
+      return null;
+    }
+
+    if (tvosLabelId === undefined) {
+      return <></>;
+    }
+
+    return (
+      <HostCountCard
+        iconName="tvOS"
+        count={tvosCount}
+        title="tvOS"
+        path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(tvosLabelId), {
+          fleet_id: teamId,
+        })}
+      />
+    );
+  };
+
   const renderAndroidCount = (teamId?: number) => {
     const androidLabelId = getBuiltinLabelId("android");
 
@@ -224,6 +249,8 @@ const PlatformHostCounts = ({
         return renderIosCount(teamId);
       case "ipados":
         return renderIpadosCount(teamId);
+      case "tvos":
+        return renderTvosCount(teamId);
       case "android":
         return renderAndroidCount(teamId);
       default:
@@ -236,6 +263,7 @@ const PlatformHostCounts = ({
             {renderChromeCard(teamId)}
             {renderIosCount(teamId)}
             {renderIpadosCount(teamId)}
+            {renderTvosCount(teamId)}
             {renderAndroidCount(teamId)}
           </>
         );

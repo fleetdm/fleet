@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import classnames from "classnames";
 
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { isAndroid, isAppleMdmOnlyPlatform } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -115,8 +115,8 @@ const HostHeader = ({
     let isDisabled = false;
     let tooltip;
 
-    // we don't have a concept of "online" for iPads and iPhones
-    if (!isIPadOrIPhone(platform)) {
+    // we don't have a concept of "online" for MDM-only Apple hosts
+    if (!isAppleMdmOnlyPlatform(platform)) {
       // deviceStatus can be `undefined` in the case of the MyDevice Page not sending
       // this prop. When this is the case or when it is `unlocked`, we only take
       // into account the host being online or offline for correctly render the
@@ -133,8 +133,8 @@ const HostHeader = ({
         tooltip = REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
       }
     } else {
-      // ios and ipad devices refresh buttons disable state is determined only by the
-      // host mdm device status.
+      // for MDM-only Apple hosts the refresh button's disable state is determined
+      // only by the host mdm device status.
       // eslint-disable-next-line
       if (
         hostMdmDeviceStatus === undefined ||

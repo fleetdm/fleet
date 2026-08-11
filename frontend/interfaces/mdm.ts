@@ -165,6 +165,7 @@ export type ProfilePlatform =
   | "windows"
   | "ios"
   | "ipados"
+  | "tvos"
   | "linux"
   | "android";
 

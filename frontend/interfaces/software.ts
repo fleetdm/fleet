@@ -303,6 +303,7 @@ export const SOURCE_TYPE_CONVERSION = {
   apps: "Application (macOS)",
   ios_apps: "Application (iOS)",
   ipados_apps: "Application (iPadOS)",
+  tvos_apps: "Application (tvOS)",
   android_apps: "Application (Android)",
   chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   firefox_addons: "Browser plugin", // we rely on `extension_for` when computing which browser to show in firefox_addons display names.
@@ -338,6 +339,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   apps: "darwin",
   ios_apps: "ios",
   ipados_apps: "ipados",
+  tvos_apps: "tvos",
   android_apps: "android", // 4.76 Currently hidden upstream as not installable
   chrome_extensions: null,
   firefox_addons: null,
@@ -918,11 +920,16 @@ export const hasHostSoftwareAppLastInstall = (
   return !!software.app_store_app?.last_install;
 };
 
-export const isIpadOrIphoneSoftwareSource = (source: string) =>
-  ["ios_apps", "ipados_apps"].includes(source);
+/**
+ * Software delivered to an Apple platform Fleet manages purely over MDM
+ * (iOS, iPadOS, tvOS). These apps install via MDM rather than a package, can't
+ * be uninstalled, and have no osquery-reported install path.
+ */
+export const isAppleMdmOnlySoftwareSource = (source: string) =>
+  ["ios_apps", "ipados_apps", "tvos_apps"].includes(source);
 
-export const isIpadOrIphoneSoftware = (platform: string) =>
-  ["ios", "ipados"].includes(platform);
+export const isAppleMdmOnlySoftware = (platform: string) =>
+  ["ios", "ipados", "tvos"].includes(platform);
 
 export const isAndroidSoftwareSource = (source: string) =>
   source === "android_apps";

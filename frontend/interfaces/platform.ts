@@ -129,7 +129,12 @@ export const HOST_LINUX_PLATFORMS = [
   "omarchy", // Omarchy (Arch-based)
 ] as const;
 
-export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
+export const HOST_APPLE_PLATFORMS = [
+  "darwin",
+  "ios",
+  "ipados",
+  "tvos",
+] as const;
 
 export type HostPlatform =
   | typeof HOST_LINUX_PLATFORMS[number]
@@ -166,6 +171,21 @@ export const isMacOS = (platform: string | HostPlatform) =>
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);
 
+export const isAppleTV = (platform: string | HostPlatform) =>
+  platform === "tvos";
+
+/**
+ * isAppleMdmOnlyPlatform checks for the Apple platforms Fleet manages purely
+ * over MDM, with no osquery: iOS, iPadOS and tvOS.
+ *
+ * Prefer this over isIPadOrIPhone for anything Apple TV shares with
+ * iPhone/iPad — no queries, scripts, policies or vulnerabilities, and MDM
+ * refetch semantics. Keep isIPadOrIPhone for what Apple TV lacks: battery,
+ * location, lost mode and cellular.
+ */
+export const isAppleMdmOnlyPlatform = (platform: string | HostPlatform) =>
+  isIPadOrIPhone(platform) || isAppleTV(platform);
+
 export const isAndroid = (
   platform: string | HostPlatform
 ): platform is "android" => platform === "android";
@@ -176,6 +196,16 @@ export const isChrome = (platform: string | HostPlatform) =>
 /** isMobilePlatform checks if the platform is an iPad or iPhone or Android. */
 export const isMobilePlatform = (platform: string | HostPlatform) =>
   isIPadOrIPhone(platform) || isAndroid(platform);
+
+/**
+ * isNonQueryablePlatform checks for platforms Fleet manages without osquery, so
+ * they report none of the osquery-sourced vitals (CPU, memory, disk, uptime)
+ * and can't run queries, scripts or policies.
+ */
+export const isNonQueryablePlatform = (platform: string | HostPlatform) =>
+  NON_QUERYABLE_PLATFORMS.includes(
+    platform as typeof NON_QUERYABLE_PLATFORMS[number]
+  );
 
 // --- OS Settings and Disk Encryption support by Platform ---
 
@@ -229,6 +259,7 @@ const OS_SETTINGS_DISPLAY_PLATFORMS = [
   ...DISK_ENCRYPTION_SUPPORTED_PLATFORMS,
   "ios",
   "ipados",
+  "tvos",
   "android",
 ];
 
@@ -272,6 +303,7 @@ export const VULN_SUPPORTED_PLATFORMS: Platform[] = [
 export const VULN_UNSUPPORTED_PLATFORMS: Platform[] = [
   "ipados",
   "ios",
+  "tvos",
   "chrome",
 ];
 

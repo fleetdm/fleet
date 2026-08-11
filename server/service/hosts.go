@@ -2800,9 +2800,9 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 		return "", ctxerr.Wrap(ctx, err, "get host for device url")
 	}
 
-	if host.Platform == "ios" || host.Platform == "ipados" {
+	if fleet.IsAppleMDMOnlyPlatform(host.Platform) {
 		return "", &fleet.BadRequestError{
-			Message: "My device URL is not available for iOS or iPadOS hosts; those platforms use certificate authentication instead.",
+			Message: "My device URL is not available for iOS, iPadOS or tvOS hosts; those platforms use certificate authentication instead.",
 		}
 	}
 

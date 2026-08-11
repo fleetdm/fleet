@@ -856,7 +856,7 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		// wiped if an MDM command was sent and succeeded
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			strings.HasPrefix(s.WipeMDMCommandResult.Status, "2")
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		// wiped if an MDM command was sent and succeeded
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged

@@ -921,7 +921,7 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 	})
 }
 
-func TestAuthenticateDeviceRejectsIOSIPadOS(t *testing.T) {
+func TestAuthenticateDeviceRejectsAppleMDMOnlyPlatforms(t *testing.T) {
 	t.Run("error - iOS device attempting token auth", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
@@ -944,7 +944,7 @@ func TestAuthenticateDeviceRejectsIOSIPadOS(t *testing.T) {
 		require.False(t, debug)
 		var authErr *fleet.AuthRequiredError
 		require.ErrorAs(t, err, &authErr)
-		require.Contains(t, authErr.Internal(), "iOS and iPadOS devices must use certificate authentication")
+		require.Contains(t, authErr.Internal(), "iOS, iPadOS and tvOS devices must use certificate authentication")
 	})
 
 	t.Run("error - iPadOS device attempting token auth", func(t *testing.T) {
@@ -969,7 +969,32 @@ func TestAuthenticateDeviceRejectsIOSIPadOS(t *testing.T) {
 		require.False(t, debug)
 		var authErr *fleet.AuthRequiredError
 		require.ErrorAs(t, err, &authErr)
-		require.Contains(t, authErr.Internal(), "iOS and iPadOS devices must use certificate authentication")
+		require.Contains(t, authErr.Internal(), "iOS, iPadOS and tvOS devices must use certificate authentication")
+	})
+
+	t.Run("error - tvOS device attempting token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       3,
+				UUID:     "tvos-device-uuid",
+				Platform: "tvos",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+		require.Contains(t, authErr.Internal(), "iOS, iPadOS and tvOS devices must use certificate authentication")
 	})
 
 	t.Run("success - macOS device with token auth", func(t *testing.T) {

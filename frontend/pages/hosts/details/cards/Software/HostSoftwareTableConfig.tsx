@@ -5,7 +5,7 @@ import { CellProps, Column } from "react-table";
 import {
   formatSoftwareType,
   IHostSoftware,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
@@ -93,7 +93,7 @@ export const generateSoftwareTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
-            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
+            isIosOrIpadosApp={isAppleMdmOnlySoftwareSource(source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
@@ -195,7 +195,7 @@ export const generateSoftwareTableHeaders = ({
       accessor: (originalRow) => originalRow.installed_versions,
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
-        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+        if (isAppleMdmOnlySoftwareSource(cellProps.row.original.source)) {
           return <TextCell value="Not supported" grey />;
         }
         const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
@@ -207,7 +207,7 @@ export const generateSoftwareTableHeaders = ({
       accessor: (originalRow) => originalRow.installed_versions,
       disableSortBy: true,
       Cell: (cellProps: IInstalledPathCellProps) => {
-        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+        if (isAppleMdmOnlySoftwareSource(cellProps.row.original.source)) {
           return <TextCell value="Not supported" grey />;
         }
 
@@ -228,7 +228,7 @@ export const generateSoftwareTableHeaders = ({
       accessor: (originalRow) => originalRow.installed_versions,
       disableSortBy: true,
       Cell: (cellProps: IInstalledPathCellProps) => {
-        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+        if (isAppleMdmOnlySoftwareSource(cellProps.row.original.source)) {
           return <TextCell value="Not supported" grey />;
         }
 

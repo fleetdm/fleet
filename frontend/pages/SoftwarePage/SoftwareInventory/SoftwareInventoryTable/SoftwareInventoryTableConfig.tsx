@@ -6,7 +6,7 @@ import {
   ISoftwareTitle,
   NO_VERSION_OR_HOST_DATA_SOURCES,
   formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
 } from "interfaces/software";
 import PATHS from "router/paths";
 
@@ -129,7 +129,7 @@ const generateTableHeaders = (
             automaticInstallPoliciesCount={
               nameCellData.automaticInstallPoliciesCount
             }
-            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
+            isIosOrIpadosApp={isAppleMdmOnlySoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
@@ -163,7 +163,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
         const vulnDetectionNotSupported =
-          isIpadOrIphoneSoftwareSource(cellProps.row.original.source) ||
+          isAppleMdmOnlySoftwareSource(cellProps.row.original.source) ||
           cellProps.row.original.source === "tgz_packages";
 
         if (vulnDetectionNotSupported) {

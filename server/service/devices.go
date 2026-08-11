@@ -170,9 +170,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
-	// Scrub sensitive data from the host response for iOS and iPadOS devices
+	// Scrub sensitive data from the host response for MDM-only Apple devices
 	if authzCtx, ok := authz.FromContext(ctx); ok && authzCtx.AuthnMethod() == authz.AuthnDeviceURL {
-		if host.Platform == "ios" || host.Platform == "ipados" {
+		if fleet.IsAppleMDMOnlyPlatform(host.Platform) {
 			resp.HardwareSerial = ""
 			resp.UUID = ""
 			resp.PrimaryMac = ""
@@ -305,9 +305,9 @@ func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*
 		return nil, false, ctxerr.Wrap(ctx, err, "authenticate device")
 	}
 
-	// iOS/iPadOS must use certificate authentication.
-	if host.Platform == "ios" || host.Platform == "ipados" {
-		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: iOS and iPadOS devices must use certificate authentication"))
+	// iOS/iPadOS/tvOS must use certificate authentication.
+	if fleet.IsAppleMDMOnlyPlatform(host.Platform) {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: iOS, iPadOS and tvOS devices must use certificate authentication"))
 	}
 
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil

@@ -1,0 +1,1 @@
+- Added tvOS hosts to the Fleet UI. Apple TVs appear on the dashboard, in the hosts list, and on the host details page, with the surfaces they don't support hidden: no queries, policies, reports, disk encryption, or lock. Wipe and turning off MDM are available.
