@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.1.0",
+      "version": "2.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ameba.SwiftBar';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ameba.SwiftBar' AND version_compare(bundle_short_version, '2.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ameba.SwiftBar' AND version_compare(bundle_short_version, '2.1.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.ameba.SwiftBar');"
       },
-      "installer_url": "https://github.com/swiftbar/SwiftBar/releases/download/v2.1.0/SwiftBar.v2.1.0.b594.zip",
+      "installer_url": "https://github.com/swiftbar/SwiftBar/releases/download/v2.1.1/SwiftBar.v2.1.1.b597.zip",
       "install_script_ref": "3c4a3d83",
       "uninstall_script_ref": "7e858194",
-      "sha256": "54b425256f449dd90f8d167993cc65c3673bcd44d206e1aaf641a09fb58bc0da",
+      "sha256": "fcdec490782d6587046304044951c63de49ac422fc63892a6fab2dd7bc70c0cd",
       "default_categories": [
         "Utilities"
       ]
