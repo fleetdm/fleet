@@ -881,9 +881,9 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			// Preserve uploaded_at on unchanged content (matching the batch
 			// upsert) so a no-op edit doesn't read as a fresh upload. The IF sees
 			// the pre-update raw_json (SET evaluates left to right), and the
-			// parameter must be CAST to JSON -- a json column never equals a
+			// comparison must be dialect-aware -- a json column never equals a
 			// bare string.
-			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ? WHERE profile_uuid = ? AND name = ?`
+			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(` + ds.dialect.JSONEquals("raw_json", "?") + `, uploaded_at, CURRENT_TIMESTAMP()), raw_json = ? WHERE profile_uuid = ? AND name = ?`
 			res, err := tx.ExecContext(ctx, stmt, cp.RawJSON, cp.RawJSON, cp.ProfileUUID, cp.Name)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating android mdm config profile contents")
@@ -2375,11 +2375,11 @@ WHERE
 
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
 // identified by application_id and global_or_team_id is different from the existing one. This
-// is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
+// is a datastore method so that we rely on the database's canonicalisation of JSON for comparison.
 func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error) {
-	const stmt = `
+	stmt := `
 SELECT
-	CAST(? AS JSON) != configuration AS has_changed
+	` + ds.dialect.JSONNotEquals("configuration", "?") + ` AS has_changed
 FROM
 	android_app_configurations
 WHERE

@@ -121,28 +121,27 @@ func (s *SQLDialect) GeneratedColumnStoredSuffix(nullable bool) string {
 	return "STORED NOT NULL"
 }
 
-//////////
+// JSONEquals returns SQL comparing two JSON expressions for semantic equality,
+// ignoring key order and insignificant whitespace.
 //
-// TODO maybe use these maybe don't
+// MySQL stores JSON in a native binary type, so comparing the column against
+// CAST(expr AS JSON) compares parsed values. MariaDB has no JSON type -- JSON is
+// an alias for LONGTEXT -- so CAST(... AS JSON) is a syntax error and a bare
+// comparison would be a raw string compare. JSON_NORMALIZE puts both sides into
+// a canonical form so the comparison stays semantic.
 //
-/////////
+// Note that on MariaDB this wraps the column, so it cannot use an index on it.
+func (s *SQLDialect) JSONEquals(left, right string) string {
+	if IsMariaDB(s.db) {
+		return "JSON_NORMALIZE(" + left + ") = JSON_NORMALIZE(" + right + ")"
+	}
+	return left + " = CAST(" + right + " AS JSON)"
+}
 
-// JSONExtractText returns SQL to extract a text value from a JSON path
-// MySQL: column->>'$.path' (shorthand for JSON_UNQUOTE(JSON_EXTRACT(...)))
-// MariaDB: JSON_UNQUOTE(JSON_EXTRACT(column, '$.path'))
-// func (s *SQLDialect) JSONExtractText(column, path string) string {
-// 	if IsMariaDB(s.db) {
-// 		return "JSON_UNQUOTE(JSON_EXTRACT(" + column + ", '" + path + "'))"
-// 	}
-// 	return column + "->>" + "'" + path + "'"
-// }
-
-// JSONExtract returns SQL to extract a JSON value from a JSON path
-// MySQL: column->'$.path' (shorthand for JSON_EXTRACT(...))
-// MariaDB: JSON_EXTRACT(column, '$.path')
-// func (s *SQLDialect) JSONExtract(column, path string) string {
-// 	if IsMariaDB(s.db) {
-// 		return "JSON_EXTRACT(" + column + ", '" + path + "')"
-// 	}
-// 	return column + "->" + "'" + path + "'"
-//}
+// JSONNotEquals is the negation of JSONEquals.
+func (s *SQLDialect) JSONNotEquals(left, right string) string {
+	if IsMariaDB(s.db) {
+		return "JSON_NORMALIZE(" + left + ") != JSON_NORMALIZE(" + right + ")"
+	}
+	return left + " != CAST(" + right + " AS JSON)"
+}
