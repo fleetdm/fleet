@@ -3804,4 +3804,29 @@ CREATE TABLE `yara_rules` (
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
 
+DROP FUNCTION IF EXISTS UUID_TO_BIN;
+DROP FUNCTION IF EXISTS BIN_TO_UUID;
+
+CREATE FUNCTION UUID_TO_BIN(uuid CHAR(36), swap BOOLEAN)
+RETURNS BINARY(16) DETERMINISTIC
+RETURN UNHEX(
+  IF(swap,
+    CONCAT(SUBSTRING(uuid,15,4), SUBSTRING(uuid,10,4), SUBSTRING(uuid,1,8),
+           SUBSTRING(uuid,20,4), SUBSTRING(uuid,25,12)),
+    CONCAT(SUBSTRING(uuid,1,8), SUBSTRING(uuid,10,4), SUBSTRING(uuid,15,4),
+           SUBSTRING(uuid,20,4), SUBSTRING(uuid,25,12))
+  )
+);
+
+CREATE FUNCTION BIN_TO_UUID(b BINARY(16), swap BOOLEAN)
+RETURNS CHAR(36) DETERMINISTIC
+RETURN LOWER(
+  IF(swap,
+    CONCAT(SUBSTRING(HEX(b),9,8), '-', SUBSTRING(HEX(b),5,4), '-', SUBSTRING(HEX(b),1,4), '-',
+           SUBSTRING(HEX(b),17,4), '-', SUBSTRING(HEX(b),21,12)),
+    CONCAT(SUBSTRING(HEX(b),1,8), '-', SUBSTRING(HEX(b),9,4), '-', SUBSTRING(HEX(b),13,4), '-',
+           SUBSTRING(HEX(b),17,4), '-', SUBSTRING(HEX(b),21,12))
+  )
+);
+
 SET FOREIGN_KEY_CHECKS=1;

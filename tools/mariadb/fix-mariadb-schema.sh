@@ -17,7 +17,11 @@
 #   4. Generated columns that reference a column declared later in the same
 #      CREATE TABLE are moved down past that column. MySQL resolves such forward
 #      references; MariaDB rejects them with error 1901.
-#   5. A CHAR column referenced by an *indexed* generated column is widened to
+#   5. UUID_TO_BIN/BIN_TO_UUID are emitted as stored functions. They are MySQL 8
+#      built-ins that MariaDB does not provide, and Fleet's certificate-template
+#      queries call them; defining them in the schema fixes every call site
+#      without touching the queries.
+#   6. A CHAR column referenced by an *indexed* generated column is widened to
 #      VARCHAR of the same length. MariaDB refuses to index a generated column
 #      whose expression mixes CHAR and VARCHAR operands, reporting error 1901
 #      against the whole expression. CHAR(n) right-pads on storage and strips
@@ -128,9 +132,41 @@ while i < len(lines):
     out.append(closing)
     i = end + 1
 
+# MySQL 8 provides UUID_TO_BIN/BIN_TO_UUID as built-ins; MariaDB does not, and
+# Fleet's certificate-template queries call them (Error 1305 otherwise). The
+# swap flag reorders the time fields (time_high, time_mid, time_low) exactly as
+# MySQL does, which is the form Fleet uses.
+UUID_FUNCS = """
+DROP FUNCTION IF EXISTS UUID_TO_BIN;
+DROP FUNCTION IF EXISTS BIN_TO_UUID;
+
+CREATE FUNCTION UUID_TO_BIN(uuid CHAR(36), swap BOOLEAN)
+RETURNS BINARY(16) DETERMINISTIC
+RETURN UNHEX(
+  IF(swap,
+    CONCAT(SUBSTRING(uuid,15,4), SUBSTRING(uuid,10,4), SUBSTRING(uuid,1,8),
+           SUBSTRING(uuid,20,4), SUBSTRING(uuid,25,12)),
+    CONCAT(SUBSTRING(uuid,1,8), SUBSTRING(uuid,10,4), SUBSTRING(uuid,15,4),
+           SUBSTRING(uuid,20,4), SUBSTRING(uuid,25,12))
+  )
+);
+
+CREATE FUNCTION BIN_TO_UUID(b BINARY(16), swap BOOLEAN)
+RETURNS CHAR(36) DETERMINISTIC
+RETURN LOWER(
+  IF(swap,
+    CONCAT(SUBSTRING(HEX(b),9,8), '-', SUBSTRING(HEX(b),5,4), '-', SUBSTRING(HEX(b),1,4), '-',
+           SUBSTRING(HEX(b),17,4), '-', SUBSTRING(HEX(b),21,12)),
+    CONCAT(SUBSTRING(HEX(b),1,8), '-', SUBSTRING(HEX(b),9,4), '-', SUBSTRING(HEX(b),13,4), '-',
+           SUBSTRING(HEX(b),17,4), '-', SUBSTRING(HEX(b),21,12))
+  )
+);
+"""
+
 with open(dst, 'w') as f:
     f.write("SET FOREIGN_KEY_CHECKS=0;\nSET SESSION sql_mode='';\n\n")
     f.writelines(out)
+    f.write(UUID_FUNCS)
     f.write("\nSET FOREIGN_KEY_CHECKS=1;\n")
 
 print(f"removed {dropped} functional index definition(s)", file=sys.stderr)
