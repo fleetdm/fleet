@@ -53,6 +53,88 @@ As a consequence, Fleet Desktop will issue a new token if the current token is:
 
 This change is imperceptible to users, as clicking on the "My device" tray item always uses a valid token. If a user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
 
+## Advanced
+
+### Hide the menu bar icon on macOS
+
+Some Fleet users want to hide the menu bar icon on macOS because of the limited menu bar "real estate." Fleet doesn't have a built-in setting for this yet ([track the feature request](https://github.com/fleetdm/fleet/issues/14677)), but there are two ways to do it today, depending on whether the host is already enrolled.
+
+#### Already-enrolled hosts
+
+1. Add this script to Fleet:
+
+```sh
+#!/bin/sh
+
+if [ ! -f "/Library/LaunchDaemons/com.fleetdm.orbit.plist" ]; then
+    echo "Fleet's agent (fleetd) is not installed."
+    exit 1
+fi
+
+/usr/bin/plutil -replace EnvironmentVariables.ORBIT_FLEET_DESKTOP -string "false" /Library/LaunchDaemons/com.fleetdm.orbit.plist
+
+# Reload the LaunchDaemon out-of-band. Bootout-ing it directly from this
+# script would kill this script too, since orbit is what's running it.
+cat << 'EOF' > /private/tmp/fleet-hide-desktop-reload.sh
+#!/bin/sh
+/bin/sleep 15
+/bin/launchctl bootout system /Library/LaunchDaemons/com.fleetdm.orbit.plist
+/bin/launchctl bootstrap system /Library/LaunchDaemons/com.fleetdm.orbit.plist
+/bin/launchctl bootout system /private/tmp/com.fleetdm.reload.plist
+EOF
+chmod 744 /private/tmp/fleet-hide-desktop-reload.sh
+
+cat << 'EOF' > /private/tmp/com.fleetdm.reload.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>com.fleetdm.reload</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>/bin/sh</string>
+            <string>/private/tmp/fleet-hide-desktop-reload.sh</string>
+        </array>
+        <key>RunAtLoad</key>
+        <true/>
+    </dict>
+</plist>
+EOF
+
+/bin/launchctl bootstrap system /private/tmp/com.fleetdm.reload.plist
+
+echo "Fleet Desktop menu bar icon will be hidden in about 15 seconds."
+exit 0
+```
+
+2. Create a policy with this query, so you can find hosts that still need the script run:
+
+```sql
+SELECT 1 FROM plist WHERE
+  path = '/Library/LaunchDaemons/com.fleetdm.orbit.plist' AND
+  key = 'EnvironmentVariables' AND
+  subkey = 'ORBIT_FLEET_DESKTOP' AND
+  value = 'false';
+```
+
+3. Add the script to this policy via [policy automations](https://fleetdm.com/guides/policy-automation-run-script), so it self-heals if fleetd is ever reinstalled.
+
+Fleet's agent (fleetd) upgrades won't re-show the menu bar icon, because upgrades don't touch the plist the script updates.
+
+#### New enrollments
+
+To keep the menu bar icon from showing up in the first place:
+
+- **Manually enrolled hosts:** rebuild your enrollment package leaving off the `--fleet-desktop` flag, then push it to replace the existing install.
+- **ADE (zero-touch) hosts:** ADE hosts don't run the enrollment package installer, so there's no `--fleet-desktop` flag to remove. Instead, build a package without `--fleet-desktop`, then upload it as your [bootstrap package](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package) under **Controls > Setup experience**, and check "Install Fleet's agent (fleetd) manually." New ADE Macs enroll without the menu bar app from the start.
+
+### FAQ
+
+- **Is this an officially supported Fleet feature?** No. Both methods above are workarounds; there's no built-in setting yet. See the [open feature request](https://github.com/fleetdm/fleet/issues/14677) if you want to weigh in or track native support.
+- **Does Fleet Desktop keep running in the background once it's hidden?** No. Setting `ORBIT_FLEET_DESKTOP` to `false` stops the Fleet Desktop process entirely, not just its icon. End users lose the "My device" entry point along with it, so if they still need self-service or policy status, plan another way for them to reach it (a bookmarked link, for example).
+- **The script fails with `no such file or directory` when run through Fleet.** Check the script's line endings. A script saved with Windows-style CRLF line endings fails this way when Fleet runs it.
+- **The icon disappeared on its own, without anyone running this.** That's a different issue, not this workaround; see [Fleet troubleshooting for IT admins](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins).
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">
