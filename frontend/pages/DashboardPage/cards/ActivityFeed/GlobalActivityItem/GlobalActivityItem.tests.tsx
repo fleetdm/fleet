@@ -2027,7 +2027,7 @@ describe("Activity Feed", () => {
         host_display_name: "Work Mac",
         source: "apps",
         status: "failed_install",
-        install_skipped_when_app_open: true,
+        skipped_install: true,
       },
     });
 
