@@ -43,13 +43,12 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 5. For the **Authentication Mode**, select **HTTP Header**.
 6. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with admin permissions and access to all [`/scim/*` API endpoints](https://fleetdm.com/docs/rest-api/rest-api#scim).
 7. Copy the API token for that user and paste it in Okta's **Authorization** field.
+8. Select the **Test Connector Configuration** button. You should see a success message pop up in Okta. You can close this message.
+9. In Fleet, head to **Settings > Integrations > User mapping** and verify that Fleet successfully received the request from Okta.
+10. Back in Okta, select **Save**.
+11. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
+12. On the same page, make sure that `givenName` and `familyName` attributes have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute, but does not require it. Remove the mapping for the rest of the attributes.
 
-
-9. Select the **Test Connector Configuration** button. You should see a success message pop up in Okta. You can close this message.
-10. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from Okta.
-11. Back in Okta, select **Save**.
-12. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
-13. On the same page, make sure that `givenName` and `familyName` attributes have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute, but does not require it. Remove the mapping for the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
 > If you use attributes other than the supported attributes above, the payload will be rejected by Fleet.

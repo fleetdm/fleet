@@ -257,7 +257,7 @@ describe("Software Summary Card", () => {
       expect(options).not.toContain("Edit configuration");
     });
 
-    it("adds Versions option after Patch for a Premium Fleet-maintained app", async () => {
+    it("adds Versions after Deploy for a Premium Fleet-maintained app", async () => {
       const { user } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
@@ -274,12 +274,12 @@ describe("Software Summary Card", () => {
       );
 
       const options = await getDropdownOptions(user);
-      const patchIdx = options.indexOf("Patch");
+      const deployIdx = options.indexOf("Deploy");
       const versionsIdx = options.indexOf("Versions");
 
-      expect(patchIdx).toBeGreaterThan(-1);
+      expect(deployIdx).toBeGreaterThan(-1);
       expect(versionsIdx).toBeGreaterThan(-1);
-      expect(versionsIdx).toBe(patchIdx + 1);
+      expect(versionsIdx).toBe(deployIdx + 1);
     });
 
     it("hides Versions option on Fleet Free even for a Fleet-maintained app", async () => {
@@ -315,6 +315,7 @@ describe("Software Summary Card", () => {
 
       const options = await getDropdownOptions(user);
       expect(options).not.toContain("Versions");
+      expect(options).not.toContain("Deploy");
     });
 
     it("hides the Actions dropdown (and therefore Versions) for non-FMA custom installers", () => {
@@ -540,7 +541,12 @@ describe("Software Summary Card", () => {
               automatic_install_policies: [
                 { id: 1, name: "Policy A", type: "dynamic" },
               ],
-              patch_policy: { id: 42, name: "Outdated Postman" },
+              patch_policy: {
+                id: 42,
+                name: "Outdated Postman",
+                patch_when_closed: false,
+                continuous_automations_enabled: false,
+              },
             }),
           })}
           softwareId={1}
@@ -607,7 +613,12 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitle({
             software_package: createMockSoftwarePackage({
               fleet_maintained_app_id: 7,
-              patch_policy: { id: 42, name: "Outdated Postman" },
+              patch_policy: {
+                id: 42,
+                name: "Outdated Postman",
+                patch_when_closed: false,
+                continuous_automations_enabled: false,
+              },
             }),
           })}
           softwareId={1}
@@ -631,7 +642,12 @@ describe("Software Summary Card", () => {
               automatic_install_policies: [
                 { id: 1, name: "Policy A", type: "dynamic" },
               ],
-              patch_policy: { id: 42, name: "Outdated Postman" },
+              patch_policy: {
+                id: 42,
+                name: "Outdated Postman",
+                patch_when_closed: false,
+                continuous_automations_enabled: false,
+              },
             }),
           })}
           softwareId={1}

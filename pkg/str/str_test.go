@@ -220,3 +220,45 @@ func TestParseStringList(t *testing.T) {
 		})
 	}
 }
+
+func TestTruncateRunes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxRunes int
+		expected string
+	}{
+		{
+			name:     "exactly the limit is unchanged",
+			input:    "hello",
+			maxRunes: 5,
+			expected: "hello",
+		},
+		{
+			name:     "longer ASCII is cut to the limit",
+			input:    "hello world",
+			maxRunes: 5,
+			expected: "hello",
+		},
+		{
+			// The byte length exceeds the limit while the character count does not, which is what a
+			// byte-based truncation would get wrong.
+			name:     "counts characters, not bytes, so multi-byte text is not cut early",
+			input:    "héllo",
+			maxRunes: 5,
+			expected: "héllo",
+		},
+		{
+			name:     "cuts multi-byte text on a character boundary",
+			input:    strings.Repeat("é", 10),
+			maxRunes: 4,
+			expected: strings.Repeat("é", 4),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, TruncateRunes(tt.input, tt.maxRunes))
+		})
+	}
+}

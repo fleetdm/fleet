@@ -4,7 +4,8 @@
       "version": "7.1.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Certify Certificate Manager %' AND publisher = 'Webprofusion Pty Ltd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Certify Certificate Manager %' AND publisher = 'Webprofusion Pty Ltd' AND version_compare(version, '7.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Certify Certificate Manager %' AND publisher = 'Webprofusion Pty Ltd' AND version_compare(version, '7.1.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'certify the web.exe');"
       },
       "installer_url": "https://downloads.certifytheweb.com/release/7.1.1.0/certify-ccm-windows-x64-7.1.1.0.exe",
       "install_script_ref": "1e19d090",

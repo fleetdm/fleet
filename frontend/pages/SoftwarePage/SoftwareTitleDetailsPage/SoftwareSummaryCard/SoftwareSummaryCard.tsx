@@ -28,7 +28,7 @@ import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 import EditConfigurationModal from "../EditConfigurationModal";
 import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
-import AddPatchPolicyModal from "../AddPatchPolicyModal";
+import DeployModal from "../DeployModal";
 import PoliciesModal from "../PoliciesModal";
 
 interface ISoftwareSummaryCard {
@@ -78,7 +78,7 @@ const SoftwareSummaryCard = ({
   const [iconUploadedAt, setIconUploadedAt] = useState("");
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
-  const [showAddPatchPolicyModal, setShowAddPatchPolicyModal] = useState(false);
+  const [showDeployModal, setShowDeployModal] = useState(false);
   const [showEditConfigurationModal, setShowEditConfigurationModal] = useState(
     false
   );
@@ -265,7 +265,8 @@ const SoftwareSummaryCard = ({
   const canEditConfiguration =
     canManageSoftware &&
     ((isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp) || isIosOrIpadosApp);
-  const canPatchSoftware = canManageSoftware && isFleetMaintainedApp;
+  const canDeploySoftware =
+    canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
   /** Versions / pin is a Premium-only Fleet-maintained app feature */
   const canManageVersions =
     canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
@@ -278,7 +279,7 @@ const SoftwareSummaryCard = ({
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
-  const onClickAddPatchPolicy = () => setShowAddPatchPolicyModal(true);
+  const onClickDeploy = () => setShowDeployModal(true);
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
   const onClickEditAutoUpdateConfig = () =>
     setShowEditAutoUpdateConfigModal(true);
@@ -315,9 +316,7 @@ const SoftwareSummaryCard = ({
               : undefined
           }
           useSingleEditAppearanceButton={canActivateMultiplePackages}
-          onClickAddPatchPolicy={
-            canPatchSoftware ? onClickAddPatchPolicy : undefined
-          }
+          onClickDeploy={canDeploySoftware ? onClickDeploy : undefined}
           onClickVersions={canManageVersions ? onClickVersions : undefined}
           onClickEditConfiguration={
             canEditConfiguration ? onClickEditConfiguration : undefined
@@ -325,7 +324,6 @@ const SoftwareSummaryCard = ({
           onClickEditAutoUpdateConfig={
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
-          patchPolicyId={softwareTitle.software_package?.patch_policy?.id}
           headerPills={headerPills}
           isAppleVpp={isAppleVpp}
         />
@@ -366,14 +364,17 @@ const SoftwareSummaryCard = ({
           displayName={softwareDisplayName}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
+          patchWhenClosed={
+            softwareTitle.software_package?.patch_policy?.patch_when_closed
+          }
         />
       )}
-      {showAddPatchPolicyModal && softwareInstallerOnTeam && (
-        <AddPatchPolicyModal
-          softwareId={softwareTitle.id}
+      {showDeployModal && softwareInstallerOnTeam && (
+        <DeployModal
+          softwareTitle={softwareTitle}
           teamId={teamId}
           onSuccess={refetchSoftwareTitle}
-          onExit={() => setShowAddPatchPolicyModal(false)}
+          onExit={() => setShowDeployModal(false)}
         />
       )}
       {showEditConfigurationModal && softwareInstallerOnTeam && (

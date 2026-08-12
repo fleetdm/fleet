@@ -152,7 +152,7 @@ const CategoriesSelector = ({
       <div className="form-field__label">Categories</div>
       {renderList()}
       <Button
-        variant="inverse"
+        variant="secondary"
         onClick={onClickPreviewEndUserExperience}
         className={`${baseClass}__preview-button`}
       >

@@ -297,6 +297,28 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 			name:     "nil ndes vars returns nil",
 			contents: validProfile,
 		},
+		{
+			name: "subject name with trailing whitespace in LocURI is still validated for renewal id",
+			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ", "CN=test"),
+			wantErr:     true,
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+		},
+		{
+			name: "challenge with trailing whitespace in LocURI still validates correctly",
+			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge ", "hardcoded-password") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			wantErr:     true,
+			errContains: `must be in the SCEP certificate's "Challenge" field`,
+		},
+		{
+			name: "server url with trailing whitespace in LocURI still validates correctly",
+			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL ", "https://hardcoded.example.com"),
+			wantErr:     true,
+			errContains: `must be in the SCEP certificate's "ServerURL" field`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -310,6 +332,67 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 				require.Error(t, err)
 				var badReqErr *fleet.BadRequestError
 				require.ErrorAs(t, err, &badReqErr, "expected BadRequestError for: %s", tt.name)
+				require.Contains(t, err.Error(), tt.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
+	t.Parallel()
+
+	addItem := func(locURI, data string) string {
+		return fmt.Sprintf(
+			`<Add><Item><Target><LocURI>%s</LocURI></Target><Data>%s</Data></Item></Add>`,
+			locURI, data,
+		)
+	}
+
+	customSCEPVars := &CustomSCEPVarsFound{}
+	customSCEPVars, _ = customSCEPVars.SetURL("ca1")
+	customSCEPVars, _ = customSCEPVars.SetChallenge("ca1")
+	customSCEPVars, _ = customSCEPVars.SetRenewalID()
+
+	tests := []struct {
+		name        string
+		contents    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid custom SCEP profile",
+			contents: addItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
+			),
+		},
+		{
+			name: "subject name missing renewal id",
+			contents: addItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=test",
+			),
+			wantErr:     true,
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+		},
+		{
+			name: "subject name with trailing whitespace in LocURI is still validated for renewal id",
+			contents: addItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ",
+				"CN=test",
+			),
+			wantErr:     true,
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := additionalCustomSCEPValidationForWindowsProfiles(tt.contents, customSCEPVars)
+			if tt.wantErr {
+				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.errContains)
 			} else {
 				require.NoError(t, err)
@@ -595,7 +678,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		assert.Empty(t, updated.SyncML)
@@ -631,7 +714,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, syncML, updated.SyncML)
 		assert.Equal(t, existing.Name, updated.Name)
@@ -661,7 +744,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, syncML, updated.SyncML)
 		require.NotNil(t, updated.TeamID)
@@ -690,7 +773,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, syncML, updated.SyncML)
 		require.Len(t, updated.LabelsIncludeAny, 1)
@@ -711,7 +794,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -723,7 +806,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "w"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, "w"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -740,7 +823,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
 
@@ -749,7 +832,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 	})
 
@@ -769,10 +852,10 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		}
 
 		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -791,7 +874,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarName("HOST_UUID"))
 	})
@@ -812,7 +895,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 				return &p, nil
 			}
 
-			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 			require.NoError(t, err)
 			assert.Equal(t, osUpdateSyncML, updated.SyncML)
 		})
@@ -838,7 +921,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 				return nil, nil
 			}
 
-			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 			require.Error(t, err)
 			assert.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		})
@@ -855,7 +938,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 				return nil, nil
 			}
 
-			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 			require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		})
 	})
@@ -909,10 +992,10 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 
 				// profile content and labels are deliberately nil/empty here --
 				// this isolates the authz checks from content/label validation.
-				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil)
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailGlobal)
 
-				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil)
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailTeam)
 			})
 		}

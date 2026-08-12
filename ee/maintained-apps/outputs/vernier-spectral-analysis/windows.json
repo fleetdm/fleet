@@ -4,7 +4,8 @@
       "version": "5.1.0-2993",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Vernier Spectral Analysis' AND publisher = 'Vernier Software & Technology';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Vernier Spectral Analysis' AND publisher = 'Vernier Software & Technology' AND version_compare(version, '5.1.0-2993') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Vernier Spectral Analysis' AND publisher = 'Vernier Software & Technology' AND version_compare(version, '5.1.0-2993') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'vernier spectral analysis.exe');"
       },
       "installer_url": "https://software-releases.graphicalanalysis.com/sa/win/release/Vernier-Spectral-Analysis-5.1.0-2993.exe",
       "install_script_ref": "9a0e8623",

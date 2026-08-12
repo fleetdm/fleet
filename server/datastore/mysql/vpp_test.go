@@ -54,6 +54,8 @@ func TestVPP(t *testing.T) {
 		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
 		{"MapAdamIDsRecentInstalls", testMapAdamIDsRecentInstalls},
 		{"MapAdamIDsRecentlyVerifiedInstalls", testMapAdamIDsRecentlyVerifiedInstalls},
+		{"MapAdamIDsQueuedInstalls", testMapAdamIDsQueuedInstalls},
+		{"VPPInstallLookupsOnStuckQueue", testVPPInstallLookupsOnStuckQueue},
 		{"GetHostVPPInstallByCommandUUID", testGetHostVPPInstallByCommandUUID},
 		{"RetryVPPInstallForHost", testRetryVPPAppInstallForHost},
 		{"VPPClientUsers", testVPPClientUsers},
@@ -3074,6 +3076,247 @@ func testMapAdamIDsRecentlyVerifiedInstalls(t *testing.T, ds *Datastore) {
 	adamIDs, err = ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, iOSHost.ID, 3600)
 	require.NoError(t, err)
 	require.Empty(t, adamIDs, "a removed install must not count")
+}
+
+// acknowledgeVPPInstallCommand stores an Acknowledged result for the install command without
+// recording the activity, which is what completes the upcoming activity. This leaves the state a
+// host gets stuck in, where the command was delivered but the queue never advances.
+func acknowledgeVPPInstallCommand(t *testing.T, ds *Datastore, host *fleet.Host, cmdUUID string) {
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+	err = nanoDB.StoreCommandReport(
+		&mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: t.Context()},
+		&mdm.CommandResults{
+			CommandUUID: cmdUUID,
+			Status:      fleet.MDMAppleStatusAcknowledged,
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+		},
+	)
+	require.NoError(t, err)
+}
+
+func testMapAdamIDsQueuedInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{tm.ID})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	newIOSHost := func(name string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			UUID:           uuid.NewString(),
+			Platform:       string(fleet.IOSPlatform),
+			HardwareSerial: uuid.NewString(),
+			TeamID:         &tm.ID,
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		return h
+	}
+	host := newIOSHost("ios-test-1")
+	otherHost := newIOSHost("ios-test-2")
+
+	newIOSApp := func(adamID, name string) string {
+		app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+				AdamID:   adamID,
+				Platform: fleet.IOSPlatform,
+			}},
+			Name:             name,
+			BundleIdentifier: "com.app." + name,
+			LatestVersion:    "1.0.0",
+		}, &tm.ID)
+		require.NoError(t, err)
+		return app.AdamID
+	}
+	adamHead := newIOSApp("adam_vpp_1", "vpp1")
+	adamBehind := newIOSApp("adam_vpp_2", "vpp2")
+
+	adamIDs, err := ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	require.NoError(t, err)
+	require.Empty(t, adamIDs)
+
+	headCmdUUID := createVPPAppInstallRequest(t, ds, host, adamHead, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	adamIDs, err = ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, adamIDs, 1)
+	require.Contains(t, adamIDs, adamHead)
+
+	// The host_vpp_software_installs lookups cannot see this second install, because their row is
+	// only written at activation.
+	behindCmdUUID := createVPPAppInstallRequest(t, ds, host, adamBehind, user)
+	adamIDs, err = ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, adamIDs, 2)
+	require.Contains(t, adamIDs, adamHead)
+	require.Contains(t, adamIDs, adamBehind)
+
+	// otherHost gets a queued install of its own, so a missing host_id predicate would show up here
+	// as one host's apps leaking into the other's result.
+	adamOtherHost := newIOSApp("adam_vpp_3", "vpp3")
+	createVPPAppInstallRequest(t, ds, otherHost, adamOtherHost, user)
+	adamIDs, err = ds.MapAdamIDsQueuedInstalls(ctx, otherHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, map[string]struct{}{adamOtherHost: {}}, adamIDs)
+
+	adamIDs, err = ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotContains(t, adamIDs, adamOtherHost)
+	require.Len(t, adamIDs, 2)
+
+	// Completing the install removes its queue row.
+	createVPPAppInstallResult(t, ds, host, headCmdUUID, fleet.MDMAppleStatusAcknowledged)
+	adamIDs, err = ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, adamIDs, 1)
+	require.Contains(t, adamIDs, adamBehind)
+
+	// Cancelling deletes the queue row, which is why there is no canceled column to filter on,
+	// unlike the other lookups.
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, behindCmdUUID)
+	require.NoError(t, err)
+	adamIDs, err = ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	require.NoError(t, err)
+	require.Empty(t, adamIDs)
+
+	// A queued install of another platform's build of the same app IS reported. InstallApplication
+	// carries only the store id, so that row will send this host a command for the same app, and
+	// treating it as unrelated would put two identical commands on one device.
+	macOSApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+			AdamID:   adamHead,
+			Platform: fleet.MacOSPlatform,
+		}},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
+	}, &tm.ID)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `
+			INSERT INTO upcoming_activities (host_id, activity_type, execution_id, payload)
+			VALUES (?, 'vpp_app_install', ?, '{}')`, host.ID, uuid.NewString())
+		if err != nil {
+			return err
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `
+			INSERT INTO vpp_app_upcoming_activities (upcoming_activity_id, adam_id, platform)
+			VALUES (?, ?, ?)`, id, macOSApp.AdamID, fleet.MacOSPlatform)
+		return err
+	})
+	adamIDs, err = ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, map[string]struct{}{adamHead: {}}, adamIDs,
+		"a queued install of another platform's build of the same app must still be reported")
+}
+
+// testVPPInstallLookupsOnStuckQueue characterises what each per-host VPP install lookup reports for
+// a host whose queue is stuck on an acknowledged-but-unverified install. Only the queue lookup sees
+// the install waiting behind it. This covers the lookups, not the service filters that consume them.
+func testVPPInstallLookupsOnStuckQueue(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{tm.ID})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ios-test-1",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+		TeamID:         &tm.ID,
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	newIOSApp := func(adamID, name string) string {
+		app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+				AdamID:   adamID,
+				Platform: fleet.IOSPlatform,
+			}},
+			Name:             name,
+			BundleIdentifier: "com.app." + name,
+			LatestVersion:    "1.0.0",
+		}, &tm.ID)
+		require.NoError(t, err)
+		return app.AdamID
+	}
+	adamBlocker := newIOSApp("adam_vpp_1", "vpp1")
+	adamQueued := newIOSApp("adam_vpp_2", "vpp2")
+
+	countInstallRows := func() (count int) {
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+			`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ?`, host.ID))
+		return count
+	}
+	countActivatedRows := func() (count int) {
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activated_at IS NOT NULL`, host.ID))
+		return count
+	}
+
+	// The blocker activates immediately, which is what writes its host_vpp_software_installs row.
+	blockerCmdUUID := createVPPAppInstallRequest(t, ds, host, adamBlocker, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, 1, countActivatedRows())
+	require.Equal(t, 1, countInstallRows())
+
+	// The command is acknowledged but never verified, so the activity stays activated and the
+	// queue stops draining.
+	acknowledgeVPPInstallCommand(t, ds, host, blockerCmdUUID)
+
+	createVPPAppInstallRequest(t, ds, host, adamQueued, user)
+	require.Equal(t, 1, countActivatedRows(), "the queued install must stay behind the blocker")
+	require.Equal(t, 1, countInstallRows(), "an unactivated install has no install row")
+
+	// The existing lookups see the blocker but not the install queued behind it, which is why every
+	// refetch queued another one. These three assertions record today's blindness, so the work that
+	// widens those lookups is expected to delete them rather than treat them as a regression.
+	pendingVerification, err := ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
+	require.NoError(t, err)
+	require.Contains(t, pendingVerification, adamBlocker)
+	require.NotContains(t, pendingVerification, adamQueued)
+
+	recent, err := ds.MapAdamIDsRecentInstalls(ctx, host.ID, 3600)
+	require.NoError(t, err)
+	require.Contains(t, recent, adamBlocker)
+	require.NotContains(t, recent, adamQueued)
+
+	// This one sees neither, because it requires the install command to be undelivered.
+	pending, err := ds.MapAdamIDsPendingInstall(ctx, host.ID)
+	require.NoError(t, err)
+	require.Empty(t, pending)
+
+	queued, err := ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	require.NoError(t, err)
+	require.Contains(t, queued, adamBlocker)
+	require.Contains(t, queued, adamQueued)
 }
 
 func testGetHostVPPInstallByCommandUUID(t *testing.T, ds *Datastore) {

@@ -17,12 +17,11 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
-import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import UploadList from "components/UploadList";
 
@@ -143,12 +142,12 @@ const SelfServiceCategoriesPage = ({
       <BackButton text="Back to software library" path={backToLibraryPath} />
       {isPremiumTier && !isPrimoMode ? (
         <div className={`${baseClass}__fleet-row`}>
-          <TeamsDropdown
-            currentUserTeams={userTeams ?? []}
-            selectedTeamId={currentTeamId}
+          <FleetsDropdown
+            currentUserFleets={userTeams ?? []}
+            selectedFleetId={currentTeamId}
             onChange={handleTeamChange}
-            includeAllTeams={false}
-            includeNoTeams
+            includeAllFleets={false}
+            includeUnassigned
           />
         </div>
       ) : (
@@ -221,8 +220,11 @@ const SelfServiceCategoriesPage = ({
               Self-service categories
             </span>
             {canManage && (
-              <Button variant="inverse" onClick={() => setShowAddModal(true)}>
-                <Icon name="plus" />
+              <Button
+                variant="secondary"
+                onClick={() => setShowAddModal(true)}
+                icon="plus"
+              >
                 Add category
               </Button>
             )}
@@ -236,21 +238,19 @@ const SelfServiceCategoriesPage = ({
             {canManage && (
               <div className={`${baseClass}__row-actions`}>
                 <Button
-                  variant="icon"
+                  variant="secondary"
                   onClick={() => setCategoryToEdit(listItem)}
                   ariaLabel={`Edit ${listItem.name}`}
                   title="Edit"
-                >
-                  <Icon name="pencil" />
-                </Button>
+                  icon="pencil"
+                />
                 <Button
-                  variant="icon"
+                  variant="secondary"
                   onClick={() => setCategoryToDelete(listItem)}
                   ariaLabel={`Delete ${listItem.name}`}
                   title="Delete"
-                >
-                  <Icon name="trash" />
-                </Button>
+                  icon="trash"
+                />
               </div>
             )}
           </div>

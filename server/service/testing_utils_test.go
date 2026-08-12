@@ -63,6 +63,7 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -105,6 +106,23 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if mockDS.ConditionalAccessMicrosoftGetFunc == nil {
 			mockDS.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 				return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+			}
+		}
+		// Config reads hydrate the Windows enrollment default fleet from its config row.
+		if mockDS.GetWindowsEnrollmentDefaultFleetFunc == nil {
+			mockDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return nil, "", nil
+			}
+		}
+		// Default to none configured so tests that don't care don't panic on a nil mock.
+		if mockDS.ListMicrosoftGraphCredentialsFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.ListMicrosoftGraphCredentialMetadataFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+				return nil, nil
 			}
 		}
 	}
@@ -256,6 +274,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	orgLogoStore, err := filesystem.NewOrgLogoStore(t.TempDir())
 	require.NoError(t, err)
 
+	// Config writes that carry a new credential verify it against Entra and Graph, so default to a no-op factory and
+	// let tests inject their own when they assert on verification.
+	msGraphClientFactory := msgraph.ClientFactory(noopGraphFactory)
+	if len(opts) > 0 && opts[0].MicrosoftGraphClientFactory != nil {
+		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -324,6 +349,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			androidModule,
 			estCAService,
 			pssoNonceStore,
+			msGraphClientFactory,
 		)
 		if err != nil {
 			panic(err)
@@ -1392,6 +1418,10 @@ type fmaTestState struct {
 	sha256         string
 	installerPath  string
 	patchQuery     string
+	// installScript is the manifest install script content. Defaults to a
+	// placeholder when empty; set it to vary the script across builds (a real FMA
+	// script embeds the versioned installer filename, so a rebuild changes it).
+	installScript string
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1410,24 +1440,25 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		}
 	}
 
-	statesByInstallerPath := make(map[string]*fmaTestState, len(states))
 	for _, state := range states {
 		state.ComputeSHA(state.installerBytes)
-		statesByInstallerPath[state.installerPath] = state
 	}
 	var downloadMu sync.Mutex
 
-	// Mock installer server — routes by path to serve per-FMA bytes.
+	// Mock installer server — routes by path to serve per-FMA bytes. The lookup
+	// happens per request so a test can change a state's installerPath or bytes
+	// between applies (recomputing sha256) without restarting the server.
 	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		downloadMu.Lock()
 		defer downloadMu.Unlock()
 
-		state, found := statesByInstallerPath[r.URL.Path]
-		if !found {
-			http.NotFound(w, r)
-			return
+		for _, state := range states {
+			if state.installerPath == r.URL.Path {
+				_, _ = w.Write(state.installerBytes)
+				return
+			}
 		}
-		_, _ = w.Write(state.installerBytes)
+		http.NotFound(w, r)
 	}))
 
 	// Locate the repo's apps.json so the manifest server can serve it.
@@ -1470,9 +1501,13 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 				DefaultCategories:  []string{"Productivity"},
 			},
 		}
+		installScript := state.installScript
+		if installScript == "" {
+			installScript = "Hello World!"
+		}
 		manifest := ma.FMAManifestFile{
 			Versions: versions,
-			Refs:     map[string]string{"foobaz": "Hello World!"},
+			Refs:     map[string]string{"foobaz": installScript},
 		}
 		require.NoError(t, json.NewEncoder(w).Encode(manifest))
 	}))
@@ -1519,3 +1554,17 @@ func (rt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 // errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
 // for assertions that only care about the error.
 func errOnly(_ []uint, err error) error { return err }
+
+// noopGraphClient keeps credential verification off the network. Test servers built without an injected factory would
+// otherwise reach the real login.microsoftonline.com and graph.microsoft.com on any config write carrying a credential.
+type noopGraphClient struct{}
+
+func (noopGraphClient) VerifyCredential(context.Context) error { return nil }
+
+func (noopGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgraph.WindowsAutopilotDevice, error) {
+	return nil, nil
+}
+
+func noopGraphFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
+	return noopGraphClient{}, nil
+}

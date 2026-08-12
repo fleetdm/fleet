@@ -4,7 +4,8 @@
       "version": "3.5.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DAX Studio %' AND publisher = 'DAX Studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DAX Studio %' AND publisher = 'DAX Studio' AND version_compare(version, '3.5.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DAX Studio %' AND publisher = 'DAX Studio' AND version_compare(version, '3.5.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'daxstudio.exe');"
       },
       "installer_url": "https://github.com/DaxStudio/DaxStudio/releases/download/v3.5.2/DaxStudio_3_5_2_setup.exe",
       "install_script_ref": "efa942ae",

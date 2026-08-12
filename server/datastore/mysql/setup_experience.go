@@ -143,7 +143,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 					WHERE (h.osquery_host_id = ? OR h.uuid = ?)
 					  AND h.platform = 'windows'
 					  AND h.computer_name <> ''
-					  AND (mwe.host_uuid = h.uuid OR mwe.host_uuid IS NULL OR mwe.host_uuid = '')
+					  AND (mwe.host_uuid = h.uuid OR mwe.host_uuid = '')
 					ORDER BY mwe.created_at DESC, mwe.id DESC
 					LIMIT 1
 					`
@@ -958,7 +958,8 @@ WHERE
 	return &script, nil
 }
 
-func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) (bool, error) {
+	var changed bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
@@ -991,11 +992,14 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 		}
 
 		// then create the script entity
-		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id)) // nolint: gosec
-		return err
+		if _, err = insertSetupExperienceScript(ctx, tx, script, uint(id)); err != nil { // nolint: gosec
+			return err
+		}
+		changed = true
+		return nil
 	})
 
-	return err
+	return changed, err
 }
 
 func insertSetupExperienceScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {

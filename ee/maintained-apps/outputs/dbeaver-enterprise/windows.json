@@ -4,7 +4,8 @@
       "version": "26.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DBeaverEE %' AND publisher = 'DBeaver Corp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaverEE %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaverEE %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dbeaver.exe');"
       },
       "installer_url": "https://downloads.dbeaver.net/enterprise/26.1.0/dbeaver-ee-26.1.0-windows-x86_64.exe",
       "install_script_ref": "d217c97c",

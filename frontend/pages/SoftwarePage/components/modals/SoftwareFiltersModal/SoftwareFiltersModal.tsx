@@ -279,7 +279,7 @@ const SoftwareFiltersModal = ({
               Apply
             </Button>
           </TooltipWrapper>
-          <Button variant="inverse" onClick={onExit}>
+          <Button variant="secondary" onClick={onExit}>
             Cancel
           </Button>
         </div>

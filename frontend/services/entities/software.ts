@@ -277,7 +277,8 @@ const handleDisplayNameForm = (
 const handleEditPackageForm = (
   data: IEditPackageFormData,
   formData: FormData,
-  orignalPackage: ISoftwarePackage
+  orignalPackage: ISoftwarePackage,
+  omitPreInstallQuery = false
 ) => {
   data.software && formData.append("software", data.software);
   formData.append("self_service", data.selfService.toString());
@@ -286,10 +287,12 @@ const handleEditPackageForm = (
     "install_script",
     encodeScriptBase64(data.installScript) || ""
   );
-  formData.append(
-    "pre_install_query",
-    encodeScriptBase64(data.preInstallQuery || "") || ""
-  );
+  if (!omitPreInstallQuery) {
+    formData.append(
+      "pre_install_query",
+      encodeScriptBase64(data.preInstallQuery || "") || ""
+    );
+  }
   formData.append(
     "post_install_script",
     encodeScriptBase64(data.postInstallScript || "") || ""
@@ -609,6 +612,7 @@ export default {
     timeout,
     onUploadProgress,
     signal,
+    omitPreInstallQuery,
   }: {
     data:
       | IEditPackageFormData
@@ -624,6 +628,7 @@ export default {
     timeout?: number;
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
     signal?: AbortSignal;
+    omitPreInstallQuery?: boolean;
   }) => {
     const { EDIT_SOFTWARE_PACKAGE } = endpoints;
     const formData = new FormData();
@@ -650,7 +655,8 @@ export default {
       handleEditPackageForm(
         data as IEditPackageFormData,
         formData,
-        orignalPackage
+        orignalPackage,
+        omitPreInstallQuery
       );
     }
 
@@ -847,7 +853,7 @@ export default {
       post_install_script: encodeScriptBase64(formData.postInstallScript),
       uninstall_script: encodeScriptBase64(formData.uninstallScript),
       self_service: formData.selfService,
-      automatic_install: formData.automaticInstall,
+      automatic_install: formData.forceInstall,
       categories: formData.categories,
     };
 

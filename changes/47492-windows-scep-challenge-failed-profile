@@ -1,0 +1,1 @@
+- Windows SCEP profiles now fail with a clear message when the certificate authority challenge contains characters Windows doesn't support (ASN.1 PrintableString), instead of showing "Verified" while no certificate is installed.
