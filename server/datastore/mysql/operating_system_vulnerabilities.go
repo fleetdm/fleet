@@ -984,26 +984,33 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			GROUP BY os_version_id`
 
 		case maxVulnerabilities != nil && *maxVulnerabilities > 0:
-			// Use LATERAL JOIN + CTE for optimal performance:
-			// 1. Computing counts via GROUP BY (fast)
-			// 2. Fetching only N CVEs per os_version_id via LATERAL LIMIT (fast)
+			// Counts via GROUP BY, then the top N CVEs per os_version_id.
+			//
+			// Upstream does the second half with CROSS JOIN LATERAL, which MariaDB does
+			// not support -- it fails with a syntax error at the derived table. A ranking
+			// window function expresses the same "N rows per group" and runs on both.
+			idPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(linuxOSVersionIDs)), ",")
 			kernelQuery = `
 			WITH counts AS (
 				SELECT os_version_id, COUNT(*) as total_count
 				FROM operating_system_version_vulnerabilities
-				WHERE os_version_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSVersionIDs)), ",") + `)` + teamFilter + `
+				WHERE os_version_id IN (` + idPlaceholders + `)` + teamFilter + `
 				GROUP BY os_version_id
-			)
-			SELECT counts.os_version_id, v.cve, v.resolved_in_version, v.created_at, counts.total_count
-			FROM counts
-			CROSS JOIN LATERAL (
-				SELECT cve, resolved_in_version, created_at
+			), ranked AS (
+				SELECT
+					os_version_id, cve, resolved_in_version, created_at,
+					ROW_NUMBER() OVER (PARTITION BY os_version_id ORDER BY cve DESC) AS rn
 				FROM operating_system_version_vulnerabilities
-				WHERE os_version_id = counts.os_version_id` + teamFilter + `
-				ORDER BY cve DESC
-				LIMIT ?
-			) v`
-			// teamFilter is used twice in the query above (CTE and LATERAL), so add teamID again if needed
+				WHERE os_version_id IN (` + idPlaceholders + `)` + teamFilter + `
+			)
+			SELECT counts.os_version_id, ranked.cve, ranked.resolved_in_version, ranked.created_at, counts.total_count
+			FROM counts
+			JOIN ranked ON ranked.os_version_id = counts.os_version_id
+			WHERE ranked.rn <= ?`
+			// The id list and team filter appear in both CTEs, so their arguments repeat.
+			for _, id := range linuxOSVersionIDs {
+				kargs = append(kargs, id)
+			}
 			if teamID != nil {
 				kargs = append(kargs, *teamID)
 			}
