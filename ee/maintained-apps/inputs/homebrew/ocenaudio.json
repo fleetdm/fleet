@@ -6,5 +6,6 @@
   "slug": "ocenaudio/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }
