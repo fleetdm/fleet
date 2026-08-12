@@ -88,14 +88,13 @@ func globalScheduleQueryEndpoint(ctx context.Context, request interface{}, svc f
 }
 
 func (svc *Service) GlobalScheduleQuery(ctx context.Context, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	originalQuery, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
-	if err != nil {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, ctxerr.Wrap(ctx, err, "get query")
+	// Authorize before loading the source report; see TeamScheduleQuery.
+	if err := svc.authz.Authorize(ctx, fleet.Query{}, fleet.ActionWrite); err != nil {
+		return nil, err
 	}
-	if originalQuery.TeamID != nil {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, ctxerr.New(ctx, "cannot create a global schedule from a team query")
+	originalQuery, err := svc.scheduledQueryInScope(ctx, scheduledQuery.QueryID, nil)
+	if err != nil {
+		return nil, err
 	}
 	originalQuery.Name = nameForCopiedQuery(originalQuery.Name)
 	newQuery, err := svc.NewQuery(ctx, fleet.ScheduledQueryToQueryPayloadForNewQuery(originalQuery, scheduledQuery))
@@ -135,6 +134,9 @@ func modifyGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) ModifyGlobalScheduledQueries(ctx context.Context, id uint, scheduledQueryPayload fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
+	if _, err := svc.scheduledQueryInScope(ctx, id, nil); err != nil {
+		return nil, err
+	}
 	query, err := svc.ModifyQuery(ctx, id, fleet.ScheduledQueryPayloadToQueryPayloadForModifyQuery(scheduledQueryPayload))
 	if err != nil {
 		return nil, err
@@ -167,5 +169,8 @@ func deleteGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) DeleteGlobalScheduledQueries(ctx context.Context, id uint) error {
+	if _, err := svc.scheduledQueryInScope(ctx, id, nil); err != nil {
+		return err
+	}
 	return svc.DeleteQueryByID(ctx, id)
 }

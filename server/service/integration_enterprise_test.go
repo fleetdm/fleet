@@ -8184,16 +8184,19 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to delete own query, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", tcqr.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
-	// Attempt to edit query created by somebody else, should fail.
+	// Attempt to edit query created by somebody else, should fail. A team
+	// GitOps user can't read global queries either (unlike every other team
+	// role), so this reports not-found rather than forbidden: a forbidden
+	// would confirm the global query exists to a caller with no view of it.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Query.ID), fleet.ModifyQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  new("foo4"),
 			Query: new("SELECT * FROM system_info;"),
 		},
-	}, http.StatusForbidden, &fleet.ModifyQueryResponse{})
+	}, http.StatusNotFound, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete query created by somebody else, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusNotFound, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to read the global schedule, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})

@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -371,7 +372,9 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
 	}
-	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+	
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithID(id), "get query to modify")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
 		return nil, err
 	}
 
@@ -537,7 +540,8 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		setAuthCheckedOnPreAuthErr(ctx)
 		return err
 	}
-	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithName(name), "get query to delete")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
@@ -605,7 +609,8 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return ctxerr.Wrap(ctx, err, "lookup query by ID")
 	}
-	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithID(id), "lookup query by ID")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
@@ -675,7 +680,8 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 			setAuthCheckedOnPreAuthErr(ctx)
 			return 0, ctxerr.Wrap(ctx, err, "lookup query by ID")
 		}
-		if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithID(id), "lookup query by ID")
+		if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
 			return 0, err
 		}
 
