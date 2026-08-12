@@ -26,10 +26,10 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	android "github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
-	android "github.com/fleetdm/fleet/v4/server/mdm/android"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	nanomdm_mdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -5160,7 +5160,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 // mockAndroidService is a minimal mock of android.Service for RunMDMCommand tests.
 // Only IssueCustomCommand is implemented; all other methods panic if called.
 type mockAndroidService struct {
-	android.Service // embed interface — unimplemented methods panic
+	android.Service        // embed interface — unimplemented methods panic
 	IssueCustomCommandFunc func(ctx context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error)
 }
 

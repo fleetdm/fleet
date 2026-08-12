@@ -4066,11 +4066,11 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, map[string]bool{
-		connectedMac.UUID:      true,
-		connectedWin.UUID:      true,
-		connectedAndroid.UUID:  true,
+		connectedMac.UUID:        true,
+		connectedWin.UUID:        true,
+		connectedAndroid.UUID:    true,
 		notConnectedAndroid.UUID: false,
-		unenrolledAndroid.UUID: false,
+		unenrolledAndroid.UUID:   false,
 	}, connectedMap)
 }
 
