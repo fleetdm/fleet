@@ -3465,6 +3465,10 @@ the `software` table.
 
 `GET /api/v1/fleet/hosts`
 
+> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
+
+> Searching with `query` and setting `device_mapping=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
+
 #### Parameters
 
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
@@ -3500,7 +3504,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
-| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes below on performance. |
+| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes above on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
@@ -3511,8 +3515,6 @@ the `software` table.
 | dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in ABM will be returned. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
-
-> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
@@ -3982,6 +3984,9 @@ Returns the information of the specified host.
 
 `GET /api/v1/fleet/hosts/:id`
 
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
+
 #### Parameters
 
 | Name             | Type    | In    | Description                                                                             |
@@ -4288,11 +4293,13 @@ Returns the information of the specified host.
 
 Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
 
+`GET /api/v1/fleet/hosts/identifier/:identifier`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
 If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. 
 
-> In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
-
-`GET /api/v1/fleet/hosts/identifier/:identifier`
+In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
 
 #### Parameters
 
@@ -4522,15 +4529,16 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 ### Get host by Fleet Desktop token
 
-> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
-
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
+
+`GET /api/v1/fleet/device/:token`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
 This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS and iPadOS, this is the host's hardware UUID.
 
-`GET /api/v1/fleet/device/:token`
 
 ##### Parameters
 
@@ -5848,7 +5856,9 @@ To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a W
 
 Sends a command to wipe the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is wiped once it comes online.
 
-Wiping an Android host is available in Fleet Free and Fleet Premium. Wiping a macOS, iOS, iPadOS, Linux, or Windows host is available in Fleet Premium.
+Wiping a company-owned (fully managed) Android host is available in Fleet Free and Fleet Premium. (This feature was [previously "Unenroll"](https://github.com/fleetdm/fleet/issues/41683).)
+
+Wiping a macOS, iOS, iPadOS, Linux, Windows, or personal (BYOD) Android host is available in Fleet Premium.
 
 To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). To wipe an Android host, the host must be enrolled as a fully managed device.
 
@@ -7360,7 +7370,7 @@ List all assets available for the "Unassigned" fleet.
       "identifier": "com.example.asset1",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo=",
+      "checksum": "dGVzdAo="
     },
     {
       "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
@@ -7368,9 +7378,9 @@ List all assets available for the "Unassigned" fleet.
       "identifier": "com.example.asset2",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo=",
-    },
-  ],
+      "checksum": "dGVzdAo="
+    }
+  ]
 }
 ```
 
@@ -7612,7 +7622,7 @@ If a host is missing the IdP data a variable needs, that host's rename fails. A 
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 ### Resend host name template
 
@@ -8519,9 +8529,7 @@ Edit managed local account enforcement settings for eligible hosts.
 
 `POST /api/v1/fleet/managed_local_account`
 
-##### Default response
-
-`204`
+##### Request body
 
 ```json
 {
@@ -8530,6 +8538,10 @@ Edit managed local account enforcement settings for eligible hosts.
   "end_user_local_account_type": "admin"
 }
 ```
+
+##### Default response
+
+`Status: 204`
 
 ---
 
@@ -12319,6 +12331,8 @@ A software title can have more than one package. The `packages` array lists all 
 
 ### List software versions
 
+> For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
+
 Get a list of all software versions.
 
 `GET /api/v1/fleet/software/versions`
@@ -12337,10 +12351,9 @@ Get a list of all software versions.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. If `false` (or omitted), adds vulnerability description, CVSS score, and other details available in Fleet Premium. See notes below on performance. |
+| without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. If `false` (or omitted), adds vulnerability description, CVSS score, and other details available in Fleet Premium. See note above on performance. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
-> For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
 
 #### Example
 
@@ -13675,7 +13688,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
-   "output": "Installing software...\nError: The operation can’t be completed because the item "Falcon" is in use.",
+   "output": "Installing software...\nError: The operation can’t be completed because the item \"Falcon\" is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
  }
@@ -14373,7 +14386,7 @@ _Available in Fleet Premium_
         ],
         "managed_local_account_settings": {
           "enabled": true
-        },
+        }
       },
       "windows_settings": {
         "custom_settings": [
@@ -14390,7 +14403,7 @@ _Available in Fleet Premium_
         ],
         "managed_local_account_settings": {
           "enabled": true
-        },
+        }
       },
       "macos_setup": {
         "bootstrap_package": "",
