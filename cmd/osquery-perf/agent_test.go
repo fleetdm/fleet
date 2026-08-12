@@ -1,21 +1,26 @@
 package main
 
 import (
+	cryptorand "crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func installProfileCommand(t *testing.T, identifier, displayName string) *mdm.Command {
-	t.Helper()
-	mobileconfig := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+func mobileconfigPayload(identifier, displayName string) []byte {
+	return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
 	<key>PayloadIdentifier</key>
@@ -26,6 +31,9 @@ func installProfileCommand(t *testing.T, identifier, displayName string) *mdm.Co
 	<string>Configuration</string>
 </dict>
 </plist>`, identifier, displayName)
+}
+
+func installProfileCommandWithPayload(payload []byte) *mdm.Command {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
@@ -39,8 +47,13 @@ func installProfileCommand(t *testing.T, identifier, displayName string) *mdm.Co
 		<data>%s</data>
 	</dict>
 </dict>
-</plist>`, base64.StdEncoding.EncodeToString([]byte(mobileconfig)))
+</plist>`, base64.StdEncoding.EncodeToString(payload))
 	return &mdm.Command{Raw: []byte(raw)}
+}
+
+func installProfileCommand(t *testing.T, identifier, displayName string) *mdm.Command {
+	t.Helper()
+	return installProfileCommandWithPayload(mobileconfigPayload(identifier, displayName))
 }
 
 func removeProfileCommand(identifier string) *mdm.Command {
@@ -80,6 +93,38 @@ func TestParseInstallProfileCommand(t *testing.T) {
 	// garbage payload
 	_, _, ok = parseInstallProfileCommand(&mdm.Command{Raw: []byte("not a plist")})
 	assert.False(t, ok)
+}
+
+// TestParseInstallProfileCommandSigned covers the PKCS7 branch of
+// installProfilePayload. Fleet always signs profiles before sending them (see
+// MDMAppleCommander.SignAndEncodeInstallProfile), so this is the path every
+// real InstallProfile command takes.
+func TestParseInstallProfileCommandSigned(t *testing.T) {
+	key, err := rsa.GenerateKey(cryptorand.Reader, 2048)
+	require.NoError(t, err)
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "osquery-perf test signer"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(cryptorand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+
+	signedData, err := pkcs7.NewSignedData(mobileconfigPayload("com.example.signed", "Signed Profile"))
+	require.NoError(t, err)
+	require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+	signed, err := signedData.Finish()
+	require.NoError(t, err)
+
+	identifier, displayName, ok := parseInstallProfileCommand(installProfileCommandWithPayload(signed))
+	require.True(t, ok)
+	assert.Equal(t, "com.example.signed", identifier)
+	assert.Equal(t, "Signed Profile", displayName)
 }
 
 func TestRemoveProfileIdentifier(t *testing.T) {
