@@ -2111,6 +2111,33 @@ func (a ActivityTypeDeletedMicrosoftEntraClientID) ActivityName() string {
 	return "deleted_microsoft_entra_client_id"
 }
 
+// The three activities below track the Microsoft Graph credential Fleet uses to read Windows Autopilot devices. Only
+// the tenant ID is recorded, which is sufficient.
+
+type ActivityTypeAddedMicrosoftGraphCredential struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (a ActivityTypeAddedMicrosoftGraphCredential) ActivityName() string {
+	return "added_microsoft_graph_credential"
+}
+
+type ActivityTypeEditedMicrosoftGraphCredential struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (a ActivityTypeEditedMicrosoftGraphCredential) ActivityName() string {
+	return "edited_microsoft_graph_credential"
+}
+
+type ActivityTypeDeletedMicrosoftGraphCredential struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (a ActivityTypeDeletedMicrosoftGraphCredential) ActivityName() string {
+	return "deleted_microsoft_graph_credential"
+}
+
 // ActivityTypeEditedWindowsEnrollmentDefaultFleet is logged when the default fleet for new
 // user-driven Windows MDM enrollments changes. Both fields are null when the default is cleared.
 type ActivityTypeEditedWindowsEnrollmentDefaultFleet struct {

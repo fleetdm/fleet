@@ -70,7 +70,7 @@ const (
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
 	ActivationEmptyFileErrorMsg             = "Activation must contain a declaration. To remove the activation, send an empty activation field."
 	ActivationConflictingPartsErrorMsg      = "Send either an activation file to replace it or an empty activation field to remove it, not both."
-	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ENABLE_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
+	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
 )
 
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
@@ -978,7 +978,7 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 	// (Apple FB24193230). Until that's fixed, uploading an activation takes an
 	// explicit opt-in. Removing a stored activation deliberately doesn't reach
 	// here, so an operator can always undo one.
-	if !svc.config.MDM.EnableCustomActivations {
+	if !svc.config.MDM.AllowCustomActivations {
 		return nil, ctxerr.Wrap(ctx,
 			fleet.NewInvalidArgumentError("activation", ActivationsDisabledErrorMsg),
 			"custom activations are not enabled")
@@ -5976,10 +5976,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		"count", len(softwaresWithinUpdateScheduleNoRecentInstalls),
 	)
 
-	// 4. Filter out software that already has a pending installation.
+	// 4. Filter out software that already has a pending installation, either activated and
+	// awaiting verification, or still waiting in the host's upcoming activity queue.
+	//
+	// This needs no in-run tracking like the policy loop has, because ListSoftwareAutoUpdateSchedules
+	// filters on the source derived from the host's platform above. A team can hold the same adam_id
+	// as two titles, one per platform, so widening that filter would let one run reach an app twice.
 	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get Adam IDs pending install for host")
+	}
+	adamIDsQueuedInstallForHost, err := svc.ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Adam IDs queued installs for host")
 	}
 	var softwaresWithinUpdateScheduleToInstall []*fleet.SoftwareTitle
 	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateScheduleNoRecentInstalls {
@@ -5993,6 +6002,13 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
 			logger.DebugContext(ctx, "skipping software, pending install for title",
+				"software_title_id", softwareTitle.ID,
+				"adam_id", softwareTitle.AppStoreApp.AdamID,
+			)
+			continue
+		}
+		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+			logger.DebugContext(ctx, "skipping software, install already queued for title",
 				"software_title_id", softwareTitle.ID,
 				"adam_id", softwareTitle.AppStoreApp.AdamID,
 			)

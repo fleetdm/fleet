@@ -67,6 +67,7 @@ import (
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -7774,8 +7775,15 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to retrieve hosts, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden, &listHostsResponse{})
 
-	// Attempt to retrieve a host by identifier should succeed
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK, &getHostResponse{})
+	// Attempt to retrieve a host by identifier should succeed, but return the host id
+	// and nothing else: GitOps is denied on every other host read endpoint, and only
+	// needs the id here to resolve an identifier for the Puppet module's
+	// profile pre-assignment. Asserting on the raw body since decoding into a
+	// response struct wouldn't catch extra fields.
+	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusOK, &listHostsResponse{})
@@ -7788,6 +7796,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		TeamID:  &t1.ID,
 		HostIDs: []uint{h1.ID},
 	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// The host is now on a team, but the identifier endpoint still returns the id only.
+	resp = s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK)
+	body, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
 
 	// Attempt to create a label, should allow.
 	clr := fleet.CreateLabelResponse{}
@@ -13001,6 +13015,71 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 				}, http.StatusForbidden, &fleet.ModifyLabelResponse{})
 			}
 		})
+	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestLabelSpecHostsAreTeamFiltered() {
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	t := s.T()
+	ctx := t.Context()
+
+	hosts := s.createHosts(t, "debian", "darwin", "windows")
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "label spec team1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "label spec team2"})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm1.ID, []uint{hosts[0].ID})))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm2.ID, []uint{hosts[1].ID})))
+
+	observer := fleet.UserPayload{
+		Name:                     new("label spec team1 observer"),
+		Email:                    new("labelspec-tm1observer@example.com"),
+		Password:                 new(test.GoodPassword),
+		AdminForcedPasswordReset: new(false),
+		Teams:                    &[]fleet.UserTeam{{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleObserver}},
+	}
+	var createUser createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", observer, http.StatusOK, &createUser)
+
+	labelName := "labelspec-global-manual"
+	var createLbl fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  labelName,
+			Hosts: []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID},
+		},
+	}, http.StatusOK, &createLbl)
+
+	var getSpec fleet.GetLabelSpecResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(labelName)), nil, http.StatusOK, &getSpec)
+	require.ElementsMatch(t,
+		[]string{fmt.Sprint(hosts[0].ID), fmt.Sprint(hosts[1].ID), fmt.Sprint(hosts[2].ID)},
+		[]string(getSpec.Spec.Hosts),
+	)
+
+	// the team observer must not learn about hosts outside their team
+	s.setTokenForTest(t, *observer.Email, *observer.Password)
+
+	getSpec = fleet.GetLabelSpecResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(labelName)), nil, http.StatusOK, &getSpec)
+	require.Equal(t, []string{fmt.Sprint(hosts[0].ID)}, []string(getSpec.Spec.Hosts))
+
+	var listSpecs fleet.GetLabelSpecsResponse
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listSpecs)
+	var found bool
+	for _, spec := range listSpecs.Specs {
+		if spec.Name == labelName {
+			found = true
+			require.Equal(t, []string{fmt.Sprint(hosts[0].ID)}, []string(spec.Hosts))
+		}
+	}
+	require.True(t, found, "global manual label spec should be listed for the team observer")
+
+	// the members left out of the spec are the ones the observer can't reach directly
+	for _, h := range []*fleet.Host{hosts[1], hosts[2]} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusForbidden, &getHostResponse{})
 	}
 }
 
@@ -30895,6 +30974,45 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 	})
 }
 
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersLowercasesExtension() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team_" + t.Name()})
+	require.NoError(t, err)
+
+	states := map[string]*fmaTestState{
+		"/zoom/windows.json": {
+			version:        "1.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/ZOOM-SETUP.MSI",
+		},
+	}
+	startFMAServers(t, s.ds, states)
+
+	var resp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
+		http.StatusAccepted, &resp,
+		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+	)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+	// The column collation is case insensitive, so read back with a binary
+	// collation to see the stored casing rather than a case-folded match.
+	var stored struct {
+		Filename  string `db:"filename"`
+		Extension string `db:"extension"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &stored,
+			`SELECT filename, extension COLLATE utf8mb4_bin AS extension FROM software_installers WHERE global_or_team_id = ?`,
+			team.ID)
+	})
+
+	require.Equal(t, "ZOOM-SETUP.MSI", stored.Filename, "filename keeps the original casing")
+	require.Equal(t, "msi", stored.Extension)
+}
+
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObsoletePatchPolicy() {
 	t := s.T()
 
@@ -31520,6 +31638,14 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
 	})
 
+	// requireRestrictionDeniedBody asserts the 403 body carries the distinct
+	// endpoint-restriction message, distinguishing it from role-based denials.
+	requireRestrictionDeniedBody := func(t *testing.T, res *http.Response) {
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Contains(t, string(body), auth.EndpointRestrictionDeniedMessage)
+	}
+
 	// For api-only users with restrictions, requests to paths not in the API
 	// endpoint catalog are rejected by the middleware before reaching the
 	// service layer.
@@ -31527,7 +31653,8 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.token = createAPIOnlyUser("api-only-mw-non-catalog-restricted", []map[string]any{
 			{"method": "GET", "path": "/api/v1/fleet/version"},
 		})
-		s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+		res := s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+		requireRestrictionDeniedBody(t, res)
 	})
 
 	// With endpoint restrictions, only explicitly allowed endpoints are reachable.
@@ -31540,8 +31667,10 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
 
 		// These are in the catalog but not in the user's allow list.
-		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
-		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden)
+		res := s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
+		requireRestrictionDeniedBody(t, res)
+		res = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden)
+		requireRestrictionDeniedBody(t, res)
 	})
 
 	// Non-api-only users must not be affected by the middleware at all.

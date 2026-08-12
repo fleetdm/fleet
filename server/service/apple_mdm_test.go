@@ -79,7 +79,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	cfg := config.TestConfig()
 	// Custom activations are opt-in on the server (#50764). Tests that exercise
 	// them need them on; pass a tweak to turn them back off.
-	cfg.MDM.EnableCustomActivations = true
+	cfg.MDM.AllowCustomActivations = true
 	for _, fn := range tweakCfg {
 		fn(&cfg)
 	}
@@ -2371,6 +2371,10 @@ func TestMDMCommandAuthz(t *testing.T) {
 		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
 	}
 
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		return &fleet.HostMDM{HostID: hostID, Enrolled: true}, nil
+	}
+
 	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) ([]*fleet.User, []fleet.ActivityDetails, error) {
 		return nil, nil, nil
 	}
@@ -2735,6 +2739,7 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 
 	hostOne := &fleet.Host{ID: 1, UUID: "test-host-no-team-2", Platform: "ios"}
 	hostGlobal := &fleet.Host{ID: 42, UUID: "test-host-no-team", Platform: "darwin"}
+	hostLinux := &fleet.Host{ID: 7, UUID: "test-host-linux", Platform: "ubuntu"}
 
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		switch hostID {
@@ -2742,6 +2747,8 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 			return hostOne, nil
 		case hostGlobal.ID:
 			return hostGlobal, nil
+		case hostLinux.ID:
+			return hostLinux, nil
 		default:
 			return nil, errors.New("not found")
 		}
@@ -2749,6 +2756,10 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 
 	ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
+	}
+
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		return &fleet.HostMDM{HostID: hostID, Enrolled: true}, nil
 	}
 
 	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) ([]*fleet.User, []fleet.ActivityDetails, error) {
@@ -2777,6 +2788,38 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 	t.Run("Unenrolls personal ios device", func(t *testing.T) {
 		err := svc.UnenrollMDM(ctx, hostOne.ID) // personal host
 		require.NoError(t, err)
+	})
+
+	// An offline host keeps its nano enrollment enabled until it receives the
+	// removal command, so the enrollment check alone lets every repeat call
+	// through -- each one queueing another RemoveProfile and logging another
+	// unenroll activity. See #50103.
+	t.Run("Refuses to turn off MDM that is already off", func(t *testing.T) {
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{HostID: hostID, Enrolled: false}, nil
+		}
+		ds.MDMTurnOffFuncInvoked = false
+
+		err := svc.UnenrollMDM(ctx, hostGlobal.ID)
+
+		var conflict *fleet.ConflictError
+		require.ErrorAs(t, err, &conflict)
+		require.False(t, ds.MDMTurnOffFuncInvoked, "must not re-run turn off for an already unenrolled host")
+	})
+
+	// An unsupported host has no enrolled host_mdm row either, so the
+	// already-off check would happily claim that instead of saying the platform
+	// isn't supported. The platform has to be rejected first.
+	t.Run("Reports an unsupported platform rather than already off", func(t *testing.T) {
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{HostID: hostID, Enrolled: false}, nil
+		}
+
+		err := svc.UnenrollMDM(ctx, hostLinux.ID)
+
+		var badRequest *fleet.BadRequestError
+		require.ErrorAs(t, err, &badRequest)
+		require.Contains(t, badRequest.Message, "not supported for this host platform")
 	})
 }
 
@@ -10106,7 +10149,7 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 	// the server explicitly opts in.
 	t.Run("activation is refused when the server hasn't enabled activations", func(t *testing.T) {
 		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium},
-			func(c *config.FleetConfig) { c.MDM.EnableCustomActivations = false })
+			func(c *config.FleetConfig) { c.MDM.AllowCustomActivations = false })
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 			return d, nil
@@ -10123,5 +10166,109 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 		// The declaration itself is unaffected -- only the activation is gated.
 		_, err = svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, nil)
 		require.NoError(t, err)
+	})
+}
+
+type scheduledUpdatesVPPInstaller struct {
+	installs []string
+}
+
+func (i *scheduledUpdatesVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+	return "vpp-token", nil
+}
+
+func (i *scheduledUpdatesVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+	i.installs = append(i.installs, vppApp.AdamID)
+	return "command-uuid", nil
+}
+
+// TestHandleScheduledUpdatesSkipsQueuedInstalls verifies that a scheduled update does not queue
+// another install of an app that already has one queued. The pending-verification lookup reads
+// host_vpp_software_installs, whose rows are only written once an activity activates, so an install
+// waiting behind a stalled one is invisible to it.
+func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
+	const (
+		titleID  = uint(7)
+		adamID   = "adam-vpp-1"
+		bundleID = "com.example.app"
+	)
+
+	newSvc := func() (*MDMAppleCheckinAndCommandService, *mock.Store, *scheduledUpdatesVPPInstaller) {
+		ds := new(mock.Store)
+		installer := &scheduledUpdatesVPPInstaller{}
+		svc := &MDMAppleCheckinAndCommandService{
+			ds:           ds,
+			vppInstaller: installer,
+			logger:       slog.New(slog.DiscardHandler),
+		}
+
+		ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{Token: "vpp-token"}, nil
+		}
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
+			return &fleet.NanoEnrollment{Enabled: true, Type: "Device"}, nil
+		}
+		ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string,
+			optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter,
+		) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+			return []fleet.SoftwareAutoUpdateSchedule{{
+				TitleID: titleID,
+				SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+					AutoUpdateStartTime: new("00:00"),
+					AutoUpdateEndTime:   new("23:59"),
+				},
+			}}, nil
+		}
+		ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+			return &fleet.SoftwareTitle{ID: titleID, Name: "App", BundleIdentifier: new(bundleID), Source: "ios_apps"}, nil
+		}
+		ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
+			return &fleet.VPPAppStoreApp{
+				VPPAppID:      fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform},
+				LatestVersion: "2.0.0",
+			}, nil
+		}
+		ds.MapAdamIDsRecentInstallsFunc = func(ctx context.Context, hostID uint, seconds int) (map[string]struct{}, error) {
+			return map[string]struct{}{}, nil
+		}
+		ds.MapAdamIDsPendingInstallVerificationFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+			return map[string]struct{}{}, nil
+		}
+		ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+			return map[string]struct{}{}, nil
+		}
+		ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
+			return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{
+				AppTeamID: 1,
+				VPPAppID:  fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform},
+			}}, nil
+		}
+		ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
+			return true, nil
+		}
+
+		return svc, ds, installer
+	}
+
+	host := &fleet.Host{ID: 1, UUID: "IOS-HOST-UUID", Platform: "ios", TimeZone: new("UTC")}
+	reported := []fleet.Software{{BundleIdentifier: bundleID, Source: "ios_apps", Version: "1.0.0"}}
+
+	t.Run("install already queued for the app", func(t *testing.T) {
+		svc, ds, installer := newSvc()
+		ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+			return map[string]struct{}{adamID: {}}, nil
+		}
+
+		require.NoError(t, svc.handleScheduledUpdates(t.Context(), host, reported))
+		require.True(t, ds.MapAdamIDsQueuedInstallsFuncInvoked)
+		require.Empty(t, installer.installs)
+	})
+
+	// Without this the test above would also pass against a guard that never releases.
+	t.Run("nothing queued for the app", func(t *testing.T) {
+		svc, _, installer := newSvc()
+
+		require.NoError(t, svc.handleScheduledUpdates(t.Context(), host, reported))
+		require.Equal(t, []string{adamID}, installer.installs)
 	})
 }

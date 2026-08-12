@@ -1076,6 +1076,7 @@ type MaintainedAppSpec struct {
 	LabelsExcludeAny        []string              `json:"labels_exclude_any"`
 	LabelsIncludeAll        []string              `json:"labels_include_all"`
 	Categories              optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName             string                `json:"display_name,omitempty"`
 	InstallDuringSetup      optjson.Bool          `json:"setup_experience"`
 	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
 	Icon                    TeamSpecSoftwareAsset `json:"icon"`
@@ -1097,6 +1098,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		InstallDuringSetup:      spec.InstallDuringSetup,
 		Icon:                    spec.Icon,
 		Categories:              spec.Categories,
+		DisplayName:             spec.DisplayName,
 	}
 }
 

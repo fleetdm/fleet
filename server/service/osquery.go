@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"crypto/x509"
 	"encoding/json"
@@ -395,128 +396,6 @@ func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (flee
 	return config, nil
 }
 
-// packConfigCacheKey returns a cache key for the pack config cache
-// keyed by (teamID, queryReportsDisabled).
-func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
-	tid := "global"
-	if teamID != nil {
-		tid = fmt.Sprintf("%d", *teamID)
-	}
-	qrd := "0"
-	if queryReportsDisabled {
-		qrd = "1"
-	}
-	return "pack_config:" + tid + ":" + qrd
-}
-
-// getPackConfig returns the marshaled pack config JSON for the host.
-// It uses a cache for hosts without legacy packs, keyed by (teamID, queryReportsDisabled).
-func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.RawMessage, error) {
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "fetch app config")
-	}
-	queryReportsDisabled := appConfig.ServerSettings.QueryReportsDisabled
-
-	// Check for legacy packs assigned to this specific host. Legacy packs are per-host, thus not cached.
-	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list packs for host")
-	}
-
-	// Fast path: if no legacy packs, try the cached pack config.
-	// The scheduled queries pack config is identical for all hosts in the
-	// same team, so we cache the marshaled JSON keyed by (teamID, queryReportsDisabled).
-	useLegacyPacks := len(packs) > 0
-	if !useLegacyPacks && svc.packConfigCache != nil {
-		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
-		if cached, found := svc.packConfigCache.Get(cacheKey); found {
-			// cached may be nil (negative cache: no queries for this team)
-			// or a json.RawMessage with the marshaled pack config.
-			raw, _ := cached.(json.RawMessage)
-			return raw, nil
-		}
-	}
-
-	// Cache miss or legacy packs present: build pack config from DB.
-	packConfig := fleet.Packs{}
-
-	for _, pack := range packs {
-		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "list scheduled queries in pack")
-		}
-
-		configQueries := fleet.Queries{}
-		for _, query := range queries {
-			queryContent := fleet.QueryContent{
-				Query:    query.Query,
-				Interval: query.Interval,
-				Platform: query.Platform,
-				Version:  query.Version,
-				Removed:  query.Removed,
-				Shard:    query.Shard,
-				Denylist: query.Denylist,
-			}
-
-			if query.Removed != nil {
-				queryContent.Removed = query.Removed
-			}
-
-			if query.Snapshot != nil && *query.Snapshot {
-				queryContent.Snapshot = query.Snapshot
-			}
-
-			configQueries[query.Name] = queryContent
-		}
-
-		packConfig[pack.Name] = fleet.PackContent{
-			Platform: pack.Platform,
-			Queries:  configQueries,
-		}
-	}
-
-	globalQueries, err := svc.getScheduledQueries(ctx, nil)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get global scheduled queries")
-	}
-	if len(globalQueries) > 0 {
-		packConfig["Global"] = fleet.PackContent{
-			Queries: globalQueries,
-		}
-	}
-
-	if host.TeamID != nil {
-		teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get team scheduled queries")
-		}
-		if len(teamQueries) > 0 {
-			packName := fmt.Sprintf("team-%d", *host.TeamID)
-			packConfig[packName] = fleet.PackContent{
-				Queries: teamQueries,
-			}
-		}
-	}
-
-	var raw json.RawMessage
-	if len(packConfig) > 0 {
-		packJSON, err := json.Marshal(packConfig)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "marshal pack config")
-		}
-		raw = json.RawMessage(packJSON)
-	}
-
-	// Cache the result (including empty) for future requests (only if no legacy packs).
-	if !useLegacyPacks && svc.packConfigCache != nil {
-		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
-		svc.packConfigCache.SetDefault(cacheKey, raw)
-	}
-
-	return raw, nil
-}
-
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -546,12 +425,81 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error)
 		}
 	}
 
-	packJSON, err := svc.getPackConfig(ctx, host)
+	packConfig := fleet.Packs{}
+
+	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
 	if err != nil {
-		return nil, newOsqueryError("pack config error: " + err.Error())
+		return nil, newOsqueryError("database error: " + err.Error())
 	}
-	if packJSON != nil {
-		config["packs"] = packJSON
+	for _, pack := range packs {
+		// first, we must figure out what queries are in this pack
+		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
+		if err != nil {
+			return nil, newOsqueryError("database error: " + err.Error())
+		}
+
+		// the serializable osquery config struct expects content in a
+		// particular format, so we do the conversion here
+		configQueries := fleet.Queries{}
+		for _, query := range queries {
+			queryContent := fleet.QueryContent{
+				Query:    query.Query,
+				Interval: query.Interval,
+				Platform: query.Platform,
+				Version:  query.Version,
+				Removed:  query.Removed,
+				Shard:    query.Shard,
+				Denylist: query.Denylist,
+			}
+
+			if query.Removed != nil {
+				queryContent.Removed = query.Removed
+			}
+
+			if query.Snapshot != nil && *query.Snapshot {
+				queryContent.Snapshot = query.Snapshot
+			}
+
+			configQueries[query.Name] = queryContent
+		}
+
+		// finally, we add the pack to the client config struct with all of
+		// the pack's queries
+		packConfig[pack.Name] = fleet.PackContent{
+			Platform: pack.Platform,
+			Queries:  configQueries,
+		}
+	}
+
+	globalQueries, err := svc.getScheduledQueries(ctx, nil)
+	if err != nil {
+		return nil, newOsqueryError("database error: " + err.Error())
+	}
+	if len(globalQueries) > 0 {
+		packConfig["Global"] = fleet.PackContent{
+			Queries: globalQueries,
+		}
+	}
+
+	if host.TeamID != nil {
+		teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
+		if err != nil {
+			return nil, newOsqueryError("database error: " + err.Error())
+		}
+		if len(teamQueries) > 0 {
+			packName := fmt.Sprintf("team-%d", *host.TeamID)
+			packConfig[packName] = fleet.PackContent{
+				Queries: teamQueries,
+			}
+		}
+	}
+
+	if len(packConfig) > 0 {
+		packJSON, err := json.Marshal(packConfig)
+		if err != nil {
+			return nil, newOsqueryError("internal error: marshal pack JSON: " + err.Error())
+		}
+		config["packs"] = json.RawMessage(packJSON)
 	}
 
 	// Save interval values if they have been updated.
@@ -2366,11 +2314,26 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	// Filter to policies with VPP apps that are newly failing, or that have
 	// continuous_automations_enabled set (in which case every failing result
 	// triggers an install, not just pass→fail transitions).
+	//
+	// An app can be added for several platforms and GetPoliciesWithAssociatedVPP filters on neither
+	// the app's platform nor the host's, so a policy bound to the iOS build can arrive here for a
+	// macOS host. Dropping those now rather than in the install loop lets the return below skip the
+	// host, the token and three lookups. processSoftwareForNewlyFailingPolicies makes the same check.
 	var failingPoliciesWithVPP []fleet.PolicyVPPData
 	for _, policyWithVPP := range policiesWithVPP {
-		if _, ok := newFailingSet[policyWithVPP.ID]; ok || policyWithVPP.ContinuousAutomationsEnabled {
-			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
+		if _, ok := newFailingSet[policyWithVPP.ID]; !ok && !policyWithVPP.ContinuousAutomationsEnabled {
+			continue
 		}
+		if fleet.PlatformFromHost(hostPlatform) != string(policyWithVPP.Platform) {
+			svc.logger.DebugContext(ctx, "app platform does not match host platform",
+				"host_id", hostID,
+				"policy_id", policyWithVPP.ID,
+				"vpp_adam_id", policyWithVPP.AdamID,
+				"vpp_platform", policyWithVPP.Platform,
+			)
+			continue
+		}
+		failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
 	}
 	if len(failingPoliciesWithVPP) == 0 {
 		return nil
@@ -2390,12 +2353,26 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return ctxerr.Wrapf(ctx, err, "failed to check pending VPP installs")
 	}
 
+	// The pending lookup only matches install commands that haven't been delivered yet, so it
+	// misses an install that is awaiting verification or waiting behind one that is.
+	queuedAppInstalls, err := svc.ds.MapAdamIDsQueuedInstalls(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to check queued VPP installs")
+	}
+
 	// Apps successfully installed within the policy update interval are used to throttle
 	// continuous policy automation re-installs (see continuousAutomationOnCooldown).
 	recentAppInstalls, err := svc.ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, hostID, int(svc.config.Osquery.PolicyUpdateInterval.Seconds()))
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to check recent VPP installs")
 	}
+
+	// When two policies are bound to one app only the first queues an install, so sort to make that
+	// choice stable. Sorted here rather than in GetPoliciesWithAssociatedVPP so it stays verifiable
+	// without a live database.
+	slices.SortFunc(failingPoliciesWithVPP, func(a, b fleet.PolicyVPPData) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
 
 	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
 		policyID := failingPolicyWithVPP.ID
@@ -2408,11 +2385,6 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			"vpp_platform", failingPolicyWithVPP.Platform,
 			"continuous_automations_enabled", failingPolicyWithVPP.ContinuousAutomationsEnabled,
 		)
-
-		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
-			logger.DebugContext(ctx, "install of app is already pending")
-			continue
-		}
 
 		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform, host.TeamID)
 		if err != nil {
@@ -2432,6 +2404,19 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			// host details.
 			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
 			logger.DebugContext(ctx, "not marking policy as failed since vpp app is out of scope for host")
+			continue
+		}
+
+		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
+			logger.DebugContext(ctx, "install of app is already pending")
+			continue
+		}
+
+		// Also covers an install queued by an earlier policy in this run, which is why the successful
+		// install below writes back into this map. Two policies can be bound to one app, since
+		// policies.vpp_apps_teams_id is not unique, and the lookup was read once above.
+		if _, hasQueuedInstall := queuedAppInstalls[failingPolicyWithVPP.AdamID]; hasQueuedInstall {
+			logger.DebugContext(ctx, "install of app is already queued")
 			continue
 		}
 
@@ -2457,6 +2442,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
+		queuedAppInstalls[failingPolicyWithVPP.AdamID] = struct{}{}
 		logger.DebugContext(ctx, "vpp install request sent", "command_uuid", commandUUID)
 	}
 
