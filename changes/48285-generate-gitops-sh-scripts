@@ -1,1 +1,1 @@
-- Fixed `fleetctl generate-gitops` writing software install, post-install, and uninstall scripts without a file extension. Scripts are now written with a `.sh` extension for macOS and Linux software, and a `.ps1` extension for Windows software.
+- Fixed generate-gitops not using .sh and .ps1 extensions for install scripts
