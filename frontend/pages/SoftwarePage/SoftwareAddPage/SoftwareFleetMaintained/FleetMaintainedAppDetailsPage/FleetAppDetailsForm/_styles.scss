@@ -33,13 +33,6 @@
     gap: $pad-medium;
   }
 
-  &__advanced-options-section {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
-    align-items: flex-start;
-  }
-
   &__advanced-options-fields {
     width: 100%;
   }
