@@ -4,7 +4,6 @@ import classnames from "classnames";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
@@ -59,8 +58,8 @@ const RefetchButton = ({
             disabled={isDisabled || isFetching}
             onClick={onRefetchHost}
             variant="secondary"
+            icon="refresh"
           >
-            <Icon name="refresh" color="ui-fleet-black-75" size="small" />
             {buttonText}
           </Button>
         </div>

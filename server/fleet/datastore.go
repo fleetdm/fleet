@@ -2637,7 +2637,10 @@ type Datastore interface {
 	// profiles, and current host_mdm_apple_profiles rows for the host window.
 	// All reads run inside a single read-only MySQL transaction so they
 	// observe one snapshot. If the host window is empty the remaining slices
-	// and maps are nil.
+	// and maps are nil. pageFull reports whether the underlying host page hit
+	// batchSize before same-UUID rows were deduplicated; cursor-paginating
+	// callers must use it (not len(hosts)) to decide whether more hosts may
+	// remain past this window.
 	GetAppleProfileReconcileSnapshot(
 		ctx context.Context,
 		afterHostUUID string,
@@ -2647,6 +2650,7 @@ type Datastore interface {
 		allProfiles []*AppleProfileForReconcile,
 		hostLabels map[uint]map[uint]struct{},
 		currentByHost map[string][]*MDMAppleProfilePayload,
+		pageFull bool,
 		err error,
 	)
 
@@ -2668,7 +2672,8 @@ type Datastore interface {
 	// declarations, and current host_mdm_apple_declarations rows for the
 	// host window. All reads run inside a single read-only MySQL
 	// transaction. If the host window is empty the remaining slices and
-	// maps are nil.
+	// maps are nil. pageFull has the same semantics as on
+	// GetAppleProfileReconcileSnapshot.
 	GetAppleDeclarationReconcileSnapshot(
 		ctx context.Context,
 		afterHostUUID string,
@@ -2678,6 +2683,7 @@ type Datastore interface {
 		allDecls []*AppleDeclarationForReconcile,
 		hostLabels map[uint]map[uint]struct{},
 		currentByHost map[string][]*MDMAppleHostDeclaration,
+		pageFull bool,
 		err error,
 	)
 
