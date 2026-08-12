@@ -36,7 +36,7 @@ Example:
   "Identifier": "myIdentifier",
   "Payload": {
     "StandardConfigurations": [
-	  "myConfgiurationIdentifier"
+	  "myConfigurationIdentifier"
 	]
   }
 }
