@@ -147,6 +147,12 @@ $max-width: 2560px;
   }
 }
 
+@mixin form-label {
+  font-size: $x-small;
+  font-weight: $bold;
+  color: $core-fleet-black;
+}
+
 @mixin link {
   color: $ui-fleet-black-75;
   font-weight: $bold;
