@@ -240,7 +240,7 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context, identifier string) (
 }
 
 // sanitizeUpstreamError converts an error from the upstream CA into one that is safe to hand back to the SCEP client. The proxy route is
-// unauthenticated and the transport writes the error text straight into the response body, so the CA URL (dial errors embed it) and the
+// unauthenticated and the transport writes the error text straight into the response body, so the CA URL and the
 // CA's response body must stay in the logs only. A deadline-exceeded cause is preserved because the endpoint maps it to a 408.
 func sanitizeUpstreamError(ctx context.Context, err error, message string) error {
 	if errors.Is(err, context.DeadlineExceeded) {
