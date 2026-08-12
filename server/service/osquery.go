@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"crypto/x509"
 	"encoding/json"
@@ -2313,11 +2314,26 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	// Filter to policies with VPP apps that are newly failing, or that have
 	// continuous_automations_enabled set (in which case every failing result
 	// triggers an install, not just pass→fail transitions).
+	//
+	// An app can be added for several platforms and GetPoliciesWithAssociatedVPP filters on neither
+	// the app's platform nor the host's, so a policy bound to the iOS build can arrive here for a
+	// macOS host. Dropping those now rather than in the install loop lets the return below skip the
+	// host, the token and three lookups. processSoftwareForNewlyFailingPolicies makes the same check.
 	var failingPoliciesWithVPP []fleet.PolicyVPPData
 	for _, policyWithVPP := range policiesWithVPP {
-		if _, ok := newFailingSet[policyWithVPP.ID]; ok || policyWithVPP.ContinuousAutomationsEnabled {
-			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
+		if _, ok := newFailingSet[policyWithVPP.ID]; !ok && !policyWithVPP.ContinuousAutomationsEnabled {
+			continue
 		}
+		if fleet.PlatformFromHost(hostPlatform) != string(policyWithVPP.Platform) {
+			svc.logger.DebugContext(ctx, "app platform does not match host platform",
+				"host_id", hostID,
+				"policy_id", policyWithVPP.ID,
+				"vpp_adam_id", policyWithVPP.AdamID,
+				"vpp_platform", policyWithVPP.Platform,
+			)
+			continue
+		}
+		failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
 	}
 	if len(failingPoliciesWithVPP) == 0 {
 		return nil
@@ -2337,12 +2353,26 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return ctxerr.Wrapf(ctx, err, "failed to check pending VPP installs")
 	}
 
+	// The pending lookup only matches install commands that haven't been delivered yet, so it
+	// misses an install that is awaiting verification or waiting behind one that is.
+	queuedAppInstalls, err := svc.ds.MapAdamIDsQueuedInstalls(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to check queued VPP installs")
+	}
+
 	// Apps successfully installed within the policy update interval are used to throttle
 	// continuous policy automation re-installs (see continuousAutomationOnCooldown).
 	recentAppInstalls, err := svc.ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, hostID, int(svc.config.Osquery.PolicyUpdateInterval.Seconds()))
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to check recent VPP installs")
 	}
+
+	// When two policies are bound to one app only the first queues an install, so sort to make that
+	// choice stable. Sorted here rather than in GetPoliciesWithAssociatedVPP so it stays verifiable
+	// without a live database.
+	slices.SortFunc(failingPoliciesWithVPP, func(a, b fleet.PolicyVPPData) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
 
 	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
 		policyID := failingPolicyWithVPP.ID
@@ -2355,11 +2385,6 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			"vpp_platform", failingPolicyWithVPP.Platform,
 			"continuous_automations_enabled", failingPolicyWithVPP.ContinuousAutomationsEnabled,
 		)
-
-		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
-			logger.DebugContext(ctx, "install of app is already pending")
-			continue
-		}
 
 		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform, host.TeamID)
 		if err != nil {
@@ -2379,6 +2404,19 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			// host details.
 			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
 			logger.DebugContext(ctx, "not marking policy as failed since vpp app is out of scope for host")
+			continue
+		}
+
+		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
+			logger.DebugContext(ctx, "install of app is already pending")
+			continue
+		}
+
+		// Also covers an install queued by an earlier policy in this run, which is why the successful
+		// install below writes back into this map. Two policies can be bound to one app, since
+		// policies.vpp_apps_teams_id is not unique, and the lookup was read once above.
+		if _, hasQueuedInstall := queuedAppInstalls[failingPolicyWithVPP.AdamID]; hasQueuedInstall {
+			logger.DebugContext(ctx, "install of app is already queued")
 			continue
 		}
 
@@ -2404,6 +2442,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
+		queuedAppInstalls[failingPolicyWithVPP.AdamID] = struct{}{}
 		logger.DebugContext(ctx, "vpp install request sent", "command_uuid", commandUUID)
 	}
 
