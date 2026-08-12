@@ -227,7 +227,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore,
 		androidService,
 		orgLogoStore,
-		msGraphClientFactory,
 	)
 	if err != nil {
 		panic(err)
@@ -269,6 +268,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			androidModule,
 			estCAService,
 			nil, // PSSO nonce store; integration tests don't exercise PSSO
+			msGraphClientFactory,
 		)
 		if err != nil {
 			panic(err)
