@@ -82,6 +82,27 @@ describe("PackageForm", () => {
     });
   });
 
+  describe("Advanced options section", () => {
+    it("reveals install/uninstall scripts when clicked for a .msix package", async () => {
+      renderForm({
+        isEditingSoftware: true,
+        defaultSoftware: createMockSoftwarePackage({ name: "Claude.msix" }),
+        defaultInstallScript: "Add-AppxProvisionedPackage -Online",
+        defaultUninstallScript: "Remove-AppxProvisionedPackage -Online",
+      });
+
+      // Scripts hidden until the reveal button is clicked.
+      expect(screen.queryByText("Install script")).not.toBeInTheDocument();
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /Advanced options/i })
+      );
+
+      expect(screen.getByText("Install script")).toBeInTheDocument();
+      expect(screen.getByText("Uninstall script")).toBeInTheDocument();
+    });
+  });
+
   describe("Maximum package size", () => {
     afterEach(() => {
       jest.restoreAllMocks();
