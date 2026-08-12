@@ -513,7 +513,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		redis_key_value.New(redisPool),
 		androidSvc,
 		orgLogoStore,
-		msgraph.NewClient,
 	)
 	if err != nil {
 		initFatal(err, "initializing service")
@@ -622,6 +621,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			androidSvc,
 			hydrantService,
 			psso.NewRedisNonceStore(redisPool),
+			msgraph.NewClient,
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")

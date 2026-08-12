@@ -22,7 +22,6 @@ import (
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
-	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -80,9 +79,6 @@ type Service struct {
 
 	// activitySvc is the activity bounded context service for write operations.
 	activitySvc fleet.ActivityWriteService
-
-	// msGraphClientFactory builds the Microsoft Graph client used to verify a credential when it is written to the config.
-	msGraphClientFactory msgraph.ClientFactory
 
 	// acmeSvc is the ACME service module for write operations.
 	acmeSvc fleet.ACMEWriteService
@@ -164,16 +160,10 @@ func NewService(
 	keyValueStore fleet.KeyValueStore,
 	androidSvc android.Service,
 	orgLogoStore fleet.OrgLogoStore,
-	msGraphClientFactory msgraph.ClientFactory,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
-	}
-
-	// Default to the real Graph client.
-	if msGraphClientFactory == nil {
-		msGraphClientFactory = msgraph.NewClient
 	}
 
 	svc := &Service{
@@ -211,7 +201,6 @@ func NewService(
 		packConfigCache:                 gocache.New(1*time.Minute, 5*time.Minute),
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
-		msGraphClientFactory:            msGraphClientFactory,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
