@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -1000,21 +1001,8 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify the software and software_titles were created with the osquery name "Code"
-	var softwareNames []string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &softwareNames,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
-	})
-	require.Len(t, softwareNames, 2)
-	require.Equal(t, "Code", softwareNames[0])
-	require.Equal(t, "Code", softwareNames[1])
-
-	var titleName string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &titleName,
-			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
-	})
-	require.Equal(t, "Code", titleName)
+	require.Equal(t, []string{"Code", "Code"}, softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
 
 	// Now upsert an FMA with the canonical name
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -1027,37 +1015,16 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 
 	// The upsert itself must not rename; confirm the pre-reconcile state still has
 	// the osquery name in both the software and software_titles tables.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &softwareNames,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
-	})
-	require.Len(t, softwareNames, 2)
-	require.Equal(t, "Code", softwareNames[0])
-	require.Equal(t, "Code", softwareNames[1])
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &titleName,
-			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
-	})
-	require.Equal(t, "Code", titleName)
+	require.Equal(t, []string{"Code", "Code"}, softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
 
 	// The upsert doesn't rename; the reconcile pass does (unambiguous identifier).
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
-	// Verify software entries were updated to use the FMA canonical name
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &softwareNames,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
-	})
-	require.Len(t, softwareNames, 2)
-	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[0])
-	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[1])
-
-	// Verify software_titles was also updated
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &titleName,
-			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
-	})
-	require.Equal(t, "Microsoft Visual Studio Code", titleName)
+	// Verify software entries and the title were updated to the FMA canonical name
+	require.Equal(t, []string{"Microsoft Visual Studio Code", "Microsoft Visual Studio Code"},
+		softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Microsoft Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
 
 	// Verify upserting the same FMA again and reconciling doesn't cause issues (idempotent)
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -1070,13 +1037,8 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
 	// Names should still be the FMA canonical name
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &softwareNames,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
-	})
-	require.Len(t, softwareNames, 2)
-	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[0])
-	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[1])
+	require.Equal(t, []string{"Microsoft Visual Studio Code", "Microsoft Visual Studio Code"},
+		softwareNames(t, ds, "com.microsoft.VSCode"))
 
 	// Verify Windows FMA does NOT update darwin software entries
 	// First create darwin software with a different bundle_id
@@ -1102,12 +1064,7 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
 	// A Windows FMA must not rename darwin software.
-	var someAppName string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &someAppName,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.example.someapp'`)
-	})
-	require.Equal(t, "Some App", someAppName)
+	require.Equal(t, []string{"Some App"}, softwareNames(t, ds, "com.example.someapp"))
 }
 
 // testReconcileSoftwareNamesSharedIdentifier: two FMAs sharing a bundle identifier
@@ -1144,30 +1101,16 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	titleName := func() string {
-		var name string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &name,
-				`SELECT name FROM software_titles WHERE bundle_identifier = 'org.mozilla.firefox'`)
-		})
-		return name
-	}
-
 	// Ingestion must not guess a name for the shared identifier.
-	require.Equal(t, "Firefox.app", titleName())
+	require.Equal(t, "Firefox.app", softwareTitleName(t, ds, "org.mozilla.firefox"))
 
 	// No FMA link and an ambiguous identifier: reconcile must leave it alone.
 	// (Regression: the title used to flip to "Mozilla Firefox ESR" by sync order.)
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
-	require.Equal(t, "Firefox.app", titleName())
+	require.Equal(t, "Firefox.app", softwareTitleName(t, ds, "org.mozilla.firefox"))
 	// Reconcile updates the software table with a separate statement, so assert it
 	// too: with an ambiguous identifier and no FMA link, that row is left alone.
-	var ambiguousSoftwareName string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &ambiguousSoftwareName,
-			`SELECT name FROM software WHERE bundle_identifier = 'org.mozilla.firefox'`)
-	})
-	require.Equal(t, "Firefox.app", ambiguousSoftwareName)
+	require.Equal(t, []string{"Firefox.app"}, softwareNames(t, ds, "org.mozilla.firefox"))
 
 	// Add the Firefox (non-ESR) FMA, linking the existing title to a specific FMA.
 	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -1185,11 +1128,11 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// The install reuses the existing title, so the name is unchanged until reconcile.
-	require.Equal(t, "Firefox.app", titleName())
+	require.Equal(t, "Firefox.app", softwareTitleName(t, ds, "org.mozilla.firefox"))
 
 	// Reconcile resolves the ambiguity via the installer link.
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
-	require.Equal(t, "Mozilla Firefox", titleName())
+	require.Equal(t, "Mozilla Firefox", softwareTitleName(t, ds, "org.mozilla.firefox"))
 
 	var softwareName string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1230,24 +1173,7 @@ func testReconcileSoftwareNamesBatched(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 
-	softwareNames := func(bundleID string) []string {
-		var names []string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &names,
-				`SELECT name FROM software WHERE bundle_identifier = ? ORDER BY id`, bundleID)
-		})
-		return names
-	}
-	titleName := func(bundleID string) string {
-		var name string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &name,
-				`SELECT name FROM software_titles WHERE bundle_identifier = ?`, bundleID)
-		})
-		return name
-	}
-
-	require.Equal(t, []string{"Code", "Code", "Code", "Code", "Code", "Code", "Code"}, softwareNames("com.microsoft.VSCode"))
+	require.Equal(t, slices.Repeat([]string{"Code"}, 7), softwareNames(t, ds, "com.microsoft.VSCode"))
 
 	vscode, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Microsoft Visual Studio Code",
@@ -1260,16 +1186,13 @@ func testReconcileSoftwareNamesBatched(t *testing.T, ds *Datastore) {
 	// Pass 2 (by unambiguous bundle identifier) must rename all seven rows, not just
 	// the first batch.
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
-	require.Equal(t, []string{
-		"Microsoft Visual Studio Code", "Microsoft Visual Studio Code", "Microsoft Visual Studio Code",
-		"Microsoft Visual Studio Code", "Microsoft Visual Studio Code", "Microsoft Visual Studio Code",
-		"Microsoft Visual Studio Code",
-	}, softwareNames("com.microsoft.VSCode"))
-	require.Equal(t, "Microsoft Visual Studio Code", titleName("com.microsoft.VSCode"))
+	require.Equal(t, slices.Repeat([]string{"Microsoft Visual Studio Code"}, 7),
+		softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Microsoft Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
 
 	// The app with no FMA is outside the match set and must be untouched.
-	require.Equal(t, []string{"Unrelated"}, softwareNames("com.example.unrelated"))
-	require.Equal(t, "Unrelated", titleName("com.example.unrelated"))
+	require.Equal(t, []string{"Unrelated"}, softwareNames(t, ds, "com.example.unrelated"))
+	require.Equal(t, "Unrelated", softwareTitleName(t, ds, "com.example.unrelated"))
 
 	// Link the title to the FMA via an installer and change the canonical name, so
 	// pass 1 (by installer link) has to walk all seven rows too.
@@ -1296,16 +1219,14 @@ func testReconcileSoftwareNamesBatched(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
-	require.Equal(t, []string{
-		"Visual Studio Code", "Visual Studio Code", "Visual Studio Code", "Visual Studio Code",
-		"Visual Studio Code", "Visual Studio Code", "Visual Studio Code",
-	}, softwareNames("com.microsoft.VSCode"))
-	require.Equal(t, "Visual Studio Code", titleName("com.microsoft.VSCode"))
+	require.Equal(t, slices.Repeat([]string{"Visual Studio Code"}, 7),
+		softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
 
 	// Idempotent: a second run with everything already canonical is a no-op.
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
-	require.Equal(t, "Visual Studio Code", titleName("com.microsoft.VSCode"))
-	require.Equal(t, []string{"Unrelated"}, softwareNames("com.example.unrelated"))
+	require.Equal(t, "Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, []string{"Unrelated"}, softwareNames(t, ds, "com.example.unrelated"))
 }
 
 // testReconcileSoftwareNamesDiscoveryWindowed: each discovery SELECT is capped by
@@ -1341,19 +1262,32 @@ func testReconcileSoftwareNamesDiscoveryWindowed(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
+	// Every row, not just the distinct set, so a window that stopped early is caught.
+	require.Equal(t, slices.Repeat([]string{"Microsoft Visual Studio Code"}, 7),
+		softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Microsoft Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
+}
+
+// softwareTitleName returns the name of the macOS software title carrying bundleID.
+// additional_identifier is 0 for macOS titles, which keeps this to a single row even when iOS
+// or iPadOS siblings share the identifier.
+func softwareTitleName(t *testing.T, ds *Datastore, bundleID string) string {
+	var name string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &name,
+			`SELECT name FROM software_titles WHERE bundle_identifier = ? AND additional_identifier = 0`, bundleID)
+	})
+	return name
+}
+
+// softwareNames returns the names of every software row carrying bundleID, oldest first.
+func softwareNames(t *testing.T, ds *Datastore, bundleID string) []string {
 	var names []string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &names,
-			`SELECT DISTINCT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode'`)
+		return sqlx.SelectContext(t.Context(), q, &names,
+			`SELECT name FROM software WHERE bundle_identifier = ? ORDER BY id`, bundleID)
 	})
-	require.Equal(t, []string{"Microsoft Visual Studio Code"}, names)
-
-	var titleName string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &titleName,
-			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
-	})
-	require.Equal(t, "Microsoft Visual Studio Code", titleName)
+	return names
 }
 
 // upsertDarwinFMA upserts a darwin maintained app. Call it once per app: the upsert's
@@ -1419,12 +1353,7 @@ func testReconcileSoftwareNamesOrphanedInstaller(t *testing.T, ds *Datastore) {
 	// Must not error. The bundle-identifier pass still applies the canonical name.
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
-	var name string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &name,
-			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode' AND additional_identifier = 0`)
-	})
-	require.Equal(t, "Microsoft Visual Studio Code", name)
+	require.Equal(t, "Microsoft Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
 }
 
 // testReconcileSoftwareNamesIdentifierWinsOverInstallerLink pins the precedence between
@@ -1493,12 +1422,7 @@ func testReconcileSoftwareNamesMultiTeamInstallers(t *testing.T, ds *Datastore) 
 
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
-	var names []string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &names,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode'`)
-	})
-	require.Equal(t, []string{"Microsoft Visual Studio Code"}, names)
+	require.Equal(t, []string{"Microsoft Visual Studio Code"}, softwareNames(t, ds, "com.microsoft.VSCode"))
 }
 
 // testReconcileSoftwareNamesLeavesMobileSiblings: iOS and iPadOS titles can share a bundle
