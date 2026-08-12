@@ -1,0 +1,158 @@
+<h1 style="color: #192147; font-weight: 800; font-size: 32px; line-height: 150%; margin-bottom: 32px;">
+Fleet newsletter, August 2026
+</h1>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+July was a month about staying in control of what your hosts run. Fleet 4.89.0 lets you pin a Fleet-maintained app to a specific version, or roll it back when a new release causes trouble, so an automatic update never surprises you. Windows setup experience stopped being a dead end: when required software fails during enrollment, end users now see what failed and can keep going. Google Workspace joined Okta and Entra as a source of IdP host vitals, no custom integration required. August brings two releases, and the theme continues with custom host vitals you define yourself.
+</p>
+<h2 style="color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;">
+What shipped last month
+</h2>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Fleet 4.89.0 landed on July 15. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/releases/fleet-4-89-0" target="_blank">Read the full release notes</a>.
+</p>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Auto-update, pin, and roll back Fleet-maintained apps.</strong> Pin an app to a specific version to stop it from auto-updating, or roll back to the previous version if a new release breaks something. Fleet checks for new versions hourly, so hosts you leave on auto-update stay current without you re-adding the app. Available in Fleet Premium.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Windows setup experience: continue past a failed install.</strong> When required setup software fails during Windows automatic enrollment, end users see exactly which app failed. If you haven&#39;t checked <strong style="display: inline; font-weight: 700; color: #192147">Cancel setup if software fails</strong>, they can continue and install it later from self-service. Either way they get a next step instead of a stuck screen. Available in Fleet Premium.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">IdP host vitals from Google Workspace.</strong> Populate group, department, username, email, and full name straight from Google Workspace. Google Workspace doesn&#39;t support SCIM, so Fleet pulls directory data from Google&#39;s API on a schedule. Scope profiles, software, and policies with IdP labels the same way you would with Okta or Entra. Available in Fleet Premium.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Android: host vital variables everywhere.</strong> Use any host vital variable in Android configuration profiles, certificate templates, and managed app configuration. Pass a host&#39;s UUID to Duo as a trusted endpoint identifier, or a user&#39;s email as the identity for EAP-TLS Wi-Fi. When a variable&#39;s value changes, Fleet resends the certificate so it stays accurate.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Policy status page.</strong> See a historical view of policy automation runs: pass and fail status per host, next to the output of the software install or script the automation triggered. Troubleshooting a host that keeps failing a policy no longer means piecing together separate activity logs.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Vulnerability exposure chart filters.</strong> Filter the chart by software category, EPSS score, known active exploits (CISA KEV), and CVEs to exclude, then persist those defaults through GitOps. The chart reflects the risk registry you actually track. Available in Fleet Premium.
+</span></li>
+</ul>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Also shipped: Fleet 4.88.0 on July 2, with per-host enrollment permission tracking for personal (BYOD) Apple enrollments, so personal devices can&#39;t be remotely wiped or locked. Patch releases 4.89.1 and 4.89.2 followed.
+</p>
+<h2 style="color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;">
+What we plan to ship this month
+</h2>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Two releases are scheduled for August: 4.90.0 and 4.91.0. These are planned, not promised, and scope changes as the releases come together.
+</p>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Custom host vitals.</strong> Define your own host fields, add, edit, and delete them, and use them in host name templates.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Full Apple declarative (DDM) profile support.</strong> Support for all Apple declaration profiles and assets, plus custom activations.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">macOS local accounts from any IdP.</strong> Create the initial local account and sync its password from any identity provider that supports OAuth ROPG, moving out of experimental.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Certificate visibility.</strong> View certificates in <strong style="display: inline; font-weight: 700; color: #192147">Controls &gt; OS settings</strong>, and see certificates on the host details page for Windows hosts.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Android software inventory.</strong> Show Android OS versions and their vulnerabilities in <strong style="display: inline; font-weight: 700; color: #192147">Software &gt; OS</strong>, alongside more Android host vitals.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Python script-only packages.</strong> Add Python to the script-only package options for software deployment.
+</span></li>
+</ul>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Want the wider view? The <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/announcements/roadmap-preview-july-2026" target="_blank">July roadmap preview</a> covers the next three months, including AI governance, patch policies, Windows local admin account rotation, and tvOS.
+</p>
+<h2 style="color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;">
+Upcoming workshops
+</h2>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Fleet workshops are free, run about four hours, and cap at roughly seven people so everyone gets hands-on time. They lead to the Fleet level 1 certificate.
+</p>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">GitOps, Atlanta.</strong> August 11, 1pm to 5pm EDT. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/gitops-atlanta-tickets-1990879889342" target="_blank">Register</a>
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Apple administrator, New York.</strong> August 12, 1pm to 5pm EDT. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/apple-administrator-workshop-tickets-1993125028614" target="_blank">Register</a>
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">GitOps, Melbourne.</strong> August 24, 1pm to 5pm GMT+10. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/gitops-x-world-tickets-1992169896789" target="_blank">Register</a>
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">GitOps, Kansas City.</strong> September 24, 8:30am to 10:30am EDT. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/speed-run-gitops-jnuc-tickets-1992170088362" target="_blank">Register</a>
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">GitOps, Gothenburg.</strong> September 28, 1pm to 5pm GMT+2. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/gitops-macsysadmins-tickets-1993054810590" target="_blank">Register</a>
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">GitOps, Richmond.</strong> October 13, 1pm to 5pm EDT. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/gitops-richmond-tickets-1993052268988" target="_blank">Register</a>
+</span></li>
+</ul>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Nothing near you? You can <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/workshops" target="_blank">request a workshop</a>.
+</p>
+<h2 style="color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;">
+Worth reading
+</h2>
+<h3 style="color: #192147; font-weight: 700; font-size: 20px; line-height: 150%; margin-bottom: 24px;">
+Customer stories
+</h3>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/articles/hawx" target="_blank">How Hawx gets field technicians productive on hour one</a>. Hawx automated seasonal iOS onboarding and offboarding with Fleet, Tines, and Okta, ending start-of-season helpdesk floods in one month.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/articles/primo" target="_blank">How Primo built an HR-driven IT platform, powered by Fleet</a>. Primo chose Fleet for the MDM layer inside its orchestration platform, scaling to 400 customers and 30,000 devices.
+</span></li>
+</ul>
+<h3 style="color: #192147; font-weight: 700; font-size: 20px; line-height: 150%; margin-bottom: 24px;">
+Articles
+</h3>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/articles/intune-isnt-free-what-the-microsoft-365-bundle-really-costs" target="_blank">Intune isn&#39;t free: what the Microsoft 365 bundle really costs in 2026</a>. Microsoft&#39;s E7 tier and 2026 price increases expose the bundle fallacy. Price E3, E5, and E7 individually and rightsize device management.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/articles/inside-fleet-maintained-apps" target="_blank">How Fleet keeps Fleet-maintained apps safe and up to date</a>. Vendor-direct downloads, pinned hashes, validation on real hardware, and human review, behind every app in the catalog.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/articles/control-apple-beta-programs-with-ddm" target="_blank">Take control of Apple beta programs with declarative device management</a>. Use DDM software update settings to control beta enrollment, and automate fetching AppleSeed tokens from Apple Business Manager.
+</span></li>
+</ul>
+<h3 style="color: #192147; font-weight: 700; font-size: 20px; line-height: 150%; margin-bottom: 24px;">
+Guides
+</h3>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/guides/custom-windows-updates" target="_blank">Manage Windows updates with the Windows Update CSP</a>. Enforce deadlines, build rollout rings, pin releases, and verify all of it.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/guides/custom-host-vitals" target="_blank">Use custom host vitals in scripts and configuration profiles</a>. Define a custom field, set a value per host, and use it as a variable.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/guides/build-your-own-linux-self-service-with-script-only-packages-guide" target="_blank">Build a Linux self-service catalog with script-only packages</a>. Turn apt and dnf commands into a self-service catalog your Linux users can install from.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/guides/detect-and-remove-peripheral-software" target="_blank">Detect and remove unwanted software installed by peripherals</a>. Find and clean up the software docks and peripherals install without asking.
+</span></li>
+</ul>
+<h2 style="color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;">
+From the community
+</h2>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/company/fleetdm/" target="_blank">Fleet</a> published <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/feed/update/urn:li:activity:7485034063301627904" target="_blank">three ways to find Intel-only Mac apps</a> still running in your fleet, ahead of Apple ending Rosetta support.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/in/zayhanlon/" target="_blank">Zay Hanlon</a> wrote about <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/posts/zayhanlon_i-hijacked-the-case-study-program-from-marketing-share-7488595098134265856-WuPG" target="_blank">taking the case study program in-house</a> and what came out of the Hawx story.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/in/allenhouchins/" target="_blank">Allen Houchins</a> asked what <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/posts/allenhouchins_its-already-included-might-be-the-most-share-7483936371141693440-IFIH" target="_blank">&quot;it&#39;s already included&quot;</a> really costs, and shared a <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/posts/allenhouchins_who-doesnt-love-a-sneak-peek-the-patch-ugcPost-7486499772229615616-SM1r" target="_blank">sneak peek at patch policies</a>.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/in/jroskos/" target="_blank">Josh Roskos</a> asked <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/posts/jroskos_i-asked-my-ai-agent-a-compliance-question-share-7486480039249747968-YJiZ" target="_blank">an AI agent a compliance question</a> and posted what came back.
+</span></li>
+</ul>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Workshop attendees in Sydney, Toronto, Boston, and Sweden also posted about their sessions. Thanks to everyone who shared.
+</p>
