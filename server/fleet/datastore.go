@@ -2971,9 +2971,13 @@ type Datastore interface {
 	GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]SoftwarePackageListItem, error)
 
 	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
-	// fleet-maintained app for the given title and team. If byVersion is true
-	// the versions will be sorted by their version semver or string.
-	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]FleetMaintainedVersion, error)
+	// fleet-maintained app for the given title and team, most recently
+	// downloaded first.
+	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]FleetMaintainedVersion, error)
+
+	// MarkFleetMaintainedAppVersionCurrent moves a cached version's uploaded_at to now.
+	// GetFleetMaintainedVersionsByTitleID then returns it first.
+	MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error
 
 	// ListFleetMaintainedAppActiveInstallers returns the active installer for
 	// every (team, title) backed by a Fleet-maintained app, across all teams.
