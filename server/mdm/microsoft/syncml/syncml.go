@@ -291,12 +291,11 @@ const (
 	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
 	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
 
-	// ReqSecTokenContextItemZeroTouchProvisioning carries a GUID that MS-MDE2 says is "used by Zero Touch
-	// Provisioning", ZTD being Microsoft's codename for Windows Autopilot. It is present only when the enrolling
-	// device is registered with Autopilot. It is believed to be the ZTDID, which is the same GUID Microsoft Graph
-	// returns as windowsAutopilotDeviceIdentity.id, and would therefore be an exact join key to a pending Autopilot
-	// host that does not depend on the hardware serial. That has not been confirmed against a real device yet, so
-	// this value is currently logged for verification and nothing depends on it.
+	// ReqSecTokenContextItemZeroTouchProvisioning carries the Autopilot ZTDID, ZTD being Microsoft's codename for
+	// Windows Autopilot. It is present only when the enrolling device is registered with Autopilot. Confirmed on
+	// hardware to equal the GUID Microsoft Graph returns as windowsAutopilotDeviceIdentity.id, so it is an exact join
+	// key to a pending Autopilot host that does not depend on the hardware serial. Stored on the enrollment row and
+	// used to link the host.
 	ReqSecTokenContextItemZeroTouchProvisioning = "ZeroTouchProvisioning"
 
 	// ReqSecTokenContextItemOfflineAutopilotCorrelator is the equivalent for devices registered with Autopilot

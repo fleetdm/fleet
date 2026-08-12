@@ -4012,7 +4012,10 @@ func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {
 // hostHasLiveAutopilotRecord reports whether the host was created by the Windows Autopilot sync and its device is still
 // registered, which is what distinguishes an Autopilot enrollment from an ordinary Windows one.
 func hostHasLiveAutopilotRecord(ctx context.Context, ds fleet.Datastore, hostID uint) (bool, error) {
-	_, err := ds.GetHostAutopilotDevice(ctx, hostID)
+	// Require the primary: this is reached immediately after the enrollment link path resolved the host, and a lagging
+	// replica returning not-found would clear installed_from_dep and demote the host to manual, which is the exact
+	// regression this check exists to prevent.
+	_, err := ds.GetHostAutopilotDevice(ctxdb.RequirePrimary(ctx, true), hostID)
 	switch {
 	case err == nil:
 		return true, nil

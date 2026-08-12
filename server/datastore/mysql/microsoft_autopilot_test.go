@@ -47,6 +47,7 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		{"OrbitEnrollReusesPendingAutopilotHost", testOrbitEnrollReusesPendingAutopilotHost},
 		{"HostResponsesCarryGroupTag", testHostResponsesCarryGroupTag},
 		{"HostIDByAutopilotDeviceID", testHostIDByAutopilotDeviceID},
+		{"PendingHostVisibilityAndRemovalSafety", testPendingHostVisibilityAndRemovalSafety},
 	}
 
 	for _, c := range cases {
@@ -814,4 +815,46 @@ func testHostIDByAutopilotDeviceID(t *testing.T, ds *Datastore) {
 	_, err = ds.HostIDByAutopilotDeviceID(ctx, devices[0].AutopilotDeviceID)
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
+}
+
+// Two ways a pending Autopilot host can be silently wrong: invisible in the UI, or deleted when it is actually live.
+func testPendingHostVisibilityAndRemovalSafety(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	seedWindowsBuiltinLabels(t, ds)
+
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		autopilotDevice("VIS-SERIAL-1", "Engineering"),
+	}))
+	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	hostID := devices[0].HostID
+
+	// The Hosts page sorts by display_name by default, and that path INNER JOINs host_display_names. Without a row
+	// there the pending host is invisible in the UI even though it exists.
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin},
+		fleet.HostListOptions{ListOptions: fleet.ListOptions{OrderKey: "display_name"}})
+	require.NoError(t, err)
+	var found bool
+	for _, h := range hosts {
+		if h.ID == hostID {
+			found = true
+		}
+	}
+	assert.True(t, found, "a pending Autopilot host must appear in the default host list ordering")
+
+	// A device that runs fleetd but never MDM-enrolls keeps enrolled=0 and installed_from_dep=1, so removal must not
+	// treat pending state alone as licence to delete a live host.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE hosts SET osquery_host_id = 'osq-vis-1', orbit_node_key = 'orbit-vis-1' WHERE id = ?`, hostID)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.RemoveWindowsAutopilotHosts(ctx, []uint{hostID}))
+
+	var stillThere int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stillThere,
+		`SELECT COUNT(*) FROM hosts WHERE id = ?`, hostID))
+	assert.Equal(t, 1, stillThere, "a host that has checked in survives leaving the Autopilot registry")
+
+	requireAutopilotDeviceNotFound(t, ds, hostID)
 }

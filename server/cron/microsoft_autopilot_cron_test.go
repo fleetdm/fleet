@@ -48,8 +48,16 @@ func newAutopilotSyncEnv(t *testing.T, creds ...*fleet.MicrosoftGraphCredential)
 		syncResults: map[string]*string{},
 	}
 
+	// Reflect the stored flag back onto the credential the way the real datastore does. Returning a fixed fixture
+	// would let a sync that never clears credential_invalid pass this suite.
 	env.ds.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
-		return creds, nil
+		out := make([]*fleet.MicrosoftGraphCredential, 0, len(creds))
+		for _, c := range creds {
+			copied := *c
+			copied.CredentialInvalid = env.invalid[c.TenantID]
+			out = append(out, &copied)
+		}
+		return out, nil
 	}
 	env.ds.ListHostAutopilotDevicesFunc = func(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error) {
 		out := []*fleet.HostAutopilotDevice{}

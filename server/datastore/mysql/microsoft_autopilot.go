@@ -329,6 +329,15 @@ func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, se
 			if err := upsertWindowsAutopilotHostLabelsDB(ctx, tx, newHostIDs); err != nil {
 				return err
 			}
+			// Without a host_display_names row the host is invisible in the UI: the host list INNER JOINs that table
+			// whenever it sorts by display_name, which is the default. ADE ingestion does the same thing.
+			displayNameHosts := make([]fleet.Host, 0, len(created))
+			for serial, id := range created {
+				displayNameHosts = append(displayNameHosts, fleet.Host{ID: id, HardwareSerial: serial})
+			}
+			if err := insertHostDisplayNamesIfAbsent(ctx, tx, displayNameHosts...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert display names for pending autopilot hosts")
+			}
 		}
 
 		resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
@@ -351,7 +360,10 @@ func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, se
 func hostIDsBySerialDB(ctx context.Context, tx sqlx.ExtContext, serials []string) (map[string]uint, error) {
 	byS := make(map[string]uint, len(serials))
 	err := common_mysql.BatchProcessSimple(serials, hostAutopilotDeviceBatchSize, func(batch []string) error {
-		stmt, args, err := sqlx.In(`SELECT id, hardware_serial FROM hosts WHERE hardware_serial IN (?) ORDER BY id DESC`, batch)
+		// Scoped to Windows: a macOS host can carry a colliding serial, and claiming it would attach Autopilot metadata
+		// to the wrong host and expose it to Autopilot removal. Newly created rows have platform 'windows' already.
+		stmt, args, err := sqlx.In(
+			`SELECT id, hardware_serial FROM hosts WHERE hardware_serial IN (?) AND platform = 'windows' ORDER BY id DESC`, batch)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build IN clause")
 		}
@@ -374,9 +386,11 @@ func hostIDsBySerialDB(ctx context.Context, tx sqlx.ExtContext, serials []string
 	return byS, nil
 }
 
-// insertPendingWindowsAutopilotHostsDB creates the bare host rows. The never-timestamp sentinel on last_enrolled_at and
-// detail_updated_at keeps CleanupExpiredHosts from deleting a host that has not checked in yet, matching how ADE
-// ingestion creates pending Apple hosts.
+// insertPendingWindowsAutopilotHostsDB creates the bare host rows, matching how ADE ingestion creates pending Apple
+// hosts. The never-timestamp sentinel on last_enrolled_at and detail_updated_at marks the host as never having checked
+// in; it does not by itself protect the host from CleanupExpiredHosts, which treats the sentinel as null and falls
+// through to created_at. Protection comes from the host_autopilot_devices cross-reference in that query, mirroring the
+// host_dep_assignments one that protects ADE hosts.
 func insertPendingWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, serials []string) error {
 	stmt := `
 INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested)
@@ -504,11 +518,15 @@ func (ds *Datastore) RemoveWindowsAutopilotHosts(ctx context.Context, hostIDs []
 
 func removeWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	{
+		// Pending state alone is not enough to delete. A device that installs fleetd but never MDM-enrolls keeps
+		// enrolled = 0 and installed_from_dep = 1, so deleting on that predicate would destroy a live host and
+		// everything hostRefs cleans up with it. Require that the host has never checked in by either route.
 		stmt, args, err := sqlx.In(`
 SELECT h.id
 FROM hosts h
 JOIN host_mdm hm ON hm.host_id = h.id
-WHERE h.id IN (?) AND hm.enrolled = 0 AND hm.installed_from_dep = 1`, hostIDs)
+WHERE h.id IN (?) AND hm.enrolled = 0 AND hm.installed_from_dep = 1
+	AND h.osquery_host_id IS NULL AND h.orbit_node_key IS NULL`, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build IN clause for pending autopilot hosts")
 		}

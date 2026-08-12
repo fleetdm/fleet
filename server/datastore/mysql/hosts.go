@@ -3953,13 +3953,18 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	// checking in via MDM
 	//
 	// To avoid prematurely deleting hosts that are ingested from Apple DEP, we cross-reference the
-	// host_dep_assignments table.
+	// host_dep_assignments table. Windows Autopilot pending hosts need the same protection for the same reason: they
+	// are created from the Autopilot registry before the device ever boots, so they have no check-in of any kind and
+	// the sentinel detail_updated_at above is treated as null, falling through to created_at. Without this a device
+	// registered more than the expiry window ago would be deleted and recreated under a new ID on every sync.
 	findHostsSql := `SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 		LEFT JOIN host_dep_assignments hda ON h.id = hda.host_id
+		LEFT JOIN host_autopilot_devices had ON h.id = had.host_id
 		LEFT JOIN nano_enrollments ne ON ne.id=h.uuid AND ne.type IN ('Device', 'User Enrollment (Device)')
 		WHERE COALESCE(GREATEST(COALESCE(hst.seen_time, ne.last_seen_at), COALESCE(ne.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)
-			AND (hda.host_id IS NULL OR hda.deleted_at IS NOT NULL)`
+			AND (hda.host_id IS NULL OR hda.deleted_at IS NOT NULL)
+			AND (had.host_id IS NULL OR had.deleted_at IS NOT NULL)`
 
 	var allIdsToDelete []uint
 	hostIDToExpiryWindow := make(map[uint]int)

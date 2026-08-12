@@ -1708,10 +1708,9 @@ scan:
 		hostID, err := svc.ds.HostIDByAutopilotDeviceID(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ZTDRegistrationID)
 		switch {
 		case err == nil:
-			if serial != "" {
-				svc.logger.DebugContext(ctx, "windows mdm: linking pending autopilot host by ZTDID",
-					"device_id", enrolledDevice.MDMDeviceID, "ztd_registration_id", enrolledDevice.ZTDRegistrationID)
-			}
+			svc.logger.DebugContext(ctx, "windows mdm: linking pending autopilot host by ZTDID",
+				"device_id", enrolledDevice.MDMDeviceID, "ztd_registration_id", enrolledDevice.ZTDRegistrationID,
+				"had_serial", serial != "")
 			return svc.linkWindowsHostMDMEnrollmentByHostID(ctx, enrolledDevice, hostID)
 		case !fleet.IsNotFound(err):
 			svc.logger.ErrorContext(ctx, "windows mdm: host lookup by ZTDID failed",
@@ -4709,14 +4708,10 @@ func truncateString(s string, maxLen int) string {
 	return s[:maxLen] + "..."
 }
 
-// logAutopilotEnrollmentContext records the Autopilot identifiers an enrolling device supplies, so they can be
-// compared against what Microsoft Graph reports for the same device.
-//
-// MS-MDE2 defines a "ZeroTouchProvisioning" context item carrying a GUID, present only when the device is registered
-// with Autopilot. If that GUID is the ZTDID, it equals windowsAutopilotDeviceIdentity.id and gives Fleet an exact join
-// key to a pending Autopilot host that does not rely on the hardware serial, which would remove the duplicate-serial
-// and placeholder-serial problems. Both context items are optional, so their absence is normal and never fails an
-// enrollment.
+// logAutopilotEnrollmentContext records the Autopilot identifiers an enrolling device supplies. The ZTDID is consumed
+// for real by the enrollment link path; this line stays at debug level as a diagnostic for enrollments that do not link
+// as expected, and covers the absent case so a device that sends nothing is distinguishable from one that was never
+// asked. Both context items are optional, so their absence is normal and never fails an enrollment.
 func logAutopilotEnrollmentContext(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -4729,7 +4724,7 @@ func logAutopilotEnrollmentContext(
 	ztdID, ztdErr := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemZeroTouchProvisioning)
 	offlineCorrelator, offlineErr := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemOfflineAutopilotCorrelator)
 
-	logger.InfoContext(ctx, "windows mdm enrollment autopilot context",
+	logger.DebugContext(ctx, "windows mdm enrollment autopilot context",
 		"zero_touch_provisioning_present", ztdErr == nil,
 		"zero_touch_provisioning_guid", ztdID,
 		"offline_autopilot_correlator_present", offlineErr == nil,

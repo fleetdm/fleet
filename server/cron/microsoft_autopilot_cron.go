@@ -84,15 +84,15 @@ func syncMicrosoftAutopilotTenant(
 	// Only an explicit credential rejection sets the flag. Throttling and server errors must never raise a credential
 	// alarm, or a Microsoft outage would flag every Fleet deployment at once.
 	invalid := isMicrosoftGraphCredentialRejected(syncErr)
-	if invalid || !cred.CredentialInvalid {
-		// Clear on success, set on rejection. A transient failure leaves whatever the flag already was.
-		if invalid || syncErr == nil {
-			changed, setErr := ds.SetMicrosoftGraphCredentialInvalid(ctx, cred.TenantID, invalid)
-			if setErr != nil {
-				logger.ErrorContext(ctx, "set microsoft graph credential invalid flag", "tenant_id", cred.TenantID, "err", setErr)
-			}
-			flagChanged = changed
+	// Set on rejection, clear on success, and leave a transient failure alone. There is deliberately no guard on the
+	// flag's current value: SetMicrosoftGraphCredentialInvalid already filters with WHERE credential_invalid != ?, and
+	// short-circuiting on cred.CredentialInvalid would stop a tenant that was flagged once from ever clearing.
+	if invalid || syncErr == nil {
+		changed, setErr := ds.SetMicrosoftGraphCredentialInvalid(ctx, cred.TenantID, invalid)
+		if setErr != nil {
+			logger.ErrorContext(ctx, "set microsoft graph credential invalid flag", "tenant_id", cred.TenantID, "err", setErr)
 		}
+		flagChanged = changed
 	}
 
 	var syncErrMsg *string
