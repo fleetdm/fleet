@@ -1,0 +1,1 @@
+- Fixed automatic App Store app updates queueing a duplicate install on a host whose upcoming activity queue was not draining. Fleet now skips an app that already has an install waiting in the queue, whether or not it has been sent to the device. Policy automations skip queued installs the same way, and no longer act on an app added for a platform other than the host's.
