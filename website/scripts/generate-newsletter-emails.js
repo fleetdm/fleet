@@ -53,7 +53,7 @@ module.exports = {
       let unextensionedArticleFilename = _.trimRight(path.basename(markdownFileToConvert), '.md');
 
       // Build the filename for the final HTML partial.
-      let extensionedFileNameForEmailPartial = 'email-article-'+unextensionedArticleFilename.replace(/\./g, '-')+'.ejs';
+      let extensionedFileNameForEmailPartial = 'email-'+unextensionedArticleFilename.replace(/\./g, '-')+'.ejs';
 
       // Find the location where this file will be saved.
       let htmlEmailOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_EMAIL_PARTIALS, extensionedFileNameForEmailPartial));
