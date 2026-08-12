@@ -116,7 +116,7 @@ func (oc *OrbitClient) SetOpenSSOWindowFunc(f func() error) {
 
 func (oc *OrbitClient) request(verb string, path string, params any, resp any) error {
 	ctx := context.Background()
-	if _, ok := resp.(BodyHandler); ok {
+	if _, ok := resp.(BodyHandler); !ok {
 		timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		ctx = timeoutCtx
