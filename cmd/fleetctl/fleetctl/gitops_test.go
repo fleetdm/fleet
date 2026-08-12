@@ -9160,14 +9160,15 @@ func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
 		}
 		return out, nil
 	}
-	ds.UpsertMicrosoftGraphCredentialFunc = func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
-		copied := *cred
-		stored[cred.TenantID] = &copied
-		return nil
-	}
-	ds.DeleteMicrosoftGraphCredentialFunc = func(ctx context.Context, tenantID string) error {
-		delete(stored, tenantID)
-		deleted = append(deleted, tenantID)
+	ds.ReplaceMicrosoftGraphCredentialsFunc = func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
+		for _, cred := range upsert {
+			copied := *cred
+			stored[cred.TenantID] = &copied
+		}
+		for _, tenantID := range deleteTenantIDs {
+			delete(stored, tenantID)
+			deleted = append(deleted, tenantID)
+		}
 		return nil
 	}
 

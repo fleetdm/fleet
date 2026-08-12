@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -41,6 +42,10 @@ func listMicrosoftGraphCredentialsEndpoint(ctx context.Context, _ any, svc fleet
 func (svc *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, err
+	}
+
+	if !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
 	}
 
 	creds, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
@@ -83,8 +88,11 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 		return err
 	}
 
-	licChecker, _ := license.FromContext(ctx)
-	lic, _ := licChecker.(*fleet.LicenseInfo)
+	// Configuring a credential requires premium. Having none never does, which is why the guard is on the length.
+	if len(incoming) > 0 && !license.IsPremium(ctx) {
+		return fleet.ErrMissingLicense
+	}
+
 	invalid := &fleet.InvalidArgumentError{}
 
 	var err error
@@ -96,7 +104,7 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 		}
 	}
 
-	resolved, err := svc.resolveMicrosoftGraphCredentials(incoming, lic, invalid, stored)
+	resolved, err := svc.resolveMicrosoftGraphCredentials(incoming, invalid, stored)
 	if err != nil {
 		return err
 	}
@@ -141,6 +149,8 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 // and saves the app config only when it actually changed. The flag is stored rather than derived on read so that GET /config does not
 // have to join the credentials table on every page load.
 func (svc *Service) refreshMicrosoftGraphCredentialInvalid(ctx context.Context) error {
+	// Callers reach this immediately after writing the credentials, so a replica read can miss the write.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	stored, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
@@ -177,16 +187,11 @@ func (svc *Service) refreshMicrosoftGraphCredentialInvalid(ctx context.Context) 
 // returned slice only contains entries that validated.
 func (svc *Service) resolveMicrosoftGraphCredentials(
 	incoming []fleet.MicrosoftGraphCredential,
-	lic *fleet.LicenseInfo,
 	invalid *fleet.InvalidArgumentError,
 	storedByTenant map[string]*fleet.MicrosoftGraphCredential,
 ) ([]fleet.MicrosoftGraphCredential, error) {
 	if len(incoming) == 0 {
 		return nil, nil
-	}
-
-	if lic == nil || !lic.IsPremium() {
-		return nil, fleet.ErrMissingLicense
 	}
 
 	if len(incoming) > maxMicrosoftGraphCredentials {
@@ -317,6 +322,7 @@ func (svc *Service) persistMicrosoftGraphCredentials(
 	}
 
 	incomingByTenant := make(map[string]struct{}, len(creds))
+	var toUpsert []*fleet.MicrosoftGraphCredential
 	for _, cred := range creds {
 		incomingByTenant[cred.TenantID] = struct{}{}
 
@@ -331,19 +337,18 @@ func (svc *Service) persistMicrosoftGraphCredentials(
 			edited = append(edited, cred.TenantID)
 		}
 
-		if err := svc.ds.UpsertMicrosoftGraphCredential(ctx, &cred); err != nil {
-			return nil, nil, nil, ctxerr.Wrap(ctx, err, "upsert microsoft graph credential")
-		}
+		toUpsert = append(toUpsert, &cred)
 	}
 
 	for tenantID := range storedTenants {
 		if _, ok := incomingByTenant[tenantID]; ok {
 			continue
 		}
-		if err := svc.ds.DeleteMicrosoftGraphCredential(ctx, tenantID); err != nil {
-			return nil, nil, nil, ctxerr.Wrap(ctx, err, "delete microsoft graph credential")
-		}
 		deleted = append(deleted, tenantID)
+	}
+
+	if err := svc.ds.ReplaceMicrosoftGraphCredentials(ctx, toUpsert, deleted); err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "replace microsoft graph credentials")
 	}
 
 	return added, edited, deleted, nil

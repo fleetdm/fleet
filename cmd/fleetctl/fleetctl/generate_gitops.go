@@ -842,10 +842,12 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	}
 	orgSettings["certificate_authorities"] = certificateAuthorities // TODO(hca): Ask Scott about jsonFieldName usage
 
-	// Microsoft Graph credentials come from their own endpoint, not the app config. They belong in org_settings.
-	graphCreds, err := cmd.Client.GetMicrosoftGraphCredentials()
-	if err != nil {
-		return nil, err
+	var graphCreds []*fleet.MicrosoftGraphCredential
+	if cmd.AppConfig.License.IsPremium() {
+		graphCreds, err = cmd.Client.GetMicrosoftGraphCredentials()
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(graphCreds) > 0 {
 		credT := reflect.TypeFor[fleet.MicrosoftGraphCredential]()

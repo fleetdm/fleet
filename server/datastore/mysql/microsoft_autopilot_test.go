@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"time"
@@ -11,6 +12,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// upsertCred and deleteCred seed and remove a single credential through the transactional reconcile method, which is the
+// only write path. They keep the tests focused on one credential at a time.
+func upsertCred(ctx context.Context, ds *Datastore, cred *fleet.MicrosoftGraphCredential) error {
+	return ds.ReplaceMicrosoftGraphCredentials(ctx, []*fleet.MicrosoftGraphCredential{cred}, nil)
+}
+
+func deleteCred(ctx context.Context, ds *Datastore, tenantID string) error {
+	return ds.ReplaceMicrosoftGraphCredentials(ctx, nil, []string{tenantID})
+}
 
 func TestMicrosoftAutopilot(t *testing.T) {
 	ds := CreateMySQLDS(t)
@@ -49,7 +60,7 @@ const (
 // seedGraphCredential stores a credential for a tenant with values derived from the tenant
 func seedGraphCredential(t *testing.T, ds *Datastore, tenantID string) {
 	t.Helper()
-	require.NoError(t, ds.UpsertMicrosoftGraphCredential(t.Context(), &fleet.MicrosoftGraphCredential{
+	require.NoError(t, upsertCred(t.Context(), ds, &fleet.MicrosoftGraphCredential{
 		TenantID: tenantID, ClientID: "client-" + tenantID, ClientSecret: "secret-" + tenantID,
 	}))
 }
@@ -136,7 +147,7 @@ func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, creds)
 
-	require.NoError(t, ds.UpsertMicrosoftGraphCredential(ctx, &fleet.MicrosoftGraphCredential{
+	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{
 		TenantID: testTenantA, ClientID: "client-a", ClientSecret: "secret-a",
 	}))
 
@@ -153,7 +164,7 @@ func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 
 	// Upserting the same tenant updates in place rather than creating a second row: tenant_id is the credential's
 	// identity because the Autopilot registry is per-tenant.
-	require.NoError(t, ds.UpsertMicrosoftGraphCredential(ctx, &fleet.MicrosoftGraphCredential{
+	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{
 		TenantID: testTenantA, ClientID: "client-a-rotated", ClientSecret: "secret-a-rotated",
 	}))
 
@@ -176,20 +187,20 @@ func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 	assert.Nil(t, findGraphCredential(t, ds, "no-such-tenant"), "an unconfigured tenant is simply absent")
 
 	// Deleting one tenant leaves the other alone.
-	require.NoError(t, ds.DeleteMicrosoftGraphCredential(ctx, testTenantA))
+	require.NoError(t, deleteCred(ctx, ds, testTenantA))
 	creds, err = ds.ListMicrosoftGraphCredentials(ctx)
 	require.NoError(t, err)
 	require.Len(t, creds, 1)
 	assert.Equal(t, testTenantB, creds[0].TenantID)
 
 	// Deleting an absent tenant is a no-op, not an error, so a reconciling caller need not check first.
-	require.NoError(t, ds.DeleteMicrosoftGraphCredential(ctx, "no-such-tenant"))
+	require.NoError(t, deleteCred(ctx, ds, "no-such-tenant"))
 }
 
 func testGraphCredentialSecretEncryptedAtRest(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	require.NoError(t, ds.UpsertMicrosoftGraphCredential(ctx, &fleet.MicrosoftGraphCredential{
+	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{
 		TenantID: testTenantA, ClientID: "client-a", ClientSecret: "plaintext-secret",
 	}))
 
@@ -268,7 +279,7 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	_, err = ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true)
 	require.NoError(t, err)
 
-	require.NoError(t, ds.UpsertMicrosoftGraphCredential(ctx, &fleet.MicrosoftGraphCredential{
+	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{
 		TenantID: testTenantA, ClientID: "client-a", ClientSecret: "rotated-secret",
 	}))
 

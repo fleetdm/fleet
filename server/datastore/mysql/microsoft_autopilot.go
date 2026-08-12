@@ -73,16 +73,30 @@ ORDER BY tenant_id`
 	return creds, nil
 }
 
-// UpsertMicrosoftGraphCredential stores a credential, encrypting the client secret with the server private key. Storing
-// a credential resets all of its sync state, because that state describes the credential being replaced rather than the
-// new one: a new secret may carry different permissions or point at a different app registration.
-func (ds *Datastore) UpsertMicrosoftGraphCredential(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
-	encryptedSecret, err := encrypt([]byte(cred.ClientSecret), ds.serverPrivateKey)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "encrypt microsoft graph client secret with datastore.serverPrivateKey")
+// ReplaceMicrosoftGraphCredentials reconciles the stored credentials in one transaction: every credential in upsert is
+// stored, and every tenant in deleteTenantIDs is removed.
+func (ds *Datastore) ReplaceMicrosoftGraphCredentials(
+	ctx context.Context,
+	upsert []*fleet.MicrosoftGraphCredential,
+	deleteTenantIDs []string,
+) error {
+	if len(upsert) == 0 && len(deleteTenantIDs) == 0 {
+		return nil
 	}
 
-	const stmt = `
+	// Encrypt before opening the transaction so a bad private key fails without holding one open.
+	encryptedSecrets := make([][]byte, len(upsert))
+	for i, cred := range upsert {
+		encrypted, err := encrypt([]byte(cred.ClientSecret), ds.serverPrivateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "encrypt microsoft graph client secret with datastore.serverPrivateKey")
+		}
+		encryptedSecrets[i] = encrypted
+	}
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Storing a credential resets all of its sync state.
+		const upsertStmt = `
 INSERT INTO mdm_microsoft_graph_credentials (tenant_id, client_id, client_secret)
 VALUES (?, ?, ?)
 ON DUPLICATE KEY UPDATE
@@ -92,19 +106,24 @@ ON DUPLICATE KEY UPDATE
 	credential_invalid = 0,
 	last_sync_error = NULL`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, cred.TenantID, cred.ClientID, encryptedSecret); err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert microsoft graph credential")
-	}
-	return nil
-}
+		for i, cred := range upsert {
+			if _, err := tx.ExecContext(ctx, upsertStmt, cred.TenantID, cred.ClientID, encryptedSecrets[i]); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert microsoft graph credential")
+			}
+		}
 
-// DeleteMicrosoftGraphCredential removes the credential for a tenant.
-func (ds *Datastore) DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error {
-	const stmt = `DELETE FROM mdm_microsoft_graph_credentials WHERE tenant_id = ?`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, tenantID); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete microsoft graph credential")
-	}
-	return nil
+		if len(deleteTenantIDs) > 0 {
+			deleteStmt, args, err := sqlx.In(`DELETE FROM mdm_microsoft_graph_credentials WHERE tenant_id IN (?)`, deleteTenantIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build delete microsoft graph credentials statement")
+			}
+			if _, err := tx.ExecContext(ctx, deleteStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete microsoft graph credentials")
+			}
+		}
+
+		return nil
+	})
 }
 
 // SetMicrosoftGraphCredentialInvalid flips the per-tenant flag reporting that a credential needs an admin's attention.

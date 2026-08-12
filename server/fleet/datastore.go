@@ -2499,11 +2499,8 @@ type Datastore interface {
 	// nothing.
 	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredential, error)
 
-	// UpsertMicrosoftGraphCredential stores a credential keyed on its tenant ID, encrypting the client secret.
-	UpsertMicrosoftGraphCredential(ctx context.Context, cred *MicrosoftGraphCredential) error
-
-	// DeleteMicrosoftGraphCredential removes the credential for an Entra tenant.
-	DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error
+	// ReplaceMicrosoftGraphCredentials reconciles the stored credentials.
+	ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert []*MicrosoftGraphCredential, deleteTenantIDs []string) error
 
 	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag for a tenant. It reports whether the flag actually changed.
 	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)

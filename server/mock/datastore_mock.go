@@ -1480,9 +1480,7 @@ type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.Micro
 
 type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
 
-type UpsertMicrosoftGraphCredentialFunc func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error
-
-type DeleteMicrosoftGraphCredentialFunc func(ctx context.Context, tenantID string) error
+type ReplaceMicrosoftGraphCredentialsFunc func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error
 
 type SetMicrosoftGraphCredentialInvalidFunc func(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
 
@@ -4511,11 +4509,8 @@ type DataStore struct {
 	ListMicrosoftGraphCredentialMetadataFunc        ListMicrosoftGraphCredentialMetadataFunc
 	ListMicrosoftGraphCredentialMetadataFuncInvoked bool
 
-	UpsertMicrosoftGraphCredentialFunc        UpsertMicrosoftGraphCredentialFunc
-	UpsertMicrosoftGraphCredentialFuncInvoked bool
-
-	DeleteMicrosoftGraphCredentialFunc        DeleteMicrosoftGraphCredentialFunc
-	DeleteMicrosoftGraphCredentialFuncInvoked bool
+	ReplaceMicrosoftGraphCredentialsFunc        ReplaceMicrosoftGraphCredentialsFunc
+	ReplaceMicrosoftGraphCredentialsFuncInvoked bool
 
 	SetMicrosoftGraphCredentialInvalidFunc        SetMicrosoftGraphCredentialInvalidFunc
 	SetMicrosoftGraphCredentialInvalidFuncInvoked bool
@@ -10879,18 +10874,11 @@ func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([
 	return s.ListMicrosoftGraphCredentialMetadataFunc(ctx)
 }
 
-func (s *DataStore) UpsertMicrosoftGraphCredential(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
+func (s *DataStore) ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
 	s.mu.Lock()
-	s.UpsertMicrosoftGraphCredentialFuncInvoked = true
+	s.ReplaceMicrosoftGraphCredentialsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpsertMicrosoftGraphCredentialFunc(ctx, cred)
-}
-
-func (s *DataStore) DeleteMicrosoftGraphCredential(ctx context.Context, tenantID string) error {
-	s.mu.Lock()
-	s.DeleteMicrosoftGraphCredentialFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteMicrosoftGraphCredentialFunc(ctx, tenantID)
+	return s.ReplaceMicrosoftGraphCredentialsFunc(ctx, upsert, deleteTenantIDs)
 }
 
 func (s *DataStore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error) {

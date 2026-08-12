@@ -126,14 +126,15 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 		}
 		return out, nil
 	}
-	ds.UpsertMicrosoftGraphCredentialFunc = func(ctx context.Context, cred *fleet.MicrosoftGraphCredential) error {
-		copied := *cred
-		env.stored[cred.TenantID] = &copied
-		return nil
-	}
-	ds.DeleteMicrosoftGraphCredentialFunc = func(ctx context.Context, tenantID string) error {
-		delete(env.stored, tenantID)
-		env.deleted = append(env.deleted, tenantID)
+	ds.ReplaceMicrosoftGraphCredentialsFunc = func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
+		for _, cred := range upsert {
+			copied := *cred
+			env.stored[cred.TenantID] = &copied
+		}
+		for _, tenantID := range deleteTenantIDs {
+			delete(env.stored, tenantID)
+			env.deleted = append(env.deleted, tenantID)
+		}
 		return nil
 	}
 
