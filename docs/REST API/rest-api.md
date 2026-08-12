@@ -8579,6 +8579,7 @@ Edit managed local account enforcement settings for eligible hosts.
 - [Run MDM command](#run-mdm-command)
 - [Get MDM command results](#get-mdm-command-results)
 - [List MDM commands](#list-mdm-commands)
+- [Cancel host's pending MDM command](#cancel-hosts-pending-mdm-command)
 
 
 ### Run MDM command
@@ -8756,6 +8757,41 @@ This endpoint returns the list of custom MDM commands that have been executed.
   ]
 }
 ```
+
+### Cancel host's pending MDM command
+
+_Available in Fleet Premium._
+
+Cancels a pending MDM command (lock, wipe, or clear passcode) for the specified Apple host. The command will not be delivered to the host if it hasn't been sent yet.
+
+Only `DeviceLock`, `EraseDevice`, and `ClearPasscode` command types are eligible for cancellation. Commands that have already been acknowledged or errored cannot be canceled.
+
+`DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`
+
+#### Parameters
+
+| Name          | Type    | In   | Description                                                            |
+| ------------- | ------- | ---- | ---------------------------------------------------------------------- |
+| id            | integer | path | **Required.** The host's ID.                                           |
+| command_uuid  | string  | path | **Required.** The UUID of the pending MDM command to cancel.           |
+
+#### Example
+
+`DELETE /api/v1/fleet/hosts/12/commands/81e10a70-730b-4c45-9b40-b14373e04757`
+
+##### Default response
+
+`Status: 204`
+
+#### Errors
+
+| Status | Error code                | Description                                                          |
+| ------ | ------------------------- | -------------------------------------------------------------------- |
+| 400    | bad_request               | The command is not a eligible type (lock, wipe, or clear passcode).   |
+| 400    | bad_request               | The command has already been delivered to the host (not pending).    |
+| 404    | not_found                 | The host or command was not found, or the command doesn't belong to the specified host. |
+| 403    | forbidden                 | The user doesn't have permission to cancel commands for this host.   |
+
 
 ---
 
