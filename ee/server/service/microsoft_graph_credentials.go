@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
@@ -80,8 +79,8 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 
 	// A credential that was just verified is healthy, and a deleted one can no longer be unhealthy, so the aggregate is
 	// recomputed after a change.
-	if err := svc.refreshMicrosoftGraphCredentialInvalid(ctx); err != nil {
-		return err
+	if err := svc.ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctx); err != nil {
+		return ctxerr.Wrap(ctx, err, "refresh microsoft graph credential invalid aggregate")
 	}
 
 	for _, act := range newMicrosoftGraphCredentialActivities(added, edited, deleted) {
@@ -90,40 +89,6 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 		}
 	}
 
-	return nil
-}
-
-// refreshMicrosoftGraphCredentialInvalid recomputes MDM.MicrosoftGraphCredentialInvalid from the stored credentials
-// and saves the app config only when it actually changed. The flag is stored rather than derived on read so that GET /config does not
-// have to join the credentials table on every page load.
-func (svc *Service) refreshMicrosoftGraphCredentialInvalid(ctx context.Context) error {
-	// Callers reach this immediately after writing the credentials, so a replica read can miss the write.
-	ctx = ctxdb.RequirePrimary(ctx, true)
-	stored, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
-	}
-
-	var anyInvalid bool
-	for _, cred := range stored {
-		if cred.CredentialInvalid {
-			anyInvalid = true
-			break
-		}
-	}
-
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get app config")
-	}
-	if appCfg.MDM.MicrosoftGraphCredentialInvalid == anyInvalid {
-		return nil
-	}
-
-	appCfg.MDM.MicrosoftGraphCredentialInvalid = anyInvalid
-	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
-		return ctxerr.Wrap(ctx, err, "save app config with microsoft graph credential status")
-	}
 	return nil
 }
 

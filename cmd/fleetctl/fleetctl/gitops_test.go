@@ -9160,6 +9160,7 @@ func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
 		}
 		return out, nil
 	}
+	ds.UpdateMicrosoftGraphCredentialInvalidAggregateFunc = func(ctx context.Context) error { return nil }
 	ds.ReplaceMicrosoftGraphCredentialsFunc = func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
 		for _, cred := range upsert {
 			copied := *cred

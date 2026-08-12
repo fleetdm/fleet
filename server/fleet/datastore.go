@@ -2511,6 +2511,10 @@ type Datastore interface {
 	// BatchUpsertHostAutopilotDevices stores the Windows Autopilot metadata for many hosts, clearing any soft deletion.
 	BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
 
+	// UpdateMicrosoftGraphCredentialInvalidAggregate recomputes MDM.MicrosoftGraphCredentialInvalid from the
+	// credentials table, saving the app config only when it changed.
+	UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.Context) error
+
 	// IngestWindowsAutopilotDevices creates a pending Windows host for every device whose hardware serial has no host
 	// yet, and stores the Autopilot metadata for every device passed in. HostID on the input is ignored and resolved
 	// from the serial.

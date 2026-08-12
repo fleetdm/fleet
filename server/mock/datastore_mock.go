@@ -1488,6 +1488,8 @@ type RecordMicrosoftGraphSyncResultFunc func(ctx context.Context, tenantID strin
 
 type BatchUpsertHostAutopilotDevicesFunc func(ctx context.Context, devices []*fleet.HostAutopilotDevice) error
 
+type UpdateMicrosoftGraphCredentialInvalidAggregateFunc func(ctx context.Context) error
+
 type IngestWindowsAutopilotDevicesFunc func(ctx context.Context, devices []*fleet.HostAutopilotDevice) error
 
 type RemoveWindowsAutopilotHostsFunc func(ctx context.Context, hostIDs []uint) error
@@ -4524,6 +4526,9 @@ type DataStore struct {
 
 	BatchUpsertHostAutopilotDevicesFunc        BatchUpsertHostAutopilotDevicesFunc
 	BatchUpsertHostAutopilotDevicesFuncInvoked bool
+
+	UpdateMicrosoftGraphCredentialInvalidAggregateFunc        UpdateMicrosoftGraphCredentialInvalidAggregateFunc
+	UpdateMicrosoftGraphCredentialInvalidAggregateFuncInvoked bool
 
 	IngestWindowsAutopilotDevicesFunc        IngestWindowsAutopilotDevicesFunc
 	IngestWindowsAutopilotDevicesFuncInvoked bool
@@ -10910,6 +10915,13 @@ func (s *DataStore) BatchUpsertHostAutopilotDevices(ctx context.Context, devices
 	s.BatchUpsertHostAutopilotDevicesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchUpsertHostAutopilotDevicesFunc(ctx, devices)
+}
+
+func (s *DataStore) UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.Context) error {
+	s.mu.Lock()
+	s.UpdateMicrosoftGraphCredentialInvalidAggregateFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMicrosoftGraphCredentialInvalidAggregateFunc(ctx)
 }
 
 func (s *DataStore) IngestWindowsAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {

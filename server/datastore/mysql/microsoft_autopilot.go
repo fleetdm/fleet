@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -532,4 +533,35 @@ WHERE h.id IN (?) AND hm.enrolled = 0 AND hm.installed_from_dep = 1`, hostIDs)
 		}
 		return deleteHosts(ctx, tx, pendingHostIDs)
 	}
+}
+
+// UpdateMicrosoftGraphCredentialInvalidAggregate recomputes MDM.MicrosoftGraphCredentialInvalid from the credentials
+// table and saves the app config only when the value actually changed.
+//
+// The flag is stored rather than derived on read so that GET /config never joins the credentials table, which means it
+// is only as fresh as its last recomputation. Both the credential write paths and the sync cron have to call this, and
+// they live in different packages: the premium service cannot be imported by cron, so the shared logic belongs here.
+// The read is forced to the primary because every caller reaches this immediately after writing.
+func (ds *Datastore) UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.Context) error {
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
+	var anyInvalid bool
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &anyInvalid,
+		`SELECT EXISTS(SELECT 1 FROM mdm_microsoft_graph_credentials WHERE credential_invalid = 1)`); err != nil {
+		return ctxerr.Wrap(ctx, err, "check for invalid microsoft graph credentials")
+	}
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+	if appCfg.MDM.MicrosoftGraphCredentialInvalid == anyInvalid {
+		return nil
+	}
+
+	appCfg.MDM.MicrosoftGraphCredentialInvalid = anyInvalid
+	if err := ds.SaveAppConfig(ctx, appCfg); err != nil {
+		return ctxerr.Wrap(ctx, err, "save app config with microsoft graph credential status")
+	}
+	return nil
 }
