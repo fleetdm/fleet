@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	gocache "github.com/patrickmn/go-cache"
 )
 
 var _ fleet.Service = (*Service)(nil)
@@ -73,8 +72,6 @@ type Service struct {
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
 	keyValueStore fleet.KeyValueStore
-
-	packConfigCache *gocache.Cache
 
 	androidSvc android.Service
 
@@ -208,7 +205,6 @@ func NewService(
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
-		packConfigCache:                 gocache.New(1*time.Minute, 5*time.Minute),
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
 		msGraphClientFactory:            msGraphClientFactory,
