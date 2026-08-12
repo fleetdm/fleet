@@ -115,10 +115,12 @@ func (oc *OrbitClient) SetOpenSSOWindowFunc(f func() error) {
 }
 
 func (oc *OrbitClient) request(verb string, path string, params any, resp any) error {
-	return oc.requestWithExternal(context.Background(), verb, path, params, resp, false)
-}
-
-func (oc *OrbitClient) requestWithContext(ctx context.Context, verb string, path string, params any, resp any) error {
+	ctx := context.Background()
+	if _, ok := resp.(BodyHandler); ok {
+		timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		ctx = timeoutCtx
+	}
 	return oc.requestWithExternal(ctx, verb, path, params, resp, false)
 }
 
@@ -759,15 +761,7 @@ func (oc *OrbitClient) authenticatedRequest(verb string, path string, params any
 	s := params.(fleet.SetOrbitNodeKeyer)
 	s.SetOrbitNodeKey(nodeKey)
 
-	if _, ok := resp.(*FileResponse); ok {
-		// Handle file response here if needed
-		err = oc.request(verb, path, params, resp)
-	} else {
-		// if not FileResponse, set context with timeout of 30 seconds for all other requests.
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		err = oc.requestWithContext(ctx, verb, path, params, resp)
-	}
+	err = oc.request(verb, path, params, resp)
 	switch {
 	case err == nil:
 		oc.setEnrolled(true)

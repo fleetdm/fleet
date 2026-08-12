@@ -296,9 +296,8 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	// unblock the io.Copy below. We surface the result as a DeadlineExceeded so
 	// callers treat it as transient/retryable (installer.isNetworkOrTransientError).
 	var stalled atomic.Bool
+	stopWatchdog := make(chan struct{})
 	if f.StallTimeout > 0 {
-		stopWatchdog := make(chan struct{})
-		defer close(stopWatchdog)
 		checkInterval := f.stallCheckInterval
 		if checkInterval <= 0 {
 			checkInterval = defaultStallCheckInterval
@@ -322,6 +321,10 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	}
 
 	_, err = io.Copy(destFile, respBodyReader)
+	// Once io.Copy returns, stop the watchdog goroutine so it doesn't leak.
+	if f.StallTimeout > 0 {
+		close(stopWatchdog)
+	}
 	if stalled.Load() {
 		return fmt.Errorf("download stalled: no data received for %s: %w", f.StallTimeout, context.DeadlineExceeded)
 	}
