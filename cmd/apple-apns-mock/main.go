@@ -14,7 +14,8 @@ func main() {
 	listen := flag.String("listen", ":8378", "host:port to listen on")
 	sweepInterval := flag.Duration("sweep-interval", 10*time.Minute, "how often to sweep expired pending pushes")
 	keepAlive := flag.Duration("keep-alive", 30*time.Second, "how often to send SSE keep-alive pings. Set to 0 to disable.")
-	defaultTTL := flag.Duration("default-ttl", 24*time.Hour, "default TTL for pushes with no explicit expiry (apns-expiration: 0)")
+	writeTimeout := flag.Duration("write-timeout", 10*time.Second, "deadline for a single SSE write; a device that stops reading is disconnected instead of pinning its token. Set to 0 to disable.")
+	defaultTTL := flag.Duration("default-ttl", 24*time.Hour, "how long to hold a push for a disconnected device when the request has no apns-expiration header (an explicit apns-expiration of 0 or a past time means deliver-now-or-discard)")
 	debug := flag.Bool("debug", false, "enable debug logging")
 
 	flag.Parse()
@@ -28,7 +29,7 @@ func main() {
 
 	st := newStore(*defaultTTL, logger)
 	server := &http.Server{ReadHeaderTimeout: 10 *
-		time.Second, WriteTimeout: 0, IdleTimeout: 120 * time.Second, Handler: newMux(st, logger, *keepAlive), Addr: *listen}
+		time.Second, WriteTimeout: 0, IdleTimeout: 120 * time.Second, Handler: newMux(st, logger, *keepAlive, *writeTimeout), Addr: *listen}
 
 	if *sweepInterval <= 0 {
 		logger.ErrorContext(ctx, "sweep interval can not be disabled, using default 10m")
@@ -51,7 +52,7 @@ func main() {
 	}
 }
 
-func newMux(st *store, logger *slog.Logger, keepAlive time.Duration) *http.ServeMux {
+func newMux(st *store, logger *slog.Logger, keepAlive, writeTimeout time.Duration) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +64,7 @@ func newMux(st *store, logger *slog.Logger, keepAlive time.Duration) *http.Serve
 	})
 
 	mux.HandleFunc("GET /events", func(w http.ResponseWriter, r *http.Request) {
-		eventsSSEHandler(w, r, st, logger, keepAlive)
+		eventsSSEHandler(w, r, st, logger, keepAlive, writeTimeout)
 	})
 
 	// Matches APNS HTTP/2 push endpoint for device token hence the weird shape.

@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,7 +30,13 @@ import (
 // real device reconnecting) and the replaced stream ends. Token validation
 // must happen before the first Flush — flushing commits a 200, making a
 // later error status a no-op.
-func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger *slog.Logger, keepAlive time.Duration) {
+//
+// Every write carries a writeTimeout deadline. The server sets no
+// WriteTimeout (SSE streams must not be reaped), so without a per-write
+// deadline a device that stops reading would block this handler forever:
+// unsubscribe would never run, and store.push would keep coalescing wake-ups
+// into a connection that can never deliver them instead of storing them.
+func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
 	token := r.URL.Query().Get("token")
 	if token == "" {
 		apnsPushError(w, nil, MissingDeviceTokenError())
@@ -56,14 +65,28 @@ func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger 
 	sub, pending := st.subscribe(token)
 	defer st.unsubscribe(token, sub)
 
-	writeEvent := func(w http.ResponseWriter, payload []byte) {
-		fmt.Fprintf(w, "event: ping\n")
-		fmt.Fprintf(w, "data: %s\n\n", payload)
+	rc := http.NewResponseController(w)
+	write := func(frame string) error {
+		if writeTimeout > 0 {
+			if err := rc.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil &&
+				!errors.Is(err, http.ErrNotSupported) {
+				return err
+			}
+		}
+		if _, err := io.WriteString(w, frame); err != nil {
+			return err
+		}
+		flusher.Flush()
+		return nil
 	}
 
 	if pending != nil {
-		writeEvent(w, pending) // stored ping delivered immediately on connect
-		flusher.Flush()
+		// stored ping delivered immediately on connect
+		if err := write(pingEvent(pending.payload)); err != nil {
+			logger.DebugContext(r.Context(), "failed to write pending ping", "token", token, "error", err)
+			st.restore(token, sub, pending, true)
+			return
+		}
 	}
 
 	var keepAliveC <-chan time.Time
@@ -75,20 +98,41 @@ func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger 
 
 	for {
 		select {
-		case payload := <-sub.ch: // push arrived while we're live
-			writeEvent(w, payload)
-			flusher.Flush()
+		case p := <-sub.ch: // push arrived while we're live
+			if err := write(pingEvent(p.payload)); err != nil {
+				logger.DebugContext(r.Context(), "failed to write ping", "token", token, "error", err)
+				st.restore(token, sub, p, false)
+				return
+			}
 		case <-sub.replaced: // a newer connection took our token — stand down
 			return
 		case <-r.Context().Done(): // client went away
 			return
 		case <-keepAliveC: // keepalive
-			if keepAliveC != nil {
-				fmt.Fprint(w, ": keepalive\n\n")
-				flusher.Flush()
+			if err := write(": keepalive\n\n"); err != nil {
+				logger.DebugContext(r.Context(), "failed to write keepalive", "token", token, "error", err)
+				return
 			}
 		}
 	}
+}
+
+// pingEvent frames one push payload as an SSE event. SSE is newline
+// delimited, so a payload containing a newline is split across several data:
+// lines (clients rejoin them with "\n"); emitting it raw would end the event
+// early and corrupt every frame after it. The mock forwards payload bytes
+// verbatim, and PushMagic reaches it from the device's TokenUpdate, so the
+// payload cannot be assumed newline-free.
+func pingEvent(payload []byte) string {
+	var b strings.Builder
+	b.WriteString("event: ping\n")
+	for line := range bytes.SplitSeq(payload, []byte("\n")) {
+		b.WriteString("data: ")
+		b.Write(bytes.TrimSuffix(line, []byte("\r")))
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+	return b.String()
 }
 
 // pushHandler serves POST /3/device/{token} — the same endpoint shape as
@@ -105,11 +149,11 @@ func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger 
 // hex token draws 400 BadDeviceToken from api.push.apple.com — but
 // mdmtest/osquery-perf tokens are variable-length hex("token"+serial)).
 func pushHandler(w http.ResponseWriter, r *http.Request, st *store, logger *slog.Logger) {
+	// parsePushHeaders returns its headers even on failure so the error
+	// response echoes the client's apns-id, like real APNS does.
 	headers, err := parsePushHeaders(r)
 	if err != nil {
-		apnsPushError(w, &pushHeaders{
-			PushID: uuid.NewString(), // for reporting APNS-ID in the response.
-		}, err)
+		apnsPushError(w, headers, err)
 		return
 	}
 
@@ -163,7 +207,11 @@ type pushHeaders struct {
 
 // parsePushHeaders validates the modeled apns-* headers, mirroring real APNS
 // behavior for each (see pushHeaders field comments for per-header
-// semantics).
+// semantics). The returned headers are always non-nil, including on error, so
+// the caller can echo the client's apns-id on the error response — real APNS
+// sets apns-id on errors too, and it is how a request is correlated with its
+// response. A malformed apns-id is the one exception: it cannot be echoed, so
+// the generated one stands.
 func parsePushHeaders(r *http.Request) (*pushHeaders, error) {
 	pushHeaders := &pushHeaders{
 		PushID: uuid.NewString(), // default to random UUID, if provided it will be overwritten.
@@ -171,14 +219,14 @@ func parsePushHeaders(r *http.Request) (*pushHeaders, error) {
 
 	if pushID := r.Header.Get("apns-id"); pushID != "" {
 		if _, err := uuid.Parse(pushID); err != nil {
-			return nil, BadMessageIdError()
+			return pushHeaders, BadMessageIdError()
 		}
 		pushHeaders.PushID = pushID
 	}
 
 	pushHeaders.PushType = r.Header.Get("apns-push-type")
 	if pushHeaders.PushType != "" && pushHeaders.PushType != "mdm" {
-		return nil, InvalidPushTypeError()
+		return pushHeaders, InvalidPushTypeError()
 	}
 
 	if expiration := r.Header.Get("apns-expiration"); expiration != "" {
@@ -186,7 +234,7 @@ func parsePushHeaders(r *http.Request) (*pushHeaders, error) {
 			t := time.Unix(ts, 0)
 			pushHeaders.Expiration = &t
 		} else {
-			return nil, BadExpirationDateError()
+			return pushHeaders, BadExpirationDateError()
 		}
 	}
 

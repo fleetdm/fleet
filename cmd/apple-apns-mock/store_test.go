@@ -24,7 +24,7 @@ func recv(t *testing.T, sub *subscriber) []byte {
 	t.Helper()
 	select {
 	case p := <-sub.ch:
-		return p
+		return p.payload
 	default:
 		t.Fatal("expected a payload on the subscriber channel, got none")
 		return nil
@@ -35,9 +35,18 @@ func expectNone(t *testing.T, sub *subscriber) {
 	t.Helper()
 	select {
 	case p := <-sub.ch:
-		t.Fatalf("expected no payload on the subscriber channel, got %q", p)
+		t.Fatalf("expected no payload on the subscriber channel, got %q", p.payload)
 	default:
 	}
+}
+
+// pendingPayload unwraps the ping subscribe hands back, so tests read like
+// the payload-only API they had before ping carried its expiry.
+func pendingPayload(p *ping) string {
+	if p == nil {
+		return ""
+	}
+	return string(p.payload)
 }
 
 func isReplaced(sub *subscriber) bool {
@@ -111,7 +120,7 @@ func TestOfflinePushStoredAndDeliveredOnConnect(t *testing.T) {
 
 	sub, pending := s.subscribe("aabb01")
 	require.NotNil(t, pending)
-	assert.Equal(t, `{"mdm":"magic1"}`, string(pending))
+	assert.Equal(t, `{"mdm":"magic1"}`, pendingPayload(pending))
 	// Delivered via the return value, not the channel.
 	expectNone(t, sub)
 	assert.EqualValues(t, 1, s.deliveredOnConnect.Load())
@@ -129,7 +138,7 @@ func TestOfflinePushesCoalesceToLatest(t *testing.T) {
 	s.push("aabb01", []byte("p3"), time.Time{})
 
 	_, pending := s.subscribe("aabb01")
-	assert.Equal(t, "p3", string(pending))
+	assert.Equal(t, "p3", pendingPayload(pending))
 	assert.EqualValues(t, 3, s.pushesReceived.Load())
 	assert.EqualValues(t, 1, s.stored.Load())
 	assert.EqualValues(t, 2, s.coalesced.Load())
@@ -225,7 +234,7 @@ func TestSweepRemovesExpiredPendingAndEmptyEntries(t *testing.T) {
 	_, pending := s.subscribe("aaaa01")
 	assert.Nil(t, pending, "swept ping must not be delivered")
 	_, pending = s.subscribe("bbbb02")
-	assert.Equal(t, "p2", string(pending), "unexpired ping survives the sweep")
+	assert.Equal(t, "p2", pendingPayload(pending), "unexpired ping survives the sweep")
 }
 
 func TestSweepKeepsLiveSubscribers(t *testing.T) {
@@ -251,6 +260,77 @@ func TestReplaceOnReconnect(t *testing.T) {
 	s.push("aabb01", []byte("p1"), time.Time{})
 	assert.Equal(t, "p1", string(recv(t, subB)))
 	expectNone(t, subA)
+}
+
+func TestReplaceRequeuesUndeliveredPing(t *testing.T) {
+	// A push that lands in a subscriber's buffer at the moment the device
+	// reconnects must not be lost: the old handler may return on `replaced`
+	// without ever draining it (the select picks at random when both are
+	// ready), so subscribe puts it back and hands it to the new connection.
+	s := newStore(testTTL, slog.New(slog.DiscardHandler))
+	subA, _ := s.subscribe("aabb01")
+
+	s.push("aabb01", []byte("p1"), time.Time{})
+	require.EqualValues(t, 1, s.deliveredLive.Load())
+
+	subB, pending := s.subscribe("aabb01")
+
+	assert.Equal(t, "p1", pendingPayload(pending), "the reconnecting device gets the wake-up its old connection missed")
+	expectNone(t, subA)
+	expectNone(t, subB)
+	assert.EqualValues(t, 0, s.deliveredLive.Load(), "a ping that never reached the wire must not stay counted as delivered")
+	assert.EqualValues(t, 1, s.deliveredOnConnect.Load())
+}
+
+func TestUnsubscribeRequeuesUndeliveredPing(t *testing.T) {
+	// Same race on the disconnect side: the handler returns on ctx.Done()
+	// with a ping still buffered.
+	s := newStore(testTTL, slog.New(slog.DiscardHandler))
+	sub, _ := s.subscribe("aabb01")
+
+	s.push("aabb01", []byte("p1"), time.Time{})
+	s.unsubscribe("aabb01", sub)
+
+	assert.EqualValues(t, 0, s.deliveredLive.Load())
+	assert.EqualValues(t, 1, s.stored.Load(), "the undelivered ping becomes pending, not garbage")
+	require.EqualValues(t, 1, countEntries(s), "an entry holding a requeued ping must survive unsubscribe")
+
+	_, pending := s.subscribe("aabb01")
+	assert.Equal(t, "p1", pendingPayload(pending))
+}
+
+func TestRequeuedPingHonorsExpiry(t *testing.T) {
+	// apns-expiration: 0 means deliver-now-or-discard. It was delivered to a
+	// live subscriber's buffer, but never reached the device, so requeueing
+	// must discard it rather than store it for later.
+	s := newStore(testTTL, slog.New(slog.DiscardHandler))
+	sub, _ := s.subscribe("aabb01")
+
+	s.push("aabb01", []byte("p1"), time.Unix(0, 0))
+	s.unsubscribe("aabb01", sub)
+
+	assert.EqualValues(t, 0, s.deliveredLive.Load())
+	assert.EqualValues(t, 0, s.stored.Load())
+	assert.EqualValues(t, 1, s.expired.Load())
+	assert.EqualValues(t, 0, countEntries(s))
+}
+
+func TestRestoreOnlyAppliesToCurrentSubscriber(t *testing.T) {
+	// restore is what the SSE handler calls when a write fails. Once a newer
+	// connection owns the token, the dead connection's ping is that
+	// connection's problem, not the new one's.
+	s := newStore(testTTL, slog.New(slog.DiscardHandler))
+	subA, _ := s.subscribe("aabb01")
+	subB, _ := s.subscribe("aabb01")
+
+	s.restore("aabb01", subA, &ping{payload: []byte("stale")}, false)
+
+	assert.EqualValues(t, 0, s.stored.Load(), "a replaced connection cannot resurrect its ping")
+	expectNone(t, subB)
+
+	s.restore("aabb01", subB, &ping{payload: []byte("mine")}, false)
+	_, pending := s.subscribe("aabb01")
+	assert.Equal(t, "mine", pendingPayload(pending))
 }
 
 func TestStaleUnsubscribeDoesNotEvictReplacement(t *testing.T) {
@@ -281,7 +361,7 @@ func TestUnsubscribeRemovesEmptyEntry(t *testing.T) {
 	// The token still works afterwards: an offline push recreates the entry.
 	s.push("aabb01", []byte("p1"), time.Time{})
 	_, pending := s.subscribe("aabb01")
-	assert.Equal(t, "p1", string(pending))
+	assert.Equal(t, "p1", pendingPayload(pending))
 }
 
 func TestTokensAreIndependent(t *testing.T) {
@@ -292,7 +372,7 @@ func TestTokensAreIndependent(t *testing.T) {
 
 	expectNone(t, subA)
 	_, pending := s.subscribe("bbbb02")
-	assert.Equal(t, "p1", string(pending))
+	assert.Equal(t, "p1", pendingPayload(pending))
 }
 
 func TestConcurrentAccess(t *testing.T) {
@@ -303,13 +383,13 @@ func TestConcurrentAccess(t *testing.T) {
 	const rounds = 200
 
 	var wg sync.WaitGroup
-	for i := 0; i < tokens; i++ {
+	for i := range tokens {
 		token := fmt.Sprintf("token%02x", i)
 
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			for r := 0; r < rounds; r++ {
+			for range rounds {
 				sub, pending := s.subscribe(token)
 				_ = pending
 				select {
@@ -322,7 +402,7 @@ func TestConcurrentAccess(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			for r := 0; r < rounds; r++ {
+			for range rounds {
 				s.push(token, []byte("p"), time.Time{})
 			}
 		}()

@@ -57,9 +57,13 @@ type Client struct {
 // Option configures a Client.
 type Option func(*Client)
 
-// WithBackoff sets the reconnect backoff bounds (default 1s..30s). The delay
-// doubles from lo to hi with each consecutive failure and resets to lo after
-// a successfully received event.
+// WithBackoff sets the reconnect backoff bounds (default 1s..30s). Every
+// reconnect waits, including after a stream that ended cleanly: a mock
+// restart disconnects every device at once, and redialing immediately would
+// turn 300k agents into a reconnect storm the server cannot come back up
+// under. The delay doubles from lo to hi with each attempt and resets to lo
+// after a healthy stream (one that delivered a ping, or stayed up longer than
+// hi).
 func WithBackoff(lo, hi time.Duration) Option {
 	return func(c *Client) {
 		c.backoffMin = lo
@@ -130,61 +134,94 @@ func (c *Client) run(ctx context.Context) {
 		sleep(time.Duration(rand.IntN(int(c.initialJitter)))) // nolint:gosec // weak rand is fine for jitter
 	}
 
-	for backoff := c.backoffMin; ctx.Err() == nil; backoff = min(backoff*2, c.backoffMax) {
-		err := c.connectAndStream(ctx)
-		if err == nil {
-			backoff = c.backoffMin // reset on a successful stream
-			continue
+	backoff := c.backoffMin
+	for ctx.Err() == nil {
+		healthy, err := c.connectAndStream(ctx)
+		if err != nil && ctx.Err() == nil {
+			c.logf("apnsmock client: %v", err)
 		}
-		c.logf("apnsmock client: %v", err)
-		jitter := time.Duration(0)
-		if half := backoff / 2; half > 0 {
-			jitter = time.Duration(rand.Int64N(int64(half))) // nolint:gosec // weak rand is fine for jitter
+		if ctx.Err() != nil {
+			return
 		}
-		sleep(backoff + jitter)
+		// A clean stream end is a disconnect too — the mock restarted, an LB
+		// closed the stream, or a newer connection took this token — so it
+		// backs off like any other. Only a stream that proved healthy resets
+		// the delay.
+		if healthy {
+			backoff = c.backoffMin
+		}
+		sleep(backoff + jitter(backoff))
+		backoff = min(backoff*2, c.backoffMax)
 	}
+}
+
+// jitter returns a random offset in [0, d/2) so a fleet of clients that were
+// all disconnected at the same moment does not redial in lockstep.
+func jitter(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+	return time.Duration(rand.Int64N(int64(d)/2 + 1)) // nolint:gosec // weak rand is fine for jitter
 }
 
 // connectAndStream opens one SSE connection and consumes it until it breaks,
 // delivering each ping. It returns on any failure — connect error, non-200
 // (the caller retries; the mock may be restarting), or stream end (EOF when
 // a newer connection for the token replaces this one).
-func (c *Client) connectAndStream(ctx context.Context) error {
+//
+// healthy reports whether the connection was worth resetting the backoff for:
+// it delivered at least one ping, or it stayed up longer than the maximum
+// backoff. A stream that dies immediately, over and over, is not healthy no
+// matter how cleanly it ends.
+func (c *Client) connectAndStream(ctx context.Context) (healthy bool, err error) {
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/events?token="+c.token, nil)
 	if err != nil {
-		return err
+		return false, err
 	}
 	httpReq.Header.Set("Accept", "text/event-stream")
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("apnsmock client: GET %s returned %d", httpReq.URL, resp.StatusCode)
+		return false, fmt.Errorf("apnsmock client: GET %s returned %d", httpReq.URL, resp.StatusCode)
 	}
+
+	connectedAt := time.Now()
+	pings := 0
+	defer func() { healthy = pings > 0 || time.Since(connectedAt) >= c.backoffMax }()
 
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 512), 8192)
 
+	// An event's payload can span several data: lines (the server splits a
+	// payload containing newlines that way, since SSE frames are newline
+	// delimited), so collect them and deliver on the blank line that ends the
+	// event.
+	var data []string
 	for scanner.Scan() {
 		line := scanner.Text()
 		switch {
+		case line == "": // end of event
+			if len(data) > 0 {
+				c.deliver([]byte(strings.Join(data, "\n")))
+				pings++
+				data = data[:0]
+			}
 		case strings.HasPrefix(line, ":"):
 			continue // keepalive comment
-		case strings.HasPrefix(line, "data: "):
-			c.deliver([]byte(line[len("data: "):]))
-		case strings.HasPrefix(line, "event:"):
-			continue // event type line; pings are the only event
-		case line == "":
-			continue // event boundary
+		case strings.HasPrefix(line, "data:"):
+			data = append(data, strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " "))
+		case strings.HasPrefix(line, "event:"), strings.HasPrefix(line, "id:"), strings.HasPrefix(line, "retry:"):
+			continue // other SSE fields; pings are the only event the mock sends
 		default:
-			return fmt.Errorf("apnsmock client: unexpected line %q", line)
+			return false, fmt.Errorf("apnsmock client: unexpected line %q", line)
 		}
 	}
-	return scanner.Err()
+	return false, scanner.Err()
 }
 
 // deliver hands a ping to the consumer without ever blocking the read loop:

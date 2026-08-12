@@ -15,9 +15,12 @@ type ping struct {
 	expiresAt time.Time
 }
 
-// subscriber is one live SSE connection for a device token.
+// subscriber is one live SSE connection for a device token. The channel
+// carries the whole ping, not just the payload, so a ping that is buffered
+// but never written to the wire can be put back with its original expiry
+// (see requeue).
 type subscriber struct {
-	ch       chan []byte   // buffered 1 — coalescing means one queued ping is enough
+	ch       chan *ping    // buffered 1 — coalescing means one queued ping is enough
 	replaced chan struct{} // closed when a newer connection takes over the token
 }
 
@@ -79,12 +82,12 @@ func newStore(defaultTTL time.Duration, logger *slog.Logger) *store {
 // one by closing its replaced channel (newest connection wins — a device
 // that reconnects after a network blip owns its token; the old handler's
 // deferred unsubscribe cannot evict it, see unsubscribe). It returns the
-// pending ping's payload if one exists and is unexpired, clearing it either
-// way (expired pings are dropped lazily here, expired++; delivered ones
-// count as deliveredOnConnect).
-func (s *store) subscribe(token string) (*subscriber, []byte) {
+// pending ping if one exists and is unexpired, clearing it either way
+// (expired pings are dropped lazily here, expired++; delivered ones count as
+// deliveredOnConnect).
+func (s *store) subscribe(token string) (*subscriber, *ping) {
 	sub := &subscriber{
-		ch:       make(chan []byte, 1),
+		ch:       make(chan *ping, 1),
 		replaced: make(chan struct{}),
 	}
 
@@ -99,25 +102,92 @@ func (s *store) subscribe(token string) (*subscriber, []byte) {
 		sh.entries[token] = e
 	}
 
-	// evict previous connections
+	// Evict the previous connection, keeping anything it never got to write
+	// (requeue runs before the pending hand-off below, so a reconnecting
+	// device immediately receives the wake-up its old connection missed).
 	if e.sub != nil {
 		close(e.sub.replaced)
+		s.requeue(e, e.sub)
 	}
 	e.sub = sub
 	s.connected.Add(1)
 
 	// deliver any pending ping
-	var payload []byte
+	var pending *ping
 	if e.pending != nil {
 		if e.pending.expiresAt.After(time.Now()) {
-			payload = e.pending.payload
+			pending = e.pending
 			s.deliveredOnConnect.Add(1)
 		} else {
 			s.expired.Add(1)
 		}
 		e.pending = nil
 	}
-	return sub, payload
+	return sub, pending
+}
+
+// requeue puts a ping that was buffered for a subscriber but never written to
+// the wire back into the entry's pending slot. push counts a ping as
+// deliveredLive the moment it lands in the channel, so if the connection is
+// replaced or drops before the handler drains it, the count is wrong and the
+// device would never see that wake-up: undo both here.
+//
+// The receive races the handler's own read of sub.ch, and exactly one of them
+// wins, so a ping is either written to the wire or requeued, never both.
+// Callers must hold the token's shard lock.
+func (s *store) requeue(e *entry, sub *subscriber) {
+	select {
+	case p := <-sub.ch:
+		s.deliveredLive.Add(-1)
+		s.storePending(e, p)
+	default:
+	}
+}
+
+// storePending holds a ping for a device that is not connected, applying APNS
+// retention rules: a zero expiry means no apns-expiration header was sent and
+// gets the server default TTL, while an expiry already in the past means
+// deliver-now-or-discard and is dropped (expired++), since there is no
+// connection to deliver it to. A ping overwrites any older pending one (APNS
+// coalescing, coalesced++), otherwise it counts as stored++. Reports whether
+// the ping was kept. Callers must hold the token's shard lock.
+func (s *store) storePending(e *entry, p *ping) bool {
+	if p.expiresAt.IsZero() {
+		p.expiresAt = time.Now().Add(s.defaultTTL)
+	} else if !p.expiresAt.After(time.Now()) {
+		s.expired.Add(1)
+		return false
+	}
+	if e.pending != nil {
+		s.coalesced.Add(1)
+	} else {
+		s.stored.Add(1)
+	}
+	e.pending = p
+	return true
+}
+
+// restore is requeue for a ping the SSE handler already drained but failed to
+// write (a broken or stalled connection). It is a no-op once a newer
+// connection owns the token, since that connection's own wake-ups supersede
+// this one. deliveredOnConnect pings pass onConnect=true so the right counter
+// is corrected.
+func (s *store) restore(token string, sub *subscriber, p *ping, onConnect bool) {
+	token = strings.ToLower(token)
+	sh := s.shardFor(token)
+	sh.Lock()
+	defer sh.Unlock()
+
+	e := sh.entries[token]
+	if e == nil || e.sub != sub {
+		return
+	}
+	if onConnect {
+		s.deliveredOnConnect.Add(-1)
+	} else {
+		s.deliveredLive.Add(-1)
+	}
+	s.storePending(e, p)
 }
 
 // push delivers or stores one notification, never blocking and never
@@ -143,10 +213,12 @@ func (s *store) push(token string, payload []byte, expiresAt time.Time) {
 
 	s.pushesReceived.Add(1)
 	e := sh.entries[token]
+	p := &ping{payload: payload, expiresAt: expiresAt}
+
 	// live subscriber, deliver now don't store
 	if e != nil && e.sub != nil {
 		select {
-		case e.sub.ch <- payload:
+		case e.sub.ch <- p:
 			s.deliveredLive.Add(1)
 		default:
 			s.coalesced.Add(1)
@@ -154,27 +226,13 @@ func (s *store) push(token string, payload []byte, expiresAt time.Time) {
 		return
 	}
 
-	// offline device or no subscriber, resolve expiration
-	if expiresAt.IsZero() {
-		expiresAt = time.Now().Add(s.defaultTTL)
-	} else if !expiresAt.After(time.Now()) {
-		s.expired.Add(1)
-		return
-	}
-
-	// store or overwrite
+	// offline device or no subscriber, store as the token's pending ping
 	if e == nil {
 		e = &entry{}
 		sh.entries[token] = e
 	}
-	if e.pending != nil {
-		s.coalesced.Add(1)
-	} else {
-		s.stored.Add(1)
-	}
-	e.pending = &ping{
-		payload:   payload,
-		expiresAt: expiresAt,
+	if !s.storePending(e, p) && e.sub == nil && e.pending == nil {
+		delete(sh.entries, token) // discarded: don't leave an empty entry behind
 	}
 }
 
@@ -193,9 +251,12 @@ func (s *store) unsubscribe(token string, sub *subscriber) {
 
 	e := sh.entries[token]
 	if e == nil || e.sub != sub {
+		// Already replaced: subscribe drained this subscriber when it evicted
+		// us, so there is nothing left to requeue.
 		return
 	}
 	e.sub = nil
+	s.requeue(e, sub) // the device dropped before reading its last wake-up
 	if e.pending == nil {
 		delete(sh.entries, token)
 	}
@@ -231,7 +292,7 @@ func shardIndex(token string) int {
 	// FNV-1a distributes well even on near-identical inputs — mdmtest tokens
 	// are hex("token"+serial), so they share long prefixes.
 	h := uint32(2166136261) // FNV-1a offset basis
-	for i := 0; i < len(token); i++ {
+	for i := range len(token) {
 		h = (h ^ uint32(token[i])) * 16777619 // FNV prime
 	}
 	return int(h & 0xff)

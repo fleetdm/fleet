@@ -15,6 +15,7 @@ go run ./cmd/apple-apns-mock --listen :8378
 | `--listen` | `:8378` | host:port to listen on |
 | `--default-ttl` | `24h` | how long a push to an offline device is kept when the request has no `apns-expiration` header |
 | `--keep-alive` | `30s` | SSE keep-alive comment interval. `0` disables. |
+| `--write-timeout` | `10s` | deadline for a single SSE write. A device that stops reading is disconnected instead of pinning its token. `0` disables. |
 | `--sweep-interval` | `10m` | how often expired pending pushes are dropped |
 | `--debug` | `false` | debug logging |
 
@@ -54,7 +55,8 @@ Store-and-forward lives in `store.go`, with full semantics on the `store` type a
 
 - One pending push per device token. A push to an offline device is stored until the device connects or the push expires. A newer push overwrites the pending one, matching APNs coalescing.
 - A push to a connected device is delivered immediately and never stored. APNs doesn't redeliver.
-- The newest connection for a token wins. An older connection for the same token is closed, like a real device reconnecting.
+- The newest connection for a token wins. An older connection for the same token is closed, like a real device reconnecting. A push that was queued for the old connection but never written to the wire goes back to pending, so the reconnecting device gets it.
+- A device that stops reading is disconnected after `--write-timeout` and its pending push is kept, rather than holding the token open and swallowing later pushes.
 - Pushes live in memory only. A restart drops them. Real APNs makes no delivery guarantee either.
 
 ## Simulated devices
@@ -66,7 +68,7 @@ event: ping
 data: {"mdm":"pushmagicABC123"}
 ```
 
-Keep-alive comment lines (`: keepalive`) flow on the `--keep-alive` interval and should be ignored. Use the Go client in [`pkg/mdm/apnsmock`](../../pkg/mdm/apnsmock) instead of hand-rolling this.
+Keep-alive comment lines (`: keepalive`) flow on the `--keep-alive` interval and should be ignored. A payload containing a newline is split across several `data:` lines, per SSE, and the client rejoins them with `\n`. Use the Go client in [`pkg/mdm/apnsmock`](../../pkg/mdm/apnsmock) instead of hand-rolling this.
 
 Smoke test with curl:
 

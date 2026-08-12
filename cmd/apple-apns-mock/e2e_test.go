@@ -35,9 +35,13 @@ func newTestServer(t *testing.T) *httptest.Server {
 }
 
 func newTestServerWithKeepAlive(t *testing.T, keepAlive time.Duration) *httptest.Server {
+	return newTestServerWithTimeouts(t, keepAlive, 10*time.Second)
+}
+
+func newTestServerWithTimeouts(t *testing.T, keepAlive, writeTimeout time.Duration) *httptest.Server {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	srv := httptest.NewServer(newMux(newStore(testTTL, logger), logger, keepAlive))
+	srv := httptest.NewServer(newMux(newStore(testTTL, logger), logger, keepAlive, writeTimeout))
 	t.Cleanup(srv.Close)
 	return srv
 }
@@ -78,8 +82,8 @@ func sseConnect(t *testing.T, baseURL, token string) *sseClient {
 	go func() {
 		defer close(events)
 		sc := bufio.NewScanner(resp.Body)
-		var name, data string
-		var hasData bool
+		var name string
+		var data []string
 		for sc.Scan() {
 			line := sc.Text()
 			switch {
@@ -87,13 +91,14 @@ func sseConnect(t *testing.T, baseURL, token string) *sseClient {
 				events <- sseEvent{comment: true, data: strings.TrimSpace(line[1:])}
 			case strings.HasPrefix(line, "event: "):
 				name = strings.TrimPrefix(line, "event: ")
-			case strings.HasPrefix(line, "data: "):
-				data = strings.TrimPrefix(line, "data: ")
-				hasData = true
+			case strings.HasPrefix(line, "data:"):
+				// A payload containing newlines spans several data: lines;
+				// SSE clients rejoin them with "\n".
+				data = append(data, strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " "))
 			case line == "":
-				if name != "" || hasData {
-					events <- sseEvent{name: name, data: data}
-					name, data, hasData = "", "", false
+				if name != "" || len(data) > 0 {
+					events <- sseEvent{name: name, data: strings.Join(data, "\n")}
+					name, data = "", nil
 				}
 			}
 		}
@@ -331,6 +336,18 @@ func TestE2EAPNSIDHeader(t *testing.T) {
 		assert.NoError(t, err, "generated apns-id should be a UUID, got %q", id)
 	})
 
+	t.Run("echoed on error responses", func(t *testing.T) {
+		// Real APNS returns apns-id on errors too; it is how a push is
+		// correlated with its response when dumping raw traffic.
+		const reqID = "6f1e3a8d-2b4c-4d1e-8f0a-9b8c7d6e5f40"
+		resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"m"}`), map[string]string{
+			"apns-id":        reqID,
+			"apns-push-type": "alert", // rejected in parsePushHeaders, before the id is returned
+		})
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		assert.Equal(t, reqID, resp.Header.Get("apns-id"))
+	})
+
 	t.Run("echoed when supplied", func(t *testing.T) {
 		// Real APNS echoes a request-supplied apns-id back in the response.
 		const reqID = "0f0b8e5c-3d5c-4c2e-9f9a-1c2d3e4f5a6b"
@@ -359,6 +376,46 @@ func TestE2EPushTypeHeader(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		assert.Equal(t, "InvalidPushType", requireAPNSErrorBody(t, resp))
 	})
+}
+
+func TestE2EPayloadWithNewlineIsFramedSafely(t *testing.T) {
+	// PushMagic comes from the device's TokenUpdate and buford builds the
+	// body by string concatenation, so a payload can contain a raw newline.
+	// Emitted as-is it would end the SSE event early and corrupt every frame
+	// after it; the server must split it across data: lines instead.
+	srv := newTestServer(t)
+	const token = "aabbccddee0d"
+	payload := "{\"mdm\":\"line1\nline2\"}"
+
+	c := sseConnect(t, srv.URL, token)
+	waitConnected(t, srv.URL, 1)
+
+	resp := pushRaw(t, srv.URL, token, []byte(payload), nil)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	assert.Equal(t, payload, nextPing(t, c, 5*time.Second), "payload must survive the round trip intact")
+
+	// Framing is still intact for the next event.
+	resp = pushRaw(t, srv.URL, token, []byte(`{"mdm":"after"}`), nil)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, `{"mdm":"after"}`, nextPing(t, c, 5*time.Second))
+}
+
+func TestE2EWriteTimeoutDoesNotKillHealthyStream(t *testing.T) {
+	// The per-write deadline exists so a device that stops reading cannot pin
+	// its token forever. It must be re-armed on every write, or a stream that
+	// simply lives longer than the timeout would be torn down.
+	srv := newTestServerWithTimeouts(t, 20*time.Millisecond, 50*time.Millisecond)
+	const token = "aabbccddee0e"
+
+	c := sseConnect(t, srv.URL, token)
+	waitConnected(t, srv.URL, 1)
+
+	time.Sleep(200 * time.Millisecond) // several keepalive intervals, well past one write timeout
+
+	resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"still here"}`), nil)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, `{"mdm":"still here"}`, nextPing(t, c, 5*time.Second))
 }
 
 func TestE2EInvalidTokenRejected(t *testing.T) {

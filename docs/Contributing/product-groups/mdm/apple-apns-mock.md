@@ -29,7 +29,7 @@ The wire contract (request and response shapes, header semantics, error bodies) 
 
 This is the behavior the old timer-driven setup couldn't model, and the main reason the mock exists. Semantics match real APNs:
 
-- **Connected device**: the push is delivered immediately and never stored. APNs doesn't redeliver. A wake-up lost mid-flight is recovered by Fleet's `apns_push_to_pending_hosts` cron, which re-pushes hosts with pending commands.
+- **Connected device**: the push is delivered immediately and never stored. APNs doesn't redeliver. If the connection is replaced or drops before the push reaches the wire, it goes back to pending so the device gets it on reconnect. A wake-up genuinely lost mid-flight is recovered by Fleet's `apns_push_to_pending_hosts` cron, which re-pushes hosts with pending commands.
 - **Offline device**: the push is kept as the token's single pending push and delivered when the device connects. A newer push overwrites the older one (APNs keeps only the most recent notification per device). Default retention is 24h; an `apns-expiration` header overrides it, with `0` meaning deliver-now-or-discard.
 - **Restart**: pending pushes are lost. Real APNs makes no delivery guarantee either.
 
@@ -43,7 +43,7 @@ The mock accepts any even-length hex token. Real APNs also enforces the 32-byte 
 
 ## Client library
 
-`pkg/mdm/apnsmock` is the Go client simulated devices use: connect, auto-reconnect with jittered backoff, deliver each push on a channel. The channel is buffered 1 and drops pushes while full, the same coalescing rule as the server, because an MDM wake-up carries no unique data.
+`pkg/mdm/apnsmock` is the Go client simulated devices use: connect, auto-reconnect with jittered backoff, deliver each push on a channel. Every reconnect backs off, including after a stream that ended cleanly, so a mock restart doesn't turn 300k agents into a reconnect storm. The channel is buffered 1 and drops pushes while full, the same coalescing rule as the server, because an MDM wake-up carries no unique data.
 
 ## Scale
 

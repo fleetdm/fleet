@@ -13,7 +13,7 @@
 //	go run ./tools/mdm/apple/apnspush/main.go -mysql localhost:3306 -server-private-key <key> HOST_UUID1 HOST_UUID2 ...
 //
 // Direct mode: resolves the device token and push magic from the DB, then
-// sends a raw HTTP/2 request to APNS itself — no buford, no nanomdm push
+// sends a raw request to APNS itself — no buford, no nanomdm push
 // provider — and dumps Apple's raw response (status, headers, body) so the
 // actual APNS behavior can be inspected:
 //
@@ -49,13 +49,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"golang.org/x/net/http2"
 )
 
 func main() {
 	mysqlAddr := flag.String("mysql", "localhost:3306", "mysql address")
 	serverPrivateKey := flag.String("server-private-key", "", "fleet server's private key (to decrypt MDM assets)")
-	direct := flag.Bool("direct", false, "send raw HTTP/2 requests directly to APNS, bypassing buford and the nanomdm push service, and dump the raw responses")
+	direct := flag.Bool("direct", false, "send raw requests directly to APNS, bypassing buford and the nanomdm push service, and dump the raw responses")
 	apnsURL := flag.String("url", "https://api.push.apple.com", "APNS base URL for -direct mode (e.g. https://api.development.push.apple.com for the sandbox, or a mock server)")
 	expiration := flag.Int64("expiration", -1, "apns-expiration header value (unix seconds) for -direct mode; -1 omits the header like Fleet does, 0 means deliver-now-or-discard")
 	fake := flag.Bool("fake", false, "for -direct mode: UUIDs not found in nano_enrollments are pushed anyway, deriving the mdmtest scheme (token=hex(\"token\"+UUID), magic=\"pushmagic\"+UUID) instead of being skipped")
@@ -136,8 +135,8 @@ func main() {
 
 // pushDirect resolves each host UUID to its device token and push magic via
 // nano_enrollments, then sends the same request Fleet sends today —
-// POST /3/device/<token> with body {"mdm":"<magic>"} — over HTTP/2 with the
-// APNS certificate from mdm_config_assets as the TLS client certificate, and
+// POST /3/device/<token> with body {"mdm":"<magic>"} — with the APNS
+// certificate from mdm_config_assets as the TLS client certificate, and
 // prints the raw response.
 func pushDirect(ctx context.Context, mdmStorage *mysql.NanoMDMStorage, baseURL string, expiration int64, fake bool, pushType string, hostUUIDs []string) error {
 	cert, _, err := mdmStorage.RetrievePushCert(ctx, "")
@@ -150,17 +149,13 @@ func pushDirect(ctx context.Context, mdmStorage *mysql.NanoMDMStorage, baseURL s
 		return fmt.Errorf("retrieve push info from DB: %w", err)
 	}
 
-	// APNS requires HTTP/2; force it on the transport instead of relying on
-	// ALPN defaults so a failure to negotiate is loud.
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{ // nolint:gosec // complains about TLS min version too low
-			Certificates: []tls.Certificate{*cert},
-		},
-	}
-	if err := http2.ConfigureTransport(tr); err != nil {
-		return fmt.Errorf("configure http2 transport: %w", err)
-	}
-	client := &http.Client{Transport: tr}
+	// Same client the buford path above builds, so -direct exercises the
+	// transport Fleet actually uses. HTTP/2 comes from ALPN (fleethttp's
+	// transport inherits ForceAttemptHTTP2 from http.DefaultTransport); the
+	// response's Proto is printed below, so a downgrade is visible.
+	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{ // nolint:gosec // complains about TLS min version too low
+		Certificates: []tls.Certificate{*cert},
+	}))
 
 	var failed int
 	for _, uuid := range hostUUIDs {

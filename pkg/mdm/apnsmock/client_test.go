@@ -211,6 +211,48 @@ func TestClientReconnectsAfterDisconnect(t *testing.T) {
 	assert.GreaterOrEqual(t, srv.connCount(), 2)
 }
 
+func TestClientBacksOffAfterCleanStreamEnd(t *testing.T) {
+	// A stream that ends cleanly is still a disconnect. Redialing with no
+	// delay spins at 100% CPU, and at 300k agents a single mock restart
+	// becomes a reconnect storm the server cannot come back up under.
+	srv := newSSEServer(t, func(conn int, w http.ResponseWriter, r *http.Request) {
+		startSSE(w) // 200, then immediately end the stream
+	})
+
+	c := NewClient(srv.URL(), testToken, WithBackoff(40*time.Millisecond, time.Second))
+	c.Start(t.Context())
+
+	time.Sleep(300 * time.Millisecond)
+
+	conns := srv.connCount()
+	assert.Positive(t, conns, "client should keep retrying")
+	// 300ms of 40ms-and-doubling backoff is ~4 attempts; allow slack for
+	// scheduling, but a no-backoff loop would land in the thousands.
+	assert.LessOrEqual(t, conns, 12, "reconnects must be throttled by the backoff")
+}
+
+func TestClientJoinsMultiLineData(t *testing.T) {
+	// The server splits a payload containing newlines across data: lines
+	// (SSE frames are newline delimited). The client must rejoin them, not
+	// treat the continuation as a protocol error and drop the stream.
+	srv := newSSEServer(t, func(conn int, w http.ResponseWriter, r *http.Request) {
+		f := startSSE(w)
+		fmt.Fprint(w, "event: ping\ndata: {\"mdm\":\"line1\ndata: line2\"}\n\n")
+		f.Flush()
+		<-r.Context().Done()
+	})
+
+	c := NewClient(srv.URL(), testToken)
+	c.Start(t.Context())
+
+	p := recvPing(t, c.Pings(), 5*time.Second)
+	assert.Equal(t, "{\"mdm\":\"line1\nline2\"}", string(p.Raw), "the payload must be rejoined byte for byte")
+	// A raw newline inside a JSON string is not valid JSON, so the magic
+	// cannot be parsed — the ping is still delivered, Raw intact.
+	assert.Empty(t, p.PushMagic)
+	assert.Equal(t, 1, srv.connCount(), "a multi-line payload must not tear the stream down")
+}
+
 func TestClientRetriesFailedConnections(t *testing.T) {
 	// Any connect failure — non-200, network error — is retryable with
 	// backoff; the client never gives up until its context is done.
