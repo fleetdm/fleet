@@ -1,1 +1,0 @@
-- Fixed the Fleet-maintained app auto-update cron ignoring a manifest that goes back to a version Fleet already downloaded, or that republishes a version with a new installer. The cron now follows the manifest the same way a GitOps apply does.

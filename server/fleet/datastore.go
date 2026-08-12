@@ -2937,9 +2937,8 @@ type Datastore interface {
 	// downloaded first.
 	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]FleetMaintainedVersion, error)
 
-	// MarkFleetMaintainedAppVersionCurrent moves a cached version's uploaded_at to
-	// now, so the version the manifest publishes today sorts ahead of versions that
-	// were downloaded after it.
+	// MarkFleetMaintainedAppVersionCurrent moves a cached version's uploaded_at to now.
+	// GetFleetMaintainedVersionsByTitleID then returns it first.
 	MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error
 
 	// ListFleetMaintainedAppActiveInstallers returns the active installer for
