@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -296,6 +297,25 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 		assert.Greater(t, store.getPolicyVersion(testPolicyName(testESID)), int64(57))
 	})
 
+	// A policy patched before the device registers again leaves this process holding a low
+	// version for that policy. Reporting it would tell Fleet the device's applied version
+	// went backwards, and Fleet only verifies profiles whose included_in_policy_version is
+	// <= the applied version — so every profile delivered before the restart would be stuck
+	// Pending until some later patch happened to exceed the pre-restart version.
+	t.Run("a version issued before the restore does not regress the reported version", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		require.Equal(t, http.StatusOK, patchPolicy(t, mux, testESID).Code)
+
+		req := defaultRegisterRequest()
+		req.PolicyName = testPolicyName(testESID)
+		req.PolicyVersion = 57
+		registerTestDevice(t, mux, req, http.StatusOK)
+
+		state := getTestState(t, mux, testESID, http.StatusOK)
+		assert.GreaterOrEqual(t, state.PolicyVersion, int64(57),
+			"the reported version must never go backwards")
+	})
+
 	t.Run("a first registration gets the default policy", func(t *testing.T) {
 		mux, store := newTestMux(t)
 		registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
@@ -306,20 +326,34 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 		assert.Zero(t, d.PolicyVersion)
 	})
 
-	// A bogus version must not push the counter near overflow: the next issued version would
-	// wrap negative and every version after it would be negative and decreasing.
-	t.Run("an absurd version cannot overflow the counter", func(t *testing.T) {
-		mux, store := newTestMux(t)
-		req := defaultRegisterRequest()
-		req.PolicyName = testPolicyName(testESID)
-		req.PolicyVersion = 1<<62 + 1
-		registerTestDevice(t, mux, req, http.StatusOK)
+	// An out-of-range version must not reach Fleet at all. Fleet verifies profiles whose
+	// included_in_policy_version is <= the applied version, so an absurdly high version would
+	// flip every pending profile to Verified; a negative one would verify nothing ever.
+	for _, version := range []int64{1<<62 + 1, maxRestorablePolicyVersion + 1, -1} {
+		t.Run(fmt.Sprintf("an out-of-range version %d is ignored", version), func(t *testing.T) {
+			mux, store := newTestMux(t)
+			req := defaultRegisterRequest()
+			req.PolicyName = testPolicyName(testESID)
+			req.PolicyVersion = version
+			registerTestDevice(t, mux, req, http.StatusOK)
 
-		require.Equal(t, http.StatusOK, patchPolicy(t, mux, testESID).Code)
-		assert.Positive(t, store.getPolicyVersion(testPolicyName(testESID)),
-			"issued versions must stay positive")
-		assert.Less(t, store.getPolicyVersion(testPolicyName(testESID)), int64(maxRestorablePolicyVersion)+1)
-	})
+			d := store.getByESID(testESID)
+			require.NotNil(t, d)
+			assert.Zero(t, d.PolicyVersion, "the bogus version must not be kept on the device")
+			assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName,
+				"the device falls back to a fresh registration")
+
+			// And it must not be reported to Fleet either.
+			state := getTestState(t, mux, testESID, http.StatusOK)
+			assert.Zero(t, state.PolicyVersion)
+
+			// The version counter must still issue sane, positive versions.
+			require.Equal(t, http.StatusOK, patchPolicy(t, mux, testESID).Code)
+			issued := store.getPolicyVersion(testPolicyName(testESID))
+			assert.Positive(t, issued, "issued versions must stay positive")
+			assert.LessOrEqual(t, issued, int64(maxRestorablePolicyVersion))
+		})
+	}
 
 	// Re-registration must not discard state other handlers already attached to the device.
 	t.Run("re-registration keeps pending state", func(t *testing.T) {
@@ -384,6 +418,116 @@ func TestDeletedDeviceStaysDeleted(t *testing.T) {
 	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusGone)
 	assert.Nil(t, store.getByESID(testESID))
 	assert.Empty(t, store.allDeviceNames(), "a deleted device must stay out of the AMAPI device list")
+}
+
+// TestDeleteOfUnknownDeviceStaysDeleted covers the delete that lands while this process has
+// forgotten the device — i.e. exactly the restart window this change is about. The ESID isn't
+// known then, so the deletion is recorded by resource name and the agent's next registration
+// must still be refused. Otherwise the device resurrects, and if Fleet also deleted the host
+// the next STATUS_REPORT re-creates it as a ghost.
+func TestDeleteOfUnknownDeviceStaysDeleted(t *testing.T) {
+	mux, store := newTestMux(t)
+
+	// No device is registered: this process restarted and the agent has not come back yet.
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("DELETE", "/v1/"+testDeviceName, nil))
+	require.Equal(t, http.StatusNotFound, rr.Code, "an unknown device is reported as absent")
+
+	// The agent polls (404, since the ESID was never seen), then tries to register.
+	getTestState(t, mux, testESID, http.StatusNotFound)
+	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusGone)
+
+	assert.Nil(t, store.getByESID(testESID))
+	assert.Empty(t, store.allDeviceNames(), "a deleted device must stay out of the AMAPI device list")
+}
+
+// TestDevicesPatchDoesNotLowerReportedVersion covers the device patch after a restart: the
+// policy has no version in this process yet, and zeroing the device's restored version would
+// make it report applied version 0, verifying nothing.
+func TestDevicesPatchDoesNotLowerReportedVersion(t *testing.T) {
+	mux, store := newTestMux(t)
+	req := defaultRegisterRequest()
+	req.PolicyName = testPolicyName(testESID)
+	req.PolicyVersion = 57
+	registerTestDevice(t, mux, req, http.StatusOK)
+
+	body := fmt.Sprintf(`{"policyName":%q,"state":"ACTIVE"}`, testPolicyName(testESID))
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("PATCH", "/v1/"+testDeviceName, bytes.NewReader([]byte(body))))
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var resp struct {
+		AppliedPolicyVersion string `json:"appliedPolicyVersion"`
+	}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.Equal(t, "57", resp.AppliedPolicyVersion)
+
+	d := store.getByESID(testESID)
+	require.NotNil(t, d)
+	assert.Equal(t, int64(57), d.PolicyVersion)
+	assert.Equal(t, int64(57), getTestState(t, mux, testESID, http.StatusOK).PolicyVersion)
+}
+
+// TestDevicesPatchToNewPolicyUsesNewPolicyVersion pins the other direction: moving a device to
+// a different policy must not carry the old policy's version over, which would over-verify.
+func TestDevicesPatchToNewPolicyUsesNewPolicyVersion(t *testing.T) {
+	mux, store := newTestMux(t)
+	req := defaultRegisterRequest()
+	req.PolicyName = testPolicyName("old-policy")
+	req.PolicyVersion = 57
+	registerTestDevice(t, mux, req, http.StatusOK)
+
+	// Fleet patches the new policy first, then points the device at it.
+	require.Equal(t, http.StatusOK, patchPolicy(t, mux, testESID).Code)
+	issued := store.getPolicyVersion(testPolicyName(testESID))
+	require.Positive(t, issued)
+
+	body := fmt.Sprintf(`{"policyName":%q,"state":"ACTIVE"}`, testPolicyName(testESID))
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("PATCH", "/v1/"+testDeviceName, bytes.NewReader([]byte(body))))
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	d := store.getByESID(testESID)
+	require.NotNil(t, d)
+	assert.Equal(t, testPolicyName(testESID), d.PolicyName)
+	assert.Equal(t, issued, d.PolicyVersion, "the old policy's version must not carry over")
+}
+
+// TestStoreConcurrentAccess exercises the store from several goroutines so the race detector
+// has something to look at: every other test drives it from a single goroutine.
+func TestStoreConcurrentAccess(t *testing.T) {
+	mux, store := newTestMux(t)
+	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+
+	var wg sync.WaitGroup
+	for i := range 8 {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			switch i % 4 {
+			case 0:
+				payload, err := json.Marshal(defaultRegisterRequest())
+				require.NoError(t, err)
+				rr := httptest.NewRecorder()
+				mux.ServeHTTP(rr, httptest.NewRequest("POST", "/mock/devices/register", bytes.NewReader(payload)))
+			case 1:
+				rr := httptest.NewRecorder()
+				mux.ServeHTTP(rr, httptest.NewRequest("GET", "/mock/devices/"+testESID+"/state", nil))
+			case 2:
+				patchPolicy(t, mux, testESID)
+			case 3:
+				rr := httptest.NewRecorder()
+				mux.ServeHTTP(rr, httptest.NewRequest("POST",
+					fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, testESID),
+					bytes.NewReader(certChangesBody(t, certConfig(certTemplate(1, fleet.MDMOperationTypeInstall))))))
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	// The store is still coherent: the device is present exactly once.
+	assert.Len(t, store.allDeviceNames(), 1)
+	assert.NotNil(t, store.getByESID(testESID))
 }
 
 // TestGetStateUnknownDeviceReturns404 pins the status code the agent relies on to tell that

@@ -25,6 +25,14 @@ import (
 // androidAgent simulates a single Android device for load testing.
 // It communicates with Fleet via PubSub messages (enrollment, status reports, command acks)
 // and coordinates with a mock AMAPI proxy to get policy versions and pending commands.
+//
+// The proxy keeps devices in memory only, so a proxy restart leaves it listing no devices
+// until each agent registers again. Registering again only happens on the next status-report
+// tick, so a restart exposes a window of up to one --android_status_interval in which Fleet's
+// device reconciler can see the fleet as absent and unenroll it (one mdm_unenrolled activity
+// per host) before the next status report re-enrolls it. Keep that interval short when
+// restarting the proxy mid-test; closing the window entirely means persisting the proxy's
+// device store across restarts.
 type androidAgent struct {
 	agentIndex    int
 	serverAddress string
@@ -60,8 +68,9 @@ type androidAgent struct {
 	statusReportInterval time.Duration
 
 	// lastState is the most recent state successfully polled from the mock proxy. It is
-	// reused when a later poll fails so the agent keeps reporting instead of going silent,
-	// which Fleet's device reconciler would eventually treat as an unenrollment.
+	// reused when a later poll fails so the agent keeps reporting instead of going silent.
+	// Fleet's device reconciler unenrolls hosts that the proxy stops listing, and a status
+	// report is what re-enrolls one, so an agent that goes quiet cannot recover.
 	// staleStateReports counts how many consecutive reports have used it.
 	lastState         *proxyDeviceState
 	staleStateReports int
@@ -399,8 +408,7 @@ var errProxyDeviceUnknown = errors.New("device not registered with proxy")
 var errProxyDeviceDeleted = errors.New("device was deleted from the proxy")
 
 // maxStaleStateReports bounds how many consecutive status reports may be sent from a stale
-// cached state. Reporting forever would keep a dead agent looking healthy and would re-drive
-// Fleet's certificate API with the same templates every cycle.
+// cached state, so a permanently broken agent stops looking healthy.
 const maxStaleStateReports = 10
 
 // pollProxyState asks the mock proxy for the current state this device should report.
@@ -430,9 +438,11 @@ func (a *androidAgent) pollProxyState() (*proxyDeviceState, error) {
 }
 
 // currentState polls the mock proxy for this device's state, recovering from a proxy that
-// lost its in-memory registration by registering again. If the state still can't be
-// fetched, the last known state is reused so the agent keeps sending status reports: going
-// silent makes Fleet's hourly device reconciler mark the host unenrolled.
+// lost its in-memory registration by registering again. If the state still can't be fetched,
+// the last known state is reused so the agent keeps sending status reports. Fleet's hourly
+// device reconciler unenrolls hosts the proxy no longer lists — which is every fake device
+// until it registers again after a proxy restart — and a status report is what re-enrolls
+// one, so an agent that goes quiet stays unenrolled.
 //
 // The returned bool reports whether the state is stale (reused rather than freshly polled),
 // so the caller can still count the failure instead of reporting a healthy load test.
@@ -475,8 +485,8 @@ func (a *androidAgent) lastKnownState(err error) (*proxyDeviceState, bool, error
 	// send duplicate operation results to Fleet.
 	stale := *a.lastState
 	stale.PendingCommands = nil
-	// Certificates were already handled against the earlier state; re-serving them would
-	// re-drive Fleet's certificate API every cycle for as long as the proxy is unreachable.
+	// Certificates can't have changed while the proxy is unreachable, so there is nothing to
+	// act on; the agent re-checks them as usual once a real state comes back.
 	stale.PendingCertificates = nil
 	return &stale, true, nil
 }

@@ -40,13 +40,6 @@ func handleRegister(store *deviceStore) http.HandlerFunc {
 			http.Error(w, "enterprise_specific_id and device_name required", http.StatusBadRequest)
 			return
 		}
-		// A device Fleet deleted through AMAPI was genuinely unenrolled; letting it register
-		// again would resurrect it and re-enroll the host.
-		if store.wasDeleted(req.EnterpriseSpecificID) {
-			http.Error(w, "device was deleted", http.StatusGone)
-			return
-		}
-
 		d := fakeDevice{
 			EnterpriseSpecificID: req.EnterpriseSpecificID,
 			DeviceName:           req.DeviceName,
@@ -57,15 +50,31 @@ func handleRegister(store *deviceStore) http.HandlerFunc {
 		// A device that registers again after this process lost its state (restart) reports
 		// the policy it last observed. Keep it, otherwise the device would tell Fleet its
 		// applied policy regressed to the default at version 0.
-		if d.PolicyName == "" {
+		//
+		// A version outside the restorable range is a bug in the caller rather than recovered
+		// state, and must not be reported to Fleet: Fleet verifies profiles whose
+		// included_in_policy_version is <= the applied version, so an absurdly high version
+		// would flip every pending profile to Verified. Fall back to a fresh registration.
+		restorable := d.PolicyVersion >= 0 && d.PolicyVersion <= maxRestorablePolicyVersion
+		if !restorable {
+			log.Printf("Ignoring out-of-range policy version %d reported by device %s", d.PolicyVersion, d.EnterpriseSpecificID) // #nosec G706 -- load testing tool
+		}
+		if d.PolicyName == "" || !restorable {
 			d.PolicyVersion = 0
+			d.PolicyName = ""
 			if d.EnterpriseID != "" {
 				d.PolicyName = fmt.Sprintf("enterprises/%s/policies/default", d.EnterpriseID)
 			}
 		} else {
 			store.raisePolicyVersionCounter(d.PolicyVersion)
 		}
-		store.register(&d)
+
+		// A device Fleet deleted through AMAPI was genuinely unenrolled; letting it register
+		// again would resurrect it and re-enroll the host.
+		if !store.register(&d) {
+			http.Error(w, "device was deleted", http.StatusGone)
+			return
+		}
 		log.Printf("Registered fake device: %s (name: %s)", d.EnterpriseSpecificID, d.DeviceName)
 		w.WriteHeader(http.StatusOK)
 	}
@@ -89,10 +98,16 @@ func handleGetState(store *deviceStore) http.HandlerFunc {
 		d.mu.Lock()
 		policyVersion := d.PolicyVersion
 		if d.PolicyName != "" {
-			if v := store.getPolicyVersion(d.PolicyName); v > 0 {
+			// Report the higher of the version this process issued for the policy and the
+			// version the device already observed (which is higher after a restart, since the
+			// version counter starts over). Reporting a lower version would tell Fleet the
+			// device's applied policy went backwards, and Fleet only verifies profiles whose
+			// included_in_policy_version is <= the applied version — so profiles delivered
+			// before the restart would be stuck Pending.
+			if v := store.getPolicyVersion(d.PolicyName); v > policyVersion {
 				policyVersion = v
-				d.PolicyVersion = v
 			}
+			d.PolicyVersion = policyVersion
 		}
 		state := struct {
 			PolicyVersion       int64    `json:"policy_version"`
@@ -164,11 +179,14 @@ func handleDevicesPatch(store *deviceStore) http.HandlerFunc {
 		var appliedVersion int64
 		if d != nil {
 			d.mu.Lock()
-			if reqBody.PolicyName != "" {
+			if reqBody.PolicyName != "" && reqBody.PolicyName != d.PolicyName {
+				// The version the device holds belongs to the policy it is moving off of.
 				d.PolicyName = reqBody.PolicyName
+				d.PolicyVersion = 0
 			}
 			if d.PolicyName != "" {
-				appliedVersion = store.getPolicyVersion(d.PolicyName)
+				// As in handleGetState, never lower the version the device already observed.
+				appliedVersion = max(d.PolicyVersion, store.getPolicyVersion(d.PolicyName))
 				d.PolicyVersion = appliedVersion
 			}
 			d.mu.Unlock()

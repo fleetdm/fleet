@@ -49,11 +49,18 @@ type deviceStore struct {
 	byESID map[string]*fakeDevice
 	// byName maps AMAPI device resource name -> device
 	byName map[string]*fakeDevice
-	// deletedESIDs records devices Fleet deleted through AMAPI. Deletion is a real
-	// unenrollment, not lost state, so such a device must never come back: a device that
+	// deletedESIDs and deletedNames record devices Fleet deleted through AMAPI. Deletion is a
+	// real unenrollment, not lost state, so such a device must never come back: a device that
 	// registered again after being deleted would re-enroll itself in Fleet and produce an
 	// unenroll/enroll flip-flop.
+	//
+	// Both keys are needed. A delete that arrives while this process has forgotten the device
+	// (restarted, and the agent has not registered again yet) can only be recorded by resource
+	// name, since the ESID is not known then; the agent's next registration is matched on
+	// either key. Devices are never removed from these sets, which is bounded by how many
+	// devices a load test deletes.
 	deletedESIDs map[string]struct{}
+	deletedNames map[string]struct{}
 
 	// policyVersions tracks the latest version for each policy name.
 	// Fleet uses per-device policies named enterprises/{id}/policies/{hostUUID}.
@@ -69,6 +76,7 @@ func newDeviceStore() *deviceStore {
 		byESID:         make(map[string]*fakeDevice),
 		byName:         make(map[string]*fakeDevice),
 		deletedESIDs:   make(map[string]struct{}),
+		deletedNames:   make(map[string]struct{}),
 		policyVersions: make(map[string]int64),
 		policyVersion:  1,
 	}
@@ -113,9 +121,19 @@ func (ds *deviceStore) raisePolicyVersionCounter(version int64) {
 // register adds a device, or updates the identity and policy fields of one that is already
 // known. An existing device is updated in place so that state other handlers hold a pointer
 // to (pending commands, pending certificates) survives a device registering again.
-func (ds *deviceStore) register(d *fakeDevice) {
+//
+// It reports false, and registers nothing, for a device that was deleted. The check shares
+// the write lock with the insert so a delete can't land between the two.
+func (ds *deviceStore) register(d *fakeDevice) bool {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
+
+	if _, ok := ds.deletedESIDs[d.EnterpriseSpecificID]; ok {
+		return false
+	}
+	if _, ok := ds.deletedNames[d.DeviceName]; ok {
+		return false
+	}
 
 	if existing, ok := ds.byESID[d.EnterpriseSpecificID]; ok {
 		existing.mu.Lock()
@@ -126,17 +144,22 @@ func (ds *deviceStore) register(d *fakeDevice) {
 		existing.PolicyVersion = d.PolicyVersion
 		existing.mu.Unlock()
 		ds.byName[existing.DeviceName] = existing
-		return
+		return true
 	}
 
 	ds.byESID[d.EnterpriseSpecificID] = d
 	ds.byName[d.DeviceName] = d
+	return true
 }
 
-// markDeleted removes a device and records that it was deleted, not merely forgotten.
+// markDeleted records that the device with this resource name was deleted, not merely
+// forgotten, and removes it if it is currently known. The name is recorded either way: a
+// delete that arrives after this process lost its state has no other identifier to key on,
+// and the device must still not be able to register again.
 func (ds *deviceStore) markDeleted(name string) (*fakeDevice, bool) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
+	ds.deletedNames[name] = struct{}{}
 	d, ok := ds.byName[name]
 	if !ok {
 		return nil, false
