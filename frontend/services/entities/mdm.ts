@@ -47,6 +47,9 @@ export interface IUploadProfileApiParams {
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
+  /** Custom activation JSON for an Apple DDM declaration. Sent as a file part;
+   * omit it to let Fleet synthesize a simple activation. */
+  customActivation?: string;
 }
 
 export interface IUpdateProfileApiParams {
@@ -57,6 +60,10 @@ export interface IUpdateProfileApiParams {
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
+  /** Custom activation JSON for an Apple DDM declaration. Replace semantics: an
+   * empty or omitted value deletes any stored activation, so callers must resend
+   * the current one even when they're only changing something else. */
+  customActivation?: string;
 }
 
 export interface IGetAssetsApiParams {
@@ -170,6 +177,7 @@ const mdmService = {
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
+    customActivation,
   }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
@@ -178,6 +186,16 @@ const mdmService = {
 
     if (teamId) {
       formData.append("fleet_id", teamId.toString());
+    }
+
+    if (customActivation?.trim()) {
+      // the API reads this from the multipart File map, not Value, so it has to
+      // be appended as a Blob with a filename.
+      formData.append(
+        "activation",
+        new Blob([customActivation], { type: "application/json" }),
+        "activation.json"
+      );
     }
 
     labelsIncludeAll?.forEach((label) => {
@@ -195,15 +213,17 @@ const mdmService = {
     return sendRequest("POST", MDM_PROFILES, formData);
   },
 
-  /** Updates an existing profile's contents and/or label targeting. Labels
-   * use replace semantics: omitting all label fields clears label targeting
-   * (the profile targets all hosts). */
+  /** Updates an existing profile's contents and/or label targeting. Labels and
+   * the custom activation both use replace semantics: omitting all label fields
+   * clears label targeting (the profile targets all hosts), and omitting the
+   * activation deletes any stored one. */
   updateProfile: ({
     profileUUID,
     profile,
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
+    customActivation,
   }: IUpdateProfileApiParams) => {
     const { CONFIG_PROFILE } = endpoints;
 
@@ -211,6 +231,16 @@ const mdmService = {
 
     if (profile) {
       formData.append("profile", profile);
+    }
+
+    if (customActivation?.trim()) {
+      // as on upload, the API reads this from the multipart File map rather than
+      // Value, so it has to be a Blob with a filename.
+      formData.append(
+        "activation",
+        new Blob([customActivation], { type: "application/json" }),
+        "activation.json"
+      );
     }
 
     labelsIncludeAll?.forEach((label) => {

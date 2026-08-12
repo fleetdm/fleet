@@ -26,14 +26,17 @@ import {
   LabelTargetMode,
   TargetType,
 } from "components/TargetLabelSelector";
+import ProfileAdvancedOptions from "../../../ProfileAdvancedOptions";
 import ProfileGraphic from "../ProfileGraphic";
 
 import {
   DEFAULT_ERROR_MESSAGE,
+  EXAMPLE_CUSTOM_ACTIVATION,
   generateCustomTargetLabelKey,
   getErrorMessage,
   IParseFileResult,
   parseFile,
+  validateCustomActivation,
 } from "../../helpers";
 
 const baseClass = "add-profile-modal";
@@ -128,8 +131,28 @@ const AddProfileModal = ({
   const [selectedExcludeLabels, setSelectedExcludeLabels] = useState<
     Record<string, boolean>
   >({});
+  const [customActivation, setCustomActivation] = useState("");
+  const [customActivationError, setCustomActivationError] = useState<
+    string | null
+  >(null);
+
+  // NOTE: validating per keystroke deviates from the validation pattern in
+  // frontend/docs/patterns.md#data-validation, which says to re-validate on
+  // blur. Approved for this field: partial JSON is invalid by definition, so
+  // the error shows for most of the time the admin is typing, but blur-only
+  // feedback would leave them composing a multi-line snippet with none at all.
+  // To be raised with the frontend leads for a wider decision.
+  const onChangeCustomActivation = (value: string) => {
+    setCustomActivation(value);
+    setCustomActivationError(validateCustomActivation(value));
+  };
 
   const fileRef = useRef<File | null>(null);
+
+  // advanced options only apply to Apple DDM declarations, and custom
+  // activations are a Premium feature.
+  const showAdvancedOptions =
+    isPremiumTier && !!fileDetails?.isAppleDeclaration;
 
   const {
     data: labels,
@@ -155,6 +178,7 @@ const AddProfileModal = ({
     setFileDetails(null);
     setSelectedIncludeLabels({});
     setSelectedExcludeLabels({});
+    setCustomActivation("");
     setShowModal(false);
   }, [fileRef, setShowModal]);
 
@@ -177,16 +201,20 @@ const AddProfileModal = ({
         file,
         teamId: currentTeamId,
         ...labelKey,
+        // only declarations on Premium have an activation to send.
+        customActivation: showAdvancedOptions ? customActivation : undefined,
       });
       notify.success("Successfully uploaded.");
       onUpload();
+      // only closed on success: a rejected upload keeps the modal open with the
+      // file and activation intact so the admin can correct and retry.
+      onDone();
     } catch (e) {
       notify.error(getErrorMessage(e as AxiosResponse<IApiError>), {
         response: e,
       });
     } finally {
       setIsLoading(false);
-      onDone();
     }
   };
 
@@ -203,6 +231,11 @@ const AddProfileModal = ({
     try {
       const details = await parseFile(file);
       setFileDetails(details);
+      // the example is a placeholder rather than a seeded value, so choosing a
+      // file leaves the editor empty and nothing is sent unless the admin
+      // writes an activation.
+      setCustomActivation("");
+      setCustomActivationError(null);
     } catch (e) {
       notify.error("Invalid file type", { response: e });
     } finally {
@@ -277,6 +310,14 @@ const AddProfileModal = ({
                 }}
               />
             </div>
+          )}
+          {showAdvancedOptions && (
+            <ProfileAdvancedOptions
+              customActivation={customActivation}
+              onChangeCustomActivation={onChangeCustomActivation}
+              placeholder={EXAMPLE_CUSTOM_ACTIVATION}
+              error={customActivationError}
+            />
           )}
           <div className={`${baseClass}__button-wrap`}>
             <Button variant="secondary" onClick={onDone}>
