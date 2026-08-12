@@ -639,16 +639,24 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 			"Android custom commands can only target a single host at a time.").WithStatus(http.StatusBadRequest)
 	}
 
-	// Parse the command type for premium gating. The type field is required for
-	// commands without params (LOCK, RESET_PASSWORD, REBOOT, etc.).
+	// Parse the command type and sensitive fields for premium gating.
 	var cmdPayload struct {
-		Type string `json:"type"`
+		Type        string `json:"type"`
+		NewPassword string `json:"newPassword"`
 	}
 	if err := json.Unmarshal(rawJSON, &cmdPayload); err != nil {
 		return nil, fleet.NewInvalidArgumentError("command", "invalid Android command JSON").WithStatus(http.StatusBadRequest)
 	}
 
-	if androidMDMPremiumCommands[strings.TrimSpace(cmdPayload.Type)] {
+	// Normalize to uppercase to match AMAPI convention and our premium map keys.
+	cmdType := strings.ToUpper(strings.TrimSpace(cmdPayload.Type))
+
+	// If type is omitted but newPassword is set, AMAPI infers RESET_PASSWORD.
+	if cmdType == "" && cmdPayload.NewPassword != "" {
+		cmdType = "RESET_PASSWORD"
+	}
+
+	if androidMDMPremiumCommands[cmdType] {
 		lic, err := svc.License(ctx)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get license")
