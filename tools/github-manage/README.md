@@ -91,6 +91,18 @@ chmod +x gm
 ./gm pre-sprint report mdm,soft --format csv
 ```
 
+### 🎩 Jarvis — personal work dashboard
+
+```bash
+./gm jarvis   # your GitHub work, sorted by leverage
+```
+
+An issue-centric TUI over the PRs you authored, the PRs awaiting your
+review, and the issues assigned to you — with one-keystroke actions to
+start work (branches a local clone + launches a Claude session), merge,
+cherry-pick, and move project Status. See **[JARVIS.md](JARVIS.md)** for
+onboarding, key bindings, and config.
+
 ## 🎮 Interactive Controls
 
 ### 📝 **Issue List Navigation**
