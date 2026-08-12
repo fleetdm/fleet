@@ -186,10 +186,11 @@ func (svc Service) ModifyTeamScheduledQueries(
 	scheduledQueryID uint,
 	scheduledQueryPayload fleet.ScheduledQueryPayload,
 ) (*fleet.ScheduledQuery, error) {
-	if _, err := svc.scheduledQueryInScope(ctx, scheduledQueryID, teamIDOrNilForGlobal(teamID)); err != nil {
+	scoped, err := svc.scheduledQueryInScope(ctx, scheduledQueryID, teamIDOrNilForGlobal(teamID))
+	if err != nil {
 		return nil, err
 	}
-	query, err := svc.ModifyQuery(ctx, scheduledQueryID, fleet.ScheduledQueryPayloadToQueryPayloadForModifyQuery(scheduledQueryPayload))
+	query, err := svc.modifyLoadedQuery(ctx, scoped, fleet.ScheduledQueryPayloadToQueryPayloadForModifyQuery(scheduledQueryPayload))
 	if err != nil {
 		return nil, err
 	}
@@ -222,8 +223,9 @@ func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint) error {
-	if _, err := svc.scheduledQueryInScope(ctx, scheduledQueryID, teamIDOrNilForGlobal(teamID)); err != nil {
+	scoped, err := svc.scheduledQueryInScope(ctx, scheduledQueryID, teamIDOrNilForGlobal(teamID))
+	if err != nil {
 		return err
 	}
-	return svc.DeleteQueryByID(ctx, scheduledQueryID)
+	return svc.deleteLoadedQuery(ctx, scoped)
 }

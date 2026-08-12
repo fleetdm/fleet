@@ -134,10 +134,11 @@ func modifyGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) ModifyGlobalScheduledQueries(ctx context.Context, id uint, scheduledQueryPayload fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	if _, err := svc.scheduledQueryInScope(ctx, id, nil); err != nil {
+	scoped, err := svc.scheduledQueryInScope(ctx, id, nil)
+	if err != nil {
 		return nil, err
 	}
-	query, err := svc.ModifyQuery(ctx, id, fleet.ScheduledQueryPayloadToQueryPayloadForModifyQuery(scheduledQueryPayload))
+	query, err := svc.modifyLoadedQuery(ctx, scoped, fleet.ScheduledQueryPayloadToQueryPayloadForModifyQuery(scheduledQueryPayload))
 	if err != nil {
 		return nil, err
 	}
@@ -169,8 +170,9 @@ func deleteGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) DeleteGlobalScheduledQueries(ctx context.Context, id uint) error {
-	if _, err := svc.scheduledQueryInScope(ctx, id, nil); err != nil {
+	scoped, err := svc.scheduledQueryInScope(ctx, id, nil)
+	if err != nil {
 		return err
 	}
-	return svc.DeleteQueryByID(ctx, id)
+	return svc.deleteLoadedQuery(ctx, scoped)
 }

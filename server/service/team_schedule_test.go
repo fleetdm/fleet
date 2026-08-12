@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -186,10 +187,16 @@ func requireIndistinguishableNotFound(t *testing.T, existingErr, missingErr erro
 	assert.True(t, fleet.IsNotFound(existingErr), "got: %v", existingErr)
 	assert.True(t, fleet.IsNotFound(missingErr), "got: %v", missingErr)
 
-	var existingNotFound, missingNotFound *common_mysql.NotFoundError
-	require.ErrorAs(t, existingErr, &existingNotFound)
-	require.ErrorAs(t, missingErr, &missingNotFound)
-	assert.Equal(t, missingNotFound.ResourceType, existingNotFound.ResourceType,
+	notFoundResource := func(err error) string {
+		var notFound *common_mysql.NotFoundError
+		if !errors.As(err, &notFound) || notFound == nil {
+			return ""
+		}
+		return notFound.ResourceType
+	}
+	existingResource := notFoundResource(existingErr)
+	require.NotEmpty(t, existingResource, "expected a NotFoundError, got: %v", existingErr)
+	assert.Equal(t, notFoundResource(missingErr), existingResource,
 		"the masked not-found must name the same resource as the datastore's real one")
 }
 
