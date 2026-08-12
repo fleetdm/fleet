@@ -248,6 +248,11 @@ func microsoftGraphVerifyMessage(err error) string {
 
 // persistMicrosoftGraphCredentials reconciles stored credentials to match the supplied list, and reports which tenants
 // were added, edited, or deleted so the caller can emit one activity apiece.
+//
+// storedByTenant distinguishes nil from empty, and the difference is load-bearing: nil means "the caller did not read
+// the stored credentials", so this function reads them itself to work out what to delete. A non-nil empty map means
+// "the caller read them and there are none". Passing an empty map when the caller has not actually read would silently
+// skip every delete, so callers must pass nil rather than an empty map when they skipped the read.
 func (svc *Service) persistMicrosoftGraphCredentials(
 	ctx context.Context,
 	creds []fleet.MicrosoftGraphCredential,
@@ -259,7 +264,7 @@ func (svc *Service) persistMicrosoftGraphCredentials(
 			storedTenants[tenantID] = struct{}{}
 		}
 	} else {
-		// The clear-everything path. We need to get what we need to delete.
+		// The caller skipped the read (empty incoming list), so read what is stored to work out the deletes.
 		storedMeta, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
 		if err != nil {
 			return nil, nil, nil, ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")

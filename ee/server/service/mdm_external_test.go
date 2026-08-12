@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -129,12 +130,18 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
-		nil, // msGraphClientFactory
+		// A nil factory would be replaced with the real msgraph.NewClient, leaving this fixture holding a live Graph
+		// client that would reach login.microsoftonline.com if a test ever exercised credential verification.
+		noopGraphClientFactory,
 	)
 	if err != nil {
 		panic(err)
 	}
 	return ds, svc, ctx
+}
+
+func noopGraphClientFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
+	return nil, nil
 }
 
 func TestGetOrCreatePreassignTeam(t *testing.T) {
