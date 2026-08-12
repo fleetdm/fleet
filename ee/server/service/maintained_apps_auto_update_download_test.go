@@ -39,13 +39,18 @@ type fakeManifestServer struct {
 	install       string // install script ref body (default "echo install")
 	uninstall     string // uninstall script ref body (default "echo uninstall")
 	upgradeCode   string // manifest upgrade_code (default empty)
+	installerPath string // path the installer is served from (default "/installer.pkg")
 	manifestHits  int
 	installerHits int
 	mu            sync.Mutex
 }
 
 func newFakeManifestServer(t *testing.T) *fakeManifestServer {
-	f := &fakeManifestServer{bytes: []byte("fake installer payload"), version: testFMALatest, install: "echo install", uninstall: "echo uninstall"}
+	return newFakeManifestServerWithInstaller(t, "/installer.pkg")
+}
+
+func newFakeManifestServerWithInstaller(t *testing.T, installerPath string) *fakeManifestServer {
+	f := &fakeManifestServer{bytes: []byte("fake installer payload"), version: testFMALatest, install: "echo install", uninstall: "echo uninstall", installerPath: installerPath}
 	sum := sha256.Sum256(f.bytes)
 	f.sha = hex.EncodeToString(sum[:])
 
@@ -57,7 +62,7 @@ func newFakeManifestServer(t *testing.T) *fakeManifestServer {
 		manifest := ma.FMAManifestFile{
 			Versions: []*ma.FMAManifestApp{{
 				Version:            f.version,
-				InstallerURL:       f.srv.URL + "/installer.pkg",
+				InstallerURL:       f.srv.URL + f.installerPath,
 				SHA256:             f.sha,
 				UpgradeCode:        f.upgradeCode,
 				InstallScriptRef:   "i",
@@ -69,7 +74,7 @@ func newFakeManifestServer(t *testing.T) *fakeManifestServer {
 		}
 		_ = json.NewEncoder(w).Encode(manifest)
 	})
-	mux.HandleFunc("/installer.pkg", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(installerPath, func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		f.installerHits++
 		f.mu.Unlock()
@@ -154,7 +159,7 @@ func baseDownloadStore(t *testing.T, activeVersion string, activeID uint) *mock.
 }
 
 func TestAutoUpdateDownloadsAndPromotes(t *testing.T) {
-	srv := newFakeManifestServer(t)
+	srv := newFakeManifestServerWithInstaller(t, "/installer.PKG")
 	ds := baseDownloadStore(t, "149.0.0", 9)
 
 	var gotActiveInstaller uint
@@ -175,7 +180,7 @@ func TestAutoUpdateDownloadsAndPromotes(t *testing.T) {
 	require.Equal(t, uint(9), gotActiveInstaller, "clones from the current active installer")
 	require.Equal(t, testFMALatest, gotPayload.Version)
 	require.Equal(t, srv.sha, gotPayload.StorageID)
-	require.Equal(t, "installer.pkg", gotPayload.Filename)
+	require.Equal(t, "installer.PKG", gotPayload.Filename, "filename keeps the original casing")
 	require.Equal(t, "pkg", gotPayload.Extension)
 	require.Equal(t, "echo install", gotPayload.InstallScript)
 	require.True(t, store.PutFuncInvoked, "stores bytes before promotion")

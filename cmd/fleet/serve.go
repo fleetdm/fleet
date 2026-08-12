@@ -72,6 +72,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -512,6 +513,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		redis_key_value.New(redisPool),
 		androidSvc,
 		orgLogoStore,
+		msgraph.NewClient,
 	)
 	if err != nil {
 		initFatal(err, "initializing service")

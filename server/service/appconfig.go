@@ -1071,6 +1071,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
 	// ignore MDM.AndroidEnabledAndConfigured because it is set by the server only
 	appConfig.MDM.AndroidEnabledAndConfigured = oldAppConfig.MDM.AndroidEnabledAndConfigured
+	// ignore MDM.MicrosoftGraphCredentialInvalid because the server recomputes it from the credentials table
+	appConfig.MDM.MicrosoftGraphCredentialInvalid = oldAppConfig.MDM.MicrosoftGraphCredentialInvalid
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
