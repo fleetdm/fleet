@@ -1261,12 +1261,12 @@ func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Hos
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertCmdStmt = `
 			INSERT INTO mdm_android_commands
-				(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message)
+				(command_uuid, host_uuid, operation_name, command_type, raw_command, status, error_code, error_message)
 			VALUES
-				(?, ?, ?, ?, ?, ?, ?)
+				(?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		if _, err := tx.ExecContext(ctx, insertCmdStmt,
-			cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.Status,
+			cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.RawCommand, cmd.Status,
 			cmd.ErrorCode, cmd.ErrorMessage,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert mdm_android_commands for "+refColumn)

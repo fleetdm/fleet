@@ -914,6 +914,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 			HostUUID:      host.UUID,
 			OperationName: op.Name,
 			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			RawCommand:    marshalRawCommand(&androidmanagement.Command{Type: string(android.MDMAndroidCommandTypeWipe), WipeParams: &androidmanagement.WipeParams{}, Duration: longCommandDuration}),
 			Status:        string(android.MDMAndroidCommandStatusPending),
 		}
 		if err := svc.fleetDS.WipeHostViaAndroidMDM(ctx, host, cmd); err != nil {
@@ -938,6 +939,16 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 // semantics where commands stay queued at the MDM server until delivered, we set this to 10 years — effectively
 // "pending forever" for any realistic device lifecycle. AMAPI docs explicitly state "There is no maximum duration."
 const longCommandDuration = "315360000s" // 10 * 365 * 24 * 3600
+
+// marshalRawCommand serializes an AMAPI Command to JSON for storage in mdm_android_commands.raw_command.
+// Returns a valid sql.Null[string] on success, or an invalid (NULL) value if marshaling fails.
+func marshalRawCommand(cmd *androidmanagement.Command) sql.Null[string] {
+	b, err := json.Marshal(cmd)
+	if err != nil {
+		return sql.Null[string]{}
+	}
+	return sql.Null[string]{V: string(b), Valid: true}
+}
 
 // resolveAndroidCommandTarget centralizes the host/enterprise/secret lookup shared by all three command-issuing methods
 // (Lock, Wipe, ClearPasscode). Returns the host (for host_mdm_actions writes and audit fields) and the AMAPI deviceName
@@ -1005,6 +1016,7 @@ func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
 		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		RawCommand:    marshalRawCommand(&androidmanagement.Command{Type: string(android.MDMAndroidCommandTypeLock), Duration: longCommandDuration}),
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
 	if err := svc.fleetDS.LockHostViaAndroidMDM(ctx, host, cmd); err != nil {
@@ -1041,6 +1053,7 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (stri
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
 		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+		RawCommand:    marshalRawCommand(&androidmanagement.Command{Type: string(android.MDMAndroidCommandTypeResetPassword), Duration: longCommandDuration}),
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
 	if err := svc.fleetDS.ClearPasscodeHostViaAndroidMDM(ctx, host, cmd); err != nil {
@@ -1075,6 +1088,7 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
 		CommandType:   string(android.MDMAndroidCommandTypeWipe),
+		RawCommand:    marshalRawCommand(&androidmanagement.Command{Type: string(android.MDMAndroidCommandTypeWipe), WipeParams: &androidmanagement.WipeParams{}, Duration: longCommandDuration}),
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
 	if err := svc.fleetDS.WipeHostViaAndroidMDM(ctx, host, cmd); err != nil {
@@ -1122,12 +1136,16 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 		cmdType = "CUSTOM"
 	}
 
+	// Redact sensitive fields before persisting. The original rawJSON (with any
+	// password) was already sent to AMAPI above; only the stored copy is sanitized.
+	amapiCmd.NewPassword = ""
+
 	cmd := &android.MDMAndroidCommand{
 		CommandUUID:   uuid.NewString(),
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
 		CommandType:   cmdType,
-		RawCommand:    sql.Null[string]{V: string(rawJSON), Valid: true},
+		RawCommand:    marshalRawCommand(&amapiCmd),
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
 	if err := svc.fleetDS.InsertMDMAndroidCommand(ctx, cmd); err != nil {

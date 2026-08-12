@@ -2701,7 +2701,7 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("Update on missing row returns NotFound", func(t *testing.T) {
-		err := ds.UpdateMDMAndroidCommandStatus(ctx, "missing-uuid", string(android.MDMAndroidCommandStatusAcknowledged), nil, nil)
+		err := ds.UpdateMDMAndroidCommandStatus(ctx, "missing-uuid", string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil)
 		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-uuid").Error())
 	})
 
@@ -2730,7 +2730,7 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		require.Equal(t, cmd.CommandUUID, byOp.CommandUUID)
 
 		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID,
-			string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+			string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 
 		acked, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
 		require.NoError(t, err)
@@ -2752,7 +2752,7 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		errCode := "UNSUPPORTED"
 		errMsg := "device does not support WIPE"
 		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
-			string(android.MDMAndroidCommandStatusError), &errCode, &errMsg))
+			string(android.MDMAndroidCommandStatusError), &errCode, &errMsg, nil))
 
 		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
 		require.NoError(t, err)
@@ -2776,7 +2776,7 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		huge := strings.Repeat("x", 5000)
 		errCode := "13"
 		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
-			string(android.MDMAndroidCommandStatusError), &errCode, &huge))
+			string(android.MDMAndroidCommandStatusError), &errCode, &huge, nil))
 
 		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
 		require.NoError(t, err)

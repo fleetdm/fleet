@@ -625,6 +625,11 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	return result, nil
 }
 
+var androidMDMPremiumCommands = map[string]bool{
+	"LOCK":           true,
+	"RESET_PASSWORD": true,
+}
+
 // enqueueAndroidMDMCommand issues an AMAPI custom command for each targeted Android host.
 // rawJSON is the base64-decoded JSON bytes of the AMAPI Command object.
 // For now, only single-host targeting is supported.
@@ -632,6 +637,25 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 	if len(hosts) != 1 {
 		return nil, fleet.NewInvalidArgumentError("host_uuids",
 			"Android custom commands can only target a single host at a time.").WithStatus(http.StatusBadRequest)
+	}
+
+	// Parse the command type for premium gating. The type field is required for
+	// commands without params (LOCK, RESET_PASSWORD, REBOOT, etc.).
+	var cmdPayload struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(rawJSON, &cmdPayload); err != nil {
+		return nil, fleet.NewInvalidArgumentError("command", "invalid Android command JSON").WithStatus(http.StatusBadRequest)
+	}
+
+	if androidMDMPremiumCommands[strings.TrimSpace(cmdPayload.Type)] {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get license")
+		}
+		if !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
+		}
 	}
 
 	host := hosts[0]

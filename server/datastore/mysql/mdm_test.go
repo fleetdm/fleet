@@ -4022,6 +4022,56 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		disconnectedWithoutCheckoutMac.UUID: false,
 		disconnectedWithoutCheckoutWin.UUID: false,
 	}, connectedMap)
+
+	// Android: enrolled host should be connected
+	connectedAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-connected",
+		OsqueryHostID: ptr.String("osquery-android-connected"),
+		NodeKey:       ptr.String("node-key-android-connected"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, connectedAndroid.ID, false, true, "https://android.example.com", true, "Android", "", false)
+	require.NoError(t, err)
+
+	// Android: host without MDM enrollment should not be connected
+	notConnectedAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-not-connected",
+		OsqueryHostID: ptr.String("osquery-android-not-connected"),
+		NodeKey:       ptr.String("node-key-android-not-connected"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+
+	// Android: unenrolled host (enrolled=false) should not be connected
+	unenrolledAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-unenrolled",
+		OsqueryHostID: ptr.String("osquery-android-unenrolled"),
+		NodeKey:       ptr.String("node-key-android-unenrolled"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, unenrolledAndroid.ID, false, false, "", false, "", "", false)
+	require.NoError(t, err)
+
+	connectedMap, err = ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
+		connectedMac,
+		connectedWin,
+		connectedAndroid,
+		notConnectedAndroid,
+		unenrolledAndroid,
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{
+		connectedMac.UUID:      true,
+		connectedWin.UUID:      true,
+		connectedAndroid.UUID:  true,
+		notConnectedAndroid.UUID: false,
+		unenrolledAndroid.UUID: false,
+	}, connectedMap)
 }
 
 func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {

@@ -92,7 +92,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 				}
 				var gotStatus string
 				var gotCode, gotMsg *string
-				mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+				mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 					require.Equal(t, cmd.CommandUUID, commandUUID)
 					gotStatus, gotCode, gotMsg = status, errorCode, errorMessage
 					return nil
@@ -121,7 +121,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
 			return &androidmanagement.Operation{Name: operationName, Done: false}, nil
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			t.Fatalf("a command AMAPI is still working on must not be transitioned")
 			return nil
 		}
@@ -139,7 +139,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
 			return nil, googleAPIError(http.StatusNotFound, "Requested entity was not found.")
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			t.Fatalf("a command still inside the not-found grace period must not be transitioned")
 			return nil
 		}
@@ -158,7 +158,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		}
 		var gotStatus string
 		var gotCode, gotMsg *string
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			gotStatus, gotCode, gotMsg = status, errorCode, errorMessage
 			return nil
 		}
@@ -180,7 +180,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
 			return &androidmanagement.Operation{Name: operationName, Done: true}, nil
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			return nil
 		}
 		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
@@ -231,7 +231,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) {
 			return false, errors.New("simulated transient DB connection drop")
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			t.Fatalf("the command must stay pending when its wipe side effect fails")
 			return nil
 		}
@@ -250,7 +250,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 				Error: &androidmanagement.Status{Code: 13, Message: "wipe failed"},
 			}, nil
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			require.Equal(t, string(android.MDMAndroidCommandStatusError), status)
 			return nil
 		}
@@ -271,7 +271,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 			return &androidmanagement.Operation{Name: operationName, Done: true}, nil
 		}
 		var updated []string
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			if commandUUID == updateFailing.CommandUUID {
 				return errors.New("simulated transient DB failure")
 			}
