@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -2411,7 +2412,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 
 		// Validate display_name length (matches database VARCHAR(255))
-		if len(item.DisplayName) > 255 {
+		if utf8.RuneCountInString(item.DisplayName) > 255 {
 			multiError = multierror.Append(multiError, fmt.Errorf("app_store_id %q display_name is too long (max 255 characters)", item.AppStoreID))
 			continue
 		}
@@ -2434,6 +2435,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if count > 1 {
 			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
+			continue
+		}
+
+		// Validate display_name length (matches database VARCHAR(255))
+		if utf8.RuneCountInString(maintainedAppSpec.DisplayName) > 255 {
+			multiError = multierror.Append(multiError, fmt.Errorf("fleet maintained app %q display_name is too long (max 255 characters)", maintainedAppSpec.Slug))
 			continue
 		}
 
@@ -2632,7 +2639,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 
 			// Validate display_name length (matches database VARCHAR(255))
-			if len(softwarePackageSpec.DisplayName) > 255 {
+			if utf8.RuneCountInString(softwarePackageSpec.DisplayName) > 255 {
 				multiError = multierror.Append(multiError, fmt.Errorf("software package %q display_name is too long (max 255 characters)", softwarePackageSpec.URL))
 				continue
 			}

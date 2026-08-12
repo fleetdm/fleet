@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260812165318(t *testing.T) {
+func TestUp_20260812220611(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	cmdUUID := uuid.New().String()

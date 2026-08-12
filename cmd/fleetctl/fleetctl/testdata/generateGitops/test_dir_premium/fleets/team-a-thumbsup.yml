@@ -204,7 +204,7 @@ software:
     - Label A
     - Label B
     post_install_script:
-      path: "../lib/team-a-👍/scripts/my-fma-darwin-postinstall"
+      path: "../lib/team-a-👍/scripts/my-fma-darwin-postinstall.sh"
     pre_install_query:
       path: "../lib/team-a-👍/queries/my-fma-darwin-preinstallquery.yml"
     self_service: true
@@ -228,16 +228,16 @@ software:
     icon:
       path: "../lib/team-a-👍/icons/my-software-package-darwin-icon.png"
     install_script:
-      path: "../lib/team-a-👍/scripts/my-software-package-darwin-install"
+      path: "../lib/team-a-👍/scripts/my-software-package-darwin-install.sh"
     labels_include_any:
     - Label A
     - Label B
     post_install_script:
-      path: "../lib/team-a-👍/scripts/my-software-package-darwin-postinstall"
+      path: "../lib/team-a-👍/scripts/my-software-package-darwin-postinstall.sh"
     pre_install_query:
       path: "../lib/team-a-👍/queries/my-software-package-darwin-preinstallquery.yml"
     self_service: true
     setup_experience: true
     uninstall_script:
-      path: "../lib/team-a-👍/scripts/my-software-package-darwin-uninstall"
+      path: "../lib/team-a-👍/scripts/my-software-package-darwin-uninstall.sh"
     url: https://example.com/download/my-software.pkg

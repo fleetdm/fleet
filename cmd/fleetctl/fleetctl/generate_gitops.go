@@ -784,6 +784,13 @@ func generateFilename(name string) string {
 	return fileName
 }
 
+func scriptExtensionForPlatform(platform string) string {
+	if platform == "windows" {
+		return ".ps1"
+	}
+	return ".sh"
+}
+
 var isJSON = regexp.MustCompile(`^\s*\{`)
 
 // Generate a filename for a profile based on its name and contents.
@@ -2216,6 +2223,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if softwareTitle.SoftwarePackage != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
+			scriptExtension := scriptExtensionForPlatform(sw.SoftwarePackage.Platform)
 
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
@@ -2248,7 +2256,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if !isScriptPackage {
 				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.InstallScript, fmaInstallScriptModified) {
 					script := softwareTitle.SoftwarePackage.InstallScript
-					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install"+scriptExtension)
 					path := fmt.Sprintf("../%s", fileName)
 					softwareSpec["install_script"] = map[string]interface{}{
 						"path": path,
@@ -2258,7 +2266,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				if softwareTitle.SoftwarePackage.PostInstallScript != "" {
 					script := softwareTitle.SoftwarePackage.PostInstallScript
-					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall")
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall"+scriptExtension)
 					path := fmt.Sprintf("../%s", fileName)
 					softwareSpec["post_install_script"] = map[string]interface{}{
 						"path": path,
@@ -2268,7 +2276,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.UninstallScript, fmaUninstallScriptModified) {
 					script := softwareTitle.SoftwarePackage.UninstallScript
-					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall"+scriptExtension)
 					path := fmt.Sprintf("../%s", fileName)
 					softwareSpec["uninstall_script"] = map[string]interface{}{
 						"path": path,
@@ -2492,6 +2500,7 @@ func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitl
 	items := make([]map[string]any, 0, len(title.Packages))
 	for i, pkg := range title.Packages {
 		prefix := fmt.Sprintf("%s-%s-%d", generateFilename(swName), pkg.Platform, i+1)
+		scriptExtension := scriptExtensionForPlatform(pkg.Platform)
 		item := map[string]any{"hash_sha256": pkg.StorageID}
 		if pkg.URL != "" {
 			item["url"] = pkg.URL
@@ -2503,13 +2512,13 @@ func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitl
 			item["categories"] = pkg.Categories
 		}
 		if pkg.InstallScript != "" {
-			item["install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-install", pkg.InstallScript)}
+			item["install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-install"+scriptExtension, pkg.InstallScript)}
 		}
 		if pkg.PostInstallScript != "" {
-			item["post_install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-postinstall", pkg.PostInstallScript)}
+			item["post_install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-postinstall"+scriptExtension, pkg.PostInstallScript)}
 		}
 		if pkg.UninstallScript != "" {
-			item["uninstall_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-uninstall", pkg.UninstallScript)}
+			item["uninstall_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-uninstall"+scriptExtension, pkg.UninstallScript)}
 		}
 		if pkg.PreInstallQuery != "" {
 			item["pre_install_query"] = map[string]any{"path": writeSideFile("queries", prefix+"-preinstallquery.yml", []map[string]any{{"query": pkg.PreInstallQuery}})}
