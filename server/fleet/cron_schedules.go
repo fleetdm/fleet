@@ -38,9 +38,6 @@ const (
 	// name embeds the version onto the title owned by the Fleet-maintained app's
 	// installer.
 	CronWindowsMaintainedAppTitles CronScheduleName = "windows_maintained_app_titles"
-	// CronMacOSMaintainedAppNames renames macOS software and software titles to the
-	// canonical Fleet-maintained app name.
-	CronMacOSMaintainedAppNames CronScheduleName = "macos_maintained_app_names"
 	// CronMaintainedAppsAutoUpdate advances each Fleet-maintained app's active
 	// installer to the newest cached version its pin state allows. Premium only;
 	// runs every 1h.

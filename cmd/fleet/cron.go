@@ -2361,18 +2361,10 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			if err := maintained_apps.SyncAppsList(ctx, ds); err != nil {
-				return err
-			}
-
-			// Best effort so a name the catalog just changed applies now instead of on
-			// CronMacOSMaintainedAppNames' next tick. That schedule owns the pass and
-			// surfaces its errors, so a failure here warns instead of failing a refresh
-			// that already succeeded.
-			if err := ds.ReconcileMaintainedAppSoftwareNames(ctx); err != nil {
-				logger.WarnContext(ctx, "reconciling macOS maintained app software names after a catalog refresh", "err", err)
-			}
-			return nil
+			return maintained_apps.SyncAppsList(ctx, ds)
+		}),
+		schedule.WithJob("reconcile_macos_maintained_app_names", func(ctx context.Context) error {
+			return ds.ReconcileMaintainedAppSoftwareNames(ctx)
 		}),
 	)
 
@@ -2410,32 +2402,6 @@ func newWindowsMaintainedAppTitlesSchedule(
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("reconcile_windows_maintained_app_titles", func(ctx context.Context) error {
 			return ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx)
-		}),
-	)
-
-	return s, nil
-}
-
-func newMacOSMaintainedAppNamesSchedule(
-	ctx context.Context,
-	instanceID string,
-	ds fleet.Datastore,
-	logger *slog.Logger,
-) (*schedule.Schedule, error) {
-	const (
-		name            = string(fleet.CronMacOSMaintainedAppNames)
-		defaultInterval = 1 * time.Hour
-		priorJobDiff    = -(defaultInterval - 30*time.Second)
-	)
-
-	logger = logger.With("cron", name)
-	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds, ds,
-		schedule.WithLogger(logger),
-		// ensures it runs a few seconds after Fleet is started
-		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
-		schedule.WithJob("reconcile_macos_maintained_app_names", func(ctx context.Context) error {
-			return ds.ReconcileMaintainedAppSoftwareNames(ctx)
 		}),
 	)
 
