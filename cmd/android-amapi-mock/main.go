@@ -292,10 +292,8 @@ func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Durati
 // would silently reintroduce the resource-lookup bug the moment AMAPI grows another one.
 // Resource IDs themselves are UUIDs or numeric IDs and never contain a colon.
 func trimAction(resourceID string) string {
-	if i := strings.IndexByte(resourceID, ':'); i >= 0 {
-		return resourceID[:i]
-	}
-	return resourceID
+	id, _, _ := strings.Cut(resourceID, ":")
+	return id
 }
 
 // deviceName builds the AMAPI resource name from path values.

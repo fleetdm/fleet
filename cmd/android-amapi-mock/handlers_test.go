@@ -499,28 +499,35 @@ func TestStoreConcurrentAccess(t *testing.T) {
 	mux, store := newTestMux(t)
 	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
 
+	// Everything the goroutines need is built up front: assertions may only run on the test's
+	// own goroutine, so the workers just drive requests.
+	registerPayload, err := json.Marshal(defaultRegisterRequest())
+	require.NoError(t, err)
+	certBody := certChangesBody(t, certConfig(certTemplate(1, fleet.MDMOperationTypeInstall)))
+	policyActionPath := fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, testESID)
+	policyPatchPath := fmt.Sprintf("/v1/enterprises/%s/policies/%s", testEnterpriseID, testESID)
+
+	newRequest := []func() *http.Request{
+		func() *http.Request {
+			return httptest.NewRequest("POST", "/mock/devices/register", bytes.NewReader(registerPayload))
+		},
+		func() *http.Request {
+			return httptest.NewRequest("GET", "/mock/devices/"+testESID+"/state", nil)
+		},
+		func() *http.Request {
+			return httptest.NewRequest("PATCH", policyPatchPath, bytes.NewReader([]byte(`{}`)))
+		},
+		func() *http.Request {
+			return httptest.NewRequest("POST", policyActionPath, bytes.NewReader(certBody))
+		},
+	}
+
 	var wg sync.WaitGroup
 	for i := range 8 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			switch i % 4 {
-			case 0:
-				payload, err := json.Marshal(defaultRegisterRequest())
-				require.NoError(t, err)
-				rr := httptest.NewRecorder()
-				mux.ServeHTTP(rr, httptest.NewRequest("POST", "/mock/devices/register", bytes.NewReader(payload)))
-			case 1:
-				rr := httptest.NewRecorder()
-				mux.ServeHTTP(rr, httptest.NewRequest("GET", "/mock/devices/"+testESID+"/state", nil))
-			case 2:
-				patchPolicy(t, mux, testESID)
-			case 3:
-				rr := httptest.NewRecorder()
-				mux.ServeHTTP(rr, httptest.NewRequest("POST",
-					fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, testESID),
-					bytes.NewReader(certChangesBody(t, certConfig(certTemplate(1, fleet.MDMOperationTypeInstall))))))
-			}
+			mux.ServeHTTP(httptest.NewRecorder(), newRequest[i%len(newRequest)]())
 		}(i)
 	}
 	wg.Wait()

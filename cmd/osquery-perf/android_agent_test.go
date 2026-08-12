@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 
@@ -359,5 +358,5 @@ func TestPollProxyStateClassifiesFailures(t *testing.T) {
 	require.Error(t, err)
 	require.NotErrorIs(t, err, errProxyDeviceUnknown, "only a 404 means the registration was lost")
 	require.NotErrorIs(t, err, errProxyDeviceDeleted, "only a 410 means the device was deleted")
-	assert.True(t, strings.Contains(err.Error(), "429"), "error should carry the status code: %v", err)
+	assert.Contains(t, err.Error(), "429", "error should carry the status code")
 }
