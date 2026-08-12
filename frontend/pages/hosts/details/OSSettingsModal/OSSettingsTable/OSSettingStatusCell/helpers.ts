@@ -92,7 +92,10 @@ export const getAndroidCertificateRetryTooltip = (
 
 export const ANDROID_CERT_RETRYING_DISPLAY_CONFIG: ProfileDisplayOption = {
   statusText: "Retrying",
-  iconName: "warning",
+  // Deliberately the same icon the in-progress statuses use, rather than a warning icon: a retry
+  // is still in flight, and a new status icon would have to be introduced across the rest of the
+  // OS settings UI. The status text and tooltip carry the difference.
+  iconName: "pending-outline",
   // The tooltip is built from the profile's detail, see getAndroidCertificateRetryTooltip.
   tooltip: null,
 };

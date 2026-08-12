@@ -9,6 +9,7 @@ import {
 } from "interfaces/mdm";
 import { HOST_NAME_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 import OSSettingStatusCell from "./OSSettingStatusCell";
+import { ANDROID_CERT_RETRYING_DISPLAY_CONFIG } from "./helpers";
 
 describe("OS setting status cell", () => {
   it("Correctly displays the status text of a profile", () => {
@@ -255,6 +256,26 @@ describe("OS setting status cell", () => {
         });
       }
     );
+
+    // Product decided against a new status icon for retries, since it would have to be
+    // introduced across the rest of the OS settings UI. Retries reuse the in-progress icon and
+    // are distinguished by the status text and tooltip alone.
+    it("reuses the in-progress icon rather than introducing a new one", () => {
+      expect(ANDROID_CERT_RETRYING_DISPLAY_CONFIG?.iconName).toEqual(
+        "pending-outline"
+      );
+
+      const { container: retrying } = renderStatusCell(
+        createRetryingCertProfile()
+      );
+      const { container: enforcing } = renderStatusCell(
+        createRetryingCertProfile({ detail: "", retry_count: 0 })
+      );
+
+      expect(retrying.querySelector("svg")?.outerHTML).toEqual(
+        enforcing.querySelector("svg")?.outerHTML
+      );
+    });
 
     it("counts the final attempt when the retries are used up", async () => {
       const profile = createRetryingCertProfile({ retry_count: 3 });
