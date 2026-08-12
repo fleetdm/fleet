@@ -47,9 +47,7 @@ type Service struct {
 	digiCertService        fleet.DigiCertService
 	androidModule          android.Service
 	estService             fleet.ESTService
-
-	// msGraphClientFactory builds the Microsoft Graph client used to verify a credential when it is written.
-	msGraphClientFactory msgraph.ClientFactory
+	msGraphClientFactory   msgraph.ClientFactory
 }
 
 func NewService(

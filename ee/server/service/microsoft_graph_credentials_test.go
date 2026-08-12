@@ -9,9 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// The end-to-end behavior of the credential endpoints is covered in server/service, which builds the full core plus
-// premium stack. This covers the message classification directly, because it is unexported and the three cases have
-// genuinely different remedies for the admin.
 func TestMicrosoftGraphVerifyMessage(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

@@ -130,8 +130,6 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
-		// A nil factory would be replaced with the real msgraph.NewClient, leaving this fixture holding a live Graph
-		// client that would reach login.microsoftonline.com if a test ever exercised credential verification.
 		noopGraphClientFactory,
 	)
 	if err != nil {

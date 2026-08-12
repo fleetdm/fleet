@@ -59,10 +59,7 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 		return err
 	}
 
-	// Configuring a credential requires premium. Having none never does, so an empty list is a no-op rather than a
-	// license error: GitOps reaches this endpoint on every run, sending an empty list whenever default.yml omits
-	// microsoft_graph_credentials, and a free-tier run that never configured Microsoft Graph must succeed. This mirrors
-	// BatchApplyCertificateAuthorities, which returns nil for an empty payload for the same reason.
+	// Configuring a credential requires premium. Having none never does, so an empty list is a no-op.
 	if len(incoming) == 0 {
 		return nil
 	}
