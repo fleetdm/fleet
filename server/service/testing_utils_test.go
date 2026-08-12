@@ -308,7 +308,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore,
 		androidService,
 		orgLogoStore,
-		msGraphClientFactory,
 	)
 	if err != nil {
 		panic(err)
@@ -350,6 +349,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			androidModule,
 			estCAService,
 			pssoNonceStore,
+			msGraphClientFactory,
 		)
 		if err != nil {
 			panic(err)
