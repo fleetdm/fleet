@@ -2432,7 +2432,7 @@ func TestGenerateSoftwareScriptFileExtensions(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 		SoftwareList: make(map[uint]Software),
 	}
