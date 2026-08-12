@@ -113,6 +113,7 @@ func TestLabels(t *testing.T) {
 		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
 		{"ListLabelsOrderKeys", testListLabelsOrderKeys},
 		{"LabelMembershipHostIDs", testLabelMembershipHostIDs},
+		{"GetSpecHostsTeamFiltered", testLabelsGetSpecHostsTeamFiltered},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -835,8 +836,9 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 	expectedSpecs := setupLabelSpecsTest(t, ds)
 
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
 	for _, s := range expectedSpecs {
-		spec, err := ds.GetLabelSpec(context.Background(), fleet.TeamFilter{}, s.Name)
+		spec, err := ds.GetLabelSpec(context.Background(), adminFilter, s.Name)
 		require.Nil(t, err)
 
 		require.True(t, cmp.Equal(s, spec, cmp.FilterPath(func(p cmp.Path) bool {
@@ -845,9 +847,104 @@ func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 	}
 }
 
+func testLabelsGetSpecHostsTeamFiltered(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "spec-hosts-team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "spec-hosts-team2"})
+	require.NoError(t, err)
+
+	newHost := func(i int, teamID *uint) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(fmt.Sprintf("spec-hosts-%d", i)),
+			NodeKey:         new(fmt.Sprintf("spec-hosts-%d", i)),
+			UUID:            fmt.Sprintf("spec-hosts-uuid-%d", i),
+			Hostname:        fmt.Sprintf("spec-hosts-host-%d", i),
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	team1Host := newHost(1, &team1.ID)
+	team2Host := newHost(2, &team2.ID)
+	noTeamHost := newHost(3, nil)
+
+	globalLabel := &fleet.LabelSpec{
+		Name:                "spec-hosts-global-manual",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		Hosts: []string{
+			fmt.Sprint(team1Host.ID), fmt.Sprint(team2Host.ID), fmt.Sprint(noTeamHost.ID),
+		},
+	}
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{globalLabel}))
+
+	globalAdmin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	globalGitOps := &fleet.User{GlobalRole: new(fleet.RoleGitOps)}
+	team1Observer := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}}
+	team2Maintainer := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleMaintainer}}}
+
+	testCases := []struct {
+		name          string
+		filter        fleet.TeamFilter
+		expectedHosts []string
+	}{
+		{
+			name:          "global admin sees every member",
+			filter:        fleet.TeamFilter{User: globalAdmin, IncludeObserver: true},
+			expectedHosts: []string{fmt.Sprint(team1Host.ID), fmt.Sprint(team2Host.ID), fmt.Sprint(noTeamHost.ID)},
+		},
+		{
+			name:          "global gitops sees every member",
+			filter:        fleet.TeamFilter{User: globalGitOps, IncludeObserver: true},
+			expectedHosts: []string{fmt.Sprint(team1Host.ID), fmt.Sprint(team2Host.ID), fmt.Sprint(noTeamHost.ID)},
+		},
+		{
+			name:          "team observer only sees their team's members",
+			filter:        fleet.TeamFilter{User: team1Observer, IncludeObserver: true},
+			expectedHosts: []string{fmt.Sprint(team1Host.ID)},
+		},
+		{
+			name:          "team maintainer only sees their team's members",
+			filter:        fleet.TeamFilter{User: team2Maintainer, IncludeObserver: true},
+			expectedHosts: []string{fmt.Sprint(team2Host.ID)},
+		},
+		{
+			name:          "team observer sees no members when observers are excluded",
+			filter:        fleet.TeamFilter{User: team1Observer},
+			expectedHosts: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			spec, err := ds.GetLabelSpec(ctx, tc.filter, globalLabel.Name)
+			require.NoError(t, err)
+			require.ElementsMatch(t, tc.expectedHosts, []string(spec.Hosts))
+
+			specs, err := ds.GetLabelSpecs(ctx, tc.filter)
+			require.NoError(t, err)
+			var found bool
+			for _, s := range specs {
+				if s.Name == globalLabel.Name {
+					found = true
+					require.ElementsMatch(t, tc.expectedHosts, []string(s.Hosts))
+				}
+			}
+			require.True(t, found, "global manual label should be listed")
+		})
+	}
+}
+
 func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
 	globalSpecs := setupLabelSpecsTest(t, ds)
-	globalOnlyFilter := fleet.TeamFilter{}
+	user := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	globalOnlyFilter := fleet.TeamFilter{User: user, TeamID: new(uint(0))}
 
 	specs, err := ds.GetLabelSpecs(context.Background(), globalOnlyFilter)
 	require.Nil(t, err)
@@ -882,7 +979,6 @@ func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipTimestampsID(t, globalSpecs, specs)
 
 	// Admin user filter should return all labels (global + team)
-	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	adminFilter := fleet.TeamFilter{User: user}
 	specs, err = ds.GetLabelSpecs(context.Background(), adminFilter)
 	require.NoError(t, err)
@@ -2441,7 +2537,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.ID, hostIDs[0])
 	require.Equal(t, host2.ID, hostIDs[1])
 
-	labelSpec, err := ds.GetLabelSpec(ctx, fleet.TeamFilter{}, label1.Name) // only need global labels, so this works
+	labelSpec, err := ds.GetLabelSpec(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, label1.Name)
 	require.NoError(t, err)
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 2)
@@ -2547,7 +2643,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, host2.ID, hostIDs[1])
 	require.Equal(t, host3.ID, hostIDs[2])
 
-	labelSpec, err = ds.GetLabelSpec(ctx, fleet.TeamFilter{}, label1.Name) // only need global labels, so this works
+	labelSpec, err = ds.GetLabelSpec(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, label1.Name)
 	require.NoError(t, err)
 
 	// label.Hosts contains hostnames

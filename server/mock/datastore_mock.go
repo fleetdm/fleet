@@ -1476,6 +1476,24 @@ type GetMDMConfigProfileStatusFunc func(ctx context.Context, profileUUID string)
 
 type GetHostMDMProfileInstallStatusFunc func(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error)
 
+type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
+type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
+type ReplaceMicrosoftGraphCredentialsFunc func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error
+
+type SetMicrosoftGraphCredentialInvalidFunc func(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
+
+type RecordMicrosoftGraphSyncResultFunc func(ctx context.Context, tenantID string, syncErr *string) error
+
+type BatchUpsertHostAutopilotDevicesFunc func(ctx context.Context, devices []*fleet.HostAutopilotDevice) error
+
+type BatchSoftDeleteHostAutopilotDevicesFunc func(ctx context.Context, hostIDs []uint) error
+
+type ListHostAutopilotDevicesFunc func(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error)
+
+type GetHostAutopilotDeviceFunc func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error)
+
 type GetLinuxDiskEncryptionSummaryFunc func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error)
 
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
@@ -1512,13 +1530,13 @@ type BulkGetHostLabelMembershipsFunc func(ctx context.Context, hostIDs []uint, l
 
 type BulkGetHostMDMAppleProfilesByUUIDsFunc func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMAppleProfilePayload, error)
 
-type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, err error)
+type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, pageFull bool, err error)
 
 type GetMDMAppleReconcileCursorFunc func(ctx context.Context) (string, error)
 
 type SetMDMAppleReconcileCursorFunc func(ctx context.Context, cursor string) error
 
-type GetAppleDeclarationReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, err error)
+type GetAppleDeclarationReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, pageFull bool, err error)
 
 type BulkUpsertMDMAppleHostDeclarationsFunc func(ctx context.Context, rows []*fleet.MDMAppleHostDeclaration) error
 
@@ -4484,6 +4502,33 @@ type DataStore struct {
 
 	GetHostMDMProfileInstallStatusFunc        GetHostMDMProfileInstallStatusFunc
 	GetHostMDMProfileInstallStatusFuncInvoked bool
+
+	ListMicrosoftGraphCredentialsFunc        ListMicrosoftGraphCredentialsFunc
+	ListMicrosoftGraphCredentialsFuncInvoked bool
+
+	ListMicrosoftGraphCredentialMetadataFunc        ListMicrosoftGraphCredentialMetadataFunc
+	ListMicrosoftGraphCredentialMetadataFuncInvoked bool
+
+	ReplaceMicrosoftGraphCredentialsFunc        ReplaceMicrosoftGraphCredentialsFunc
+	ReplaceMicrosoftGraphCredentialsFuncInvoked bool
+
+	SetMicrosoftGraphCredentialInvalidFunc        SetMicrosoftGraphCredentialInvalidFunc
+	SetMicrosoftGraphCredentialInvalidFuncInvoked bool
+
+	RecordMicrosoftGraphSyncResultFunc        RecordMicrosoftGraphSyncResultFunc
+	RecordMicrosoftGraphSyncResultFuncInvoked bool
+
+	BatchUpsertHostAutopilotDevicesFunc        BatchUpsertHostAutopilotDevicesFunc
+	BatchUpsertHostAutopilotDevicesFuncInvoked bool
+
+	BatchSoftDeleteHostAutopilotDevicesFunc        BatchSoftDeleteHostAutopilotDevicesFunc
+	BatchSoftDeleteHostAutopilotDevicesFuncInvoked bool
+
+	ListHostAutopilotDevicesFunc        ListHostAutopilotDevicesFunc
+	ListHostAutopilotDevicesFuncInvoked bool
+
+	GetHostAutopilotDeviceFunc        GetHostAutopilotDeviceFunc
+	GetHostAutopilotDeviceFuncInvoked bool
 
 	GetLinuxDiskEncryptionSummaryFunc        GetLinuxDiskEncryptionSummaryFunc
 	GetLinuxDiskEncryptionSummaryFuncInvoked bool
@@ -10815,6 +10860,69 @@ func (s *DataStore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID
 	return s.GetHostMDMProfileInstallStatusFunc(ctx, hostUUID, profileUUID)
 }
 
+func (s *DataStore) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialsFunc(ctx)
+}
+
+func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialMetadataFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialMetadataFunc(ctx)
+}
+
+func (s *DataStore) ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
+	s.mu.Lock()
+	s.ReplaceMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceMicrosoftGraphCredentialsFunc(ctx, upsert, deleteTenantIDs)
+}
+
+func (s *DataStore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error) {
+	s.mu.Lock()
+	s.SetMicrosoftGraphCredentialInvalidFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMicrosoftGraphCredentialInvalidFunc(ctx, tenantID, invalid)
+}
+
+func (s *DataStore) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error {
+	s.mu.Lock()
+	s.RecordMicrosoftGraphSyncResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordMicrosoftGraphSyncResultFunc(ctx, tenantID, syncErr)
+}
+
+func (s *DataStore) BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
+	s.mu.Lock()
+	s.BatchUpsertHostAutopilotDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchUpsertHostAutopilotDevicesFunc(ctx, devices)
+}
+
+func (s *DataStore) BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.BatchSoftDeleteHostAutopilotDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSoftDeleteHostAutopilotDevicesFunc(ctx, hostIDs)
+}
+
+func (s *DataStore) ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error) {
+	s.mu.Lock()
+	s.ListHostAutopilotDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAutopilotDevicesFunc(ctx, tenantID)
+}
+
+func (s *DataStore) GetHostAutopilotDevice(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+	s.mu.Lock()
+	s.GetHostAutopilotDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostAutopilotDeviceFunc(ctx, hostID)
+}
+
 func (s *DataStore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
 	s.mu.Lock()
 	s.GetLinuxDiskEncryptionSummaryFuncInvoked = true
@@ -10941,7 +11049,7 @@ func (s *DataStore) BulkGetHostMDMAppleProfilesByUUIDs(ctx context.Context, host
 	return s.BulkGetHostMDMAppleProfilesByUUIDsFunc(ctx, hostUUIDs)
 }
 
-func (s *DataStore) GetAppleProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, err error) {
+func (s *DataStore) GetAppleProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, pageFull bool, err error) {
 	s.mu.Lock()
 	s.GetAppleProfileReconcileSnapshotFuncInvoked = true
 	s.mu.Unlock()
@@ -10962,7 +11070,7 @@ func (s *DataStore) SetMDMAppleReconcileCursor(ctx context.Context, cursor strin
 	return s.SetMDMAppleReconcileCursorFunc(ctx, cursor)
 }
 
-func (s *DataStore) GetAppleDeclarationReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, err error) {
+func (s *DataStore) GetAppleDeclarationReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, pageFull bool, err error) {
 	s.mu.Lock()
 	s.GetAppleDeclarationReconcileSnapshotFuncInvoked = true
 	s.mu.Unlock()
