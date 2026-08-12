@@ -73,7 +73,7 @@ Worth knowing about for monitoring and compliance:
 - `security.lockdown-mode`: reports whether Lockdown Mode is active on a supervised device.
 - `mdm.enrollment-type`, `mdm.is-awaiting-configuration`, `mdm.is-return-to-service`, `mdm.is-shared-ipad`, `mdm.push-magic`, `mdm.push-token`: more granular enrollment state visibility.
 
-**AppleCare remote log collection:** Two new MDM commands, `TriggerEnhancedLogCollection` and `CancelEnhancedLogCollection`, enable remote log collection on supervised devices for AppleCare support cases. Apple's documentation specifies an AppleCare Enterprise agreement is required to test this feature in beta releases.
+**AppleCare remote log collection:** Two new MDM commands, `TriggerEnhancedLogCollection` and `CancelEnhancedLogCollection`, enable remote log collection on supervised devices for AppleCare support cases. Apple's documentation specifies an AppleCare Enterprise agreement is required to test this feature in beta releases. See [Trigger AppleCare log collection with a custom MDM command](https://fleetdm.com/guides/trigger-applecare-log-collection) for the Fleet workflow.
 
 ## Intel Mac support timeline
 
