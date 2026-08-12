@@ -783,7 +783,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
 		}
 
-		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID, true)
+		// Latest takes the most recently downloaded, not highest version string.
+		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting Fleet-maintained app versions")
 		}
@@ -939,7 +940,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		// now that the payload has been updated with any patches, we can set the
 		// final fields of the activity
 		actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(
-			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny, existingInstaller.LabelsIncludeAll)
+			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny, existingInstaller.LabelsIncludeAll,
+		)
 		if payload.ValidatedLabels != nil {
 			actLabelsInclAny, actLabelsExclAny, actLabelsInclAll = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 		}
@@ -1332,7 +1334,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		// delete them.  GetFleetMaintainedVersionsByTitleID queries the live DB, so
 		// it will not return the row we just deleted.
 		if meta.TitleID != nil {
-			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID, false)
+			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting cached FMA versions for cleanup")
 			}
@@ -2078,7 +2080,8 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 		}
 
 		if len(assets) == 0 {
-			svc.logger.DebugContext(ctx, "trying to assign VPP asset to host",
+			svc.logger.DebugContext(
+				ctx, "trying to assign VPP asset to host",
 				"adam_id", vppApp.AdamID,
 				"host_serial", host.HardwareSerial,
 			)
@@ -2515,8 +2518,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.New(ctx, "installer file is required")
 	}
 
-	ext := strings.ToLower(filepath.Ext(payload.Filename))
-	ext = strings.TrimPrefix(ext, ".")
+	ext := extensionFromFilename(payload.Filename)
 
 	if fleet.IsScriptPackage(ext) {
 		if err := svc.addScriptPackageMetadata(ctx, payload, ext); err != nil {
@@ -2672,6 +2674,11 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 	}
 
 	scriptContents := string(scriptBytes)
+	if extension != "ps1" {
+		// sh/py scripts run via the kernel's shebang mechanism (e.g. /usr/bin/env python3): stray \r breaks the interpreter lookup.
+		// ps1 runs through powershell.exe on Windows, where CRLF is the native line ending and must be preserved as-is.
+		scriptContents = file.Dos2UnixNewlines(scriptContents)
+	}
 
 	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
 		return &fleet.BadRequestError{
@@ -2850,7 +2857,8 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			return "", ctxerr.Wrap(ctx, err, "checking for software installers pending deletion")
 		}
 		if len(pendingDeletion) == 0 {
-			svc.logger.DebugContext(ctx, "software batch dry-run skipped: empty payload and no existing installers",
+			svc.logger.DebugContext(
+				ctx, "software batch dry-run skipped: empty payload and no existing installers",
 				"team_id", teamID,
 			)
 			return "", nil
@@ -2952,7 +2960,8 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		return "", ctxerr.Wrap(ctx, err, "failed to set self-service categories result")
 	}
 
-	svc.logger.InfoContext(ctx, "software batch start",
+	svc.logger.InfoContext(
+		ctx, "software batch start",
 		"request_uuid", requestUUID,
 		"team_id", teamID,
 		"payloads", len(payloads),
@@ -3022,14 +3031,26 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 			if app.TitleID == nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
-			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID, true)
+			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID)
 			if err != nil {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
+			// Cached versions come back most recently downloaded first, so the first one on the
+			// pinned major is the one to fall back to.
+			pinnedVersion := ""
+			for _, version := range versions {
+				if versionMatchesMajor(version.Version, majorVersionString) {
+					pinnedVersion = version.Version
+					break
+				}
+			}
+			if pinnedVersion == "" {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
 
 			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,
 			// but it can be optimized in softwareBatchUpload if it accepted only passing category and script content IDs.
-			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, versions[0].Version)
+			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, pinnedVersion)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting software installer")
 			}
@@ -3189,7 +3210,8 @@ func (svc *Service) softwareBatchUpload(
 		// not mark it as failed.
 		if batchErr == nil && deletedPackagesJSON != "" {
 			if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDeletedSuffix, deletedPackagesJSON, 10*time.Minute); err != nil {
-				svc.logger.WarnContext(ctx, "failed to refresh deleted-packages result; the deletion report may be missing from the batch result",
+				svc.logger.WarnContext(
+					ctx, "failed to refresh deleted-packages result; the deletion report may be missing from the batch result",
 					"request_uuid", requestUUID,
 					"err", err,
 				)
@@ -3666,7 +3688,7 @@ func (svc *Service) softwareBatchUpload(
 						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
 					}
 				}
-				extension := strings.TrimLeft(filepath.Ext(installer.Filename), ".")
+				extension := extensionFromFilename(installer.Filename)
 				installer.Title = appName
 				installer.Version = p.MaintainedApp.Version
 
@@ -3934,7 +3956,8 @@ func (svc *Service) softwareBatchUpload(
 	// batch payload chain to save that.
 	if batchNeedsWindowsTitleReconcile(softwareInstallers) {
 		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
-			svc.logger.WarnContext(ctx, "reconciling Windows software titles after a software batch",
+			svc.logger.WarnContext(
+				ctx, "reconciling Windows software titles after a software batch",
 				"team_id", teamID,
 				"err", err,
 			)
@@ -4414,11 +4437,16 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 // .zip installers may target windows or darwin). Note that `.sh` installers are
 // stored as platform=linux but are allowed on any unix-like host by callers.
 func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, requiredPlatform string) {
-	ext = filepath.Ext(installer.Name)
+	ext = strings.ToLower(filepath.Ext(installer.Name))
 	if installer.Platform != "" {
 		return ext, installer.Platform
 	}
 	return ext, packageExtensionToPlatform(ext)
+}
+
+func extensionFromFilename(filename string) string {
+	// a .tar.gz filename returns "gz"
+	return strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
 }
 
 // humanReadableRequiredPlatforms returns the platform(s) named in the

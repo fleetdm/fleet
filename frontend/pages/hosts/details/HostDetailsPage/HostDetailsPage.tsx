@@ -1811,6 +1811,14 @@ const HostDetailsPage = ({
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
+              onSuccess={() => {
+                // The server marks the host unenrolled immediately, so refresh
+                // to drop the action from the dropdown. Otherwise it stays
+                // offered until the window regains focus, and each extra
+                // confirmation queues another unenroll.
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
             />
           )}
           {showDiskEncryptionModal && host && (

@@ -7108,7 +7108,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// GetFleetMaintainedVersionsByTitleID returns each cached version's own filename.
-	fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, false)
+	fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
 	require.NoError(t, err)
 	gotFilenames := map[string]string{}
 	for _, fv := range fmaVersions {

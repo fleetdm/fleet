@@ -3495,11 +3495,11 @@ the `software` table.
 
 ### List hosts
 
+`GET /api/v1/fleet/hosts`
+
 > `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
 > Searching with `query` and setting `device_mapping=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
-
-`GET /api/v1/fleet/hosts`
 
 #### Parameters
 
@@ -4012,11 +4012,12 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 ### Get host
 
-> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
-
 Returns the information of the specified host.
 
 `GET /api/v1/fleet/hosts/:id`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
 
 #### Parameters
 
@@ -4322,9 +4323,11 @@ Returns the information of the specified host.
 
 ### Get host by identifier
 
-> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
-
 Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
+
+`GET /api/v1/fleet/hosts/identifier/:identifier`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. 
 
@@ -4332,7 +4335,6 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 > Note: GitOps users don't have host read access. For them, this endpoint returns the host's `id` and nothing else, rather than an error like [Get host](#get-host) does.
 
-`GET /api/v1/fleet/hosts/identifier/:identifier`
 
 #### Parameters
 
@@ -4562,15 +4564,16 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 ### Get host by Fleet Desktop token
 
-> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
-
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
+
+`GET /api/v1/fleet/device/:token`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
 This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS and iPadOS, this is the host's hardware UUID.
 
-`GET /api/v1/fleet/device/:token`
 
 ##### Parameters
 
@@ -5888,7 +5891,9 @@ To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a W
 
 Sends a command to wipe the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is wiped once it comes online.
 
-Wiping an Android host is available in Fleet Free and Fleet Premium. Wiping a macOS, iOS, iPadOS, Linux, or Windows host is available in Fleet Premium.
+Wiping a company-owned (fully managed) Android host is available in Fleet Free and Fleet Premium. (This feature was [previously "Unenroll"](https://github.com/fleetdm/fleet/issues/41683).)
+
+Wiping a macOS, iOS, iPadOS, Linux, Windows, or personal (BYOD) Android host is available in Fleet Premium.
 
 To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). To wipe an Android host, the host must be enrolled as a fully managed device.
 
@@ -7400,7 +7405,7 @@ List all assets available for the "Unassigned" fleet.
       "identifier": "com.example.asset1",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo=",
+      "checksum": "dGVzdAo="
     },
     {
       "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
@@ -7408,9 +7413,9 @@ List all assets available for the "Unassigned" fleet.
       "identifier": "com.example.asset2",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo=",
-    },
-  ],
+      "checksum": "dGVzdAo="
+    }
+  ]
 }
 ```
 
@@ -7653,7 +7658,7 @@ If a host is missing the IdP data a variable needs, that host's rename fails. A 
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 ### Resend host name template
 
@@ -8560,9 +8565,7 @@ Edit managed local account enforcement settings for eligible hosts.
 
 `POST /api/v1/fleet/managed_local_account`
 
-##### Default response
-
-`204`
+##### Request body
 
 ```json
 {
@@ -8571,6 +8574,10 @@ Edit managed local account enforcement settings for eligible hosts.
   "end_user_local_account_type": "admin"
 }
 ```
+
+##### Default response
+
+`Status: 204`
 
 ---
 
@@ -13805,7 +13812,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
-   "output": "Installing software...\nError: The operation can’t be completed because the item "Falcon" is in use.",
+   "output": "Installing software...\nError: The operation can’t be completed because the item \"Falcon\" is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
  }
@@ -14504,7 +14511,7 @@ _Available in Fleet Premium_
         ],
         "managed_local_account_settings": {
           "enabled": true
-        },
+        }
       },
       "windows_settings": {
         "custom_settings": [
@@ -14525,7 +14532,7 @@ _Available in Fleet Premium_
         "enable_escrow_disk_encryption_key": true,
         "managed_local_account_settings": {
           "enabled": true
-        },
+        }
       },
       "macos_setup": {
         "bootstrap_package": "",

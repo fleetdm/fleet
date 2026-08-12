@@ -905,6 +905,9 @@ func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, active
 		return 0, ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
 	}
 
+	// Activated after the transaction commits, so a cancelled install doesn't stall the queue.
+	var refreshAffectedHostIDs []uint
+
 	// Read the scope (team, title) from the active installer so the cron
 	// doesn't need to pass them and they always agree with the row being cloned.
 	var src struct {
@@ -962,11 +965,47 @@ FROM software_installers WHERE id = ?`,
 		)
 		if err != nil {
 			if IsDuplicate(err) {
-				// Version already cached for this team/title; return the existing row.
-				return sqlx.GetContext(ctx, tx, &installerID, `
-					SELECT id FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND version = ?`,
-					src.GlobalOrTeamID, src.TitleID, payload.Version)
+				// Version already cached for this team/title. Refresh the row in place when the
+				// bytes changed, matching what BatchSetSoftwareInstallers does for a rebuild.
+				var cached struct {
+					ID        uint   `db:"id"`
+					StorageID string `db:"storage_id"`
+				}
+				if err := sqlx.GetContext(ctx, tx, &cached, `
+					SELECT id, storage_id FROM software_installers
+					WHERE global_or_team_id = ? AND title_id = ? AND version = ?
+						AND fleet_maintained_app_id IS NOT NULL`,
+					src.GlobalOrTeamID, src.TitleID, payload.Version,
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "load cached fleet-maintained app version")
+				}
+				installerID = cached.ID
+				if cached.StorageID == payload.StorageID {
+					return nil
+				}
+
+				if _, err := tx.ExecContext(ctx, `
+					UPDATE software_installers SET
+						storage_id = ?, filename = ?, extension = ?, url = ?, upgrade_code = ?,
+						install_script_content_id = ?, uninstall_script_content_id = ?,
+						patch_query = ?, app_open_query = ?, package_ids = ?, uploaded_at = NOW(6)
+					WHERE id = ?`,
+					payload.StorageID, payload.Filename, payload.Extension, payload.URL, payload.UpgradeCode,
+					installScriptID, uninstallScriptID,
+					payload.PatchQuery, payload.AppOpenQuery, strings.Join(payload.PackageIDs, ","),
+					installerID,
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "refresh cached fleet-maintained app version")
+				}
+
+				// A host with an install queued on this row would otherwise receive the new
+				// bytes under the version it was promised.
+				hostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, installerID, false, true, true)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "side effects for refreshed fleet-maintained app version")
+				}
+				refreshAffectedHostIDs = hostIDs
+				return nil
 			}
 			return ctxerr.Wrap(ctx, err, "insert fleet-maintained app version")
 		}
@@ -995,6 +1034,12 @@ FROM software_installers WHERE id = ?`,
 	})
 	if err != nil {
 		return 0, err
+	}
+
+	if len(refreshAffectedHostIDs) > 0 {
+		if err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, refreshAffectedHostIDs); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "activate next activity for hosts affected by a refreshed version")
+		}
 	}
 	return installerID, nil
 }
@@ -1036,7 +1081,7 @@ func (ds *Datastore) GetSoftwareInstallerMetadataByStorageID(ctx context.Context
 // Policies on evicted rows are re-pointed to the active installer before the rows
 // are deleted. Mirrors the eviction logic in BatchSetSoftwareInstallers.
 func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID, newInstallerID, activeID uint) error {
-	fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
+	fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list FMA installer versions for eviction")
 	}
@@ -1113,7 +1158,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	var touchUploaded string
 	if payload.InstallerFile != nil {
 		// installer cannot be changed when associated with an FMA
-		touchUploaded = ", uploaded_at = NOW()"
+		touchUploaded = ", uploaded_at = NOW(6)"
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -3040,6 +3085,7 @@ ON DUPLICATE KEY UPDATE
 UPDATE
 	software_installers
 SET
+	%s
 	install_during_setup = COALESCE(?, install_during_setup),
 	self_service = ?,
 	install_script_content_id = ?,
@@ -3499,7 +3545,9 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				wasUpdatedArgs = append(wasUpdatedArgs, dedupToken)
 			}
 
-			// pull existing installer state if it exists so we can diff for side effects post-update
+			// pull existing installer state if it exists so we can diff for side effects post-update.
+			// The flags describe existing[0], which is the active installer for an FMA or the
+			// same-hash row for a custom package, not whichever row this apply updates.
 			type existingInstallerUpdateCheckResult struct {
 				InstallerID        uint `db:"id"`
 				IsPackageModified  bool `db:"is_package_modified"`
@@ -3567,6 +3615,11 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				}
 			}
 
+			pinnedToLiteralVersion := false
+			if installer.RollbackVersion != "" && !strings.HasPrefix(installer.RollbackVersion, "^") {
+				pinnedToLiteralVersion = true
+			}
+
 			if skipInsert {
 				// some fields still need to be updated
 				args := []any{
@@ -3580,13 +3633,17 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 					installer.AppOpenQuery,
 					existingID,
 				}
-				if _, err := tx.ExecContext(ctx, updateInstaller, args...); err != nil {
+				touchUploaded := ""
+				if len(existing) > 0 && existing[0].IsPackageModified && !pinnedToLiteralVersion {
+					touchUploaded = "uploaded_at = NOW(6),"
+				}
+				if _, err := tx.ExecContext(ctx, fmt.Sprintf(updateInstaller, touchUploaded), args...); err != nil {
 					return ctxerr.Wrapf(ctx, err, "updating existing installer with name %q", installer.Filename)
 				}
 			} else {
 				upsertQuery := insertNewOrEditedInstaller
-				if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
-					upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW()", upsertQuery)
+				if len(existing) > 0 && existing[0].IsPackageModified && !pinnedToLiteralVersion {
+					upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW(6)", upsertQuery)
 				}
 
 				if _, err := tx.ExecContext(ctx, upsertQuery, args...); err != nil {
@@ -3636,7 +3693,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				// Evict old FMA versions beyond the max per title per team.
 				// Always keep the active installer; fill remaining slots with
 				// the most recent versions, evict everything else.
-				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
+				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
 				}

@@ -905,6 +905,22 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
 }
 
+func (MockClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
+	return nil, nil
+}
+
+// graphCredClient returns one stored credential, as the endpoint does once one is configured. The secret comes back
+// masked from the API, so generate-gitops must not emit it.
+type graphCredClient struct{ MockClient }
+
+func (graphCredClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
+	return []*fleet.MicrosoftGraphCredential{{
+		TenantID:     "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+		ClientID:     "122349c0-2458-448d-a9ae-f40b81a63213",
+		ClientSecret: fleet.MaskedPassword,
+	}}, nil
+}
+
 func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 	res := fleet.GroupedCertificateAuthorities{
 		DigiCert: []fleet.DigiCertCA{
@@ -1331,6 +1347,55 @@ func TestGenerateOrgSettings(t *testing.T) {
 	we, present := mdmSettings["windows_enrollment"]
 	require.True(t, present, "windows_enrollment key should still be emitted")
 	require.Nil(t, we, "unset windows_enrollment must serialize as null so applying it is a no-op")
+}
+
+// generate-gitops must round-trip the Microsoft Graph credential's identifiers so a generated file can be applied
+// back, while never emitting the secret: the API only ever returns the mask.
+func TestGenerateOrgSettingsMicrosoftGraphCredentials(t *testing.T) {
+	fleetClient := &graphCredClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+	var orgSettings map[string]any
+	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
+
+	// It belongs under org_settings, alongside certificate_authorities, not under controls: controls are not generated
+	// for the global file on Premium, so emitting it there would put it in the Unassigned file where apply ignores it.
+	raw, present := orgSettings["microsoft_graph_credentials"]
+	require.True(t, present, "microsoft_graph_credentials must be emitted under org_settings")
+	creds, ok := raw.([]any)
+	require.True(t, ok)
+	require.Len(t, creds, 1)
+	cred := creds[0].(map[string]any)
+
+	assert.Equal(t, "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4", cred["tenant_id"])
+	assert.Equal(t, "122349c0-2458-448d-a9ae-f40b81a63213", cred["client_id"])
+
+	secret, ok := cred["client_secret"].(string)
+	require.True(t, ok, "client_secret should be a string placeholder")
+	assert.Contains(t, secret, "GITOPS_COMMENT", "the secret must be a TODO comment, not a value")
+	assert.NotContains(t, secret, fleet.MaskedPassword, "emitting the mask would write it back literally on the next apply")
+
+	var foundWarning bool
+	for _, w := range cmd.Messages.SecretWarnings {
+		if w.Key == "microsoft_graph_credentials.client_secret" {
+			foundWarning = true
+			assert.Equal(t, "default.yml", w.Filename, "the credential is global, so the warning names default.yml")
+		}
+	}
+	assert.True(t, foundWarning, "expected a SecretWarning for microsoft_graph_credentials.client_secret")
 }
 
 func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
@@ -1953,19 +2018,19 @@ func TestGenerateSoftware(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedSoftware, software)
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-install"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-install.sh"]; ok {
 		require.Equal(t, "foo", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-postinstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-postinstall.sh"]; ok {
 		require.Equal(t, "bar", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-uninstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-uninstall.sh"]; ok {
 		require.Equal(t, "baz", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
@@ -1979,7 +2044,7 @@ func TestGenerateSoftware(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-fma-darwin-postinstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-fma-darwin-postinstall.sh"]; ok {
 		require.Equal(t, "postinstall", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
@@ -2288,6 +2353,102 @@ func (c *MockClientWithScriptPackage) GetSetupExperienceSoftware(platform string
 		return []fleet.SoftwareTitleListResult{}, nil
 	}
 	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+}
+
+type MockClientPlatformPackages struct {
+	MockClient
+}
+
+func (c *MockClientPlatformPackages) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	if query == "available_for_install=1&fleet_id=2" {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:         8,
+				Name:       "Linux Package",
+				HashSHA256: new("linux-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:     "linux-package.deb",
+					Platform: "linux",
+					Version:  "1.0",
+				},
+			},
+			{
+				ID:         9,
+				Name:       "Windows Package",
+				HashSHA256: new("windows-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:     "windows-package.msi",
+					Platform: "windows",
+					Version:  "2.0",
+				},
+			},
+		}, nil
+	}
+	return c.MockClient.ListSoftwareTitles(query)
+}
+
+func (c *MockClientPlatformPackages) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	switch id {
+	case 8:
+		return &fleet.SoftwareTitle{
+			ID: 8,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:     "linux install",
+				PostInstallScript: "linux post-install",
+				UninstallScript:   "linux uninstall",
+				Platform:          "linux",
+				Name:              "linux-package.deb",
+			},
+		}, nil
+	case 9:
+		return &fleet.SoftwareTitle{
+			ID: 9,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:     "windows install",
+				PostInstallScript: "windows post-install",
+				UninstallScript:   "windows uninstall",
+				Platform:          "windows",
+				Name:              "windows-package.msi",
+			},
+		}, nil
+	default:
+		return c.MockClient.GetSoftwareTitleByID(id, teamID)
+	}
+}
+
+func (c *MockClientPlatformPackages) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID == 2 {
+		return []fleet.SoftwareTitleListResult{}, nil
+	}
+	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+}
+
+func TestGenerateSoftwareScriptFileExtensions(t *testing.T) {
+	fleetClient := &MockClientPlatformPackages{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: make(map[uint]Software),
+	}
+
+	_, err = cmd.generateSoftware("fleets/some-team.yml", 2, "some-team", false)
+	require.NoError(t, err)
+
+	// Linux packages get shell scripts.
+	require.Equal(t, "linux install", cmd.FilesToWrite["lib/some-team/scripts/linux-package-linux-install.sh"])
+	require.Equal(t, "linux post-install", cmd.FilesToWrite["lib/some-team/scripts/linux-package-linux-postinstall.sh"])
+	require.Equal(t, "linux uninstall", cmd.FilesToWrite["lib/some-team/scripts/linux-package-linux-uninstall.sh"])
+
+	// Windows packages get PowerShell scripts.
+	require.Equal(t, "windows install", cmd.FilesToWrite["lib/some-team/scripts/windows-package-windows-install.ps1"])
+	require.Equal(t, "windows post-install", cmd.FilesToWrite["lib/some-team/scripts/windows-package-windows-postinstall.ps1"])
+	require.Equal(t, "windows uninstall", cmd.FilesToWrite["lib/some-team/scripts/windows-package-windows-uninstall.ps1"])
 }
 
 const (

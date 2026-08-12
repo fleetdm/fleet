@@ -687,8 +687,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 
-	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
-		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "26.0.0"}}, nil
+	// Newest download first, and it is on a major the pin doesn't allow.
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "27.0.0"}, {ID: 2, Version: "26.0.0"}}, nil
 	}
 
 	ds.GetCachedFMAInstallerMetadataFunc = func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
@@ -698,6 +699,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 			Platform:         "darwin",
 			UniqueIdentifier: "com.1password.1password",
 			Slug:             "1password/darwin",
+			Version:          version,
 		}, nil
 	}
 
@@ -734,6 +736,8 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 				// RollbackVersion must be left as the user typed it, including a caret, so the pin expression
 				// survives downstream and is persisted to software_title_team_pins.
 				require.Equal(t, vt.version, payload.RollbackVersion)
+				// The cached version on the pinned major, not the newer download on another major.
+				require.Equal(t, "26.0.0", payload.MaintainedApp.Version)
 			}
 		})
 	}
@@ -1454,6 +1458,54 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.Equal(t, "sh", payload.Extension)
 	})
 
+	t.Run("shell script with CRLF line endings is normalized", func(t *testing.T) {
+		scriptContents := "#!/bin/bash\r\necho 'Installing software'\r\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.sh",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.NoError(t, err)
+		require.Equal(t, "#!/bin/bash\necho 'Installing software'\n", payload.InstallScript)
+		require.NotContains(t, payload.InstallScript, "\r")
+	})
+
+	// addMetadataToSoftwarePayload picks the script-package branch off the
+	// filename's extension, so an uppercase one has to route there too.
+	t.Run("uppercase extension still routes to script package", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString("#!/bin/bash\necho 'Installing software'\n")
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.SH",
+		}
+
+		ext, err := svc.addMetadataToSoftwarePayload(ctx, payload, false)
+		require.NoError(t, err)
+		require.Equal(t, "sh", ext)
+		require.Equal(t, "sh_packages", payload.Source)
+		require.Equal(t, "linux", payload.Platform)
+	})
+
 	t.Run("valid powershell script", func(t *testing.T) {
 		scriptContents := "Write-Host 'Installing software'\n"
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
@@ -1481,6 +1533,30 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.Empty(t, payload.BundleIdentifier)
 		require.Empty(t, payload.PackageIDs)
 		require.NotEmpty(t, payload.StorageID)
+	})
+
+	t.Run("powershell script with CRLF line endings is preserved", func(t *testing.T) {
+		// Unlike sh/py, ps1 scripts run via powershell.exe on Windows,
+		// where CRLF is the native line ending. They must not be normalized to LF.
+		scriptContents := "Write-Host 'Installing software'\r\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
 	})
 
 	t.Run("valid python script", func(t *testing.T) {
@@ -1511,6 +1587,29 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.Empty(t, payload.PackageIDs)
 		require.NotEmpty(t, payload.StorageID)
 		require.Equal(t, "py", payload.Extension)
+	})
+
+	t.Run("python script with CRLF line endings is normalized", func(t *testing.T) {
+		scriptContents := "#!/usr/bin/env python3\r\nprint(\"crlf\")\r\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.py")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.py",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "py")
+		require.NoError(t, err)
+		require.Equal(t, "#!/usr/bin/env python3\nprint(\"crlf\")\n", payload.InstallScript)
+		require.NotContains(t, payload.InstallScript, "\r")
 	})
 
 	t.Run("python script without shebang", func(t *testing.T) {
@@ -1826,10 +1925,38 @@ func TestInstallerCompatibleWithHost(t *testing.T) {
 		{".deb on darwin", installer("installer.deb", "linux"), host("darwin"), false},
 		{".pkg on darwin", installer("app.pkg", "darwin"), host("darwin"), true},
 		{".pkg on ubuntu", installer("app.pkg", "darwin"), host("ubuntu"), false},
+		// uppercase filenames resolve the same as lowercase ones
+		{".EXE on windows, no stored platform", installer("setup.EXE", ""), host("windows"), true},
+		{".PKG on darwin, no stored platform", installer("app.PKG", ""), host("darwin"), true},
+		{".PY on darwin", installer("script.PY", "linux"), host("darwin"), true},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, installerCompatibleWithHost(tt.installer, tt.host))
+		})
+	}
+}
+
+func TestExtensionFromFilename(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		filename string
+		want     string
+	}{
+		{"lowercase exe", "setup.exe", "exe"},
+		{"uppercase exe", "BANDIVIEW-SETUP-X64.EXE", "exe"},
+		{"uppercase dmg", "Joplin-3.6.15-arm64.DMG", "dmg"},
+		{"mixed case msi", "Installer.MsI", "msi"},
+		{"no extension", "installer", ""},
+		{"dots in name", "Dell-Command-Update_5.7.0_A00.EXE", "exe"},
+		{"tarball gives back only the last part", "package.tar.gz", "gz"},
+		{"uppercase tarball", "PACKAGE.TAR.GZ", "gz"},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, extensionFromFilename(tt.filename))
 		})
 	}
 }
