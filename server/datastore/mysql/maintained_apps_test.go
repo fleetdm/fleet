@@ -1120,17 +1120,7 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Firefox"})
 	require.NoError(t, err)
 
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "firefox-host",
-		Platform:        "darwin",
-		OsqueryHostID:   new("ff-osquery-id"),
-		NodeKey:         new("ff-node-key"),
-		DetailUpdatedAt: ds.clock.Now(),
-		LabelUpdatedAt:  ds.clock.Now(),
-		PolicyUpdatedAt: ds.clock.Now(),
-		SeenTime:        ds.clock.Now(),
-	})
-	require.NoError(t, err)
+	host := newTestHostWithPlatform(t, ds, "firefox-host", "darwin", nil)
 
 	// Two FMAs that share the same macOS bundle identifier.
 	firefox, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -1224,17 +1214,7 @@ func testReconcileSoftwareNamesBatched(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Batched"})
 	require.NoError(t, err)
 
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "batched-host",
-		Platform:        "darwin",
-		OsqueryHostID:   new("batched-osquery-id"),
-		NodeKey:         new("batched-node-key"),
-		DetailUpdatedAt: ds.clock.Now(),
-		LabelUpdatedAt:  ds.clock.Now(),
-		PolicyUpdatedAt: ds.clock.Now(),
-		SeenTime:        ds.clock.Now(),
-	})
-	require.NoError(t, err)
+	host := newTestHostWithPlatform(t, ds, "batched-host", "darwin", nil)
 
 	// Seven versions of one app, so the rename spans four batches of two. Plus an
 	// unrelated app with no FMA, which must never be renamed.
@@ -1346,17 +1326,7 @@ func testReconcileSoftwareNamesDiscoveryWindowed(t *testing.T, ds *Datastore) {
 		maintainedAppNameReconcileDiscoveryLimit = oldDiscoveryLimit
 	})
 
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "windowed-host",
-		Platform:        "darwin",
-		OsqueryHostID:   new("windowed-osquery-id"),
-		NodeKey:         new("windowed-node-key"),
-		DetailUpdatedAt: ds.clock.Now(),
-		LabelUpdatedAt:  ds.clock.Now(),
-		PolicyUpdatedAt: ds.clock.Now(),
-		SeenTime:        ds.clock.Now(),
-	})
-	require.NoError(t, err)
+	host := newTestHostWithPlatform(t, ds, "windowed-host", "darwin", nil)
 
 	var software []fleet.Software
 	for _, version := range []string{"1.0", "2.0", "3.0", "4.0", "5.0", "6.0", "7.0"} {
@@ -1364,7 +1334,7 @@ func testReconcileSoftwareNamesDiscoveryWindowed(t *testing.T, ds *Datastore) {
 			Name: "Code", Version: version, Source: "apps", BundleIdentifier: "com.microsoft.VSCode",
 		})
 	}
-	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 
 	upsertDarwinFMA(t, ds, "Microsoft Visual Studio Code", "com.microsoft.VSCode", "visual-studio-code/darwin")
@@ -1430,17 +1400,7 @@ func testReconcileSoftwareNamesOrphanedInstaller(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Orphan"})
 	require.NoError(t, err)
 
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "orphan-host",
-		Platform:        "darwin",
-		OsqueryHostID:   new("orphan-osquery-id"),
-		NodeKey:         new("orphan-node-key"),
-		DetailUpdatedAt: ds.clock.Now(),
-		LabelUpdatedAt:  ds.clock.Now(),
-		PolicyUpdatedAt: ds.clock.Now(),
-		SeenTime:        ds.clock.Now(),
-	})
-	require.NoError(t, err)
+	host := newTestHostWithPlatform(t, ds, "orphan-host", "darwin", nil)
 
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Code", Version: "1.0", Source: "apps", BundleIdentifier: "com.microsoft.VSCode"},
@@ -1512,17 +1472,7 @@ func testReconcileSoftwareNamesMultiTeamInstallers(t *testing.T, ds *Datastore) 
 	teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team B"})
 	require.NoError(t, err)
 
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "multi-team-host",
-		Platform:        "darwin",
-		OsqueryHostID:   new("multi-osquery-id"),
-		NodeKey:         new("multi-node-key"),
-		DetailUpdatedAt: ds.clock.Now(),
-		LabelUpdatedAt:  ds.clock.Now(),
-		PolicyUpdatedAt: ds.clock.Now(),
-		SeenTime:        ds.clock.Now(),
-	})
-	require.NoError(t, err)
+	host := newTestHostWithPlatform(t, ds, "multi-team-host", "darwin", nil)
 
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Code", Version: "1.0", Source: "apps", BundleIdentifier: "com.microsoft.VSCode"},
@@ -1557,19 +1507,9 @@ func testReconcileSoftwareNamesMultiTeamInstallers(t *testing.T, ds *Datastore) 
 func testReconcileSoftwareNamesLeavesMobileSiblings(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "sibling-host",
-		Platform:        "darwin",
-		OsqueryHostID:   new("sibling-osquery-id"),
-		NodeKey:         new("sibling-node-key"),
-		DetailUpdatedAt: ds.clock.Now(),
-		LabelUpdatedAt:  ds.clock.Now(),
-		PolicyUpdatedAt: ds.clock.Now(),
-		SeenTime:        ds.clock.Now(),
-	})
-	require.NoError(t, err)
+	host := newTestHostWithPlatform(t, ds, "sibling-host", "darwin", nil)
 
-	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Code", Version: "1.0", Source: "apps", BundleIdentifier: "com.microsoft.VSCode"},
 	})
 	require.NoError(t, err)
