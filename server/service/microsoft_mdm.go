@@ -2978,6 +2978,8 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 		return "", nil, err
 	}
 
+	logAutopilotEnrollmentContext(ctx, svc.logger, secTokenMsg, reqDeviceID, reqHWDeviceID)
+
 	// Getting the BinarySecurityToken from the RequestSecurityToken msg
 	binSecurityTokenData, err := secTokenMsg.GetBinarySecurityTokenData()
 	if err != nil {
@@ -4660,4 +4662,33 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+// logAutopilotEnrollmentContext records the Autopilot identifiers an enrolling device supplies, so they can be
+// compared against what Microsoft Graph reports for the same device.
+//
+// MS-MDE2 defines a "ZeroTouchProvisioning" context item carrying a GUID, present only when the device is registered
+// with Autopilot. If that GUID is the ZTDID, it equals windowsAutopilotDeviceIdentity.id and gives Fleet an exact join
+// key to a pending Autopilot host that does not rely on the hardware serial, which would remove the duplicate-serial
+// and placeholder-serial problems. Both context items are optional, so their absence is normal and never fails an
+// enrollment.
+func logAutopilotEnrollmentContext(
+	ctx context.Context,
+	logger *slog.Logger,
+	secTokenMsg *fleet.RequestSecurityToken,
+	deviceID, hardwareID string,
+) {
+	ztdID, ztdErr := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemZeroTouchProvisioning)
+	offlineCorrelator, offlineErr := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemOfflineAutopilotCorrelator)
+	if ztdErr != nil && offlineErr != nil {
+		// Not an Autopilot-registered device, or a Windows build that does not send these. Nothing to record.
+		return
+	}
+
+	logger.InfoContext(ctx, "windows mdm enrollment carried autopilot context",
+		"zero_touch_provisioning_guid", ztdID,
+		"offline_autopilot_correlator", offlineCorrelator,
+		"mdm_device_id", deviceID,
+		"mdm_hardware_id", hardwareID,
+	)
 }
