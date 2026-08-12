@@ -4411,17 +4411,7 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
 		}
 	case "ios", "ipados", "darwin":
-		// Turning MDM off clears Fleet's enrolled flag right away, but the
-		// device only checks out once it actually receives the removal command.
-		// On an offline host that can be days, and until then the
-		// nano-enrollment guard in
-		// enqueueMDMAppleCommandRemoveEnrollmentProfile still sees an enabled
-		// enrollment, so every repeat call queues another removal command and
-		// logs another unenroll activity. Fleet's own flag is the one that
-		// flips immediately, so it's what makes this refusable when repeated.
-		//
-		// Apple only: Android keeps enrolled = 1 until AMAPI acknowledges, so
-		// the flag says nothing about whether a turn off is already under way.
+		// Turning MDM off clears Fleet's enrolled flag right away, so check the flag here to avoid re-enqueuing another unenroll.
 		hostMDM, err := svc.ds.GetHostMDM(ctx, hostID)
 		switch {
 		case err != nil && !fleet.IsNotFound(err):
