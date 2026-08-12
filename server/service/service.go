@@ -24,9 +24,9 @@ import (
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	gocache "github.com/patrickmn/go-cache"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	gocache "github.com/patrickmn/go-cache"
 )
 
 var _ fleet.Service = (*Service)(nil)

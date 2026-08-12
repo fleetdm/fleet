@@ -132,7 +132,7 @@ type Datastore interface {
 	// If teamID is non-nil, checks both global (team_id IS NULL) and the specified team's queries,
 	// since both appear in a team host's pack config.
 	// If teamID is nil, checks only global queries.
-	HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint) (bool, error)
+	HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)

@@ -80,7 +80,7 @@ func setupPackConfigCacheTest(t *testing.T) (
 	}
 
 	// No label-scoped queries by default (cache is safe to use).
-	ds.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+	ds.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
 		return false, nil
 	}
 
@@ -342,7 +342,7 @@ func TestPackConfigCacheLabelScopedBypass(t *testing.T) {
 	svc, ds, callCounter := setupPackConfigCacheTest(t)
 
 	// Override: label-scoped queries exist.
-	ds.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+	ds.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
 		return true, nil
 	}
 
@@ -362,7 +362,7 @@ func TestPackConfigCacheLabelScopedBypass(t *testing.T) {
 		"expected DB call even on second request when label-scoped queries exist")
 
 	// Now switch to no label scoping -- cache should work again.
-	ds.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+	ds.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
 		return false, nil
 	}
 

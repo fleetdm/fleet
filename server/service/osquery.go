@@ -433,17 +433,30 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.R
 	useLegacyPacks := len(packs) > 0
 	canUseCache := !useLegacyPacks && svc.packConfigCache != nil
 	if canUseCache {
-		hasLabelScoped, err := svc.ds.HasLabelScopedScheduledQueries(ctx, host.TeamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "check label-scoped scheduled queries")
-		}
-		if hasLabelScoped {
-			canUseCache = false
+		// Check (with caching) whether any scheduled queries have label targeting.
+		// This is cached separately from the pack config itself to avoid a DB
+		// query on every request for the common case (no label-scoped queries).
+		labelCacheKey := "has_label_scoped:" + packConfigCacheKey(host.TeamID, queryReportsDisabled)
+		if cached, found := svc.packConfigCache.Get(labelCacheKey); found {
+			if hasLabels, ok := cached.(bool); ok && hasLabels {
+				canUseCache = false
+			}
+		} else {
+			hasLabelScoped, err := svc.ds.HasLabelScopedScheduledQueries(ctx, host.TeamID, queryReportsDisabled)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check label-scoped scheduled queries")
+			}
+			svc.packConfigCache.SetDefault(labelCacheKey, hasLabelScoped)
+			if hasLabelScoped {
+				canUseCache = false
+			}
 		}
 	}
 	if canUseCache {
 		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
 		if cached, found := svc.packConfigCache.Get(cacheKey); found {
+			// cached may be nil (negative cache: no queries for this team)
+			// or a json.RawMessage with the marshaled pack config.
 			raw, _ := cached.(json.RawMessage)
 			return raw, nil
 		}

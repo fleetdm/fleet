@@ -1002,18 +1002,23 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 	return results, nil
 }
 
-func (ds *Datastore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint) (bool, error) {
+func (ds *Datastore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
 	stmt := `
 		SELECT EXISTS(
 			SELECT 1 FROM query_labels ql
 			JOIN queries q ON q.id = ql.query_id
 			WHERE q.saved = true
 			AND q.schedule_interval > 0
+			AND (
+				q.automations_enabled
+				OR
+				(NOT q.discard_data AND NOT ? AND q.logging_type = ?)
+			)
 			AND %s
 		)`
 
+	args := []any{queryReportsDisabled, fleet.LoggingSnapshot}
 	teamSQL := "q.team_id IS NULL"
-	args := []any{}
 	if teamID != nil {
 		teamSQL = "(q.team_id IS NULL OR q.team_id = ?)"
 		args = append(args, *teamID)
