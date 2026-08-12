@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.16.0",
+      "version": "1.17.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.solotuna.devknife';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.solotuna.devknife' AND version_compare(bundle_short_version, '1.16.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.solotuna.devknife' AND version_compare(bundle_short_version, '1.17.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.solotuna.devknife');"
       },
-      "installer_url": "https://files.solotuna.com/devknife/DevKnife-1.16.0.dmg",
+      "installer_url": "https://files.solotuna.com/devknife/DevKnife-1.17.0.dmg",
       "install_script_ref": "3057a23a",
       "uninstall_script_ref": "606b81b0",
-      "sha256": "ce91719791e25e191822126840a7638930c76cc528bc7bc6396eb8c030d79c3a",
+      "sha256": "d350b751933dfa86d78fd19809f938d1061fa9e3f83f783cab37b7c955e4bceb",
       "default_categories": [
         "Developer tools"
       ]

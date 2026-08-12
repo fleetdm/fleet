@@ -993,6 +993,10 @@ type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, teamName
 
 type ReleaseABDevicesFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error)
 
+type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
+type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error
+
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -2451,6 +2455,12 @@ type Service struct {
 
 	ReleaseABDevicesFunc        ReleaseABDevicesFunc
 	ReleaseABDevicesFuncInvoked bool
+
+	ListMicrosoftGraphCredentialsFunc        ListMicrosoftGraphCredentialsFunc
+	ListMicrosoftGraphCredentialsFuncInvoked bool
+
+	ApplyMicrosoftGraphCredentialsFunc        ApplyMicrosoftGraphCredentialsFunc
+	ApplyMicrosoftGraphCredentialsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5855,4 +5865,18 @@ func (s *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*flee
 	s.ReleaseABDevicesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReleaseABDevicesFunc(ctx, hostIDs)
+}
+
+func (s *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialsFunc(ctx)
+}
+
+func (s *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error {
+	s.mu.Lock()
+	s.ApplyMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyMicrosoftGraphCredentialsFunc(ctx, creds, dryRun)
 }

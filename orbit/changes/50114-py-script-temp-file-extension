@@ -1,0 +1,1 @@
+* Fixed `.py` package install scripts being written to the host with a `.sh` extension, which produced misleading Python tracebacks.
