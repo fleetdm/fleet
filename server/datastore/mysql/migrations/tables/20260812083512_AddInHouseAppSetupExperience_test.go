@@ -20,7 +20,7 @@ func TestUp_20260812083512(t *testing.T) {
 
 	var installDuringSetup []bool
 	err := db.Select(&installDuringSetup,
-		`SELECT install_during_setup FROM in_house_apps WHERE id IN (?, ?)`, iosAppID, ipadosAppID)
+		`SELECT install_during_setup FROM in_house_apps WHERE id IN (?, ?) ORDER BY id`, iosAppID, ipadosAppID)
 	require.NoError(t, err)
 	require.Equal(t, []bool{false, false}, installDuringSetup)
 
