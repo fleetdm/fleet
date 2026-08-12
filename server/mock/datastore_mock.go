@@ -1488,6 +1488,10 @@ type RecordMicrosoftGraphSyncResultFunc func(ctx context.Context, tenantID strin
 
 type BatchUpsertHostAutopilotDevicesFunc func(ctx context.Context, devices []*fleet.HostAutopilotDevice) error
 
+type IngestWindowsAutopilotDevicesFunc func(ctx context.Context, devices []*fleet.HostAutopilotDevice) error
+
+type RemoveWindowsAutopilotHostsFunc func(ctx context.Context, hostIDs []uint) error
+
 type BatchSoftDeleteHostAutopilotDevicesFunc func(ctx context.Context, hostIDs []uint) error
 
 type ListHostAutopilotDevicesFunc func(ctx context.Context, tenantID string) ([]*fleet.HostAutopilotDevice, error)
@@ -4520,6 +4524,12 @@ type DataStore struct {
 
 	BatchUpsertHostAutopilotDevicesFunc        BatchUpsertHostAutopilotDevicesFunc
 	BatchUpsertHostAutopilotDevicesFuncInvoked bool
+
+	IngestWindowsAutopilotDevicesFunc        IngestWindowsAutopilotDevicesFunc
+	IngestWindowsAutopilotDevicesFuncInvoked bool
+
+	RemoveWindowsAutopilotHostsFunc        RemoveWindowsAutopilotHostsFunc
+	RemoveWindowsAutopilotHostsFuncInvoked bool
 
 	BatchSoftDeleteHostAutopilotDevicesFunc        BatchSoftDeleteHostAutopilotDevicesFunc
 	BatchSoftDeleteHostAutopilotDevicesFuncInvoked bool
@@ -10900,6 +10910,20 @@ func (s *DataStore) BatchUpsertHostAutopilotDevices(ctx context.Context, devices
 	s.BatchUpsertHostAutopilotDevicesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchUpsertHostAutopilotDevicesFunc(ctx, devices)
+}
+
+func (s *DataStore) IngestWindowsAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
+	s.mu.Lock()
+	s.IngestWindowsAutopilotDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.IngestWindowsAutopilotDevicesFunc(ctx, devices)
+}
+
+func (s *DataStore) RemoveWindowsAutopilotHosts(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.RemoveWindowsAutopilotHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.RemoveWindowsAutopilotHostsFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error {

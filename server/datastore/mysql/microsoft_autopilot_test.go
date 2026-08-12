@@ -39,6 +39,8 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		{"HostAutopilotDeviceBatchSpansBatches", testHostAutopilotDeviceBatchSpansBatches},
 		{"HostAutopilotDeviceUnchangedUpsertIsNotAWrite", testHostAutopilotDeviceUnchangedUpsertIsNotAWrite},
 		{"HostAutopilotDeviceBatchSoftDelete", testHostAutopilotDeviceBatchSoftDelete},
+		{"IngestWindowsAutopilotDevices", testIngestWindowsAutopilotDevices},
+		{"RemoveWindowsAutopilotHosts", testRemoveWindowsAutopilotHosts},
 	}
 
 	for _, c := range cases {
@@ -449,4 +451,137 @@ func testHostAutopilotDeviceBatchSoftDelete(t *testing.T, ds *Datastore) {
 
 	// An empty slice is the steady state of a sync where nothing was deregistered.
 	require.NoError(t, ds.BatchSoftDeleteHostAutopilotDevices(ctx, nil))
+}
+
+// autopilotDevice builds an Autopilot record for ingestion. HostID is left unset on purpose: the datastore resolves it
+// from the serial.
+func autopilotDevice(serial, tag string) *fleet.HostAutopilotDevice {
+	return &fleet.HostAutopilotDevice{
+		AutopilotDeviceID: "ap-" + serial,
+		EntraDeviceID:     "aad-" + serial,
+		GroupTag:          tag,
+		HardwareSerial:    serial,
+		TenantID:          testTenantA,
+	}
+}
+
+// seedWindowsBuiltinLabels recreates the two builtin labels a pending Windows host joins. TruncateTables clears the
+// labels table between subtests, and the shared createBuiltinLabels helper only seeds the Apple ones.
+func seedWindowsBuiltinLabels(t *testing.T, ds *Datastore) {
+	t.Helper()
+	_, err := ds.writer(t.Context()).ExecContext(t.Context(), `
+INSERT INTO labels (name, description, query, platform, label_type) VALUES (?, '', '', '', ?), (?, '', '', '', ?)
+ON DUPLICATE KEY UPDATE name = name`,
+		fleet.BuiltinLabelNameAllHosts, fleet.LabelTypeBuiltIn,
+		fleet.BuiltinLabelNameWindows, fleet.LabelTypeBuiltIn)
+	require.NoError(t, err)
+}
+
+func testIngestWindowsAutopilotDevices(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	seedWindowsBuiltinLabels(t, ds)
+
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		autopilotDevice("AP-SERIAL-1", "Engineering"),
+		autopilotDevice("AP-SERIAL-2", ""),
+	}))
+
+	// A pending Autopilot host must look like a pending host everywhere the UI and the host filters look.
+	var got []struct {
+		ID               uint    `db:"id"`
+		Platform         string  `db:"platform"`
+		HardwareSerial   string  `db:"hardware_serial"`
+		OsqueryHostID    *string `db:"osquery_host_id"`
+		Enrolled         bool    `db:"enrolled"`
+		InstalledFromDep bool    `db:"installed_from_dep"`
+		EnrollmentStatus *string `db:"enrollment_status"`
+		ServerURL        string  `db:"server_url"`
+	}
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &got, `
+SELECT h.id, h.platform, h.hardware_serial, h.osquery_host_id,
+       hm.enrolled, hm.installed_from_dep, hm.enrollment_status, hm.server_url
+FROM hosts h JOIN host_mdm hm ON hm.host_id = h.id
+WHERE h.hardware_serial LIKE 'AP-SERIAL-%' ORDER BY h.hardware_serial`))
+	require.Len(t, got, 2)
+	for _, h := range got {
+		assert.Equal(t, "windows", h.Platform)
+		assert.Nil(t, h.OsqueryHostID, "a pending host has not run osquery yet")
+		assert.False(t, h.Enrolled)
+		assert.True(t, h.InstalledFromDep, "drives the generated Pending enrollment status")
+		require.NotNil(t, h.EnrollmentStatus)
+		assert.Equal(t, "Pending", *h.EnrollmentStatus)
+		assert.Contains(t, h.ServerURL, "/api/mdm/microsoft/discovery",
+			"pending hosts must share the Windows MDM solution row, not the Apple one")
+	}
+
+	// The Autopilot metadata is stored against the created hosts.
+	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 2)
+	byS := map[string]fleet.HostAutopilotDevice{}
+	for _, d := range devices {
+		byS[d.HardwareSerial] = *d
+		assert.NotZero(t, d.HostID, "host id resolved from the serial")
+	}
+	require.Contains(t, byS, "AP-SERIAL-1")
+	first := byS["AP-SERIAL-1"]
+	assert.Equal(t, "Engineering", first.GroupTag)
+
+	// Builtin label membership so the host shows up before osquery runs.
+	var labelCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &labelCount, `
+SELECT COUNT(*) FROM label_membership lm
+JOIN labels l ON l.id = lm.label_id
+WHERE lm.host_id = ? AND l.name IN (?, ?)`, first.HostID, fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameWindows))
+	assert.Equal(t, 2, labelCount)
+
+	// Re-ingesting is idempotent and updates a mutable group tag in place.
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		autopilotDevice("AP-SERIAL-1", "Marketing"),
+	}))
+	var hostCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostCount,
+		`SELECT COUNT(*) FROM hosts WHERE hardware_serial = 'AP-SERIAL-1'`))
+	assert.Equal(t, 1, hostCount, "re-ingesting must not create a second host")
+	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	for _, d := range devices {
+		if d.HardwareSerial == "AP-SERIAL-1" {
+			assert.Equal(t, "Marketing", d.GroupTag)
+		}
+	}
+}
+
+func testRemoveWindowsAutopilotHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		autopilotDevice("RM-PENDING", "tag"),
+		autopilotDevice("RM-ENROLLED", "tag"),
+	}))
+	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 2)
+	byS := map[string]uint{}
+	for _, d := range devices {
+		byS[d.HardwareSerial] = d.HostID
+	}
+
+	// Simulate the second device having enrolled since the sync created it.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_mdm SET enrolled = 1 WHERE host_id = ?`, byS["RM-ENROLLED"])
+	require.NoError(t, err)
+
+	require.NoError(t, ds.RemoveWindowsAutopilotHosts(ctx, []uint{byS["RM-PENDING"], byS["RM-ENROLLED"]}))
+
+	// The still-pending host is gone; the enrolled host survives.
+	var remaining []string
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &remaining,
+		`SELECT hardware_serial FROM hosts WHERE hardware_serial IN ('RM-PENDING','RM-ENROLLED')`))
+	assert.Equal(t, []string{"RM-ENROLLED"}, remaining)
+
+	// Both Autopilot rows are tombstoned, so neither device is reported as live.
+	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	assert.Empty(t, devices)
 }

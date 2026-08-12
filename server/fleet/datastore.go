@@ -2511,6 +2511,15 @@ type Datastore interface {
 	// BatchUpsertHostAutopilotDevices stores the Windows Autopilot metadata for many hosts, clearing any soft deletion.
 	BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
 
+	// IngestWindowsAutopilotDevices creates a pending Windows host for every device whose hardware serial has no host
+	// yet, and stores the Autopilot metadata for every device passed in. HostID on the input is ignored and resolved
+	// from the serial.
+	IngestWindowsAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
+
+	// RemoveWindowsAutopilotHosts handles devices that left the Autopilot registry: hosts still pending are deleted,
+	// hosts that already enrolled keep their host row and only lose the Autopilot metadata.
+	RemoveWindowsAutopilotHosts(ctx context.Context, hostIDs []uint) error
+
 	// BatchSoftDeleteHostAutopilotDevices tombstones the Autopilot records for the given hosts, for devices that are no
 	// longer present in the tenant's Autopilot registry. The host rows themselves are untouched.
 	BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error

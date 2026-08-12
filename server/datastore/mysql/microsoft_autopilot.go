@@ -8,8 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -157,6 +159,10 @@ var hostAutopilotDeviceBatchSize = 1000
 // deleted_at, so a device that leaves and later rejoins the Autopilot list becomes live again rather than staying
 // invisible behind a stale tombstone.
 func (ds *Datastore) BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
+	return batchUpsertHostAutopilotDevicesDB(ctx, ds.writer(ctx), devices)
+}
+
+func batchUpsertHostAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, devices []*fleet.HostAutopilotDevice) error {
 	const stmt = `
 INSERT INTO host_autopilot_devices
 	(host_id, autopilot_device_id, entra_device_id, group_tag, hardware_serial, tenant_id)
@@ -176,7 +182,7 @@ ON DUPLICATE KEY UPDATE
 		}
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?),", len(batch)), ",")
 
-		if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "exec batch")
 		}
 		return nil
@@ -239,4 +245,265 @@ WHERE host_id = ? AND deleted_at IS NULL`
 		return nil, ctxerr.Wrap(ctx, err, "get host autopilot device")
 	}
 	return &device, nil
+}
+
+// IngestWindowsAutopilotDevices creates a pending Windows host for every device whose hardware serial has no host yet,
+// and stores the Autopilot metadata for every device passed in. HostID on the input is ignored and resolved from the
+// serial, so the caller does not have to know which devices are new.
+//
+// A device whose serial already belongs to a host (typically one that has since enrolled) only gets its Autopilot
+// metadata refreshed. Its host_mdm row is deliberately left alone so a sync never demotes an enrolled host back to
+// pending.
+func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
+	if len(devices) == 0 {
+		return nil
+	}
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load app config for windows autopilot ingest")
+	}
+	// A pending Autopilot host must point at the same mobile_device_management_solutions row as an enrolled Windows
+	// host. That table is keyed on (name, server_url), and Windows enrollment registers the discovery URL, so
+	// resolving anything else here would file pending hosts under a second "Fleet" solution.
+	serverURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "resolve windows mdm discovery url")
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		serials := make([]string, 0, len(devices))
+		for _, dev := range devices {
+			serials = append(serials, dev.HardwareSerial)
+		}
+
+		// Resolve before inserting so we know which hosts this pass creates: only those get a host_mdm row and label
+		// memberships.
+		hostIDBySerial, err := hostIDsBySerialDB(ctx, tx, serials)
+		if err != nil {
+			return err
+		}
+
+		newSerials := make([]string, 0, len(serials))
+		for _, serial := range serials {
+			if _, ok := hostIDBySerial[serial]; !ok {
+				newSerials = append(newSerials, serial)
+				// Guard against the same serial appearing twice in one Graph page.
+				hostIDBySerial[serial] = 0
+			}
+		}
+
+		if len(newSerials) > 0 {
+			if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, newSerials); err != nil {
+				return err
+			}
+			created, err := hostIDsBySerialDB(ctx, tx, newSerials)
+			if err != nil {
+				return err
+			}
+			newHostIDs := make([]uint, 0, len(created))
+			for serial, id := range created {
+				hostIDBySerial[serial] = id
+				newHostIDs = append(newHostIDs, id)
+			}
+			if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, serverURL, newHostIDs); err != nil {
+				return err
+			}
+			if err := upsertWindowsAutopilotHostLabelsDB(ctx, tx, newHostIDs); err != nil {
+				return err
+			}
+		}
+
+		resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
+		for _, dev := range devices {
+			hostID, ok := hostIDBySerial[dev.HardwareSerial]
+			if !ok || hostID == 0 {
+				// The insert above should have covered every serial; skip rather than write host_id 0.
+				continue
+			}
+			copied := *dev
+			copied.HostID = hostID
+			resolved = append(resolved, &copied)
+		}
+		return batchUpsertHostAutopilotDevicesDB(ctx, tx, resolved)
+	})
+}
+
+// hostIDsBySerialDB maps hardware serials to host IDs. When more than one host shares a serial the lowest ID wins, so
+// repeated syncs resolve to the same host.
+func hostIDsBySerialDB(ctx context.Context, tx sqlx.ExtContext, serials []string) (map[string]uint, error) {
+	byS := make(map[string]uint, len(serials))
+	err := common_mysql.BatchProcessSimple(serials, hostAutopilotDeviceBatchSize, func(batch []string) error {
+		stmt, args, err := sqlx.In(`SELECT id, hardware_serial FROM hosts WHERE hardware_serial IN (?) ORDER BY id DESC`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build IN clause")
+		}
+		var rows []struct {
+			ID             uint   `db:"id"`
+			HardwareSerial string `db:"hardware_serial"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select host ids by serial")
+		}
+		// Descending order means the lowest ID is written last and wins.
+		for _, row := range rows {
+			byS[row.HardwareSerial] = row.ID
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "map host ids by serial")
+	}
+	return byS, nil
+}
+
+// insertPendingWindowsAutopilotHostsDB creates the bare host rows. The never-timestamp sentinel on last_enrolled_at and
+// detail_updated_at keeps CleanupExpiredHosts from deleting a host that has not checked in yet, matching how ADE
+// ingestion creates pending Apple hosts.
+func insertPendingWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, serials []string) error {
+	stmt := `
+INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested)
+VALUES %s`
+
+	err := common_mysql.BatchProcessSimple(serials, hostAutopilotDeviceBatchSize, func(batch []string) error {
+		args := make([]any, 0, len(batch))
+		for _, serial := range batch {
+			args = append(args, serial)
+		}
+		values := strings.TrimSuffix(strings.Repeat(
+			"(?, '', 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1),", len(batch)), ",")
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "exec batch")
+		}
+		return nil
+	})
+	return ctxerr.Wrap(ctx, err, "insert pending windows autopilot hosts")
+}
+
+// upsertWindowsAutopilotHostMDMInfoDB marks the hosts as pending: enrolled=0 with installed_from_dep=1 renders as
+// "Pending" through the generated host_mdm.enrollment_status column, and flips to "On (automatic)" when the device
+// enrolls for real.
+func upsertWindowsAutopilotHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	result, err := tx.ExecContext(ctx, `
+		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
+		fleet.WellKnownMDMFleet, serverURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert windows mdm solution")
+	}
+	var mdmID int64
+	if insertOnDuplicateDidInsertOrUpdate(result) {
+		mdmID, _ = result.LastInsertId()
+	} else {
+		if err := sqlx.GetContext(ctx, tx, &mdmID,
+			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`,
+			fleet.WellKnownMDMFleet, serverURL); err != nil {
+			return ctxerr.Wrap(ctx, err, "query windows mdm solution id")
+		}
+	}
+
+	stmt := `
+INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, mdm_id, is_server)
+VALUES %s
+ON DUPLICATE KEY UPDATE
+	enrolled = VALUES(enrolled),
+	server_url = VALUES(server_url),
+	installed_from_dep = VALUES(installed_from_dep),
+	mdm_id = VALUES(mdm_id)`
+
+	err = common_mysql.BatchProcessSimple(hostIDs, hostAutopilotDeviceBatchSize, func(batch []uint) error {
+		args := make([]any, 0, len(batch)*4)
+		for _, hostID := range batch {
+			args = append(args, hostID, serverURL, mdmID)
+		}
+		values := strings.TrimSuffix(strings.Repeat("(?, 0, ?, 1, ?, 0),", len(batch)), ",")
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "exec batch")
+		}
+		return nil
+	})
+	return ctxerr.Wrap(ctx, err, "upsert windows autopilot host mdm info")
+}
+
+// upsertWindowsAutopilotHostLabelsDB puts the pending hosts into the "All Hosts" and "MS Windows" builtin labels so
+// they show up in host lists before osquery ever runs on the device.
+func upsertWindowsAutopilotHostLabelsDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	var labels []struct {
+		ID   uint   `db:"id"`
+		Name string `db:"name"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &labels,
+		`SELECT id, name FROM labels WHERE label_type = ? AND name IN (?, ?)`,
+		fleet.LabelTypeBuiltIn, fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameWindows); err != nil {
+		return ctxerr.Wrap(ctx, err, "get builtin labels for windows autopilot hosts")
+	}
+	if len(labels) != 2 {
+		// Builtin labels can be deleted. Skip rather than fail the whole sync over label membership.
+		return nil
+	}
+
+	stmt := `INSERT INTO label_membership (host_id, label_id) VALUES %s ON DUPLICATE KEY UPDATE host_id = host_id`
+	err := common_mysql.BatchProcessSimple(hostIDs, hostAutopilotDeviceBatchSize, func(batch []uint) error {
+		args := make([]any, 0, len(batch)*len(labels)*2)
+		for _, hostID := range batch {
+			for _, label := range labels {
+				args = append(args, hostID, label.ID)
+			}
+		}
+		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(batch)*len(labels)), ",")
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "exec batch")
+		}
+		return nil
+	})
+	return ctxerr.Wrap(ctx, err, "insert windows autopilot label membership")
+}
+
+// RemoveWindowsAutopilotHosts handles devices that have left the tenant's Autopilot registry. A host still in the
+// pending state is deleted outright, because it only ever existed as a placeholder and will now never enroll. A host
+// that has since enrolled is kept and only loses its Autopilot metadata, so a deregistered but live device keeps
+// reporting in. Mirrors DeleteHostDEPAssignments.
+func (ds *Datastore) RemoveWindowsAutopilotHosts(ctx context.Context, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		stmt, args, err := sqlx.In(`
+SELECT h.id
+FROM hosts h
+JOIN host_mdm hm ON hm.host_id = h.id
+WHERE h.id IN (?) AND hm.enrolled = 0 AND hm.installed_from_dep = 1`, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build IN clause for pending autopilot hosts")
+		}
+		var pendingHostIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &pendingHostIDs, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select pending autopilot hosts")
+		}
+
+		// Tombstone every Autopilot row first. The rows for deleted hosts go away with the host through hostRefs, but
+		// tombstoning first keeps the enrolled-host case correct if the delete below fails and the tx retries.
+		tombstone, args, err := sqlx.In(
+			`UPDATE host_autopilot_devices SET deleted_at = NOW(6) WHERE deleted_at IS NULL AND host_id IN (?)`, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build IN clause for autopilot tombstone")
+		}
+		if _, err := tx.ExecContext(ctx, tombstone, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "tombstone host autopilot devices")
+		}
+
+		if len(pendingHostIDs) == 0 {
+			return nil
+		}
+		return deleteHosts(ctx, tx, pendingHostIDs)
+	})
 }
