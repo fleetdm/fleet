@@ -16,9 +16,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/client"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/service"
 	_ "github.com/go-sql-driver/mysql"
@@ -185,15 +183,14 @@ func (f *Fleet) getPublicPort(serviceName string, privatePort uint16) (uint16, e
 	containerName := fmt.Sprintf("%s-%s-1", f.ProjectName, serviceName)
 
 	// get the random fleet host port assigned by docker
-	argsName := filters.Arg("name", containerName)
-	containers, err := f.dockerClient.ContainerList(context.TODO(), container.ListOptions{Filters: filters.NewArgs(argsName)})
+	containers, err := f.dockerClient.ContainerList(context.TODO(), client.ContainerListOptions{Filters: make(client.Filters).Add("name", containerName)})
 	if err != nil {
 		return 0, err
 	}
-	if len(containers) == 0 {
+	if len(containers.Items) == 0 {
 		return 0, errors.New("no containers found")
 	}
-	for _, port := range containers[0].Ports {
+	for _, port := range containers.Items[0].Ports {
 		if port.PrivatePort == privatePort {
 			return port.PublicPort, nil
 		}
@@ -207,15 +204,14 @@ func (f *Fleet) waitFleet() error {
 	containerName := fmt.Sprintf("%s-fleet-1", f.ProjectName)
 
 	// get the random fleet host port assigned by docker
-	argsName := filters.Arg("name", containerName)
-	containers, err := f.dockerClient.ContainerList(context.TODO(), container.ListOptions{Filters: filters.NewArgs(argsName), All: true})
+	containers, err := f.dockerClient.ContainerList(context.TODO(), client.ContainerListOptions{Filters: make(client.Filters).Add("name", containerName), All: true})
 	if err != nil {
 		return err
 	}
-	if len(containers) == 0 {
+	if len(containers.Items) == 0 {
 		return errors.New("no fleet container found")
 	}
-	port := containers[0].Ports[0].PublicPort
+	port := containers.Items[0].Ports[0].PublicPort
 	healthURL := fmt.Sprintf("https://localhost:%d/healthz", port)
 	f.t.Logf("fleet URL: %s", healthURL)
 
@@ -287,12 +283,12 @@ func (f *Fleet) execCompose(env map[string]string, args ...string) (string, erro
 // Returns the container ID which is also the hostname and osquery host ID.
 func (f *Fleet) StartHost() (string, error) {
 	// get the enroll secret
-	client, err := f.Client()
+	fleetClient, err := f.Client()
 	if err != nil {
 		return "", err
 	}
 
-	enrollSecretSpec, err := client.GetEnrollSecretSpec()
+	enrollSecretSpec, err := fleetClient.GetEnrollSecretSpec()
 	if err != nil {
 		return "", err
 	}
@@ -314,11 +310,11 @@ func (f *Fleet) StartHost() (string, error) {
 	containerID := output[:len(output)-1] // strip the newline from output
 
 	// inspect the container to get the hostname
-	containerJSON, err := f.dockerClient.ContainerInspect(context.Background(), containerID)
+	containerJSON, err := f.dockerClient.ContainerInspect(context.Background(), containerID, client.ContainerInspectOptions{})
 	if err != nil {
 		return "", fmt.Errorf("inspect container: %v", err)
 	}
-	hostname := containerJSON.Config.Hostname
+	hostname := containerJSON.Container.Config.Hostname
 
 	return hostname, nil
 }
