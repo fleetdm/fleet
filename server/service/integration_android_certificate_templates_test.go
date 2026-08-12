@@ -1718,12 +1718,25 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.Empty(t, profile.Detail)
 
 		// Fail MaxCertificateInstallRetries times -- each should auto-retry (status resets to pending)
+		var previousDetail string
 		for i := range fleet.MaxCertificateInstallRetries {
 			if i > 0 {
 				// The first delivery already happened above.
 				deliverCert()
+
+				// This is the state reported in #50739: the retry has been re-delivered, so the
+				// profile reads as an ordinary in-flight install again, and only the retry count
+				// and the detail carried over from the previous attempt mark it as a retry. The
+				// delivery transitions must leave both alone.
+				profile = getCertProfile()
+				require.Equal(t, string(fleet.CertificateTemplateDelivered), *profile.Status)
+				require.Equal(t, previousDetail, profile.Detail,
+					"re-delivering a retry must preserve the previous failure detail")
+				require.NotNil(t, profile.RetryCount)
+				require.Equal(t, i, *profile.RetryCount)
 			}
 			detail := fmt.Sprintf("SCEP failure %d", i+1)
+			previousDetail = detail
 			reportCertStatus(string(fleet.MDMDeliveryFailed), &detail)
 
 			record, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)

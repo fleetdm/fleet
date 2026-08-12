@@ -67,9 +67,10 @@ export const isRetryingAndroidCertificate = (
 
 /**
  * Builds the tooltip for a retrying Android certificate, e.g. "Network error during SCEP
- * enrollment. Retrying enrollment (2 of 4)." The attempt numbers count the initial attempt, so
- * they run one higher than the retries Fleet reports. The host does not have to report an error
- * message with a failure, in which case the retry stands on its own.
+ * enrollment. Retrying enrollment (attempt 2 of 4)." The numbers are labelled as attempts because
+ * they count the initial attempt, and so run one higher than the retry_count/max_retries the API
+ * reports. The host does not have to report an error message with a failure, in which case the
+ * retry stands on its own.
  */
 export const getAndroidCertificateRetryTooltip = (
   profile: IHostMdmProfileWithAddedStatus
@@ -77,7 +78,7 @@ export const getAndroidCertificateRetryTooltip = (
   const attempts =
     profile.retry_count === undefined || profile.max_retries === undefined
       ? ""
-      : ` (${profile.retry_count + 1} of ${profile.max_retries + 1})`;
+      : ` (attempt ${profile.retry_count + 1} of ${profile.max_retries + 1})`;
   const retrying = `Retrying enrollment${attempts}.`;
 
   const detail = profile.detail?.trim();

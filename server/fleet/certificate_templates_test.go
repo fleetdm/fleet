@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -103,5 +104,37 @@ func TestHostCertificateTemplate(t *testing.T) {
 				tt.expectation(t, tt.template.ToHostMDMProfile())
 			})
 		}
+	})
+
+	// The retry fields describe Fleet's automatic retry of an Android certificate install, which
+	// no other platform has. They must stay absent from every other profile's JSON rather than
+	// showing up as a misleading zero.
+	t.Run("retry fields are Android certificate only", func(t *testing.T) {
+		for _, profile := range []HostMDMProfile{
+			HostMDMWindowsProfile{Name: "Windows profile"}.ToHostMDMProfile(),
+			HostMDMAndroidProfile{Name: "Android ONC profile"}.ToHostMDMProfile(),
+			{Name: "Apple profile", Platform: "darwin"},
+		} {
+			t.Run(profile.Name, func(t *testing.T) {
+				require.Nil(t, profile.RetryCount)
+				require.Nil(t, profile.MaxRetries)
+
+				encoded, err := json.Marshal(profile)
+				require.NoError(t, err)
+				require.NotContains(t, string(encoded), "retry_count")
+				require.NotContains(t, string(encoded), "max_retries")
+			})
+		}
+	})
+
+	// The Android certificate rows do carry them, including a zero retry count on a first
+	// delivery, which the UI needs in order to tell a first attempt from a retry.
+	t.Run("retry fields are always present for Android certificates", func(t *testing.T) {
+		template := &HostCertificateTemplate{Name: "BeyondCorp", Status: CertificateTemplateDelivered}
+
+		encoded, err := json.Marshal(template.ToHostMDMProfile())
+		require.NoError(t, err)
+		require.Contains(t, string(encoded), `"retry_count":0`)
+		require.Contains(t, string(encoded), `"max_retries":3`)
 	})
 }

@@ -248,7 +248,9 @@ describe("OS setting status cell", () => {
           // The attempt numbers count the initial attempt, so one retry of a maximum three
           // means this is attempt two of four.
           expect(
-            screen.getByText(`${SCEP_ERROR}. Retrying enrollment (2 of 4).`)
+            screen.getByText(
+              `${SCEP_ERROR}. Retrying enrollment (attempt 2 of 4).`
+            )
           ).toBeInTheDocument();
         });
       }
@@ -261,7 +263,9 @@ describe("OS setting status cell", () => {
       await user.hover(screen.getByText("Retrying"));
       await waitFor(() => {
         expect(
-          screen.getByText(`${SCEP_ERROR}. Retrying enrollment (4 of 4).`)
+          screen.getByText(
+            `${SCEP_ERROR}. Retrying enrollment (attempt 4 of 4).`
+          )
         ).toBeInTheDocument();
       });
     });
@@ -276,7 +280,7 @@ describe("OS setting status cell", () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            "Failed to communicate with SCEP server. Retrying enrollment (2 of 4)."
+            "Failed to communicate with SCEP server. Retrying enrollment (attempt 2 of 4)."
           )
         ).toBeInTheDocument();
       });
@@ -318,7 +322,7 @@ describe("OS setting status cell", () => {
       await user.hover(statusText);
       await waitFor(() => {
         expect(
-          screen.getByText("Retrying enrollment (2 of 4).")
+          screen.getByText("Retrying enrollment (attempt 2 of 4).")
         ).toBeInTheDocument();
       });
     });
@@ -329,9 +333,9 @@ describe("OS setting status cell", () => {
 
       await user.hover(screen.getByText("Retrying"));
       await waitFor(() => {
-        // Not ". Retrying enrollment (2 of 4)."
+        // Not ". Retrying enrollment (attempt 2 of 4)."
         expect(
-          screen.getByText("Retrying enrollment (2 of 4).")
+          screen.getByText("Retrying enrollment (attempt 2 of 4).")
         ).toBeInTheDocument();
       });
     });
