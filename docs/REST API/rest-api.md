@@ -1785,7 +1785,7 @@ None.
     "windows_entra_client_ids": [
       "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
-    "windows_entra_graph_api_token": "********",
+    "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
@@ -2181,7 +2181,7 @@ Modifies the Fleet's configuration with the supplied information.
     "windows_entra_client_ids": [
       "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
-    "windows_entra_graph_api_token": "********",
+    "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
@@ -2858,7 +2858,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
-| windows_entra_graph_api_token     | string | _Available in Fleet Premium._ Microsoft Graph API client secret used to authenticate requests to Microsoft Graph API to sync Windows Autopilot devices as pending hosts in Fleet. Set this when you use Windows Autopilot: Fleet uses it to query Microsoft Graph for Autopilot-registered devices so they appear in Fleet before they enroll. Find your **Client secret** on [**Microsoft Entra ID > App registrations > your MDM application > Certificates & secrets > New client secret**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade). Masked as "********" in `GET` responses. |
+| microsoft_graph_credential_invalid | boolean | _Available in Fleet Premium._ Read-only. `true` when at least one Microsoft Graph credential has been rejected by Microsoft Entra or denied by Microsoft Graph, so Windows Autopilot devices are no longer syncing. Resolve it by supplying a new client secret, or granting admin consent, with [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials). Fleet computes this field, so it's ignored if you try to set it. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
@@ -8765,6 +8765,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
+- [List Microsoft Graph credentials](#list-microsoft-graph-credentials)
+- [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -8972,6 +8974,92 @@ None.
   "android_enterprise_id": "LC0445szuv"
 }
 ```
+
+### List Microsoft Graph credentials
+
+_Available in Fleet Premium_
+
+List the Microsoft Graph credentials Fleet uses to sync [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot) devices as pending hosts, along with the sync status for each Microsoft Entra tenant.
+
+Client secrets are write-only. Fleet never returns them.
+
+`GET /api/v1/fleet/microsoft_graph_credentials`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/microsoft_graph_credentials`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "microsoft_graph_credentials": [
+    {
+      "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
+      "client_id": "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa",
+      "credential_invalid": false,
+      "last_synced_at": "2026-08-11T15:02:16Z",
+      "last_sync_error": null
+    }
+  ]
+}
+```
+
+`last_synced_at` and `last_sync_error` are `null` until the first sync runs. `credential_invalid` is `true` when Microsoft Entra rejected the credential or Microsoft Graph denied the request, which means Autopilot devices are no longer syncing.
+
+### Modify Microsoft Graph credentials
+
+_Available in Fleet Premium_
+
+Replaces the stored Microsoft Graph credentials with the supplied list. This endpoint is declarative: a credential whose `tenant_id` isn't in the list is deleted. Send an empty array to delete all credentials.
+
+Before saving, Fleet verifies each credential that's new or changed by requesting a token and reading one page of Autopilot devices, so an incorrect credential is rejected here instead of failing silently on the next sync. Re-sending an unchanged credential makes no request to Microsoft, saves nothing, and creates no activity.
+
+The app registration needs the `DeviceManagementServiceConfig.Read.All` application permission, with admin consent granted for your tenant.
+
+Fleet currently supports one Microsoft Graph credential.
+
+`PUT /api/v1/fleet/microsoft_graph_credentials`
+
+#### Parameters
+
+| Name                        | Type    | In   | Description                                                                                                                                                                          |
+| --------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| microsoft_graph_credentials | array   | body | **Required.** The complete list of credentials. Credentials that are stored but absent from this list are deleted.                                                                      |
+| microsoft_graph_credentials.tenant_id | string | body | **Required.** The Microsoft Entra tenant ID. Find your **Tenant ID** on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
+| microsoft_graph_credentials.client_id | string | body | **Required.** The Microsoft Entra application (client) ID. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
+| microsoft_graph_credentials.client_secret | string | body | The client secret for the app registration. Required when adding a credential, and when changing an existing credential's `tenant_id` or `client_id`. Omit it to keep the stored secret. Find your **Client secret** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Certificates & secrets**. |
+| dry_run                     | boolean | body | Validate and verify the credentials against Microsoft Graph without saving them (default: `false`).                                                                                    |
+
+#### Example
+
+`PUT /api/v1/fleet/microsoft_graph_credentials`
+
+##### Request body
+
+```json
+{
+  "microsoft_graph_credentials": [
+    {
+      "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
+      "client_id": "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa",
+      "client_secret": "iL78Q~yourClientSecretValue"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+This endpoint returns a `422` when a tenant or client ID isn't a valid GUID, when `client_secret` is missing for a new credential, when more than one credential is supplied, or when Microsoft Graph rejects the credential.
 
 ---
 
