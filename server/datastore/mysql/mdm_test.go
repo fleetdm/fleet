@@ -4026,8 +4026,8 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	// Android: enrolled host should be connected
 	connectedAndroid, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "android-test-connected",
-		OsqueryHostID: ptr.String("osquery-android-connected"),
-		NodeKey:       ptr.String("node-key-android-connected"),
+		OsqueryHostID: new("osquery-android-connected"),
+		NodeKey:       new("node-key-android-connected"),
 		UUID:          uuid.NewString(),
 		Platform:      "android",
 	})
@@ -4038,8 +4038,8 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	// Android: host without MDM enrollment should not be connected
 	notConnectedAndroid, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "android-test-not-connected",
-		OsqueryHostID: ptr.String("osquery-android-not-connected"),
-		NodeKey:       ptr.String("node-key-android-not-connected"),
+		OsqueryHostID: new("osquery-android-not-connected"),
+		NodeKey:       new("node-key-android-not-connected"),
 		UUID:          uuid.NewString(),
 		Platform:      "android",
 	})
@@ -4048,8 +4048,8 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	// Android: unenrolled host (enrolled=false) should not be connected
 	unenrolledAndroid, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "android-test-unenrolled",
-		OsqueryHostID: ptr.String("osquery-android-unenrolled"),
-		NodeKey:       ptr.String("node-key-android-unenrolled"),
+		OsqueryHostID: new("osquery-android-unenrolled"),
+		NodeKey:       new("node-key-android-unenrolled"),
 		UUID:          uuid.NewString(),
 		Platform:      "android",
 	})

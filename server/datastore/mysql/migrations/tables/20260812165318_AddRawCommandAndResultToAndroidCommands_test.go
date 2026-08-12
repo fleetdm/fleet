@@ -44,6 +44,6 @@ func TestUp_20260812165318(t *testing.T) {
 	var storedCmd, storedResult string
 	err = db.QueryRow(`SELECT raw_command, raw_result FROM mdm_android_commands WHERE command_uuid = ?`, cmdUUID2).Scan(&storedCmd, &storedResult)
 	require.NoError(t, err)
-	assert.Equal(t, rawJSON, storedCmd)
-	assert.Equal(t, resultJSON, storedResult)
+	assert.JSONEq(t, rawJSON, storedCmd)
+	assert.JSONEq(t, resultJSON, storedResult)
 }

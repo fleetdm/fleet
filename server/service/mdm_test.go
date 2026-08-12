@@ -5174,7 +5174,7 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		UUID:     "android-uuid-1",
 		Platform: "android",
 		Hostname: "Pixel 7",
-		TeamID:   ptr.Uint(1),
+		TeamID:   new(uint(1)),
 	}
 
 	setupDS := func(t *testing.T) *mock.Store {
@@ -5182,12 +5182,8 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
 			return []*fleet.Host{androidHost}, nil
 		}
-		ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, hosts []*fleet.Host) (map[string]bool, error) {
-			res := make(map[string]bool, len(hosts))
-			for _, h := range hosts {
-				res[h.UUID] = true
-			}
-			return res, nil
+		ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, _ []*fleet.Host) (map[string]bool, error) {
+			return map[string]bool{androidHost.UUID: true}, nil
 		}
 		ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
@@ -5317,16 +5313,12 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 
 	t.Run("rejects multiple Android hosts", func(t *testing.T) {
 		ds := new(mock.Store)
-		androidHost2 := &fleet.Host{ID: 101, UUID: "android-uuid-2", Platform: "android", TeamID: ptr.Uint(1)}
+		androidHost2 := &fleet.Host{ID: 101, UUID: "android-uuid-2", Platform: "android", TeamID: new(uint(1))}
 		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
 			return []*fleet.Host{androidHost, androidHost2}, nil
 		}
-		ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, hosts []*fleet.Host) (map[string]bool, error) {
-			res := make(map[string]bool, len(hosts))
-			for _, h := range hosts {
-				res[h.UUID] = true
-			}
-			return res, nil
+		ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, _ []*fleet.Host) (map[string]bool, error) {
+			return map[string]bool{androidHost.UUID: true, androidHost2.UUID: true}, nil
 		}
 		ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{

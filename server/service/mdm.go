@@ -625,9 +625,9 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	return result, nil
 }
 
-var androidMDMPremiumCommands = map[string]bool{
-	"LOCK":           true,
-	"RESET_PASSWORD": true,
+var androidMDMPremiumCommands = map[string]struct{}{
+	"LOCK":           {},
+	"RESET_PASSWORD": {},
 }
 
 // enqueueAndroidMDMCommand issues an AMAPI custom command for each targeted Android host.
@@ -656,7 +656,7 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 		cmdType = "RESET_PASSWORD"
 	}
 
-	if androidMDMPremiumCommands[cmdType] {
+	if _, ok := androidMDMPremiumCommands[cmdType]; ok {
 		lic, err := svc.License(ctx)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get license")
