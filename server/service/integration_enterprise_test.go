@@ -29402,6 +29402,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			"active version should roll back to v1.0 (the version added via UI)")
 		require.Len(t, uiTitle.SoftwarePackage.FleetMaintainedVersions, 2,
 			"both versions should remain cached after rolling back")
+		// Pinning picks which cached version is active without rewriting which one is
+		// newest, so clearing the pin later still resolves Latest to v2.0.
+		require.Equal(t, "2.0", uiTitle.SoftwarePackage.FleetMaintainedVersions[0].Version,
+			"the pinned older version must not become the newest download")
 	})
 
 	// =========================================================================

@@ -905,6 +905,9 @@ func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, active
 		return 0, ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
 	}
 
+	// Activated after the transaction commits, so a cancelled install doesn't stall the queue.
+	var refreshAffectedHostIDs []uint
+
 	// Read the scope (team, title) from the active installer so the cron
 	// doesn't need to pass them and they always agree with the row being cloned.
 	var src struct {
@@ -962,17 +965,16 @@ FROM software_installers WHERE id = ?`,
 		)
 		if err != nil {
 			if IsDuplicate(err) {
-				// Version already cached for this team/title. When the manifest republished it
-				// with different bytes, refresh the row in place with the same fields
-				// BatchSetSoftwareInstallers rewrites and move uploaded_at, so both paths treat
-				// a rebuilt package the same way.
+				// Version already cached for this team/title. Refresh the row in place when the
+				// bytes changed, matching what BatchSetSoftwareInstallers does for a rebuild.
 				var cached struct {
 					ID        uint   `db:"id"`
 					StorageID string `db:"storage_id"`
 				}
 				if err := sqlx.GetContext(ctx, tx, &cached, `
 					SELECT id, storage_id FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND version = ?`,
+					WHERE global_or_team_id = ? AND title_id = ? AND version = ?
+						AND fleet_maintained_app_id IS NOT NULL`,
 					src.GlobalOrTeamID, src.TitleID, payload.Version,
 				); err != nil {
 					return ctxerr.Wrap(ctx, err, "load cached fleet-maintained app version")
@@ -998,9 +1000,11 @@ FROM software_installers WHERE id = ?`,
 
 				// A host with an install queued on this row would otherwise receive the new
 				// bytes under the version it was promised.
-				if _, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, installerID, false, true, true); err != nil {
+				hostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, installerID, false, true, true)
+				if err != nil {
 					return ctxerr.Wrap(ctx, err, "side effects for refreshed fleet-maintained app version")
 				}
+				refreshAffectedHostIDs = hostIDs
 				return nil
 			}
 			return ctxerr.Wrap(ctx, err, "insert fleet-maintained app version")
@@ -1030,6 +1034,12 @@ FROM software_installers WHERE id = ?`,
 	})
 	if err != nil {
 		return 0, err
+	}
+
+	if len(refreshAffectedHostIDs) > 0 {
+		if err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, refreshAffectedHostIDs); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "activate next activity for hosts affected by a refreshed version")
+		}
 	}
 	return installerID, nil
 }
@@ -3605,6 +3615,11 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				}
 			}
 
+			pinnedToLiteralVersion := false
+			if installer.RollbackVersion != "" && !strings.HasPrefix(installer.RollbackVersion, "^") {
+				pinnedToLiteralVersion = true
+			}
+
 			if skipInsert {
 				// some fields still need to be updated
 				args := []any{
@@ -3618,10 +3633,8 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 					installer.AppOpenQuery,
 					existingID,
 				}
-				// The manifest is at an already cached version whose bytes differ from the
-				// active installer, so it is the latest available version
 				touchUploaded := ""
-				if len(existing) > 0 && existing[0].IsPackageModified {
+				if len(existing) > 0 && existing[0].IsPackageModified && !pinnedToLiteralVersion {
 					touchUploaded = "uploaded_at = NOW(6),"
 				}
 				if _, err := tx.ExecContext(ctx, fmt.Sprintf(updateInstaller, touchUploaded), args...); err != nil {
@@ -3629,7 +3642,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				}
 			} else {
 				upsertQuery := insertNewOrEditedInstaller
-				if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
+				if len(existing) > 0 && existing[0].IsPackageModified && !pinnedToLiteralVersion {
 					upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW(6)", upsertQuery)
 				}
 

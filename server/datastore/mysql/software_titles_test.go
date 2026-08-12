@@ -51,6 +51,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
 		{"SoftwareTitleByIDNoFleetScopedToVisibleFleets", testSoftwareTitleByIDNoFleetScopedToVisibleFleets},
 		{"GetFleetMaintainedVersionsOrder", testGetFleetMaintainedVersionsOrder},
+		{"MarkFleetMaintainedAppVersionCurrent", testMarkFleetMaintainedAppVersionCurrent},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3123,4 +3124,61 @@ func versionStrings(versions []fleet.FleetMaintainedVersion) []string {
 		got = append(got, version.Version)
 	}
 	return got
+}
+
+func testMarkFleetMaintainedAppVersionCurrent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Marked", Slug: "marked", Platform: "darwin", UniqueIdentifier: "fleet.marked",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+	olderID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "Marked", Source: "apps", Platform: "darwin",
+		InstallScript: "echo install", UninstallScript: "echo uninstall",
+		InstallerFile: tfr, StorageID: "marked-storage-1", Filename: "marked-1.pkg", Version: "1.0",
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(app.ID),
+	})
+	require.NoError(t, err)
+	newerID, err := ds.InsertFleetMaintainedAppVersion(ctx, olderID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "1.1", StorageID: "marked-storage-2", Filename: "marked-2.pkg", Extension: "pkg",
+		InstallScript: "echo install", UninstallScript: "echo uninstall",
+	})
+	require.NoError(t, err)
+
+	uploadedAt := func(installerID uint) time.Time {
+		var at time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &at, `SELECT uploaded_at FROM software_installers WHERE id = ?`, installerID)
+		})
+		return at
+	}
+
+	require.NoError(t, ds.MarkFleetMaintainedAppVersionCurrent(ctx, olderID))
+	require.True(t, uploadedAt(olderID).After(uploadedAt(newerID)))
+
+	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0", "1.1"}, versionStrings(versions))
+
+	// Rows tied on the microsecond are ordered by id, so the lower-id row still has to be
+	// markable or it could never become current.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE software_installers SET uploaded_at = '2026-01-01 00:00:00.123456' WHERE id IN (?, ?)`,
+			olderID, newerID)
+		return err
+	})
+	versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.1", "1.0"}, versionStrings(versions), "the higher id wins a tie")
+
+	require.NoError(t, ds.MarkFleetMaintainedAppVersionCurrent(ctx, olderID))
+	versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0", "1.1"}, versionStrings(versions))
 }

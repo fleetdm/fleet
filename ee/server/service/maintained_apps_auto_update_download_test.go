@@ -241,8 +241,25 @@ func TestAutoUpdateRebuiltCachedVersionRefreshes(t *testing.T) {
 	require.NotNil(t, gotPayload)
 	require.Equal(t, testFMALatest, gotPayload.Version, "same version")
 	require.Equal(t, srv.sha, gotPayload.StorageID, "new bytes")
-	require.False(t, ds.MarkFleetMaintainedAppVersionCurrentFuncInvoked,
-		"refreshing the row already moves uploaded_at")
+	require.True(t, ds.MarkFleetMaintainedAppVersionCurrentFuncInvoked)
+}
+
+func TestAutoUpdateNoCheckHashMarksCachedVersionCurrent(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	// Homebrew's no_check sentinel: no hash to compare before downloading.
+	srv.sha = noCheckHash
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, uint, string, error) {
+		return true, 7, "some-hash", nil
+	}
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		return 7, nil
+	}
+
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	// Still becomes the newest download, or a manifest that went back to a cached version
+	// would never be followed for these apps.
+	require.True(t, ds.MarkFleetMaintainedAppVersionCurrentFuncInvoked)
 }
 
 func TestAutoUpdateCaretMajorExceededSkipsDownload(t *testing.T) {

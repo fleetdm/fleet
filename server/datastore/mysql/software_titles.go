@@ -1178,9 +1178,6 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 	return result, nil
 }
 
-// MarkFleetMaintainedAppVersionCurrent moves a cached version's uploaded_at to now, so the
-// version the manifest publishes today sorts ahead of versions that were downloaded after
-// it. Used when the manifest goes back to a version Fleet already cached.
 func (ds *Datastore) MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE software_installers SET uploaded_at = NOW(6) WHERE id = ?`, installerID)
