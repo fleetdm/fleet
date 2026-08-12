@@ -4254,6 +4254,10 @@ func executeWindowsProfileReconcileBatch(
 		return uris
 	}
 
+	// Host rows for removes whose <Delete> was fully suppressed by LocURI protection, accumulated across every removed profile in
+	// this batch and deleted in one call below.
+	var suppressedRemoveRows []*fleet.MDMWindowsProfilePayload
+
 	for profUUID, target := range removeTargets {
 		if _, ok := profileContents[profUUID]; !ok {
 			// No retained content for this removed profile, so we can't build its <Delete> this tick. This is normally a transient
@@ -4336,7 +4340,17 @@ func executeWindowsProfileReconcileBatch(
 				continue
 			}
 			if command == nil {
-				// Every LocURI of the removed profile is still enforced by another profile on these hosts; nothing to send.
+				// Every LocURI of the removed profile is still enforced by another profile on these hosts, so there is no
+				// <Delete> to send and no command ack will ever arrive to clean these rows up. Collect the rows and delete
+				// them after the loop.
+				for _, hostUUID := range g.hostUUIDs {
+					suppressedRemoveRows = append(suppressedRemoveRows, &fleet.MDMWindowsProfilePayload{
+						ProfileUUID: profUUID,
+						HostUUID:    hostUUID,
+					})
+				}
+				logger.DebugContext(ctx, "removed profile fully protected by other profiles, deleting host rows",
+					"profile_uuid", profUUID, "host_count", len(g.hostUUIDs))
 				continue
 			}
 
@@ -4365,6 +4379,12 @@ func executeWindowsProfileReconcileBatch(
 			if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, g.hostUUIDs, command, removePayloadsForCommand); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
 			}
+		}
+	}
+
+	if len(suppressedRemoveRows) > 0 {
+		if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, suppressedRemoveRows); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting host profiles whose remove command was fully suppressed")
 		}
 	}
 
