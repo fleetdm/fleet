@@ -3035,10 +3035,22 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 			if err != nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
+			// Cached versions come back most recently downloaded first, so the first one on the
+			// pinned major is the one to fall back to.
+			pinnedVersion := ""
+			for _, version := range versions {
+				if versionMatchesMajor(version.Version, majorVersionString) {
+					pinnedVersion = version.Version
+					break
+				}
+			}
+			if pinnedVersion == "" {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
 
 			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,
 			// but it can be optimized in softwareBatchUpload if it accepted only passing category and script content IDs.
-			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, versions[0].Version)
+			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, pinnedVersion)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting software installer")
 			}

@@ -687,8 +687,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 
+	// Newest download first, and it is on a major the pin doesn't allow.
 	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
-		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "26.0.0"}}, nil
+		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "27.0.0"}, {ID: 2, Version: "26.0.0"}}, nil
 	}
 
 	ds.GetCachedFMAInstallerMetadataFunc = func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
@@ -698,6 +699,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 			Platform:         "darwin",
 			UniqueIdentifier: "com.1password.1password",
 			Slug:             "1password/darwin",
+			Version:          version,
 		}, nil
 	}
 
@@ -734,6 +736,8 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 				// RollbackVersion must be left as the user typed it, including a caret, so the pin expression
 				// survives downstream and is persisted to software_title_team_pins.
 				require.Equal(t, vt.version, payload.RollbackVersion)
+				// The cached version on the pinned major, not the newer download on another major.
+				require.Equal(t, "26.0.0", payload.MaintainedApp.Version)
 			}
 		})
 	}

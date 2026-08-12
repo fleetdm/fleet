@@ -270,11 +270,18 @@ func TestAutoUpdateNoCheckHashMarksCachedVersionCurrent(t *testing.T) {
 		markedInstallerID = installerID
 		return nil
 	}
+	// The list above is returned unchanged after the mark, the way a lagging replica would.
+	var activatedInstallerID uint
+	ds.SetFleetMaintainedAppActiveInstallerFunc = func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
+		activatedInstallerID = activeInstallerID
+		return nil
+	}
 
 	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
 	// Without a hash the bytes may turn out to be ones Fleet already had, so the version the
 	// manifest publishes still has to become the newest download.
 	require.Equal(t, uint(7), markedInstallerID)
+	require.Equal(t, uint(7), activatedInstallerID)
 }
 
 func TestAutoUpdateCaretMajorExceededSkipsDownload(t *testing.T) {

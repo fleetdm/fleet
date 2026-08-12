@@ -121,10 +121,8 @@ func promoteFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, logger *
 			if err := ds.MarkFleetMaintainedAppVersionCurrent(ctx, versions[publishedIndex].ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "marking cached version current")
 			}
-			versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, c.TeamID, c.TitleID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting cached versions after reorder")
-			}
+			// These versions were read before changing uploaded_at, so reorder them to match the write.
+			versions[0], versions[publishedIndex] = versions[publishedIndex], versions[0]
 		}
 	}
 
