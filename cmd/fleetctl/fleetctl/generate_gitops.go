@@ -94,6 +94,7 @@ type generateGitopsClient interface {
 	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
+	GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
@@ -840,6 +841,30 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		return nil, err
 	}
 	orgSettings["certificate_authorities"] = certificateAuthorities // TODO(hca): Ask Scott about jsonFieldName usage
+
+	var graphCreds []*fleet.MicrosoftGraphCredential
+	if cmd.AppConfig.License.IsPremium() {
+		graphCreds, err = cmd.Client.GetMicrosoftGraphCredentials()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(graphCreds) > 0 {
+		credT := reflect.TypeFor[fleet.MicrosoftGraphCredential]()
+		creds := make([]map[string]any, 0, len(graphCreds))
+		for _, cred := range graphCreds {
+			creds = append(creds, map[string]any{
+				jsonFieldName(credT, "TenantID"):     cred.TenantID,
+				jsonFieldName(credT, "ClientID"):     cred.ClientID,
+				jsonFieldName(credT, "ClientSecret"): cmd.AddComment("default.yml", "TODO: Add your Microsoft Graph client secret here"),
+			})
+			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "microsoft_graph_credentials.client_secret",
+			})
+		}
+		orgSettings["microsoft_graph_credentials"] = creds
+	}
 
 	mdm, err := cmd.generateMDM(&cmd.AppConfig.MDM)
 	if err != nil {

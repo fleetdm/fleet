@@ -2490,6 +2490,38 @@ type Datastore interface {
 	GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (MDMDeliveryStatus, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Microsoft Graph credentials and Windows Autopilot devices
+
+	// ListMicrosoftGraphCredentials returns every stored Microsoft Graph credential with its client secret decrypted.
+	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+
+	// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets, decrypting
+	// nothing.
+	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+
+	// ReplaceMicrosoftGraphCredentials reconciles the stored credentials.
+	ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert []*MicrosoftGraphCredential, deleteTenantIDs []string) error
+
+	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag for a tenant. It reports whether the flag actually changed.
+	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
+
+	// RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass. A nil syncErr records a success and clears any previous error.
+	RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error
+
+	// BatchUpsertHostAutopilotDevices stores the Windows Autopilot metadata for many hosts, clearing any soft deletion.
+	BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
+
+	// BatchSoftDeleteHostAutopilotDevices tombstones the Autopilot records for the given hosts, for devices that are no
+	// longer present in the tenant's Autopilot registry. The host rows themselves are untouched.
+	BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error
+
+	// ListHostAutopilotDevices returns the live Autopilot records for an Entra tenant.
+	ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*HostAutopilotDevice, error)
+
+	// GetHostAutopilotDevice returns the live Autopilot record for a host, or a not-found error.
+	GetHostAutopilotDevice(ctx context.Context, hostID uint) (*HostAutopilotDevice, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Linux MDM
 
 	// GetLinuxDiskEncryptionSummary summarizes the current state of Linux disk encryption on
