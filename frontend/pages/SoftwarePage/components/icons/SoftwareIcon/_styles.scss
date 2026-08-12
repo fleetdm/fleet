@@ -36,6 +36,11 @@
 
   &__software-img {
     display: block;
+    // Icons are rendered in a square box, but not every source is square — tvOS
+    // app icons are 5:3 (Apple ships them at 1280x768), and custom uploaded
+    // icons can be any shape. Without this they'd be stretched to fill the box;
+    // "contain" letterboxes them instead. No effect on square icons.
+    object-fit: contain;
   }
 
   // These following classs are when a software icon is passed a url prop. In
