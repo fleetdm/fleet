@@ -54,15 +54,8 @@ func applyMicrosoftGraphCredentialsEndpoint(ctx context.Context, request any, sv
 	return applyMicrosoftGraphCredentialsResponse{}, nil
 }
 
-func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming []fleet.MicrosoftGraphCredential, _ bool) error {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	// Configuring a credential requires premium. Having none never does, so an empty list is a no-op.
-	if len(incoming) == 0 {
-		return nil
-	}
-
+func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, _ []fleet.MicrosoftGraphCredential, _ bool) error {
+	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
 	return fleet.ErrMissingLicense
 }
