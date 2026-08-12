@@ -1701,6 +1701,26 @@ scan:
 			break scan
 		}
 	}
+	// An Autopilot-registered device supplies its ZTDID at enrollment, and that is an exact key: it is immune to the
+	// duplicate and placeholder serials that make serial matching unreliable on Windows. Try it first, and fall back
+	// to the serial for devices that are not Autopilot-registered or that enrolled before the ZTDID was captured.
+	if enrolledDevice.ZTDRegistrationID != "" {
+		hostID, err := svc.ds.HostIDByAutopilotDeviceID(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ZTDRegistrationID)
+		switch {
+		case err == nil:
+			if serial != "" {
+				svc.logger.DebugContext(ctx, "windows mdm: linking pending autopilot host by ZTDID",
+					"device_id", enrolledDevice.MDMDeviceID, "ztd_registration_id", enrolledDevice.ZTDRegistrationID)
+			}
+			return svc.linkWindowsHostMDMEnrollmentByHostID(ctx, enrolledDevice, hostID)
+		case !fleet.IsNotFound(err):
+			svc.logger.ErrorContext(ctx, "windows mdm: host lookup by ZTDID failed",
+				"err", err, "device_id", enrolledDevice.MDMDeviceID)
+			ctxerr.Handle(ctx, err)
+		}
+		// Not found means the Autopilot sync has not created the pending host yet, so fall through to the serial.
+	}
+
 	if serial == "" {
 		return false
 	}
@@ -1731,6 +1751,25 @@ scan:
 		return false
 	}
 	// Always refresh in-memory HostUUID after a successful link attempt.
+	enrolledDevice.HostUUID = host.UUID
+	return updated
+}
+
+// linkWindowsHostMDMEnrollmentByHostID links an enrollment to a host resolved by an identifier other than the serial.
+func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostID uint) bool {
+	host, err := svc.ds.HostLite(ctxdb.RequirePrimary(ctx, true), hostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: loading host for autopilot link failed",
+			"err", err, "device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: autopilot link failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
 	enrolledDevice.HostUUID = host.UUID
 	return updated
 }
@@ -3116,8 +3155,14 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		svc.logger.InfoContext(ctx, "ESP: device enrolled in OOBE, activating setup experience", "device_id", reqDeviceID)
 	}
 
+	// Present only when the device is Autopilot-registered. Verified on hardware to equal
+	// windowsAutopilotDeviceIdentity.id in Microsoft Graph, so it links this enrollment to a pending Autopilot host
+	// exactly, without depending on the hardware serial. Absence is normal and never fails an enrollment.
+	ztdRegistrationID, _ := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemZeroTouchProvisioning)
+
 	// Getting the Windows Enrolled Device Information
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		ZTDRegistrationID:       ztdRegistrationID,
 		MDMDeviceID:             reqDeviceID,
 		MDMHardwareID:           reqHWDevID,
 		MDMDeviceState:          microsoft_mdm.MDMDeviceStateEnrolled,

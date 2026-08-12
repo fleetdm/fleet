@@ -565,3 +565,22 @@ func (ds *Datastore) UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.
 	}
 	return nil
 }
+
+// HostIDByAutopilotDeviceID resolves a pending Autopilot host from the Autopilot device ID (the ZTDID). The device
+// supplies this at Windows MDM enrollment and Microsoft Graph returns the same value, so it links an enrollment to its
+// pending host exactly, without depending on a hardware serial that can be duplicated or a placeholder.
+func (ds *Datastore) HostIDByAutopilotDeviceID(ctx context.Context, autopilotDeviceID string) (uint, error) {
+	const stmt = `
+SELECT host_id FROM host_autopilot_devices
+WHERE autopilot_device_id = ? AND deleted_at IS NULL
+ORDER BY host_id LIMIT 1`
+
+	var hostID uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostID, stmt, autopilotDeviceID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ctxerr.Wrap(ctx, notFound("HostAutopilotDevice").WithMessage(autopilotDeviceID))
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get host id by autopilot device id")
+	}
+	return hostID, nil
+}

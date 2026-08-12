@@ -2782,6 +2782,11 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		require.Equal(t, host.UUID, hostUUID)
 		return returnEnrollmentsUpdated, nil
 	}
+	// Default: not an Autopilot host. A pending Autopilot host keeps installed_from_dep, which the Autopilot subtests
+	// override.
+	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+		return nil, &notFoundErrorForTest{}
+	}
 	ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
 		return nil
 	}
@@ -4868,4 +4873,48 @@ func TestDirectIngestMDMMacOSSoftwareUpdateID(t *testing.T) {
 		ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked = false
 		insertedDeviceID = ""
 	})
+}
+
+type notFoundErrorForTest struct{}
+
+func (e *notFoundErrorForTest) Error() string    { return "not found" }
+func (e *notFoundErrorForTest) IsNotFound() bool { return true }
+
+// A pending Autopilot host must keep installed_from_dep when its enrollment is linked out of OOBE. Clearing it would
+// demote a device that enrolled through Autopilot to "On (manual)", and enrolling out of OOBE is normal for an
+// Autopilot device that has already been provisioned, so MDMNotInOOBE alone cannot distinguish the two.
+func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name            string
+		hasAutopilotRow bool
+		wantDEPCleared  bool
+	}{
+		{"an ordinary Windows host is demoted to manual", false, true},
+		{"a pending Autopilot host keeps its marker", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var depCleared bool
+
+			ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+				if tc.hasAutopilotRow {
+					return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
+				}
+				return nil, &notFoundErrorForTest{}
+			}
+			ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
+				depCleared = !enrolledFromDEP
+				return nil
+			}
+
+			isAutopilot, err := hostHasLiveAutopilotRecord(t.Context(), ds, 1)
+			require.NoError(t, err)
+			if !isAutopilot {
+				require.NoError(t, ds.UpdateMDMInstalledFromDEP(t.Context(), 1, false))
+			}
+			assert.Equal(t, tc.wantDEPCleared, depCleared)
+		})
+	}
 }

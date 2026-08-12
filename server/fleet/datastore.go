@@ -2515,6 +2515,10 @@ type Datastore interface {
 	// credentials table, saving the app config only when it changed.
 	UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.Context) error
 
+	// HostIDByAutopilotDeviceID resolves a host from the Autopilot device ID (the ZTDID), which the device supplies at
+	// Windows MDM enrollment and which Microsoft Graph returns as windowsAutopilotDeviceIdentity.id.
+	HostIDByAutopilotDeviceID(ctx context.Context, autopilotDeviceID string) (uint, error)
+
 	// IngestWindowsAutopilotDevices creates a pending Windows host for every device whose hardware serial has no host
 	// yet, and stores the Autopilot metadata for every device passed in. HostID on the input is ignored and resolved
 	// from the serial.

@@ -498,9 +498,10 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			awaiting_configuration_at,
 			host_uuid,
 			credentials_hash,
-			credentials_acknowledged)
+			credentials_acknowledged,
+			ztd_registration_id)
 		VALUES
-			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			mdm_device_id         = VALUES(mdm_device_id),
 			device_state          = VALUES(device_state),
@@ -515,7 +516,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			awaiting_configuration_at = VALUES(awaiting_configuration_at),
 			host_uuid             = VALUES(host_uuid),
 			credentials_hash      = VALUES(credentials_hash),
-			credentials_acknowledged = VALUES(credentials_acknowledged)
+			credentials_acknowledged = VALUES(credentials_acknowledged),
+			ztd_registration_id   = VALUES(ztd_registration_id)
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -534,7 +536,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		device.AwaitingConfigurationAt,
 		device.HostUUID,
 		device.CredentialsHash,
-		device.CredentialsAcknowledged)
+		device.CredentialsAcknowledged,
+		device.ZTDRegistrationID)
 	if err != nil {
 		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsEnrolledDevice", device.MDMHardwareID))
