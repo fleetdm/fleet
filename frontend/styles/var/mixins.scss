@@ -25,7 +25,10 @@ $max-width: 2560px;
   }
 }
 
-// Used to normalize styling of team header wrapper on various pages
+// Apply to the outer header row that contains TeamsHeader + action buttons,
+// NOT to .fleet-dropdown-wrapper itself — the wrapper needs its own
+// `display: inline-block` so FleetsDropdown's absolutely-positioned menu
+// anchors under the button.
 @mixin normalize-team-header {
   display: flex;
   align-items: center;
