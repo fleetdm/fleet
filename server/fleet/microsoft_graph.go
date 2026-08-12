@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -74,4 +75,36 @@ func ParseMicrosoftGraphCredentials(raw any) ([]MicrosoftGraphCredential, error)
 		creds = []MicrosoftGraphCredential{}
 	}
 	return creds, nil
+}
+
+// DedupeAutopilotDevicesBySerial collapses Autopilot devices that share a hardware serial, returning the survivors and
+// how many records were dropped.
+//
+// Several Autopilot records can legitimately carry one serial: a device re-registered under a new Autopilot ID keeps
+// its serial, and some OEMs ship duplicate serials outright. They can only ever become one Fleet host, because
+// host_autopilot_devices is keyed by host_id and a serial is the only identity a host has before osquery runs.
+//
+// The survivor is the lowest Autopilot device ID rather than whichever Graph happened to return last, so the stored
+// group tag does not flap between syncs when Graph reorders a page. Output is sorted by serial so batching is
+// deterministic and an interrupted sync resumes identically.
+func DedupeAutopilotDevicesBySerial(devices []*HostAutopilotDevice) (deduped []*HostAutopilotDevice, dropped int) {
+	bySerial := make(map[string]*HostAutopilotDevice, len(devices))
+	for _, dev := range devices {
+		existing, ok := bySerial[dev.HardwareSerial]
+		if !ok {
+			bySerial[dev.HardwareSerial] = dev
+			continue
+		}
+		dropped++
+		if dev.AutopilotDeviceID < existing.AutopilotDeviceID {
+			bySerial[dev.HardwareSerial] = dev
+		}
+	}
+
+	deduped = make([]*HostAutopilotDevice, 0, len(bySerial))
+	for _, dev := range bySerial {
+		deduped = append(deduped, dev)
+	}
+	sort.Slice(deduped, func(i, j int) bool { return deduped[i].HardwareSerial < deduped[j].HardwareSerial })
+	return deduped, dropped
 }

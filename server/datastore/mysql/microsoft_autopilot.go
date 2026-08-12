@@ -271,7 +271,23 @@ func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices 
 		return ctxerr.Wrap(ctx, err, "resolve windows mdm discovery url")
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// Duplicate serials collapse to one host, so resolve the winner deterministically before any write.
+	deduped, _ := fleet.DedupeAutopilotDevicesBySerial(devices)
+
+	// One transaction per chunk rather than one for the whole list. A tenant can register 100k+ devices, and the
+	// first sync creates a host, an MDM row and two label memberships for each. Doing that in a single transaction
+	// would hold row locks across the hosts table for the duration and ship one enormous binlog event, stalling
+	// replicas and concurrent enrollments. Chunking is safe because the work is idempotent: a chunk that fails is
+	// simply redone on the next sync.
+	return common_mysql.BatchProcessSimple(deduped, hostAutopilotDeviceBatchSize, func(batch []*fleet.HostAutopilotDevice) error {
+		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			return ingestWindowsAutopilotDevicesDB(ctx, tx, serverURL, batch)
+		})
+	})
+}
+
+func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, devices []*fleet.HostAutopilotDevice) error {
+	{
 		serials := make([]string, 0, len(devices))
 		for _, dev := range devices {
 			serials = append(serials, dev.HardwareSerial)
@@ -326,7 +342,7 @@ func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices 
 			resolved = append(resolved, &copied)
 		}
 		return batchUpsertHostAutopilotDevicesDB(ctx, tx, resolved)
-	})
+	}
 }
 
 // hostIDsBySerialDB maps hardware serials to host IDs. When more than one host shares a serial the lowest ID wins, so
@@ -476,7 +492,17 @@ func (ds *Datastore) RemoveWindowsAutopilotHosts(ctx context.Context, hostIDs []
 		return nil
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// Chunked for the same reason as ingestion: deleting a host fans out across every table in hostRefs, so a tenant
+	// that deregisters its whole fleet must not become one unbounded transaction.
+	return common_mysql.BatchProcessSimple(hostIDs, hostAutopilotDeviceBatchSize, func(batch []uint) error {
+		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			return removeWindowsAutopilotHostsDB(ctx, tx, batch)
+		})
+	})
+}
+
+func removeWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	{
 		stmt, args, err := sqlx.In(`
 SELECT h.id
 FROM hosts h
@@ -505,5 +531,5 @@ WHERE h.id IN (?) AND hm.enrolled = 0 AND hm.installed_from_dep = 1`, hostIDs)
 			return nil
 		}
 		return deleteHosts(ctx, tx, pendingHostIDs)
-	})
+	}
 }

@@ -41,6 +41,8 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		{"HostAutopilotDeviceBatchSoftDelete", testHostAutopilotDeviceBatchSoftDelete},
 		{"IngestWindowsAutopilotDevices", testIngestWindowsAutopilotDevices},
 		{"RemoveWindowsAutopilotHosts", testRemoveWindowsAutopilotHosts},
+		{"IngestCollapsesDuplicateSerials", testIngestCollapsesDuplicateSerials},
+		{"IngestSpansChunkedTransactions", testIngestSpansChunkedTransactions},
 	}
 
 	for _, c := range cases {
@@ -584,4 +586,84 @@ func testRemoveWindowsAutopilotHosts(t *testing.T, ds *Datastore) {
 	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
 	require.NoError(t, err)
 	assert.Empty(t, devices)
+}
+
+// Several Autopilot records can share one hardware serial, and they can only ever become one host. The collapse must be
+// deterministic: keying off Graph's page order would make the stored group tag flap between syncs.
+func testIngestCollapsesDuplicateSerials(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	seedWindowsBuiltinLabels(t, ds)
+
+	first := &fleet.HostAutopilotDevice{
+		AutopilotDeviceID: "ap-aaa", EntraDeviceID: "aad-1", GroupTag: "Engineering",
+		HardwareSerial: "DUP-SERIAL", TenantID: testTenantA,
+	}
+	second := &fleet.HostAutopilotDevice{
+		AutopilotDeviceID: "ap-bbb", EntraDeviceID: "aad-2", GroupTag: "Marketing",
+		HardwareSerial: "DUP-SERIAL", TenantID: testTenantA,
+	}
+
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{first, second}))
+
+	var hostCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostCount,
+		`SELECT COUNT(*) FROM hosts WHERE hardware_serial = 'DUP-SERIAL'`))
+	assert.Equal(t, 1, hostCount, "two Autopilot records for one serial are one host")
+
+	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	assert.Equal(t, "ap-aaa", devices[0].AutopilotDeviceID, "lowest Autopilot device ID wins")
+	assert.Equal(t, "Engineering", devices[0].GroupTag)
+
+	// Reversing the order Graph returned them in must not change the outcome.
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{second, first}))
+	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	assert.Equal(t, "ap-aaa", devices[0].AutopilotDeviceID, "winner is stable across page ordering")
+	assert.Equal(t, "Engineering", devices[0].GroupTag)
+}
+
+// Ingestion runs one transaction per chunk so a 100k-device tenant never becomes a single unbounded transaction. This
+// shrinks the chunk size and asserts a device set spanning several chunks, with duplicates straddling a boundary,
+// reconciles to exactly one host per distinct serial.
+func testIngestSpansChunkedTransactions(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	seedWindowsBuiltinLabels(t, ds)
+
+	original := hostAutopilotDeviceBatchSize
+	hostAutopilotDeviceBatchSize = 3
+	t.Cleanup(func() { hostAutopilotDeviceBatchSize = original })
+
+	const distinct = 10
+	devices := make([]*fleet.HostAutopilotDevice, 0, distinct+2)
+	for i := range distinct {
+		serial := "CHUNK-" + strconv.Itoa(i)
+		devices = append(devices, &fleet.HostAutopilotDevice{
+			AutopilotDeviceID: "ap-" + serial, EntraDeviceID: "aad-" + serial,
+			GroupTag: "tag-" + strconv.Itoa(i), HardwareSerial: serial, TenantID: testTenantA,
+		})
+	}
+	// Duplicates of serials that land in different chunks once sorted.
+	devices = append(devices, &fleet.HostAutopilotDevice{
+		AutopilotDeviceID: "ap-zzz", GroupTag: "loser", HardwareSerial: "CHUNK-0", TenantID: testTenantA,
+	}, &fleet.HostAutopilotDevice{
+		AutopilotDeviceID: "ap-zzz", GroupTag: "loser", HardwareSerial: "CHUNK-9", TenantID: testTenantA,
+	})
+
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, devices))
+
+	var hostCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostCount,
+		`SELECT COUNT(*) FROM hosts WHERE hardware_serial LIKE 'CHUNK-%'`))
+	assert.Equal(t, distinct, hostCount, "one host per distinct serial across chunk boundaries")
+
+	stored, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, stored, distinct)
+	for _, d := range stored {
+		assert.NotEqual(t, "loser", d.GroupTag, "the lower Autopilot device ID wins in every chunk")
+		assert.NotZero(t, d.HostID)
+	}
 }
