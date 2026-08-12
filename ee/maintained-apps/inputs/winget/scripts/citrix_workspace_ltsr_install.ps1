@@ -1,27 +1,10 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
-#
-# Vendor-documented silent switches (winget InstallerSwitches: Silent +
-# Custom): /silent runs without dialogs/prompts, /noreboot suppresses the
-# reboot prompt, and /AutoUpdateCheck=disabled keeps Citrix's own updater
-# from taking over version management.
-#
-# The Citrix bootstrapper leaves resident processes running after install
-# (e.g. its self-service/notification tray app), so Start-Process -Wait
-# never returns -- it waits on the whole process tree, not just the
-# installer itself. Start without -Wait and poll Programs and Features
-# instead of trusting the installer process's exit code.
-#
-# The bootstrap installs several components as separate, sequential MSI
-# transactions (confirmed by CI: "Citrix Workspace Inside" registers before
-# "Citrix Workspace(USB)" does). Declaring success as soon as the FIRST
-# entry appears races the still-running later components -- our uninstall
-# script would then only find and remove whichever ones had registered so
-# far. Require the core "Citrix Workspace Inside" entry AND no msiexec.exe
-# process running, stable across two consecutive polls, before declaring the
-# install done. Match that DisplayName exactly (not a "Citrix Workspace*"
-# wildcard) so a leftover entry from an unrelated prior install can't cause
-# a false-positive success before this install has actually registered.
+
+# The installer leaves resident processes running and its bootstrap installs
+# several components as separate MSI transactions, so Start-Process -Wait
+# never returns reliably. Poll for the core entry instead, and wait for
+# msiexec to go idle so we don't race the later components.
 
 $softwareName = "Citrix Workspace Inside"
 $paths = @(
