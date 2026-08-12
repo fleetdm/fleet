@@ -234,7 +234,7 @@ const EditIconModal = ({
     // Default to VPP icon if available, otherwise fall back to default icon
     const defaultPreviewUrl =
       previewInfo.currentIconUrl &&
-        !previewInfo.currentIconUrl.startsWith("/api/")
+      !previewInfo.currentIconUrl.startsWith("/api/")
         ? previewInfo.currentIconUrl
         : null;
 
@@ -256,12 +256,12 @@ const EditIconModal = ({
       select: (response) =>
         response
           ? {
-            blob: response.data,
-            filename: getFilenameFromContentDisposition(
-              response.headers["content-disposition"]
-            ),
-            url: URL.createObjectURL(response.data),
-          }
+              blob: response.data,
+              filename: getFilenameFromContentDisposition(
+                response.headers["content-disposition"]
+              ),
+              url: URL.createObjectURL(response.data),
+            }
           : "",
     }
   );
@@ -291,9 +291,9 @@ const EditIconModal = ({
     setIconState((prev) =>
       prev.formData
         ? {
-          ...prev,
-          formData: { ...prev.formData, display_name: value as string },
-        }
+            ...prev,
+            formData: { ...prev.formData, display_name: value as string },
+          }
         : prev
     );
   };
@@ -411,10 +411,11 @@ const EditIconModal = ({
   const fileDetails =
     iconState.formData && iconState.formData.icon
       ? {
-        name: iconState.formData.icon.name,
-        description: `Software icon • ${iconState.dimensions || "?"}x${iconState.dimensions || "?"
+          name: iconState.formData.icon.name,
+          description: `Software icon • ${iconState.dimensions || "?"}x${
+            iconState.dimensions || "?"
           } px`,
-      }
+        }
       : undefined;
 
   const renderPreviewFleetCard = () => {
@@ -523,8 +524,8 @@ const EditIconModal = ({
         "latest_version" in software
           ? software.latest_version
           : software.version ||
-          previewInfo.selfServiceVersion ||
-          "Version (unknown)"
+            previewInfo.selfServiceVersion ||
+            "Version (unknown)"
       }
       hasCategories={hasCategories}
       renderIcon={() =>
@@ -556,7 +557,7 @@ const EditIconModal = ({
           iconUrl={isSoftwarePackage ? undefined : software.icon_url}
           previewIcon={
             iconState.previewUrl &&
-              isSafeImagePreviewUrl(iconState.previewUrl) ? (
+            isSafeImagePreviewUrl(iconState.previewUrl) ? (
               <img
                 src={iconState.previewUrl}
                 alt="Uploaded self-service icon"
@@ -684,17 +685,17 @@ const EditIconModal = ({
           const trimmedDisplayName = (displayName ?? "").trim();
           await (installerType === "package"
             ? softwareAPI.editSoftwarePackage({
-              data: { displayName: trimmedDisplayName },
-              softwareId,
-              // Multi-package titles require `installer_id` on any edit; display_name
-              // is title-level, so target the first-added package (`software` is
-              // `software_package`, which mirrors `packages[0]`).
-              installerId: (software as ISoftwarePackage).installer_id,
-              teamId: teamIdForApi,
-            })
+                data: { displayName: trimmedDisplayName },
+                softwareId,
+                // Multi-package titles require `installer_id` on any edit; display_name
+                // is title-level, so target the first-added package (`software` is
+                // `software_package`, which mirrors `packages[0]`).
+                installerId: (software as ISoftwarePackage).installer_id,
+                teamId: teamIdForApi,
+              })
             : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
-              displayName: trimmedDisplayName,
-            }));
+                displayName: trimmedDisplayName,
+              }));
           nameSucceeded = true;
           nameSuccessMessage =
             trimmedDisplayName === "" ? (
