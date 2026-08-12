@@ -462,6 +462,11 @@ type Host struct {
 	// host_dep_assignments table.
 	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
 
+	// GroupTag is the Windows Autopilot group tag for a host synced from a tenant's Autopilot registry. It is the
+	// value automation targets when placing a device, so the host list carries it to allow one paginated sweep
+	// followed by a batch transfer. Omitted for hosts that are not Autopilot-registered.
+	GroupTag *string `json:"group_tag,omitempty" db:"group_tag" csv:"-"`
+
 	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
 	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
 

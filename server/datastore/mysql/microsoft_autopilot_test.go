@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,6 +44,8 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		{"RemoveWindowsAutopilotHosts", testRemoveWindowsAutopilotHosts},
 		{"IngestCollapsesDuplicateSerials", testIngestCollapsesDuplicateSerials},
 		{"IngestSpansChunkedTransactions", testIngestSpansChunkedTransactions},
+		{"OrbitEnrollReusesPendingAutopilotHost", testOrbitEnrollReusesPendingAutopilotHost},
+		{"HostResponsesCarryGroupTag", testHostResponsesCarryGroupTag},
 	}
 
 	for _, c := range cases {
@@ -681,4 +684,105 @@ func testIngestSpansChunkedTransactions(t *testing.T, ds *Datastore) {
 		assert.NotEqual(t, "loser", d.GroupTag, "the lower Autopilot device ID wins in every chunk")
 		assert.NotZero(t, d.HostID)
 	}
+}
+
+// A pending Autopilot host must be reused when the device actually enrolls, rather than a second host being created.
+// The serial is the only identifier orbit and Autopilot share, so this is what the Windows serial branch exists for.
+func testOrbitEnrollReusesPendingAutopilotHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	seedWindowsBuiltinLabels(t, ds)
+
+	const serial = "ENROLL-SERIAL-1"
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		autopilotDevice(serial, "Engineering"),
+	}))
+	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	pendingHostID := devices[0].HostID
+
+	host, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: "uuid-" + serial, HardwareSerial: serial, Hostname: "DESKTOP-AUTOPILOT", Platform: "windows",
+		}),
+		fleet.WithEnrollOrbitNodeKey("orbit-key-"+serial),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, pendingHostID, host.ID, "the pending Autopilot host is reused, not duplicated")
+
+	var hostCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostCount,
+		`SELECT COUNT(*) FROM hosts WHERE hardware_serial = ?`, serial))
+	assert.Equal(t, 1, hostCount)
+
+	// The Autopilot metadata is keyed by host_id, so the group tag survives enrollment.
+	device, err := ds.GetHostAutopilotDevice(ctx, pendingHostID)
+	require.NoError(t, err)
+	assert.Equal(t, "Engineering", device.GroupTag)
+
+	// A Windows host with no Autopilot record must not match by serial, which is the legacy behaviour.
+	const legacySerial = "LEGACY-SERIAL-1"
+	legacy := test.NewHost(t, ds, "legacy-host", "10.0.0.99", "legacy-key", "legacy-uuid", time.Now())
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE hosts SET hardware_serial = ?, platform = 'windows' WHERE id = ?`, legacySerial, legacy.ID)
+	require.NoError(t, err)
+
+	other, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: "uuid-different", HardwareSerial: legacySerial, Hostname: "DESKTOP-LEGACY", Platform: "windows",
+		}),
+		fleet.WithEnrollOrbitNodeKey("orbit-key-legacy"),
+	)
+	require.NoError(t, err)
+	assert.NotEqual(t, legacy.ID, other.ID,
+		"a Windows host with no pending Autopilot row still matches on its identifier, not its serial")
+}
+
+// The group tag is what automation targets when placing a device, so both the list and the detail endpoint have to
+// carry it, and neither may invent one for a host that is not Autopilot-registered.
+func testHostResponsesCarryGroupTag(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	seedWindowsBuiltinLabels(t, ds)
+
+	// Intune caps the group tag at 2048 characters; a tag at the limit must round-trip intact.
+	maxTag := strings.Repeat("a", 2048)
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		autopilotDevice("TAG-SERIAL-1", maxTag),
+	}))
+	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	autopilotHostID := devices[0].HostID
+
+	plain := test.NewHost(t, ds, "plain-host", "10.0.0.50", "plain-key", "plain-uuid", time.Now())
+
+	// Detail endpoint.
+	got, err := ds.Host(ctx, autopilotHostID)
+	require.NoError(t, err)
+	require.NotNil(t, got.GroupTag)
+	assert.Equal(t, maxTag, *got.GroupTag, "a 2048-character tag round-trips intact")
+
+	gotPlain, err := ds.Host(ctx, plain.ID)
+	require.NoError(t, err)
+	assert.Nil(t, gotPlain.GroupTag, "a host with no Autopilot record has no group tag")
+
+	// List endpoint.
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+	require.NoError(t, err)
+	tagByID := map[uint]*string{}
+	for _, h := range hosts {
+		tagByID[h.ID] = h.GroupTag
+	}
+	require.Contains(t, tagByID, autopilotHostID)
+	listed := tagByID[autopilotHostID]
+	require.NotNil(t, listed)
+	assert.Equal(t, maxTag, *listed)
+	require.Contains(t, tagByID, plain.ID)
+	assert.Nil(t, tagByID[plain.ID])
+
+	// A device that leaves Autopilot stops reporting a tag, without the host disappearing.
+	require.NoError(t, ds.BatchSoftDeleteHostAutopilotDevices(ctx, []uint{autopilotHostID}))
+	got, err = ds.Host(ctx, autopilotHostID)
+	require.NoError(t, err)
+	assert.Nil(t, got.GroupTag, "a tombstoned Autopilot record reports no group tag")
 }

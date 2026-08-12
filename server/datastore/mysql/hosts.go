@@ -891,7 +891,8 @@ SELECT
   hoi.version AS orbit_version,
   hoi.desktop_version AS fleet_desktop_version,
   hoi.scripts_enabled AS scripts_enabled,
-  IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
+  IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+  had.group_tag AS group_tag
   ` + hostMDMSelect + `
 FROM
   hosts h
@@ -900,6 +901,7 @@ FROM
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
+  LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
   LEFT JOIN host_issues ON h.id = host_issues.host_id
   ` + hostMDMJoin + `
 WHERE
@@ -1171,7 +1173,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.last_restarted_at,
     h.timezone,
     hoi.version AS orbit_version,
-    hoi.desktop_version AS fleet_desktop_version
+    hoi.desktop_version AS fleet_desktop_version,
+    had.group_tag AS group_tag
 	`
 
 	sql += hostMDMSelect
@@ -1490,6 +1493,7 @@ func (ds *Datastore) applyHostFilters(
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
     LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
+    LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
     %s
     %s
     %s
@@ -2349,6 +2353,25 @@ func matchHostDuringEnrollment(
 		args = append(args, serial)
 	}
 
+	// Windows Autopilot pre-creates a pending host from the Autopilot registry, so orbit-enroll has to be able to find
+	// it by serial the same way Apple ADE does. The join makes the branch self-limiting: it can only ever match a host
+	// that the Autopilot sync created and that has not enrolled yet, so a legacy Windows host, which has no
+	// host_autopilot_devices row, still matches on its osquery identifier exactly as before.
+	//
+	// Deliberately not gated on isAppleMDMEnabled, unlike the branch above.
+	if serial != "" && platform == "windows" && !orbitEnrollingWithOsqueryIdentifier {
+		if query.Len() > 0 {
+			_, _ = query.WriteString(" UNION ")
+		}
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT h.id, h.last_enrolled_at, h.%s IS NOT NULL AS node_key_set, 2 priority, h.platform
+			FROM hosts h
+			JOIN host_mdm hm ON hm.host_id = h.id
+			JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
+			WHERE h.hardware_serial = ? AND h.platform = 'windows' AND hm.enrolled = 0 AND hm.installed_from_dep = 1
+			ORDER BY h.id LIMIT 1)`, nodeKeyColumn))
+		args = append(args, serial)
+	}
+
 	// Android-specific UUID match
 	if uuid != "" && platform == "android" && !orbitEnrollingWithOsqueryIdentifier {
 		if query.Len() > 0 {
@@ -2404,11 +2427,10 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		PlatformLike:   hostInfo.PlatformLike,
 	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// The serial is passed through for Windows so a pending Autopilot host can be reused. Legacy behaviour is
+		// preserved by the branches themselves: the Apple branch is platform-scoped, and the Windows branch only
+		// matches a host that the Autopilot sync created and that has not enrolled yet.
 		serialToMatch := hostInfo.HardwareSerial
-		if hostInfo.Platform == "windows" {
-			// For Windows, don't match by serial number to retain legacy functionality.
-			serialToMatch = ""
-		}
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
 			hostInfo.HardwareUUID, serialToMatch, hostInfo.Platform)
 
@@ -2585,11 +2607,8 @@ func (ds *Datastore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo f
 		return false, ctxerr.New(ctx, "hardware uuid is empty")
 	}
 
+	// Passed through for Windows for the same reason as EnrollOrbit above.
 	serialToMatch := hostInfo.HardwareSerial
-	if hostInfo.Platform == "windows" {
-		// For Windows, don't match by serial number, matching EnrollOrbit's behavior.
-		serialToMatch = ""
-	}
 
 	matched, err := matchHostDuringEnrollment(ctx, ds.reader(ctx), orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier,
 		hostInfo.HardwareUUID, serialToMatch, hostInfo.Platform)
