@@ -2733,6 +2733,7 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 
 	hostOne := &fleet.Host{ID: 1, UUID: "test-host-no-team-2", Platform: "ios"}
 	hostGlobal := &fleet.Host{ID: 42, UUID: "test-host-no-team", Platform: "darwin"}
+	hostLinux := &fleet.Host{ID: 7, UUID: "test-host-linux", Platform: "ubuntu"}
 
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		switch hostID {
@@ -2740,6 +2741,8 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 			return hostOne, nil
 		case hostGlobal.ID:
 			return hostGlobal, nil
+		case hostLinux.ID:
+			return hostLinux, nil
 		default:
 			return nil, errors.New("not found")
 		}
@@ -2796,6 +2799,21 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 		var conflict *fleet.ConflictError
 		require.ErrorAs(t, err, &conflict)
 		require.False(t, ds.MDMTurnOffFuncInvoked, "must not re-run turn off for an already unenrolled host")
+	})
+
+	// An unsupported host has no enrolled host_mdm row either, so the
+	// already-off check would happily claim that instead of saying the platform
+	// isn't supported. The platform has to be rejected first.
+	t.Run("Reports an unsupported platform rather than already off", func(t *testing.T) {
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{HostID: hostID, Enrolled: false}, nil
+		}
+
+		err := svc.UnenrollMDM(ctx, hostLinux.ID)
+
+		var badRequest *fleet.BadRequestError
+		require.ErrorAs(t, err, &badRequest)
+		require.Contains(t, badRequest.Message, "not supported for this host platform")
 	})
 }
 
