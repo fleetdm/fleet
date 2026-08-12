@@ -32,7 +32,7 @@ func main() {
 		time.Second, WriteTimeout: 0, IdleTimeout: 120 * time.Second, Handler: newMux(st, logger, *keepAlive, *writeTimeout), Addr: *listen}
 
 	if *sweepInterval <= 0 {
-		logger.ErrorContext(ctx, "sweep interval can not be disabled, using default 10m")
+		logger.ErrorContext(ctx, "sweep interval cannot be disabled, using default 10m")
 		*sweepInterval = 10 * time.Minute
 	}
 	// Start sweep goroutine to drop expired pending pushes and delete empty entries.

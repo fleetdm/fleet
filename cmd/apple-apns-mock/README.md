@@ -5,7 +5,7 @@ A mock of Apple's push notification service (APNs) for load testing Fleet's Appl
 See [the design doc](../../docs/Contributing/product-groups/mdm/apple-apns-mock.md) for how it fits into load testing.
 
 ### Relevant documentation
-- [Sending notifcations to APNs](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns)
+- [Sending notifications to APNs](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns)
 - [Handling notification responses from APNs](https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns)
 
 ## Run

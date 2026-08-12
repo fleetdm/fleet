@@ -155,7 +155,7 @@ func (c *Client) run(ctx context.Context) {
 	}
 }
 
-// jitter returns a random offset in [0, d/2) so a fleet of clients that were
+// jitter returns a random offset in [0, d/2] so a fleet of clients that were
 // all disconnected at the same moment does not redial in lockstep.
 func jitter(d time.Duration) time.Duration {
 	if d <= 0 {
