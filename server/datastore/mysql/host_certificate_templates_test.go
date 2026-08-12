@@ -1966,6 +1966,13 @@ func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 		host1.UUID)
 	require.NoError(t, err)
 
+	// Leave a failure detail and retry count from a previous lifecycle on host2, to verify the
+	// renewal starts clean rather than reporting an old error against the new delivery.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_certificate_templates SET detail = 'Network error during SCEP enrollment', retry_count = 2 WHERE host_uuid = ?`,
+		host2.UUID)
+	require.NoError(t, err)
+
 	// Get the original UUIDs
 	var originalUUIDs []struct {
 		HostUUID string `db:"host_uuid"`
@@ -1997,9 +2004,11 @@ func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 		NotValidAfter  *string `db:"not_valid_after"`
 		Serial         *string `db:"serial"`
 		FleetChallenge *string `db:"fleet_challenge"`
+		Detail         *string `db:"detail"`
+		RetryCount     uint    `db:"retry_count"`
 	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &updatedRecords,
-		`SELECT host_uuid, status, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid, not_valid_before, not_valid_after, serial, fleet_challenge
+		`SELECT host_uuid, status, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid, not_valid_before, not_valid_after, serial, fleet_challenge, detail, retry_count
 		 FROM host_certificate_templates WHERE host_uuid IN (?, ?) ORDER BY host_uuid`,
 		host1.UUID, host2.UUID)
 	require.NoError(t, err)
@@ -2022,6 +2031,10 @@ func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 		require.Nil(t, r.Serial, "serial should be cleared")
 		// Fleet challenge should be cleared so a new one is generated on next delivery
 		require.Nil(t, r.FleetChallenge, "fleet_challenge should be cleared")
+		// A renewal is a fresh delivery, so nothing from the previous lifecycle may carry over.
+		// A leftover detail would otherwise be reported against the renewal, which is going fine.
+		require.Nil(t, r.Detail, "detail should be cleared")
+		require.Zero(t, r.RetryCount, "retry_count should be cleared")
 	}
 
 	// Test empty slice doesn't error
