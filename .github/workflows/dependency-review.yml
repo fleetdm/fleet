@@ -35,9 +35,9 @@ jobs:
           # GHSA-j965-2qgj-vjmq (aws-sdk v2 region validation) has no fixed v2
           # release; the guidance is to migrate to SDK v3. skipper-s3 (used by the
           # fleet-agent-downloader) supports only v2.
-          # GHSA-qh2h-chj9-jffq (growl command injection) is pinned at 1.9.2 inside
-          # sails-hook-grunt's npm-shrinkwrap.json (dev-only grunt tooling in the
-          # fleet-agent-downloader); it predates this allowlist but npm 10 lockfile
-          # regeneration marks shrinkwrapped subtrees as runtime scope, which makes
-          # dependency-review treat it as newly added.
-          allow-ghsas: GHSA-mh99-v99m-4gvg, GHSA-j965-2qgj-vjmq, GHSA-qh2h-chj9-jffq
+          # GHSA-qh2h-chj9-jffq (growl command injection) and GHSA-6chw-6frg-f759
+          # (acorn ReDoS) are pinned inside sails-hook-grunt's npm-shrinkwrap.json
+          # (dev-only grunt tooling in the fleet-agent-downloader); they predate this
+          # allowlist but npm 10 lockfile regeneration marks shrinkwrapped subtrees as
+          # runtime scope, which makes dependency-review treat them as newly added.
+          allow-ghsas: GHSA-mh99-v99m-4gvg, GHSA-j965-2qgj-vjmq, GHSA-qh2h-chj9-jffq, GHSA-6chw-6frg-f759
