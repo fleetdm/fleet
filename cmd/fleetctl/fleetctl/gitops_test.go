@@ -9125,3 +9125,138 @@ func TestGetLabelUsagePolicyScopes(t *testing.T) {
 		})
 	}
 }
+
+func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "Fleet GitOps Graph Test"
+		tenantID       = "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+		clientID       = "7f6b1665-51f5-48de-a9b6-ac17539583fb"
+	)
+	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+	// The secret is supplied through ordinary GitOps env interpolation, not a $FLEET_SECRET_* variable: it never
+	// leaves the server, so it is not a host-delivery variable.
+	t.Setenv("WINDOWS_ENTRA_CLIENT_SECRET", "graph-secret-from-env")
+
+	stored := map[string]*fleet.MicrosoftGraphCredential{}
+	var deleted []string
+	ds.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+		out := make([]*fleet.MicrosoftGraphCredential, 0, len(stored))
+		for _, c := range stored {
+			out = append(out, c)
+		}
+		return out, nil
+	}
+	// Deletions are computed from the metadata read (which decrypts nothing), so both reads must be backed by the same
+	// store or a removed key looks like "nothing was configured".
+	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+		out := make([]*fleet.MicrosoftGraphCredential, 0, len(stored))
+		for _, c := range stored {
+			meta := *c
+			meta.ClientSecret = ""
+			out = append(out, &meta)
+		}
+		return out, nil
+	}
+	ds.ReplaceMicrosoftGraphCredentialsFunc = func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
+		for _, cred := range upsert {
+			copied := *cred
+			stored[cred.TenantID] = &copied
+		}
+		for _, tenantID := range deleteTenantIDs {
+			delete(stored, tenantID)
+			deleted = append(deleted, tenantID)
+		}
+		return nil
+	}
+
+	// The credential lives under org_settings, next to certificate_authorities and every other GitOps-managed
+	// credential, not under controls.
+	writeGlobalFile := func(extraOrgSettings string) string {
+		f, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = f.WriteString(fmt.Sprintf(`
+controls:
+  windows_enabled_and_configured: true
+queries:
+policies:
+agent_options:
+org_settings:
+%s
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, extraOrgSettings, fleetServerURL, orgName))
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+		return f.Name()
+	}
+
+	globalFile := writeGlobalFile(fmt.Sprintf(`  microsoft_graph_credentials:
+    - tenant_id: %s
+      client_id: %s
+      client_secret: $WINDOWS_ENTRA_CLIENT_SECRET`, tenantID, clientID))
+
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile})
+
+	require.Len(t, stored, 1)
+	require.NotNil(t, stored[tenantID])
+	require.Equal(t, clientID, stored[tenantID].ClientID)
+	// The env var must be interpolated, not stored literally.
+	require.Equal(t, "graph-secret-from-env", stored[tenantID].ClientSecret)
+
+	// GitOps is declarative: re-applying without the key removes the credential.
+	_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile("")})
+	require.Empty(t, stored)
+	require.Equal(t, []string{tenantID}, deleted)
+}
+
+func TestGitOpsMicrosoftGraphCredentialsFreeTier(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+		License:       &fleet.LicenseInfo{Tier: fleet.TierFree},
+		KeyValueStore: testing_utils.NewMemKeyValueStore(),
+	})
+	setupEmptyGitOpsMocks(ds)
+	t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+	f, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = f.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  microsoft_graph_credentials:
+    - tenant_id: 5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4
+      client_id: 7f6b1665-51f5-48de-a9b6-ac17539583fb
+      client_secret: some-secret
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test
+  secrets:
+    - secret: globalSecret
+software:
+`)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	_, err = runAppNoChecks([]string{"gitops", "-f", f.Name()})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Microsoft Graph credentials are available in Fleet Premium only",
+		"the license branch must fire rather than surfacing the raw client error")
+	require.Contains(t, err.Error(), filepath.Base(f.Name()), "the message must name the file being applied")
+}

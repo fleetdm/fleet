@@ -79,7 +79,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	cfg := config.TestConfig()
 	// Custom activations are opt-in on the server (#50764). Tests that exercise
 	// them need them on; pass a tweak to turn them back off.
-	cfg.MDM.EnableCustomActivations = true
+	cfg.MDM.AllowCustomActivations = true
 	for _, fn := range tweakCfg {
 		fn(&cfg)
 	}
@@ -2371,6 +2371,10 @@ func TestMDMCommandAuthz(t *testing.T) {
 		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
 	}
 
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		return &fleet.HostMDM{HostID: hostID, Enrolled: true}, nil
+	}
+
 	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) ([]*fleet.User, []fleet.ActivityDetails, error) {
 		return nil, nil, nil
 	}
@@ -2735,6 +2739,7 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 
 	hostOne := &fleet.Host{ID: 1, UUID: "test-host-no-team-2", Platform: "ios"}
 	hostGlobal := &fleet.Host{ID: 42, UUID: "test-host-no-team", Platform: "darwin"}
+	hostLinux := &fleet.Host{ID: 7, UUID: "test-host-linux", Platform: "ubuntu"}
 
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		switch hostID {
@@ -2742,6 +2747,8 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 			return hostOne, nil
 		case hostGlobal.ID:
 			return hostGlobal, nil
+		case hostLinux.ID:
+			return hostLinux, nil
 		default:
 			return nil, errors.New("not found")
 		}
@@ -2749,6 +2756,10 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 
 	ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
+	}
+
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		return &fleet.HostMDM{HostID: hostID, Enrolled: true}, nil
 	}
 
 	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) ([]*fleet.User, []fleet.ActivityDetails, error) {
@@ -2777,6 +2788,38 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 	t.Run("Unenrolls personal ios device", func(t *testing.T) {
 		err := svc.UnenrollMDM(ctx, hostOne.ID) // personal host
 		require.NoError(t, err)
+	})
+
+	// An offline host keeps its nano enrollment enabled until it receives the
+	// removal command, so the enrollment check alone lets every repeat call
+	// through -- each one queueing another RemoveProfile and logging another
+	// unenroll activity. See #50103.
+	t.Run("Refuses to turn off MDM that is already off", func(t *testing.T) {
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{HostID: hostID, Enrolled: false}, nil
+		}
+		ds.MDMTurnOffFuncInvoked = false
+
+		err := svc.UnenrollMDM(ctx, hostGlobal.ID)
+
+		var conflict *fleet.ConflictError
+		require.ErrorAs(t, err, &conflict)
+		require.False(t, ds.MDMTurnOffFuncInvoked, "must not re-run turn off for an already unenrolled host")
+	})
+
+	// An unsupported host has no enrolled host_mdm row either, so the
+	// already-off check would happily claim that instead of saying the platform
+	// isn't supported. The platform has to be rejected first.
+	t.Run("Reports an unsupported platform rather than already off", func(t *testing.T) {
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{HostID: hostID, Enrolled: false}, nil
+		}
+
+		err := svc.UnenrollMDM(ctx, hostLinux.ID)
+
+		var badRequest *fleet.BadRequestError
+		require.ErrorAs(t, err, &badRequest)
+		require.Contains(t, badRequest.Message, "not supported for this host platform")
 	})
 }
 
@@ -10106,7 +10149,7 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 	// the server explicitly opts in.
 	t.Run("activation is refused when the server hasn't enabled activations", func(t *testing.T) {
 		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium},
-			func(c *config.FleetConfig) { c.MDM.EnableCustomActivations = false })
+			func(c *config.FleetConfig) { c.MDM.AllowCustomActivations = false })
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 			return d, nil

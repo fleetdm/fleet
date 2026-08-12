@@ -2490,6 +2490,38 @@ type Datastore interface {
 	GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (MDMDeliveryStatus, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Microsoft Graph credentials and Windows Autopilot devices
+
+	// ListMicrosoftGraphCredentials returns every stored Microsoft Graph credential with its client secret decrypted.
+	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+
+	// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets, decrypting
+	// nothing.
+	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+
+	// ReplaceMicrosoftGraphCredentials reconciles the stored credentials.
+	ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert []*MicrosoftGraphCredential, deleteTenantIDs []string) error
+
+	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag for a tenant. It reports whether the flag actually changed.
+	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
+
+	// RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass. A nil syncErr records a success and clears any previous error.
+	RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error
+
+	// BatchUpsertHostAutopilotDevices stores the Windows Autopilot metadata for many hosts, clearing any soft deletion.
+	BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
+
+	// BatchSoftDeleteHostAutopilotDevices tombstones the Autopilot records for the given hosts, for devices that are no
+	// longer present in the tenant's Autopilot registry. The host rows themselves are untouched.
+	BatchSoftDeleteHostAutopilotDevices(ctx context.Context, hostIDs []uint) error
+
+	// ListHostAutopilotDevices returns the live Autopilot records for an Entra tenant.
+	ListHostAutopilotDevices(ctx context.Context, tenantID string) ([]*HostAutopilotDevice, error)
+
+	// GetHostAutopilotDevice returns the live Autopilot record for a host, or a not-found error.
+	GetHostAutopilotDevice(ctx context.Context, hostID uint) (*HostAutopilotDevice, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Linux MDM
 
 	// GetLinuxDiskEncryptionSummary summarizes the current state of Linux disk encryption on
@@ -2605,7 +2637,10 @@ type Datastore interface {
 	// profiles, and current host_mdm_apple_profiles rows for the host window.
 	// All reads run inside a single read-only MySQL transaction so they
 	// observe one snapshot. If the host window is empty the remaining slices
-	// and maps are nil.
+	// and maps are nil. pageFull reports whether the underlying host page hit
+	// batchSize before same-UUID rows were deduplicated; cursor-paginating
+	// callers must use it (not len(hosts)) to decide whether more hosts may
+	// remain past this window.
 	GetAppleProfileReconcileSnapshot(
 		ctx context.Context,
 		afterHostUUID string,
@@ -2615,6 +2650,7 @@ type Datastore interface {
 		allProfiles []*AppleProfileForReconcile,
 		hostLabels map[uint]map[uint]struct{},
 		currentByHost map[string][]*MDMAppleProfilePayload,
+		pageFull bool,
 		err error,
 	)
 
@@ -2636,7 +2672,8 @@ type Datastore interface {
 	// declarations, and current host_mdm_apple_declarations rows for the
 	// host window. All reads run inside a single read-only MySQL
 	// transaction. If the host window is empty the remaining slices and
-	// maps are nil.
+	// maps are nil. pageFull has the same semantics as on
+	// GetAppleProfileReconcileSnapshot.
 	GetAppleDeclarationReconcileSnapshot(
 		ctx context.Context,
 		afterHostUUID string,
@@ -2646,6 +2683,7 @@ type Datastore interface {
 		allDecls []*AppleDeclarationForReconcile,
 		hostLabels map[uint]map[uint]struct{},
 		currentByHost map[string][]*MDMAppleHostDeclaration,
+		pageFull bool,
 		err error,
 	)
 

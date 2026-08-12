@@ -2363,6 +2363,9 @@ func newMaintainedAppSchedule(
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
 			return maintained_apps.SyncAppsList(ctx, ds)
 		}),
+		schedule.WithJob("reconcile_macos_maintained_app_names", func(ctx context.Context) error {
+			return ds.ReconcileMaintainedAppSoftwareNames(ctx)
+		}),
 	)
 
 	return s, nil

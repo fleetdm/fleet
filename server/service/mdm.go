@@ -4464,6 +4464,15 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
 		}
 	case "ios", "ipados", "darwin":
+		// Turning MDM off clears Fleet's enrolled flag right away, so check the flag here to avoid re-enqueuing another unenroll.
+		hostMDM, err := svc.ds.GetHostMDM(ctx, hostID)
+		switch {
+		case err != nil && !fleet.IsNotFound(err):
+			return ctxerr.Wrap(ctx, err, "getting host MDM info for unenroll")
+		case err != nil || !hostMDM.Enrolled:
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.CantTurnOffMDMAlreadyTurnedOffMessage}, "turning off MDM")
+		}
+
 		if err := svc.enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, host); err != nil {
 			return ctxerr.Wrap(ctx, err, "unenrolling apple host")
 		}

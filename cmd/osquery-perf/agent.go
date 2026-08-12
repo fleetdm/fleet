@@ -73,11 +73,14 @@ var (
 	rhel10KernelsFS embed.FS
 	//go:embed windows_11-software.json.bz2
 	windowsSoftwareFS embed.FS
+	//go:embed macos_26x-software.json.bz2
+	macOSSoftwareFS embed.FS
 
 	macosVulnerableSoftware            []fleet.Software
 	vsCodeExtensionsVulnerableSoftware []fleet.Software
 	windowsSoftware                    []map[string]string
 	ubuntuSoftware                     []map[string]string
+	macOSSoftware                      []map[string]string
 	ubuntuKernels                      []map[string]string
 	rhel8Kernels                       []map[string]string
 	rhel9Kernels                       []map[string]string
@@ -150,6 +153,9 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 		UpgradeCode string `json:"upgrade_code"`
 		Release     string `json:"release,omitempty"`
 		Arch        string `json:"arch,omitempty"`
+		// macOS template fields.
+		BundleIdentifier string `json:"bundle_identifier,omitempty"`
+		InstalledPath    string `json:"installed_path,omitempty"`
 	}
 	var softwareList []softwareJSON
 	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
@@ -159,12 +165,20 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 
 	softwareRows := make([]map[string]string, 0, len(softwareList))
 	for _, s := range softwareList {
-		softwareRows = append(softwareRows, map[string]string{
+		row := map[string]string{
 			"name":         s.Name,
 			"version":      s.Version,
 			"source":       source,
 			"upgrade_code": s.UpgradeCode,
-		})
+		}
+
+		if s.BundleIdentifier != "" {
+			row["bundle_identifier"] = s.BundleIdentifier
+		}
+		if s.InstalledPath != "" {
+			row["installed_path"] = s.InstalledPath
+		}
+		softwareRows = append(softwareRows, row)
 	}
 	return softwareRows
 }
@@ -285,6 +299,7 @@ func init() {
 	loadExtraVulnerableSoftware()
 	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2", "programs")
 	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2", "deb_packages")
+	macOSSoftware = loadSoftwareItems(macOSSoftwareFS, "macos_26x-software.json.bz2", "apps")
 	ubuntuKernels = loadDebKernelList(ubuntuKernelsFS, "ubuntu_2204-kernels.json")
 	rhel8Kernels = loadRPMKernelList(rhel8KernelsFS, "rhel_8-kernels.json")
 	rhel9Kernels = loadRPMKernelList(rhel9KernelsFS, "rhel_9-kernels.json")
@@ -2406,6 +2421,28 @@ func (a *agent) softwareMacOS() []map[string]string {
 		}
 	}
 
+	// Template software is served identically to every macOS host, mirroring the
+	// Windows and Ubuntu templates. This is what makes a simulated Mac fleet
+	// homogeneous: every host reports the same titles, so concurrent ingest
+	// contends on the software_titles unique index the way a real corporate
+	// Mac fleet does. Unlike the "common" pool, it is never sliced per-host.
+	templateSoftware := make([]map[string]string, 0, len(macOSSoftware))
+	for _, s := range macOSSoftware {
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(s["name"]); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		baseVersion := s["version"]
+		templateSoftware = append(templateSoftware, map[string]string{
+			"name":              s["name"],
+			"version":           a.selectSoftwareVersion(s["name"], baseVersion, baseVersion+".1"),
+			"bundle_identifier": s["bundle_identifier"],
+			"source":            s["source"],
+			"last_opened_at":    lastOpenedAt,
+			"installed_path":    s["installed_path"],
+		})
+	}
+
 	commonSoftware := make([]map[string]string, 0)
 	duplicateBundleSoftware := make([]map[string]string, 0)
 	groupSize := 4
@@ -2543,7 +2580,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 	}
 
 	// Combine all software
-	software := commonSoftware
+	software := templateSoftware
+	software = append(software, commonSoftware...)
 	software = append(software, uniqueSoftware...)
 	software = append(software, realSoftware...)
 	software = append(software, duplicateBundleSoftware...)

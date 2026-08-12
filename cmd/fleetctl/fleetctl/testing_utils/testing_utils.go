@@ -103,6 +103,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		return nil, "", nil
 	}
+	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+		return nil, nil
+	}
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{
 			PolicyData: fleet.PolicyData{
@@ -625,6 +628,15 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
+	}
+	ds.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+		return nil, nil
+	}
+	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+		return nil, nil
+	}
+	ds.ReplaceMicrosoftGraphCredentialsFunc = func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
+		return nil
 	}
 	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
 		return nil, &notFoundError{}

@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260805155427, Down_20260805155427)
+	MigrationClient.AddMigration(Up_20260812165318, Down_20260812165318)
 }
 
-func Up_20260805155427(tx *sql.Tx) error {
+func Up_20260812165318(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE mdm_android_commands
 	ADD COLUMN raw_command TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER command_type,
@@ -21,6 +21,6 @@ ALTER TABLE mdm_android_commands
 	return nil
 }
 
-func Down_20260805155427(tx *sql.Tx) error {
+func Down_20260812165318(tx *sql.Tx) error {
 	return nil
 }

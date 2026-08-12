@@ -187,9 +187,8 @@ type GitOpsControls struct {
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
-
-	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
-	AndroidSettings             any `json:"android_settings"`
+	AndroidEnabledAndConfigured    any `json:"android_enabled_and_configured"`
+	AndroidSettings                any `json:"android_settings"`
 
 	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
 
@@ -390,6 +389,11 @@ type GitOpsOrgSettings struct {
 	fleet.AppConfig
 	Secrets                any `json:"secrets"`
 	CertificateAuthorities any `json:"certificate_authorities"`
+	// MicrosoftGraphCredentials are the outbound Entra app-registration credentials Fleet authenticates with when
+	// reading Windows Autopilot devices, as opposed to the inbound enrollment allowlists under controls. It sits here
+	// rather than under controls to match every other credential in GitOps: it is applied through its own endpoint,
+	// exactly like certificate_authorities above.
+	MicrosoftGraphCredentials any `json:"microsoft_graph_credentials"`
 }
 
 // GitOpsOrgInfo extends fleet.OrgInfo with gitops-only path keys for uploading
