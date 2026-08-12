@@ -329,10 +329,10 @@ const SoftwareTitleDetailsPage = ({
           installedPath={statusPath("installed")}
           pendingPath={statusPath("pending")}
           failedPath={statusPath("failed")}
-          onLabelCountClick={openEditModal}
-          onLabelsClick={openEditModal}
-          onEditClick={openEditModal}
-          onTrashClick={openDeleteModal}
+          onLabelCountClick={() => openEditModal()}
+          onLabelsClick={() => openEditModal()}
+          onEditClick={() => openEditModal()}
+          onTrashClick={() => openDeleteModal()}
         />
       );
     };
