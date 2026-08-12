@@ -1190,6 +1190,10 @@ func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 
 func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
+	// Default: not an Autopilot host. The Autopilot case is covered separately.
+	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+		return nil, &notFoundErrorForTest{}
+	}
 	cases := []struct {
 		name                 string
 		data                 []map[string]string
@@ -4915,6 +4919,107 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 				require.NoError(t, ds.UpdateMDMInstalledFromDEP(t.Context(), 1, false))
 			}
 			assert.Equal(t, tc.wantDEPCleared, depCleared)
+		})
+	}
+}
+
+// osquery detail ingest runs on every refetch, and it derives installed_from_dep from the enrollment's OOBE flag. An
+// already-provisioned Autopilot device re-enrolls out of OOBE, so without an exception this would clear the marker on
+// the next refetch and demote the host to manual, undoing what the enrollment link path decided.
+func TestDirectIngestMDMWindowsKeepsAutopilotMarker(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name            string
+		notInOOBE       bool
+		hasAutopilotRow bool
+		wantAutomatic   bool
+	}{
+		{"autopilot host enrolled in OOBE stays automatic", false, true, true},
+		{"autopilot host enrolled out of OOBE stays automatic", true, true, true},
+		{"ordinary host enrolled out of OOBE is manual", true, false, false},
+		{"ordinary host enrolled in OOBE is automatic", false, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var gotAutomatic, gotEnrolled bool
+
+			ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+				if tc.hasAutopilotRow {
+					return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
+				}
+				return nil, &notFoundErrorForTest{}
+			}
+			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				return &fleet.MDMWindowsEnrolledDevice{MDMNotInOOBE: tc.notInOOBE}, nil
+			}
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string,
+				installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool,
+			) error {
+				gotEnrolled, gotAutomatic = enrolled, installedFromDep
+				return nil
+			}
+
+			host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+			rows := []map[string]string{{
+				"discovery_service_url": "https://example.com/api/mdm/microsoft/discovery",
+				"aad_resource_id":       "https://example.com",
+				"provider_id":           fleet.WellKnownMDMFleet,
+				"installation_type":     "Client",
+			}}
+			require.NoError(t, directIngestMDMWindows(t.Context(), slog.New(slog.DiscardHandler), host, ds, rows))
+
+			assert.True(t, gotEnrolled)
+			assert.Equal(t, tc.wantAutomatic, gotAutomatic,
+				"installed_from_dep drives whether the host reads as automatic or manual")
+		})
+	}
+}
+
+// The Windows enrollment default fleet is assigned only to hosts created at or after their enrollment row, on the
+// assumption that MDM-first ordering means a freshly created host. Autopilot inverts that: the sync creates the host
+// potentially days before the device enrolls. Not assigning is the correct outcome, since automation has already placed
+// the host and must not be overridden, but it is a behaviour change for anyone relying on the default fleet who then
+// turns on Autopilot sync. Asserted here so it cannot regress silently.
+func TestWindowsEnrollmentDefaultFleetSkipsPendingAutopilotHost(t *testing.T) {
+	t.Parallel()
+
+	enrollmentCreated := time.Now()
+	for _, tc := range []struct {
+		name        string
+		hostCreated time.Time
+		wantMoved   bool
+	}{
+		{"a host the autopilot sync created days earlier is left alone", enrollmentCreated.Add(-72 * time.Hour), false},
+		{"a host created by the enrollment itself is assigned", enrollmentCreated.Add(time.Second), true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			teamID := uint(7)
+			var moved bool
+
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return &teamID, "Workstations", nil
+			}
+			ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+				return &fleet.HostLite{ID: id, CreatedAt: tc.hostCreated}, nil
+			}
+			ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+				moved = true
+				return nil
+			}
+			ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint,
+				profileUUIDs, hostUUIDs []string,
+			) (fleet.MDMProfilesUpdates, error) {
+				return fleet.MDMProfilesUpdates{}, nil
+			}
+
+			device := &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID: "device-1",
+				CreatedAt:   enrollmentCreated,
+			}
+			require.NoError(t, maybeAssignWindowsEnrollmentDefaultFleet(t.Context(), slog.New(slog.DiscardHandler), ds, 1, device))
+			assert.Equal(t, tc.wantMoved, moved)
 		})
 	}
 }

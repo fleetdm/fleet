@@ -2886,6 +2886,18 @@ func directIngestMDMWindows(ctx context.Context, logger *slog.Logger, host *flee
 			}
 		}
 	}
+	// A host the Autopilot sync created is an automatic enrollment by definition, whatever the enrollment's OOBE flag
+	// says. An already-provisioned Autopilot device that re-enrolls does so out of OOBE, and letting that flip the flag
+	// here would clear installed_from_dep on the next osquery refetch, silently demoting the host to manual and undoing
+	// what the enrollment link path decided.
+	if enrolled && !automatic {
+		isAutopilot, err := hostHasLiveAutopilotRecord(ctx, ds, host.ID)
+		if err != nil {
+			return err
+		}
+		automatic = isAutopilot
+	}
+
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 
 	mdmSolutionName := deduceMDMNameWindows(data)

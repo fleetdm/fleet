@@ -46,6 +46,7 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		{"IngestSpansChunkedTransactions", testIngestSpansChunkedTransactions},
 		{"OrbitEnrollReusesPendingAutopilotHost", testOrbitEnrollReusesPendingAutopilotHost},
 		{"HostResponsesCarryGroupTag", testHostResponsesCarryGroupTag},
+		{"HostIDByAutopilotDeviceID", testHostIDByAutopilotDeviceID},
 	}
 
 	for _, c := range cases {
@@ -785,4 +786,32 @@ func testHostResponsesCarryGroupTag(t *testing.T, ds *Datastore) {
 	got, err = ds.Host(ctx, autopilotHostID)
 	require.NoError(t, err)
 	assert.Nil(t, got.GroupTag, "a tombstoned Autopilot record reports no group tag")
+}
+
+// The ZTDID a device supplies at Windows MDM enrollment is the same GUID Graph returns as
+// windowsAutopilotDeviceIdentity.id, so it resolves the pending host exactly, without the serial.
+func testHostIDByAutopilotDeviceID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	seedWindowsBuiltinLabels(t, ds)
+
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		autopilotDevice("ZTD-SERIAL-1", "Engineering"),
+	}))
+	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+
+	got, err := ds.HostIDByAutopilotDeviceID(ctx, devices[0].AutopilotDeviceID)
+	require.NoError(t, err)
+	assert.Equal(t, devices[0].HostID, got)
+
+	_, err = ds.HostIDByAutopilotDeviceID(ctx, "no-such-ztdid")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err), "an unknown ZTDID is not found, not an error the caller has to special-case")
+
+	// A device that has left Autopilot no longer resolves, so a stale enrollment cannot relink to a tombstoned host.
+	require.NoError(t, ds.BatchSoftDeleteHostAutopilotDevices(ctx, []uint{devices[0].HostID}))
+	_, err = ds.HostIDByAutopilotDeviceID(ctx, devices[0].AutopilotDeviceID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
 }
