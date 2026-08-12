@@ -88,7 +88,7 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app
 
 [AppLock](https://developer.apple.com/documentation/devicemanagement/applock) forces the selected app to open on the supervised device and prevents the use of other apps.
 
-Apps can't be updated while in Single App Mode. To update iOS and iPadOS apps, temporarily disable Single App Mode.
+Apps can't be updated while in Single App Mode. To update iOS and iPadOS apps, temporarily disable Single App Mode. You can use an automation tool like [Tines](https://www.tines.com/) and leverage our [API](https://fleetdm.com/docs/rest-api/rest-api#os-settings) to delete the AppLock configuration profile during the scheduled update window.
 
 #### iOS and iPadOS managed configuration
 
