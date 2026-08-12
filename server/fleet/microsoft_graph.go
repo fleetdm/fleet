@@ -84,9 +84,15 @@ func ParseMicrosoftGraphCredentials(raw any) ([]MicrosoftGraphCredential, error)
 // its serial, and some OEMs ship duplicate serials outright. They can only ever become one Fleet host, because
 // host_autopilot_devices is keyed by host_id and a serial is the only identity a host has before osquery runs.
 //
-// The survivor is the lowest Autopilot device ID rather than whichever Graph happened to return last, so the stored
-// group tag does not flap between syncs when Graph reorders a page. Output is sorted by serial so batching is
-// deterministic and an interrupted sync resumes identically.
+// Serial is the only identifier Autopilot and an enrolling device both expose, so it has to be the collapse key even
+// though Autopilot records carry unique IDs of their own: the Autopilot device ID and, once the device has been
+// Entra-joined, the Entra device ID. Neither is ever presented back to Fleet at enrollment, so neither can be used to
+// tell two same-serial hosts apart later.
+//
+// A record that carries an Entra device ID has actually been deployed and joined, so it wins over one that never has:
+// that is the live registration, and its group tag is the operative one. Ties fall back to the lowest Autopilot device
+// ID so the choice is stable across syncs rather than following Graph's page order, which would make the stored group
+// tag flap. Output is sorted by serial so batching is deterministic and an interrupted sync resumes identically.
 func DedupeAutopilotDevicesBySerial(devices []*HostAutopilotDevice) (deduped []*HostAutopilotDevice, dropped int) {
 	bySerial := make(map[string]*HostAutopilotDevice, len(devices))
 	for _, dev := range devices {
@@ -96,7 +102,7 @@ func DedupeAutopilotDevicesBySerial(devices []*HostAutopilotDevice) (deduped []*
 			continue
 		}
 		dropped++
-		if dev.AutopilotDeviceID < existing.AutopilotDeviceID {
+		if autopilotRecordWins(dev, existing) {
 			bySerial[dev.HardwareSerial] = dev
 		}
 	}
@@ -107,4 +113,14 @@ func DedupeAutopilotDevicesBySerial(devices []*HostAutopilotDevice) (deduped []*
 	}
 	sort.Slice(deduped, func(i, j int) bool { return deduped[i].HardwareSerial < deduped[j].HardwareSerial })
 	return deduped, dropped
+}
+
+// autopilotRecordWins reports whether candidate should replace incumbent as the record kept for a shared serial.
+func autopilotRecordWins(candidate, incumbent *HostAutopilotDevice) bool {
+	candidateJoined := candidate.EntraDeviceID != ""
+	incumbentJoined := incumbent.EntraDeviceID != ""
+	if candidateJoined != incumbentJoined {
+		return candidateJoined
+	}
+	return candidate.AutopilotDeviceID < incumbent.AutopilotDeviceID
 }

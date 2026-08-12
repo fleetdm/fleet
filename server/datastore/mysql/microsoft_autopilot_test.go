@@ -616,13 +616,28 @@ func testIngestCollapsesDuplicateSerials(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "ap-aaa", devices[0].AutopilotDeviceID, "lowest Autopilot device ID wins")
 	assert.Equal(t, "Engineering", devices[0].GroupTag)
 
+	// A record that has been Entra-joined beats one that never has, regardless of Autopilot device ID ordering: it is
+	// the registration that actually deployed, so its group tag is the operative one.
+	joined := &fleet.HostAutopilotDevice{
+		AutopilotDeviceID: "ap-zzz", EntraDeviceID: "aad-joined", GroupTag: "Deployed",
+		HardwareSerial: "DUP-SERIAL", TenantID: testTenantA,
+	}
+	neverJoined := &fleet.HostAutopilotDevice{
+		AutopilotDeviceID: "ap-aaa", EntraDeviceID: "", GroupTag: "Stale",
+		HardwareSerial: "DUP-SERIAL", TenantID: testTenantA,
+	}
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{neverJoined, joined}))
+	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	assert.Equal(t, "Deployed", devices[0].GroupTag, "the Entra-joined record wins even with a higher Autopilot ID")
+
 	// Reversing the order Graph returned them in must not change the outcome.
 	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{second, first}))
 	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	assert.Equal(t, "ap-aaa", devices[0].AutopilotDeviceID, "winner is stable across page ordering")
-	assert.Equal(t, "Engineering", devices[0].GroupTag)
 }
 
 // Ingestion runs one transaction per chunk so a 100k-device tenant never becomes a single unbounded transaction. This
