@@ -2591,6 +2591,103 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		})
 		// No new activity.
 		s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), "", lastActivityID)
+
+		reportedSoftware := []fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Version:          "2.0.0",
+				Installed:        true,
+			},
+		}
+		// Age the recorded installs so only the pending and queued filters can stop another install.
+		ageInstalls := func() {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx,
+					`UPDATE host_vpp_software_installs SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE host_id = ?`,
+					host.ID)
+				return err
+			})
+		}
+		countQueuedInstalls := func() int {
+			var count int
+			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, db, &count, `
+					SELECT COUNT(*)
+					FROM upcoming_activities ua
+					JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+					WHERE ua.host_id = ? AND vaua.adam_id = '1'`, host.ID)
+			})
+			return count
+		}
+
+		// An activity stuck at the head of the queue stops installs behind it from activating, which is
+		// when their host_vpp_software_installs row is written, so every filter but the queued one goes
+		// blind. A stalled in-house app install is the head an iOS host can actually reach that no VPP
+		// filter covers, since scripts and package installs never reach these devices and a stuck VPP
+		// install would be caught by the pending-verification filter instead.
+		blockerExecID := uuid.NewString()
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			res, err := db.ExecContext(ctx, `
+				INSERT INTO in_house_apps (global_or_team_id, filename, platform, storage_id, version)
+				VALUES (?, ?, 'ios', ?, '1.0.0')`, team.ID, "blocker-"+blockerExecID+".ipa", blockerExecID)
+			if err != nil {
+				return err
+			}
+			inHouseAppID, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			res, err = db.ExecContext(ctx, `
+				INSERT INTO upcoming_activities (host_id, activity_type, execution_id, payload, activated_at)
+				VALUES (?, 'in_house_app_install', ?, '{}', NOW(6))`, host.ID, blockerExecID)
+			if err != nil {
+				return err
+			}
+			blockerID, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			_, err = db.ExecContext(ctx, `
+				INSERT INTO in_house_app_upcoming_activities (upcoming_activity_id, in_house_app_id)
+				VALUES (?, ?)`, blockerID, inHouseAppID)
+			return err
+		})
+
+		for range 4 {
+			ageInstalls()
+			triggerRefetch()
+			handleRefetch(reportedSoftware)
+			require.Equal(t, 1, countQueuedInstalls(), "a queue that is not draining must not accumulate duplicate installs")
+		}
+
+		// Without this, a filter that never released would pass the assertion above too.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx,
+				`DELETE FROM upcoming_activities WHERE host_id = ? AND activity_type IN ('in_house_app_install', 'vpp_app_install')`,
+				host.ID)
+			return err
+		})
+		require.Zero(t, countQueuedInstalls())
+
+		ageInstalls()
+		triggerRefetch()
+		handleRefetch(reportedSoftware)
+		require.Equal(t, 1, countQueuedInstalls())
+
+		// That last install activated and will never be acknowledged. Teardown deletes the host, which
+		// clears upcoming_activities through hostRefs, but hostRefs deliberately excludes the nano
+		// tables, so the undelivered command outlives the host unless it goes too.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			if _, err := db.ExecContext(ctx,
+				`DELETE FROM upcoming_activities WHERE host_id = ?`, host.ID); err != nil {
+				return err
+			}
+			_, err := db.ExecContext(ctx,
+				`DELETE FROM nano_enrollment_queue WHERE id = ?`, host.UUID)
+			return err
+		})
+		require.Zero(t, countQueuedInstalls())
 	}
 
 	// Create a team and a VPP token on it.

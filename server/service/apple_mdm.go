@@ -5763,10 +5763,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		"count", len(softwaresWithinUpdateScheduleNoRecentInstalls),
 	)
 
-	// 4. Filter out software that already has a pending installation.
+	// 4. Filter out software that already has a pending installation, either activated and
+	// awaiting verification, or still waiting in the host's upcoming activity queue.
+	//
+	// This needs no in-run tracking like the policy loop has, because ListSoftwareAutoUpdateSchedules
+	// filters on the source derived from the host's platform above. A team can hold the same adam_id
+	// as two titles, one per platform, so widening that filter would let one run reach an app twice.
 	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get Adam IDs pending install for host")
+	}
+	adamIDsQueuedInstallForHost, err := svc.ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Adam IDs queued installs for host")
 	}
 	var softwaresWithinUpdateScheduleToInstall []*fleet.SoftwareTitle
 	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateScheduleNoRecentInstalls {
@@ -5780,6 +5789,13 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
 			logger.DebugContext(ctx, "skipping software, pending install for title",
+				"software_title_id", softwareTitle.ID,
+				"adam_id", softwareTitle.AppStoreApp.AdamID,
+			)
+			continue
+		}
+		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+			logger.DebugContext(ctx, "skipping software, install already queued for title",
 				"software_title_id", softwareTitle.ID,
 				"adam_id", softwareTitle.AppStoreApp.AdamID,
 			)

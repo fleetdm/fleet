@@ -5095,6 +5095,9 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 	ds.MapAdamIDsPendingInstallFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
 		return map[string]struct{}{}, nil
 	}
+	ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
 	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: platform}}}, nil
 	}
@@ -5142,6 +5145,139 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 	setRecentlyVerified(true)
 	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", failing, map[uint]struct{}{policyID: {}}))
 	require.True(t, installCalled, "newly-failing VPP install should fire regardless of cooldown")
+}
+
+// TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls verifies that a policy automation does
+// not queue another install of an app that already has one in the host's upcoming activity queue.
+// MapAdamIDsPendingInstall only matches install commands that haven't been delivered yet, so on a
+// host whose queue is not draining it reports nothing and the automation re-fires on every run.
+func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		policyID = uint(1)
+		hostID   = uint(42)
+		adamID   = "adam-vpp-1"
+	)
+
+	continuousAutomations := true
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		return []fleet.PolicyVPPData{{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: continuousAutomations}}, nil
+	}
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, Platform: "darwin"}, nil
+	}
+	// A stuck queue leaves the command delivered and acknowledged, so neither of the existing
+	// lookups reports the app.
+	ds.MapAdamIDsPendingInstallFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
+	ds.MapAdamIDsRecentlyVerifiedInstallsFunc = func(ctx context.Context, hostID uint, seconds int) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
+	installQueued := true
+	ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+		if installQueued {
+			return map[string]struct{}{adamID: {}}, nil
+		}
+		return map[string]struct{}{}, nil
+	}
+	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: platform}}}, nil
+	}
+	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	var (
+		installs         []string
+		installPolicyIDs []uint
+	)
+	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+			return "vpp-token", nil
+		},
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+			installs = append(installs, vppApp.AdamID)
+			if opts.PolicyID != nil {
+				installPolicyIDs = append(installPolicyIDs, *opts.PolicyID)
+			}
+			return "command-uuid", nil
+		},
+	})
+
+	noNewlyFailing := map[uint]struct{}{}
+	newlyFailing := map[uint]struct{}{policyID: {}}
+	// A fresh map per case, because the out-of-scope branch writes nil into it and sharing one would
+	// carry that between cases.
+	newFailingMap := func() map[uint]*bool { return map[uint]*bool{policyID: new(false)} }
+
+	// Continuous re-fire with an install already queued for the app => skipped.
+	installs = nil
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", newFailingMap(), noNewlyFailing))
+	require.Empty(t, installs, "continuous VPP install should be skipped while one is queued for the app")
+
+	// A pass→fail transition is filtered too, matching processSoftwareForNewlyFailingPolicies, whose
+	// pending-install check has no such exemption. An exemption here would re-queue on every
+	// membership flap, since flipping() counts a missing prior row as newly failing.
+	installs = nil
+	continuousAutomations = false
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", newFailingMap(), newlyFailing))
+	require.Empty(t, installs, "a newly-failing policy is filtered by a queued install, as on the installer path")
+
+	// Queue drained => fires. Without this the filter could never release and the first case would
+	// pass against a filter that blocks forever.
+	installs = nil
+	continuousAutomations = true
+	installQueued = false
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", newFailingMap(), noNewlyFailing))
+	require.Equal(t, []string{adamID}, installs, "VPP install should fire once the queued install has drained")
+
+	// The lookups are read once before the loop, so one install here is only possible if the run
+	// tracks what it has queued.
+	const secondPolicyID = uint(2)
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		// Highest id first, since the query has no ORDER BY, so only the sort decides which one wins.
+		return []fleet.PolicyVPPData{
+			{ID: secondPolicyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: true},
+			{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: true},
+		}, nil
+	}
+	installs = nil
+	installPolicyIDs = nil
+	twoFailing := map[uint]*bool{policyID: new(false), secondPolicyID: new(false)}
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", twoFailing, noNewlyFailing))
+	require.Equal(t, []string{adamID}, installs, "two policies on one app must not each queue an install")
+	require.Equal(t, []uint{policyID}, installPolicyIDs, "the policy credited with the install must not depend on row order")
+
+	// An app can be added for several platforms and the query filters on neither the app's platform
+	// nor the host's, so the iOS build of an app can reach a macOS host.
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		return []fleet.PolicyVPPData{
+			{ID: policyID, AdamID: adamID, Platform: fleet.IOSPlatform, ContinuousAutomationsEnabled: true},
+		}, nil
+	}
+	installs = nil
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", newFailingMap(), noNewlyFailing))
+	require.Empty(t, installs, "an iOS app must not be installed on a macOS host")
+
+	// An app out of scope for the host installs nothing, and the policy result is cleared so the host
+	// does not show it failing for something it cannot remediate.
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		return []fleet.PolicyVPPData{
+			{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: true},
+		}, nil
+	}
+	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
+		return false, nil
+	}
+	installs = nil
+	outOfScope := newFailingMap()
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", outOfScope, noNewlyFailing))
+	require.Empty(t, installs, "an out-of-scope app must not be installed")
+	require.Nil(t, outOfScope[policyID], "an out-of-scope app must clear the policy result")
 }
 
 // TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience verifies that a failing install-software policy does
