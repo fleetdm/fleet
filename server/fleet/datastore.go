@@ -2982,9 +2982,8 @@ type Datastore interface {
 	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error
 
 	// HasFMAInstallerVersion returns true if the given FMA version is already
-	// cached as a software installer for the given team, along with the installer
-	// id of that cached row and its storage hash.
-	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, installerID uint, storageID string, err error)
+	// cached as a software installer for the given team, and its storage hash.
+	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
 	// FMA installer version, including install/uninstall scripts, URL, SHA256,

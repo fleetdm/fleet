@@ -1187,23 +1187,19 @@ func (ds *Datastore) MarkFleetMaintainedAppVersionCurrent(ctx context.Context, i
 	return nil
 }
 
-func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, installerID uint, storageID string, err error) {
-	var row struct {
-		ID        uint   `db:"id"`
-		StorageID string `db:"storage_id"`
-	}
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, `
-		SELECT id, storage_id FROM software_installers
+func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error) {
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &storageID, `
+		SELECT storage_id FROM software_installers
 			WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
 		LIMIT 1
 	`, ptr.ValOrZero(teamID), fmaID, version)
 	if errors.Is(err, sql.ErrNoRows) {
-		return false, 0, "", nil
+		return false, "", nil
 	}
 	if err != nil {
-		return false, 0, "", ctxerr.Wrap(ctx, err, "get FMA installer version storage id")
+		return false, "", ctxerr.Wrap(ctx, err, "get FMA installer version storage id")
 	}
-	return true, row.ID, row.StorageID, nil
+	return true, storageID, nil
 }
 
 func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {

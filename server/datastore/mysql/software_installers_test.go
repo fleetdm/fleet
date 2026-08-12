@@ -7473,24 +7473,21 @@ func testHasFMAInstallerVersion(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Cached version returns the row's installer id and stored hash.
-	versionExists, installerID, storageID, err := ds.HasFMAInstallerVersion(ctx, &team.ID, maintainedApp.ID, "1.0")
+	// Cached version returns its stored hash.
+	versionExists, storageID, err := ds.HasFMAInstallerVersion(ctx, &team.ID, maintainedApp.ID, "1.0")
 	require.NoError(t, err)
 	require.True(t, versionExists)
-	require.NotZero(t, installerID)
 	require.Equal(t, "sha-v1", storageID)
 
-	// A version string that isn't cached returns no id and no hash.
-	versionExists, installerID, storageID, err = ds.HasFMAInstallerVersion(ctx, &team.ID, maintainedApp.ID, "2.0")
+	// A version string that isn't cached returns no hash.
+	versionExists, storageID, err = ds.HasFMAInstallerVersion(ctx, &team.ID, maintainedApp.ID, "2.0")
 	require.NoError(t, err)
 	require.False(t, versionExists)
-	require.Zero(t, installerID)
 	require.Empty(t, storageID)
 
 	// The cache is scoped per team.
-	versionExists, installerID, storageID, err = ds.HasFMAInstallerVersion(ctx, &otherTeam.ID, maintainedApp.ID, "1.0")
+	versionExists, storageID, err = ds.HasFMAInstallerVersion(ctx, &otherTeam.ID, maintainedApp.ID, "1.0")
 	require.NoError(t, err)
 	require.False(t, versionExists)
-	require.Zero(t, installerID)
 	require.Empty(t, storageID)
 }

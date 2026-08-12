@@ -3480,7 +3480,7 @@ func (svc *Service) softwareBatchUpload(
 			// treated as cached and gets downloaded and upserted instead.
 			var fmaVersionCached bool
 			if p.Slug != nil && *p.Slug != "" && p.MaintainedApp != nil && p.MaintainedApp.Version != "" {
-				versionExists, _, cachedHash, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
+				versionExists, cachedHash, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "check cached FMA version")
 				}
