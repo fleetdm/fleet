@@ -4678,15 +4678,16 @@ func logAutopilotEnrollmentContext(
 	secTokenMsg *fleet.RequestSecurityToken,
 	deviceID, hardwareID string,
 ) {
+	// Logged on every Windows MDM enrollment, including when both items are absent. A line that only appeared when the
+	// items were present could not distinguish "Windows did not send them" from "this code did not run", and the
+	// enrollment needed to find out is expensive to repeat.
 	ztdID, ztdErr := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemZeroTouchProvisioning)
 	offlineCorrelator, offlineErr := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemOfflineAutopilotCorrelator)
-	if ztdErr != nil && offlineErr != nil {
-		// Not an Autopilot-registered device, or a Windows build that does not send these. Nothing to record.
-		return
-	}
 
-	logger.InfoContext(ctx, "windows mdm enrollment carried autopilot context",
+	logger.InfoContext(ctx, "windows mdm enrollment autopilot context",
+		"zero_touch_provisioning_present", ztdErr == nil,
 		"zero_touch_provisioning_guid", ztdID,
+		"offline_autopilot_correlator_present", offlineErr == nil,
 		"offline_autopilot_correlator", offlineCorrelator,
 		"mdm_device_id", deviceID,
 		"mdm_hardware_id", hardwareID,
