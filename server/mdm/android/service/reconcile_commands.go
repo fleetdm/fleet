@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -157,7 +158,12 @@ func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client an
 
 		default:
 			status, errCode, errMsg := androidOperationTerminalState(op)
-			if err := setAndroidCommandTerminalState(ctx, ds, newActivityFn, cmd, status, errCode, errMsg, nil, nil); err != nil {
+			var rawResult *string
+			if resultJSON, err := json.Marshal(op); err == nil {
+				s := string(resultJSON)
+				rawResult = &s
+			}
+			if err := setAndroidCommandTerminalState(ctx, ds, newActivityFn, cmd, status, errCode, errMsg, rawResult, nil); err != nil {
 				logger.ErrorContext(ctx, "failed to apply reconciled android command status",
 					"command_uuid", cmd.CommandUUID, "status", status, "err", err)
 				ctxerr.Handle(ctx, err)

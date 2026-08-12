@@ -91,10 +91,10 @@ func TestReconcileAndroidCommands(t *testing.T) {
 					return &androidmanagement.Operation{Name: operationName, Done: true, Error: tc.opError}, nil
 				}
 				var gotStatus string
-				var gotCode, gotMsg *string
+				var gotCode, gotMsg, gotRawResult *string
 				mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 					require.Equal(t, cmd.CommandUUID, commandUUID)
-					gotStatus, gotCode, gotMsg = status, errorCode, errorMessage
+					gotStatus, gotCode, gotMsg, gotRawResult = status, errorCode, errorMessage, rawResult
 					return nil
 				}
 
@@ -102,6 +102,8 @@ func TestReconcileAndroidCommands(t *testing.T) {
 
 				require.True(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
 				assert.Equal(t, tc.expectedStatus, gotStatus)
+				require.NotNil(t, gotRawResult, "reconciled operation result should be persisted")
+				assert.Contains(t, *gotRawResult, `"done":true`, "raw_result should contain the operation")
 				if tc.expectedCode == "" {
 					assert.Nil(t, gotCode)
 					assert.Nil(t, gotMsg)

@@ -1195,8 +1195,8 @@ func (ds *Datastore) GetMDMAndroidCommandByOperationName(ctx context.Context, op
 func (ds *Datastore) getMDMAndroidCommand(ctx context.Context, column, value string) (*android.MDMAndroidCommand, error) {
 	stmt := `
 		SELECT
-			command_uuid, host_uuid, operation_name, command_type, status,
-			error_code, error_message, created_at, updated_at
+			command_uuid, host_uuid, operation_name, command_type, raw_command, status,
+			error_code, error_message, raw_result, created_at, updated_at
 		FROM mdm_android_commands
 		WHERE ` + column + ` = ?
 	`
