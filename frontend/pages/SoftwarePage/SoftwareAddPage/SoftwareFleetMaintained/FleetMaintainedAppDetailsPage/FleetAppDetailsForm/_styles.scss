@@ -27,6 +27,12 @@
     }
   }
 
+  &__advanced-options {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
   &__advanced-options-section {
     display: flex;
     flex-direction: column;
