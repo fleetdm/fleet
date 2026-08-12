@@ -1499,8 +1499,8 @@ const TAGGED_TEMPLATES = {
             isScriptPackageSource
           )}{" "}
           on <b>{hostName}</b>
-          {from_setup_experience ? " during setup experience" : ""}{" "}
-          (self-service).
+          {from_setup_experience ? " during setup experience" : ""} (self
+          service).
         </>
       );
     }
@@ -1541,7 +1541,7 @@ const TAGGED_TEMPLATES = {
           <b>{title}</b>
           {showSoftwarePackage && ` (${details.software_package})`}{" "}
           {getInstallUninstallStatusPredicatePassive(status)} on{" "}
-          <b>{hostName}</b> (self-service).
+          <b>{hostName}</b> (self service).
         </>
       );
     }
@@ -1569,7 +1569,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        <b>End user</b> installed all the software in self-service.
+        <b>End user</b> installed all the software in self service.
       </>
     );
   },

@@ -402,7 +402,7 @@ const Info = ({
                   URL is used in &quot;Reach out to IT&quot; links shown to the
                   end
                   <br />
-                  user (e.g. self-service and during MDM migration).
+                  user (e.g. self service and during MDM migration).
                 </>
               }
             >

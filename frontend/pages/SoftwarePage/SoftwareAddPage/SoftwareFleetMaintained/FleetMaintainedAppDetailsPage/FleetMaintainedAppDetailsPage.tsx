@@ -240,7 +240,7 @@ const FleetMaintainedAppDetailsPage = ({
             className={`${baseClass}__back-to-add-software`}
           />
           <h1>{fleetApp.name}</h1>
-          <PageDescription content="Add software to your library. You can add it to self-service later." />
+          <PageDescription content="Add software to your library. You can add it to self service later." />
           <div className={`${baseClass}__page-content`}>
             <FleetAppSummary
               name={fleetApp.name}

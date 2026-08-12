@@ -40,7 +40,7 @@ describe("EditIconModal", () => {
     expect(screen.getByText("Choose file")).toBeInTheDocument();
     expect(screen.getByText("Preview")).toBeInTheDocument();
     expect(screen.getByText("Fleet")).toBeInTheDocument();
-    expect(screen.getByText("Self-service")).toBeInTheDocument();
+    expect(screen.getByText("Self service")).toBeInTheDocument();
     const save = screen.getByRole("button", { name: "Save" });
     expect(save).toBeInTheDocument();
   });
