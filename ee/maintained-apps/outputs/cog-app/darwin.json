@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3621",
+      "version": "3625",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.cogx.cog';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cogx.cog' AND version_compare(bundle_short_version, '3621') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cogx.cog' AND version_compare(bundle_short_version, '3625') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.cogx.cog');"
       },
-      "installer_url": "https://cogcdn.cog.losno.co/Cog-6e1db27f1.zip",
+      "installer_url": "https://cogcdn.cog.losno.co/Cog-ec855a57a.zip",
       "install_script_ref": "ab9757fd",
       "uninstall_script_ref": "e84a8314",
-      "sha256": "9e518c7c539d3b651ef4538f0d7a8d19a1a34a79367551010dcf237f178c863f",
+      "sha256": "1db729c96f603717af870680d2055b82d204f781d46eed3e562d9adbc932a708",
       "default_categories": [
         "Productivity"
       ]
