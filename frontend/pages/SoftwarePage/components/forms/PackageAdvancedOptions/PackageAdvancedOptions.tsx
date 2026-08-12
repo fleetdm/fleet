@@ -32,6 +32,7 @@ const PKG_TYPE_TO_ID_TEXT = {
   deb: "package name",
   rpm: "package name",
   msi: "product code",
+  msix: "product code or package family name",
   exe: "software name",
   zip: "software name",
   sh: "package name",

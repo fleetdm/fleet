@@ -10168,3 +10168,107 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+type scheduledUpdatesVPPInstaller struct {
+	installs []string
+}
+
+func (i *scheduledUpdatesVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+	return "vpp-token", nil
+}
+
+func (i *scheduledUpdatesVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+	i.installs = append(i.installs, vppApp.AdamID)
+	return "command-uuid", nil
+}
+
+// TestHandleScheduledUpdatesSkipsQueuedInstalls verifies that a scheduled update does not queue
+// another install of an app that already has one queued. The pending-verification lookup reads
+// host_vpp_software_installs, whose rows are only written once an activity activates, so an install
+// waiting behind a stalled one is invisible to it.
+func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
+	const (
+		titleID  = uint(7)
+		adamID   = "adam-vpp-1"
+		bundleID = "com.example.app"
+	)
+
+	newSvc := func() (*MDMAppleCheckinAndCommandService, *mock.Store, *scheduledUpdatesVPPInstaller) {
+		ds := new(mock.Store)
+		installer := &scheduledUpdatesVPPInstaller{}
+		svc := &MDMAppleCheckinAndCommandService{
+			ds:           ds,
+			vppInstaller: installer,
+			logger:       slog.New(slog.DiscardHandler),
+		}
+
+		ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{Token: "vpp-token"}, nil
+		}
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
+			return &fleet.NanoEnrollment{Enabled: true, Type: "Device"}, nil
+		}
+		ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string,
+			optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter,
+		) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+			return []fleet.SoftwareAutoUpdateSchedule{{
+				TitleID: titleID,
+				SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+					AutoUpdateStartTime: new("00:00"),
+					AutoUpdateEndTime:   new("23:59"),
+				},
+			}}, nil
+		}
+		ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+			return &fleet.SoftwareTitle{ID: titleID, Name: "App", BundleIdentifier: new(bundleID), Source: "ios_apps"}, nil
+		}
+		ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
+			return &fleet.VPPAppStoreApp{
+				VPPAppID:      fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform},
+				LatestVersion: "2.0.0",
+			}, nil
+		}
+		ds.MapAdamIDsRecentInstallsFunc = func(ctx context.Context, hostID uint, seconds int) (map[string]struct{}, error) {
+			return map[string]struct{}{}, nil
+		}
+		ds.MapAdamIDsPendingInstallVerificationFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+			return map[string]struct{}{}, nil
+		}
+		ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+			return map[string]struct{}{}, nil
+		}
+		ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
+			return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{
+				AppTeamID: 1,
+				VPPAppID:  fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform},
+			}}, nil
+		}
+		ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
+			return true, nil
+		}
+
+		return svc, ds, installer
+	}
+
+	host := &fleet.Host{ID: 1, UUID: "IOS-HOST-UUID", Platform: "ios", TimeZone: new("UTC")}
+	reported := []fleet.Software{{BundleIdentifier: bundleID, Source: "ios_apps", Version: "1.0.0"}}
+
+	t.Run("install already queued for the app", func(t *testing.T) {
+		svc, ds, installer := newSvc()
+		ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+			return map[string]struct{}{adamID: {}}, nil
+		}
+
+		require.NoError(t, svc.handleScheduledUpdates(t.Context(), host, reported))
+		require.True(t, ds.MapAdamIDsQueuedInstallsFuncInvoked)
+		require.Empty(t, installer.installs)
+	})
+
+	// Without this the test above would also pass against a guard that never releases.
+	t.Run("nothing queued for the app", func(t *testing.T) {
+		svc, _, installer := newSvc()
+
+		require.NoError(t, svc.handleScheduledUpdates(t.Context(), host, reported))
+		require.Equal(t, []string{adamID}, installer.installs)
+	})
+}

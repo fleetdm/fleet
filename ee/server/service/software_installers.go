@@ -783,7 +783,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
 		}
 
-		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID, true)
+		// Latest takes the most recently downloaded, not highest version string.
+		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting Fleet-maintained app versions")
 		}
@@ -1333,7 +1334,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		// delete them.  GetFleetMaintainedVersionsByTitleID queries the live DB, so
 		// it will not return the row we just deleted.
 		if meta.TitleID != nil {
-			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID, false)
+			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting cached FMA versions for cleanup")
 			}
@@ -3030,14 +3031,26 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 			if app.TitleID == nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
-			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID, true)
+			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID)
 			if err != nil {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
+			// Cached versions come back most recently downloaded first, so the first one on the
+			// pinned major is the one to fall back to.
+			pinnedVersion := ""
+			for _, version := range versions {
+				if versionMatchesMajor(version.Version, majorVersionString) {
+					pinnedVersion = version.Version
+					break
+				}
+			}
+			if pinnedVersion == "" {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
 
 			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,
 			// but it can be optimized in softwareBatchUpload if it accepted only passing category and script content IDs.
-			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, versions[0].Version)
+			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, pinnedVersion)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting software installer")
 			}

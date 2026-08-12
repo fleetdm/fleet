@@ -29481,6 +29481,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			"active version should roll back to v1.0 (the version added via UI)")
 		require.Len(t, uiTitle.SoftwarePackage.FleetMaintainedVersions, 2,
 			"both versions should remain cached after rolling back")
+		// Pinning picks which cached version is active without rewriting which one is
+		// newest, so clearing the pin later still resolves Latest to v2.0.
+		require.Equal(t, "2.0", uiTitle.SoftwarePackage.FleetMaintainedVersions[0].Version,
+			"the pinned older version must not become the newest download")
 	})
 
 	// =========================================================================
@@ -29953,6 +29957,214 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.SelfService,
 			"self_service should be true after the edit")
 	})
+
+	// =========================================================================
+	// Section 9: the manifest publishes a version lower than one already cached.
+	// This happens when a maintained app is withdrawn upstream, as iMazing did
+	// going from 3.5.5.0 back to 3.3.1.0. Fleet follows the manifest either way:
+	// whether the withdrawn version is rebuilt with new bytes or comes back byte
+	// for byte, it becomes active and is listed first.
+	// =========================================================================
+	cachedVersions := func(pkg *fleet.SoftwarePackageOrApp) []string {
+		got := make([]string, 0, len(pkg.FleetMaintainedVersions))
+		for _, v := range pkg.FleetMaintainedVersions {
+			got = append(got, v.Version)
+		}
+		return got
+	}
+
+	// The active row itself, so a test can check which row is active and what bytes it
+	// points at, not just that the version string reads correctly.
+	activeInstaller := func(teamID uint, titleID uint) *fleet.SoftwareInstaller {
+		meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, titleID, false)
+		require.NoError(t, err)
+		return meta
+	}
+
+	cronLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	runCron := func() {
+		require.NoError(t, eeservice.AutoUpdateFleetMaintainedApps(ctx, s.ds, s.softwareInstallStore, cronLogger))
+	}
+
+	t.Run("manifest_publishes_lower_version", func(t *testing.T) {
+		lowerTeam := newTeam("team_lower_" + t.Name())
+		applyManifest := func() []fleet.SoftwarePackageResponse {
+			return batchSet(lowerTeam, []*fleet.SoftwareInstallerPayload{
+				{Slug: new("cloudflare-warp/windows")},
+			})
+		}
+		resetFMAState(warpState, "1.0", []byte("lower-1-0"))
+		require.Len(t, applyManifest(), 1)
+		pkg := getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0"}, cachedVersions(pkg))
+
+		// 1.1 is published and cached alongside 1.0.
+		resetFMAState(warpState, "1.1", []byte("lower-1-1"))
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+		// Every apply below updates one of these two rows, so their ids must not change.
+		v11ID := pkg.FleetMaintainedVersions[0].ID
+		v10ID := pkg.FleetMaintainedVersions[1].ID
+
+		// 1.1 is withdrawn and the manifest goes back to 1.0, rebuilt with new bytes.
+		resetFMAState(warpState, "1.0", []byte("lower-1-0-rebuilt"))
+		require.Len(t, applyManifest(), 2)
+		title := getActiveTitleForTeam(lowerTeam.ID)
+		pkg = title.SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
+		active := activeInstaller(lowerTeam.ID, title.ID)
+		require.Equal(t, v10ID, active.InstallerID, "the cached 1.0 row is the active one")
+		require.Equal(t, warpState.sha256, active.StorageID, "and carries the rebuilt bytes")
+
+		// 1.1 is published again with the bytes Fleet already has cached, so there is
+		// nothing to download.
+		resetFMAState(warpState, "1.1", []byte("lower-1-1"))
+		require.Len(t, applyManifest(), 2)
+		title = getActiveTitleForTeam(lowerTeam.ID)
+		pkg = title.SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+		active = activeInstaller(lowerTeam.ID, title.ID)
+		require.Equal(t, v11ID, active.InstallerID)
+		require.Equal(t, warpState.sha256, active.StorageID)
+
+		// 1.1 is withdrawn again and 1.0 comes back byte for byte. Nothing is
+		// downloaded, but the manifest points at 1.0, so it is active and newest.
+		resetFMAState(warpState, "1.0", []byte("lower-1-0-rebuilt"))
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
+
+		// 1.1 is published a third time, rebuilt with bytes Fleet has never seen. The
+		// version is cached but its hash is not, so the row is updated rather than added.
+		resetFMAState(warpState, "1.1", []byte("lower-1-1-rebuilt"))
+		require.Len(t, applyManifest(), 2)
+		title = getActiveTitleForTeam(lowerTeam.ID)
+		pkg = title.SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+		active = activeInstaller(lowerTeam.ID, title.ID)
+		require.Equal(t, v11ID, active.InstallerID, "the same 1.1 row, updated in place")
+		require.Equal(t, warpState.sha256, active.StorageID, "now pointing at the rebuilt bytes")
+
+		// A repeated apply with no manifest change must not disturb the order.
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+
+		require.Equal(t, v11ID, pkg.FleetMaintainedVersions[0].ID, "rows are updated in place, never re-inserted")
+		require.Equal(t, v10ID, pkg.FleetMaintainedVersions[1].ID)
+	})
+
+	// =========================================================================
+	// Section 10: the cron and a GitOps apply treat the manifest the same way, whether
+	// it goes back to a cached version or republishes one with different bytes.
+	// =========================================================================
+	t.Run("cron_matches_gitops_for_a_cached_version", func(t *testing.T) {
+		cronTeam := newTeam("team_cron_" + t.Name())
+		applyManifest := func() []fleet.SoftwarePackageResponse {
+			return batchSet(cronTeam, []*fleet.SoftwareInstallerPayload{
+				{Slug: new("cloudflare-warp/windows")},
+			})
+		}
+
+		resetFMAState(warpState, "1.0", []byte("cron-1-0"))
+		require.Len(t, applyManifest(), 1)
+		resetFMAState(warpState, "1.1", []byte("cron-1-1"))
+		require.Len(t, applyManifest(), 2)
+		title := getActiveTitleForTeam(cronTeam.ID)
+		require.Equal(t, "1.1", title.SoftwarePackage.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(title.SoftwarePackage))
+
+		// 1.1 is withdrawn and the manifest serves 1.0 again, byte for byte. Nothing needs
+		// downloading, but 1.0 is what the manifest publishes now, so the cron marks it
+		// current and promotes to it.
+		resetFMAState(warpState, "1.0", []byte("cron-1-0"))
+		runCron()
+		title = getActiveTitleForTeam(cronTeam.ID)
+		require.Equal(t, "1.0", title.SoftwarePackage.Version, "the cron follows the manifest back down")
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+		active := activeInstaller(cronTeam.ID, title.ID)
+		v10ID := title.SoftwarePackage.FleetMaintainedVersions[0].ID
+		require.Equal(t, v10ID, active.InstallerID,
+			"the row the cron promoted is the one the manifest publishes")
+		storageBeforeRebuild := active.StorageID
+		require.Equal(t, warpState.sha256, storageBeforeRebuild)
+
+		// A second pass with the same manifest changes nothing, so the version list keeps
+		// reporting when Fleet actually downloaded each version.
+		runCron()
+		title = getActiveTitleForTeam(cronTeam.ID)
+		require.Equal(t, "1.0", title.SoftwarePackage.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+
+		// 1.0 is rebuilt with bytes Fleet has never seen, so the cron downloads it again and
+		// refreshes the cached row in place instead of leaving stale bytes behind.
+		resetFMAState(warpState, "1.0", []byte("cron-1-0-rebuilt"))
+		runCron()
+		title = getActiveTitleForTeam(cronTeam.ID)
+		require.Equal(t, "1.0", title.SoftwarePackage.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+		active = activeInstaller(cronTeam.ID, title.ID)
+		require.NotEqual(t, storageBeforeRebuild, active.StorageID, "the cron takes the rebuilt bytes")
+		require.Equal(t, warpState.sha256, active.StorageID)
+		require.Equal(t, v10ID, active.InstallerID, "refreshed in place, no new row")
+
+		// A GitOps apply of the same manifest is then a no-op, so the two agree.
+		require.Len(t, applyManifest(), 2)
+		title = getActiveTitleForTeam(cronTeam.ID)
+		require.Equal(t, "1.0", title.SoftwarePackage.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+		gitopsActive := activeInstaller(cronTeam.ID, title.ID)
+		require.Equal(t, active.InstallerID, gitopsActive.InstallerID)
+		require.Equal(t, active.StorageID, gitopsActive.StorageID)
+	})
+
+	// =========================================================================
+	// Section 11: a caret pin still lets the manifest move between cached versions
+	// of that major, and the cron leaves a pinned team alone once the version is
+	// cached.
+	// =========================================================================
+	t.Run("caret_pin_with_an_already_cached_version", func(t *testing.T) {
+		pinTeam := newTeam("team_caretpin_" + t.Name())
+		applyManifest := func(pin string) []fleet.SoftwarePackageResponse {
+			sw := &fleet.SoftwareInstallerPayload{Slug: new("cloudflare-warp/windows")}
+			sw.RollbackVersion = pin
+			return batchSet(pinTeam, []*fleet.SoftwareInstallerPayload{sw})
+		}
+
+		resetFMAState(warpState, "1.0", []byte("pin-1-0"))
+		require.Len(t, applyManifest(""), 1)
+		resetFMAState(warpState, "1.1", []byte("pin-1-1"))
+		require.Len(t, applyManifest(""), 2)
+
+		// Pin the major both cached versions share: the newest download of that major wins.
+		require.Len(t, applyManifest("^1"), 2)
+		pkg := getActiveTitleForTeam(pinTeam.ID).SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+
+		// The manifest goes back to the other cached version of the same major while the
+		// caret pin is in force, so the pin allows it and 1.0 becomes newest and active.
+		resetFMAState(warpState, "1.0", []byte("pin-1-0"))
+		require.Len(t, applyManifest("^1"), 2)
+		pkg = getActiveTitleForTeam(pinTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
+
+		// A cron pass with the pin in place and the version already cached changes nothing.
+		runCron()
+		pkg = getActiveTitleForTeam(pinTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
+	})
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {

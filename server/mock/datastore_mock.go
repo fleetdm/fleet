@@ -1684,7 +1684,9 @@ type GetSoftwarePackagesByTeamAndTitleIDFunc func(ctx context.Context, teamID *u
 
 type GetSoftwarePackagesForTitlesFunc func(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]fleet.SoftwarePackageListItem, error)
 
-type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error)
+type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error)
+
+type MarkFleetMaintainedAppVersionCurrentFunc func(ctx context.Context, installerID uint) error
 
 type ListFleetMaintainedAppActiveInstallersFunc func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error)
 
@@ -1735,6 +1737,8 @@ type MapAdamIDsRecentlyVerifiedInstallsFunc func(ctx context.Context, hostID uin
 type MapAdamIDsPendingInstallVerificationFunc func(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
 
 type MapAdamIDsRecentInstallsFunc func(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
+
+type MapAdamIDsQueuedInstallsFunc func(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
 
 type GetTitleInfoFromVPPAppsTeamsIDFunc func(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error)
 
@@ -4826,6 +4830,9 @@ type DataStore struct {
 	GetFleetMaintainedVersionsByTitleIDFunc        GetFleetMaintainedVersionsByTitleIDFunc
 	GetFleetMaintainedVersionsByTitleIDFuncInvoked bool
 
+	MarkFleetMaintainedAppVersionCurrentFunc        MarkFleetMaintainedAppVersionCurrentFunc
+	MarkFleetMaintainedAppVersionCurrentFuncInvoked bool
+
 	ListFleetMaintainedAppActiveInstallersFunc        ListFleetMaintainedAppActiveInstallersFunc
 	ListFleetMaintainedAppActiveInstallersFuncInvoked bool
 
@@ -4900,6 +4907,9 @@ type DataStore struct {
 
 	MapAdamIDsRecentInstallsFunc        MapAdamIDsRecentInstallsFunc
 	MapAdamIDsRecentInstallsFuncInvoked bool
+
+	MapAdamIDsQueuedInstallsFunc        MapAdamIDsQueuedInstallsFunc
+	MapAdamIDsQueuedInstallsFuncInvoked bool
 
 	GetTitleInfoFromVPPAppsTeamsIDFunc        GetTitleInfoFromVPPAppsTeamsIDFunc
 	GetTitleInfoFromVPPAppsTeamsIDFuncInvoked bool
@@ -11608,11 +11618,18 @@ func (s *DataStore) GetSoftwarePackagesForTitles(ctx context.Context, teamID *ui
 	return s.GetSoftwarePackagesForTitlesFunc(ctx, teamID, titleIDs)
 }
 
-func (s *DataStore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+func (s *DataStore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
 	s.mu.Lock()
 	s.GetFleetMaintainedVersionsByTitleIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetFleetMaintainedVersionsByTitleIDFunc(ctx, teamID, titleID, byVersion)
+	return s.GetFleetMaintainedVersionsByTitleIDFunc(ctx, teamID, titleID)
+}
+
+func (s *DataStore) MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error {
+	s.mu.Lock()
+	s.MarkFleetMaintainedAppVersionCurrentFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkFleetMaintainedAppVersionCurrentFunc(ctx, installerID)
 }
 
 func (s *DataStore) ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
@@ -11788,6 +11805,13 @@ func (s *DataStore) MapAdamIDsRecentInstalls(ctx context.Context, hostID uint, s
 	s.MapAdamIDsRecentInstallsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MapAdamIDsRecentInstallsFunc(ctx, hostID, seconds)
+}
+
+func (s *DataStore) MapAdamIDsQueuedInstalls(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error) {
+	s.mu.Lock()
+	s.MapAdamIDsQueuedInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MapAdamIDsQueuedInstallsFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error) {
