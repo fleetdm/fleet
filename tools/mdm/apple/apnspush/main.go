@@ -29,7 +29,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -169,11 +168,9 @@ func pushDirect(ctx context.Context, mdmStorage *mysql.NanoMDMStorage, baseURL s
 			// Same deterministic scheme mdmtest clients use in TokenUpdate
 			// (pkg/mdm/mdmtest/apple.go), so fake pushes line up with what
 			// simulated devices derive for themselves.
-			hexToken := make([]byte, hex.EncodedLen(len("token"+uuid)))
-			_ = hex.Encode(hexToken, []byte("token"+uuid))
 			pushInfo = &mdm.Push{
 				PushMagic: "pushmagic" + uuid,
-				Token:     hexToken,
+				Token:     []byte("token" + uuid),
 				Topic:     "com.apple.mgmt.External." + uuid,
 			}
 			provenance = "not in nano_enrollments — derived fake (mdmtest scheme)"
