@@ -35,22 +35,4 @@ jobs:
           # GHSA-j965-2qgj-vjmq (aws-sdk v2 region validation) has no fixed v2
           # release; the guidance is to migrate to SDK v3. skipper-s3 (used by the
           # fleet-agent-downloader) supports only v2.
-          # Every entry from GHSA-qh2h-chj9-jffq onward is one class: sails-hook-grunt's
-          # published npm-shrinkwrap.json wrongly includes its devDependencies (the
-          # eslint 4 and mocha 3 subtrees, dev-only lint/test tooling never loaded at
-          # runtime), and npm 10+ lockfile regeneration records parts of that subtree
-          # as runtime scope. Affects the website/ and ee/fleet-agent-downloader/
-          # lockfiles, which both use sails-hook-grunt. The set below is every active
-          # advisory affecting the shrinkwrapped packages (growl, acorn, ansi-regex,
-          # cross-spawn, debug, diff, eslint, ajv, ms, tmp), enumerated via the GitHub
-          # advisory API so CI doesn't surface them one at a time.
-          # TEMPORARY: remove the whole class once the upstream fix
-          # (https://github.com/sailshq/sails-hook-grunt/pull/12) is published and
-          # both lockfiles are regenerated.
-          allow-ghsas: >-
-            GHSA-mh99-v99m-4gvg, GHSA-j965-2qgj-vjmq, GHSA-qh2h-chj9-jffq,
-            GHSA-6chw-6frg-f759, GHSA-93q8-gq69-wqmw, GHSA-3xgq-45jj-v275,
-            GHSA-2g4f-4pwh-qvx6, GHSA-v88g-cgmw-v5xw, GHSA-9vvw-cc9w-f27h,
-            GHSA-gxpj-cx7g-858c, GHSA-73rr-hh4g-fpgx, GHSA-h6ch-v84p-w6p9,
-            GHSA-jcgq-xh2f-2hfm, GHSA-w9mr-4mfr-499f, GHSA-52f5-9888-hmc6,
-            GHSA-ph9p-34f9-6g65
+          allow-ghsas: GHSA-mh99-v99m-4gvg, GHSA-j965-2qgj-vjmq
