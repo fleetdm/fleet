@@ -3828,6 +3828,8 @@ func TestOutOfScopePolicyResultsAreDiscarded(t *testing.T) {
 		ds.RecordPolicyQueryExecutionsFuncInvoked = false
 		ds.PolicyQueriesForHostFilteredFuncInvoked = false
 		ds.PolicyQueriesForHostFuncInvoked = false
+		ds.UpdateHostFuncInvoked = false
+		ds.SaveHostAdditionalFuncInvoked = false
 		err := svc.SubmitDistributedQueryResults(ctx, results, statuses, map[string]string{}, map[string]*fleet.Stats{})
 		require.NoError(t, err)
 	}
@@ -3924,21 +3926,40 @@ func TestOutOfScopePolicyResultsAreDiscarded(t *testing.T) {
 				return filterPolicyQueries(inScopePolicies, policyIDs), nil
 			}
 		})
+		var savedHost *fleet.Host
+		ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+			savedHost = gotHost
+			return nil
+		}
+		var savedAdditional *json.RawMessage
+		ds.SaveHostAdditionalFunc = func(ctx context.Context, hostID uint, additional *json.RawMessage) error {
+			savedAdditional = additional
+			return nil
+		}
 		ds.RecordLabelQueryExecutionsFuncInvoked = false
 
-		// The same write carries a label result and a policy result. submit asserts the write itself succeeds.
+		// One write carrying a label, a policy, a detail and an additional result. submit asserts it succeeds.
 		submit(map[string][]map[string]string{
-			hostLabelQueryPrefix + "5":  {{"col1": "val1"}},
-			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "5":               {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "1":              {{"col1": "val1"}},
+			hostDetailQueryPrefix + "osquery_info":   {{"version": "5.99.0"}},
+			hostAdditionalQueryPrefix + "extra_bits": {{"n": "1"}},
 		}, map[string]fleet.OsqueryStatus{})
 
 		// Policy results are dropped, so nothing unvalidated is persisted. RecordPolicyQueryExecutions is where
 		// hosts.policy_updated_at is advanced, so not calling it also leaves the host due to report again.
 		require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
-		// The write completes instead of erroring out, so the rest of the payload is still processed. (Label results
-		// are recorded before the policy stage either way; what a returned error would actually cost is the detail
-		// and additional results written after it.)
+
 		require.True(t, ds.RecordLabelQueryExecutionsFuncInvoked)
+
+		// The detail and additional results are still persisted.
+		require.True(t, ds.UpdateHostFuncInvoked)
+		require.NotNil(t, savedHost)
+		require.Equal(t, "5.99.0", savedHost.OsqueryVersion)
+
+		require.True(t, ds.SaveHostAdditionalFuncInvoked)
+		require.NotNil(t, savedAdditional)
+		require.JSONEq(t, `{"extra_bits":[{"n":"1"}]}`, string(*savedAdditional))
 	})
 
 	t.Run("setup experience host with no gating policies records nothing", func(t *testing.T) {
