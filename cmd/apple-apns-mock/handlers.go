@@ -392,15 +392,7 @@ type memStatsResponse struct {
 	InUseBytes uint64 `json:"in_use_bytes"` // everything the runtime holds minus what it has released to the OS
 }
 
-// memStatsHandler serves GET /memstats. With ?gc=1 it forces a collection
-// first, so heap_bytes is live data rather than live data plus whatever
-// garbage has accumulated since the last GC — worth it once at the end of a
-// load run, too expensive to poll with.
 func memStatsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Query().Get("gc") == "1" {
-		runtime.GC()
-	}
-
 	samples := []metrics.Sample{
 		{Name: "/memory/classes/heap/objects:bytes"},
 		{Name: "/memory/classes/heap/stacks:bytes"},
