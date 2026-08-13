@@ -8191,9 +8191,7 @@ func testWindowsEnrollmentDefaultFleet(t *testing.T, ds *Datastore) {
 	require.Empty(t, teamName)
 }
 
-// The ZTDID is the exact key that links an Autopilot pending host to its MDM enrollment. Every loader that hydrates an
-// MDMWindowsEnrolledDevice has to carry it: these queries name their columns explicitly, so one that omits it hands
-// back an empty ZTDID and silently downgrades linking to the ambiguous serial path.
+// The ZTDID is the exact key that links an Autopilot pending host to its MDM enrollment.
 func testMDMWindowsEnrollmentZTDRegistrationID(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	const ztdID = "efdb13f9-44d6-4f99-a93f-08833fccef82"
@@ -8237,8 +8235,8 @@ func testMDMWindowsEnrollmentZTDRegistrationID(t *testing.T, ds *Datastore) {
 		})
 	}
 
-	// A re-enrollment that carries no ZTDID must not erase the one already captured, or the pending host loses its
-	// only exact link key. Re-enrolling means upserting the same mdm_hardware_id, which is the table's unique key.
+	// A re-enrollment that carries no ZTDID must not erase the one already captured. Re-enrolling means upserting the
+	// same mdm_hardware_id, which is the table's unique key.
 	enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	require.NoError(t, err)
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
