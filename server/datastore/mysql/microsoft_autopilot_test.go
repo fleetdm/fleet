@@ -641,9 +641,6 @@ func testRemoveWindowsAutopilotHosts(t *testing.T, ds *Datastore) {
 	assert.Empty(t, devices)
 }
 
-// Resolution keys on the Autopilot device ID, never the hardware serial. Windows serials are not unique, so records
-// sharing one are separate machines that each need their own host; collapsing them would hide a device entirely. The
-// serial survives only as a fallback for adopting a host Fleet already knew about.
 func testIngestResolvesByAutopilotDeviceID(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedWindowsBuiltinLabels(t, ds)
@@ -661,8 +658,7 @@ func testIngestResolvesByAutopilotDeviceID(t *testing.T, ds *Datastore) {
 		assert.Equal(t, "Marketing", stored["ap-bbb"].GroupTag)
 		assert.NotEqual(t, stored["ap-aaa"].HostID, stored["ap-bbb"].HostID)
 
-		// Re-ingest reversed and retagged. Keying on the serial would create a host every sync, or move one device's
-		// group tag onto the other's host.
+		// Re-ingest reversed and retagged.
 		second.GroupTag = "Sales"
 		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{second, first}))
 
@@ -692,9 +688,6 @@ func testIngestResolvesByAutopilotDeviceID(t *testing.T, ds *Datastore) {
 			[]uint{stored["ap-adopt"].HostID, stored["ap-adopt-2"].HostID})
 	})
 
-	// Adopting and creating for one serial in a single batch is where host reuse hides: the row proving a host is
-	// claimed is not written until the transaction ends, so the post-insert re-query still reports the adopted host as
-	// free. Handing it out twice would put both devices on one host and orphan the host just created.
 	t.Run("adopting and creating for one serial in a single batch", func(t *testing.T) {
 		const serial = "MIXED-SERIAL"
 		existing := newWindowsHostWithSerial(t, ds, "mixed", serial)
@@ -714,9 +707,6 @@ func testIngestResolvesByAutopilotDeviceID(t *testing.T, ds *Datastore) {
 	})
 }
 
-// Ingestion runs one transaction per chunk so a 100k-device tenant never becomes a single unbounded transaction. This
-// shrinks the chunk size and asserts a device set spanning several chunks, with duplicates straddling a boundary,
-// reconciles to exactly one host per distinct serial.
 func testIngestSpansChunkedTransactions(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedWindowsBuiltinLabels(t, ds)
@@ -754,7 +744,6 @@ func testIngestSpansChunkedTransactions(t *testing.T, ds *Datastore) {
 }
 
 // A pending Autopilot host must be reused when the device actually enrolls, rather than a second host being created.
-// The serial is the only identifier orbit and Autopilot share, so this is what the Windows serial branch exists for.
 func testOrbitEnrollReusesPendingAutopilotHost(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedWindowsBuiltinLabels(t, ds)
@@ -802,8 +791,6 @@ func testOrbitEnrollReusesPendingAutopilotHost(t *testing.T, ds *Datastore) {
 		"a Windows host with no pending Autopilot row still matches on its identifier, not its serial")
 }
 
-// The group tag is what automation targets when placing a device, so both the list and the detail endpoint have to
-// carry it, and neither may invent one for a host that is not Autopilot-registered.
 func testHostResponsesCarryGroupTag(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedWindowsBuiltinLabels(t, ds)
@@ -879,7 +866,6 @@ func testHostIDByAutopilotDeviceID(t *testing.T, ds *Datastore) {
 	assert.True(t, fleet.IsNotFound(err))
 }
 
-// Two ways a pending Autopilot host can be silently wrong: invisible in the UI, or deleted when it is actually live.
 func testPendingHostVisibilityAndRemovalSafety(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedWindowsBuiltinLabels(t, ds)
@@ -892,8 +878,6 @@ func testPendingHostVisibilityAndRemovalSafety(t *testing.T, ds *Datastore) {
 	require.Len(t, devices, 1)
 	hostID := devices[0].HostID
 
-	// The Hosts page sorts by display_name by default, and that path INNER JOINs host_display_names. Without a row
-	// there the pending host is invisible in the UI even though it exists.
 	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin},
 		fleet.HostListOptions{ListOptions: fleet.ListOptions{OrderKey: "display_name"}})
 	require.NoError(t, err)
