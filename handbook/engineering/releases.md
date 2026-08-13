@@ -78,6 +78,24 @@ If there is partially merged feature work when the release candidate is created,
 > This exception process should be avoided whenever possible. Any feature work merged into the release candidate will likely result in a significant release delay.
 
 
+## Freeze the release candidate before release
+
+To keep release dates from slipping, the release candidate enters a **final freeze 2 business days before the expected release date**. This applies to both minor and patch releases.
+
+Before the freeze, merges into the release candidate follow the normal rules ([unreleased bug fixes only](#merge-unreleased-bug-fixes-into-the-release-candidate), with EM and QA approval, plus the [feature merge exception process](#request-release-candidate-feature-merge-exception) where applicable). The freeze adds a hard final gate on top of those rules.
+
+Once the release candidate is frozen:
+
+- Nothing else merges in, including unreleased bug fixes that would otherwise qualify for cherry-pick. This is the point where even unreleased bugs stop coming in.
+- The only exception is a `P0`, and it requires approval from both the product group EM and the QA lead before it merges.
+- Any high-priority issue found after the freeze is scheduled for the next release (the next patch, or the next minor), not squeezed into the in-flight one. This gives EMs a clear, dated line to defer non-critical work to the next release timeline.
+
+When the freeze begins, the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) announces it in two places:
+
+1. The release candidate's existing [#help-releases thread](#discuss-release-dates) for the matching release version, stating that the RC is now frozen and no further merges will be accepted without EM and QA approval.
+2. A heads-up in #help-engineering, so engineers and EMs across product groups know the freeze is in effect.
+
+
 ## Confirm latest versions of dependencies
 
 Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are:
