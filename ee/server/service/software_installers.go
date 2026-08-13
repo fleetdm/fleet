@@ -3848,9 +3848,16 @@ func (svc *Service) softwareBatchUpload(
 					extraPayload.Platform = string(fleet.IOSPlatform)
 					extraPayload.Source = "ios_apps"
 				}
-				extraPayload.InstallDuringSetup = installDuringSetupForFannedOutPlatform(
-					installer.SetupExperiencePlatforms, installer.InstallDuringSetup, extraPayload.Platform)
 				extraInstallers = append(extraInstallers, &extraPayload)
+			}
+			if installer.Extension == "ipa" {
+				// Derive the per-platform selection for every fanned-out payload —
+				// both the one created above and those matched from existing rows
+				// by hash on re-apply, which skip the block above.
+				for _, extraPayload := range extraInstallers {
+					extraPayload.InstallDuringSetup = installDuringSetupForFannedOutPlatform(
+						installer.SetupExperiencePlatforms, installer.InstallDuringSetup, extraPayload.Platform)
+				}
 			}
 
 			installers[i] = &installerPayloadWithExtras{
