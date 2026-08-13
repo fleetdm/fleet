@@ -64,15 +64,7 @@ Please do not add any text outside of the JSON report or wrap it in a code fence
     let llmResponse = await sails.helpers.ai.prompt.with({prompt, expectJson: true, baseModel: 'claude-haiku-4-5'})
     .tolerate((err)=>{
       sails.log.warn(failureMessage+'  Error details from LLM: '+err.stack);
-      return {
-        choices: [
-          {
-            message: {
-              content: `{ "risks": "${failureMessage}", "whatWillProbablyHappenDuringMaintenance": "${failureMessage}" }`
-            }
-          }
-        ]
-      };
+      return { risks: failureMessage, whatWillProbablyHappenDuringMaintenance:failureMessage};
     });
 
     let report;
@@ -82,7 +74,7 @@ Please do not add any text outside of the JSON report or wrap it in a code fence
       report.whatWillProbablyHappenDuringMaintenance = report.whatWillHappenDuringMaintenance;
       delete report.whatWillHappenDuringMaintenance;
     } catch (err) {
-      sails.log.warn('When trying to parse a JSON report returned from the Anthropic API, an error occurred. Error details: '+err.stack+'\n Report returned from the prompt helper:'+llmResponse);
+      sails.log.warn('When trying to parse a report returned from the prompt helper, an error occurred. Error details: '+err.stack+'\n Report returned from the prompt helper:'+llmResponse);
       report = {
         risks: failureMessage,
         whatWillProbablyHappenDuringMaintenance: failureMessage
