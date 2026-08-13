@@ -918,6 +918,28 @@ func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context,
 	return false, nil
 }
 
+// discardOutOfScopePolicyResults removes, in place, the results for policies that are not in scope for the host.
+//
+// A host authenticates with its node key and fully controls the fleet_policy_query_<id> keys it submits, so a result is
+// only trustworthy for a policy the host is actually assigned (by team, platform and label). Without this, any enrolled
+// host could forge membership for policies it was never sent, including policies belonging to another fleet.
+func (svc *Service) discardOutOfScopePolicyResults(ctx context.Context, host *fleet.Host, policyResults map[uint]*bool) error {
+	if len(policyResults) == 0 {
+		return nil
+	}
+	hostPolicyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieve policy queries")
+	}
+	for policyID := range policyResults {
+		if _, ok := hostPolicyQueries[fmt.Sprint(policyID)]; !ok {
+			svc.logger.DebugContext(ctx, "discarding result for out-of-scope policy", "policyID", policyID, "hostID", host.ID)
+			delete(policyResults, policyID)
+		}
+	}
+	return nil
+}
+
 // cleanupOutOfScopePolicyMembership deletes the host's policy_membership rows
 // for the given stale policies: policies with a stored row but no result in the
 // host's incoming distributed write (as returned by RecordPolicyQueryExecutions).
@@ -1263,6 +1285,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
+	}
+
+	if err := svc.discardOutOfScopePolicyResults(ctx, host, policyResults); err != nil {
+		return ctxerr.Wrap(ctx, err, "discard out-of-scope policy results")
 	}
 
 	if len(policyResults) > 0 {

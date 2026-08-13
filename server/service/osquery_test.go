@@ -3674,6 +3674,9 @@ func TestPolicyMembershipOutOfScopeCleanup(t *testing.T) {
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: 0}, nil
 	}
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "select 1"}, nil
+	}
 	stalePolicyIDs := []uint{7, 9}
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
@@ -3739,6 +3742,93 @@ func TestPolicyMembershipOutOfScopeCleanup(t *testing.T) {
 	})
 	require.Equal(t, []uint{7}, clearedPolicyIDs)
 	require.True(t, ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked)
+}
+
+func TestOutOfScopePolicyResultsAreDiscarded(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestService(t, ds, nil, lq)
+
+	host := &fleet.Host{ID: 42, Platform: "darwin"}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 0}, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, nil
+	}
+	inScopePolicies := map[string]string{"1": "select 1", "2": "select 2"}
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, gotHost *fleet.Host) (map[string]string, error) {
+		require.Equal(t, host.ID, gotHost.ID)
+		return inScopePolicies, nil
+	}
+	var flippingResults map[uint]*bool
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) ([]uint, []uint, error) {
+		flippingResults = incomingResults
+		return nil, nil, nil
+	}
+	var recordedResults map[uint]*bool
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
+		deferred bool, newlyPassingPolicyIDs []uint,
+	) ([]uint, error) {
+		recordedResults = results
+		return nil, nil
+	}
+
+	ctx = hostctx.NewContext(ctx, host)
+
+	submit := func(results map[string][]map[string]string, statuses map[string]fleet.OsqueryStatus) {
+		flippingResults, recordedResults = nil, nil
+		ds.RecordPolicyQueryExecutionsFuncInvoked = false
+		err := svc.SubmitDistributedQueryResults(ctx, results, statuses, map[string]string{}, map[string]*fleet.Stats{})
+		require.NoError(t, err)
+	}
+
+	t.Run("forged policy IDs are dropped, in-scope results kept", func(t *testing.T) {
+		submit(map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1":  {{"col1": "val1"}}, // in scope, passes
+			hostPolicyQueryPrefix + "2":  {},                 // in scope, fails
+			hostPolicyQueryPrefix + "99": {},                 // not in scope: another fleet's policy
+		}, map[string]fleet.OsqueryStatus{})
+
+		require.True(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+		require.Equal(t, map[uint]*bool{1: new(true), 2: new(false)}, recordedResults)
+		require.Equal(t, map[uint]*bool{1: new(true), 2: new(false)}, flippingResults)
+	})
+
+	t.Run("failed results for forged policy IDs are dropped too", func(t *testing.T) {
+		submit(map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1":  {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "99": {},
+		}, map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "99": 1, // reported as errored, which records a nil (unknown) result
+		})
+
+		require.Equal(t, map[uint]*bool{1: new(true)}, recordedResults)
+	})
+
+	t.Run("payload of only forged policy IDs records nothing", func(t *testing.T) {
+		submit(map[string][]map[string]string{
+			hostPolicyQueryPrefix + "99": {},
+		}, map[string]fleet.OsqueryStatus{})
+
+		require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+	})
+
+	t.Run("policy that fell out of scope between read and write is dropped", func(t *testing.T) {
+		inScopePolicies = map[string]string{"1": "select 1"}
+		t.Cleanup(func() { inScopePolicies = map[string]string{"1": "select 1", "2": "select 2"} })
+
+		submit(map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "2": {{"col1": "val1"}},
+		}, map[string]fleet.OsqueryStatus{})
+
+		require.Equal(t, map[uint]*bool{1: new(true)}, recordedResults)
+	})
 }
 
 func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
