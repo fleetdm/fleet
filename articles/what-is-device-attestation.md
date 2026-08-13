@@ -104,7 +104,7 @@ about proving the device is what it says it is.
 Starting in Fleet 4.84.0, Fleet Premium customers can require hardware attestation for ADE
 enrollments on Apple Silicon Macs running macOS 14 or later.
 
-When you enable **Require hardware attestation** in under **Settings > Organization settings > Advanced options**, Fleet does two things:
+When you enable **Require hardware attestation** in under **Organization settings > Advanced options**, Fleet does two things:
 
 1. Sends an enrollment profile that includes an ACME hardware-bound certificate configuration
 2. Requires the device to pass an Apple device attestation challenge before enrollment completes
