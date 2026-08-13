@@ -2345,11 +2345,7 @@ func matchHostDuringEnrollment(
 	orbitEnrollingWithOsqueryIdentifier := enrollType == orbitEnroll && osqueryID != ""
 
 	// Serial-match path: Apple DEP pre-creates host records with hardware_serial set, so orbit-enroll can find them this way.
-	//
-	// Excludes Windows as well as Android. The platform filter inside the statement scopes the *matched* host, not the
-	// enrolling device, so a Windows device whose serial collides with a macOS host would otherwise match that Apple
-	// host. Windows used to be kept out by blanking its serial at the call sites; now that the serial is passed through
-	// for the Autopilot branch below, the exclusion has to live here instead.
+	// Excludes Windows as well as Android.
 	if serial != "" && isAppleMDMEnabled && !orbitEnrollingWithOsqueryIdentifier && platform != "android" && platform != "windows" {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
@@ -2359,15 +2355,9 @@ func matchHostDuringEnrollment(
 	}
 
 	// Windows Autopilot pre-creates a pending host from the Autopilot registry, so orbit-enroll has to be able to find
-	// it by serial the same way Apple ADE does. The join makes the branch self-limiting: it can only ever match a host
-	// that the Autopilot sync created and that has not enrolled yet, so a legacy Windows host, which has no
-	// host_autopilot_devices row, still matches on its osquery identifier exactly as before.
-	//
-	// Two Autopilot devices can share a serial, and each gets its own pending host. orbit never sees the Autopilot
-	// device ID, so this branch cannot tell them apart and takes the oldest. The MDM enrollment path matches exactly,
-	// on that ID, and is what corrects the pairing.
-	//
-	// Deliberately not gated on isAppleMDMEnabled, unlike the branch above.
+	// it by serial the same way Apple ADE does. Two Autopilot devices can share a serial, and each gets its own pending
+	// host. orbit never sees the Autopilot device ID, so this branch cannot tell them apart and takes the oldest. The
+	// MDM enrollment path matches exactly, on that ID, and is what corrects the pairing.
 	if serial != "" && platform == "windows" && !orbitEnrollingWithOsqueryIdentifier {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
@@ -2436,9 +2426,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		PlatformLike:   hostInfo.PlatformLike,
 	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// The serial is passed through for Windows so a pending Autopilot host can be reused. Legacy behaviour is
-		// preserved by the branches themselves: the Apple branch is platform-scoped, and the Windows branch only
-		// matches a host that the Autopilot sync created and that has not enrolled yet.
+		// The serial is passed through for Windows so a pending Autopilot host can be reused.
 		serialToMatch := hostInfo.HardwareSerial
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
 			hostInfo.HardwareUUID, serialToMatch, hostInfo.Platform)
@@ -2616,7 +2604,6 @@ func (ds *Datastore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo f
 		return false, ctxerr.New(ctx, "hardware uuid is empty")
 	}
 
-	// Passed through for Windows for the same reason as EnrollOrbit above.
 	serialToMatch := hostInfo.HardwareSerial
 
 	matched, err := matchHostDuringEnrollment(ctx, ds.reader(ctx), orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier,
@@ -3962,10 +3949,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	// checking in via MDM
 	//
 	// To avoid prematurely deleting hosts that are ingested from Apple DEP, we cross-reference the
-	// host_dep_assignments table. Windows Autopilot pending hosts need the same protection for the same reason: they
-	// are created from the Autopilot registry before the device ever boots, so they have no check-in of any kind and
-	// the sentinel detail_updated_at above is treated as null, falling through to created_at. Without this a device
-	// registered more than the expiry window ago would be deleted and recreated under a new ID on every sync.
+	// host_dep_assignments table. Windows Autopilot pending hosts need the same protection for the same reason.
 	findHostsSql := `SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 		LEFT JOIN host_dep_assignments hda ON h.id = hda.host_id

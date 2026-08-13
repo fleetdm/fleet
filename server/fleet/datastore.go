@@ -2517,8 +2517,7 @@ type Datastore interface {
 	HostIDByAutopilotDeviceID(ctx context.Context, autopilotDeviceID string) (uint, error)
 
 	// IngestWindowsAutopilotDevices creates a pending Windows host for every Autopilot device that has no host yet,
-	// and stores the Autopilot metadata for every device passed in. HostID on the input is ignored and resolved from
-	// the Autopilot device ID, so two devices sharing a hardware serial stay two hosts.
+	// and stores the Autopilot metadata for every device passed in.
 	IngestWindowsAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
 
 	// RemoveWindowsAutopilotHosts handles devices that left the Autopilot registry: hosts still pending are deleted,

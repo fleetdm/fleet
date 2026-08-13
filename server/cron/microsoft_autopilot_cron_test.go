@@ -14,6 +14,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	tenantA = "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+	tenantB = "11111111-1111-1111-1111-111111111111"
+)
+
 type fakeGraphClient struct {
 	devices []msgraph.WindowsAutopilotDevice
 	listErr error
@@ -36,6 +41,7 @@ type autopilotSyncEnv struct {
 	// aggregateRefreshed counts recomputations of the app-config banner flag.
 	aggregateRefreshed int
 	syncResults        map[string]*string
+	clients            map[string]*fakeGraphClient
 }
 
 func newAutopilotSyncEnv(t *testing.T, creds ...*fleet.MicrosoftGraphCredential) *autopilotSyncEnv {
@@ -46,6 +52,7 @@ func newAutopilotSyncEnv(t *testing.T, creds ...*fleet.MicrosoftGraphCredential)
 		nextID:      100,
 		invalid:     map[string]bool{},
 		syncResults: map[string]*string{},
+		clients:     map[string]*fakeGraphClient{},
 	}
 
 	// Reflect the stored flag back onto the credential the way the real datastore does. Returning a fixed fixture
@@ -109,6 +116,22 @@ func newAutopilotSyncEnv(t *testing.T, creds ...*fleet.MicrosoftGraphCredential)
 	return env
 }
 
+// graph sets what a tenant's Graph client returns on the next sync. Called again to change the registry between passes.
+func (e *autopilotSyncEnv) graph(tenantID string, devices ...msgraph.WindowsAutopilotDevice) {
+	e.clients[tenantID] = &fakeGraphClient{devices: devices}
+}
+
+// graphFails makes a tenant's Graph client return err instead of a device list.
+func (e *autopilotSyncEnv) graphFails(tenantID string, err error) {
+	e.clients[tenantID] = &fakeGraphClient{listErr: err}
+}
+
+// sync runs one full cron pass over every configured tenant.
+func (e *autopilotSyncEnv) sync(t *testing.T) {
+	t.Helper()
+	require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), e.ds, factoryFor(e.clients), discardLogger()))
+}
+
 func (e *autopilotSyncEnv) serials() []string {
 	out := make([]string, 0, len(e.stored))
 	for _, d := range e.stored {
@@ -117,12 +140,18 @@ func (e *autopilotSyncEnv) serials() []string {
 	return out
 }
 
-// deviceID returns the stored record for an Autopilot device ID, failing the test if the sync never wrote it.
+// device returns the stored record for an Autopilot device ID, failing the test if the sync never wrote it.
 func (e *autopilotSyncEnv) device(t *testing.T, autopilotDeviceID string) *fleet.HostAutopilotDevice {
 	t.Helper()
 	d, ok := e.stored[autopilotDeviceID]
 	require.True(t, ok, "no stored record for autopilot device %s", autopilotDeviceID)
 	return d
+}
+
+// hostID is the host the sync resolved an Autopilot device onto.
+func (e *autopilotSyncEnv) hostID(t *testing.T, autopilotDeviceID string) uint {
+	t.Helper()
+	return e.device(t, autopilotDeviceID).HostID
 }
 
 func device(id, serial, tag string) msgraph.WindowsAutopilotDevice {
@@ -146,21 +175,17 @@ func factoryFor(clients map[string]*fakeGraphClient) msgraph.ClientFactory {
 
 func TestMicrosoftAutopilotSync(t *testing.T) {
 	t.Parallel()
-	const tenantA = "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
 
 	t.Run("no credential configured is a no-op", func(t *testing.T) {
 		env := newAutopilotSyncEnv(t)
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(nil), discardLogger()))
+		env.sync(t)
 		assert.False(t, env.ds.ListHostAutopilotDevicesFuncInvoked)
 	})
 
 	t.Run("creates a pending host per device and stores the group tag", func(t *testing.T) {
 		env := newAutopilotSyncEnv(t, testCred(tenantA))
-		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
-			device("ap-1", "SERIAL-1", "Engineering"),
-			device("ap-2", "SERIAL-2", ""),
-		}}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.graph(tenantA, device("ap-1", "SERIAL-1", "Engineering"), device("ap-2", "SERIAL-2", ""))
+		env.sync(t)
 
 		assert.ElementsMatch(t, []string{"SERIAL-1", "SERIAL-2"}, env.serials())
 		assert.Equal(t, "Engineering", env.device(t, "ap-1").GroupTag)
@@ -170,60 +195,65 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 
 	t.Run("an unchanged device is not rewritten", func(t *testing.T) {
 		env := newAutopilotSyncEnv(t, testCred(tenantA))
-		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
-			device("ap-1", "SERIAL-1", "Engineering"),
-		}}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.graph(tenantA, device("ap-1", "SERIAL-1", "Engineering"))
+		env.sync(t)
 
 		env.ds.IngestWindowsAutopilotDevicesFuncInvoked = false
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.sync(t)
 		assert.False(t, env.ds.IngestWindowsAutopilotDevicesFuncInvoked,
 			"re-syncing an identical registry must not ship every device over the wire again")
 	})
 
 	t.Run("a changed group tag updates in place", func(t *testing.T) {
 		env := newAutopilotSyncEnv(t, testCred(tenantA))
-		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
-			device("ap-1", "SERIAL-1", "Engineering"),
-		}}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
-		originalID := env.device(t, "ap-1").HostID
+		env.graph(tenantA, device("ap-1", "SERIAL-1", "Engineering"))
+		env.sync(t)
 
-		clients[tenantA].devices = []msgraph.WindowsAutopilotDevice{device("ap-1", "SERIAL-1", "Marketing")}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.graph(tenantA, device("ap-1", "SERIAL-1", "Marketing"))
+		env.sync(t)
 
-		assert.Equal(t, "Marketing", env.device(t, "ap-1").GroupTag)
-		assert.Equal(t, originalID, env.device(t, "ap-1").HostID, "the host is reused, not recreated")
+		assert.Equal(t, "Marketing", env.device(t, "ap-1").GroupTag,
+			"the diff must notice a group tag change and ship the device again")
+	})
+
+	t.Run("a device that joins entra updates in place", func(t *testing.T) {
+		env := newAutopilotSyncEnv(t, testCred(tenantA))
+		unjoined := device("ap-1", "SERIAL-1", "")
+		unjoined.EntraDeviceID = ""
+		env.graph(tenantA, unjoined)
+		env.sync(t)
+		require.Empty(t, env.device(t, "ap-1").EntraDeviceID)
+
+		// A device is issued its Entra device ID when it joins, which is after it was registered with Autopilot. A
+		// diff that only watched the group tag would never store it.
+		env.graph(tenantA, device("ap-1", "SERIAL-1", ""))
+		env.sync(t)
+		assert.Equal(t, "aad-ap-1", env.device(t, "ap-1").EntraDeviceID)
 	})
 
 	t.Run("a device removed from autopilot removes its pending host", func(t *testing.T) {
 		env := newAutopilotSyncEnv(t, testCred(tenantA))
-		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
-			device("ap-1", "SERIAL-1", ""), device("ap-2", "SERIAL-2", ""),
-		}}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
-		goneID := env.device(t, "ap-2").HostID
+		env.graph(tenantA, device("ap-1", "SERIAL-1", ""), device("ap-2", "SERIAL-2", ""))
+		env.sync(t)
+		goneID := env.hostID(t, "ap-2")
 
-		clients[tenantA].devices = []msgraph.WindowsAutopilotDevice{device("ap-1", "SERIAL-1", "")}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.graph(tenantA, device("ap-1", "SERIAL-1", ""))
+		env.sync(t)
 
 		assert.Equal(t, []uint{goneID}, env.removed)
 		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials())
 	})
 
-	t.Run("a tenant that empties out removes its pending hosts", func(t *testing.T) {
+	// An empty list is not a special case. Every way of being handed a wrong or truncated one already fails before the
+	// diff, so a successful response listing nothing is a fact about the tenant rather than a symptom.
+	t.Run("a tenant that empties out removes all of its pending hosts", func(t *testing.T) {
 		env := newAutopilotSyncEnv(t, testCred(tenantA))
-		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
-			device("ap-1", "SERIAL-1", ""),
-		}}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
-		goneID := env.device(t, "ap-1").HostID
+		env.graph(tenantA, device("ap-1", "SERIAL-1", ""))
+		env.sync(t)
+		goneID := env.hostID(t, "ap-1")
 
-		// A successful response listing nothing is a fact about the tenant, not a symptom: every way of being handed a
-		// wrong or truncated list fails before the diff. Keeping the hosts would strand devices that are demonstrably
-		// deregistered.
-		clients[tenantA].devices = nil
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.graph(tenantA)
+		env.sync(t)
 
 		assert.Equal(t, []uint{goneID}, env.removed)
 		assert.Empty(t, env.serials())
@@ -231,57 +261,46 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 
 	t.Run("two devices sharing a serial are two pending hosts", func(t *testing.T) {
 		env := newAutopilotSyncEnv(t, testCred(tenantA))
-		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
-			device("ap-1", "DUP-SERIAL", "Engineering"),
-			device("ap-2", "DUP-SERIAL", "Marketing"),
-		}}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.graph(tenantA, device("ap-1", "DUP-SERIAL", "Engineering"), device("ap-2", "DUP-SERIAL", "Marketing"))
+		env.sync(t)
 
 		assert.ElementsMatch(t, []string{"DUP-SERIAL", "DUP-SERIAL"}, env.serials(),
-			"Windows serials are not unique, so both registrations are real devices")
-		assert.NotEqual(t, env.device(t, "ap-1").HostID, env.device(t, "ap-2").HostID)
+			"the sync must not collapse two registrations that share a serial")
 
-		// Retiring one of them must leave the other alone. Diffing on the serial would find the serial still present
-		// and never remove anything, or remove both.
-		clients[tenantA].devices = []msgraph.WindowsAutopilotDevice{device("ap-1", "DUP-SERIAL", "Engineering")}
-		goneID := env.device(t, "ap-2").HostID
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		// Retiring one must leave the other alone. Diffing on the serial would find the serial still present and
+		// remove nothing, or remove both.
+		goneID := env.hostID(t, "ap-2")
+		env.graph(tenantA, device("ap-1", "DUP-SERIAL", "Engineering"))
+		env.sync(t)
 
 		assert.Equal(t, []uint{goneID}, env.removed)
 		assert.ElementsMatch(t, []string{"DUP-SERIAL"}, env.serials())
 	})
 
-	t.Run("a device with no autopilot device id is skipped", func(t *testing.T) {
-		env := newAutopilotSyncEnv(t, testCred(tenantA))
-		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
-			device("ap-1", "SERIAL-1", ""),
-			device("", "SERIAL-2", ""),
-		}}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
-		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials(),
-			"the device id is the resolution key, so a device without one cannot be stored")
-	})
-
-	t.Run("a placeholder serial is skipped", func(t *testing.T) {
-		env := newAutopilotSyncEnv(t, testCred(tenantA))
-		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
-			device("ap-1", "SERIAL-1", ""),
-			device("ap-2", "Default string", ""),
-		}}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
-		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials(),
-			"a placeholder serial cannot identify a host before osquery runs")
-	})
+	// Both fields are the identity a pending host is built from: the device ID resolves it, the serial is all it has
+	// until the machine boots. A device missing either cannot become a usable pending host.
+	for _, tc := range []struct {
+		name   string
+		device msgraph.WindowsAutopilotDevice
+	}{
+		{"a device with no autopilot device id is skipped", device("", "SERIAL-2", "")},
+		{"a device with a placeholder serial is skipped", device("ap-2", "Default string", "")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newAutopilotSyncEnv(t, testCred(tenantA))
+			env.graph(tenantA, device("ap-1", "SERIAL-1", ""), tc.device)
+			env.sync(t)
+			assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials())
+		})
+	}
 
 	t.Run("a pagination error aborts the tenant without deleting anything", func(t *testing.T) {
 		env := newAutopilotSyncEnv(t, testCred(tenantA))
-		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
-			device("ap-1", "SERIAL-1", ""),
-		}}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.graph(tenantA, device("ap-1", "SERIAL-1", ""))
+		env.sync(t)
 
-		clients[tenantA].listErr = errors.New("pagination stopped advancing")
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.graphFails(tenantA, errors.New("pagination stopped advancing"))
+		env.sync(t)
 
 		assert.Empty(t, env.removed)
 		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials())
@@ -292,7 +311,6 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 
 func TestMicrosoftAutopilotSyncCredentialFlag(t *testing.T) {
 	t.Parallel()
-	const tenantA = "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
 
 	// The banner is driven by a stored aggregate on the app config, so every flag change has to be followed by a
 	// recomputation. Without it the credentials endpoint reports the failure correctly and the banner never appears,
@@ -311,8 +329,8 @@ func TestMicrosoftAutopilotSyncCredentialFlag(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			env := newAutopilotSyncEnv(t, testCred(tenantA))
-			clients := map[string]*fakeGraphClient{tenantA: {listErr: tc.err}}
-			require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+			env.graphFails(tenantA, tc.err)
+			env.sync(t)
 
 			assert.Equal(t, tc.wantInvalid, env.invalid[tenantA])
 			if tc.wantRefreshed {
@@ -325,12 +343,12 @@ func TestMicrosoftAutopilotSyncCredentialFlag(t *testing.T) {
 
 	t.Run("the flag and the banner clear on the next successful sync", func(t *testing.T) {
 		env := newAutopilotSyncEnv(t, testCred(tenantA))
-		clients := map[string]*fakeGraphClient{tenantA: {listErr: &msgraph.Error{StatusCode: http.StatusUnauthorized}}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.graphFails(tenantA, &msgraph.Error{StatusCode: http.StatusUnauthorized})
+		env.sync(t)
 		require.True(t, env.invalid[tenantA])
 
-		clients[tenantA] = &fakeGraphClient{devices: []msgraph.WindowsAutopilotDevice{device("ap-1", "SERIAL-1", "")}}
-		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		env.graph(tenantA, device("ap-1", "SERIAL-1", ""))
+		env.sync(t)
 
 		assert.False(t, env.invalid[tenantA])
 		assert.Equal(t, 2, env.aggregateRefreshed, "clearing the flag must refresh the banner too")
@@ -339,15 +357,11 @@ func TestMicrosoftAutopilotSyncCredentialFlag(t *testing.T) {
 
 func TestMicrosoftAutopilotSyncIsolatesTenants(t *testing.T) {
 	t.Parallel()
-	const tenantA = "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
-	const tenantB = "11111111-1111-1111-1111-111111111111"
 
 	env := newAutopilotSyncEnv(t, testCred(tenantA), testCred(tenantB))
-	clients := map[string]*fakeGraphClient{
-		tenantA: {listErr: &msgraph.Error{StatusCode: http.StatusUnauthorized}},
-		tenantB: {devices: []msgraph.WindowsAutopilotDevice{device("ap-b", "SERIAL-B", "Sales")}},
-	}
-	require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+	env.graphFails(tenantA, &msgraph.Error{StatusCode: http.StatusUnauthorized})
+	env.graph(tenantB, device("ap-b", "SERIAL-B", "Sales"))
+	env.sync(t)
 
 	assert.True(t, env.invalid[tenantA], "the failing tenant is flagged")
 	assert.False(t, env.invalid[tenantB], "the healthy tenant is not")
