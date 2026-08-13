@@ -3056,6 +3056,19 @@ type Datastore interface {
 	// MapAdamIDsRecentInstalls returns a set of Adam IDs for the host that have been installed within the provided seconds.
 	MapAdamIDsRecentInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
 
+	// MapAdamIDsQueuedInstalls gets App Store IDs of VPP apps with an install in the host's
+	// upcoming activity queue, activated or not. Apple only, since an Android VPP install never
+	// enters upcoming_activities.
+	//
+	// This is the lookup that answers "is an install in flight at all", so it is the one a new caller
+	// wants. It is keyed on adam_id alone, matching the InstallApplication command, which identifies
+	// the app by store id and nothing else. The MapAdamIDsPendingInstall,
+	// MapAdamIDsPendingInstallVerification, MapAdamIDsRecentInstalls and
+	// MapAdamIDsRecentlyVerifiedInstalls lookups read host_vpp_software_installs, which is only
+	// written once an install activates, so none of them sees a queued install; they narrow this one
+	// by delivery state or by a time window and only make sense in addition to it.
+	MapAdamIDsQueuedInstalls(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
+
 	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
 	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)
 
