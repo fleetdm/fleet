@@ -86,7 +86,7 @@ Before the freeze, merges into the release candidate follow the normal rules ([u
 
 Once the release candidate is frozen:
 
-- Nothing else merges in, including unreleased bug fixes that would otherwise qualify for cherry-pick. This is the point where even unreleased bugs stop coming in.
+- Nothing else merges in, any remaining unreleased bugs that have not merged flag the release due date to shift until they are completed.
 - The only exception is a `P0`, and it requires approval from both the product group EM and the QA lead before it merges.
 - Any high-priority issue found after the freeze is scheduled for the next release (the next patch, or the next minor), not squeezed into the in-flight one. This gives EMs a clear, dated line to defer non-critical work to the next release timeline.
 
