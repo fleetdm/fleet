@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.5.2",
+      "version": "2.5.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.antigravity-ide';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.antigravity-ide' AND version_compare(bundle_short_version, '2.5.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.antigravity-ide' AND version_compare(bundle_short_version, '2.5.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.google.antigravity-ide');"
       },
-      "installer_url": "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.5.2-6697361355964416/darwin-arm/Antigravity%20IDE.dmg",
+      "installer_url": "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/darwin-arm/Antigravity%20IDE.dmg",
       "install_script_ref": "4037de63",
       "uninstall_script_ref": "3457f3ae",
-      "sha256": "e751a1bb551f73665b33398f13d2b90d6b07c6931318d34c0b49792bd8a949d6",
+      "sha256": "cad67d6d30a537fcb3bb9a6100330040ec6bcb686e38069f1ff16fe42306a33e",
       "default_categories": [
         "Developer tools"
       ]
