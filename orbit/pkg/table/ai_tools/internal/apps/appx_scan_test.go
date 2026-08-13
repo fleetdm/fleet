@@ -49,7 +49,7 @@ func TestScanAppxDirsInstallRoot(t *testing.T) {
 		t.Fatalf("got %d apps, want 1: %+v", len(got), got)
 	}
 	want := App{
-		Name: "chatgpt", Vendor: "OpenAI", Version: "1.2026.190.0",
+		Name: "chatgpt", DisplayName: "ChatGPT", Vendor: "OpenAI", Version: "1.2026.190.0",
 		Path: dir, Scope: "system", PlatformSource: "appx",
 	}
 	if got[0] != want {
@@ -198,10 +198,19 @@ func TestScanAppxDirsStaleUserDirIsNotAnInstall(t *testing.T) {
 	}
 }
 
-// TestScanAppxDirsMissingManifest covers the manifest being unreadable, which
-// must cost only the vendor, never the row.
+// TestScanAppxDirsMissingManifest covers a manifest that is unreadable or
+// carries no usable display name (including a MUI indirect string), which must
+// cost only the vendor and the friendly name, never the row: the display name
+// falls back to the package identity name.
 func TestScanAppxDirsMissingManifest(t *testing.T) {
-	for _, manifest := range []string{"", "not xml at all <<<", "<Package><Identity/></Package>"} {
+	const indirectManifest = `<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10">
+  <Properties>
+    <DisplayName>@{OpenAI.ChatGPT-Desktop_1.2026.190.0_arm64__2p2nqsd0c76g0?ms-resource://OpenAI.ChatGPT-Desktop/Resources/AppName}</DisplayName>
+  </Properties>
+</Package>`
+
+	for _, manifest := range []string{"", "not xml at all <<<", "<Package><Identity/></Package>", indirectManifest} {
 		root := t.TempDir()
 		mkPackageDir(t, root, chatGPTPFN, manifest)
 
@@ -217,6 +226,9 @@ func TestScanAppxDirsMissingManifest(t *testing.T) {
 		}
 		if got[0].Vendor != "" {
 			t.Errorf("manifest=%q: got vendor %q, want empty", manifest, got[0].Vendor)
+		}
+		if got[0].DisplayName != "OpenAI.ChatGPT-Desktop" {
+			t.Errorf("manifest=%q: got display name %q, want the package identity name", manifest, got[0].DisplayName)
 		}
 	}
 }
