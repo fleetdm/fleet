@@ -33,8 +33,8 @@ module.exports = {
 
   fn: async function ({sql}) {
 
-    if (!sails.config.custom.openAiSecret) {
-      throw new Error('sails.config.custom.openAiSecret not set.');
+    if (!sails.config.custom.anthropicSecret) {
+      throw new Error('sails.config.custom.anthropicSecret not set.');
     }//•
 
     // Build our prompt
@@ -64,19 +64,7 @@ Please do not add any text outside of the JSON report or wrap it in a code fence
     let BASE_MODEL = 'gpt-4';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
     // (Max tokens for gpt-3.5 ≈≈ 4000) (Max tokens for gpt-4 ≈≈ 8000)
     // [?] API: https://platform.openai.com/docs/api-reference/chat/create
-    let openAiResponse = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
-      model: BASE_MODEL,
-      messages: [// https://platform.openai.com/docs/guides/chat/introduction
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 256//eslint-disable-line camelcase
-    }, {
-      Authorization: `Bearer ${sails.config.custom.openAiSecret}`
-    })
+    let llmResponse = await sails.helpers.ai.prompt.with({prompt, expectJson: true, baseModel: 'claude-haiku-4-5'})
     .tolerate((err)=>{
       sails.log.warn(failureMessage+'  Error details from LLM: '+err.stack);
       return {
@@ -92,12 +80,12 @@ Please do not add any text outside of the JSON report or wrap it in a code fence
 
     let report;
     try {
-      report = JSON.parse(openAiResponse.choices[0].message.content);
+      report = llmResponse;
       // Change `whatWillHappenDuringMaintenance` to `whatWillProbablyHappenDuringMaintenance` (the naming we want to use in our API response)
       report.whatWillProbablyHappenDuringMaintenance = report.whatWillHappenDuringMaintenance;
       delete report.whatWillHappenDuringMaintenance;
     } catch (err) {
-      sails.log.warn('When trying to parse a JSON report returned from the Open AI API, an error occurred. Error details from JSON.parse: '+err.stack+'\n Report returned from Open AI:'+openAiResponse.choices[0].message.content);
+      sails.log.warn('When trying to parse a JSON report returned from the Anthropic API, an error occurred. Error details: '+err.stack+'\n Report returned from the prompt helper:'+llmResponse);
       report = {
         risks: failureMessage,
         whatWillProbablyHappenDuringMaintenance: failureMessage
