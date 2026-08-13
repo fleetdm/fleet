@@ -10773,6 +10773,19 @@ func testGetNanoMDMEnrollmentDetails(t *testing.T, ds *Datastore) {
 	assert.Equal(t, byodDeviceAuthenticateTime, *details.LastMDMEnrollmentTime)
 	require.NotNil(t, details.LastMDMSeenTime)
 	assert.Equal(t, byodDeviceEnrollTime, *details.LastMDMSeenTime)
+
+	// bootstrap token is not escrowed by default
+	assert.False(t, details.BootstrapTokenEscrowed)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_devices SET bootstrap_token_b64=? WHERE id = ?`, "dGVzdC10b2tlbg==", host.UUID)
+		return err
+	})
+
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	assert.True(t, details.BootstrapTokenEscrowed)
 }
 
 func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
