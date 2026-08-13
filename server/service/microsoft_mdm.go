@@ -1701,11 +1701,10 @@ scan:
 			break scan
 		}
 	}
-	// An Autopilot-registered device supplies its ZTDID at enrollment, and that is an exact key: it is immune to the
-	// duplicate and placeholder serials that make serial matching unreliable on Windows. Try it first, and fall back
-	// to the serial for devices that are not Autopilot-registered or that enrolled before the ZTDID was captured.
+	// An Autopilot-registered device supplies its ZTDID at enrollment. Try it first, and fall back to the serial for
+	// devices that are not Autopilot-registered or that enrolled before the ZTDID was captured.
 	if enrolledDevice.ZTDRegistrationID != "" {
-		hostID, err := svc.ds.HostIDByAutopilotDeviceID(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ZTDRegistrationID)
+		hostID, err := svc.ds.HostIDByAutopilotDeviceID(ctx, enrolledDevice.ZTDRegistrationID)
 		switch {
 		case err == nil:
 			svc.logger.DebugContext(ctx, "windows mdm: linking pending autopilot host by ZTDID",
@@ -1756,6 +1755,7 @@ scan:
 
 // linkWindowsHostMDMEnrollmentByHostID links an enrollment to a host resolved by an identifier other than the serial.
 func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostID uint) bool {
+	// RequirePrimary because orbit just enrolled, and we want to make sure we get latest data.
 	host, err := svc.ds.HostLite(ctxdb.RequirePrimary(ctx, true), hostID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "windows mdm: loading host for autopilot link failed",
@@ -3154,9 +3154,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		svc.logger.InfoContext(ctx, "ESP: device enrolled in OOBE, activating setup experience", "device_id", reqDeviceID)
 	}
 
-	// Present only when the device is Autopilot-registered. Verified on hardware to equal
-	// windowsAutopilotDeviceIdentity.id in Microsoft Graph, so it links this enrollment to a pending Autopilot host
-	// exactly, without depending on the hardware serial. Absence is normal and never fails an enrollment.
+	// Present only when the device is Autopilot-registered. Absence is normal and never fails an enrollment.
 	ztdRegistrationID, _ := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemZeroTouchProvisioning)
 
 	// Getting the Windows Enrolled Device Information

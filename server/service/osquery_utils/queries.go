@@ -2886,10 +2886,7 @@ func directIngestMDMWindows(ctx context.Context, logger *slog.Logger, host *flee
 			}
 		}
 	}
-	// A host the Autopilot sync created is an automatic enrollment by definition, whatever the enrollment's OOBE flag
-	// says. An already-provisioned Autopilot device that re-enrolls does so out of OOBE, and letting that flip the flag
-	// here would clear installed_from_dep on the next osquery refetch, silently demoting the host to manual and undoing
-	// what the enrollment link path decided.
+	// A host the Autopilot sync created is an automatic enrollment by definition, whatever the enrollment's OOBE flag says.
 	if enrolled && !automatic {
 		isAutopilot, err := hostHasLiveAutopilotRecord(ctx, ds, host.ID)
 		if err != nil {
@@ -3286,12 +3283,7 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		ctxerr.Handle(ctx, err)
 	}
 	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
-	// reflect this state.
-	//
-	// A pending Autopilot host is the exception: installed_from_dep is what makes it read as Pending, and clearing it
-	// here would demote a device that enrolled through Autopilot to "On (manual)". Enrolling out of OOBE is normal for
-	// an Autopilot device that has already been through provisioning, so MDMNotInOOBE cannot be used to tell the two
-	// apart. The presence of a live Autopilot record can.
+	// reflect this state. A pending Autopilot host is the exception.
 	if device.MDMNotInOOBE {
 		isAutopilot, err := hostHasLiveAutopilotRecord(ctx, ds, hostID)
 		if err != nil {
@@ -4012,10 +4004,7 @@ func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {
 // hostHasLiveAutopilotRecord reports whether the host was created by the Windows Autopilot sync and its device is still
 // registered, which is what distinguishes an Autopilot enrollment from an ordinary Windows one.
 func hostHasLiveAutopilotRecord(ctx context.Context, ds fleet.Datastore, hostID uint) (bool, error) {
-	// Require the primary: this is reached immediately after the enrollment link path resolved the host, and a lagging
-	// replica returning not-found would clear installed_from_dep and demote the host to manual, which is the exact
-	// regression this check exists to prevent.
-	_, err := ds.GetHostAutopilotDevice(ctxdb.RequirePrimary(ctx, true), hostID)
+	_, err := ds.GetHostAutopilotDevice(ctx, hostID)
 	switch {
 	case err == nil:
 		return true, nil
