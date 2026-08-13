@@ -50,7 +50,8 @@ const InstalledSoftwareActivityItem = ({
         isSoloActivity={isSoloActivity}
       >
         <b>{title}</b> {passivePrefix} on this host
-        {from_setup_experience ? " during setup experience" : ""} (self-service).
+        {from_setup_experience ? " during setup experience" : ""}
+        (self-service).
       </ActivityItem>
     );
   }
