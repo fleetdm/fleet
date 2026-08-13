@@ -140,5 +140,5 @@ The driver name in `-DriverName` doesn't match an installed driver exactly. Run 
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="TODO">
+<meta name="publishedOn" value="2026-08-14">
 <meta name="description" value="Deploy a driverless IPP printer to Windows hosts with a self-service script, or install a vendor driver first.">

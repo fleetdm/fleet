@@ -107,5 +107,5 @@ Only one Printing payload can exist per host. If you added a second profile inst
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="TODO">
+<meta name="publishedOn" value="2026-08-14">
 <meta name="description" value="Deploy printers to macOS hosts with a self-service script, or force-install one with a configuration profile.">
