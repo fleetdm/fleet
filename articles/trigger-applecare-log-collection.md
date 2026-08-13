@@ -119,7 +119,7 @@ To stop an active collection session, send `CancelEnhancedLogCollection` the sam
 ```
 
 ```bash
-fleetctl mdm run-command --payload=cancel-enhanced-log-collection.xml --hosts=HOSTNAME
+fleetctl mdm run-command --payload=cancel-enhanced-log-collection.xml --hosts=SERIAL_NUMBER
 ```
 
 ## Troubleshoot
