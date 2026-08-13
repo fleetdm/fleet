@@ -1245,13 +1245,15 @@ func TestModifyLabelRejectsHostsForComputedMembership(t *testing.T) {
 	}
 	mockListHostsLiteByIDs(ds)
 
-	computedTypes := []struct {
+	type labelTypeCase struct {
 		name           string
 		membershipType fleet.LabelMembershipType
-	}{
+	}
+	computedTypes := []labelTypeCase{
 		{"dynamic", fleet.LabelMembershipTypeDynamic},
 		{"host vitals", fleet.LabelMembershipTypeHostVitals},
 	}
+	manualType := labelTypeCase{"manual", fleet.LabelMembershipTypeManual}
 	payloads := []struct {
 		name    string
 		payload fleet.ModifyLabelPayload
@@ -1269,15 +1271,37 @@ func TestModifyLabelRejectsHostsForComputedMembership(t *testing.T) {
 				ds.SaveLabelFuncInvoked = false
 
 				_, _, err := svc.ModifyLabel(ctx, 1, tc.payload)
-				require.ErrorContains(t, err, "cannot provide a list of hosts for a dynamic label")
+				require.ErrorContains(t, err, `"hosts" or "host_ids" can only be provided for a manual label`)
 				require.False(t, ds.SaveLabelFuncInvoked)
 			})
 		}
 	}
 
+	// SaveLabel only replaces membership when it gets a non-nil list, so a request
+	// that omits both host fields must reach it as nil.
+	for _, lblType := range append(computedTypes, manualType) {
+		t.Run(lblType.name+"/rename without host fields", func(t *testing.T) {
+			membershipType = lblType.membershipType
+			ds.SaveLabelFuncInvoked = false
+			ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+				require.Nil(t, hostIDs)
+				return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+			}
+
+			_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{Name: new("renamed")})
+			require.NoError(t, err)
+			require.True(t, ds.SaveLabelFuncInvoked)
+		})
+	}
+
 	t.Run("manual label can still be cleared", func(t *testing.T) {
 		membershipType = fleet.LabelMembershipTypeManual
 		ds.SaveLabelFuncInvoked = false
+		ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+			require.NotNil(t, hostIDs)
+			require.Empty(t, hostIDs)
+			return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+		}
 
 		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{HostIDs: []uint{}})
 		require.NoError(t, err)

@@ -5639,7 +5639,7 @@ func (s *integrationTestSuite) TestLabels() {
 		} {
 			res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl2.ID), &payload, http.StatusUnprocessableEntity)
 			errMsg = extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "cannot provide a list of hosts for a dynamic label")
+			require.Contains(t, errMsg, `"hosts" or "host_ids" can only be provided for a manual label`)
 		}
 
 		listHostsResp = listHostsResponse{}

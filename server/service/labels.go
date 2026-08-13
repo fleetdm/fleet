@@ -265,7 +265,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		return nil, nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
 	}
 	if label.LabelMembershipType != fleet.LabelMembershipTypeManual && (payload.Hosts != nil || payload.HostIDs != nil) {
-		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
+		return nil, nil, fleet.NewInvalidArgumentError("hosts", `"hosts" or "host_ids" can only be provided for a manual label`)
 	}
 	if payload.Name != nil {
 		// Check if the new name is a reserved label name
