@@ -56,7 +56,8 @@ module.exports = {
 
   exits: {
     success: { description: 'A devices compliance status was successfully sent to an entra tenants instance'},
-    missingUserPrincipalName: { description: 'A request to update a macOS device\'s complaince status was missing a userPrincipalName value.', responseType: 'badRequest'}
+    missingUserPrincipalName: { description: 'A request to update a macOS device\'s complaince status was missing a userPrincipalName value.', responseType: 'badRequest'},
+    unauthorized: { description: 'A request contained an invalid entraTenantId/fleetServerSecret combination.', responseType: 'unauthorized'},
   },
 
 
@@ -65,7 +66,7 @@ module.exports = {
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
     if(!informationAboutThisTenant) {
-      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
+      throw 'unauthorized';
     }
 
     if(os.toLowerCase() === 'windows') {
@@ -98,7 +99,7 @@ module.exports = {
           isCompliant: compliant
         }
       }).intercept((err)=>{
-        return new Error({error: `An error occurred when sending a request to sync a Windows device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
+        return new Error(`An error occurred when sending a request to sync a Windows device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
       });
 
       // Return a 200 response to the Fleet server.
@@ -128,11 +129,11 @@ module.exports = {
           'Authorization': `Bearer ${graphAccessToken}`
         }
       }).intercept((err)=>{
-        return new Error({error: `An error occurred when getting a user ID from a user principal name (${userPrincipalName}) for a complaince status update. Full error: ${require('util').inspect(err, {depth: 3})}`});
+        return new Error(`An error occurred when getting a user ID from a user principal name (${userPrincipalName}) for a compliance status update. Full error: ${require('util').inspect(err, {depth: 3})}`);
       });
 
       if(!informationAboutThisUser.id) {
-        return new Error({error: `An error occurred when getting information about a user (${userPrincipalName}). The response from the Microsoft graph API did not include an ID.`});
+        throw new Error(`An error occurred when getting information about a user (${userPrincipalName}). The response from the Microsoft graph API did not include an ID.`);
       }
 
       let lastUpdateTime = new Date().toISOString();
@@ -181,7 +182,7 @@ module.exports = {
           Content: JSON.stringify(complianceUpdateContent),
         }
       }).intercept((err)=>{
-        return new Error({error: `An error occurred when sending a request to sync a device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
+        return new Error(`An error occurred when sending a request to sync a device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
       });
       // Log responses from Micrsoft APIs for Fleet's integration
       if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {

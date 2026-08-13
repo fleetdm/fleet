@@ -25,7 +25,7 @@ module.exports = {
 
   exits: {
     success: { description: 'A compliance status update result was returned to the Fleet instance.', outputType: {} },
-    tenantNotFound: {description: 'No existing Microsoft compliance tenant was found for the Fleet instance that sent the request.', responseType: 'unauthorized'},
+    unauthorized: { description: 'A request contained an invalid entraTenantId/fleetServerSecret combination.', responseType: 'unauthorized'},
     microsoftApiRequestFailed: {description: 'An error occurred when sending a request to the Microsoft API.'},
     microsoftApiError: {description: 'The Microsoft API returned an unexpected response.'},
   },
@@ -35,7 +35,7 @@ module.exports = {
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
     if(!informationAboutThisTenant) {
-      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
+      throw 'unauthorized';
     }
 
     let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
