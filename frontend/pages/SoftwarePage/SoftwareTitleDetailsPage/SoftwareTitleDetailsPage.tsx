@@ -329,9 +329,10 @@ const SoftwareTitleDetailsPage = ({
           installedPath={statusPath("installed")}
           pendingPath={statusPath("pending")}
           failedPath={statusPath("failed")}
-          onLabelCountClick={openEditModal}
-          onLabelsClick={openEditModal}
-          onTrashClick={openDeleteModal}
+          onLabelCountClick={() => openEditModal()}
+          onLabelsClick={() => openEditModal()}
+          onEditClick={() => openEditModal()}
+          onTrashClick={() => openDeleteModal()}
         />
       );
     };
@@ -402,6 +403,7 @@ const SoftwareTitleDetailsPage = ({
           }
           onLabelCountClick={() => openEditModal(pkg.installer_id)}
           onLabelsClick={() => openEditModal(pkg.installer_id)}
+          onEditClick={() => openEditModal(pkg.installer_id)}
           onDownloadClick={() => onDownloadInstaller(pkg)}
           onTrashClick={() => openDeleteModal(pkg.installer_id)}
           onSelfServiceClick={() => openEditModal(pkg.installer_id)}

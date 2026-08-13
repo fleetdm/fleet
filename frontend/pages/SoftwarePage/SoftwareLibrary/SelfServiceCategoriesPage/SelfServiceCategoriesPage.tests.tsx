@@ -113,7 +113,7 @@ describe("SelfServiceCategoriesPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Add category to group your software and scripts in self-service."
+        "Add category to group your software and scripts in self service."
       )
     ).toBeInTheDocument();
     expect(
