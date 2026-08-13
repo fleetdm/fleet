@@ -26,8 +26,8 @@ module.exports = {
   exits: {
     success: { description: 'A compliance status update result was returned to the Fleet instance.', outputType: {} },
     tenantNotFound: {description: 'No existing Microsoft compliance tenant was found for the Fleet instance that sent the request.', responseType: 'unauthorized'},
-    microsoftApiRequestFailed: {decription: 'An error occurred when sending a request to the Microsoft API.'},
-    microsoftApiError: {decription: 'The Microsoft API returned an unexpected response.'},
+    microsoftApiRequestFailed: {description: 'An error occurred when sending a request to the Microsoft API.'},
+    microsoftApiError: {description: 'The Microsoft API returned an unexpected response.'},
   },
 
 
