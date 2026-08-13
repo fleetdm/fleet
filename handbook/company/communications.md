@@ -237,6 +237,8 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
 - **Classified:**  _Share only with the CEO, Executive Assistant, Head of People, GTM Systems Architect, and/or the people involved.  e.g., US social security numbers during hiring_
 
+> Application security reports (vulnerabilities, pen test findings, responsible disclosures) are tracked in the private [fleetdm/security](https://github.com/fleetdm/security) repo, where access is granted per-person rather than company-wide. Any customer-identifying context stays in [fleetdm/confidential](https://github.com/fleetdm/confidential) and is linked, never copied. To file a report, use the [security report issue form](https://github.com/fleetdm/security/issues/new?template=security-report.yml).
+
 
 ### Document titles
 
