@@ -13,16 +13,42 @@ locals {
   } : {}
 
   elastic_apm_environment_variables = var.enable_otel ? {} : {
-    ELASTIC_APM_SERVER_URL                              = "https://loadtest.fleetdm.com:8200"
-    ELASTIC_APM_SERVICE_NAME                            = "fleet"
-    ELASTIC_APM_ENVIRONMENT                             = "${terraform.workspace}"
-    ELASTIC_APM_TRANSACTION_SAMPLE_RATE                 = "0.004"
-    ELASTIC_APM_SERVICE_VERSION                         = "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
-    FLEET_LOGGING_TRACING_ENABLED                       = "true"
-    FLEET_LOGGING_TRACING_TYPE                          = "elasticapm"
-    FLEET_DEV_MDM_APPLE_DISABLE_PUSH                    = "1"
-    FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY = "1"
+    ELASTIC_APM_SERVER_URL              = "https://loadtest.fleetdm.com:8200"
+    ELASTIC_APM_SERVICE_NAME            = "fleet"
+    ELASTIC_APM_ENVIRONMENT             = "${terraform.workspace}"
+    ELASTIC_APM_TRANSACTION_SAMPLE_RATE = "0.004"
+    ELASTIC_APM_SERVICE_VERSION         = "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
+    FLEET_LOGGING_TRACING_ENABLED       = "true"
+    FLEET_LOGGING_TRACING_TYPE          = "elasticapm"
   }
+
+  # Single label under loadtest.fleetdm.com so the *.loadtest.fleetdm.com
+  # wildcard cert would cover it if the mock ever moves to the HTTPS listener.
+  # A nested name would not: wildcards match exactly one label.
+  apple_apns_mock_hostname = "${local.customer}-apns-mock.loadtest.fleetdm.com"
+  apple_apns_mock_port     = 8378
+
+  # MDM behaviours we always want in a loadtest. These were previously buried
+  # in the Elastic APM branch above, which meant they silently vanished
+  # whenever enable_otel was true.
+  mdm_apple_environment_variables = merge(
+    {
+      # Skip verification of Apple certificates for OTA enrollments.
+      FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY = "1"
+    },
+    # Push traffic must never reach real Apple infrastructure, which would
+    # rate-limit us for pushing to thousands of fake device UUIDs. Either it
+    # goes to the mock, or it goes nowhere.
+    #
+    # These two are mutually exclusive: DISABLE_PUSH short-circuits
+    # initAppleMDMPushService to a nopPusher before the push URL is ever read,
+    # so setting both would silently make the mock unreachable.
+    var.enable_apple_mdm ? {
+      FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL = "http://${local.apple_apns_mock_hostname}"
+      } : {
+      FLEET_DEV_MDM_APPLE_DISABLE_PUSH = "1"
+    }
+  )
 
   extra_environment_variables = merge(
     {
@@ -61,7 +87,8 @@ locals {
       FLEET_DEV_SKIP_S3_CONFIG = "1"
     },
     local.otel_environment_variables,
-    local.elastic_apm_environment_variables
+    local.elastic_apm_environment_variables,
+    local.mdm_apple_environment_variables
   )
   extra_secrets = {
     FLEET_LICENSE_KEY = data.aws_secretsmanager_secret.license.arn
