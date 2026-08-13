@@ -4,7 +4,7 @@
 
 ## Key takeaways
 
-- **A third major AI vendor just closed its Linux gap.** OpenAI shipped a native ChatGPT (and Codex) desktop app for Linux in preview on August 11, 2026, about a month after Anthropic's Claude desktop app made the same move, so Linux developer machines are now a first-class target for every major AI client, not an afterthought.
+- **Another major AI vendor just closed its Linux gap.** OpenAI shipped a native ChatGPT (and Codex) desktop app for Linux in preview on August 11, 2026, about a month after Anthropic's Claude desktop app made the same move, so Linux developer machines are now a first-class target for every major AI client, not an afterthought.
 - **Linux developer workstations are already the blind spot.** They're where most cloud infrastructure gets built, and they're also the machines least likely to sit under the same MDM and inventory controls as company-issued Macs and PCs.
 - **Fleet's agent already inventories what lands on those machines.** Installed packages, MCP client configurations, and IDE extensions all show up in Fleet's cross-platform software inventory, on Linux the same as macOS and Windows.
 - **You don't need a new detection for this one.** The app ships as a standard `.deb` or `.rpm` package, so it's visible through the same package queries you already run for everything else.
