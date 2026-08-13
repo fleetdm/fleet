@@ -3304,6 +3304,30 @@ func TestRefetchHost(t *testing.T) {
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 }
 
+func TestRefetchHostAndroidNotSupported(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host := &fleet.Host{ID: 3, Platform: "android"}
+
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, id uint, value bool) error {
+		return nil
+	}
+
+	err := svc.RefetchHost(test.UserContext(ctx, test.UserAdmin), host.ID)
+	require.Error(t, err)
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre)
+	assert.Equal(t, "Refetch is not supported for Android hosts. Android hosts sync data automatically when it changes.", bre.Message)
+
+	// the refetch flag must not be set for a host that can't be refetched
+	assert.True(t, ds.HostLiteFuncInvoked)
+	assert.False(t, ds.UpdateHostRefetchRequestedFuncInvoked)
+}
+
 func TestRefetchHostUserInTeams(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)

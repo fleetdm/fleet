@@ -1587,6 +1587,16 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return err
 		}
+
+		// Android hosts report their data through AMAPI whenever it changes, so there is
+		// nothing to refetch on demand. The Host details page hides the Refetch button for
+		// them; reject the request here too so API callers get an explanation instead of a
+		// success response that never refetches anything.
+		if fleet.IsAndroidPlatform(host.Platform) {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "Refetch is not supported for Android hosts. Android hosts sync data automatically when it changes.",
+			})
+		}
 	}
 
 	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {

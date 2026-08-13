@@ -1,0 +1,1 @@
+- Fixed the "Refetch host" API endpoint returning a success response for Android hosts, which never refetch on demand. It now returns a 400 explaining that Android hosts sync data automatically.
