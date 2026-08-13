@@ -2345,7 +2345,12 @@ func matchHostDuringEnrollment(
 	orbitEnrollingWithOsqueryIdentifier := enrollType == orbitEnroll && osqueryID != ""
 
 	// Serial-match path: Apple DEP pre-creates host records with hardware_serial set, so orbit-enroll can find them this way.
-	if serial != "" && isAppleMDMEnabled && !orbitEnrollingWithOsqueryIdentifier && platform != "android" {
+	//
+	// Excludes Windows as well as Android. The platform filter inside the statement scopes the *matched* host, not the
+	// enrolling device, so a Windows device whose serial collides with a macOS host would otherwise match that Apple
+	// host. Windows used to be kept out by blanking its serial at the call sites; now that the serial is passed through
+	// for the Autopilot branch below, the exclusion has to live here instead.
+	if serial != "" && isAppleMDMEnabled && !orbitEnrollingWithOsqueryIdentifier && platform != "android" && platform != "windows" {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
