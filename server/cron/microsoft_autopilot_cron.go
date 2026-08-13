@@ -60,11 +60,9 @@ func cronMicrosoftAutopilotSync(ctx context.Context, ds fleet.Datastore, factory
 		}
 	}
 
-	// The app-wide banner reads a stored aggregate, so it is only as fresh as its last recomputation. Skipping this
-	// would leave a credential that expired in the field correctly flagged in the credentials table while the banner
-	// never appears, with nothing failing to indicate it.
+	// Update the app-wide stored aggregate, so it is only as fresh as its last recomputation.
 	if flagChanged {
-		// Reads the flag it just wrote, so it cannot be served by a replica.
+		// RequirePrimary to read the flag we just wrote.
 		if err := ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctxdb.RequirePrimary(ctx, true)); err != nil {
 			return ctxerr.Wrap(ctx, err, "refresh microsoft graph credential invalid aggregate")
 		}
@@ -72,8 +70,7 @@ func cronMicrosoftAutopilotSync(ctx context.Context, ds fleet.Datastore, factory
 	return nil
 }
 
-// syncMicrosoftAutopilotTenant runs one tenant's sync and records its outcome. It reports whether credential_invalid
-// changed, so the caller knows whether the app-config aggregate needs recomputing.
+// syncMicrosoftAutopilotTenant runs one tenant's sync and records its outcome. It reports whether credential_invalid changed.
 func syncMicrosoftAutopilotTenant(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -86,9 +83,7 @@ func syncMicrosoftAutopilotTenant(
 	// Only an explicit credential rejection sets the flag. Throttling and server errors must never raise a credential
 	// alarm, or a Microsoft outage would flag every Fleet deployment at once.
 	invalid := isMicrosoftGraphCredentialRejected(syncErr)
-	// Set on rejection, clear on success, and leave a transient failure alone. There is deliberately no guard on the
-	// flag's current value: SetMicrosoftGraphCredentialInvalid already filters with WHERE credential_invalid != ?, and
-	// short-circuiting on cred.CredentialInvalid would stop a tenant that was flagged once from ever clearing.
+	// Set on rejection, clear on success, and leave a transient failure alone.
 	if invalid || syncErr == nil {
 		changed, setErr := ds.SetMicrosoftGraphCredentialInvalid(ctx, cred.TenantID, invalid)
 		if setErr != nil {
@@ -136,7 +131,7 @@ func reconcileMicrosoftAutopilotTenant(
 	}
 
 	// The client errors rather than returning a partial list when its pagination cursor stops advancing, precisely so
-	// the sync is never handed a truncated list to delete against. Do not add a fallback that swallows that.
+	// the sync is never handed a truncated list to delete against.
 	devices, err := client.ListWindowsAutopilotDevices(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list windows autopilot devices")
@@ -161,17 +156,7 @@ func reconcileMicrosoftAutopilotTenant(
 		}
 	}
 
-	// Zero devices is a legitimate steady state for a tenant with no registrations, but it is also what a
-	// misconfiguration looks like, and acting on it would delete every pending host. Never delete against an empty
-	// list; a tenant that genuinely empties out is reconciled by an admin, not by a sync pass.
-	if len(incoming) == 0 {
-		if len(stored) > 0 {
-			logger.WarnContext(ctx, "microsoft graph returned no autopilot devices; skipping removals to avoid deleting every pending host",
-				"tenant_id", cred.TenantID, "stored", len(stored))
-		}
-		return nil
-	}
-
+	// An empty device list at this point is treated as authoritative, including when it empties the tenant.
 	if len(removedHostIDs) > 0 {
 		if err := ds.RemoveWindowsAutopilotHosts(ctx, removedHostIDs); err != nil {
 			return ctxerr.Wrap(ctx, err, "remove windows autopilot hosts")
@@ -206,10 +191,6 @@ func autopilotDevicesToIngest(devices []msgraph.WindowsAutopilotDevice, tenantID
 
 // diffAutopilotDevices compares the tenant's Autopilot registry against what Fleet already stores, returning the
 // records that need writing and the host IDs whose devices have left.
-//
-// Diffing is not about write volume: MySQL already suppresses the row write when ON DUPLICATE KEY UPDATE sets no new
-// values. It is about not shipping every device's parameters over the wire on every cycle, which at 100k devices is
-// tens of megabytes every five minutes, and not taking a row lock per device.
 func diffAutopilotDevices(incoming []*fleet.HostAutopilotDevice, stored []*fleet.HostAutopilotDevice) (changed []*fleet.HostAutopilotDevice, removedHostIDs []uint) {
 	storedByDeviceID := make(map[string]*fleet.HostAutopilotDevice, len(stored))
 	for _, dev := range stored {
@@ -225,9 +206,6 @@ func diffAutopilotDevices(incoming []*fleet.HostAutopilotDevice, stored []*fleet
 			changed = append(changed, dev)
 			continue
 		}
-		// The group tag is mutable in Intune, and a device that is re-registered keeps its serial but changes Entra
-		// device ID. A re-registration under a new Autopilot ID is not an update: it arrives as an unknown device ID
-		// here and the old one falls out below, which is the correct reconciliation.
 		if existing.GroupTag != dev.GroupTag ||
 			existing.EntraDeviceID != dev.EntraDeviceID ||
 			existing.HardwareSerial != dev.HardwareSerial {

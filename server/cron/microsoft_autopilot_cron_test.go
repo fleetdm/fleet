@@ -211,18 +211,22 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials())
 	})
 
-	t.Run("an empty response never deletes existing pending hosts", func(t *testing.T) {
+	t.Run("a tenant that empties out removes its pending hosts", func(t *testing.T) {
 		env := newAutopilotSyncEnv(t, testCred(tenantA))
 		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
 			device("ap-1", "SERIAL-1", ""),
 		}}}
 		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		goneID := env.device(t, "ap-1").HostID
 
+		// A successful response listing nothing is a fact about the tenant, not a symptom: every way of being handed a
+		// wrong or truncated list fails before the diff. Keeping the hosts would strand devices that are demonstrably
+		// deregistered.
 		clients[tenantA].devices = nil
 		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
 
-		assert.Empty(t, env.removed, "zero devices is indistinguishable from a misconfiguration")
-		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials())
+		assert.Equal(t, []uint{goneID}, env.removed)
+		assert.Empty(t, env.serials())
 	})
 
 	t.Run("two devices sharing a serial are two pending hosts", func(t *testing.T) {

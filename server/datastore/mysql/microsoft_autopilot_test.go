@@ -42,9 +42,7 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		{"HostAutopilotDeviceBatchSoftDelete", testHostAutopilotDeviceBatchSoftDelete},
 		{"IngestWindowsAutopilotDevices", testIngestWindowsAutopilotDevices},
 		{"RemoveWindowsAutopilotHosts", testRemoveWindowsAutopilotHosts},
-		{"IngestKeysOnAutopilotDeviceID", testIngestKeysOnAutopilotDeviceID},
-		{"IngestAdoptsExistingHostBySerial", testIngestAdoptsExistingHostBySerial},
-		{"IngestAdoptAndCreateShareOneSerialInOneBatch", testIngestAdoptAndCreateShareOneSerialInOneBatch},
+		{"IngestResolvesByAutopilotDeviceID", testIngestResolvesByAutopilotDeviceID},
 		{"IngestSpansChunkedTransactions", testIngestSpansChunkedTransactions},
 		{"OrbitEnrollReusesPendingAutopilotHost", testOrbitEnrollReusesPendingAutopilotHost},
 		{"HostResponsesCarryGroupTag", testHostResponsesCarryGroupTag},
@@ -271,6 +269,12 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	got = storedGraphCredential(t, ds, testTenantA)
 	assert.False(t, got.CredentialInvalid)
 
+	// A credential deleted between listing and flagging is not an error: there is nothing left to flag, and the sync
+	// must not fail the whole pass over it.
+	wasSet, err = ds.SetMicrosoftGraphCredentialInvalid(ctx, "8f1e0b1c-0000-0000-0000-000000000000", true)
+	require.NoError(t, err)
+	assert.False(t, wasSet)
+
 	// A failed pass records the message alongside the timestamp.
 	syncErr := "AADSTS7000222: client secret expired"
 	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &syncErr))
@@ -474,6 +478,51 @@ func autopilotDevice(serial, tag string) *fleet.HostAutopilotDevice {
 	}
 }
 
+// autopilotDeviceWithID builds a record whose Autopilot device ID is not derived from the serial, which is what the
+// duplicate-serial cases need.
+func autopilotDeviceWithID(deviceID, serial, tag string) *fleet.HostAutopilotDevice {
+	dev := autopilotDevice(serial, tag)
+	dev.AutopilotDeviceID = deviceID
+	dev.EntraDeviceID = "aad-" + deviceID
+	return dev
+}
+
+// newWindowsHostWithSerial creates a fully enrolled Windows host, the shape Fleet already knows about before a device
+// is registered in Autopilot.
+func newWindowsHostWithSerial(t *testing.T, ds *Datastore, suffix, serial string) *fleet.Host {
+	t.Helper()
+	host, err := ds.NewHost(t.Context(), &fleet.Host{
+		OsqueryHostID: new("osquery-" + suffix), NodeKey: new("nodekey-" + suffix), UUID: "uuid-" + suffix,
+		HardwareSerial: serial, Hostname: "DESKTOP-" + strings.ToUpper(suffix), Platform: "windows",
+	})
+	require.NoError(t, err)
+	return host
+}
+
+// hostIDsBySerial returns every host carrying a serial, lowest ID first. Read straight from the column because no
+// Datastore method returns more than one host for a serial, and more than one is exactly what these tests assert on.
+func hostIDsBySerial(t *testing.T, ds *Datastore, serial string) []uint {
+	t.Helper()
+	var ids []uint
+	require.NoError(t, sqlx.SelectContext(t.Context(), ds.reader(t.Context()), &ids,
+		`SELECT id FROM hosts WHERE hardware_serial = ? ORDER BY id`, serial))
+	return ids
+}
+
+// autopilotDevicesByDeviceID keys a tenant's stored records by Autopilot device ID, which is how the ingest resolves
+// them and therefore how the assertions read.
+func autopilotDevicesByDeviceID(t *testing.T, ds *Datastore, tenantID string) map[string]fleet.HostAutopilotDevice {
+	t.Helper()
+	devices, err := ds.ListHostAutopilotDevices(t.Context(), tenantID)
+	require.NoError(t, err)
+	byID := make(map[string]fleet.HostAutopilotDevice, len(devices))
+	for _, d := range devices {
+		byID[d.AutopilotDeviceID] = *d
+	}
+	require.Len(t, byID, len(devices), "two records shared an Autopilot device ID")
+	return byID
+}
+
 // seedWindowsBuiltinLabels recreates the two builtin labels a pending Windows host joins. TruncateTables clears the
 // labels table between subtests, and the shared createBuiltinLabels helper only seeds the Apple ones.
 func seedWindowsBuiltinLabels(t *testing.T, ds *Datastore) {
@@ -548,10 +597,7 @@ WHERE lm.host_id = ? AND l.name IN (?, ?)`, first.HostID, fleet.BuiltinLabelName
 	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
 		autopilotDevice("AP-SERIAL-1", "Marketing"),
 	}))
-	var hostCount int
-	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostCount,
-		`SELECT COUNT(*) FROM hosts WHERE hardware_serial = 'AP-SERIAL-1'`))
-	assert.Equal(t, 1, hostCount, "re-ingesting must not create a second host")
+	assert.Len(t, hostIDsBySerial(t, ds, "AP-SERIAL-1"), 1, "re-ingesting must not create a second host")
 	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
 	require.NoError(t, err)
 	for _, d := range devices {
@@ -595,100 +641,77 @@ func testRemoveWindowsAutopilotHosts(t *testing.T, ds *Datastore) {
 	assert.Empty(t, devices)
 }
 
-// Several Autopilot records can share one hardware serial, and they can only ever become one host. The collapse must be
-// deterministic: keying off Graph's page order would make the stored group tag flap between syncs.
-func testIngestKeysOnAutopilotDeviceID(t *testing.T, ds *Datastore) {
+// Resolution keys on the Autopilot device ID, never the hardware serial. Windows serials are not unique, so records
+// sharing one are separate machines that each need their own host; collapsing them would hide a device entirely. The
+// serial survives only as a fallback for adopting a host Fleet already knew about.
+func testIngestResolvesByAutopilotDeviceID(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedWindowsBuiltinLabels(t, ds)
 
-	// Two Autopilot registrations that happen to share a hardware serial. Windows serials are not unique, so these are
-	// two real machines and both have to be visible as pending hosts.
-	first := &fleet.HostAutopilotDevice{
-		AutopilotDeviceID: "ap-aaa", EntraDeviceID: "aad-1", GroupTag: "Engineering",
-		HardwareSerial: "DUP-SERIAL", TenantID: testTenantA,
-	}
-	second := &fleet.HostAutopilotDevice{
-		AutopilotDeviceID: "ap-bbb", EntraDeviceID: "aad-2", GroupTag: "Marketing",
-		HardwareSerial: "DUP-SERIAL", TenantID: testTenantA,
-	}
+	t.Run("records sharing a serial become separate hosts, stable across syncs", func(t *testing.T) {
+		const serial = "DUP-SERIAL"
+		first := autopilotDeviceWithID("ap-aaa", serial, "Engineering")
+		second := autopilotDeviceWithID("ap-bbb", serial, "Marketing")
+		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{first, second}))
 
-	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{first, second}))
+		require.Len(t, hostIDsBySerial(t, ds, serial), 2, "two records for one serial are two devices, so two hosts")
+		stored := autopilotDevicesByDeviceID(t, ds, testTenantA)
+		require.Len(t, stored, 2)
+		assert.Equal(t, "Engineering", stored["ap-aaa"].GroupTag)
+		assert.Equal(t, "Marketing", stored["ap-bbb"].GroupTag)
+		assert.NotEqual(t, stored["ap-aaa"].HostID, stored["ap-bbb"].HostID)
 
-	var hostCount int
-	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostCount,
-		`SELECT COUNT(*) FROM hosts WHERE hardware_serial = 'DUP-SERIAL'`))
-	assert.Equal(t, 2, hostCount, "two Autopilot records for one serial are two devices, so two hosts")
+		// Re-ingest reversed and retagged. Keying on the serial would create a host every sync, or move one device's
+		// group tag onto the other's host.
+		second.GroupTag = "Sales"
+		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{second, first}))
 
-	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
-	require.NoError(t, err)
-	require.Len(t, devices, 2)
-	byDeviceID := map[string]fleet.HostAutopilotDevice{}
-	for _, d := range devices {
-		byDeviceID[d.AutopilotDeviceID] = *d
-	}
-	storedFirst, ok := byDeviceID["ap-aaa"]
-	require.True(t, ok)
-	storedSecond, ok := byDeviceID["ap-bbb"]
-	require.True(t, ok)
-	assert.Equal(t, "Engineering", storedFirst.GroupTag)
-	assert.Equal(t, "Marketing", storedSecond.GroupTag)
-	assert.NotEqual(t, storedFirst.HostID, storedSecond.HostID)
-
-	// Re-ingesting resolves each record back to its own host. Keying on the serial here would create a new host on
-	// every sync, or silently move one device's group tag onto the other's host.
-	firstHostID, secondHostID := storedFirst.HostID, storedSecond.HostID
-	second.GroupTag = "Sales"
-	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{second, first}))
-
-	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
-	require.NoError(t, err)
-	require.Len(t, devices, 2, "re-ingesting the same registry must not create more hosts")
-	for _, d := range devices {
-		switch d.AutopilotDeviceID {
-		case "ap-aaa":
-			assert.Equal(t, firstHostID, d.HostID)
-			assert.Equal(t, "Engineering", d.GroupTag)
-		case "ap-bbb":
-			assert.Equal(t, secondHostID, d.HostID, "the host is reused, not recreated, regardless of page order")
-			assert.Equal(t, "Sales", d.GroupTag)
-		}
-	}
-}
-
-// A Windows host Fleet already knows about, that is only later registered in Autopilot, must be adopted rather than
-// duplicated. The serial is the only thing the two records share, so this is the one case that still resolves on it.
-func testIngestAdoptsExistingHostBySerial(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	seedWindowsBuiltinLabels(t, ds)
-
-	const serial = "ADOPT-SERIAL"
-	existing, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID: new("osquery-adopt"), NodeKey: new("nodekey-adopt"), UUID: "uuid-adopt",
-		HardwareSerial: serial, Hostname: "DESKTOP-ADOPT", Platform: "windows",
+		resynced := autopilotDevicesByDeviceID(t, ds, testTenantA)
+		require.Len(t, resynced, 2, "re-ingesting the same registry must not create more hosts")
+		assert.Equal(t, stored["ap-aaa"].HostID, resynced["ap-aaa"].HostID, "hosts are reused regardless of page order")
+		assert.Equal(t, stored["ap-bbb"].HostID, resynced["ap-bbb"].HostID)
+		assert.Equal(t, "Sales", resynced["ap-bbb"].GroupTag)
 	})
-	require.NoError(t, err)
 
-	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
-		autopilotDevice(serial, "Engineering"),
-	}))
+	t.Run("an existing host is adopted rather than duplicated", func(t *testing.T) {
+		const serial = "ADOPT-SERIAL"
+		existing := newWindowsHostWithSerial(t, ds, "adopt", serial)
 
-	var hostIDs []uint
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
-		`SELECT id FROM hosts WHERE hardware_serial = ?`, serial))
-	require.Equal(t, []uint{existing.ID}, hostIDs, "the already-enrolled host is adopted, not duplicated")
+		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx,
+			[]*fleet.HostAutopilotDevice{autopilotDeviceWithID("ap-adopt", serial, "Engineering")}))
+		assert.Equal(t, []uint{existing.ID}, hostIDsBySerial(t, ds, serial), "the enrolled host is adopted, not duplicated")
 
-	// A second, genuinely different Autopilot registration on the same serial cannot claim the same host again.
-	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
-		{AutopilotDeviceID: "ap-other", EntraDeviceID: "aad-other", HardwareSerial: serial, TenantID: testTenantA},
-	}))
+		// A second, genuinely different registration on that serial cannot claim the same host again.
+		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx,
+			[]*fleet.HostAutopilotDevice{autopilotDeviceWithID("ap-adopt-2", serial, "")}))
 
-	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
-	require.NoError(t, err)
-	require.Len(t, devices, 2)
-	for _, d := range devices {
-		assert.NotZero(t, d.HostID)
-	}
-	assert.NotEqual(t, devices[0].HostID, devices[1].HostID, "a claimed host is never handed to a second registration")
+		stored := autopilotDevicesByDeviceID(t, ds, testTenantA)
+		assert.NotEqual(t, stored["ap-adopt"].HostID, stored["ap-adopt-2"].HostID,
+			"a claimed host is never handed to a second registration")
+		assert.ElementsMatch(t, hostIDsBySerial(t, ds, serial),
+			[]uint{stored["ap-adopt"].HostID, stored["ap-adopt-2"].HostID})
+	})
+
+	// Adopting and creating for one serial in a single batch is where host reuse hides: the row proving a host is
+	// claimed is not written until the transaction ends, so the post-insert re-query still reports the adopted host as
+	// free. Handing it out twice would put both devices on one host and orphan the host just created.
+	t.Run("adopting and creating for one serial in a single batch", func(t *testing.T) {
+		const serial = "MIXED-SERIAL"
+		existing := newWindowsHostWithSerial(t, ds, "mixed", serial)
+
+		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+			autopilotDeviceWithID("ap-mixed-1", serial, ""),
+			autopilotDeviceWithID("ap-mixed-2", serial, ""),
+		}))
+
+		hostIDs := hostIDsBySerial(t, ds, serial)
+		require.Len(t, hostIDs, 2, "one host per Autopilot device, with no orphan left behind")
+		assert.Equal(t, existing.ID, hostIDs[0], "the pre-existing host is adopted rather than duplicated")
+
+		stored := autopilotDevicesByDeviceID(t, ds, testTenantA)
+		assert.ElementsMatch(t, hostIDs, []uint{stored["ap-mixed-1"].HostID, stored["ap-mixed-2"].HostID},
+			"every host carries a record, so neither device was dropped onto the other's host")
+	})
 }
 
 // Ingestion runs one transaction per chunk so a 100k-device tenant never becomes a single unbounded transaction. This
@@ -713,72 +736,21 @@ func testIngestSpansChunkedTransactions(t *testing.T, ds *Datastore) {
 	}
 	// Second registrations on serials that land in different chunks once sorted, so serial collisions are resolved
 	// both within a chunk and across a transaction boundary.
-	devices = append(devices, &fleet.HostAutopilotDevice{
-		AutopilotDeviceID: "ap-dup-0", GroupTag: "second", HardwareSerial: "CHUNK-0", TenantID: testTenantA,
-	}, &fleet.HostAutopilotDevice{
-		AutopilotDeviceID: "ap-dup-9", GroupTag: "second", HardwareSerial: "CHUNK-9", TenantID: testTenantA,
-	})
+	devices = append(devices,
+		autopilotDeviceWithID("ap-dup-0", "CHUNK-0", "second"),
+		autopilotDeviceWithID("ap-dup-9", "CHUNK-9", "second"))
 
 	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, devices))
 
-	var hostCount int
-	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostCount,
-		`SELECT COUNT(*) FROM hosts WHERE hardware_serial LIKE 'CHUNK-%'`))
-	assert.Equal(t, len(devices), hostCount, "one host per Autopilot device across chunk boundaries")
-
-	stored, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
-	require.NoError(t, err)
-	require.Len(t, stored, len(devices))
-	seenHostIDs := map[uint]struct{}{}
+	stored := autopilotDevicesByDeviceID(t, ds, testTenantA)
+	require.Len(t, stored, len(devices), "one record per Autopilot device across chunk boundaries")
+	uniqueHostIDs := make(map[uint]struct{}, len(stored))
 	for _, d := range stored {
 		assert.NotZero(t, d.HostID)
-		_, dup := seenHostIDs[d.HostID]
-		assert.False(t, dup, "two Autopilot records must never share a host")
-		seenHostIDs[d.HostID] = struct{}{}
+		uniqueHostIDs[d.HostID] = struct{}{}
 	}
-}
-
-// The batch that adopts an existing host and creates a new one for the same serial is where host reuse hides: the
-// row that proves a host is claimed is only written at the end of the transaction, so the post-insert re-query still
-// reports the adopted host as free. Handing it out twice would put both devices on one host_id and orphan the host
-// that was just created.
-func testIngestAdoptAndCreateShareOneSerialInOneBatch(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	seedWindowsBuiltinLabels(t, ds)
-
-	const serial = "MIXED-SERIAL"
-	existing, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID: new("osquery-mixed"), NodeKey: new("nodekey-mixed"), UUID: "uuid-mixed",
-		HardwareSerial: serial, Hostname: "DESKTOP-MIXED", Platform: "windows",
-	})
-	require.NoError(t, err)
-
-	// Both devices carry the serial of the host above, in one ingest call: the first adopts it, the second must get a
-	// freshly created host.
-	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
-		{AutopilotDeviceID: "ap-mixed-1", EntraDeviceID: "aad-1", HardwareSerial: serial, TenantID: testTenantA},
-		{AutopilotDeviceID: "ap-mixed-2", EntraDeviceID: "aad-2", HardwareSerial: serial, TenantID: testTenantA},
-	}))
-
-	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
-	require.NoError(t, err)
-	require.Len(t, devices, 2, "both Autopilot records must survive")
-	assert.NotEqual(t, devices[0].HostID, devices[1].HostID, "one host cannot carry two Autopilot records")
-
-	var hostIDs []uint
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
-		`SELECT id FROM hosts WHERE hardware_serial = ? ORDER BY id`, serial))
-	require.Len(t, hostIDs, 2, "exactly one host per Autopilot device, with no orphan left behind")
-	assert.Equal(t, existing.ID, hostIDs[0], "the pre-existing host is adopted rather than duplicated")
-
-	// Every host must carry a record, so neither device was silently dropped.
-	assigned := map[uint]struct{}{}
-	for _, d := range devices {
-		assigned[d.HostID] = struct{}{}
-	}
-	for _, id := range hostIDs {
-		assert.Contains(t, assigned, id, "host %d has no Autopilot record", id)
-	}
+	assert.Len(t, uniqueHostIDs, len(devices), "two Autopilot records must never share a host")
+	assert.Len(t, hostIDsBySerial(t, ds, "CHUNK-0"), 2, "a serial carrying two registrations gets two hosts")
 }
 
 // A pending Autopilot host must be reused when the device actually enrolls, rather than a second host being created.
@@ -805,10 +777,7 @@ func testOrbitEnrollReusesPendingAutopilotHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, pendingHostID, host.ID, "the pending Autopilot host is reused, not duplicated")
 
-	var hostCount int
-	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostCount,
-		`SELECT COUNT(*) FROM hosts WHERE hardware_serial = ?`, serial))
-	assert.Equal(t, 1, hostCount)
+	assert.Len(t, hostIDsBySerial(t, ds, serial), 1)
 
 	// The Autopilot metadata is keyed by host_id, so the group tag survives enrollment.
 	device, err := ds.GetHostAutopilotDevice(ctx, pendingHostID)
