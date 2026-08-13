@@ -98,7 +98,7 @@ module.exports = {
           isCompliant: compliant
         }
       }).intercept((err)=>{
-        return new Error({error: `An error occurred when sending a request to sync a Windows device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
+        return new Error(`An error occurred when sending a request to sync a Windows device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
       });
 
       // Return a 200 response to the Fleet server.
