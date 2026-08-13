@@ -250,11 +250,8 @@ WHERE host_id = ? AND deleted_at IS NULL`
 
 // IngestWindowsAutopilotDevices creates a pending Windows host for every device whose hardware serial has no host yet,
 // and stores the Autopilot metadata for every device passed in. HostID on the input is ignored and resolved from the
-// serial, so the caller does not have to know which devices are new.
-//
-// A device whose serial already belongs to a host (typically one that has since enrolled) only gets its Autopilot
-// metadata refreshed. Its host_mdm row is deliberately left alone so a sync never demotes an enrolled host back to
-// pending.
+// serial, so the caller does not have to know which devices are new. A device whose serial already belongs to a host
+// (typically one that has since enrolled) only gets its Autopilot metadata refreshed.
 func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
 	if len(devices) == 0 {
 		return nil
@@ -272,7 +269,18 @@ func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices 
 		return ctxerr.Wrap(ctx, err, "resolve windows mdm discovery url")
 	}
 
-	// Duplicate serials collapse to one host, so resolve the winner deterministically before any write.
+	// Collapse duplicate serials before any write. The Autopilot device ID is unique and we now store it, but it
+	// cannot be the key here: a pending host is created before the device ever boots, when its serial is the only
+	// identity it has, and host_autopilot_devices is keyed by host_id. Two records for one serial therefore have to
+	// become one host.
+	//
+	// Keying on the Autopilot ID instead would mean two host rows sharing a serial, which the fleetd enrollment path
+	// cannot resolve: it matches on serial with ORDER BY h.id LIMIT 1 and orbit never sees the Autopilot ID. It would
+	// also pick the wrong one, since that branch requires enrolled = 0 and the MDM path would already have linked the
+	// correct host by Autopilot ID. That is worse than collapsing. Revisit if orbit ever reports the ID; see
+	// ai/graph/autopilot-enrollment-matching-research.md.
+	//
+	// Done here as well as in the sync so the invariant holds for any caller; the sync repeats it only to log a count.
 	deduped, _ := fleet.DedupeAutopilotDevicesBySerial(devices)
 
 	// One transaction per chunk rather than one for the whole list. A tenant can register 100k+ devices, and the
