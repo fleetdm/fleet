@@ -2363,6 +2363,10 @@ func matchHostDuringEnrollment(
 	// that the Autopilot sync created and that has not enrolled yet, so a legacy Windows host, which has no
 	// host_autopilot_devices row, still matches on its osquery identifier exactly as before.
 	//
+	// Two Autopilot devices can share a serial, and each gets its own pending host. orbit never sees the Autopilot
+	// device ID, so this branch cannot tell them apart and takes the oldest. The MDM enrollment path matches exactly,
+	// on that ID, and is what corrects the pairing.
+	//
 	// Deliberately not gated on isAppleMDMEnabled, unlike the branch above.
 	if serial != "" && platform == "windows" && !orbitEnrollingWithOsqueryIdentifier {
 		if query.Len() > 0 {

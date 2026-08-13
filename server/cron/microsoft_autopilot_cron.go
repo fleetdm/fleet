@@ -142,16 +142,8 @@ func reconcileMicrosoftAutopilotTenant(
 
 	incoming, skipped := autopilotDevicesToIngest(devices, cred.TenantID)
 	if skipped > 0 {
-		// A placeholder serial cannot become a pending host: it is the only identity a host has before osquery runs,
-		// so two such devices would collapse onto one row and neither could reconcile at enrollment.
-		logger.InfoContext(ctx, "skipped autopilot devices with placeholder serials",
+		logger.InfoContext(ctx, "skipped autopilot devices missing a usable device id or serial",
 			"tenant_id", cred.TenantID, "skipped", skipped)
-	}
-
-	deduped, dropped := fleet.DedupeAutopilotDevicesBySerial(incoming)
-	if dropped > 0 {
-		logger.InfoContext(ctx, "collapsed autopilot devices sharing a hardware serial",
-			"tenant_id", cred.TenantID, "dropped", dropped)
 	}
 
 	stored, err := ds.ListHostAutopilotDevices(ctx, cred.TenantID)
@@ -159,7 +151,7 @@ func reconcileMicrosoftAutopilotTenant(
 		return ctxerr.Wrap(ctx, err, "list stored autopilot devices")
 	}
 
-	changed, removedHostIDs := diffAutopilotDevices(deduped, stored)
+	changed, removedHostIDs := diffAutopilotDevices(incoming, stored)
 
 	if len(changed) > 0 {
 		if err := ds.IngestWindowsAutopilotDevices(ctx, changed); err != nil {
@@ -170,7 +162,7 @@ func reconcileMicrosoftAutopilotTenant(
 	// Zero devices is a legitimate steady state for a tenant with no registrations, but it is also what a
 	// misconfiguration looks like, and acting on it would delete every pending host. Never delete against an empty
 	// list; a tenant that genuinely empties out is reconciled by an admin, not by a sync pass.
-	if len(deduped) == 0 {
+	if len(incoming) == 0 {
 		if len(stored) > 0 {
 			logger.WarnContext(ctx, "microsoft graph returned no autopilot devices; skipping removals to avoid deleting every pending host",
 				"tenant_id", cred.TenantID, "stored", len(stored))
@@ -193,7 +185,9 @@ func reconcileMicrosoftAutopilotTenant(
 func autopilotDevicesToIngest(devices []msgraph.WindowsAutopilotDevice, tenantID string) (out []*fleet.HostAutopilotDevice, skipped int) {
 	out = make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	for _, dev := range devices {
-		if dev.SerialNumber == "" || fleet.IsPlaceholderHardwareSerial(dev.SerialNumber) {
+		// Both fields are load-bearing. The Autopilot device ID is what every downstream lookup resolves on, and the
+		// serial is the only identity a pending host has until the device boots.
+		if dev.ID == "" || dev.SerialNumber == "" || fleet.IsPlaceholderHardwareSerial(dev.SerialNumber) {
 			skipped++
 			continue
 		}
@@ -215,30 +209,32 @@ func autopilotDevicesToIngest(devices []msgraph.WindowsAutopilotDevice, tenantID
 // values. It is about not shipping every device's parameters over the wire on every cycle, which at 100k devices is
 // tens of megabytes every five minutes, and not taking a row lock per device.
 func diffAutopilotDevices(incoming []*fleet.HostAutopilotDevice, stored []*fleet.HostAutopilotDevice) (changed []*fleet.HostAutopilotDevice, removedHostIDs []uint) {
-	storedBySerial := make(map[string]*fleet.HostAutopilotDevice, len(stored))
+	storedByDeviceID := make(map[string]*fleet.HostAutopilotDevice, len(stored))
 	for _, dev := range stored {
-		storedBySerial[dev.HardwareSerial] = dev
+		storedByDeviceID[dev.AutopilotDeviceID] = dev
 	}
 
-	incomingSerials := make(map[string]struct{}, len(incoming))
+	incomingDeviceIDs := make(map[string]struct{}, len(incoming))
 	for _, dev := range incoming {
-		incomingSerials[dev.HardwareSerial] = struct{}{}
+		incomingDeviceIDs[dev.AutopilotDeviceID] = struct{}{}
 
-		existing, ok := storedBySerial[dev.HardwareSerial]
+		existing, ok := storedByDeviceID[dev.AutopilotDeviceID]
 		if !ok {
 			changed = append(changed, dev)
 			continue
 		}
-		// The group tag is mutable in Intune, and a device can be re-registered under a new Autopilot ID.
+		// The group tag is mutable in Intune, and a device that is re-registered keeps its serial but changes Entra
+		// device ID. A re-registration under a new Autopilot ID is not an update: it arrives as an unknown device ID
+		// here and the old one falls out below, which is the correct reconciliation.
 		if existing.GroupTag != dev.GroupTag ||
-			existing.AutopilotDeviceID != dev.AutopilotDeviceID ||
-			existing.EntraDeviceID != dev.EntraDeviceID {
+			existing.EntraDeviceID != dev.EntraDeviceID ||
+			existing.HardwareSerial != dev.HardwareSerial {
 			changed = append(changed, dev)
 		}
 	}
 
-	for serial, dev := range storedBySerial {
-		if _, ok := incomingSerials[serial]; !ok {
+	for deviceID, dev := range storedByDeviceID {
+		if _, ok := incomingDeviceIDs[deviceID]; !ok {
 			removedHostIDs = append(removedHostIDs, dev.HostID)
 		}
 	}

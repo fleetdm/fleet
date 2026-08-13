@@ -29,7 +29,7 @@ func (f *fakeGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgrap
 // wrote rather than how it phrased the SQL.
 type autopilotSyncEnv struct {
 	ds      *mock.Store
-	stored  map[string]*fleet.HostAutopilotDevice // keyed by serial
+	stored  map[string]*fleet.HostAutopilotDevice // keyed by Autopilot device ID, like the real table
 	nextID  uint
 	removed []uint
 	invalid map[string]bool
@@ -72,22 +72,22 @@ func newAutopilotSyncEnv(t *testing.T, creds ...*fleet.MicrosoftGraphCredential)
 	env.ds.IngestWindowsAutopilotDevicesFunc = func(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
 		for _, d := range devices {
 			copied := *d
-			if existing, ok := env.stored[d.HardwareSerial]; ok {
+			if existing, ok := env.stored[d.AutopilotDeviceID]; ok {
 				copied.HostID = existing.HostID
 			} else {
 				env.nextID++
 				copied.HostID = env.nextID
 			}
-			env.stored[d.HardwareSerial] = &copied
+			env.stored[d.AutopilotDeviceID] = &copied
 		}
 		return nil
 	}
 	env.ds.RemoveWindowsAutopilotHostsFunc = func(ctx context.Context, hostIDs []uint) error {
 		env.removed = append(env.removed, hostIDs...)
 		for _, id := range hostIDs {
-			for serial, d := range env.stored {
+			for deviceID, d := range env.stored {
 				if d.HostID == id {
-					delete(env.stored, serial)
+					delete(env.stored, deviceID)
 				}
 			}
 		}
@@ -111,10 +111,18 @@ func newAutopilotSyncEnv(t *testing.T, creds ...*fleet.MicrosoftGraphCredential)
 
 func (e *autopilotSyncEnv) serials() []string {
 	out := make([]string, 0, len(e.stored))
-	for s := range e.stored {
-		out = append(out, s)
+	for _, d := range e.stored {
+		out = append(out, d.HardwareSerial)
 	}
 	return out
+}
+
+// deviceID returns the stored record for an Autopilot device ID, failing the test if the sync never wrote it.
+func (e *autopilotSyncEnv) device(t *testing.T, autopilotDeviceID string) *fleet.HostAutopilotDevice {
+	t.Helper()
+	d, ok := e.stored[autopilotDeviceID]
+	require.True(t, ok, "no stored record for autopilot device %s", autopilotDeviceID)
+	return d
 }
 
 func device(id, serial, tag string) msgraph.WindowsAutopilotDevice {
@@ -155,7 +163,7 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
 
 		assert.ElementsMatch(t, []string{"SERIAL-1", "SERIAL-2"}, env.serials())
-		assert.Equal(t, "Engineering", env.stored["SERIAL-1"].GroupTag)
+		assert.Equal(t, "Engineering", env.device(t, "ap-1").GroupTag)
 		require.Contains(t, env.syncResults, tenantA, "every pass records its outcome")
 		assert.Nil(t, env.syncResults[tenantA], "a successful sync clears last_sync_error")
 	})
@@ -179,13 +187,13 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 			device("ap-1", "SERIAL-1", "Engineering"),
 		}}}
 		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
-		originalID := env.stored["SERIAL-1"].HostID
+		originalID := env.device(t, "ap-1").HostID
 
 		clients[tenantA].devices = []msgraph.WindowsAutopilotDevice{device("ap-1", "SERIAL-1", "Marketing")}
 		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
 
-		assert.Equal(t, "Marketing", env.stored["SERIAL-1"].GroupTag)
-		assert.Equal(t, originalID, env.stored["SERIAL-1"].HostID, "the host is reused, not recreated")
+		assert.Equal(t, "Marketing", env.device(t, "ap-1").GroupTag)
+		assert.Equal(t, originalID, env.device(t, "ap-1").HostID, "the host is reused, not recreated")
 	})
 
 	t.Run("a device removed from autopilot removes its pending host", func(t *testing.T) {
@@ -194,7 +202,7 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 			device("ap-1", "SERIAL-1", ""), device("ap-2", "SERIAL-2", ""),
 		}}}
 		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
-		goneID := env.stored["SERIAL-2"].HostID
+		goneID := env.device(t, "ap-2").HostID
 
 		clients[tenantA].devices = []msgraph.WindowsAutopilotDevice{device("ap-1", "SERIAL-1", "")}
 		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
@@ -215,6 +223,39 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 
 		assert.Empty(t, env.removed, "zero devices is indistinguishable from a misconfiguration")
 		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials())
+	})
+
+	t.Run("two devices sharing a serial are two pending hosts", func(t *testing.T) {
+		env := newAutopilotSyncEnv(t, testCred(tenantA))
+		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
+			device("ap-1", "DUP-SERIAL", "Engineering"),
+			device("ap-2", "DUP-SERIAL", "Marketing"),
+		}}}
+		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+
+		assert.ElementsMatch(t, []string{"DUP-SERIAL", "DUP-SERIAL"}, env.serials(),
+			"Windows serials are not unique, so both registrations are real devices")
+		assert.NotEqual(t, env.device(t, "ap-1").HostID, env.device(t, "ap-2").HostID)
+
+		// Retiring one of them must leave the other alone. Diffing on the serial would find the serial still present
+		// and never remove anything, or remove both.
+		clients[tenantA].devices = []msgraph.WindowsAutopilotDevice{device("ap-1", "DUP-SERIAL", "Engineering")}
+		goneID := env.device(t, "ap-2").HostID
+		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+
+		assert.Equal(t, []uint{goneID}, env.removed)
+		assert.ElementsMatch(t, []string{"DUP-SERIAL"}, env.serials())
+	})
+
+	t.Run("a device with no autopilot device id is skipped", func(t *testing.T) {
+		env := newAutopilotSyncEnv(t, testCred(tenantA))
+		clients := map[string]*fakeGraphClient{tenantA: {devices: []msgraph.WindowsAutopilotDevice{
+			device("ap-1", "SERIAL-1", ""),
+			device("", "SERIAL-2", ""),
+		}}}
+		require.NoError(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(clients), discardLogger()))
+		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials(),
+			"the device id is the resolution key, so a device without one cannot be stored")
 	})
 
 	t.Run("a placeholder serial is skipped", func(t *testing.T) {

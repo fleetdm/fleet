@@ -248,10 +248,11 @@ WHERE host_id = ? AND deleted_at IS NULL`
 	return &device, nil
 }
 
-// IngestWindowsAutopilotDevices creates a pending Windows host for every device whose hardware serial has no host yet,
-// and stores the Autopilot metadata for every device passed in. HostID on the input is ignored and resolved from the
-// serial, so the caller does not have to know which devices are new. A device whose serial already belongs to a host
-// (typically one that has since enrolled) only gets its Autopilot metadata refreshed.
+// IngestWindowsAutopilotDevices creates a pending Windows host for every Autopilot device Fleet has no host for yet,
+// and stores the Autopilot metadata for every device passed in. HostID on the input is ignored: it is resolved from
+// the Autopilot device ID, so the caller does not have to know which devices are new, and two devices sharing a
+// hardware serial stay two hosts. A device that already has a host (typically one that has since enrolled) only gets
+// its Autopilot metadata refreshed.
 func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
 	if len(devices) == 0 {
 		return nil
@@ -269,26 +270,12 @@ func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices 
 		return ctxerr.Wrap(ctx, err, "resolve windows mdm discovery url")
 	}
 
-	// Collapse duplicate serials before any write. The Autopilot device ID is unique and we now store it, but it
-	// cannot be the key here: a pending host is created before the device ever boots, when its serial is the only
-	// identity it has, and host_autopilot_devices is keyed by host_id. Two records for one serial therefore have to
-	// become one host.
-	//
-	// Keying on the Autopilot ID instead would mean two host rows sharing a serial, which the fleetd enrollment path
-	// cannot resolve: it matches on serial with ORDER BY h.id LIMIT 1 and orbit never sees the Autopilot ID. It would
-	// also pick the wrong one, since that branch requires enrolled = 0 and the MDM path would already have linked the
-	// correct host by Autopilot ID. That is worse than collapsing. Revisit if orbit ever reports the ID; see
-	// ai/graph/autopilot-enrollment-matching-research.md.
-	//
-	// Done here as well as in the sync so the invariant holds for any caller; the sync repeats it only to log a count.
-	deduped, _ := fleet.DedupeAutopilotDevicesBySerial(devices)
-
 	// One transaction per chunk rather than one for the whole list. A tenant can register 100k+ devices, and the
 	// first sync creates a host, an MDM row and two label memberships for each. Doing that in a single transaction
 	// would hold row locks across the hosts table for the duration and ship one enormous binlog event, stalling
 	// replicas and concurrent enrollments. Chunking is safe because the work is idempotent: a chunk that fails is
 	// simply redone on the next sync.
-	return common_mysql.BatchProcessSimple(deduped, hostAutopilotDeviceBatchSize, func(batch []*fleet.HostAutopilotDevice) error {
+	return common_mysql.BatchProcessSimple(devices, hostAutopilotDeviceBatchSize, func(batch []*fleet.HostAutopilotDevice) error {
 		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			return ingestWindowsAutopilotDevicesDB(ctx, tx, serverURL, batch)
 		})
@@ -296,82 +283,134 @@ func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices 
 }
 
 func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, devices []*fleet.HostAutopilotDevice) error {
-	{
-		serials := make([]string, 0, len(devices))
-		for _, dev := range devices {
-			serials = append(serials, dev.HardwareSerial)
-		}
+	// Resolution is keyed on the Autopilot device ID, not the hardware serial. Windows serials are not unique: OEMs
+	// ship duplicates and a device can be re-registered, so two Autopilot records can carry one serial and they are
+	// genuinely two devices. Keying on serial would collapse them onto one host and the second machine would never
+	// appear in Fleet at all. Each Autopilot record gets its own host, and the MDM enrollment path links each one
+	// exactly by the same ID.
+	ztdIDs := make([]string, 0, len(devices))
+	serials := make([]string, 0, len(devices))
+	for _, dev := range devices {
+		ztdIDs = append(ztdIDs, dev.AutopilotDeviceID)
+		serials = append(serials, dev.HardwareSerial)
+	}
 
-		// Resolve before inserting so we know which hosts this pass creates: only those get a host_mdm row and label
-		// memberships.
-		hostIDBySerial, err := hostIDsBySerialDB(ctx, tx, serials)
-		if err != nil {
-			return err
-		}
+	hostIDByZTD, err := hostIDsByAutopilotDeviceIDDB(ctx, tx, ztdIDs)
+	if err != nil {
+		return err
+	}
+	// Hosts carrying this serial that no Autopilot record has claimed yet. Adopting one covers the machine that was
+	// already enrolled in Fleet before it was registered in Autopilot; without it we would create a duplicate host.
+	// Hosts already claimed by a different Autopilot record are excluded, which is what keeps two records for one
+	// serial on two hosts.
+	unclaimedBySerial, err := unclaimedHostIDsBySerialDB(ctx, tx, serials)
+	if err != nil {
+		return err
+	}
 
-		newSerials := make([]string, 0, len(serials))
-		for _, serial := range serials {
-			if _, ok := hostIDBySerial[serial]; !ok {
-				newSerials = append(newSerials, serial)
-				// Guard against the same serial appearing twice in one Graph page.
-				hostIDBySerial[serial] = 0
-			}
-		}
-
-		if len(newSerials) > 0 {
-			if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, newSerials); err != nil {
-				return err
-			}
-			created, err := hostIDsBySerialDB(ctx, tx, newSerials)
-			if err != nil {
-				return err
-			}
-			newHostIDs := make([]uint, 0, len(created))
-			for serial, id := range created {
-				hostIDBySerial[serial] = id
-				newHostIDs = append(newHostIDs, id)
-			}
-			if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, serverURL, newHostIDs); err != nil {
-				return err
-			}
-			if err := upsertWindowsAutopilotHostLabelsDB(ctx, tx, newHostIDs); err != nil {
-				return err
-			}
-			// Without a host_display_names row the host is invisible in the UI: the host list INNER JOINs that table
-			// whenever it sorts by display_name, which is the default. ADE ingestion does the same thing.
-			displayNameHosts := make([]fleet.Host, 0, len(created))
-			for serial, id := range created {
-				displayNameHosts = append(displayNameHosts, fleet.Host{ID: id, HardwareSerial: serial})
-			}
-			if err := insertHostDisplayNamesIfAbsent(ctx, tx, displayNameHosts...); err != nil {
-				return ctxerr.Wrap(ctx, err, "insert display names for pending autopilot hosts")
-			}
-		}
-
-		resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
-		for _, dev := range devices {
-			hostID, ok := hostIDBySerial[dev.HardwareSerial]
-			if !ok || hostID == 0 {
-				// The insert above should have covered every serial; skip rather than write host_id 0.
-				continue
-			}
+	resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
+	toCreate := make([]*fleet.HostAutopilotDevice, 0, len(devices))
+	for _, dev := range devices {
+		if hostID, ok := hostIDByZTD[dev.AutopilotDeviceID]; ok {
 			copied := *dev
 			copied.HostID = hostID
 			resolved = append(resolved, &copied)
+			continue
 		}
-		return batchUpsertHostAutopilotDevicesDB(ctx, tx, resolved)
+		if candidates := unclaimedBySerial[dev.HardwareSerial]; len(candidates) > 0 {
+			copied := *dev
+			copied.HostID = candidates[0]
+			unclaimedBySerial[dev.HardwareSerial] = candidates[1:]
+			resolved = append(resolved, &copied)
+			continue
+		}
+		toCreate = append(toCreate, dev)
 	}
+
+	if len(toCreate) > 0 {
+		createSerials := make([]string, 0, len(toCreate))
+		for _, dev := range toCreate {
+			createSerials = append(createSerials, dev.HardwareSerial)
+		}
+		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, createSerials); err != nil {
+			return err
+		}
+		// The rows just inserted are exactly the unclaimed hosts for these serials, since anything pre-existing was
+		// adopted above. Assign them in id order so a serial needing two hosts gets two.
+		created, err := unclaimedHostIDsBySerialDB(ctx, tx, createSerials)
+		if err != nil {
+			return err
+		}
+		newHostIDs := make([]uint, 0, len(toCreate))
+		newHosts := make([]fleet.Host, 0, len(toCreate))
+		for _, dev := range toCreate {
+			candidates := created[dev.HardwareSerial]
+			if len(candidates) == 0 {
+				// Should not happen: we just inserted one host per device. Skip rather than write host_id 0.
+				continue
+			}
+			copied := *dev
+			copied.HostID = candidates[0]
+			created[dev.HardwareSerial] = candidates[1:]
+			resolved = append(resolved, &copied)
+			newHostIDs = append(newHostIDs, copied.HostID)
+			newHosts = append(newHosts, fleet.Host{ID: copied.HostID, HardwareSerial: copied.HardwareSerial})
+		}
+		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, serverURL, newHostIDs); err != nil {
+			return err
+		}
+		if err := upsertWindowsAutopilotHostLabelsDB(ctx, tx, newHostIDs); err != nil {
+			return err
+		}
+		// Without a host_display_names row the host is invisible in the UI: the host list INNER JOINs that table
+		// whenever it sorts by display_name, which is the default. ADE ingestion does the same thing.
+		if err := insertHostDisplayNamesIfAbsent(ctx, tx, newHosts...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert display names for pending autopilot hosts")
+		}
+	}
+
+	return batchUpsertHostAutopilotDevicesDB(ctx, tx, resolved)
 }
 
-// hostIDsBySerialDB maps hardware serials to host IDs. When more than one host shares a serial the lowest ID wins, so
-// repeated syncs resolve to the same host.
-func hostIDsBySerialDB(ctx context.Context, tx sqlx.ExtContext, serials []string) (map[string]uint, error) {
-	byS := make(map[string]uint, len(serials))
-	err := common_mysql.BatchProcessSimple(serials, hostAutopilotDeviceBatchSize, func(batch []string) error {
-		// Scoped to Windows: a macOS host can carry a colliding serial, and claiming it would attach Autopilot metadata
-		// to the wrong host and expose it to Autopilot removal. Newly created rows have platform 'windows' already.
+// hostIDsByAutopilotDeviceIDDB maps Autopilot device IDs to the host already carrying that record.
+func hostIDsByAutopilotDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, ztdIDs []string) (map[string]uint, error) {
+	byID := make(map[string]uint, len(ztdIDs))
+	err := common_mysql.BatchProcessSimple(ztdIDs, hostAutopilotDeviceBatchSize, func(batch []string) error {
 		stmt, args, err := sqlx.In(
-			`SELECT id, hardware_serial FROM hosts WHERE hardware_serial IN (?) AND platform = 'windows' ORDER BY id DESC`, batch)
+			`SELECT host_id, autopilot_device_id FROM host_autopilot_devices
+			 WHERE autopilot_device_id IN (?) AND deleted_at IS NULL`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build IN clause")
+		}
+		var rows []struct {
+			HostID            uint   `db:"host_id"`
+			AutopilotDeviceID string `db:"autopilot_device_id"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select host ids by autopilot device id")
+		}
+		for _, row := range rows {
+			byID[row.AutopilotDeviceID] = row.HostID
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "map host ids by autopilot device id")
+	}
+	return byID, nil
+}
+
+// unclaimedHostIDsBySerialDB returns, per serial, the Windows hosts that no live Autopilot record points at, in id
+// order. Scoped to Windows because a macOS host can carry a colliding serial and must never be claimed.
+func unclaimedHostIDsBySerialDB(ctx context.Context, tx sqlx.ExtContext, serials []string) (map[string][]uint, error) {
+	bySerial := make(map[string][]uint, len(serials))
+	err := common_mysql.BatchProcessSimple(serials, hostAutopilotDeviceBatchSize, func(batch []string) error {
+		stmt, args, err := sqlx.In(`
+SELECT h.id, h.hardware_serial
+FROM hosts h
+LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
+WHERE h.hardware_serial IN (?) AND h.platform = 'windows' AND had.host_id IS NULL
+ORDER BY h.id`, batch)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build IN clause")
 		}
@@ -380,18 +419,17 @@ func hostIDsBySerialDB(ctx context.Context, tx sqlx.ExtContext, serials []string
 			HardwareSerial string `db:"hardware_serial"`
 		}
 		if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "select host ids by serial")
+			return ctxerr.Wrap(ctx, err, "select unclaimed host ids by serial")
 		}
-		// Descending order means the lowest ID is written last and wins.
 		for _, row := range rows {
-			byS[row.HardwareSerial] = row.ID
+			bySerial[row.HardwareSerial] = append(bySerial[row.HardwareSerial], row.ID)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "map host ids by serial")
+		return nil, ctxerr.Wrap(ctx, err, "map unclaimed host ids by serial")
 	}
-	return byS, nil
+	return bySerial, nil
 }
 
 // insertPendingWindowsAutopilotHostsDB creates the bare host rows, matching how ADE ingestion creates pending Apple

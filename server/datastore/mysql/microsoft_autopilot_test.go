@@ -42,7 +42,8 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		{"HostAutopilotDeviceBatchSoftDelete", testHostAutopilotDeviceBatchSoftDelete},
 		{"IngestWindowsAutopilotDevices", testIngestWindowsAutopilotDevices},
 		{"RemoveWindowsAutopilotHosts", testRemoveWindowsAutopilotHosts},
-		{"IngestCollapsesDuplicateSerials", testIngestCollapsesDuplicateSerials},
+		{"IngestKeysOnAutopilotDeviceID", testIngestKeysOnAutopilotDeviceID},
+		{"IngestAdoptsExistingHostBySerial", testIngestAdoptsExistingHostBySerial},
 		{"IngestSpansChunkedTransactions", testIngestSpansChunkedTransactions},
 		{"OrbitEnrollReusesPendingAutopilotHost", testOrbitEnrollReusesPendingAutopilotHost},
 		{"HostResponsesCarryGroupTag", testHostResponsesCarryGroupTag},
@@ -461,7 +462,7 @@ func testHostAutopilotDeviceBatchSoftDelete(t *testing.T, ds *Datastore) {
 }
 
 // autopilotDevice builds an Autopilot record for ingestion. HostID is left unset on purpose: the datastore resolves it
-// from the serial.
+// from the Autopilot device ID, falling back to the serial for a host Fleet already knows about.
 func autopilotDevice(serial, tag string) *fleet.HostAutopilotDevice {
 	return &fleet.HostAutopilotDevice{
 		AutopilotDeviceID: "ap-" + serial,
@@ -595,10 +596,12 @@ func testRemoveWindowsAutopilotHosts(t *testing.T, ds *Datastore) {
 
 // Several Autopilot records can share one hardware serial, and they can only ever become one host. The collapse must be
 // deterministic: keying off Graph's page order would make the stored group tag flap between syncs.
-func testIngestCollapsesDuplicateSerials(t *testing.T, ds *Datastore) {
+func testIngestKeysOnAutopilotDeviceID(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedWindowsBuiltinLabels(t, ds)
 
+	// Two Autopilot registrations that happen to share a hardware serial. Windows serials are not unique, so these are
+	// two real machines and both have to be visible as pending hosts.
 	first := &fleet.HostAutopilotDevice{
 		AutopilotDeviceID: "ap-aaa", EntraDeviceID: "aad-1", GroupTag: "Engineering",
 		HardwareSerial: "DUP-SERIAL", TenantID: testTenantA,
@@ -613,36 +616,78 @@ func testIngestCollapsesDuplicateSerials(t *testing.T, ds *Datastore) {
 	var hostCount int
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostCount,
 		`SELECT COUNT(*) FROM hosts WHERE hardware_serial = 'DUP-SERIAL'`))
-	assert.Equal(t, 1, hostCount, "two Autopilot records for one serial are one host")
+	assert.Equal(t, 2, hostCount, "two Autopilot records for one serial are two devices, so two hosts")
 
 	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
 	require.NoError(t, err)
-	require.Len(t, devices, 1)
-	assert.Equal(t, "ap-aaa", devices[0].AutopilotDeviceID, "lowest Autopilot device ID wins")
-	assert.Equal(t, "Engineering", devices[0].GroupTag)
-
-	// A record that has been Entra-joined beats one that never has, regardless of Autopilot device ID ordering: it is
-	// the registration that actually deployed, so its group tag is the operative one.
-	joined := &fleet.HostAutopilotDevice{
-		AutopilotDeviceID: "ap-zzz", EntraDeviceID: "aad-joined", GroupTag: "Deployed",
-		HardwareSerial: "DUP-SERIAL", TenantID: testTenantA,
+	require.Len(t, devices, 2)
+	byDeviceID := map[string]fleet.HostAutopilotDevice{}
+	for _, d := range devices {
+		byDeviceID[d.AutopilotDeviceID] = *d
 	}
-	neverJoined := &fleet.HostAutopilotDevice{
-		AutopilotDeviceID: "ap-aaa", EntraDeviceID: "", GroupTag: "Stale",
-		HardwareSerial: "DUP-SERIAL", TenantID: testTenantA,
-	}
-	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{neverJoined, joined}))
-	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
-	require.NoError(t, err)
-	require.Len(t, devices, 1)
-	assert.Equal(t, "Deployed", devices[0].GroupTag, "the Entra-joined record wins even with a higher Autopilot ID")
+	storedFirst, ok := byDeviceID["ap-aaa"]
+	require.True(t, ok)
+	storedSecond, ok := byDeviceID["ap-bbb"]
+	require.True(t, ok)
+	assert.Equal(t, "Engineering", storedFirst.GroupTag)
+	assert.Equal(t, "Marketing", storedSecond.GroupTag)
+	assert.NotEqual(t, storedFirst.HostID, storedSecond.HostID)
 
-	// Reversing the order Graph returned them in must not change the outcome.
+	// Re-ingesting resolves each record back to its own host. Keying on the serial here would create a new host on
+	// every sync, or silently move one device's group tag onto the other's host.
+	firstHostID, secondHostID := storedFirst.HostID, storedSecond.HostID
+	second.GroupTag = "Sales"
 	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{second, first}))
+
 	devices, err = ds.ListHostAutopilotDevices(ctx, testTenantA)
 	require.NoError(t, err)
-	require.Len(t, devices, 1)
-	assert.Equal(t, "ap-aaa", devices[0].AutopilotDeviceID, "winner is stable across page ordering")
+	require.Len(t, devices, 2, "re-ingesting the same registry must not create more hosts")
+	for _, d := range devices {
+		switch d.AutopilotDeviceID {
+		case "ap-aaa":
+			assert.Equal(t, firstHostID, d.HostID)
+			assert.Equal(t, "Engineering", d.GroupTag)
+		case "ap-bbb":
+			assert.Equal(t, secondHostID, d.HostID, "the host is reused, not recreated, regardless of page order")
+			assert.Equal(t, "Sales", d.GroupTag)
+		}
+	}
+}
+
+// A Windows host Fleet already knows about, that is only later registered in Autopilot, must be adopted rather than
+// duplicated. The serial is the only thing the two records share, so this is the one case that still resolves on it.
+func testIngestAdoptsExistingHostBySerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	seedWindowsBuiltinLabels(t, ds)
+
+	const serial = "ADOPT-SERIAL"
+	existing, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: new("osquery-adopt"), NodeKey: new("nodekey-adopt"), UUID: "uuid-adopt",
+		HardwareSerial: serial, Hostname: "DESKTOP-ADOPT", Platform: "windows",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		autopilotDevice(serial, "Engineering"),
+	}))
+
+	var hostIDs []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
+		`SELECT id FROM hosts WHERE hardware_serial = ?`, serial))
+	require.Equal(t, []uint{existing.ID}, hostIDs, "the already-enrolled host is adopted, not duplicated")
+
+	// A second, genuinely different Autopilot registration on the same serial cannot claim the same host again.
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		{AutopilotDeviceID: "ap-other", EntraDeviceID: "aad-other", HardwareSerial: serial, TenantID: testTenantA},
+	}))
+
+	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 2)
+	for _, d := range devices {
+		assert.NotZero(t, d.HostID)
+	}
+	assert.NotEqual(t, devices[0].HostID, devices[1].HostID, "a claimed host is never handed to a second registration")
 }
 
 // Ingestion runs one transaction per chunk so a 100k-device tenant never becomes a single unbounded transaction. This
@@ -665,11 +710,12 @@ func testIngestSpansChunkedTransactions(t *testing.T, ds *Datastore) {
 			GroupTag: "tag-" + strconv.Itoa(i), HardwareSerial: serial, TenantID: testTenantA,
 		})
 	}
-	// Duplicates of serials that land in different chunks once sorted.
+	// Second registrations on serials that land in different chunks once sorted, so serial collisions are resolved
+	// both within a chunk and across a transaction boundary.
 	devices = append(devices, &fleet.HostAutopilotDevice{
-		AutopilotDeviceID: "ap-zzz", GroupTag: "loser", HardwareSerial: "CHUNK-0", TenantID: testTenantA,
+		AutopilotDeviceID: "ap-dup-0", GroupTag: "second", HardwareSerial: "CHUNK-0", TenantID: testTenantA,
 	}, &fleet.HostAutopilotDevice{
-		AutopilotDeviceID: "ap-zzz", GroupTag: "loser", HardwareSerial: "CHUNK-9", TenantID: testTenantA,
+		AutopilotDeviceID: "ap-dup-9", GroupTag: "second", HardwareSerial: "CHUNK-9", TenantID: testTenantA,
 	})
 
 	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, devices))
@@ -677,14 +723,17 @@ func testIngestSpansChunkedTransactions(t *testing.T, ds *Datastore) {
 	var hostCount int
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostCount,
 		`SELECT COUNT(*) FROM hosts WHERE hardware_serial LIKE 'CHUNK-%'`))
-	assert.Equal(t, distinct, hostCount, "one host per distinct serial across chunk boundaries")
+	assert.Equal(t, len(devices), hostCount, "one host per Autopilot device across chunk boundaries")
 
 	stored, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
 	require.NoError(t, err)
-	require.Len(t, stored, distinct)
+	require.Len(t, stored, len(devices))
+	seenHostIDs := map[uint]struct{}{}
 	for _, d := range stored {
-		assert.NotEqual(t, "loser", d.GroupTag, "the lower Autopilot device ID wins in every chunk")
 		assert.NotZero(t, d.HostID)
+		_, dup := seenHostIDs[d.HostID]
+		assert.False(t, dup, "two Autopilot records must never share a host")
+		seenHostIDs[d.HostID] = struct{}{}
 	}
 }
 
