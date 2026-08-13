@@ -1562,6 +1562,7 @@ func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
 		Saved:              true,
 		Interval:           60,
 		AutomationsEnabled: true,
+		Logging:            fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -1590,6 +1591,7 @@ func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
 		Saved:              true,
 		Interval:           30,
 		AutomationsEnabled: true,
+		Logging:            fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).ExecContext(ctx,
@@ -1623,6 +1625,7 @@ func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
 		Interval:           30,
 		AutomationsEnabled: false,
 		DiscardData:        true,
+		Logging:            fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).ExecContext(ctx,
@@ -1632,4 +1635,30 @@ func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
 	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
 	require.NoError(t, err)
 	assert.False(t, has, "query with discard_data=true and automations_enabled=false should not count")
+
+	// Test queryReportsDisabled toggle: a snapshot query with discard_data=false,
+	// automations_enabled=false, and labels should count when queryReportsDisabled=false
+	// but NOT when queryReportsDisabled=true (the NOT ? bind in the SQL).
+	q4, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "team-snapshot-report",
+		Query:              "SELECT 4",
+		TeamID:             &team.ID,
+		Saved:              true,
+		Interval:           30,
+		AutomationsEnabled: false,
+		DiscardData:        false,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO query_labels (query_id, label_id, require_all) VALUES (?, ?, 0)", q4.ID, label.ID)
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.True(t, has, "snapshot report with labels should count when queryReportsDisabled=false")
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, true)
+	require.NoError(t, err)
+	assert.False(t, has, "snapshot report with labels should NOT count when queryReportsDisabled=true")
 }
