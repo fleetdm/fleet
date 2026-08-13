@@ -1,3 +1,13 @@
+## 1.59.0 (Aug 13, 2026)
+
+* Updated Orbit CA certs
+
+* Added a new `ai_tools` table to the fleetd tables extension, giving hosts running plain osquery a single table that inventories AI software (desktop apps, IDE plugins, agent CLIs, MCP servers, live AI/MCP sockets, agent instruction files, and browser extensions) with a `type` discriminator and per-row `risk_flags`, `sha256`, and JSON `detail` columns. Because the extension runs as root/SYSTEM, it reads only regular files and does not follow symlinks; AI config or binary paths that are symlinks (e.g. managed by a dotfile tool) are intentionally not resolved.
+
+* Removed the wmic.exe dependency in the `mdm_bridge` table implementation.
+
+* Upgraded the nfpm packaging dependency in fleetctl to v2.47.0.
+
 ## 1.58.0 (Jul 17, 2026)
 
 * Fixed Orbit and Fleet Desktop stripping the subpath from `--fleet-url`, which caused 404s on all API calls when Fleet is deployed at a subpath (e.g. `https://host/subpath`).
