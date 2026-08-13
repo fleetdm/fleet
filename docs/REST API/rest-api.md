@@ -13878,6 +13878,7 @@ Deletes the specified self-service category. Software assigned to the deleted ca
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
+- [Update vulnerability](#update-vulnerability)
 
 ### List vulnerabilities
 
@@ -13897,6 +13898,8 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| include_dismissed | boolean | query | If `true`, the response will include dismissed vulnerabilities. |
+| dismiss_reason | string | query | **Requires `include_dismissed`**. Filters to vulnerabilities dismissed with this reason. One of: `"accept_risk"`, `"false_positive"`, or `"compensating_control"`. |
 
 
 ##### Default response
@@ -13916,7 +13919,8 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "epss_probability": 0.9729,// Available in Fleet Premium
       "cisa_known_exploit": false,// Available in Fleet Premium
       "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability." // Available in Fleet Premium
+      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.", // Available in Fleet Premium
+      "dismiss_reason": null,// Available in Fleet Premium
     }
   ],
   "count": 123,
@@ -13965,6 +13969,7 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
     "cisa_known_exploit": false,// Available in Fleet Premium
     "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
     "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+    "dismiss_reason": null,// Available in Fleet Premium
     "os_versions" : [
       {
         "os_version_id": 6,
@@ -13996,6 +14001,82 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 ```
 
 The `extension_for` field is included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
+
+
+### Update vulnerability
+
+_Available in Fleet Premium._
+
+Dismisses a vulnerability, hiding it from the Software and Host details pages (including Fleet Desktop), and the **Vulnerability exposure** dashboard chart. Vulnerabilities are dismissed globally.
+
+`PATCH /api/v1/fleet/vulnerabilities/:cve`
+
+#### Parameters
+
+| Name    | Type    | In    | Description                                                                                                                  |
+|---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
+| cve     | string  | path  | The vulnerability to update (format must be CVE-YYYY-<4 or more digits>, case-insensitive). |
+| dismiss_reason | string | body | The reason for dismissing the vulnerability. Options include `"accept_risk"`, `"false_positive"`, and `"compensating_control"`. Set to `null` (default) to un-dismiss the vulnerability. |
+
+#### Example
+
+`PATCH /api/v1/fleet/vulnerabilities/cve-2022-30190`
+
+##### Request body
+
+```json
+{
+  "dismiss_reason": "accept_risk"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerability": {
+    "cve": "CVE-2022-30190",
+    "created_at": "2022-06-01T00:15:00Z",
+    "hosts_count": 1234,
+    "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+    "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+    "cvss_score": 7.8,// Available in Fleet Premium
+    "epss_probability": 0.9729,// Available in Fleet Premium
+    "cisa_known_exploit": false,// Available in Fleet Premium
+    "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+    "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+    "dismiss_reason": "accept_risk",// Available in Fleet Premium
+    "os_versions" : [
+      {
+        "os_version_id": 6,
+        "hosts_count": 200,
+        "name": "macOS 14.1.2",
+        "name_only": "macOS",
+        "version": "14.1.2",
+        "resolved_in_version": "14.2",
+        "generated_cpes": [
+          "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+          "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+        ]
+      }
+    ],
+    "software": [
+      {
+        "id": 2363,
+        "software_title_id": 124,
+        "name": "Docker Desktop",
+        "version": "4.9.1",
+        "source": "programs",
+        "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+        "hosts_count": 50,
+        "resolved_in_version": "5.0.0"
+      }
+    ]
+  }
+}
+```
 
 ---
 
