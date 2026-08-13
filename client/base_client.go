@@ -212,6 +212,7 @@ func NewBaseClient(
 	if signerWrapper != nil {
 		httpClient = signerWrapper(httpClient)
 	}
+
 	client := &BaseClient{
 		BaseURL:            baseURL,
 		HTTP:               httpClient,
@@ -272,10 +273,7 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	}
 	defer destFile.Close()
 
-	// Track the time of the last read so a stall watchdog can distinguish a
-	// silently stalled connection from a slow-but-progressing one.
-	var lastProgress atomic.Int64
-	lastProgress.Store(time.Now().UnixNano())
+	var bytesRead atomic.Int64
 
 	var respBodyReader io.Reader = resp.Body
 	if f.ProgressFunc != nil || f.StallTimeout > 0 {
@@ -283,7 +281,7 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 			Reader: respBodyReader,
 			progressFunc: func(n int) {
 				if n > 0 {
-					lastProgress.Store(time.Now().UnixNano())
+					bytesRead.Add(int64(n))
 				}
 				if f.ProgressFunc != nil {
 					f.ProgressFunc(n)
@@ -305,15 +303,26 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 		go func() {
 			ticker := time.NewTicker(max(f.StallTimeout/4, checkInterval))
 			defer ticker.Stop()
+			lastSeen := bytesRead.Load()
+			var stalledAt time.Time
 			for {
 				select {
 				case <-stopWatchdog:
 					return
 				case <-ticker.C:
-					if time.Since(time.Unix(0, lastProgress.Load())) >= f.StallTimeout {
-						stalled.Store(true)
-						resp.Body.Close()
-						return
+					current := bytesRead.Load()
+					if current == lastSeen {
+						if stalledAt.IsZero() {
+							stalledAt = time.Now()
+						}
+						if time.Since(stalledAt) >= f.StallTimeout {
+							stalled.Store(true)
+							resp.Body.Close()
+							return
+						}
+					} else {
+						lastSeen = current
+						stalledAt = time.Time{}
 					}
 				}
 			}
@@ -325,10 +334,10 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	if f.StallTimeout > 0 {
 		close(stopWatchdog)
 	}
-	if stalled.Load() {
-		return fmt.Errorf("download stalled: no data received for %s: %w", f.StallTimeout, context.DeadlineExceeded)
-	}
 	if err != nil {
+		if stalled.Load() {
+			return fmt.Errorf("download stalled: no data received for %s: %w", f.StallTimeout, context.DeadlineExceeded)
+		}
 		return fmt.Errorf("copying from http stream to file: %w", err)
 	}
 
