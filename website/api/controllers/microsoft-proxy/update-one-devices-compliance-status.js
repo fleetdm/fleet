@@ -56,7 +56,8 @@ module.exports = {
 
   exits: {
     success: { description: 'A devices compliance status was successfully sent to an entra tenants instance'},
-    missingUserPrincipalName: { description: 'A request to update a macOS device\'s complaince status was missing a userPrincipalName value.', responseType: 'badRequest'}
+    missingUserPrincipalName: { description: 'A request to update a macOS device\'s complaince status was missing a userPrincipalName value.', responseType: 'badRequest'},
+
   },
 
 
@@ -65,7 +66,7 @@ module.exports = {
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
     if(!informationAboutThisTenant) {
-      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
+      return new Error('No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.');
     }
 
     if(os.toLowerCase() === 'windows') {
