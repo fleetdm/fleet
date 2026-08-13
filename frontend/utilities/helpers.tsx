@@ -746,8 +746,8 @@ export const getPerformanceImpactIndicatorTooltip = (
     case PerformanceImpactIndicatorValue.DENYLISTED:
       return (
         <>
-          This report has been stopped from runningbecause of excessive resource
-          consumption.
+          This report has been stopped from running because of excessive
+          resource consumption.
         </>
       );
     case PerformanceImpactIndicatorValue.UNDETERMINED:

@@ -30,26 +30,13 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       range.selectNodeContents(root);
       const rects = range.getClientRects();
       let widest = 0;
-      const widths: number[] = [];
       for (let i = 0; i < rects.length; i += 1) {
-        widths.push(rects[i].width);
         if (rects[i].width > widest) widest = rects[i].width;
       }
-      const style = window.getComputedStyle(root);
-      const padLeft = parseFloat(style.paddingLeft) || 0;
-      const padRight = parseFloat(style.paddingRight) || 0;
-      // eslint-disable-next-line no-console
-      console.log("[BalancedTipContent]", {
-        text: (root.textContent || "").slice(0, 60),
-        rectCount: rects.length,
-        widths: widths.map((w) => Math.round(w)),
-        widest: Math.round(widest),
-        rootWidthBeforeSet: root.getBoundingClientRect().width,
-        maxWidth: style.maxWidth,
-        padLeft,
-        padRight,
-      });
       if (widest > 0) {
+        const style = window.getComputedStyle(root);
+        const padLeft = parseFloat(style.paddingLeft) || 0;
+        const padRight = parseFloat(style.paddingRight) || 0;
         root.style.width = `${Math.ceil(widest + padLeft + padRight)}px`;
       }
     });
@@ -173,8 +160,6 @@ const TooltipWrapper = ({
   } else if (typeof delayHide === "number") {
     delayHideVal = delayHide;
   }
-
-  // delayHideVal = 100000;
 
   if (typeof delayShowHide === "boolean" && delayShowHide) {
     [delayShowVal, delayHideVal] = [DEFAULT_DELAY_MS, DEFAULT_DELAY_MS];
