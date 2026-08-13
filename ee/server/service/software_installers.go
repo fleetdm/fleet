@@ -2447,11 +2447,6 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 	return scriptResult, nil
 }
 
-// normalizeSetupExperiencePlatforms lowercases, deduplicates, and validates
-// the incoming platforms against the extension's allowlist. The "macos" alias
-// is not accepted — only canonical tokens ("darwin", "linux"), consistent with
-// the query/policy `platform` field. Returns an error on the first
-// incompatible entry; empty input is legal.
 // installDuringSetupForFannedOutPlatform derives InstallDuringSetup for the
 // second platform payload fanned out from a single .ipa entry. The base
 // payload's value was computed against the base platform (and the shallow copy
@@ -2469,6 +2464,11 @@ func installDuringSetupForFannedOutPlatform(setupPlatforms *[]string, baseInstal
 	}
 }
 
+// normalizeSetupExperiencePlatforms lowercases, deduplicates, and validates
+// the incoming platforms against the extension's allowlist. The "macos" alias
+// is not accepted — only canonical tokens ("darwin", "linux"), consistent with
+// the query/policy `platform` field. Returns an error on the first
+// incompatible entry; empty input is legal.
 func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]string, error) {
 	allowed := fleet.AllowedSetupExperiencePlatformsForExtension(extension)
 	allowedSet := make(map[string]struct{}, len(allowed))

@@ -392,8 +392,18 @@ func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "delete in house app")
 		}
 		if rows, _ := res.RowsAffected(); rows == 0 {
-			// selected for setup experience between the check above and here
-			return errDeleteInstallerInstalledDuringSetup
+			// either selected for setup experience or deleted concurrently
+			// between the check above and here
+			var installDuringSetup bool
+			switch err := sqlx.GetContext(ctx, tx, &installDuringSetup,
+				`SELECT install_during_setup FROM in_house_apps WHERE id = ?`, id); {
+			case errors.Is(err, sql.ErrNoRows):
+				return notFound("InHouseApp").WithID(id)
+			case err != nil:
+				return ctxerr.Wrap(ctx, err, "check why in-house app was not deleted")
+			default:
+				return errDeleteInstallerInstalledDuringSetup
+			}
 		}
 		return nil
 	})
