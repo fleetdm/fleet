@@ -6359,6 +6359,7 @@ Add a dynamic or manual label.
 
 `POST /api/v1/fleet/labels`
 
+
 #### Parameters
 
 | Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
@@ -6379,7 +6380,7 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
 
 | Name                  | Type   | Description                                                                                                                                                                                                                                  |
 | --------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| vital                 | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"`, `"end_user_idp_department"`, or `"custom_host_vital"`. |
+| vital                 | string | The type of host vital to use when creating a host vital label. Can be any of the vitals listed in [Supported built-in host vitals](https://fleetdm.com/guides/managing-labels-in-fleet#supported-built-in-host-vitals), or `"custom_host_vital"`. |
 | custom_host_vital_id  | integer | The ID of the [custom host vital](https://fleetdm.com/guides/custom-host-vitals) to match on. Required when `vital` is `"custom_host_vital"`. |
 | value                 | string | Hosts with vital data matching this value will be added to the label. |
 
