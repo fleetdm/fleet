@@ -428,7 +428,7 @@ controls:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
     enable_disk_encryption: true # Available in Fleet Premium
-    escrow_disk_encryption_key: true # Available in Fleet Premium
+    enable_escrow_disk_encryption_key: true # Available in Fleet Premium
       - path: ../lib/macos/profiles/my-declaration.json
     assets:
       - path: ../lib/macos/assets/my-asset.json
@@ -442,7 +442,7 @@ controls:
           - Engineering
     enable_disk_encryption: true # Available in Fleet Premium
   linux_settings:
-    escrow_disk_encryption_key: true # Available in Fleet Premium
+    enable_escrow_disk_encryption_key: true # Available in Fleet Premium
     managed_local_account_settings:
       - enabled: true   
   android_settings:
@@ -496,7 +496,7 @@ controls:
 - `configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig/.json) or declaration profiles (.json). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
   - In addition to configuration profiles, you can upload **assets** which are `.json` files containing an Apple asset declaration (`com.apple.asset`). Assets follow the same `path:` / `paths:` syntax as profiles but should be stored in a separate `assets/` folder (e.g. `../lib/macos/assets/my-asset.json`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS hosts (default: `false`).
-- `escrow_disk_encryption_key` specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption (default: `false`). Set to `true` when a third-party tool handles enforcement. `enable_disk_encryption` must be set to `true`.
+- `enable_escrow_disk_encryption_key` specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption (default: `false`). Set to `true` when a third-party tool handles enforcement. `enable_disk_encryption` must be set to `true`.
 - `managed_local_account_settings` are settings for the managed local account.
   - `enabled` specifies whether to create the managed local account on that platform (default: `false`).
 - `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `managed_local_account_settings.enabled` to be `true`. Default: `"admin"`.
@@ -516,7 +516,7 @@ Each entry can use either `path:` or `paths:`:
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 ### linux_settings
-- `escrow_disk_encryption_key` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet.
+- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet.
 
 ### android_settings
 
