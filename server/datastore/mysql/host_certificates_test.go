@@ -37,6 +37,8 @@ func TestHostCertificates(t *testing.T) {
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Windows scope-aware reconciliation", testUpdateHostCertificatesWindowsScopeReconciliation},
 		{"Re-ingest after soft delete attaches sources to live row", testUpdateHostCertificatesReingestAfterSoftDelete},
+		{"Self-heals duplicate cert rows and converges", testUpdateHostCertificatesSelfHealsDuplicates},
+		{"Precise source writes preserve unchanged rows", testUpdateHostCertificatesPreciseSourceWrites},
 		{"Origin-scoped delete", testUpdateHostCertificatesOriginScopedDelete},
 		{"Origin downgrade on osquery rediscovery", testUpdateHostCertificatesOriginDowngrade},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
@@ -1254,6 +1256,176 @@ func testUpdateHostCertificatesReingestAfterSoftDelete(t *testing.T, ds *Datasto
 	got, err = loadHostCertIDsForSHA1DB(ctx, ds.reader(ctx), hostID, []string{sha1Hex})
 	require.NoError(t, err)
 	require.Empty(t, got)
+}
+
+// testUpdateHostCertificatesSelfHealsDuplicates reproduces the bad host state behind issue: host_certificates has no unique index
+// on (host_id, sha1_sum), so concurrent re-ingestion of the same report (osquery resends results after a timed-out write, or a
+// stale replica read) can leave duplicate active rows per certificate. The fix must soft-delete the duplicates on the next report
+// (self-heal) and produce zero source-row writes on subsequent identical reports (convergence).
+func testUpdateHostCertificatesSelfHealsDuplicates(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		hostID   = uint(88)
+		hostUUID = "dup-rows-host-uuid"
+	)
+
+	certSys := mkTestCertRecord(t, hostID, "dup-sys.example.com", fleet.SystemHostCertificate, "")
+	certPairSys := mkTestCertRecord(t, hostID, "dup-pair.example.com", fleet.SystemHostCertificate, "")
+	// The same certificate observed in a user scope too (two source rows, one cert row).
+	pairUserCopy := *certPairSys
+	pairUserCopy.Source = fleet.UserHostCertificate
+	pairUserCopy.Username = "alice"
+	certPairUser := &pairUserCopy
+
+	ingest := func() {
+		sysCopy := *certSys
+		pairSysCopy := *certPairSys
+		pairUserCopyLocal := *certPairUser
+		require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+			[]*fleet.HostCertificateRecord{&sysCopy, &pairSysCopy, &pairUserCopyLocal},
+			fleet.HostCertificateOriginOsquery, nil))
+	}
+
+	ingest()
+
+	// Simulate the concurrent double-ingest: duplicate every active cert row and its source rows under new ids.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_certificates
+				(host_id, sha1_sum, not_valid_after, not_valid_before, certificate_authority, common_name,
+				key_algorithm, key_strength, key_usage, serial, signing_algorithm, subject_country, subject_org,
+				subject_org_unit, subject_common_name, issuer_country, issuer_org, issuer_org_unit,
+				issuer_common_name, origin)
+			SELECT host_id, sha1_sum, not_valid_after, not_valid_before, certificate_authority, common_name,
+				key_algorithm, key_strength, key_usage, serial, signing_algorithm, subject_country, subject_org,
+				subject_org_unit, subject_common_name, issuer_country, issuer_org, issuer_org_unit,
+				issuer_common_name, origin
+			FROM host_certificates WHERE host_id = ? AND deleted_at IS NULL`, hostID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_certificate_sources (host_certificate_id, source, username)
+			SELECT hcDup.id, hcs.source, hcs.username
+			FROM host_certificate_sources hcs
+			JOIN host_certificates hcOrig ON hcOrig.id = hcs.host_certificate_id
+			JOIN host_certificates hcDup
+				ON hcDup.host_id = hcOrig.host_id AND hcDup.sha1_sum = hcOrig.sha1_sum AND hcDup.id > hcOrig.id
+			WHERE hcOrig.host_id = ?`, hostID)
+		return err
+	})
+
+	countActiveCerts := func() int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				`SELECT COUNT(*) FROM host_certificates WHERE host_id = ? AND deleted_at IS NULL`, hostID)
+		})
+		return n
+	}
+	sourceRowIDs := func() []uint {
+		var ids []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `
+				SELECT hcs.id FROM host_certificate_sources hcs
+				JOIN host_certificates hc ON hc.id = hcs.host_certificate_id
+				WHERE hc.host_id = ? ORDER BY hcs.id`, hostID)
+		})
+		return ids
+	}
+
+	require.Equal(t, 4, countActiveCerts(), "setup: expected duplicated active cert rows")
+	require.Len(t, sourceRowIDs(), 6, "setup: expected duplicated source rows")
+
+	// One identical report self-heals: duplicates soft-deleted, their source rows removed.
+	ingest()
+	require.Equal(t, 2, countActiveCerts(), "expected duplicates to be soft-deleted")
+	healedSourceIDs := sourceRowIDs()
+	require.Len(t, healedSourceIDs, 3, "expected duplicate source rows to be removed")
+
+	// Convergence: further identical reports must not rewrite any source rows.
+	for range 2 {
+		ingest()
+		require.Equal(t, healedSourceIDs, sourceRowIDs(), "identical report must not rewrite host_certificate_sources rows")
+		require.Equal(t, 2, countActiveCerts())
+	}
+
+	// The API view is deduplicated again: exactly one row per (cert, source), with the right scopes surviving.
+	listed, _, err := ds.ListHostCertificates(ctx, hostID, fleet.ListOptions{OrderKey: "common_name", TestSecondaryOrderKey: "username"})
+	require.NoError(t, err)
+	type listedRow struct {
+		commonName string
+		source     fleet.HostCertificateSource
+		username   string
+	}
+	got := make([]listedRow, 0, len(listed))
+	for _, l := range listed {
+		got = append(got, listedRow{l.CommonName, l.Source, l.Username})
+	}
+	require.Equal(t, []listedRow{
+		{"dup-pair.example.com", fleet.SystemHostCertificate, ""},
+		{"dup-pair.example.com", fleet.UserHostCertificate, "alice"},
+		{"dup-sys.example.com", fleet.SystemHostCertificate, ""},
+	}, got)
+}
+
+// testUpdateHostCertificatesPreciseSourceWrites verifies that a source-set change touches only the rows that actually
+// changed: unchanged source rows must keep their primary key (no delete-and-reinsert).
+func testUpdateHostCertificatesPreciseSourceWrites(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		hostID   = uint(89)
+		hostUUID = "precise-writes-host-uuid"
+	)
+
+	base := mkTestCertRecord(t, hostID, "precise.example.com", fleet.SystemHostCertificate, "")
+	ingest := func(sources ...fleet.HostCertificateScope) {
+		records := make([]*fleet.HostCertificateRecord, 0, len(sources))
+		for _, s := range sources {
+			rec := *base
+			rec.Source = s.Source
+			rec.Username = s.Username
+			records = append(records, &rec)
+		}
+		require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID, records, fleet.HostCertificateOriginOsquery, nil))
+	}
+
+	type sourceRow struct {
+		ID       uint   `db:"id"`
+		Source   string `db:"source"`
+		Username string `db:"username"`
+	}
+	sourceRows := func() []sourceRow {
+		var rows []sourceRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `
+				SELECT hcs.id, hcs.source, hcs.username FROM host_certificate_sources hcs
+				JOIN host_certificates hc ON hc.id = hcs.host_certificate_id
+				WHERE hc.host_id = ? ORDER BY hcs.source, hcs.username`, hostID)
+		})
+		return rows
+	}
+
+	ingest(
+		fleet.HostCertificateScope{Source: fleet.SystemHostCertificate},
+		fleet.HostCertificateScope{Source: fleet.UserHostCertificate, Username: "alice"},
+	)
+	before := sourceRows()
+	require.Len(t, before, 2)
+	systemRowID := before[0].ID
+	require.Equal(t, "system", before[0].Source)
+	require.Equal(t, "alice", before[1].Username)
+
+	// alice's scope is replaced by bob's; the system row must be untouched.
+	ingest(
+		fleet.HostCertificateScope{Source: fleet.SystemHostCertificate},
+		fleet.HostCertificateScope{Source: fleet.UserHostCertificate, Username: "bob"},
+	)
+	after := sourceRows()
+	require.Len(t, after, 2)
+	require.Equal(t, systemRowID, after[0].ID, "unchanged system source row must keep its primary key")
+	require.Equal(t, "system", after[0].Source)
+	require.Equal(t, "bob", after[1].Username, "alice's source row should be replaced by bob's")
 }
 
 // mkTestCertRecord builds a HostCertificateRecord for hostID with a random serial, valid from an hour ago to 24 hours

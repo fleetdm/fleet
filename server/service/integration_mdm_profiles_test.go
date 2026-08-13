@@ -507,7 +507,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
 	s.lastActivityMatches(
 		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q}`, host.ID, host.DisplayName(), "name-"+mcUUID),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q, "profile_uuid": %q}`, host.ID, host.DisplayName(), "name-"+mcUUID, mcUUID),
 		0)
 
 	// add a declaration to the team
@@ -3787,7 +3787,60 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 			return err
 		})
 	}
-	// TODO: Add tests for create/delete forbidden declaration types?
+	// A declaration whose type would now fail upload validation — e.g. it was
+	// accepted before its type was added to ForbiddenDeclTypes, or before a
+	// config flag was toggled — must still be deletable. Deletion does not
+	// re-run the upload-time validator; doing so would trap declarations the
+	// user already uploaded. Regression test for
+	// https://github.com/fleetdm/fleet/issues/47535.
+	{
+		forbiddenType := "com.apple.configuration.watch.enrollment"
+		require.Contains(t, fleet.ForbiddenDeclTypes, forbiddenType) // guard: type is genuinely forbidden on upload
+
+		// The delete-time validation this fix removed only ran under strict
+		// validation (AllowAllDeclarations == false), so this test only guards
+		// against its reintroduction when the suite runs strict. Assert that
+		// precondition explicitly so the test can't silently become a no-op if
+		// the suite default ever changes.
+		require.False(t, s.fleetCfg.MDM.AllowAllDeclarations)
+
+		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
+		rawJSON := fmt.Sprintf(`{"Type":%q,"Identifier":"com.fleet.forbidden-type","Payload":{}}`, forbiddenType)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				"INSERT INTO mdm_apple_declarations (declaration_uuid, identifier, name, raw_json, scope, uploaded_at, team_id) VALUES (?, ?, ?, ?, ?, NOW(6), 0)",
+				declUUID, "com.fleet.forbidden-type", "forbidden-type-decl", rawJSON, fleet.PayloadScopeSystem)
+			return err
+		})
+
+		var deleteResp deleteMDMConfigProfileResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", declUUID), nil, http.StatusOK, &deleteResp)
+	}
+
+	// A declaration that uses a Fleet-reserved name stays protected from deletion
+	// through this endpoint. The reserved-name check is the sole Fleet-managed
+	// gate on the delete path, so make sure removing the upload-time validation
+	// (above) didn't open a hole.
+	{
+		reservedName := servermdm.FleetMacOSUpdatesProfileName
+		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
+		rawJSON := `{"Type":"com.apple.configuration.softwareupdate.enforcement.specific","Identifier":"com.fleet.reserved","Payload":{}}`
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				"INSERT INTO mdm_apple_declarations (declaration_uuid, identifier, name, raw_json, scope, uploaded_at, team_id) VALUES (?, ?, ?, ?, ?, NOW(6), 0)",
+				declUUID, "com.fleet.reserved", reservedName, rawJSON, fleet.PayloadScopeSystem)
+			return err
+		})
+
+		var deleteResp deleteMDMConfigProfileResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", declUUID), nil, http.StatusBadRequest, &deleteResp)
+
+		// the API refused to delete it, so remove the seeded row directly
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?", declUUID)
+			return err
+		})
+	}
 
 	// make fleet add a FileVault profile
 	acResp := appConfigResponse{}
@@ -4479,6 +4532,31 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		verifyHostProfileStatus(atomicInstallCmds, mdmResponseStatus)
 	}
 
+	// drainCommands triggers the profile schedule, then acks every command the device is handed with 200 OK and returns them.
+	// Several subtests below need the device brought to a clean state before exercising the behaviour they actually assert on.
+	drainCommands := func(device *mdmtest.TestWindowsMDMClient) map[string]fleet.ProtoCmdOperation {
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := device.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := device.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			cmdID := c.Cmd.CmdID
+			status := syncml.CmdStatusOK
+			device.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     new(c.Verb),
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = device.SendResponse()
+		require.NoError(t, err)
+		return cmds
+	}
+
 	checkHostsProfilesMatch := func(host *fleet.Host, wantUUIDs []string) {
 		var gotUUIDs []string
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -4816,24 +4894,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		tmResp := teamResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": null, "grace_period_days": null} }}`), http.StatusOK, &tmResp)
 		// Drain any OS updates removal commands
-		s.awaitTriggerProfileSchedule(t)
-		cmds, err := mdmDevice.StartManagementSession()
-		require.NoError(t, err)
-		msgID, err := mdmDevice.GetCurrentMsgID()
-		require.NoError(t, err)
-		for _, c := range cmds {
-			cmdID := c.Cmd.CmdID
-			mdmDevice.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &cmdID.Value,
-				Cmd:     ptr.String(c.Verb),
-				Data:    ptr.String(syncml.CmdStatusOK),
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			})
-		}
-		_, err = mdmDevice.SendResponse()
-		require.NoError(t, err)
+		drainCommands(mdmDevice)
 		verifyProfiles(mdmDevice, 0, false) // drain remaining
 
 		// Create a team with no profiles
@@ -4888,25 +4949,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 		// Trigger profile sync: device gets the new profile + delete commands for old profiles.
 		// Drain all commands from the device without asserting exact counts (cleanup varies).
-		s.awaitTriggerProfileSchedule(t)
-		cmds, err := mdmDevice.StartManagementSession()
-		require.NoError(t, err)
-		msgID, err := mdmDevice.GetCurrentMsgID()
-		require.NoError(t, err)
-		for _, c := range cmds {
-			cmdID := c.Cmd.CmdID
-			status := syncml.CmdStatusOK
-			mdmDevice.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &cmdID.Value,
-				Cmd:     ptr.String(c.Verb),
-				Data:    &status,
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			})
-		}
-		_, err = mdmDevice.SendResponse()
-		require.NoError(t, err)
+		drainCommands(mdmDevice)
 
 		// Drain any remaining commands until the device is clean.
 		verifyProfiles(mdmDevice, 0, false)
@@ -4923,12 +4966,12 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		// - 1 Atomic install for the updated profile (from reconciler checksum mismatch)
 		// Total: 2 Status + 1 Delete + 1 Atomic = 4 commands
 		s.awaitTriggerProfileSchedule(t)
-		cmds, err = mdmDevice.StartManagementSession()
+		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
 		require.Len(t, cmds, 4, "expected 2 status + 1 delete + 1 install")
 
 		var gotDelete, gotInstall bool
-		msgID, err = mdmDevice.GetCurrentMsgID()
+		msgID, err := mdmDevice.GetCurrentMsgID()
 		require.NoError(t, err)
 		for _, c := range cmds {
 			cmdID := c.Cmd.CmdID
@@ -4983,25 +5026,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 		// Drain install commands.
-		s.awaitTriggerProfileSchedule(t)
-		cmds, err := mdmDevice.StartManagementSession()
-		require.NoError(t, err)
-		msgID, err := mdmDevice.GetCurrentMsgID()
-		require.NoError(t, err)
-		for _, c := range cmds {
-			cmdID := c.Cmd.CmdID
-			status := syncml.CmdStatusOK
-			mdmDevice.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &cmdID.Value,
-				Cmd:     ptr.String(c.Verb),
-				Data:    &status,
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			})
-		}
-		_, err = mdmDevice.SendResponse()
-		require.NoError(t, err)
+		drainCommands(mdmDevice)
 		verifyProfiles(mdmDevice, 0, false)
 
 		// Edit profile A to remove AllowCamera (shared with B), keep only AllowCortana.
@@ -5015,10 +5040,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		// Trigger sync: should get an install for the updated A, but NO delete
 		// for AllowCamera since profile B still uses it.
 		s.awaitTriggerProfileSchedule(t)
-		cmds, err = mdmDevice.StartManagementSession()
+		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
 
-		msgID, err = mdmDevice.GetCurrentMsgID()
+		msgID, err := mdmDevice.GetCurrentMsgID()
 		require.NoError(t, err)
 		for _, c := range cmds {
 			if c.Verb == "Delete" {
@@ -5038,6 +5063,57 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		}
 		_, err = mdmDevice.SendResponse()
 		require.NoError(t, err)
+	})
+
+	t.Run("delete_profile_fully_protected_removes_host_row", func(t *testing.T) {
+		// If profile A and profile B enforce the same LocURI and A is deleted, there is no <Delete> to send because B still
+		// enforces it. The host's row for A must still be cleaned up.
+		sharedProfile := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Privacy/AllowInputPersonalization</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace>`
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "fully-protected-A", Contents: []byte(sharedProfile)},
+				{Name: "fully-protected-B", Contents: []byte(sharedProfile)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// Deliver both profiles so profile A has a host row to leak.
+		drainCommands(mdmDevice)
+
+		var profileAUUID string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &profileAUUID,
+				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?`, "fully-protected-A", tm.ID)
+		})
+		hostProfileRowCount := func(profileUUID string) int {
+			var count int
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(context.Background(), q, &count,
+					`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, host.UUID, profileUUID)
+			})
+			return count
+		}
+		require.Equal(t, 1, hostProfileRowCount(profileAUUID))
+
+		// Delete profile A by batch-setting only profile B, which keeps the shared LocURI enforced.
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "fully-protected-B", Contents: []byte(sharedProfile)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// No <Delete> goes out, since profile B still enforces the LocURI.
+		for _, c := range drainCommands(mdmDevice) {
+			require.NotContains(t, c.Cmd.GetTargetURI(), "AllowInputPersonalization",
+				"should NOT delete AllowInputPersonalization because profile B still enforces it")
+		}
+
+		// The host's row for the deleted profile must be gone even though no command was ever sent, so the deleted profile
+		// stops showing up in the host's OS settings.
+		require.Zero(t, hostProfileRowCount(profileAUUID))
+		var gotHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &gotHostResp)
+		require.NotNil(t, gotHostResp.Host.MDM.Profiles)
+		for _, p := range *gotHostResp.Host.MDM.Profiles {
+			require.NotEqual(t, "fully-protected-A", p.Name, "deleted profile must not remain listed on the host")
+		}
 	})
 }
 
@@ -6548,6 +6624,9 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 
 	// it also doesn't get installed to a new host not a member of any labels
 	appleHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// simulate reporting label results for the new host, otherwise exclude-any
+	// profiles are withheld until label membership is known
+	require.NoError(t, s.ds.AsyncBatchUpdateLabelTimestamp(ctx, []uint{appleHost2.ID}, time.Now()))
 	s.awaitRunAppleMDMWorkerSchedule()
 	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+appleHost2.UUID)
 	require.NoError(t, err)
@@ -7290,7 +7369,7 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusAccepted)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeResentConfigurationProfileBatch{}.ActivityName(),
-		fmt.Sprintf(`{"profile_name": %q, "host_count": %d}`, "N2", 2),
+		fmt.Sprintf(`{"profile_name": %q, "profile_uuid": %q, "host_count": %d}`, "N2", profNameToPayload["N2"].ProfileUUID, 2),
 		0,
 	)
 
@@ -7341,7 +7420,7 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeResentConfigurationProfileBatch{}.ActivityName(),
-		fmt.Sprintf(`{"profile_name": %q, "host_count": %d}`, "N3", 1),
+		fmt.Sprintf(`{"profile_name": %q, "profile_uuid": %q, "host_count": %d}`, "N3", profNameToPayload["N3"].ProfileUUID, 1),
 		0,
 	)
 
@@ -9563,6 +9642,101 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 	getHostProfiles(host1.ID, []string{string(fleet.MDMDeliveryVerified), string(fleet.MDMDeliveryVerified), string(fleet.MDMDeliveryFailed)})
 }
 
+func (s *integrationMDMTestSuite) TestIPadOSUpdateDeclarationAfterMDMReset() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	teamName := t.Name() + "team"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+	require.NotZero(t, teamID)
+
+	ipad, device := s.createAppleMobileHostThenEnrollMDM("ipados")
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &teamID, HostIDs: []uint{ipad.ID}}, http.StatusOK)
+
+	// Clear commands sent during enrollment so the command assertions below
+	// isolate the OS update declaration.
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = device.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// Automatic enrollment resets stale host state. Built-in memberships must
+	// survive so label-scoped declarations still target the device.
+	require.NoError(t, s.ds.MDMAppleResetOnReenrollment(ctx, ipad.UUID, true))
+	labels, err := s.ds.ListLabelsForHost(ctx, ipad.ID)
+	require.NoError(t, err)
+	labelNames := make([]string, 0, len(labels))
+	for _, label := range labels {
+		labelNames = append(labelNames, label.Name)
+	}
+	require.ElementsMatch(t, []string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelIPadOS}, labelNames)
+
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("17.6.1"),
+				Deadline:       optjson.SetString("2025-06-01"),
+			},
+		},
+	}}}, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	const updateIdentifier = "ipados-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+	var status fleet.MDMDeliveryStatus
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &status, `
+			SELECT status FROM host_mdm_apple_declarations
+			WHERE host_uuid = ? AND declaration_identifier = ?`, ipad.UUID, updateIdentifier)
+	})
+	require.Equal(t, fleet.MDMDeliveryPending, status)
+
+	cmd, err = device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+	_, err = device.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	resp, err := device.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	var items fleet.MDMAppleDDMDeclarationItemsResponse
+	require.NoError(t, json.Unmarshal(body, &items))
+	var serverToken string
+	for _, declaration := range items.Declarations.Configurations {
+		if declaration.Identifier == updateIdentifier {
+			serverToken = declaration.ServerToken
+			break
+		}
+	}
+	require.NotEmpty(t, serverToken)
+
+	report := fleet.MDMAppleDDMStatusReport{}
+	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{{
+		Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: updateIdentifier, ServerToken: serverToken,
+	}}
+	statusResp, err := device.DeclarativeManagement("status", report)
+	require.NoError(t, err)
+	statusResp.Body.Close()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &status, `
+			SELECT status FROM host_mdm_apple_declarations
+			WHERE host_uuid = ? AND declaration_identifier = ?`, ipad.UUID, updateIdentifier)
+	})
+	require.Equal(t, fleet.MDMDeliveryVerified, status)
+}
+
 // TestSpecTeamsOSUpdatesDeployToHosts verifies that POST /api/latest/fleet/spec/teams
 // deploys OS updates declarations/profiles to enrolled Windows, iOS, iPadOS, and macOS
 // hosts when OS update settings are initially set or when deadline/minimum version changes.
@@ -10083,4 +10257,245 @@ func (s *integrationMDMTestSuite) TestWindowsSCEPProfilePreferredVariableAccepte
 			{Name: "WindowsSCEPProfilePreferred", Contents: preferred},
 		}},
 		http.StatusNoContent)
+}
+
+// mdmActiveCmdCount returns the number of active (undelivered) nano_enrollment_queue
+// rows for the given command UUID.
+func mdmActiveCmdCount(t *testing.T, ds *mysql.Datastore, cmdUUID string) int {
+	var n int
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &n,
+			`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = ? AND active = 1`, cmdUUID)
+	})
+	return n
+}
+
+// hostHasAppleProfileOp reports whether the host has an hmap row for the given identifier
+// and operation type, returning its command UUID.
+func hostHasAppleProfileOp(t *testing.T, ds *mysql.Datastore, hostUUID, ident string, op fleet.MDMOperationType) (bool, string) {
+	var cmdUUIDs []string
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &cmdUUIDs,
+			`SELECT command_uuid FROM host_mdm_apple_profiles
+			 WHERE host_uuid = ? AND profile_identifier = ? AND operation_type = ?`,
+			hostUUID, ident, op)
+	})
+	if len(cmdUUIDs) == 0 {
+		return false, ""
+	}
+	require.Len(t, cmdUUIDs, 1)
+	return true, cmdUUIDs[0]
+}
+
+// enrollHostDrainInitialProfiles enrolls a macOS host, delivers+acks its initial
+// (fleetd/CA) profiles, and clears the reconcile-dedup key so later changes reprocess.
+func (s *integrationMDMTestSuite) enrollHostDrainInitialProfiles(t *testing.T) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+	ctx := t.Context()
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.awaitRunAppleMDMWorkerSchedule()
+	checkNextPayloads(t, mdmDevice, false)
+	require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+	return host, mdmDevice
+}
+
+// ackUntilThenNotNow acknowledges queued commands until it reaches cmdUUID, which it
+// answers with NotNow. Fails the test if the queue drains without delivering cmdUUID.
+func ackUntilThenNotNow(t *testing.T, device *mdmtest.TestAppleMDMClient, cmdUUID string) {
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		if cmd.CommandUUID == cmdUUID {
+			_, err = device.NotNow(cmdUUID)
+			require.NoError(t, err)
+			return
+		}
+		cmd, err = device.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	t.Fatalf("command %s was never delivered", cmdUUID)
+}
+
+// labelGateHost creates a label, makes the host a member, and marks the host's labels
+// as reported so include-any gating evaluates it as a match.
+func (s *integrationMDMTestSuite) labelGateHost(t *testing.T, host *fleet.Host, name string) *fleet.Label {
+	ctx := t.Context()
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: name, Query: "select 1;"})
+	require.NoError(t, err)
+	host.LabelUpdatedAt = time.Now()
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+	require.NoError(t, s.ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{label.ID, host.ID}}))
+	return label
+}
+
+// TestProfileReconcilerCancelsInstallationWhenNotNowResponseRecorded is a regression test that
+// ensures a pending device-scoped InstallProfile command is cancelled when the host leaves scope after a NotNow response.
+func (s *integrationMDMTestSuite) TestProfileReconcilerCancelsInstallationWhenNotNowResponseRecorded() {
+	t := s.T()
+	ctx := t.Context()
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	host, mdmDevice := s.enrollHostDrainInitialProfiles(t)
+	label := s.labelGateHost(t, host, t.Name()+"-lbl")
+
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "P1", Contents: mobileconfigForTest("P1", "P1"), LabelsIncludeAny: []string{label.Name}},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	// take P1's install command from its hmap row (Idle may deliver other
+	// re-enqueued profiles first), ack up to it and answer it with NotNow
+	ok, i := hostHasAppleProfileOp(t, s.ds, host.UUID, "P1", fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	require.NotEmpty(t, i)
+	ackUntilThenNotNow(t, mdmDevice, i)
+
+	// remove the host from the label (scope change, not a deletion), then reconcile
+	require.NoError(t, s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{label.ID, host.ID}}))
+	s.awaitTriggerProfileSchedule(t)
+
+	// desired: the install command is cancelled; bug: the NotNow result defeats the DELETE
+	require.Zero(t, mdmActiveCmdCount(t, s.ds, i), "install command still active after profile left scope")
+}
+
+// TestProfileUserScopedPendingInstallCancelled is a regression test where when label descoping a user-scoped profile, that is pending installation
+// ensures the install command is cancelled. To avoid NotNow'ing producing an incorrect order and could leave profiles that Fleet is no longer tracking on the device.
+func (s *integrationMDMTestSuite) TestProfileUserScopedPendingInstallCancelled() {
+	t := s.T()
+	ctx := t.Context()
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	host, mdmDevice := s.enrollHostDrainInitialProfiles(t)
+	require.NoError(t, mdmDevice.UserEnroll())
+	userEnr, err := s.ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, userEnr)
+	label := s.labelGateHost(t, host, t.Name()+"-lbl")
+
+	scope := fleet.PayloadScopeUser
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "P2", Contents: scopedMobileconfigForTest("P2", "P2.user", &scope), LabelsIncludeAny: []string{label.Name}},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	// take P2's install command from its hmap row (no device interaction needed;
+	// this is a pure keying bug)
+	ok, i := hostHasAppleProfileOp(t, s.ds, host.UUID, "P2.user", fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	require.NotEmpty(t, i)
+
+	// sanity: the queue row is keyed by the user enrollment ID, not the host UUID
+	var qid string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &qid, `SELECT id FROM nano_enrollment_queue WHERE command_uuid = ?`, i)
+	})
+	require.Equal(t, userEnr.ID, qid)
+
+	require.NoError(t, s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{label.ID, host.ID}}))
+	s.awaitTriggerProfileSchedule(t)
+
+	// desired: the user-channel install is cancelled; bug: cleanup keyed by host UUID misses it
+	require.Zero(t, mdmActiveCmdCount(t, s.ds, i), "user-scoped install still active after profile left scope")
+}
+
+// TestProfileFailedVerificationGetsRemove is a regression test for the case where osquery profile verification fails on a previous ACK'ed InstallProfile command.
+// This test ensures a RemoveProfile command gets sent to ensure no lingering profiles is left.
+func (s *integrationMDMTestSuite) TestProfileFailedVerificationGetsRemove() {
+	t := s.T()
+	ctx := t.Context()
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	host, mdmDevice := s.enrollHostDrainInitialProfiles(t)
+	label := s.labelGateHost(t, host, t.Name()+"-lbl")
+
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "P3", Contents: mobileconfigForTest("P3", "P3"), LabelsIncludeAny: []string{label.Name}},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	// ack all queued installs; P3 is now genuinely on the device
+	checkNextPayloads(t, mdmDevice, false)
+
+	// exactly what setMDMProfilesFailedDB produces when the verifier can't see the profile
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_mdm_apple_profiles SET status = 'failed', detail = 'Failed, was verifying'
+			 WHERE host_uuid = ? AND profile_identifier = 'P3' AND operation_type = 'install'`, host.UUID)
+		return err
+	})
+
+	require.NoError(t, s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{label.ID, host.ID}}))
+	s.awaitTriggerProfileSchedule(t)
+
+	// desired: a RemoveProfile is enqueued to pull the profile off the device
+	ok, _ := hostHasAppleProfileOp(t, s.ds, host.UUID, "P3", fleet.MDMOperationTypeRemove)
+	require.True(t, ok, "failed install that left scope got no RemoveProfile; profile stranded on device")
+}
+
+// TestProfileEditLeaksOldInstallCommand is a regression test that ensures editing a profile via gitops or edit, cancels the previous in-flight command
+// to avoid NotNow responses producing out of order commands.
+func (s *integrationMDMTestSuite) TestProfileEditLeaksOldInstallCommand() {
+	t := s.T()
+	ctx := t.Context()
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	host, mdmDevice := s.enrollHostDrainInitialProfiles(t)
+
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "P5", Contents: mobileconfigForTest("P5", "P5")},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	// take P5's install command from its hmap row (Idle may deliver other
+	// re-enqueued profiles first), ack up to it and answer it with NotNow
+	ok, iOld := hostHasAppleProfileOp(t, s.ds, host.UUID, "P5", fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	require.NotEmpty(t, iOld)
+	ackUntilThenNotNow(t, mdmDevice, iOld)
+
+	// edit P5's content (new random PayloadUUID -> new checksum), same name/identifier
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "P5", Contents: mobileconfigForTest("P5", "P5")},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	ok, iNew := hostHasAppleProfileOp(t, s.ds, host.UUID, "P5", fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	require.NotEmpty(t, iNew)
+
+	// desired: the old install command is cancelled; bug: it stays active and can apply v1 over v2
+	require.Zero(t, mdmActiveCmdCount(t, s.ds, iOld), "old install command still active after profile edit")
+	require.Equal(t, 1, mdmActiveCmdCount(t, s.ds, iNew), "new install command not active after profile edit")
+}
+
+// TestProfileEditCancelsUndeliveredInstallCommand is the companion to
+// TestProfileEditLeaksOldInstallCommand: the device never picks up the first install
+// (offline host), so the superseded command has no result row at all. This isolates the
+// toInstall cancellation wiring (root cause E) from the NotNow-tolerant DELETE (fix 1) —
+// if only this test goes red, the wiring broke; if only the NotNow variant goes red, the
+// DELETE's NotNow guard broke.
+func (s *integrationMDMTestSuite) TestProfileEditCancelsUndeliveredInstallCommand() {
+	t := s.T()
+	ctx := t.Context()
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	host, _ := s.enrollHostDrainInitialProfiles(t)
+
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "P6", Contents: mobileconfigForTest("P6", "P6")},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	// the install is queued but the device never checks in
+	ok, iOld := hostHasAppleProfileOp(t, s.ds, host.UUID, "P6", fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	require.NotEmpty(t, iOld)
+	require.Equal(t, 1, mdmActiveCmdCount(t, s.ds, iOld))
+
+	// edit P6's content (new random PayloadUUID -> new checksum), same name/identifier
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "P6", Contents: mobileconfigForTest("P6", "P6")},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	ok, iNew := hostHasAppleProfileOp(t, s.ds, host.UUID, "P6", fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	require.NotEmpty(t, iNew)
+	require.NotEqual(t, iOld, iNew)
+
+	// the undelivered v1 install must be cancelled so the host doesn't run v1 then v2
+	require.Zero(t, mdmActiveCmdCount(t, s.ds, iOld), "undelivered install command still active after profile edit")
+	require.Equal(t, 1, mdmActiveCmdCount(t, s.ds, iNew), "new install command not active after profile edit")
 }

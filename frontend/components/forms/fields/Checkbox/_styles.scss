@@ -40,6 +40,42 @@
     }
   }
 
+  &--danger {
+
+    svg {
+      .checkbox-state {
+        stroke: $core-vibrant-red;
+        fill: $core-vibrant-red;
+      }
+    }
+
+    &:hover:not(.fleet-checkbox__label--disabled) {
+      svg {
+        .checkbox-state {
+          stroke: $core-vibrant-red-over;
+          fill: $core-vibrant-red-over;
+        }
+        .checkbox-unchecked-state {
+          stroke: $core-vibrant-red-over;
+        }
+      }
+    }
+
+    // During click only
+    &:active:not(.fleet-checkbox__label--disabled) {
+      svg {
+        .checkbox-state {
+          stroke: $core-vibrant-red-down;
+          fill: $core-vibrant-red-down;
+        }
+
+        .checkbox-unchecked-state {
+          stroke: $core-vibrant-red-down;
+        }
+      }
+    }
+  }
+
   // When tabbing
   &:focus-visible:not(.fleet-checkbox__label--disabled) {
     outline: none;

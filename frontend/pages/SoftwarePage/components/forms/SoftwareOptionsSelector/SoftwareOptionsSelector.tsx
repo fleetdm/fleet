@@ -152,7 +152,7 @@ const CategoriesSelector = ({
       <div className="form-field__label">Categories</div>
       {renderList()}
       <Button
-        variant="inverse"
+        variant="secondary"
         onClick={onClickPreviewEndUserExperience}
         className={`${baseClass}__preview-button`}
       >
@@ -219,8 +219,8 @@ const SoftwareOptionsSelector = ({
         <Slider
           value={formData.selfService}
           onChange={onToggleSelfService}
-          inactiveText="Self-service"
-          activeText="Self-service"
+          inactiveText="Self service"
+          activeText="Self service"
           labelTooltip={selfServiceLabelTooltip}
           className={`${baseClass}__self-service-slider`}
           disabled={isSelfServiceDisabled}

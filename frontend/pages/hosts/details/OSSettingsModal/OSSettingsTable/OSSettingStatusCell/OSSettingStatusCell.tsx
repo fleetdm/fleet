@@ -136,16 +136,22 @@ const OSSettingStatusCell = ({
 
     // For failed status, use the error detail as tooltip content
     const errorTooltip = profile ? generateErrorTooltip(profile) : null;
-    // For pending profiles, prefer a backend-provided detail message (e.g.
-    // Android Wi-Fi profiles waiting for their certificate) over the generic
-    // "Enforcing" tooltip.
-    const pendingDetailTooltip =
-      profile?.status === "pending" && profile.detail ? profile.detail : null;
+    // Prefer a backend-provided detail message over the generic status text.
+    // Pending profiles use it for e.g. Android Wi-Fi profiles waiting on their
+    // certificate. Verified profiles use it when a custom activation's
+    // predicate excluded this host: Fleet delivered the profile correctly, but
+    // the settings were deliberately not applied, so the generic "the host
+    // applied the setting" would be untrue.
+    const detailTooltip =
+      (profile?.status === "pending" || profile?.status === "verified") &&
+      profile.detail
+        ? profile.detail
+        : null;
 
     let tipContent: React.ReactNode;
-    if (pendingDetailTooltip) {
+    if (detailTooltip) {
       tipContent = (
-        <span className="tooltip__tooltip-text">{pendingDetailTooltip}</span>
+        <span className="tooltip__tooltip-text">{detailTooltip}</span>
       );
     } else if (tooltip) {
       if (status !== "action_required") {

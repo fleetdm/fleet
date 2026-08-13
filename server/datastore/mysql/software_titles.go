@@ -50,9 +50,13 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		inHouseAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("iha.global_or_team_id = %d", *teamID)
 	} else {
 		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "sthc")
-		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
-		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
-		inHouseAppsTeamsGlobalOrTeamIDFilter = "TRUE"
+		// A nil teamID means "every fleet the caller can see", not "every fleet".
+		// These joins decide whether the title row exists at all, so leaving them
+		// unfiltered confirms titles that exist only in a fleet the caller has no
+		// access to. Same boundary the host-counts filter above already applies.
+		softwareInstallerGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "si.global_or_team_id")
+		vppAppsTeamsGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "vat.global_or_team_id")
+		inHouseAppsTeamsGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "iha.global_or_team_id")
 	}
 
 	// Select software title but filter out if the software has zero host counts
@@ -132,31 +136,62 @@ GROUP BY
 	return &title, nil
 }
 
-// SoftwareTitleNameForHostFilter returns the name and display_name
-// of a software title by ID without applying team-scoped inventory auth.
-// This intentionally allows callers to discover the title name and display_name
-// even if the title is not present on their team.
-//
-// Only use this for host list filters and similar UX helpers where
-// exposing the existence of a title is acceptable. Not for endpoints
-// that return team-scoped inventory data.
-func (ds *Datastore) SoftwareTitleNameForHostFilter(
-	ctx context.Context,
-	id uint,
-) (name, displayName string, err error) {
-	const stmt = `
+// SoftwareTitleNameForHostFilter confirms a software title's presence via a
+// live host/software join, instead of the software_titles_host_counts
+// aggregate SoftwareTitleByID relies on. It returns either the team's
+// display_name override or the title's name -- never both, the unused
+// return is always "". A nil teamID is scoped to every team tmFilter's
+// user can access (the same boundary whereFilterHostsByTeams applies
+// elsewhere), never to any team at all, so it can't disclose a title
+// outside that boundary; both branches return NotFound instead of
+// revealing which team(s) hold the title.
+func (ds *Datastore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (name, displayName string, err error) {
+	// "No team" hosts have hosts.team_id IS NULL, never a literal 0.
+	hostTeamFilter := "h.team_id IS NULL"
+	switch {
+	case teamID != nil && *teamID != 0:
+		hostTeamFilter = "h.team_id = ?"
+	case teamID == nil:
+		hostTeamFilter = ds.whereFilterHostsByTeams(tmFilter, "h")
+	}
+
+	// Display name is per-team; skip it entirely when no team is given.
+	displayNameJoinCond := "FALSE"
+	if teamID != nil {
+		displayNameJoinCond = "stdn.team_id = ?"
+	}
+
+	stmt := fmt.Sprintf(`
     SELECT
-	    name,
-		display_name
-	FROM software_titles
-		LEFT JOIN software_title_display_names ON software_titles.id = software_title_display_names.software_title_id
-   	WHERE software_titles.id = ?
-  `
+	    st.name,
+		stdn.display_name
+	FROM software_titles st
+		LEFT JOIN software_title_display_names stdn
+			ON stdn.software_title_id = st.id AND %s
+   	WHERE st.id = ?
+	AND EXISTS (
+		SELECT 1
+		FROM host_software hs
+		INNER JOIN software sw ON sw.id = hs.software_id
+		INNER JOIN hosts h ON h.id = hs.host_id
+		WHERE sw.title_id = st.id AND %s
+	)
+  `, displayNameJoinCond, hostTeamFilter)
+
+	var allArgs []any
+	if teamID != nil {
+		allArgs = append(allArgs, *teamID)
+	}
+	allArgs = append(allArgs, id)
+	if teamID != nil && *teamID != 0 {
+		allArgs = append(allArgs, *teamID)
+	}
+
 	var results struct {
 		Name        string  `db:"name"`
 		DisplayName *string `db:"display_name"`
 	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &results, stmt, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &results, stmt, allArgs...); err != nil {
 		if err == sql.ErrNoRows {
 			return "", "", notFound("SoftwareTitle").WithID(id)
 		}
@@ -554,7 +589,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 		}
 		if len(fmaTitleIDs) > 0 {
-			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID, false)
+			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID)
 			if err != nil {
 				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 			}
@@ -1095,9 +1130,9 @@ func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
 }
 
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
-// for the given title and team.
-func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
-	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID), byVersion)
+// for the given title and team, most recently downloaded first.
+func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID))
 	if err != nil {
 		return nil, err
 	}
@@ -1105,8 +1140,10 @@ func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, te
 }
 
 // getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
-// for the given title IDs and team, keyed by title ID.
-func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint, byVersion bool) (map[uint][]fleet.FleetMaintainedVersion, error) {
+// for the given title IDs and team, keyed by title ID, most recently downloaded first.
+// Fleet only caches what the manifest published and never rewrites a cached row's version,
+// so download order follows the manifest.
+func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint) (map[uint][]fleet.FleetMaintainedVersion, error) {
 	if len(titleIDs) == 0 {
 		return nil, nil
 	}
@@ -1115,7 +1152,7 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 		SELECT si.id, si.version, si.filename, si.title_id, si.uploaded_at
 			FROM software_installers si
 		WHERE si.title_id IN (?) AND si.global_or_team_id = ? AND si.fleet_maintained_app_id IS NOT NULL
-		ORDER BY si.title_id, si.uploaded_at DESC
+		ORDER BY si.title_id, si.uploaded_at DESC, si.id DESC
 	`
 
 	query, args, err := sqlx.In(query, titleIDs, teamID)
@@ -1138,36 +1175,31 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 		result[row.TitleID] = append(result[row.TitleID], row.FleetMaintainedVersion)
 	}
 
-	if byVersion {
-		// sort by semantic version
-		for id := range result {
-			slices.SortFunc(result[id], func(a fleet.FleetMaintainedVersion, b fleet.FleetMaintainedVersion) int {
-				aVersion, aErr := fleet.VersionToSemverVersion(a.Version)
-				bVersion, bErr := fleet.VersionToSemverVersion(b.Version)
-				if aErr != nil || bErr != nil {
-					return strings.Compare(b.Version, a.Version)
-				}
-				return bVersion.Compare(aVersion)
-			})
-		}
-	}
-
 	return result, nil
 }
 
-func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
-	var exists bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `
-		SELECT EXISTS(
-			SELECT 1 FROM software_installers
-				WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
-			LIMIT 1
-		)
-	`, ptr.ValOrZero(teamID), fmaID, version)
+func (ds *Datastore) MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE software_installers SET uploaded_at = NOW(6) WHERE id = ?`, installerID)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "check FMA installer version exists")
+		return ctxerr.Wrap(ctx, err, "marking fleet maintained app version current")
 	}
-	return exists, nil
+	return nil
+}
+
+func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error) {
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &storageID, `
+		SELECT storage_id FROM software_installers
+			WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
+		LIMIT 1
+	`, ptr.ValOrZero(teamID), fmaID, version)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, "", nil
+	}
+	if err != nil {
+		return false, "", ctxerr.Wrap(ctx, err, "get FMA installer version storage id")
+	}
+	return true, storageID, nil
 }
 
 func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
@@ -1185,7 +1217,8 @@ func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *
 			COALESCE(usc.contents, '') AS uninstall_script,
 			COALESCE(si.pre_install_query, '') AS pre_install_query,
 			si.upgrade_code,
-			si.patch_query
+			si.patch_query,
+			si.app_open_query
 		FROM software_installers si
 		LEFT JOIN script_contents isc ON isc.id = si.install_script_content_id
 		LEFT JOIN script_contents usc ON usc.id = si.uninstall_script_content_id

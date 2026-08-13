@@ -4,7 +4,8 @@
       "version": "1.12.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Julia %' AND publisher = 'Julia Language';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Julia %' AND publisher = 'Julia Language' AND version_compare(version, '1.12.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Julia %' AND publisher = 'Julia Language' AND version_compare(version, '1.12.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'julia.exe');"
       },
       "installer_url": "https://julialang-s3.julialang.org/bin/winnt/x64/1.12/julia-1.12.6-win64.exe",
       "install_script_ref": "8e29c74d",

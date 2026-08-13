@@ -1,0 +1,13 @@
+{
+  "name": "ReSharper",
+  "slug": "resharper/windows",
+  "package_identifier": "JetBrains.ReSharper",
+  "unique_identifier": "JetBrains ReSharper",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'JetBrains ReSharper%' AND name NOT LIKE 'JetBrains ReSharper C++%' AND name NOT LIKE 'JetBrains ReSharper SDK%' AND publisher = 'JetBrains s.r.o.';",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/resharper_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/resharper_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

@@ -289,4 +289,71 @@ describe("OS setting status cell", () => {
       });
     });
   });
+
+  describe("verified profiles with a detail", () => {
+    // A custom activation's predicate can exclude a host. Fleet delivered the
+    // profile correctly so the status is Verified, but the settings were not
+    // applied, and the generic tooltip claims the opposite.
+    it("shows the detail instead of the generic verified text", async () => {
+      const customRender = createCustomRenderer();
+
+      const detail =
+        'Fleet verified, but predicate ("ASSET-002" == "ASSET-001") evaluated to false and settings were not applied to this host.';
+      const profile = createMockHostMdmProfile({
+        name: "Passcode",
+        platform: "darwin",
+        operation_type: "install",
+        status: "verified",
+        detail,
+      });
+
+      const { user } = customRender(
+        <OSSettingStatusCell
+          profileName="Passcode"
+          status="verified"
+          operationType="install"
+          hostPlatform="darwin"
+          profile={profile}
+        />
+      );
+
+      await user.hover(screen.getByText("Verified"));
+
+      await waitFor(() => {
+        expect(screen.getByText(detail)).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText("The host applied the setting. Fleet verified.")
+      ).not.toBeInTheDocument();
+    });
+
+    it("keeps the generic verified tooltip when there is no detail", async () => {
+      const customRender = createCustomRenderer();
+
+      const profile = createMockHostMdmProfile({
+        name: "Passcode",
+        platform: "darwin",
+        operation_type: "install",
+        status: "verified",
+        detail: "",
+      });
+
+      const { user } = customRender(
+        <OSSettingStatusCell
+          profileName="Passcode"
+          status="verified"
+          operationType="install"
+          hostPlatform="darwin"
+          profile={profile}
+        />
+      );
+
+      await user.hover(screen.getByText("Verified"));
+      await waitFor(() => {
+        expect(
+          screen.getByText("The host applied the setting. Fleet verified.")
+        ).toBeInTheDocument();
+      });
+    });
+  });
 });

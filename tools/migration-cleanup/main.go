@@ -64,12 +64,14 @@ type sqlStatements struct {
 }
 
 type options struct {
-	checkout string
-	branch   string
-	output   string
-	dryRun   bool
-	apply    bool
-	verbose  bool
+	checkout    string
+	branch      string
+	sinceCommit string
+	commit      string
+	output      string
+	dryRun      bool
+	apply       bool
+	verbose     bool
 
 	dbHost     string
 	dbPort     int
@@ -120,6 +122,7 @@ func (e exitError) Error() string {
 	return e.message
 }
 
+// newRootCmd creates and configures the root cobra command with all flags.
 func newRootCmd(opts *options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "migration-cleanup",
@@ -130,6 +133,8 @@ func newRootCmd(opts *options) *cobra.Command {
 	cmd.PersistentFlags().String("config", "", "Path to a Fleet configuration file")
 	cmd.Flags().StringVarP(&opts.checkout, "checkout", "c", ".", "Path to fleetdm/fleet git checkout")
 	cmd.Flags().StringVarP(&opts.branch, "branch", "b", "", "Branch name")
+	cmd.Flags().StringVarP(&opts.sinceCommit, "since-commit", "", "", "Scan main from this commit forward (hash or short ref)")
+	cmd.Flags().StringVarP(&opts.commit, "commit", "", "", "Inspect a single commit for renames")
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "Write SQL to file instead of stdout")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Connect to MySQL, simulate the SQL, and verify the final state")
 	cmd.Flags().BoolVar(&opts.apply, "apply", false, "Execute SQL against the database in a transaction")
@@ -148,6 +153,8 @@ func newRootCmd(opts *options) *cobra.Command {
 	return cmd
 }
 
+// hideUnneededFleetConfigFlags hides Fleet config flags that are not relevant
+// to this tool, keeping only the MySQL-related flags visible.
 func hideUnneededFleetConfigFlags(cmd *cobra.Command) {
 	visibleMysqlFlags := map[string]struct{}{
 		"mysql_protocol":            {},
@@ -176,9 +183,11 @@ func hideUnneededFleetConfigFlags(cmd *cobra.Command) {
 	})
 }
 
+// run executes the migration cleanup workflow: validates options, scans git
+// history for migration renames, generates SQL, and optionally dry-runs or applies.
 func run(ctx context.Context, configManager configpkg.Manager, opts options) error {
-	if opts.branch == "" {
-		return exitError{code: exitGeneral, message: "ERROR: --branch is required"}
+	if countModeFlags(opts) != 1 {
+		return exitError{code: exitGeneral, message: "ERROR: exactly one of --branch, --since-commit, or --commit is required"}
 	}
 	if opts.dryRun && opts.apply {
 		return exitError{code: exitGeneral, message: "ERROR: --dry-run and --apply are mutually exclusive"}
@@ -205,43 +214,109 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 		return exitError{code: exitGeneral, message: err.Error()}
 	}
 
-	branch, err := resolveBranch(checkout, opts.branch)
-	if err != nil {
-		return exitError{code: exitGeneral, message: err.Error()}
-	}
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "Resolved branch: %s\n", branch)
-	}
-
-	mergeBase, err := getMergeBase(checkout, branch)
-	if err != nil {
-		return exitError{code: exitGeneral, message: err.Error()}
-	}
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "Merge base: %s\n", mergeBase)
-	}
-
-	commits, err := findRenameCommits(checkout, branch, mergeBase)
-	if err != nil {
-		return exitError{code: exitGeneral, message: err.Error()}
-	}
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "Rename commits found: %d\n", len(commits))
-	}
-
 	var renames []migrationRename
-	for _, sha := range commits {
-		rs, err := extractRenames(checkout, sha)
+	switch {
+	case opts.branch != "":
+		branch, err := resolveBranch(checkout, opts.branch)
 		if err != nil {
 			return exitError{code: exitGeneral, message: err.Error()}
 		}
 		if opts.verbose {
-			fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(sha), len(rs))
+			fmt.Fprintf(os.Stderr, "Resolved branch: %s\n", branch)
+		}
+
+		mergeBase, err := getMergeBase(checkout, branch)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Merge base: %s\n", mergeBase)
+		}
+
+		commits, err := findRenameCommits(checkout, branch, mergeBase)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Rename commits found: %d\n", len(commits))
+		}
+
+		for _, sha := range commits {
+			rs, err := extractRenames(checkout, sha)
+			if err != nil {
+				return exitError{code: exitGeneral, message: err.Error()}
+			}
+			if opts.verbose {
+				fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(sha), len(rs))
+			}
+			renames = append(renames, rs...)
+		}
+
+	case opts.sinceCommit != "":
+		resolvedSHA, err := resolveRef(checkout, opts.sinceCommit)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Resolved since-commit: %s\n", resolvedSHA)
+		}
+
+		mainRef, err := resolveMainRef(checkout)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+
+		if !isAncestor(checkout, resolvedSHA, mainRef) {
+			return exitError{code: exitGeneral, message: fmt.Sprintf("ERROR: %q is not an ancestor of %s", opts.sinceCommit, mainRef)}
+		}
+
+		// Include resolvedSHA itself in the scan, then scan descendants.
+		rs, err := extractRenames(checkout, resolvedSHA)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(resolvedSHA), len(rs))
 		}
 		renames = append(renames, rs...)
+
+		commits, err := findRenameCommits(checkout, mainRef, resolvedSHA)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Rename commits found: %d\n", len(commits))
+		}
+
+		for _, sha := range commits {
+			rs, err := extractRenames(checkout, sha)
+			if err != nil {
+				return exitError{code: exitGeneral, message: err.Error()}
+			}
+			if opts.verbose {
+				fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(sha), len(rs))
+			}
+			renames = append(renames, rs...)
+		}
+
+	case opts.commit != "":
+		resolvedSHA, err := resolveRef(checkout, opts.commit)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Resolved commit: %s\n", resolvedSHA)
+		}
+
+		rs, err := extractRenames(checkout, resolvedSHA)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		renames = rs
 	}
+
 	if len(renames) == 0 {
-		fmt.Println("No migration renumbering detected on this branch.")
+		fmt.Println("No migration renumbering detected in the selected scope.")
 		return nil
 	}
 	renames = dedupeRenames(renames)
@@ -315,6 +390,7 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 	return nil
 }
 
+// validateTLSFlags checks that --tls-mode is a valid value.
 func validateTLSFlags(opts options) error {
 	switch opts.tlsMode {
 	case "", "skip-verify", "verify-ca", "verify-identity":
@@ -324,6 +400,8 @@ func validateTLSFlags(opts options) error {
 	return nil
 }
 
+// validateEffectiveTLSConfig validates the combined TLS configuration
+// after merging CLI flags and Fleet config.
 func validateEffectiveTLSConfig(conf configpkg.MysqlConfig, tlsMode string) error {
 	if tlsMode == "verify-ca" || tlsMode == "verify-identity" {
 		if conf.TLSCA == "" {
@@ -336,6 +414,7 @@ func validateEffectiveTLSConfig(conf configpkg.MysqlConfig, tlsMode string) erro
 	return nil
 }
 
+// git runs a git command in the given checkout directory and returns stdout.
 func git(checkout string, args ...string) (string, error) {
 	cmd := exec.Command("git", append([]string{"-C", checkout}, args...)...)
 	out, err := cmd.Output()
@@ -349,6 +428,50 @@ func git(checkout string, args ...string) (string, error) {
 	return string(out), nil
 }
 
+// countModeFlags returns the number of scan-mode flags set in opts.
+// Exactly one must be set; zero or more than one is an error.
+func countModeFlags(opts options) int {
+	n := 0
+	if opts.branch != "" {
+		n++
+	}
+	if opts.sinceCommit != "" {
+		n++
+	}
+	if opts.commit != "" {
+		n++
+	}
+	return n
+}
+
+// resolveRef resolves a git ref to a full commit SHA, peeling annotated tags.
+func resolveRef(checkout, ref string) (string, error) {
+	out, err := git(checkout, "rev-parse", "--verify", ref+"^{commit}")
+	if err != nil {
+		return "", fmt.Errorf("cannot resolve ref %q: %w", ref, err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// resolveMainRef returns the best available ref for the main branch,
+// preferring origin/main (freshly fetched) over local main.
+func resolveMainRef(checkout string) (string, error) {
+	for _, candidate := range []string{"origin/main", "main"} {
+		_, err := git(checkout, "rev-parse", "--verify", candidate)
+		if err == nil {
+			return candidate, nil
+		}
+	}
+	return "", errors.New("cannot resolve main ref (neither origin/main nor main exists)")
+}
+
+// isAncestor reports whether ancestor is an ancestor of descendant.
+func isAncestor(checkout, ancestor, descendant string) bool {
+	_, err := git(checkout, "merge-base", "--is-ancestor", ancestor, descendant)
+	return err == nil
+}
+
+// resolveBranch resolves a branch name, trying local then origin/<branch>.
 func resolveBranch(checkout, branch string) (string, error) {
 	candidates := []string{branch, "origin/" + branch}
 	var lastErr error
@@ -367,11 +490,14 @@ func resolveBranch(checkout, branch string) (string, error) {
 	return "", fmt.Errorf("ERROR: cannot resolve branch %q", branch)
 }
 
+// getMergeBase returns the merge base between main and the given branch.
 func getMergeBase(checkout, branch string) (string, error) {
 	out, err := git(checkout, "merge-base", "main", branch)
 	return strings.TrimSpace(out), err
 }
 
+// findRenameCommits returns commit SHAs in mergeBase..branch that contain
+// renames in the migration directories.
 func findRenameCommits(checkout, branch, mergeBase string) ([]string, error) {
 	args := []string{"log", "-M", "--diff-filter=R", "--format=%H", mergeBase + ".." + branch, "--"}
 	args = append(args, migrationDirs...)
@@ -386,6 +512,8 @@ func findRenameCommits(checkout, branch, mergeBase string) ([]string, error) {
 	return strings.Split(out, "\n"), nil
 }
 
+// extractRenames parses a single commit for migration file renames and returns
+// the detected version ID changes.
 func extractRenames(checkout, commitSHA string) ([]migrationRename, error) {
 	out, err := git(checkout, "diff-tree", "-M", "-r", "--diff-filter=R", "--name-status", "--no-commit-id", commitSHA)
 	if err != nil {
@@ -438,6 +566,7 @@ func extractRenames(checkout, commitSHA string) ([]migrationRename, error) {
 	return renames, nil
 }
 
+// shortSHA returns the first 12 characters of a SHA, or the full string if shorter.
 func shortSHA(sha string) string {
 	if len(sha) < 12 {
 		return sha
@@ -445,6 +574,7 @@ func shortSHA(sha string) string {
 	return sha[:12]
 }
 
+// dedupeRenames removes duplicate renames based on migration type and version IDs.
 func dedupeRenames(renames []migrationRename) []migrationRename {
 	seen := map[string]struct{}{}
 	unique := make([]migrationRename, 0, len(renames))
@@ -459,6 +589,8 @@ func dedupeRenames(renames []migrationRename) []migrationRename {
 	return unique
 }
 
+// generateStatementGroups groups renames by migration type and generates
+// SQL statements for each table.
 func generateStatementGroups(renames []migrationRename) map[string][]string {
 	groups := map[string][]string{}
 	for _, item := range []struct {
@@ -483,6 +615,7 @@ func generateStatementGroups(renames []migrationRename) map[string][]string {
 	return groups
 }
 
+// computeSQLForTable builds the version ID remapping statements for a table.
 func computeSQLForTable(tableName string, renames []migrationRename) sqlStatements {
 	stmts := sqlStatements{tableName: tableName}
 	for _, r := range renames {
@@ -491,6 +624,8 @@ func computeSQLForTable(tableName string, renames []migrationRename) sqlStatemen
 	return stmts
 }
 
+// buildSQL generates the full SQL for a table: version remaps, dedup cleanup,
+// and ID shifts to maintain ordering.
 func buildSQL(tableName string, stmts sqlStatements, renames []migrationRename) []string {
 	lines := make([]string, 0)
 	for _, pair := range stmts.versionIDRemappings {
@@ -529,13 +664,17 @@ func buildSQL(tableName string, stmts sqlStatements, renames []migrationRename) 
 
 	lines = append(lines, fmt.Sprintf("SELECT (SELECT MAX(id) FROM `%s` WHERE id > (SELECT id FROM `%s` WHERE version_id = %d)) - (SELECT id FROM `%s` WHERE version_id = %d) + 1 INTO @%s;", tableName, tableName, maxNewVID, tableName, minNewVID, varName))
 
+	targetIDVar := "target_id_" + tableName
 	var whereClause string
 	if movesUp {
 		whereClause = fmt.Sprintf("WHERE version_id BETWEEN %d AND %d", minNewVID, maxNewVID)
 		lines = append(lines, fmt.Sprintf("SELECT %d INTO @%s;", maxNewVID, maxMovedVar))
 	} else {
-		whereClause = fmt.Sprintf("WHERE id < (SELECT id FROM `%s` WHERE version_id = %d) AND version_id > %d", tableName, minNewVID, maxNewVID)
-		lines = append(lines, fmt.Sprintf("SELECT MAX(version_id) INTO @%s FROM `%s` %s ;", maxMovedVar, tableName, whereClause))
+		// Extract the target row's id into a variable first so we don't reference
+		// the same table in a subquery inside an UPDATE (MySQL doesn't allow that).
+		lines = append(lines, fmt.Sprintf("SELECT id INTO @%s FROM `%s` WHERE version_id = %d;", targetIDVar, tableName, minNewVID))
+		whereClause = fmt.Sprintf("WHERE id < @%s AND version_id > %d", targetIDVar, maxNewVID)
+		lines = append(lines, fmt.Sprintf("SELECT MAX(version_id) INTO @%s FROM `%s` %s;", maxMovedVar, tableName, whereClause))
 	}
 
 	lines = append(lines,
@@ -545,6 +684,7 @@ func buildSQL(tableName string, stmts sqlStatements, renames []migrationRename) 
 	return lines
 }
 
+// renderSQL formats statement groups into a complete SQL transaction.
 func renderSQL(groups map[string][]string) string {
 	if len(groups) == 0 {
 		return "-- No changes needed.\n"
@@ -567,6 +707,7 @@ func renderSQL(groups map[string][]string) string {
 	return b.String()
 }
 
+// queryTableRows fetches all rows from a migration status table.
 func queryTableRows(ctx context.Context, db *sqlx.DB, tableName string) ([]tableRow, error) {
 	var rows []tableRow
 	if err := sqlx.SelectContext(ctx, db, &rows, fmt.Sprintf("SELECT id, version_id, is_applied FROM `%s` ORDER BY id", tableName)); err != nil {
@@ -575,6 +716,8 @@ func queryTableRows(ctx context.Context, db *sqlx.DB, tableName string) ([]table
 	return rows, nil
 }
 
+// verifyDryRun simulates the generated SQL against real table data and reports
+// whether the final state would be valid.
 func verifyDryRun(renames []migrationRename, tableRows, dataRows []tableRow) (bool, []string) {
 	var issues []string
 	var messages []string
@@ -605,6 +748,8 @@ func verifyDryRun(renames []migrationRename, tableRows, dataRows []tableRow) (bo
 	return len(issues) == 0, append(messages, issues...)
 }
 
+// simulateTableSQL applies version remaps, dedup removal, and ID shifts to a
+// copy of the table rows, returning the simulated result plus messages and issues.
 func simulateTableSQL(tableName string, rows []tableRow, renames []migrationRename) ([]tableRow, []string, []string) {
 	var messages []string
 	var issues []string
@@ -738,6 +883,7 @@ func simulateTableSQL(tableName string, rows []tableRow, renames []migrationRena
 	return shifted, messages, issues
 }
 
+// rowsForVID returns all rows matching the given version ID.
 func rowsForVID(rows []tableRow, vid int64) []tableRow {
 	var out []tableRow
 	for _, row := range rows {
@@ -748,6 +894,7 @@ func rowsForVID(rows []tableRow, vid int64) []tableRow {
 	return out
 }
 
+// maxInt64 returns the maximum value from a slice of int64.
 func maxInt64(values []int64) int64 {
 	maxVal := values[0]
 	for _, val := range values[1:] {
@@ -758,6 +905,8 @@ func maxInt64(values []int64) int64 {
 	return maxVal
 }
 
+// shiftRows returns a copy of rows with IDs shifted by offset for rows whose
+// ID is in the given set.
 func shiftRows(rows []tableRow, ids map[int64]struct{}, offset int64) []tableRow {
 	shifted := make([]tableRow, 0, len(rows))
 	for _, row := range rows {
@@ -770,6 +919,8 @@ func shiftRows(rows []tableRow, ids map[int64]struct{}, offset int64) []tableRow
 	return shifted
 }
 
+// validateFinalTableState checks the simulated table for duplicate IDs,
+// duplicate applied version IDs, and ordering violations.
 func validateFinalTableState(tableName string, rows []tableRow) []string {
 	var issues []string
 	ids := map[int64][]int64{}
@@ -807,6 +958,8 @@ func validateFinalTableState(tableName string, rows []tableRow) []string {
 	return issues
 }
 
+// writerConfig merges CLI database options with Fleet config to produce
+// the effective MySQL configuration.
 func writerConfig(conf configpkg.MysqlConfig, opts options) (*configpkg.MysqlConfig, error) {
 	if opts.dbHost != "" {
 		conf.Address = fmt.Sprintf("%s:%d", opts.dbHost, opts.dbPort)
@@ -847,6 +1000,7 @@ func writerConfig(conf configpkg.MysqlConfig, opts options) (*configpkg.MysqlCon
 	return &conf, nil
 }
 
+// promptPassword reads a password from stdin, using secure terminal read if available.
 func promptPassword() (string, error) {
 	fmt.Fprint(os.Stderr, "MySQL password: ")
 	if term.IsTerminal(int(os.Stdin.Fd())) {
@@ -859,6 +1013,7 @@ func promptPassword() (string, error) {
 	return strings.TrimSpace(pass), err
 }
 
+// openWriterDB opens a connection to the MySQL database using the given config.
 func openWriterDB(conf *configpkg.MysqlConfig) (*sqlx.DB, error) {
 	if conf.PasswordPath != "" && conf.Password != "" {
 		return nil, errors.New("a MySQL password and password file were provided; specify only one")
@@ -912,6 +1067,7 @@ func openWriterDB(conf *configpkg.MysqlConfig) (*sqlx.DB, error) {
 	}, "mysql")
 }
 
+// applyStatements executes all SQL statements in a transaction.
 func applyStatements(ctx context.Context, db *sqlx.DB, groups map[string][]string) error {
 	var statements []string
 	for _, tableName := range []string{tableStatusName, dataStatusName} {
@@ -927,6 +1083,7 @@ func applyStatements(ctx context.Context, db *sqlx.DB, groups map[string][]strin
 	}, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 }
 
+// writeOutput writes SQL to stdout or to a file if outputPath is set.
 func writeOutput(sqlText, outputPath string) error {
 	if outputPath == "" {
 		fmt.Print(sqlText)

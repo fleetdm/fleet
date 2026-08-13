@@ -411,14 +411,16 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 				continue
 			}
 
+			target := strings.TrimSpace(*cmd.Target)
+
 			dataContent := ""
 			if cmd.Data != nil {
 				dataContent = cmd.Data.Content
 			}
 
-			isChallenge := strings.HasSuffix(*cmd.Target, "/Install/Challenge")
-			isServerURL := strings.HasSuffix(*cmd.Target, "/Install/ServerURL")
-			isSubjectName := strings.HasSuffix(*cmd.Target, "/Install/SubjectName")
+			isChallenge := strings.HasSuffix(target, "/Install/Challenge")
+			isServerURL := strings.HasSuffix(target, "/Install/ServerURL")
+			isSubjectName := strings.HasSuffix(target, "/Install/SubjectName")
 
 			// Verify that each NDES variable appears ONLY in its expected field.
 			// This prevents the one-time challenge or proxy URL from being placed in an unexpected field
@@ -437,8 +439,8 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 			}
 
 			// Variables must not appear in LocURI target paths.
-			if containsFleetVar(*cmd.Target, fleet.FleetVarNDESSCEPChallenge) ||
-				containsFleetVar(*cmd.Target, fleet.FleetVarNDESSCEPProxyURL) {
+			if containsFleetVar(target, fleet.FleetVarNDESSCEPChallenge) ||
+				containsFleetVar(target, fleet.FleetVarNDESSCEPProxyURL) {
 				return &fleet.BadRequestError{
 					Message: "NDES Fleet variables must not appear in LocURI target paths.",
 				}
@@ -491,7 +493,9 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 				continue
 			}
 
-			if strings.HasSuffix(*cmd.Target, "/Install/SubjectName") {
+			target := strings.TrimSpace(*cmd.Target)
+
+			if strings.HasSuffix(target, "/Install/SubjectName") {
 				// SubjectName item found, check that it contains the expected renewal ID variable
 				if cmd.Data == nil {
 					return errors.New("SubjectName item is missing data")

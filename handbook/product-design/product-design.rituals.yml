@@ -2,7 +2,7 @@
   task: "🦢📊 Product design review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07"
   frequency: "Triweekly"
-  description: "1. For all stories, targeted for the next release cycle, that are not estimated, update their milestone. 2. For stories that we're no longer working on, remove them from the drafting board, remove them from the release planning board, and notify stakeholders. 3. Prepare the '🎁 Feature fest' board." 
+  description: "1. Clean up the '🦢 Drafting' board to only include stories we're working on and update milestones if necessary. 2. Prepare the '🎁 Feature fest' board." 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
@@ -30,7 +30,7 @@
   task: "🦢📨 Unpacking the 'why'"
   startedOn: "2024-09-30" 
   frequency: "Daily" 
-  description: "Break down the 'why' for new customer requests in the 'Inbox' column on the drafting board." 
+  description: "Break down the 'why' for new customer requests in the 'Inbox'." 
   moreInfoUrl: "https://fleetdm.com/handbook/product-design#unpacking-the-why" 
   dri: "noahtalerman"
 -

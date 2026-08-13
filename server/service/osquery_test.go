@@ -21,6 +21,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -1239,6 +1240,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "orbit_info":                              {},
 		hostDetailQueryPrefix + "software_vscode_extensions":              {},
 		hostDetailQueryPrefix + "software_jetbrains_plugins":              {},
+		hostDetailQueryPrefix + "software_adobe_plugins":                  {},
 		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
 		hostDetailQueryPrefix + "software_go_binaries":                    {},
 		hostDetailQueryPrefix + "software_python_packages":                {},
@@ -1252,6 +1254,8 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "disk_space_darwin":                       {},
 		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
 		hostDetailQueryPrefix + "certificates_windows":                    {},
+		hostDetailQueryPrefix + "tpm_pin_config_verify":                   {},
+		hostDetailQueryPrefix + "tpm_pin_set_verify":                      {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1363,6 +1367,69 @@ func TestHostDetailQueries(t *testing.T) {
 		assert.Contains(t, queries, hostDetailQueryPrefix+name)
 	}
 	verifyDiscovery(t, queries, discovery)
+}
+
+// TestHostDetailQueriesTeamBitLockerPIN is a regression test for #50729: the scheduler must honor team-level disk encryption /
+// BitLocker PIN settings even when Apple MDM is not configured, and must not fall back to the global settings for hosts that
+// belong to a team.
+func TestHostDetailQueriesTeamBitLockerPIN(t *testing.T) {
+	pinQueryNames := []string{
+		hostDetailQueryPrefix + "tpm_pin_config_verify",
+		hostDetailQueryPrefix + "tpm_pin_set_verify",
+	}
+
+	globalRequiresPIN := false
+	teamMDMConfig := fleet.TeamMDM{EnableDiskEncryption: true, RequireBitLockerPIN: true}
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appConfig := &fleet.AppConfig{}
+		appConfig.MDM.WindowsEnabledAndConfigured = true // Apple MDM stays unconfigured
+		if globalRequiresPIN {
+			appConfig.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			appConfig.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+		}
+		return appConfig, nil
+	}
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		return &teamMDMConfig, nil
+	}
+
+	host := fleet.Host{
+		ID:               1,
+		Platform:         "windows",
+		TeamID:           new(uint(7)),
+		NodeKey:          new("test_key"),
+		Hostname:         "test_hostname",
+		UUID:             "test_uuid",
+		RefetchRequested: true,
+	}
+	svc := &Service{
+		clock:    clock.NewMockClock(),
+		logger:   slog.New(slog.DiscardHandler),
+		config:   config.TestConfig(),
+		ds:       ds,
+		jitterMu: new(sync.RWMutex),
+		jitterH:  make(map[time.Duration]*jitterHashTable),
+	}
+
+	// The team requiring a PIN must schedule the PIN queries even though the global config does not.
+	queries, discovery, err := svc.detailQueriesForHost(t.Context(), &host)
+	require.NoError(t, err)
+	require.True(t, ds.TeamMDMConfigFuncInvoked)
+	verifyDiscovery(t, queries, discovery)
+	for _, queryName := range pinQueryNames {
+		assert.Contains(t, queries, queryName)
+	}
+
+	// The reverse: the global config requiring a PIN must not leak to a host whose team does not.
+	globalRequiresPIN = true
+	teamMDMConfig = fleet.TeamMDM{EnableDiskEncryption: true}
+	queries, _, err = svc.detailQueriesForHost(t.Context(), &host)
+	require.NoError(t, err)
+	for _, queryName := range pinQueryNames {
+		assert.NotContains(t, queries, queryName)
+	}
 }
 
 func TestQueriesAndHostFeatures(t *testing.T) {
@@ -4212,6 +4279,28 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"last_opened_at":    "",
 		"installed_path":    "/some/zoobar/path",
 	}
+	artisanAdobePlugin := map[string]string{
+		"name":              "Artisan Pro X",
+		"version":           "1.3.3",
+		"bundle_identifier": "",
+		"extension_id":      "com.vendorx.artisanprox",
+		"extension_for":     "",
+		"source":            "adobe_plugins",
+		"vendor":            "VendorX",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/CEP/extensions/com.vendorx.artisanprox",
+	}
+	colorizerAdobePlugin := map[string]string{
+		"name":              "Colorizer",
+		"version":           "2.0.1",
+		"bundle_identifier": "",
+		"extension_id":      "com.vendory.colorizer",
+		"extension_for":     "",
+		"source":            "adobe_plugins",
+		"vendor":            "VendorY",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/UXP/extensions/com.vendory.colorizer",
+	}
 	someRow := map[string]string{
 		"1": "1",
 	}
@@ -4345,6 +4434,79 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					zoobarApp,
 					foobarVSCodeExtension,
 					zoobarVSCodeExtension,
+				},
+			},
+		},
+		{
+			name: "software query works and there are adobe plugins in extra",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_adobe_plugins": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_adobe_plugins": []map[string]string{
+					artisanAdobePlugin,
+					colorizerAdobePlugin,
+				},
+			},
+
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					artisanAdobePlugin,
+					colorizerAdobePlugin,
+				},
+			},
+		},
+		{
+			name: "windows software query works and there are adobe plugins in extra",
+			host: &fleet.Host{ID: 1, Platform: "windows"},
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_windows":       fleet.StatusOK,
+				hostDetailQueryPrefix + "software_adobe_plugins": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_adobe_plugins": []map[string]string{
+					artisanAdobePlugin,
+				},
+			},
+
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					foobarApp,
+					artisanAdobePlugin,
+				},
+			},
+		},
+		{
+			// A host without the adobe_plugins table doesn't run the query at all
+			// (discovery filters it out), so it reports no status — that path is covered
+			// by the "status and results are not returned" case below. Here the query ran
+			// and failed, which must leave the main software results untouched.
+			name: "software query works, but the adobe_plugins query fails",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_adobe_plugins": fleet.OsqueryStatus(1),
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_adobe_plugins": []map[string]string{},
+			},
+
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
 				},
 			},
 		},
@@ -4775,6 +4937,17 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 	}
 }
 
+func TestDetailQueriesAdobePlugins(t *testing.T) {
+	// Adobe Creative Cloud only runs on macOS and Windows, so the query must not be
+	// sent anywhere else.
+	for _, platform := range []string{"darwin", "windows"} {
+		require.Contains(t, expectedDetailQueriesForPlatform(platform), "software_adobe_plugins")
+	}
+	for _, platform := range append(fleet.HostLinuxOSs, "chrome") {
+		require.NotContains(t, expectedDetailQueriesForPlatform(platform), "software_adobe_plugins")
+	}
+}
+
 func TestDetailQueriesLinuxDistros(t *testing.T) {
 	for _, linuxPlatform := range fleet.HostLinuxOSs {
 		m := expectedDetailQueriesForPlatform(linuxPlatform)
@@ -5095,6 +5268,9 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 	ds.MapAdamIDsPendingInstallFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
 		return map[string]struct{}{}, nil
 	}
+	ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
 	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: platform}}}, nil
 	}
@@ -5142,6 +5318,139 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 	setRecentlyVerified(true)
 	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", failing, map[uint]struct{}{policyID: {}}))
 	require.True(t, installCalled, "newly-failing VPP install should fire regardless of cooldown")
+}
+
+// TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls verifies that a policy automation does
+// not queue another install of an app that already has one in the host's upcoming activity queue.
+// MapAdamIDsPendingInstall only matches install commands that haven't been delivered yet, so on a
+// host whose queue is not draining it reports nothing and the automation re-fires on every run.
+func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		policyID = uint(1)
+		hostID   = uint(42)
+		adamID   = "adam-vpp-1"
+	)
+
+	continuousAutomations := true
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		return []fleet.PolicyVPPData{{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: continuousAutomations}}, nil
+	}
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, Platform: "darwin"}, nil
+	}
+	// A stuck queue leaves the command delivered and acknowledged, so neither of the existing
+	// lookups reports the app.
+	ds.MapAdamIDsPendingInstallFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
+	ds.MapAdamIDsRecentlyVerifiedInstallsFunc = func(ctx context.Context, hostID uint, seconds int) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
+	installQueued := true
+	ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+		if installQueued {
+			return map[string]struct{}{adamID: {}}, nil
+		}
+		return map[string]struct{}{}, nil
+	}
+	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: platform}}}, nil
+	}
+	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	var (
+		installs         []string
+		installPolicyIDs []uint
+	)
+	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+			return "vpp-token", nil
+		},
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+			installs = append(installs, vppApp.AdamID)
+			if opts.PolicyID != nil {
+				installPolicyIDs = append(installPolicyIDs, *opts.PolicyID)
+			}
+			return "command-uuid", nil
+		},
+	})
+
+	noNewlyFailing := map[uint]struct{}{}
+	newlyFailing := map[uint]struct{}{policyID: {}}
+	// A fresh map per case, because the out-of-scope branch writes nil into it and sharing one would
+	// carry that between cases.
+	newFailingMap := func() map[uint]*bool { return map[uint]*bool{policyID: new(false)} }
+
+	// Continuous re-fire with an install already queued for the app => skipped.
+	installs = nil
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", newFailingMap(), noNewlyFailing))
+	require.Empty(t, installs, "continuous VPP install should be skipped while one is queued for the app")
+
+	// A pass→fail transition is filtered too, matching processSoftwareForNewlyFailingPolicies, whose
+	// pending-install check has no such exemption. An exemption here would re-queue on every
+	// membership flap, since flipping() counts a missing prior row as newly failing.
+	installs = nil
+	continuousAutomations = false
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", newFailingMap(), newlyFailing))
+	require.Empty(t, installs, "a newly-failing policy is filtered by a queued install, as on the installer path")
+
+	// Queue drained => fires. Without this the filter could never release and the first case would
+	// pass against a filter that blocks forever.
+	installs = nil
+	continuousAutomations = true
+	installQueued = false
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", newFailingMap(), noNewlyFailing))
+	require.Equal(t, []string{adamID}, installs, "VPP install should fire once the queued install has drained")
+
+	// The lookups are read once before the loop, so one install here is only possible if the run
+	// tracks what it has queued.
+	const secondPolicyID = uint(2)
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		// Highest id first, since the query has no ORDER BY, so only the sort decides which one wins.
+		return []fleet.PolicyVPPData{
+			{ID: secondPolicyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: true},
+			{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: true},
+		}, nil
+	}
+	installs = nil
+	installPolicyIDs = nil
+	twoFailing := map[uint]*bool{policyID: new(false), secondPolicyID: new(false)}
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", twoFailing, noNewlyFailing))
+	require.Equal(t, []string{adamID}, installs, "two policies on one app must not each queue an install")
+	require.Equal(t, []uint{policyID}, installPolicyIDs, "the policy credited with the install must not depend on row order")
+
+	// An app can be added for several platforms and the query filters on neither the app's platform
+	// nor the host's, so the iOS build of an app can reach a macOS host.
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		return []fleet.PolicyVPPData{
+			{ID: policyID, AdamID: adamID, Platform: fleet.IOSPlatform, ContinuousAutomationsEnabled: true},
+		}, nil
+	}
+	installs = nil
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", newFailingMap(), noNewlyFailing))
+	require.Empty(t, installs, "an iOS app must not be installed on a macOS host")
+
+	// An app out of scope for the host installs nothing, and the policy result is cleared so the host
+	// does not show it failing for something it cannot remediate.
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		return []fleet.PolicyVPPData{
+			{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: true},
+		}, nil
+	}
+	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
+		return false, nil
+	}
+	installs = nil
+	outOfScope := newFailingMap()
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", outOfScope, noNewlyFailing))
+	require.Empty(t, installs, "an out-of-scope app must not be installed")
+	require.Nil(t, outOfScope[policyID], "an out-of-scope app must clear the policy result")
 }
 
 // TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience verifies that a failing install-software policy does

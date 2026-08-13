@@ -3,8 +3,6 @@ import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
-import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
-
 import CustomSCEPForm, { ICustomSCEPFormData } from "./CustomSCEPForm";
 
 const createTestFormData = (overrides?: Partial<ICustomSCEPFormData>) => ({
@@ -97,32 +95,16 @@ describe("CustomSCEPForm", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
   });
 
-  it("rejects a challenge with non-printable characters", () => {
-    render(
-      <CustomSCEPForm
-        formData={createTestFormData({ challenge: "bad_challenge" })}
-        isSubmitting={false}
-        submitBtnText="Submit"
-        isDirty
-        onChange={noop}
-        onSubmit={noop}
-        onCancel={noop}
-      />
-    );
-
-    expect(screen.getByText(/Invalid characters/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
-  });
-
-  it("does not block an unchanged (masked) challenge when editing", () => {
+  it("accepts a challenge with non-PrintableString characters", () => {
+    // Regression test for the reverted PrintableString challenge validation (#49756): characters
+    // such as "_" and "@" must not block submission.
     render(
       <CustomSCEPForm
         formData={createTestFormData({
-          challenge: UNCHANGED_PASSWORD_API_RESPONSE,
+          challenge: "base64url_style@challenge",
         })}
         isSubmitting={false}
         submitBtnText="Submit"
-        isEditing
         isDirty
         onChange={noop}
         onSubmit={noop}

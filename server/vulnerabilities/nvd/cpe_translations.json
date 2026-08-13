@@ -711,6 +711,16 @@
   },
   {
     "software": {
+      "bundle_identifier": ["org.mozilla.firefoxdeveloperedition"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["firefox"],
+      "vendor": ["mozilla"]
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["com.logi.bolt.app"],
       "source": ["apps"]
     },

@@ -1,10 +1,8 @@
 # Use custom host vitals in scripts and configuration profiles
 
-Custom host vitals let you define your own host fields, set a value for each host, and reference those values as variables (prefixed with `$FLEET_HOST_VITAL_`) in [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings).
+Custom host vitals let you define your own host fields, set a value for each host, and reference those values as variables (prefixed with `$FLEET_HOST_VITAL_`) in [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings). You can also use a custom host vital's value to target hosts with a [Host vitals label](https://fleetdm.com/guides/managing-labels-in-fleet).
 
-Unlike [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`), which hold a single value shared across all hosts, a custom host vital can hold a **different value per host**. For example, an "Asset tag" vital can resolve to a different asset tag on every device. Custom host vital values are **not** hidden in the UI or API — don't use them for secrets.
-
-Support for custom host vitals in [Android configuration profiles](https://github.com/fleetdm/fleet/issues/49421) and [host name templates](https://github.com/fleetdm/fleet/issues/49489) is coming in Fleet 4.91.
+Unlike [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`), which hold a single value shared across all hosts, a custom host vital can hold a different value per host. For example, an "Asset tag" vital can resolve to a different asset tag on every device. Support for custom host vitals in [Android configuration profiles](https://github.com/fleetdm/fleet/issues/49421) and [host name templates](https://github.com/fleetdm/fleet/issues/49489) is coming in Fleet 4.91.
 
 ## Prerequisites
 
@@ -15,11 +13,13 @@ Support for custom host vitals in [Android configuration profiles](https://githu
 
 Each custom host vital has a unique name and is referenced by a variable in the format `$FLEET_HOST_VITAL_<id>` (or `${FLEET_HOST_VITAL_<id>}`), where `<id>` is the vital's ID. You can copy the exact variable from the **Variable** column of the Custom host vitals table.
 
-Custom host vitals are global, meaning they can be used in scripts and profiles across all fleets.
+Custom host vitals are global: you can reference them in scripts and profiles, or use them as label criteria, across all fleets.
+
+> **Warning:** Custom host vital values are not masked in the Fleet UI, API, or script results. Use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) for secrets.
 
 ### UI
 
-To add a custom host vital, go to **Controls > Variables > Custom host vitals** and click **Add vital**. Give it a name — this becomes the vital's label on the host details page:
+To add a custom host vital, go to **Controls > Variables > Custom host vitals** and click **Add vital**. Give it a name. This becomes the vital's label on the host details page:
 
 ![Add a custom host vital](../website/assets/images/articles/custom-host-vitals-tab-add-vital-modal-1509x716@2x.png)
 
@@ -35,10 +35,12 @@ Custom host vitals are global and are specified inline in your `default.yml` fil
 custom_host_vitals:
   - name: Asset tag
   - name: Function
-  - name: Jamf device ID
+  - name: ITAM device ID
 ```
 
-Custom host vitals removed from `default.yml` are deleted on the next GitOps run. A run fails if you try to delete a vital that's still referenced by a script or profile — remove the reference first (see [Known limitations and issues](#known-limitations-and-issues)).
+Custom host vitals removed from `default.yml` are deleted on the next GitOps run.
+
+> **Warning:** A custom host vital can't be deleted while it's referenced by a script, configuration profile, or Host vitals label. Edit or delete the reference first, then delete the vital (or remove it from `default.yml`).
 
 ## Set a host's value
 
@@ -71,7 +73,7 @@ curl -X PUT https://<your-fleet-url>/api/v1/fleet/hosts/<host_id>/custom_host_vi
   -d '{"value": "C02XL0Zerato"}'
 ```
 
-## Using a custom host vital in scripts and configuration profiles
+## Reference a custom host vital in scripts and configuration profiles
 
 Reference the vital by its variable anywhere in a script or configuration profile. When Fleet sends the script or profile to a host, it replaces `$FLEET_HOST_VITAL_<id>` with that host's value.
 
@@ -82,14 +84,40 @@ For example, a configuration profile that writes the host's asset tag (defined a
 <string>$FLEET_HOST_VITAL_1</string>
 ```
 
+> **Note:** Referencing a `$FLEET_HOST_VITAL_<id>` that doesn't exist (for example, a typo like `$FLEET_HOST_VITAL_asset_tag`) is rejected when the script or profile is added.
+
+> **Note:** Custom host vitals can't be used in certificate authority (SCEP/ACME/DigiCert) payloads. Those fields accept [built-in variables](https://fleetdm.com/guides/fleet-variables) only.
+
 When a host's value changes, Fleet automatically resends the Apple (macOS, iOS, iPadOS) and Windows configuration profiles that reference the vital, so each device receives its updated value.
 
-## Known limitations and issues
+## Filter hosts by a custom host vital
 
-- Custom host vital values are **not** masked in the Fleet UI, API, or script results. Use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) for secrets.
-- A custom host vital **can't be deleted while it's referenced** by a script or configuration profile. Edit or delete the referencing script/profile first, then delete the vital.
-- Referencing a `$FLEET_HOST_VITAL_<id>` that doesn't exist (for example, a typo like `$FLEET_HOST_VITAL_asset_tag`) is rejected when the script or profile is added.
-- Custom host vitals can't be used in certificate authority (SCEP/ACME/DigiCert) payloads; those fields accept [built-in variables](https://fleetdm.com/guides/fleet-variables) only.
+Instead of writing a custom host vital into a dynamic label's SQL query, you can create a **Host vitals** label that matches hosts by the vital's value directly. See [Labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet) for the full list of label types and how they're scoped.
+
+> **Note:** Host vitals labels only support an exact match (`is equal to`) today. To match a pattern instead (for example, every asset tag starting with a prefix), use a dynamic label's SQL query.
+
+### UI
+
+To create one, select the avatar on the right side of the top navigation, select **Labels**, then click **Add label**. Choose **Host vitals** as the label type, select your custom host vital from the **Label criteria** dropdown, and enter the value it must equal. Give the label a name and click **Save**.
+
+To change a Host vitals label's criteria, delete and recreate the label. Fleet doesn't currently support editing Host vitals criteria in place.
+
+### GitOps
+
+Set `label_membership_type` to `host_vitals`, and set `criteria.vital` to `custom_host_vital` with `criteria.custom_host_vital_id` set to the vital's ID:
+
+```yaml
+labels:
+  - name: Point of sale terminals
+    description: Hosts whose "Function" custom host vital is set to "Point of sale"
+    label_membership_type: host_vitals
+    criteria:
+      vital: custom_host_vital
+      custom_host_vital_id: 2
+      value: Point of sale
+```
+
+See [GitOps labels](https://fleetdm.com/docs/configuration/yaml-files#labels) for the full label schema.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="nulmete">

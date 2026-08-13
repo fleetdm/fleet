@@ -31,6 +31,22 @@ const InstalledSoftwareActivityItem = ({
     details.status === "failed" ? "failed_uninstall" : details.status;
   const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
+  if (details.install_skipped_when_app_open) {
+    return (
+      <ActivityItem
+        className={baseClass}
+        activity={activity}
+        hideCancel={hideCancel}
+        onShowDetails={onShowDetails}
+        onCancel={onCancel}
+        isSoloActivity={isSoloActivity}
+      >
+        <b>Fleet</b> skipped install of <b>{title}</b> on{" "}
+        <b>{details.host_display_name || "this host"}</b>.
+      </ActivityItem>
+    );
+  }
+
   // Self-service installs/uninstalls can be triggered by anyone who opens the
   // host's My device page, including admins. Drop the actor and switch to
   // passive voice so the activity reads "<software> was installed on this
@@ -51,7 +67,7 @@ const InstalledSoftwareActivityItem = ({
       >
         <b>{title}</b> {passivePrefix} on this host
         {from_setup_experience ? " during setup experience" : ""}
-        (self-service).
+        (self service).
       </ActivityItem>
     );
   }

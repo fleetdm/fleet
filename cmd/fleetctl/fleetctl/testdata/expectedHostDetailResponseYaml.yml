@@ -23,6 +23,7 @@ spec:
   gigs_all_disk_space: null
   gigs_disk_space_available: 0
   gigs_total_disk_space: 0
+  hardware_marketing_name: ""
   hardware_model: ""
   hardware_serial: ""
   hardware_vendor: ""
@@ -53,6 +54,8 @@ spec:
   mdm_enrollment_hardware_attested: false
   memory: 0
   orbit_version: null
+  os_update_deadline: null
+  os_update_minimum_version: null
   os_version: ""
   osquery_version: ""
   pack_stats: null
@@ -73,6 +76,7 @@ spec:
     fleet_id: 1
     id: 1
     name: query1
+    patch_when_closed: false
     platform: ""
     query: select 1 from osquery_info where start_time > 1;
     resolution: Some resolution
@@ -92,6 +96,7 @@ spec:
     fleet_id: null
     id: 2
     name: query2
+    patch_when_closed: false
     platform: ""
     query: select 1 from osquery_info where start_time > 1;
     response: fails

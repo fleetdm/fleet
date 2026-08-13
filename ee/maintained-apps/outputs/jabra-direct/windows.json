@@ -4,7 +4,8 @@
       "version": "8.1.14601",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Jabra Direct' AND publisher = 'GN Audio A/S';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Jabra Direct' AND publisher = 'GN Audio A/S' AND version_compare(version, '8.1.14601') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Jabra Direct' AND publisher = 'GN Audio A/S' AND version_compare(version, '8.1.14601') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'jabra direct.exe');"
       },
       "installer_url": "https://jabraxpressonlineprdstor.blob.core.windows.net/jdo/JabraDirectSetup.exe",
       "install_script_ref": "66727e5a",

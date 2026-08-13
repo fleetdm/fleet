@@ -51,6 +51,28 @@ const makeProps = (query: Record<string, string> = {}) => ({
   },
 });
 
+describe("CustomHostVitalsTab tab-header", () => {
+  const render = createCustomRenderer({
+    withBackendMock: true,
+    context: { app: { isGlobalAdmin: true } },
+  });
+
+  beforeEach(() => {
+    mockServer.use(customHostVitalsHandler);
+  });
+
+  it("renders the description and Add vital button above the list", async () => {
+    render(<CustomHostVitalsTab {...makeProps()} />);
+
+    expect(
+      await screen.findByText(/Manage custom fields on hosts/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Add vital/i })
+    ).toBeInTheDocument();
+  });
+});
+
 describe("CustomHostVitalsTab - URL-persistent search", () => {
   const render = createCustomRenderer({
     withBackendMock: true,

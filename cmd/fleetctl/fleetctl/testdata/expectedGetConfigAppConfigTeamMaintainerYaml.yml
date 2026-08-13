@@ -53,6 +53,7 @@ spec:
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
     windows_entra_client_ids: null
+    microsoft_graph_credential_invalid: false
     apple_require_hardware_attestation: false
     macos_migration:
       enable: false
@@ -62,14 +63,17 @@ spec:
       update_new_hosts: null
       minimum_version: null
       deadline: null
+      deadline_days: null
     ios_updates:
       update_new_hosts: null
       minimum_version: null
       deadline: null
+      deadline_days: null
     ipados_updates:
       update_new_hosts: null
       minimum_version: null
       deadline: null
+      deadline_days: null
     windows_updates:
       deadline_days: 7
       grace_period_days: 3
@@ -103,9 +107,12 @@ spec:
       require_all_software_windows: false
       macos_script:
       software:
+    windows_enrollment: null
     windows_settings:
       custom_settings: null
       configuration_profiles: null
+      managed_local_account_settings:
+        enabled: false
     android_settings:
       certificates: null
       custom_settings: null

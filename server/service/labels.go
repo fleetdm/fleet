@@ -301,13 +301,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		return nil, nil, err
 	}
 
-	if hostIDs != nil {
-		if _, _, err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.Label, hostIDs, filter); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	saved, savedHostIDs, err := svc.ds.SaveLabel(ctx, &label.Label, filter)
+	saved, savedHostIDs, err := svc.ds.SaveLabel(ctx, &label.Label, hostIDs, filter)
 	if err != nil {
 		return nil, nil, err
 	}

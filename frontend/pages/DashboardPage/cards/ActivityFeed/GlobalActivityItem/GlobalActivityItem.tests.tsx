@@ -219,6 +219,46 @@ describe("Activity Feed", () => {
     expect(screen.getByText("was added to Fleet by SSO.")).toBeInTheDocument();
   });
 
+  it("renders an edited_macos_min_version activity for a specific version", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedMacosMinVersion,
+      details: {
+        team_id: 1,
+        team_name: "Workstations",
+        minimum_version: "14.6.1",
+        deadline: "2026-09-01",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(/updated the minimum macOS version/)
+    ).toBeInTheDocument();
+    expect(screen.getByText("14.6.1")).toBeInTheDocument();
+    expect(screen.getByText(/deadline: 2026-09-01/)).toBeInTheDocument();
+  });
+
+  it("renders an edited_macos_min_version activity for the latest target", () => {
+    // "latest" is a mode rather than a version, so the sentence must not call it
+    // a minimum, and there's no deadline to report.
+    const activity = createMockActivity({
+      type: ActivityType.EditedMacosMinVersion,
+      details: {
+        team_id: 1,
+        team_name: "Workstations",
+        minimum_version: "latest",
+        deadline: "",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/updated macOS version to/)).toBeInTheDocument();
+    expect(screen.getByText("latest")).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+    expect(screen.queryByText(/minimum/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/deadline/)).not.toBeInTheDocument();
+  });
+
   it("renders an edited_agent_options type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedAgentOptions,
@@ -291,6 +331,41 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText("Somebody failed", { exact: false })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a user_mfa_requested type activity globally", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserMFARequested,
+      details: { email: "foo@example.com", public_ip: "192.168.0.1" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "submitted valid credentials for an MFA-enabled account and was sent a verification email from public IP 192.168.0.1.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("foo@example.com", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a user_mfa_requested without an email", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserMFARequested,
+      details: { email: "", public_ip: "192.168.0.1" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("Somebody submitted valid credentials", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("from public IP 192.168.0.1.", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -682,6 +757,30 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alex's Macbook Air")).toBeInTheDocument();
+  });
+
+  it("renders an 'enabled_managed_local_account' activity with the platform, defaulting to macOS", () => {
+    const windowsActivity = createMockActivity({
+      type: ActivityType.EnabledManagedLocalAccount,
+      details: { team_name: "Workstations", platform: "windows" },
+    });
+    const { unmount } = render(
+      <GlobalActivityItem activity={windowsActivity} isPremiumTier />
+    );
+    expect(
+      screen.getByText("Windows hosts assigned to the", { exact: false })
+    ).toBeInTheDocument();
+    unmount();
+
+    // activities created before the platform detail existed omit it, which means macOS
+    const legacyActivity = createMockActivity({
+      type: ActivityType.DisabledManagedLocalAccount,
+      details: {},
+    });
+    render(<GlobalActivityItem activity={legacyActivity} isPremiumTier />);
+    expect(
+      screen.getByText("unassigned macOS hosts.", { exact: false })
+    ).toBeInTheDocument();
   });
 
   it("renders a 'rotated_managed_local_account_password' type activity", () => {
@@ -1825,7 +1924,7 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("An end user")).toBeNull();
     expect(screen.queryByText("Test Admin")).toBeNull();
     expect(screen.getByText(/was installed on/)).toBeInTheDocument();
-    expect(screen.getByText(/\(self-service\)\./)).toBeInTheDocument();
+    expect(screen.getByText(/\(self service\)\./)).toBeInTheDocument();
   });
 
   it("renders the correct actor for a installed_app_store_app activity without self_service", () => {
@@ -1860,7 +1959,7 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("An end user")).toBeNull();
     expect(screen.queryByText("Test Admin")).toBeNull();
     expect(screen.getByText(/was installed on/)).toBeInTheDocument();
-    expect(screen.getByText(/\(self-service\)\./)).toBeInTheDocument();
+    expect(screen.getByText(/\(self service\)\./)).toBeInTheDocument();
   });
 
   it("renders script package ran status in InstalledSoftware activity", () => {
@@ -1915,6 +2014,47 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText(/failed to run/i)).toBeInTheDocument(); // For status: "failed_install"
     expect(screen.getByText("Script-only Software")).toBeInTheDocument();
+  });
+
+  it("renders skipped copy when the app was open", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Fleet",
+      fleet_initiated: true,
+      details: {
+        software_title: "Firefox",
+        software_package: "Firefox.pkg",
+        host_display_name: "Work Mac",
+        source: "apps",
+        status: "failed_install",
+        install_skipped_when_app_open: true,
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/skipped install of/)).toBeInTheDocument();
+    expect(screen.getByText("Firefox")).toBeInTheDocument();
+    expect(screen.getByText("Work Mac")).toBeInTheDocument();
+    expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
+  });
+
+  it("keeps generic failed-install copy when the app-open flag is absent", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Fleet",
+      fleet_initiated: true,
+      details: {
+        software_title: "Firefox",
+        software_package: "Firefox.pkg",
+        host_display_name: "Work Mac",
+        source: "apps",
+        status: "failed_install",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/failed to install/)).toBeInTheDocument();
+    expect(screen.queryByText(/skipped install/)).not.toBeInTheDocument();
   });
 
   it("renders py script package ran status in InstalledSoftware activity", () => {
@@ -2202,6 +2342,38 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/Bears/i)).toBeInTheDocument();
     expect(screen.getByText(/fleet/i)).toBeInTheDocument();
   });
+  it("renders a createdSetupExperienceScript type activity for a fleet", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CreatedSetupExperienceScript,
+      details: {
+        script_name: "set-timezones.sh",
+        fleet_name: "Bears",
+        fleet_id: 1,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/added setup experience script/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/set-timezones.sh/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bears/i)).toBeInTheDocument();
+  });
+  it("renders a deletedSetupExperienceScript type activity for unassigned hosts", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedSetupExperienceScript,
+      details: {
+        script_name: "set-timezones.sh",
+        fleet_name: null,
+        fleet_id: null,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/deleted setup experience script/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/set-timezones.sh/i)).toBeInTheDocument();
+    expect(screen.getByText(/unassigned/i)).toBeInTheDocument();
+  });
   it("renders an enabledMacosUpdateNewHosts activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledMacosUpdateNewHosts,
@@ -2305,7 +2477,7 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText("End user")).toBeInTheDocument();
     expect(
-      screen.getByText(/installed all the software in self-service/i)
+      screen.getByText(/installed all the software in self service/i)
     ).toBeInTheDocument();
     // The actor is dropped in favor of "End user".
     expect(screen.queryByText("Test User")).not.toBeInTheDocument();
@@ -2332,7 +2504,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText(/installed all the software in self-service/i)
+      screen.getByText(/installed all the software in self service/i)
     ).toBeInTheDocument();
   });
 

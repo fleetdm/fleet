@@ -555,6 +555,54 @@ func TestApplyPolicySpecsLabelScopeRequiresPremium(t *testing.T) {
 	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
 }
 
+func TestApplyPolicySpecsPatchWhenClosedRequiresPremium(t *testing.T) {
+	newDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return &fleet.Team{ID: 1, Name: name}, nil
+		}
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		return ds
+	}
+
+	// patch_when_closed requires a patch-type team policy.
+	patchSpec := func() *fleet.PolicySpec {
+		return &fleet.PolicySpec{
+			Name:            "patch policy",
+			Team:            "team1",
+			Type:            fleet.PolicyTypePatch,
+			PatchWhenClosed: true,
+		}
+	}
+
+	testAdmin := fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+
+	// A free-tier caller can't apply patch_when_closed, and we never reach the datastore.
+	t.Run("free tier rejected", func(t *testing.T) {
+		ds := newDS()
+		svc, ctx := newTestService(t, ds, nil, nil)
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{patchSpec()})
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	// A premium caller applies it successfully.
+	t.Run("premium accepted", func(t *testing.T) {
+		ds := newDS()
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{patchSpec()})
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+}
+
 func TestApplyPolicySpecsDefaultType(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
