@@ -31,6 +31,12 @@ func main() {
 	server := &http.Server{ReadHeaderTimeout: 10 *
 		time.Second, WriteTimeout: 0, IdleTimeout: 120 * time.Second, Handler: newMux(st, logger, *keepAlive, *writeTimeout), Addr: *listen}
 
+	// SSE streams run on hijacked connections, where a keepalive write is the
+	// only thing that notices a client that went away (see streamEvents).
+	if *keepAlive <= 0 {
+		logger.WarnContext(ctx, "keep-alive is disabled: a stream whose client disconnects is not reaped until the next push to that token")
+	}
+
 	if *sweepInterval <= 0 {
 		logger.ErrorContext(ctx, "sweep interval cannot be disabled, using default 10m")
 		*sweepInterval = 10 * time.Minute
@@ -61,6 +67,10 @@ func newMux(st *store, logger *slog.Logger, keepAlive, writeTimeout time.Duratio
 
 	mux.HandleFunc("GET /stats", func(w http.ResponseWriter, r *http.Request) {
 		statsHandler(w, r, st)
+	})
+
+	mux.HandleFunc("GET /memstats", func(w http.ResponseWriter, r *http.Request) {
+		memStatsHandler(w, r)
 	})
 
 	mux.HandleFunc("GET /events", func(w http.ResponseWriter, r *http.Request) {

@@ -2,12 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"runtime"
+	"runtime/metrics"
 	"strconv"
 	"strings"
 	"time"
@@ -27,14 +31,18 @@ import (
 // configurable interval so LBs/proxies don't reap idle streams. A newer
 // connection for the same token replaces this one (newest wins, matching a
 // real device reconnecting) and the replaced stream ends. Token validation
-// must happen before the first Flush — flushing commits a 200, making a
-// later error status a no-op.
+// must happen before anything is written — the first write commits a 200,
+// making a later error status a no-op.
 //
-// Every write carries a writeTimeout deadline. The server sets no
-// WriteTimeout (SSE streams must not be reaped), so without a per-write
-// deadline a device that stops reading would block this handler forever:
-// unsubscribe would never run, and store.push would keep coalescing wake-ups
-// into a connection that can never deliver them instead of storing them.
+// This handler holds nothing but a raw socket per stream: it hijacks the
+// connection, writes the response head itself, hands the socket to one
+// goroutine, and RETURNS. Returning is the point — it lets net/http unwind
+// conn.serve and drop that connection's 4KB read buffer, 4KB write buffer,
+// 2KB chunked-encoding buffer, request/header/response structs, and the
+// second goroutine net/http starts to watch for client disconnects. Those
+// are ~14 of the ~18KB a stream costs when the handler blocks instead, and
+// none of them are configurable through http.Server. See streamEvents for
+// what the surviving goroutine does and what hijacking gives up.
 func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
 	token := r.URL.Query().Get("token")
 	if token == "" {
@@ -49,6 +57,89 @@ func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger 
 
 	logger.DebugContext(r.Context(), "starting SSE stream", "token", token)
 
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		// HTTP/2, httptest recorders, or any middleware that wraps the
+		// ResponseWriter without forwarding Hijack.
+		streamEventsBuffered(w, r, token, st, logger, keepAlive, writeTimeout)
+		return
+	}
+	// The returned *bufio.ReadWriter is deliberately discarded: keeping it
+	// would pin the very buffers hijacking exists to release, and nothing is
+	// buffered in either direction at this point — the handler has written
+	// nothing, and an SSE client sends only the request line and headers,
+	// which net/http has already consumed.
+	conn, _, err := hijacker.Hijack()
+	if err != nil {
+		logger.DebugContext(r.Context(), "hijack failed, falling back to buffered stream", "token", token, "error", err)
+		streamEventsBuffered(w, r, token, st, logger, keepAlive, writeTimeout)
+		return
+	}
+
+	if _, err := io.WriteString(conn, sseResponseHead); err != nil {
+		logger.DebugContext(r.Context(), "failed to write SSE response head", "token", token, "error", err)
+		conn.Close()
+		return
+	}
+
+	// strings.Clone cuts the token loose from the request's URL string, which
+	// would otherwise keep it (and the buffer it was parsed from) alive for
+	// the life of the stream.
+	//nolint:gosec // G118: the request context is canceled the moment this handler returns, and returning is exactly what frees the per-connection buffers. The stream has to outlive it.
+	go streamEvents(conn, strings.Clone(token), st, logger, keepAlive, writeTimeout)
+}
+
+// sseResponseHead is the 200 that eventsSSEHandler writes by hand after
+// hijacking. Length-delimited framing is impossible for a stream that never
+// ends, so the body runs to connection close: no Content-Length and no
+// Transfer-Encoding, which HTTP/1.1 defines as read-until-close and
+// "Connection: close" states outright. Both clients (net/http's transport in
+// pkg/mdm/apnsmock, and http.ReadResponse in tools/apns-loadgen) read it that
+// way. Chunked framing would be the alternative and costs a size line per
+// frame plus a buffer to build it in.
+const sseResponseHead = "HTTP/1.1 200 OK\r\n" +
+	"Content-Type: text/event-stream\r\n" +
+	"Cache-Control: no-cache\r\n" +
+	"Connection: close\r\n" +
+	"\r\n"
+
+// streamEvents owns one hijacked connection for its whole life. It is the
+// only thing that survives per stream, so it holds only what it needs: the
+// socket, the token, and the subscriber.
+//
+// It gives up the one thing net/http's second goroutine bought — immediate
+// notice that the client went away. A peer that sends FIN is noticed on the
+// next write (a write to a half-closed socket succeeds once, then draws
+// RST), so keepalive frames double as liveness probes and a dead stream is
+// reaped within roughly one keepAlive interval. With --keep-alive 0 nothing
+// probes, and a vanished client's stream lingers until the next push to that
+// token; main warns when that is set.
+//
+// Every write carries a writeTimeout deadline. The server sets no
+// WriteTimeout (SSE streams must not be reaped), so without a per-write
+// deadline a device that stops reading would block this goroutine forever:
+// unsubscribe would never run, and store.push would keep coalescing wake-ups
+// into a connection that can never deliver them instead of storing them.
+func streamEvents(conn net.Conn, token string, st *store, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
+	defer conn.Close()
+
+	write := func(frame string) error {
+		if writeTimeout > 0 {
+			if err := conn.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
+				return err
+			}
+		}
+		_, err := io.WriteString(conn, frame)
+		return err
+	}
+	runStream(context.Background(), write, nil, token, st, logger, keepAlive)
+}
+
+// streamEventsBuffered is the pre-hijack path, kept for ResponseWriters that
+// cannot be hijacked. It blocks in the handler, so this connection keeps its
+// full net/http footprint; in exchange it gets request-context cancellation
+// and notices a departing client immediately.
+func streamEventsBuffered(w http.ResponseWriter, r *http.Request, token string, st *store, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -58,11 +149,7 @@ func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger 
 		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
-
 	flusher.Flush()
-
-	sub, pending := st.subscribe(token)
-	defer st.unsubscribe(token, sub)
 
 	rc := http.NewResponseController(w)
 	write := func(frame string) error {
@@ -78,11 +165,24 @@ func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger 
 		flusher.Flush()
 		return nil
 	}
+	runStream(r.Context(), write, r.Context().Done(), token, st, logger, keepAlive)
+}
+
+// runStream is the SSE loop both paths share: subscribe, flush any ping the
+// device missed while it was away, then forward pushes and keepalives until
+// the stream ends. done is the client-went-away signal and is nil on the
+// hijacked path, where a nil channel simply never fires (see streamEvents).
+//
+// A ping this loop drained but failed to write is handed back to the store
+// (restore), so a broken connection loses no wake-up and no counter drifts.
+func runStream(ctx context.Context, write func(string) error, done <-chan struct{}, token string, st *store, logger *slog.Logger, keepAlive time.Duration) {
+	sub, pending := st.subscribe(token)
+	defer st.unsubscribe(token, sub)
 
 	if pending != nil {
 		// stored ping delivered immediately on connect
 		if err := write(pingEvent(pending.payload)); err != nil {
-			logger.DebugContext(r.Context(), "failed to write pending ping", "token", token, "error", err)
+			logger.DebugContext(ctx, "failed to write pending ping", "token", token, "error", err)
 			st.restore(token, sub, pending, true)
 			return
 		}
@@ -99,17 +199,17 @@ func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger 
 		select {
 		case p := <-sub.ch: // push arrived while we're live
 			if err := write(pingEvent(p.payload)); err != nil {
-				logger.DebugContext(r.Context(), "failed to write ping", "token", token, "error", err)
+				logger.DebugContext(ctx, "failed to write ping", "token", token, "error", err)
 				st.restore(token, sub, p, false)
 				return
 			}
 		case <-sub.replaced: // a newer connection took our token — stand down
 			return
-		case <-r.Context().Done(): // client went away
+		case <-done: // client went away (buffered path only; nil channel never fires)
 			return
 		case <-keepAliveC: // keepalive
 			if err := write(": keepalive\n\n"); err != nil {
-				logger.DebugContext(r.Context(), "failed to write keepalive", "token", token, "error", err)
+				logger.DebugContext(ctx, "failed to write keepalive", "token", token, "error", err)
 				return
 			}
 		}
@@ -275,6 +375,50 @@ func statsHandler(w http.ResponseWriter, _ *http.Request, st *store) {
 	err := enc.Encode(stats)
 	if err != nil {
 		http.Error(w, "Failed to encode stats", http.StatusInternalServerError)
+		return
+	}
+}
+
+// memStatsResponse reports what the Go runtime knows it is using, which is
+// the only trustworthy input to "what does a connection cost". RSS is not:
+// on macOS, pages the runtime has already handed back stay counted against
+// the process until something else needs them, which overstated a
+// 40k-connection run by 3x. Divide these by /stats active_connections for a
+// per-connection number that means something.
+type memStatsResponse struct {
+	Goroutines int    `json:"goroutines"`   // ~1 per live SSE stream, plus a handful of runtime and accept goroutines
+	HeapBytes  uint64 `json:"heap_bytes"`   // heap objects; includes uncollected garbage unless ?gc=1
+	StackBytes uint64 `json:"stack_bytes"`  // goroutine stacks
+	InUseBytes uint64 `json:"in_use_bytes"` // everything the runtime holds minus what it has released to the OS
+}
+
+// memStatsHandler serves GET /memstats. With ?gc=1 it forces a collection
+// first, so heap_bytes is live data rather than live data plus whatever
+// garbage has accumulated since the last GC — worth it once at the end of a
+// load run, too expensive to poll with.
+func memStatsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("gc") == "1" {
+		runtime.GC()
+	}
+
+	samples := []metrics.Sample{
+		{Name: "/memory/classes/heap/objects:bytes"},
+		{Name: "/memory/classes/heap/stacks:bytes"},
+		{Name: "/memory/classes/total:bytes"},
+		{Name: "/memory/classes/heap/released:bytes"},
+	}
+	metrics.Read(samples)
+
+	w.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(memStatsResponse{
+		Goroutines: runtime.NumGoroutine(),
+		HeapBytes:  samples[0].Value.Uint64(),
+		StackBytes: samples[1].Value.Uint64(),
+		InUseBytes: samples[2].Value.Uint64() - samples[3].Value.Uint64(),
+	}); err != nil {
+		http.Error(w, "Failed to encode memstats", http.StatusInternalServerError)
 		return
 	}
 }

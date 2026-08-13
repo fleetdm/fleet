@@ -92,4 +92,8 @@ To push to a device enrolled in a local Fleet instance, or to compare against re
 
 ## Running at scale
 
-For 300k connections, raise the file descriptor limit (`ulimit -n 1000000`) and plan roughly 16 KB of memory per connection (two goroutines plus `net/http` buffers), so 8 GB or more of RAM. Set `GOMEMLIMIT` below available memory to keep the garbage collector ahead of the connection ramp-up.
+Plan on **~8 KB per connection**, so roughly 2.5 GB for 300k. Measured at 75k live streams on an M-series Mac: 130 MB heap, 295 MB goroutine stacks, 598 MB total. Raise the file descriptor limit to clear the connection count (`ulimit -n 1000000`, and on macOS `kern.maxfilesperproc` too, which caps `ulimit` and defaults to 92160). Set `GOMEMLIMIT` below available memory to keep the garbage collector ahead of the ramp.
+
+`GET /memstats` reports what the Go runtime is actually using, and `?gc=1` forces a collection first so the heap figure is live data. Prefer it to RSS: on macOS, pages the runtime has already released still count against the process, which overstated a 40k-connection run by 3x.
+
+Most of the remaining cost is goroutine stacks — one goroutine per stream, ~4 KB each. The `net/http` per-connection buffers that would otherwise dominate (4 KB read, 4 KB write, 2 KB chunking, none of them tunable through `http.Server`) are not in the total, because the SSE handler hijacks the connection and returns instead of blocking; see `eventsSSEHandler`. `tools/apns-loadgen` is the harness these numbers come from.

@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -535,6 +536,35 @@ func TestE2EKeepalive(t *testing.T) {
 	resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"m"}`), nil)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.JSONEq(t, `{"mdm":"m"}`, nextPing(t, c, 5*time.Second))
+}
+
+// TestE2EDisconnectedStreamIsReapedByKeepalive pins the liveness tradeoff
+// eventsSSEHandler makes by hijacking the connection: no goroutine watches
+// the socket for a client that vanished, so the keepalive write is what
+// discovers it. A stream whose client is gone must unsubscribe itself within
+// a keepalive interval or two, or the store leaks a subscriber and every
+// later push to that token is coalesced into a connection that can never
+// deliver it (see streamEvents).
+func TestE2EDisconnectedStreamIsReapedByKeepalive(t *testing.T) {
+	srv := newTestServerWithKeepAlive(t, 50*time.Millisecond)
+	const token = "aabbccddee0c" // nolint:gosec // test token
+
+	// A raw socket, so the close below is abrupt: no request-context
+	// cancellation, nothing but a dead peer for the next write to find.
+	conn, err := net.Dial("tcp", strings.TrimPrefix(srv.URL, "http://"))
+	require.NoError(t, err)
+	_, err = io.WriteString(conn, "GET /events?token="+token+" HTTP/1.1\r\nHost: localhost\r\n\r\n")
+	require.NoError(t, err)
+
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
+	waitConnected(t, srv.URL, 1)
+
+	require.NoError(t, conn.Close())
+	waitConnected(t, srv.URL, 0)
 }
 
 // TestE2EBufordCompatibility drives the mock through the actual buford
