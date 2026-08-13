@@ -2108,6 +2108,26 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		}
 	}
 
+	// In-house apps only surface in the setup experience listing when the query
+	// is exclusively mobile platforms, and each .ipa is deduplicated to a single
+	// YAML entry below, so collect selections across both of its titles keyed by
+	// filename and emit them as setup_experience_platform.
+	inHouseSetupPlatformsByFilename := make(map[string][]string)
+	mobileSetupSoftware, err := cmd.Client.GetSetupExperienceSoftware("ios,ipados", teamID)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting iOS/iPadOS setup software: %s\n", err)
+		return nil, err
+	}
+	for _, t := range mobileSetupSoftware {
+		pkg := t.SoftwarePackage
+		if pkg == nil || filepath.Ext(pkg.Name) != ".ipa" {
+			continue
+		}
+		if pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+			inHouseSetupPlatformsByFilename[pkg.Name] = append(inHouseSetupPlatformsByFilename[pkg.Name], pkg.Platform)
+		}
+	}
+
 	// A title returned by the per-platform setup experience listing whose
 	// native platform doesn't match the queried target is a cross-selection.
 	for _, crossTarget := range []string{"macos"} {
@@ -2441,6 +2461,13 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 			if crosses, ok := crossPlatformSelectionsByTitleID[softwareTitle.ID]; ok && len(crosses) > 0 {
 				softwareSpec["setup_experience_platform"] = strings.Join(crosses, ",")
+			}
+			// Never set together with the cross-selection emission above: .ipa
+			// titles can't be cross-selected because the setup experience listing
+			// excludes them for any non-mobile target platform.
+			if inHousePlatforms, ok := inHouseSetupPlatformsByFilename[sp.Name]; ok && len(inHousePlatforms) > 0 {
+				slices.Sort(inHousePlatforms)
+				softwareSpec["setup_experience_platform"] = strings.Join(inHousePlatforms, ",")
 			}
 		} else {
 			app := softwareTitle.AppStoreApp

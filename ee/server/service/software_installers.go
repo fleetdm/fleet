@@ -2452,6 +2452,23 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 // is not accepted — only canonical tokens ("darwin", "linux"), consistent with
 // the query/policy `platform` field. Returns an error on the first
 // incompatible entry; empty input is legal.
+// installDuringSetupForFannedOutPlatform derives InstallDuringSetup for the
+// second platform payload fanned out from a single .ipa entry. The base
+// payload's value was computed against the base platform (and the shallow copy
+// would otherwise share its pointer): the setup_experience_platform list
+// decides per platform, the bare setup_experience boolean only ever targets
+// the base platform, and nil preserves the stored value on upsert.
+func installDuringSetupForFannedOutPlatform(setupPlatforms *[]string, baseInstallDuringSetup *bool, platform string) *bool {
+	switch {
+	case setupPlatforms != nil:
+		return new(slices.Contains(*setupPlatforms, platform))
+	case baseInstallDuringSetup != nil:
+		return new(false)
+	default:
+		return nil
+	}
+}
+
 func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]string, error) {
 	allowed := fleet.AllowedSetupExperiencePlatformsForExtension(extension)
 	allowedSet := make(map[string]struct{}, len(allowed))
@@ -3831,6 +3848,8 @@ func (svc *Service) softwareBatchUpload(
 					extraPayload.Platform = string(fleet.IOSPlatform)
 					extraPayload.Source = "ios_apps"
 				}
+				extraPayload.InstallDuringSetup = installDuringSetupForFannedOutPlatform(
+					installer.SetupExperiencePlatforms, installer.InstallDuringSetup, extraPayload.Platform)
 				extraInstallers = append(extraInstallers, &extraPayload)
 			}
 
