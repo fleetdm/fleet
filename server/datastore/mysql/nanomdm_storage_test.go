@@ -30,6 +30,8 @@ func TestNanoMDMStorage(t *testing.T) {
 		{"TestGetPendingLockCommand", testGetPendingLockCommand},
 		{"TestEnqueueDeviceLockReplacesOrphanRef", testEnqueueDeviceLockReplacesOrphanRef},
 		{"TestEnqueueDeviceLockCommandRaceCondition", testEnqueueDeviceLockCommandRaceCondition},
+		{"TestEnqueueUnlockUserAccountCommand", testEnqueueUnlockUserAccountCommand},
+		{"TestEnqueueUnlockUserAccountCommandRaceCondition", testEnqueueUnlockUserAccountCommandRaceCondition},
 		{"TestEnqueueDeviceUnlockCommand", testEnqueueDeviceUnlockCommand},
 		{"TestStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal", testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal},
 		{"TestRetrievePushCert", testRetrievePushCert},
@@ -44,6 +46,132 @@ func TestNanoMDMStorage(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
+}
+
+func newUnlockUserAccountCommand(t *testing.T, commandUUID, username string) *mdm.Command {
+	t.Helper()
+	raw := []byte(fmt.Sprintf(`<?xml version="1.0"?><plist><dict><key>CommandUUID</key><string>%s</string><key>Command</key><dict><key>RequestType</key><string>UnlockUserAccount</string><key>UserName</key><string>%s</string></dict></dict></plist>`, commandUUID, username))
+	cmd, err := mdm.DecodeCommand(raw)
+	require.NoError(t, err)
+	return cmd
+}
+
+func testEnqueueUnlockUserAccountCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "unlock-user-host",
+		OsqueryHostID: ptr.String("unlock-user-host"),
+		NodeKey:       ptr.String("unlock-user-host"),
+		UUID:          "unlock-user-host",
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	commandUUID, err := ns.EnqueueUnlockUserAccountCommand(ctx, host.UUID, "anna", newUnlockUserAccountCommand(t, "unlock-anna-1", "anna"))
+	require.NoError(t, err)
+	require.Equal(t, "unlock-anna-1", commandUUID)
+
+	// A command with no result is still pending and is reused.
+	commandUUID, err = ns.EnqueueUnlockUserAccountCommand(ctx, host.UUID, "anna", newUnlockUserAccountCommand(t, "unlock-anna-pending", "anna"))
+	require.NoError(t, err)
+	require.Equal(t, "unlock-anna-1", commandUUID)
+
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO nano_command_results (id, command_uuid, status, result, not_now_at, not_now_tally)
+		VALUES (?, ?, 'NotNow', '<?xml version="1.0"?><plist></plist>', NOW(), 1)`,
+		host.UUID, "unlock-anna-1")
+	require.NoError(t, err)
+
+	// NotNow means the queued command has not completed and is also reused.
+	commandUUID, err = ns.EnqueueUnlockUserAccountCommand(ctx, host.UUID, "anna", newUnlockUserAccountCommand(t, "unlock-anna-not-now", "anna"))
+	require.NoError(t, err)
+	require.Equal(t, "unlock-anna-1", commandUUID)
+
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		UPDATE nano_command_results SET status = 'Acknowledged' WHERE id = ? AND command_uuid = ?`,
+		host.UUID, "unlock-anna-1")
+	require.NoError(t, err)
+
+	// Acknowledged is terminal, so a new action creates a new command.
+	commandUUID, err = ns.EnqueueUnlockUserAccountCommand(ctx, host.UUID, "anna", newUnlockUserAccountCommand(t, "unlock-anna-acknowledged", "anna"))
+	require.NoError(t, err)
+	require.Equal(t, "unlock-anna-acknowledged", commandUUID)
+
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO nano_command_results (id, command_uuid, status, result)
+		VALUES (?, ?, 'Error', '<?xml version="1.0"?><plist></plist>')`,
+		host.UUID, "unlock-anna-acknowledged")
+	require.NoError(t, err)
+
+	// Error is terminal too, so retrying creates another command.
+	commandUUID, err = ns.EnqueueUnlockUserAccountCommand(ctx, host.UUID, "anna", newUnlockUserAccountCommand(t, "unlock-anna-error", "anna"))
+	require.NoError(t, err)
+	require.Equal(t, "unlock-anna-error", commandUUID)
+
+	// A different username represents a separate action.
+	commandUUID, err = ns.EnqueueUnlockUserAccountCommand(ctx, host.UUID, "bob", newUnlockUserAccountCommand(t, "unlock-bob-1", "bob"))
+	require.NoError(t, err)
+	require.Equal(t, "unlock-bob-1", commandUUID)
+
+	commands, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, commands, 4)
+}
+
+func testEnqueueUnlockUserAccountCommandRaceCondition(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "unlock-user-race-host",
+		OsqueryHostID: ptr.String("unlock-user-race-host"),
+		NodeKey:       ptr.String("unlock-user-race-host"),
+		UUID:          "unlock-user-race-host",
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	const numRequests = 20
+	commands := make([]*mdm.Command, numRequests)
+	for i := range commands {
+		commands[i] = newUnlockUserAccountCommand(t, fmt.Sprintf("unlock-carol-%02d", i), "carol")
+	}
+
+	results := make([]string, numRequests)
+	errs := make([]error, numRequests)
+	barrier := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(numRequests)
+	for i := range commands {
+		go func() {
+			defer wg.Done()
+			<-barrier
+			results[i], errs[i] = ns.EnqueueUnlockUserAccountCommand(ctx, host.UUID, "carol", commands[i])
+		}()
+	}
+	close(barrier)
+	wg.Wait()
+
+	for _, err := range errs {
+		require.NoError(t, err)
+	}
+	require.NotEmpty(t, results[0])
+	for _, result := range results[1:] {
+		require.Equal(t, results[0], result, "all simultaneous requests should create or reuse the same command")
+	}
+
+	var commandCount int
+	err = ds.writer(ctx).QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM nano_commands
+		WHERE request_type = 'UnlockUserAccount' AND command_uuid LIKE 'unlock-carol-%'`).Scan(&commandCount)
+	require.NoError(t, err)
+	require.Equal(t, 1, commandCount)
 }
 
 func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {

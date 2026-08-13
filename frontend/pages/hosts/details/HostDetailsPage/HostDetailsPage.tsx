@@ -100,6 +100,7 @@ import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import CommandResultsModal, {
   getIconName,
   getVerbForCommandStatus,
+  UnlockUserAccountCommandStatus,
 } from "pages/hosts/components/CommandDetailsModal";
 import IconStatusMessage from "components/IconStatusMessage";
 import FailedEnrollmentProfileModal, {
@@ -153,6 +154,7 @@ import VitalsModal from "../modals/VitalsModal";
 import EditHostVitalModal from "../modals/EditHostVitalModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
 import ClearPasscodeModal from "./modals/ClearPasscodeModal";
+import UnlockUserAccountModal from "./modals/UnlockUserAccountModal";
 import ReleaseFromABModal from "./components/ReleaseFromABModal";
 
 const baseClass = "host-details";
@@ -261,6 +263,9 @@ const HostDetailsPage = ({
   }, [location.query.show_mdm_status]);
 
   const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
+  const [showUnlockUserAccountModal, setShowUnlockUserAccountModal] = useState(
+    false
+  );
   const [showReleaseFromABModal, setShowReleaseFromABModal] = useState(false);
 
   const [
@@ -307,6 +312,9 @@ const HostDetailsPage = ({
     host_uuid: string;
     command_uuid: string;
     actor_full_name?: string;
+    host_display_name?: string;
+    username?: string;
+    is_unlock_user_account: boolean;
   } | null>(null);
   const [
     enrollmentProfileFailedDetails,
@@ -591,6 +599,7 @@ const HostDetailsPage = ({
     isError: pastMDMCommandsIsError,
     isFetching: pastMDMCommandsIsFetching,
     isLoading: pastMDMCommandsIsLoading,
+    refetch: refetchPastMDMCommands,
   } = useQuery(
     [
       {
@@ -623,6 +632,7 @@ const HostDetailsPage = ({
     isError: upcomingMDMCommandsIsError,
     isFetching: upcomingMDMCommandsIsFetching,
     isLoading: upcomingMDMCommandsIsLoading,
+    refetch: refetchUpcomingMDMCommands,
   } = useQuery(
     [
       {
@@ -910,7 +920,8 @@ const HostDetailsPage = ({
             },
           });
           break;
-        case ActivityType.RanCustomMdmCommand: {
+        case ActivityType.RanCustomMdmCommand:
+        case ActivityType.UnlockedUserAccount: {
           const resolvedHostUuid = details?.host_uuid ?? host?.uuid;
           if (!details?.command_uuid || !resolvedHostUuid) {
             break;
@@ -919,13 +930,16 @@ const HostDetailsPage = ({
             command_uuid: details.command_uuid,
             host_uuid: resolvedHostUuid,
             actor_full_name,
+            host_display_name: details?.host_display_name,
+            username: details?.username,
+            is_unlock_user_account: type === ActivityType.UnlockedUserAccount,
           });
           break;
         }
         default: // do nothing
       }
     },
-    [host?.display_name]
+    [host?.display_name, host?.platform, host?.uuid]
   );
 
   const onCancelActivity = (activity: IHostUpcomingActivity) => {
@@ -1049,6 +1063,9 @@ const HostDetailsPage = ({
         break;
       case "clearPasscode":
         setShowClearPasscodeModal(true);
+        break;
+      case "unlockUserAccount":
+        setShowUnlockUserAccountModal(true);
         break;
       default: // do nothing
     }
@@ -1935,7 +1952,26 @@ const HostDetailsPage = ({
           {!!activityCommandDetails && (
             <CommandResultsModal
               command={activityCommandDetails}
+              title={
+                activityCommandDetails.is_unlock_user_account
+                  ? "Unlock user account details"
+                  : undefined
+              }
               contentBody={(cls, result) => {
+                if (activityCommandDetails.is_unlock_user_account) {
+                  return (
+                    <UnlockUserAccountCommandStatus
+                      result={result}
+                      username={activityCommandDetails.username}
+                      actorFullName={activityCommandDetails.actor_full_name}
+                      hostDisplayName={
+                        activityCommandDetails.host_display_name ||
+                        host?.display_name
+                      }
+                    />
+                  );
+                }
+
                 const isPending =
                   getIconName(result.status) === "pending-outline";
                 const cmdDisplayName = getMdmCommandDisplayName(
@@ -2130,6 +2166,18 @@ const HostDetailsPage = ({
               if (isAndroid(host.platform)) {
                 setHostMdmDeviceState("clearing_passcode");
               }
+            }}
+          />
+        )}
+        {showUnlockUserAccountModal && (
+          <UnlockUserAccountModal
+            id={host.id}
+            hostName={host.display_name}
+            onExit={() => setShowUnlockUserAccountModal(false)}
+            onSuccess={() => {
+              refetchPastActivities();
+              refetchPastMDMCommands();
+              refetchUpcomingMDMCommands();
             }}
           />
         )}

@@ -1044,6 +1044,21 @@ allow {
   action == write
 }
 
+# Global admins, maintainers, and technicians can unlock a macOS user account.
+allow {
+  object.type == "mdm_command"
+  subject.global_role == [admin, maintainer, technician][_]
+  action == "unlock_user_account"
+}
+
+# Team admins, maintainers, and technicians can unlock a macOS user account on hosts of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_command"
+  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  action == "unlock_user_account"
+}
+
 # Global admins, maintainers, technicians, observers and observer_plus can read MDM commands.
 allow {
   object.type == "mdm_command"

@@ -11,6 +11,171 @@ import HostActionsDropdown from "./HostActionsDropdown";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 describe("Host Actions Dropdown", () => {
+  describe("Unlock user account action", () => {
+    it.each([
+      ["admin", { isGlobalAdmin: true }],
+      ["maintainer", { isGlobalMaintainer: true }],
+      ["technician", { isGlobalTechnician: true }],
+    ])("renders for a global %s in Fleet Free", async (_, roleContext) => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+            ...roleContext,
+          },
+        },
+      });
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (manual)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      expect(screen.getByText("Unlock user account")).toBeInTheDocument();
+    });
+
+    it.each(["admin", "maintainer", "technician"] as const)(
+      "renders for a team %s",
+      async (role) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: false,
+              isMacMdmEnabledAndConfigured: true,
+              currentUser: createMockUser({
+                global_role: null,
+                teams: [createMockTeam({ id: 1, role })],
+              }),
+            },
+          },
+        });
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={1}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="darwin"
+            hostMdmEnrollmentStatus="On (automatic)"
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+        expect(screen.getByText("Unlock user account")).toBeInTheDocument();
+      }
+    );
+
+    it.each(["observer", "observer_plus", "gitops"] as const)(
+      "does not render for a team %s",
+      async (role) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: true,
+              isMacMdmEnabledAndConfigured: true,
+              currentUser: createMockUser({
+                global_role: null,
+                teams: [createMockTeam({ id: 1, role })],
+              }),
+            },
+          },
+        });
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={1}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="darwin"
+            hostMdmEnrollmentStatus="On (automatic)"
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+        expect(
+          screen.queryByText("Unlock user account")
+        ).not.toBeInTheDocument();
+      }
+    );
+
+    it.each([
+      ["personal enrollment", "darwin", "On (manual - personal)", true],
+      ["non-macOS", "windows", "On (manual)", true],
+      ["disconnected", "darwin", "On (manual)", false],
+    ])("does not render for %s", async (_, platform, enrollment, connected) => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform={platform}
+          hostMdmEnrollmentStatus={enrollment as MdmEnrollmentStatus}
+          isConnectedToFleetMdm={connected}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      expect(screen.queryByText("Unlock user account")).not.toBeInTheDocument();
+    });
+
+    it("disables the action when the enrollment lacks Device Lock access", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalTechnician: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (manual)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          lockAllowed={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      expect(screen.getByText("Unlock user account")).toHaveAttribute(
+        "aria-disabled",
+        "true"
+      );
+    });
+  });
+
   describe("Transfer action", () => {
     it("renders the Transfer action when on premium tier and the user is a global admin", async () => {
       const render = createCustomRenderer({

@@ -73,6 +73,8 @@ type GetPendingLockCommandFunc func(ctx context.Context, hostUUID string) (*mdm.
 
 type EnqueueDeviceLockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error
 
+type EnqueueUnlockUserAccountCommandFunc func(ctx context.Context, hostUUID string, username string, cmd *mdm.Command) (string, error)
+
 type EnqueueDeviceUnlockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
 
 type EnqueueDeviceWipeCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
@@ -164,6 +166,9 @@ type MDMAppleStore struct {
 
 	EnqueueDeviceLockCommandFunc        EnqueueDeviceLockCommandFunc
 	EnqueueDeviceLockCommandFuncInvoked bool
+
+	EnqueueUnlockUserAccountCommandFunc        EnqueueUnlockUserAccountCommandFunc
+	EnqueueUnlockUserAccountCommandFuncInvoked bool
 
 	EnqueueDeviceUnlockCommandFunc        EnqueueDeviceUnlockCommandFunc
 	EnqueueDeviceUnlockCommandFuncInvoked bool
@@ -375,6 +380,13 @@ func (fs *MDMAppleStore) EnqueueDeviceLockCommand(ctx context.Context, host *fle
 	fs.EnqueueDeviceLockCommandFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.EnqueueDeviceLockCommandFunc(ctx, host, cmd, pin)
+}
+
+func (fs *MDMAppleStore) EnqueueUnlockUserAccountCommand(ctx context.Context, hostUUID string, username string, cmd *mdm.Command) (string, error) {
+	fs.mu.Lock()
+	fs.EnqueueUnlockUserAccountCommandFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.EnqueueUnlockUserAccountCommandFunc(ctx, hostUUID, username, cmd)
 }
 
 func (fs *MDMAppleStore) EnqueueDeviceUnlockCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {

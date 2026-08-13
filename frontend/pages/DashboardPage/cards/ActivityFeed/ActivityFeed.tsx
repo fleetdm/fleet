@@ -49,6 +49,7 @@ import FailedEnrollmentProfileModal, {
 import MdmCommandDetailsModal, {
   getIconName,
   getVerbForCommandStatus,
+  UnlockUserAccountCommandStatus,
 } from "pages/hosts/components/CommandDetailsModal";
 import IconStatusMessage from "components/IconStatusMessage";
 
@@ -162,6 +163,8 @@ const ActivityFeed = ({
     actor_full_name?: string;
     host_display_name?: string;
     request_type?: string;
+    username?: string;
+    is_unlock_user_account: boolean;
   } | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -331,7 +334,8 @@ const ActivityFeed = ({
           },
         });
         break;
-      case ActivityType.RanCustomMdmCommand: {
+      case ActivityType.RanCustomMdmCommand:
+      case ActivityType.UnlockedUserAccount: {
         if (!details?.command_uuid) {
           break;
         }
@@ -341,6 +345,8 @@ const ActivityFeed = ({
           actor_full_name,
           host_display_name: details?.host_display_name,
           request_type: details?.request_type,
+          username: details?.username,
+          is_unlock_user_account: type === ActivityType.UnlockedUserAccount,
         });
         break;
       }
@@ -516,7 +522,23 @@ const ActivityFeed = ({
       {!!mdmCommandActivityDetails && (
         <MdmCommandDetailsModal
           command={mdmCommandActivityDetails}
+          title={
+            mdmCommandActivityDetails.is_unlock_user_account
+              ? "Unlock user account details"
+              : undefined
+          }
           contentBody={(cls, result) => {
+            if (mdmCommandActivityDetails.is_unlock_user_account) {
+              return (
+                <UnlockUserAccountCommandStatus
+                  result={result}
+                  username={mdmCommandActivityDetails.username}
+                  actorFullName={mdmCommandActivityDetails.actor_full_name}
+                  hostDisplayName={mdmCommandActivityDetails.host_display_name}
+                />
+              );
+            }
+
             const isDeleted = result.status === "Deleted";
             const isPending = getIconName(result.status) === "pending-outline";
             const cmdDisplayName = getMdmCommandDisplayName(

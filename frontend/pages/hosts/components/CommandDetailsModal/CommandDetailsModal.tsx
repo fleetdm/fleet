@@ -65,6 +65,88 @@ export const getVerbForCommandStatus = (status: string): string => {
   }
 };
 
+interface IUnlockUserAccountCommandStatusProps {
+  result: ICommandResult;
+  username?: string;
+  actorFullName?: string;
+  hostDisplayName?: string;
+}
+
+export const UnlockUserAccountCommandStatus = ({
+  result,
+  username,
+  actorFullName,
+  hostDisplayName,
+}: IUnlockUserAccountCommandStatusProps) => {
+  const isDeleted = result.status === "Deleted";
+  const hostName = result.hostname || hostDisplayName || "this host";
+  const accountName = username || "the requested";
+  const displayTime = result.updated_at
+    ? ` (${timeAgo(new Date(result.updated_at), { addSuffix: true })})`
+    : "";
+
+  let message: React.ReactNode;
+  switch (result.status) {
+    case "Acknowledged":
+      message = (
+        <span>
+          {actorFullName ? <b>{actorFullName}</b> : "Fleet"}
+          {" unlocked the "}
+          <b>{accountName}</b> user account on <b>{hostName}</b>
+          {`${displayTime}.`}
+        </span>
+      );
+      break;
+    case "Error":
+    case "CommandFormatError":
+      message = (
+        <span>
+          {actorFullName ? <b>{actorFullName}</b> : "Fleet"}
+          {" failed to unlock the "}
+          <b>{accountName}</b> user account on <b>{hostName}</b>
+          {`${displayTime}.`}
+        </span>
+      );
+      break;
+    case "NotNow":
+      message = (
+        <span>
+          The request to unlock the <b>{accountName}</b> user account is
+          deferred on <b>{hostName}</b>. Fleet will try again.
+        </span>
+      );
+      break;
+    case "Deleted":
+      message = (
+        <span>
+          {actorFullName ? <b>{actorFullName}</b> : "Fleet"}
+          {" sent a request to unlock the "}
+          <b>{accountName}</b> user account on <b>{hostName}</b>.
+        </span>
+      );
+      break;
+    default:
+      message = (
+        <span>
+          The request to unlock the <b>{accountName}</b> user account is pending
+          on <b>{hostName}</b>
+          {`${displayTime}.`}
+        </span>
+      );
+  }
+
+  return (
+    <>
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName={getIconName(result.status)}
+        message={message}
+      />
+      {isDeleted && <div>This command has been deleted.</div>}
+    </>
+  );
+};
+
 const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   const displayTime = result.updated_at
     ? ` (${timeAgo(new Date(result.updated_at), {

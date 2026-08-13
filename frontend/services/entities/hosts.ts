@@ -714,6 +714,11 @@ export default {
     return sendRequest("POST", HOST_CLEAR_PASSCODE(id));
   },
 
+  unlockUserAccount: (id: number, username: string) => {
+    const { HOST_UNLOCK_USER_ACCOUNT } = endpoints;
+    return sendRequest("POST", HOST_UNLOCK_USER_ACCOUNT(id), { username });
+  },
+
   resendProfile: (hostId: number, profileUUID: string): Promise<void> => {
     const { HOST_RESEND_PROFILE } = endpoints;
 

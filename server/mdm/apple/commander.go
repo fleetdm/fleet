@@ -709,6 +709,35 @@ func (svc *MDMAppleCommander) ClearPasscode(ctx context.Context, hostUUIDs []str
 	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, "")
 }
 
+// UnlockUserAccount sends Apple's UnlockUserAccount command to clear the lock
+// caused by too many failed login attempts. It does not change the password.
+func (svc *MDMAppleCommander) UnlockUserAccount(ctx context.Context, hostUUID, username, cmdUUID string) (string, error) {
+	cmdPayload := commandPayload{
+		CommandUUID: cmdUUID,
+		Command: map[string]any{
+			"RequestType": fleet.AppleMDMCommandTypeUnlockUserAccount,
+			"UserName":    username,
+		},
+	}
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshalling UnlockUserAccount payload")
+	}
+
+	cmd, err := mdm.DecodeCommand(rawBytes)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decoding UnlockUserAccount command")
+	}
+	pendingCommandUUID, err := svc.storage.EnqueueUnlockUserAccountCommand(ctx, hostUUID, username, cmd)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "enqueuing UnlockUserAccount command")
+	}
+	if err := svc.SendNotifications(ctx, []string{hostUUID}); err != nil {
+		return pendingCommandUUID, ctxerr.Wrap(ctx, err, "sending notifications for UnlockUserAccount")
+	}
+	return pendingCommandUUID, nil
+}
+
 // EnqueueCommand takes care of enqueuing the commands and sending push
 // notifications to the devices.
 //

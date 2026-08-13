@@ -30,6 +30,7 @@ const (
 	selectiveList      = fleet.ActionSelectiveList
 	cancelHostActivity = fleet.ActionCancelHostActivity
 	transferHost       = fleet.ActionTransferHost
+	unlockUserAccount  = fleet.ActionUnlockUserAccount
 	create             = fleet.ActionCreate
 	readSecrets        = fleet.ActionReadSecrets
 	writeMembers       = fleet.ActionWriteMembers
@@ -2820,6 +2821,20 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 		TeamID: new(uint(1)),
 	}
 	runTestCases(t, []authTestCase{
+		{user: test.UserAdmin, object: globalCommand, action: unlockUserAccount, allow: true},
+		{user: test.UserMaintainer, object: globalCommand, action: unlockUserAccount, allow: true},
+		{user: test.UserTechnician, object: globalCommand, action: unlockUserAccount, allow: true},
+		{user: test.UserGitOps, object: globalCommand, action: unlockUserAccount, allow: false},
+		{user: test.UserObserver, object: globalCommand, action: unlockUserAccount, allow: false},
+		{user: test.UserObserverPlus, object: globalCommand, action: unlockUserAccount, allow: false},
+		{user: test.UserNoRoles, object: globalCommand, action: unlockUserAccount, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1Command, action: unlockUserAccount, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team1Command, action: unlockUserAccount, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: team1Command, action: unlockUserAccount, allow: true},
+		{user: test.UserTeamTechnicianTeam2, object: team1Command, action: unlockUserAccount, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Command, action: unlockUserAccount, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Command, action: unlockUserAccount, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: unlockUserAccount, allow: false},
 		{user: test.UserNoRoles, object: globalCommand, action: write, allow: false},
 		{user: test.UserNoRoles, object: globalCommand, action: read, allow: false},
 		{user: test.UserNoRoles, object: team1Command, action: write, allow: false},

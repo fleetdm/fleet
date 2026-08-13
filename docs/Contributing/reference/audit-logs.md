@@ -3115,6 +3115,31 @@ This activity contains the following fields:
 }
 ```
 
+## unlocked_user_account
+
+Generated when a user sends an MDM command to unlock a local macOS user account.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_uuid": UUID of the host targeted by the MDM command.
+- "username": Local account short name.
+- "command_uuid": UUID of the MDM command. Use this with the command results endpoint to inspect its status and result.
+- "request_type": Apple MDM request type (`UnlockUserAccount`).
+- "platform": Fleet platform targeted by the command (`darwin`).
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_uuid": "a1b2c3d4-e5f6-4a12-8123-123456789abc",
+  "username": "anna",
+  "command_uuid": "84F7F777-803E-40BB-8B47-2C0DC8B0118A",
+  "request_type": "UnlockUserAccount",
+  "platform": "darwin"
+}
+```
+
 ## canceled_setup_experience
 
 Generated when macOS setup experience is canceled due to software install failure.

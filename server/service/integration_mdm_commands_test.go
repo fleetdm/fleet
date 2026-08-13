@@ -1143,3 +1143,78 @@ func (s *integrationMDMTestSuite) TestClearPasscodeCommand() {
 	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, commandResultResp.Results[0].RequestType)
 	require.NotNil(t, commandResultResp.Results[0].Result)
 }
+
+func (s *integrationMDMTestSuite) TestUnlockUserAccountCommand() {
+	t := s.T()
+	host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	var response fleet.UnlockUserAccountResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock_user_account", host.ID), map[string]string{
+		"username": "  anna  ",
+	}, http.StatusOK, &response)
+	require.Equal(t, fleet.AppleMDMCommandTypeUnlockUserAccount, response.RequestType)
+	require.Equal(t, "darwin", response.Platform)
+	require.NotEmpty(t, response.CommandUUID)
+
+	wantActivity := fmt.Sprintf(
+		`{"host_id": %d, "host_display_name": %q, "host_uuid": %q, "username": "anna", "command_uuid": %q, "request_type": "UnlockUserAccount", "platform": "darwin"}`,
+		host.ID, host.DisplayName(), host.UUID, response.CommandUUID,
+	)
+	s.lastHostActivityMatches(host.ID, fleet.ActivityTypeUnlockedUserAccount{}.ActivityName(), wantActivity, 0)
+	s.lastActivityMatches(fleet.ActivityTypeUnlockedUserAccount{}.ActivityName(), wantActivity, 0)
+
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, fleet.AppleMDMCommandTypeUnlockUserAccount, cmd.Command.RequestType)
+	require.Contains(t, string(cmd.Raw), "<key>UserName</key>")
+	require.Contains(t, string(cmd.Raw), "<string>anna</string>")
+
+	_, err = mdmClient.NotNow(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	commandResultResp := &getMDMCommandResultsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", &getMDMCommandResultsRequest{
+		CommandUUID: response.CommandUUID,
+	}, http.StatusOK, commandResultResp)
+	require.Len(t, commandResultResp.Results, 1)
+	require.Equal(t, fleet.AppleMDMCommandTypeUnlockUserAccount, commandResultResp.Results[0].RequestType)
+	require.Equal(t, "NotNow", commandResultResp.Results[0].Status)
+
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, response.CommandUUID, cmd.CommandUUID)
+	_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	commandResultResp = &getMDMCommandResultsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", &getMDMCommandResultsRequest{
+		CommandUUID: response.CommandUUID,
+	}, http.StatusOK, commandResultResp)
+	require.Len(t, commandResultResp.Results, 1)
+	require.Equal(t, "Acknowledged", commandResultResp.Results[0].Status)
+
+	var errorResponse fleet.UnlockUserAccountResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock_user_account", host.ID), map[string]string{
+		"username": "anna",
+	}, http.StatusOK, &errorResponse)
+	errorCmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, errorCmd)
+	require.Equal(t, errorResponse.CommandUUID, errorCmd.CommandUUID)
+	_, err = mdmClient.Err(errorCmd.CommandUUID, []mdm.ErrorChain{{
+		ErrorCode:            12001,
+		ErrorDomain:          "MCMDMErrorDomain",
+		LocalizedDescription: "The user account could not be unlocked.",
+	}})
+	require.NoError(t, err)
+
+	commandResultResp = &getMDMCommandResultsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", &getMDMCommandResultsRequest{
+		CommandUUID: errorResponse.CommandUUID,
+	}, http.StatusOK, commandResultResp)
+	require.Len(t, commandResultResp.Results, 1)
+	require.Equal(t, fleet.AppleMDMCommandTypeUnlockUserAccount, commandResultResp.Results[0].RequestType)
+	require.Equal(t, "Error", commandResultResp.Results[0].Status)
+}

@@ -2533,6 +2533,25 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Huck's MacBook Pro")).toBeInTheDocument();
   });
 
+  it("renders an unlocked_user_account activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UnlockedUserAccount,
+      details: {
+        username: "anna",
+        host_display_name: "Anna's MacBook Pro",
+        command_uuid: "command-uuid",
+        host_uuid: "host-uuid",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("anna")).toBeInTheDocument();
+    expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "show info" })
+    ).toBeInTheDocument();
+  });
+
   it("renders a created_custom_host_vital activity", () => {
     const activity = createMockActivity({
       type: ActivityType.CreatedCustomHostVital,

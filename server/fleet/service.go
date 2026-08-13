@@ -1408,6 +1408,9 @@ type Service interface {
 	// Not script based, only MDM based.
 	ClearPasscode(ctx context.Context, hostID uint) (*CommandEnqueueResult, error)
 
+	// UnlockUserAccount unlocks a local user account on a macOS host using MDM.
+	UnlockUserAccount(ctx context.Context, hostID uint, username string) (*CommandEnqueueResult, error)
+
 	// RotateRecoveryLockPassword rotates the recovery lock password for a macOS host.
 	// This is only available for Apple Silicon Macs that are MDM-enrolled and have
 	// an existing recovery lock password.
