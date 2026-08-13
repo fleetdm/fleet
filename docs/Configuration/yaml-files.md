@@ -814,6 +814,57 @@ If the fields below are omitted, they default to values specified in [the app's 
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
 - `categories` is an array of categories, see [categories](#self-service-labels-categories-and-setup-experience).
 
+
+## vulnerabilities
+
+_Available in Fleet Premium_
+
+The `vulnerabilities` section allows you to dismiss vulnerabilities, hiding them from the Software and Host details pages (including Fleet Desktop), and the **Vulnerability exposure** dashboard chart.
+Dismissing vulnerabilities is global and can only be specified in your `default.yml` file using inline configuration or references to separate files in your `lib/` folder. They cannot be specified in `fleets/fleet-name.yml` or `fleets/unassigned.yml`.
+
+Vulnerabilities support `path:` (single file) and `paths:` (glob pattern) references. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
+
+- `cve` specifies the vulnerability.
+- `dismiss_reason` is the reason for dismissing the vulnerability. Choices for `dismiss_reason` are `accept_risk`, `false_positive`, and `compensating_control`.
+
+> `vulnerabilities` is an optional key. Omitting it entirely un-dismisses every currently dismissed vulnerability.
+>
+> Removing an entry un-dismisses that vulnerability on the next GitOps run.
+
+### Example
+
+#### Inline
+
+`default.yml`
+
+```yaml
+vulnerabilities:
+  - cve: CVE-2022-30190
+    dismiss_reason: accept_risk # No patch available
+  - cve: CVE-2022-30191
+    dismiss_reason: false_positive # Doesn't apply to our org
+```
+
+#### Separate file
+
+`lib/vulnerabilities.yml`
+
+```yaml
+- cve: CVE-2022-30190
+  dismiss_reason: accept_risk # No patch available
+- cve: CVE-2022-30191
+  dismiss_reason: false_positive # Doesn't apply to our org
+```
+
+`default.yml`
+
+```yaml
+vulnerabilities:
+  - path: ./lib/vulnerabilities.yml
+  - paths: ./lib/vulnerabilities/*.yml
+```
+
+
 ## org_settings and settings
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
@@ -831,7 +882,7 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
   - `software_filters` is the list of software categories to show. Valid values: `os` (operating system), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player) (default: all categories).
   - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
   - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
-  - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
+  - `exclude_vulnerabilities` is a list of specific CVEs to exclude. A `cve` with a `dismiss_reason` in the `vulnerabilities` section will also be excluded.
  
 A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
