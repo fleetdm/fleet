@@ -41,7 +41,7 @@ module.exports = {
       let extension = path.extname(relativePath);
       return relativePath.split(extension)[0];
     });
-
+    markdownEmailPaths = markdownEmailPaths.sort();
     templatePaths = templatePaths.map((templatePath)=>{
       let relativePath = path.relative(path.join(sails.config.paths.views, 'emails/'), templatePath);
       let extension = path.extname(relativePath);
