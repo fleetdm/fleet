@@ -95,7 +95,7 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 1. From the side menu, select **Provisioning**.
 2. In **Get started with application provisioning** section, select **Connect your application**.
 3. For the **Tenant URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim?aadOptscim062020`.
-4. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in the **Secret token** field.
+4. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with admin permissions and copy API token for that user. Paste your API token in the **Secret token** field.
 5. Select the **Test connection** button. You should see success message.
 6. Select **Create** and, after successful creation, you'll be redirected to the overview page.
 
@@ -182,7 +182,7 @@ If the sync fails, check the connection status in **Settings > Integrations > Id
 IdPs generally require a Fleet SCIM URL and API token:
 
 - SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
-- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in the **Secret token** field.
+- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with admin permissions and copy API token for that user. Paste your API token in the **Secret token** field.
 
 Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these attributes are correctly mapped in your IdP with `userName` as the unique identifier. Fleet uses the `userName` attribute to map to IdP groups and department.
 
