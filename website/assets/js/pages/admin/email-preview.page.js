@@ -5,6 +5,8 @@ parasails.registerPage('email-preview', {
   data: {
     //…
     preview: 'Responsive',
+    showNewsletterButtons: false,
+    syncing: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -13,6 +15,10 @@ parasails.registerPage('email-preview', {
   beforeMount: function() {
     //…
     _.extend(this, SAILS_LOCALS);
+
+    if(_.startsWith(this.template, 'newsletter')) {
+      this.showNewsletterButtons = true;
+    }
   },
   mounted: async function() {
     //…
@@ -22,6 +28,18 @@ parasails.registerPage('email-preview', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+
+
+    clickSendTestNewsletter: async function() {
+      this.syncing = true;
+      await Cloud.deliverNewsletterEmails.with({emailTemplateName: this.template, sendToAllSubscribers: false});
+      this.syncing = false;
+    },
+
+    clickSendNewsletterToSubscribers: async function() {
+      this.syncing = true;
+      await Cloud.deliverNewsletterEmails.with({emailTemplateName: this.template, sendToAllSubscribers: true});
+      this.syncing = false;
+    }
   }
 });
