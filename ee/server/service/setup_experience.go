@@ -412,6 +412,16 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
 				}
 			}
+		case sw.InHouseAppID != nil:
+			// In-house apps only install during setup experience on iOS/iPadOS,
+			// which is driven in one pass by the worker and never reaches this
+			// poll-driven flow. Fail the item instead of letting it fall through
+			// the switch silently and stall the queue.
+			sw.Status = fleet.SetupExperienceStatusFailure
+			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "updating setup experience status result to failure")
+			}
+			svc.logger.ErrorContext(ctx, "unexpected in-house app setup experience item in poll-driven flow", "status_id", sw.ID)
 		}
 	case softwareRunning == 0 && len(scriptsPending) > 0:
 		// enqueue scripts

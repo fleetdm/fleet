@@ -1749,7 +1749,8 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			}
 			switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
 			case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
-				return svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+				_, err := svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+				return err
 			case err != nil:
 				return ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
 			}
@@ -1961,19 +1962,50 @@ func (svc *Service) recordFailedVPPInstall(ctx context.Context, host *fleet.Host
 }
 
 // recordFailedInHouseInstall is the in-house (.ipa) counterpart of
-// recordFailedVPPInstall.
-func (svc *Service) recordFailedInHouseInstall(ctx context.Context, hostID, inHouseAppID uint, opts fleet.HostSoftwareInstallOptions, reason string) error {
+// recordFailedVPPInstall. Like it, the setup-experience driver needs an error
+// signal to transition the step to Failure, so ForSetupExperience returns a
+// *fleet.PreflightInstallFailedError (see that type's doc).
+func (svc *Service) recordFailedInHouseInstall(ctx context.Context, hostID, inHouseAppID uint, opts fleet.HostSoftwareInstallOptions, reason string) (string, error) {
 	cmdUUID := uuid.NewString()
 	user, act, err := svc.ds.RecordFailedInHouseAppInstall(ctx, hostID, inHouseAppID, cmdUUID, reason, opts)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "record failed in-house install")
+		return "", ctxerr.Wrap(ctx, err, "record failed in-house install")
 	}
 	if act != nil {
 		if err := svc.NewActivity(ctx, user, act); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for failed in-house install")
+			return "", ctxerr.Wrap(ctx, err, "create activity for failed in-house install")
 		}
 	}
-	return nil
+	if opts.ForSetupExperience {
+		return cmdUUID, &fleet.PreflightInstallFailedError{Reason: reason}
+	}
+	return cmdUUID, nil
+}
+
+// InstallInHouseAppForSetupExperience enqueues an in-house app (.ipa) install
+// for a host held in Setup Assistant. Unlike the manual install path above, it
+// deliberately skips IsInHouseAppLabelScoped: labels don't apply during setup
+// experience for any software type, and a freshly-enrolled host has no
+// computed label membership yet anyway.
+func (svc *Service) InstallInHouseAppForSetupExperience(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error) {
+	opts := fleet.HostSoftwareInstallOptions{SelfService: false, ForSetupExperience: true}
+
+	cfg, err := svc.ds.GetInHouseAppConfiguration(ctx, inHouseAppID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "get in-house app configuration for pre-flight check")
+	}
+	switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
+	case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
+		return svc.recordFailedInHouseInstall(ctx, host.ID, inHouseAppID, opts, unresolvableAppConfigFailureReason(err))
+	case err != nil:
+		return "", ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
+	}
+
+	cmdUUID := uuid.NewString()
+	if err := svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, inHouseAppID, softwareTitleID, cmdUUID, opts); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "insert in-house app install for setup experience")
+	}
+	return cmdUUID, nil
 }
 
 func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
@@ -4470,7 +4502,8 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 	}
 	switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
 	case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
-		return svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+		_, err := svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+		return err
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
 	}

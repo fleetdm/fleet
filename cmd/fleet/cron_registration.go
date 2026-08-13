@@ -215,7 +215,8 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register apple_mdm_worker schedule", func() (fleet.CronSchedule, error) {
 		vppInstaller := deps.svc.(fleet.AppleMDMVPPInstaller)
-		return newAppleMDMWorkerSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.commander, deps.bootstrapPackageStore, vppInstaller, deps.svc.NewActivity)
+		inHouseAppInstaller := deps.svc.(fleet.AppleMDMInHouseAppInstaller)
+		return newAppleMDMWorkerSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.commander, deps.bootstrapPackageStore, vppInstaller, inHouseAppInstaller, deps.svc.NewActivity)
 	})
 
 	deps.register("failed to register apple_mdm_dep_profile_assigner schedule", func() (fleet.CronSchedule, error) {

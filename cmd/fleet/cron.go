@@ -1272,6 +1272,7 @@ func newAppleMDMWorkerSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
+	inHouseAppInstaller fleet.AppleMDMInHouseAppInstaller,
 	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1290,6 +1291,7 @@ func newAppleMDMWorkerSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 		VPPInstaller:          vppInstaller,
+		InHouseAppInstaller:   inHouseAppInstaller,
 		NewActivityFn:         newActivityFn,
 	}
 

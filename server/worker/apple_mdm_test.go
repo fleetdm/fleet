@@ -64,6 +64,26 @@ func (m *mockVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, a
 	return "valid-token", nil
 }
 
+type mockInHouseInstall struct {
+	hostID          uint
+	inHouseAppID    uint
+	softwareTitleID uint
+}
+
+type mockInHouseAppInstaller struct {
+	cmdUUID  string
+	err      error
+	installs []mockInHouseInstall
+}
+
+func (m *mockInHouseAppInstaller) InstallInHouseAppForSetupExperience(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error) {
+	m.installs = append(m.installs, mockInHouseInstall{hostID: host.ID, inHouseAppID: inHouseAppID, softwareTitleID: softwareTitleID})
+	if m.err != nil {
+		return "", m.err
+	}
+	return m.cmdUUID, nil
+}
+
 func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	require.True(m.t, opts.ForSetupExperience)
 	resp, ok := m.appInstallResponses[vppApp.AdamID]
@@ -1543,6 +1563,142 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 		assert.Equal(t, h.Platform, act.HostPlatform)
 		assert.True(t, act.FromSetupExperience)
 		assert.False(t, act.SelfService)
+	})
+
+	t.Run("installs in-house apps during iOS setup experience", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "ios")
+
+		iosAppID, iosTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID:           &tm.ID,
+			UserID:           user1.ID,
+			Title:            "Acme",
+			Filename:         "acme.ipa",
+			BundleIdentifier: "com.acme.app",
+			StorageID:        "acme-storage",
+			Platform:         "ios",
+			Extension:        "ipa",
+			Version:          "1.0",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err = q.ExecContext(ctx, `
+INSERT INTO setup_experience_status_results (host_uuid, name, status, in_house_app_id)
+VALUES (?, ?, ?, ?)`, h.UUID, "Acme", fleet.SetupExperienceStatusPending, iosAppID)
+			return err
+		})
+
+		installer := &mockInHouseAppInstaller{cmdUUID: "inhouse-cmd-1"}
+		var capturedActivities []fleet.ActivityDetails
+		mdmWorker := &AppleMDM{
+			InHouseAppInstaller: installer,
+			Datastore:           ds,
+			Log:                 slogLog,
+			Commander:           apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			NewActivityFn: func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
+				capturedActivities = append(capturedActivities, activity)
+				return nil
+			},
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, &tm.ID, "", true, false)
+		require.NoError(t, err)
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		require.Equal(t, []mockInHouseInstall{{hostID: h.ID, inHouseAppID: iosAppID, softwareTitleID: iosTitleID}}, installer.installs)
+
+		// the item is running and carries the MDM command UUID so the release
+		// job waits for it
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID, tm.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, results[0].Status)
+		require.NotNil(t, results[0].NanoCommandUUID)
+		require.Equal(t, "inhouse-cmd-1", *results[0].NanoCommandUUID)
+		require.Empty(t, capturedActivities)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, jobs, 1)
+		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Contains(t, string(*jobs[0].Args), "inhouse-cmd-1")
+	})
+
+	t.Run("fails the in-house item on pre-flight error without blocking release", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "ios")
+
+		iosAppID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID:           &tm.ID,
+			UserID:           user1.ID,
+			Title:            "Acme",
+			Filename:         "acme.ipa",
+			BundleIdentifier: "com.acme.app",
+			StorageID:        "acme-storage",
+			Platform:         "ios",
+			Extension:        "ipa",
+			Version:          "1.0",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err = q.ExecContext(ctx, `
+INSERT INTO setup_experience_status_results (host_uuid, name, status, in_house_app_id)
+VALUES (?, ?, ?, ?)`, h.UUID, "Acme", fleet.SetupExperienceStatusPending, iosAppID)
+			return err
+		})
+
+		// the pre-flight failure path records the failed install and its
+		// activity in the service layer, so the worker must fail the item
+		// without emitting a second activity
+		installer := &mockInHouseAppInstaller{err: &fleet.PreflightInstallFailedError{Reason: "Couldn't resolve $FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}
+		var capturedActivities []fleet.ActivityDetails
+		mdmWorker := &AppleMDM{
+			InHouseAppInstaller: installer,
+			Datastore:           ds,
+			Log:                 slogLog,
+			Commander:           apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			NewActivityFn: func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
+				capturedActivities = append(capturedActivities, activity)
+				return nil
+			},
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, &tm.ID, "", true, false)
+		require.NoError(t, err)
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// the item reached a terminal state with the user-facing reason, so
+		// the release job is not gated on a command that will never arrive
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID, tm.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.Equal(t, fleet.SetupExperienceStatusFailure, results[0].Status)
+		require.NotNil(t, results[0].Error)
+		require.Contains(t, *results[0].Error, "Couldn't resolve")
+		require.Nil(t, results[0].NanoCommandUUID)
+		require.Empty(t, capturedActivities)
 	})
 
 	t.Run("treats NotNow status as a finished command status that does not block device release", func(t *testing.T) {

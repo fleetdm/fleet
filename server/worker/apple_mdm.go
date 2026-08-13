@@ -52,6 +52,7 @@ type AppleMDM struct {
 	Commander             *apple_mdm.MDMAppleCommander
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 	VPPInstaller          fleet.AppleMDMVPPInstaller
+	InHouseAppInstaller   fleet.AppleMDMInHouseAppInstaller
 	NewActivityFn         fleet.NewActivityFunc
 }
 
@@ -134,7 +135,7 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
 		if license.IsPremium(ctx) {
-			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
+			_, err := a.installSetupExperienceAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 			}
@@ -201,7 +202,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			}
 		}
 	} else {
-		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
+		commandUUIDs, err := a.installSetupExperienceAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 		}
@@ -572,13 +573,14 @@ func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, 
 	return cmdUUID, nil
 }
 
-func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context, hostUUID string, teamID uint) ([]string, error) {
+func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, hostUUID string, teamID uint) ([]string, error) {
 	statuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}
 
 	var appsPending []*fleet.SetupExperienceStatusResult
+	var inHousePending []*fleet.SetupExperienceStatusResult
 	commandUUIDs := []string{}
 	for _, status := range statuses {
 		if err := status.IsValid(); err != nil {
@@ -590,14 +592,53 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 			if status.Status == fleet.SetupExperienceStatusPending {
 				appsPending = append(appsPending, status)
 			}
+		case status.InHouseAppID != nil:
+			if status.Status == fleet.SetupExperienceStatusPending {
+				inHousePending = append(inHousePending, status)
+			}
 		case status.SetupExperienceScriptID != nil, status.SoftwareInstallerID != nil:
 			status.Status = fleet.SetupExperienceStatusFailure
 			err = a.Datastore.UpdateSetupExperienceStatusResult(ctx, status)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating setup experience status result to failure")
 			}
-			// If we enqueued a non-VPP item for an iOS/iPadOS device, it likely a code bug
-			a.Log.ErrorContext(ctx, "unexpected setup experience item for iOS/iPadOS device, only VPP apps are supported", "host_uuid", hostUUID, "status_id", status.ID)
+			// If we enqueued a script or software-installer item for an iOS/iPadOS device, it's likely a code bug
+			a.Log.ErrorContext(ctx, "unexpected setup experience item for iOS/iPadOS device, only VPP and in-house apps are supported", "host_uuid", hostUUID, "status_id", status.ID)
+		}
+	}
+
+	if len(inHousePending) > 0 {
+		host, err := a.Datastore.HostByIdentifier(ctx, hostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "retrieving host by UUID")
+		}
+		if a.InHouseAppInstaller == nil {
+			// Should not happen in the normal course of events but can happen in
+			// tests and likely indicates things weren't initialized properly.
+			return nil, errors.New("in-house app installer not configured")
+		}
+		for _, app := range inHousePending {
+			if app.SoftwareTitleID == nil {
+				return nil, ctxerr.Errorf(ctx, "setup experience software title id missing from in-house app install request: %d", app.ID)
+			}
+
+			cmdUUID, err := a.InHouseAppInstaller.InstallInHouseAppForSetupExperience(ctx, host, *app.InHouseAppID, *app.SoftwareTitleID)
+			if err != nil {
+				// fail the item so setup experience isn't blocked. No activity is
+				// emitted here: the pre-flight failure path (unresolvable Fleet
+				// variable, *fleet.PreflightInstallFailedError) already recorded the
+				// failed install and its activity in the service layer.
+				a.Log.ErrorContext(ctx, "got an error when attempting to enqueue in-house app install", "err", err, "in_house_app_id", *app.InHouseAppID)
+				app.Status = fleet.SetupExperienceStatusFailure
+				app.Error = new(err.Error())
+			} else {
+				app.NanoCommandUUID = &cmdUUID
+				app.Status = fleet.SetupExperienceStatusRunning
+				commandUUIDs = append(commandUUIDs, cmdUUID)
+			}
+			if err := a.Datastore.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "updating setup experience with in-house install command uuid")
+			}
 		}
 	}
 

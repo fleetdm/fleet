@@ -1698,6 +1698,19 @@ type AppleMDMVPPInstaller interface {
 	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }
 
+// AppleMDMInHouseAppInstaller is the subset of the Fleet service used by the
+// Apple MDM worker to install in-house apps (.ipa) during setup experience.
+// Like AppleMDMVPPInstaller, it exists because the install logic lives in the
+// premium service, which the worker package cannot import.
+type AppleMDMInHouseAppInstaller interface {
+	// InstallInHouseAppForSetupExperience validates the in-house app's managed
+	// configuration for the host and enqueues its InstallApplication command,
+	// returning the command UUID. An unresolvable Fleet variable in the
+	// configuration records the failed install (and its activity) and returns
+	// a *PreflightInstallFailedError.
+	InstallInHouseAppForSetupExperience(ctx context.Context, host *Host, inHouseAppID uint, softwareTitleID uint) (string, error)
+}
+
 const (
 	DeviceLocationCmdName       = "DeviceLocation"
 	EnableLostModeCmdName       = "EnableLostMode"
