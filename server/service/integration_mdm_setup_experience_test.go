@@ -2722,6 +2722,146 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 	}
 }
 
+// TestSetupExperienceIOSInHouseApp runs the end-to-end iOS setup experience
+// flow with a mixed payload: an in-house app (.ipa) and a VPP app on the same
+// enrolling iPhone. Both must install while the device is held in Setup
+// Assistant, drive the release, and be recorded with setup-experience
+// attribution.
+func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+	abmOrgName := "fleet_ade_ios_in_house_test"
+
+	s.enableABM(abmOrgName)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team in-house se"})
+	require.NoError(t, err)
+
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"mdm": {
+			       "apple_business_manager": [{
+			         "organization_name": %q,
+			         "macos_team": %q,
+			         "ios_team": %q,
+			         "ipados_team": %q
+			       }]
+			}
+		}`, abmOrgName, team.Name, team.Name, team.Name)), http.StatusOK, &acResp)
+
+	// VPP token for the App Store half of the payload
+	orgName := "Fleet Device Management Inc."
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+	var getVPPTokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	iOSApp := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		LatestVersion:    "2.0.0",
+	}
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iOSApp.AdamID, Platform: iOSApp.Platform},
+		http.StatusOK, &addAppResp)
+	var vppTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &vppTitleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, iOSApp.AdamID, iOSApp.Platform)
+	})
+
+	// upload the .ipa (creates the iOS and iPadOS titles) and select the iOS title
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa", TeamID: &team.ID}, http.StatusOK, "")
+	var ipaTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &ipaTitleID, `SELECT title_id FROM in_house_apps WHERE global_or_team_id = ? AND platform = 'ios'`, team.ID)
+	})
+
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "ios",
+		TeamID:   team.ID,
+		TitleIDs: []uint{vppTitleID, ipaTitleID},
+	}, http.StatusOK, &swInstallResp)
+
+	// custom profile, expected by the enroll/release helper
+	teamProfile := mobileconfigForTest("N1", "I1")
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+
+	device := godep.Device{
+		Model:        "iPhone 16 Pro",
+		OS:           "iOS",
+		DeviceFamily: "iPhone",
+		OpType:       "added",
+		SerialNumber: "iphone-inhouse-1",
+	}
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
+
+	// wrapped in t.Run so the helper's cleanups run before the suite teardown
+	t.Run("iPhoneInHouseSetupExperience", func(t *testing.T) {
+		s.runDEPEnrollReleaseMobileDeviceWithVPPTest(t, device, DEPEnrollMobileTestOpts{
+			ABMOrg:             abmOrgName,
+			TeamID:             &team.ID,
+			CustomProfileIdent: "N1",
+			VppAppsToInstall:   []*fleet.VPPApp{iOSApp},
+			InHouseAppsToInstall: []fleet.Software{
+				{BundleIdentifier: "com.ipa-test.ipa-test", Name: "ipa_test", Version: "1.0"},
+			},
+		})
+
+		// both setup experience items reached success, and the in-house row carries
+		// its app pointer and MDM command UUID
+		listHostsRes := listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+		require.Len(t, listHostsRes.Hosts, 1)
+		hostUUID := listHostsRes.Hosts[0].UUID
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, team.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		var inHouseSeen, vppSeen bool
+		for _, res := range results {
+			require.Equal(t, fleet.SetupExperienceStatusSuccess, res.Status)
+			switch {
+			case res.IsForInHouseApp():
+				inHouseSeen = true
+				require.NotNil(t, res.NanoCommandUUID)
+			case res.IsForVPPApp():
+				vppSeen = true
+			}
+		}
+		require.True(t, inHouseSeen)
+		require.True(t, vppSeen)
+
+		// the verified in-house install is recorded with setup-experience attribution
+		var activitiesResp listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "per_page", "50", "order_key", "id", "order_direction", "desc")
+		var inHouseActivitySeen bool
+		for _, act := range activitiesResp.Activities {
+			if act.Type != (fleet.ActivityTypeInstalledSoftware{}).ActivityName() || act.Details == nil {
+				continue
+			}
+			var details fleet.ActivityTypeInstalledSoftware
+			require.NoError(t, json.Unmarshal(*act.Details, &details))
+			if details.SoftwareTitle != "ipa_test" {
+				continue
+			}
+			inHouseActivitySeen = true
+			require.True(t, details.FromSetupExperience)
+			require.Equal(t, string(fleet.SoftwareInstalled), details.Status)
+		}
+		require.True(t, inHouseActivitySeen, "expected an installed_software activity for the in-house app")
+	})
+}
+
 type DEPEnrollMobileTestOpts struct {
 	ABMOrg                            string
 	EnableReleaseManually             bool
@@ -2729,6 +2869,9 @@ type DEPEnrollMobileTestOpts struct {
 	CustomProfileIdent                string
 	EnrollmentProfileFromDEPUsingPost bool
 	VppAppsToInstall                  []*fleet.VPPApp
+	// InHouseAppsToInstall lists in-house apps (.ipa) expected to install during
+	// setup, as the device would report them in InstalledApplicationList.
+	InHouseAppsToInstall []fleet.Software
 }
 
 func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *testing.T, device godep.Device, opts DEPEnrollMobileTestOpts) {
@@ -2852,10 +2995,12 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 
+	totalAppsToInstall := len(opts.VppAppsToInstall) + len(opts.InHouseAppsToInstall)
 	// For reporting back via InstalledApplicationList
-	installedVPPApps := make([]fleet.Software, 0, len(opts.VppAppsToInstall))
+	installedVPPApps := make([]fleet.Software, 0, totalAppsToInstall)
 	// For verifying number of installs
-	installedApps := make(map[string]int, len(opts.VppAppsToInstall))
+	installedApps := make(map[string]int, totalAppsToInstall)
+	var inHouseInstallCount int
 
 	var installProfileCount, installAppCount, refetchVerifyCount, otherCount int
 	var profileCustomSeen, profileFleetCASeen, unexpectedProfileSeen bool
@@ -2896,14 +3041,29 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 				unexpectedProfileSeen = true
 			}
 		case "InstallApplication":
-			if logCommands {
-				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID))
-			}
-			for _, app := range opts.VppAppsToInstall {
-				if app.AdamID == fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID) {
-					installedVPPApps = append(installedVPPApps, fleet.Software{BundleIdentifier: app.BundleIdentifier, Name: app.Name, Version: app.LatestVersion, Installed: true})
-					installedApps[app.AdamID]++
+			if fullCmd.Command.InstallApplication.ITunesStoreID != nil {
+				if logCommands {
+					fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID))
 				}
+				for _, app := range opts.VppAppsToInstall {
+					if app.AdamID == fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID) {
+						installedVPPApps = append(installedVPPApps, fleet.Software{BundleIdentifier: app.BundleIdentifier, Name: app.Name, Version: app.LatestVersion, Installed: true})
+						installedApps[app.AdamID]++
+					}
+				}
+			} else {
+				// in-house app (.ipa) installs carry a manifest URL instead of an App Store ID
+				require.NotNil(t, fullCmd.Command.InstallApplication.ManifestURL)
+				if logCommands {
+					fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallApplication.ManifestURL)
+				}
+				require.Contains(t, *fullCmd.Command.InstallApplication.ManifestURL, "/in_house_app/manifest/")
+				require.Less(t, inHouseInstallCount, len(opts.InHouseAppsToInstall), "unexpected extra in-house app install command")
+				sw := opts.InHouseAppsToInstall[inHouseInstallCount]
+				sw.Installed = true
+				installedVPPApps = append(installedVPPApps, sw)
+				installedApps["inhouse:"+sw.BundleIdentifier]++
+				inHouseInstallCount++
 			}
 			installAppCount++
 
@@ -2923,7 +3083,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 			// InstalledApplicationList command instead of an InstallApplication command.
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			// Hold off on verifying the last install until later so we can ensure it waits for verification
-			if len(installedVPPApps) == len(opts.VppAppsToInstall) {
+			if len(installedVPPApps) == totalAppsToInstall {
 				installedVPPApps[len(installedVPPApps)-1].Installed = false
 			}
 			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(
@@ -2971,19 +3131,22 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 
 	// expected commands: install CA, install profile (only the custom one),
 	// not expected: account configuration, since enrollment_reference not set
-	require.Len(t, cmds, 2+len(opts.VppAppsToInstall))
+	require.Len(t, cmds, 2+totalAppsToInstall)
 
 	require.Equal(t, 2, installProfileCount)
 	require.True(t, profileCustomSeen)
 	require.True(t, profileFleetCASeen)
 	require.Equal(t, false, unexpectedProfileSeen)
 
-	require.Equal(t, len(opts.VppAppsToInstall), installAppCount)
-	require.Equal(t, len(opts.VppAppsToInstall), len(installedApps))
+	require.Equal(t, totalAppsToInstall, installAppCount)
+	require.Equal(t, totalAppsToInstall, len(installedApps))
 
 	// Each expected app should be installed exactly once
 	for _, app := range opts.VppAppsToInstall {
 		require.Equal(t, 1, installedApps[app.AdamID])
+	}
+	for _, sw := range opts.InHouseAppsToInstall {
+		require.Equal(t, 1, installedApps["inhouse:"+sw.BundleIdentifier])
 	}
 
 	require.Equal(t, 0, otherCount)
