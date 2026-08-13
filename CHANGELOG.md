@@ -1,3 +1,24 @@
+## Fleet 4.90.1 (Aug 14, 2026)
+
+### Bug fixes
+
+- Fixed a bug where the Fleet-maintained app auto-update job could keep an app's previous install script (which references the old installer filename) after downloading a newer version, causing the install to fail.
+- Fixed automatic App Store app updates and policy automations queueing a duplicate install on a host whose upcoming activity queue was not draining. Fleet now skips an app that already has an install waiting in the queue, whether or not it has been sent to the device.
+- Removed the duplicate App Store app installs Fleet had already queued, keeping the most recently queued install of each app on each host. Installs requested from the install button, self-service, or the setup experience are left in place.
+- Fixed policy automations acting on an App Store app added for a platform other than the host's.
+- Fixed an issue where the Apple reconciler would queue profiles for deleted hosts, that was pending in Fleet via Apple Business.
+- Fixed Apple hosts losing built-in label memberships during Automated Device Enrollment (ADE), which prevented label-scoped profiles, software, and OS updates from being delivered.
+- Fixed a bug where the batched Apple MDM profile and declaration reconcilers could skip hosts on deployments with more than 5000 Apple MDM hosts and one or more duplicate hosts.
+- Fixed a database migration that could take hours to complete on deployments with many host certificates.
+- Improved the error message shown when adding a Fleet-maintained app times out or is canceled by a proxy or load balancer while downloading a large installer.
+- Fixed a Windows configuration profile staying listed on Host details > OS settings when it stopped applying to a host but another profile on that host still enforced all of the same settings. This affected deleting or renaming a profile, and transferring a host between fleets with matching profiles.
+- Fixed 502 errors and timeouts on the software install endpoints caused by the hourly Fleet-maintained apps sync taking exclusive row locks on the entire `software` and `software_titles` tables while normalizing software names.
+- Fixed a macOS Fleet-maintained app's name being applied to the iOS and iPadOS apps that share its bundle identifier.
+- Fixed macOS Fleet-maintained app software names not being corrected when the catalog refresh failed.
+- Fixed a 500 error during Apple MDM enrollment when a host had no DEP assignment yet (e.g. the enrollment request arrived before the host/DEP assignment row was created or replicated). The OS updates settings lookup now returns a not-found error so enrollment proceeds gracefully instead of failing.
+- Fixed a bug where updating a Fleet-maintained app to a new build that uses the same shortened version did not update the file to the new installer, but did update some fields like install script.
+- Fixed a bug where hosts that re-enrolled via DEP would sometimes have profiles with exclude-any labels attached installed before they had actually reported label results 
+
 ## Fleet 4.90.0 (Aug 05, 2026)
 
 ### IT Admins
@@ -86,7 +107,9 @@
 - Hid self-service categories that have no available software from the category filter on the **My device** page, so users only see categories they can actually install from.
 - Added a "no custom SCEP CA configured" empty state to the certificates card.
 - Made form validation consistent across more forms (#40410 follow-up): validation errors now appear when leaving a field (on blur) and no longer appear before any input. This covers the policy automations "Other workflows" Destination URL, the add/edit user Email field, and the host status webhook Destination URL (both global settings and fleet settings).
+- Fixed Windows Autopilot enrollments intermittently hanging on the Enrollment Status Page at "Account setup".
 - Fixed recurring Redis `MOVED` errors and silently-dropped report result-count increments on Redis Cluster deployments by grouping `query_results_count` keys by hash slot before pipelining.
+- Fixed a bug where a failed software install was reported as successfully installed when the install script exited with an error but a post-install script exited successfully.
 - Fixed newly created or updated reports not appearing in the host details "Live report" modal or the reports list until a hard refresh.
 - Fixed an issue where an identity provider (IdP) user associated with multiple hosts only had IdP host vitals populated on one of them. All matching hosts are now linked when the SCIM/IdP user is created.
 - Fixed a bug where the Add software > App Store picker failed with an error for maintainer and technician roles because listing VPP tokens required admin access.
@@ -100,8 +123,10 @@
 - Fixed the policies and users tables intermittently reloading and clearing the current selection or resetting to the first page when the browser window regained focus.
 - Fixed a timeout when editing existing Windows configuration profiles for a large team via `POST /api/latest/fleet/mdm/profiles/batch` (GitOps). Now the request stays fast regardless of host count.
 - Fixed label membership being incorrectly cleared when a label's query errors out on a host (e.g. the extension socket is unavailable) instead of returning zero rows; existing membership is now left unchanged when a label query fails.
+- Fixed an issue where devices given a mandatory update during ADE enrollment might display a failure or fail to display the update.
 - Fixed observers not seeing the "Show managed account" action on a macOS host's details page, even though the API already allows them to view the managed local account password.
 - Fixed an issue where the truncated vulnerabilities list in the Update details modal did not show a tooltip listing the remaining CVEs.
+- Fixed a bug where adding Windows software via GitOps could create a duplicate software title when a host had already reported the same program.
 - Fixed an incorrect error message where an `msix` file was parsed as an `ipa` file.
 - Fixed sorting of fleets for fleet-level users.
 - Fixed stale policy results inflating a host's failing policies count (shown in Fleet Desktop and the host's "Issues" column) after the policy no longer applied to the host (e.g. the host changed teams, or the policy's platform or label scope changed). Stale results are now cleaned up when the host reports its policy results.
@@ -110,10 +135,13 @@
 - Fixed the SSO sign-on button text overflowing by using a fixed "Sign in with SSO" label and showing the configured IdP name in a tooltip.
 - Fixed an issue where premium MDM calls were being made on a Fleet Free license.
 - Fixed cron jobs getting stuck in "expired" when a run is interrupted mid-flight (e.g. during server shutdown); the run now records a terminal "canceled" status, preserving any job errors, instead of being left "pending" until reaped to "expired".
+- Fixed a bug where Apple MDM devices re-enrolling manually with a pending SCEP renewal would not be treated as a new renewal and might skip apps, profiles, etc.
 - Fixed several styling issues on the end user enrollment page (BYOD info banner icon, active tab color, banner border, uneven QR code spacing) and added a "Learn more" link to the BYOD info banner. Also fixed enroll secret text incorrectly rendering in blue instead of black in the Add hosts modal.
 - Fixed error in re-enrollment to Fleet with EUA on Linux with a different e-mail than the one used in the first enrollment.
 - Fixed the vulnerability automations webhook "Destination URL" field to validate on blur (when the user clicks out of the field), consistent with other URL fields in Fleet, instead of only showing an error on save.
 - Fixed Google Translate extension causing a 500-page when running live reports.
+- Fixed a bug where a Fleet-maintained app install could run a stale, previously-cached version after the app was auto-updated; installs (including automatic retries) now target the version Fleet currently displays.
+- Fixed a bug where pinning a Fleet-maintained app to a different version didn't update the patch policy for it.
 - Fixed a bug where some symbols changed height based on nearby characters in input fields.
 - Fixed the Add certificate modal (Controls > OS settings > Certificates) to only list custom SCEP CAs in the "Certificate authority (CA)" dropdown, matching the modal's help text.
 - Fixed an issue where tooltips for full name did not always show.
@@ -125,18 +153,6 @@
 - Fixed Citrix Workspace LTSR detection on Windows to include cumulative updates (e.g. 2203 LTSR CU4), so their vulnerabilities report the correct LTSR `resolved_in_version` (e.g. `2402` for CVE-2024-6286) instead of the Current Release version.
 - Fixed missing `resolved_in_version` for CVE-2025-63389 on Ollama (resolved in v0.12.4), which was absent because the NVD record only provides a `versionEndIncluding` constraint.
 - Fixed vulnerability detection for Python packages on Ubuntu/Debian devices by stripping the "python3-" name prefix during CPE matching.
-
-## Fleet 4.89.2 (Jul 24, 2026)
-
-### Bug fixes
-
-- Fixed a bug where a failed software install was reported as successfully installed when the install script exited with an error but a post-install script exited successfully.
-- Fixed Windows Autopilot enrollments intermittently hanging on the Enrollment Status Page at "Account setup".
-- Fixed an issue where devices given a mandatory update during ADE enrollment might display a failure or fail to display the update
-- Fixed a bug where adding Windows software via GitOps could create a duplicate software title when a host had already reported the same program.
-- Fixed a bug where Apple MDM devices re-enrolling manually with a pending SCEP renewal would not be treated as a new renewal and might skip apps, profiles, etc
-- Fixed a bug where a Fleet-maintained app install could run a stale, previously-cached version after the app was auto-updated; installs (including automatic retries) now target the version Fleet currently displays.
-- Fixed a bug where pinning a Fleet-maintained app to a different version didn't update the patch policy for it.
 
 ## Fleet 4.89.1 (Jul 16, 2026)
 
@@ -189,7 +205,7 @@
 - Restricted authorization for conditional access Okta IdP asset endpoints so that observer and observer+ roles can no longer read them.
 - Improved session handling during password reset flows.
 - Cleared the SSO authentication cookie after successful authentication for fully-managed Android enrollment.
-- Added private network IP blocking to Fleet's HTTP client. Loopback and cloud metadata addresses (127.0.0.0/8, 169.254.0.0/16) are always blocked. RFC 1918 and other private ranges are blocked by default, affecting any outbound connection to a private address (e.g. SSO/IdP on a private network, EJBCA, Jira, SCEP servers, or `HTTP_PROXY`/`HTTPS_PROXY` pointed at a loopback or internal proxy). Use `--server_allow_private_network_integrations` to allow these.
+- Added private network IP blocking to Fleet's HTTP client. Loopback and cloud metadata addresses (127.0.0.0/8, 169.254.0.0/16) are always blocked. RFC 1918 and other private ranges are blocked by default; use `--allow_private_network_integrations` to allow them for environments with on-prem integrations (e.g. EJBCA, Jira, SCEP servers on private networks).
 - Added the `s3.carves_cleanup_disabled` server setting to skip S3 file carve reconciliation for deployments that rely solely on the bucket's lifecycle policy to remove carve objects.
 - Added the `s3.carves_cleanup_max_per_run` and `s3.carves_cleanup_concurrency` server settings to tune how many carves the S3 cleanup reconciles per run and how many concurrent S3 requests it makes.
 - Updated the SigNoz OTEL dashboards under `tools/signoz/` to template and filter on the `deployment.environment` resource attribute, with the environment variable defaulting to `default`, so multiple Fleet environments reporting to the same SigNoz backend can be scoped per environment.
@@ -261,7 +277,7 @@
 - Fixed an issue where the macOS "Update new hosts to latest" OS update setting could stay enabled in GitOps after `minimum_version` and `deadline` were cleared; when `update_new_hosts` isn't explicitly set, it now defaults to enabled only while a minimum version and deadline are configured.
 - Fixed an issue where more than 8 entries for OS versions would not be paginated.
 
-## Fleet 4.88.1 (Jul 09, 2026)
+## Fleet 4.88.1 (Jul 10, 2026)
 
 ### Bug fixes
 
