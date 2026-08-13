@@ -2336,15 +2336,17 @@ type GetEndUserNotificationByUUIDFunc func(ctx context.Context, uuid string) (*f
 
 type GetEndUserNotificationByExecutionIDFunc func(ctx context.Context, executionID string) (*fleet.EndUserNotification, error)
 
-type ListEndUserNotificationIDsForHostFunc func(ctx context.Context, hostID uint) ([]uint, error)
-
 type ListEndUserNotificationsToDispatchFunc func(ctx context.Context, limit int) ([]*fleet.EndUserNotification, error)
 
 type SetEndUserNotificationsDispatchedFunc func(ctx context.Context, notifications []*fleet.EndUserNotification) error
 
 type ExpireEndUserNotificationsFunc func(ctx context.Context) (int64, error)
 
-type UpdateEndUserNotificationFunc func(ctx context.Context, uuid string, action fleet.EndUserNotificationAction) error
+type VerifyEndUserNotificationFunc func(ctx context.Context, uuid string, displayedAt time.Time) error
+
+type DelayEndUserNotificationFunc func(ctx context.Context, uuid string, nextAttemptAt time.Time) error
+
+type SetEndUserNotificationOutcomeFunc func(ctx context.Context, uuid string, outcome fleet.NotificationOutcome, nextAttemptAt *time.Time) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -5815,9 +5817,6 @@ type DataStore struct {
 	GetEndUserNotificationByExecutionIDFunc        GetEndUserNotificationByExecutionIDFunc
 	GetEndUserNotificationByExecutionIDFuncInvoked bool
 
-	ListEndUserNotificationIDsForHostFunc        ListEndUserNotificationIDsForHostFunc
-	ListEndUserNotificationIDsForHostFuncInvoked bool
-
 	ListEndUserNotificationsToDispatchFunc        ListEndUserNotificationsToDispatchFunc
 	ListEndUserNotificationsToDispatchFuncInvoked bool
 
@@ -5827,8 +5826,14 @@ type DataStore struct {
 	ExpireEndUserNotificationsFunc        ExpireEndUserNotificationsFunc
 	ExpireEndUserNotificationsFuncInvoked bool
 
-	UpdateEndUserNotificationFunc        UpdateEndUserNotificationFunc
-	UpdateEndUserNotificationFuncInvoked bool
+	VerifyEndUserNotificationFunc        VerifyEndUserNotificationFunc
+	VerifyEndUserNotificationFuncInvoked bool
+
+	DelayEndUserNotificationFunc        DelayEndUserNotificationFunc
+	DelayEndUserNotificationFuncInvoked bool
+
+	SetEndUserNotificationOutcomeFunc        SetEndUserNotificationOutcomeFunc
+	SetEndUserNotificationOutcomeFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -13925,13 +13930,6 @@ func (s *DataStore) GetEndUserNotificationByExecutionID(ctx context.Context, exe
 	return s.GetEndUserNotificationByExecutionIDFunc(ctx, executionID)
 }
 
-func (s *DataStore) ListEndUserNotificationIDsForHost(ctx context.Context, hostID uint) ([]uint, error) {
-	s.mu.Lock()
-	s.ListEndUserNotificationIDsForHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListEndUserNotificationIDsForHostFunc(ctx, hostID)
-}
-
 func (s *DataStore) ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*fleet.EndUserNotification, error) {
 	s.mu.Lock()
 	s.ListEndUserNotificationsToDispatchFuncInvoked = true
@@ -13953,9 +13951,23 @@ func (s *DataStore) ExpireEndUserNotifications(ctx context.Context) (int64, erro
 	return s.ExpireEndUserNotificationsFunc(ctx)
 }
 
-func (s *DataStore) UpdateEndUserNotification(ctx context.Context, uuid string, action fleet.EndUserNotificationAction) error {
+func (s *DataStore) VerifyEndUserNotification(ctx context.Context, uuid string, displayedAt time.Time) error {
 	s.mu.Lock()
-	s.UpdateEndUserNotificationFuncInvoked = true
+	s.VerifyEndUserNotificationFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateEndUserNotificationFunc(ctx, uuid, action)
+	return s.VerifyEndUserNotificationFunc(ctx, uuid, displayedAt)
+}
+
+func (s *DataStore) DelayEndUserNotification(ctx context.Context, uuid string, nextAttemptAt time.Time) error {
+	s.mu.Lock()
+	s.DelayEndUserNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.DelayEndUserNotificationFunc(ctx, uuid, nextAttemptAt)
+}
+
+func (s *DataStore) SetEndUserNotificationOutcome(ctx context.Context, uuid string, outcome fleet.NotificationOutcome, nextAttemptAt *time.Time) error {
+	s.mu.Lock()
+	s.SetEndUserNotificationOutcomeFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetEndUserNotificationOutcomeFunc(ctx, uuid, outcome, nextAttemptAt)
 }

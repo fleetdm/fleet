@@ -35,7 +35,7 @@ import (
 // a CPU profile shows netpoll. The hosts/s metric is the number to watch, since it
 // says how much of a fleet one minute of this cron can get through.
 //
-// Tune with FLEET_BENCH_SIZE: "smoke" (default, 2 batches), "realistic" (20
+// Tune with FLEET_BENCH_SIZE: "tiny" (10 hosts), "smoke" (default, 2 batches), "realistic" (20
 // batches), "large" (200 batches). Absolute numbers from a local MySQL container
 // are not prod numbers.
 
@@ -44,6 +44,7 @@ type cronBenchSize struct {
 }
 
 var cronBenchSizes = map[string]cronBenchSize{
+	"tiny":      {numHosts: 10},
 	"smoke":     {numHosts: 1_000},
 	"realistic": {numHosts: 10_000},
 	"large":     {numHosts: 100_000},
@@ -177,5 +178,38 @@ func BenchmarkDispatchEndUserNotifications(b *testing.B) {
 
 	if elapsed := b.Elapsed().Seconds(); elapsed > 0 {
 		b.ReportMetric(float64(sz.numHosts*passes)/elapsed, "hosts/s")
+	}
+}
+
+// What the cron costs on a fleet with nothing due, which is what almost every
+// run of it does. The hosts and their notifications exist, they are just all
+// dispatched already, so a pass expires and then finds an empty batch.
+func BenchmarkDispatchEndUserNotificationsIdle(b *testing.B) {
+	ds := mysqltest.CreateMySQLDS(b)
+	sz := pickCronBenchSize(b)
+	seedDispatchableFleet(b, ds, sz)
+
+	ctx := context.Background()
+	logger := slog.New(slog.DiscardHandler)
+
+	mysqltest.ExecAdhocSQL(b, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE end_user_notifications SET status = ?",
+			fleet.EndUserNotificationDispatched)
+		return err
+	})
+
+	nothingDue, err := ds.ListEndUserNotificationsToDispatch(ctx, sz.numHosts)
+	if err != nil {
+		b.Fatal(err)
+	}
+	if len(nothingDue) != 0 {
+		b.Fatalf("%d notifications still dispatchable, want none", len(nothingDue))
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := dispatchEndUserNotifications(ctx, ds, logger); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

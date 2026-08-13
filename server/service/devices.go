@@ -1221,8 +1221,5 @@ func (svc *Service) DeviceEndUserNotificationAction(ctx context.Context, notific
 		return err
 	}
 
-	if err := svc.ds.UpdateEndUserNotification(ctx, notification.UUID, action); err != nil {
-		return ctxerr.Wrap(ctx, err, "update end user notification")
-	}
-	return nil
+	return svc.applyEndUserNotificationAction(ctx, notification, action)
 }

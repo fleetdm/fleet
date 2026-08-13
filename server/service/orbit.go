@@ -673,14 +673,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
-	// the notifications themselves are delivered as scripts, so this is only so
-	// orbit can see what is on its way
-	notificationIDs, err := svc.ds.ListEndUserNotificationIDsForHost(ctx, host.ID)
-	if err != nil {
-		return fleet.OrbitConfig{}, err
-	}
-	notifs.GenericNotifications = notificationIDs
-
 	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
 		host.DiskEncryptionEnabled != nil &&
 		*host.DiskEncryptionEnabled &&
@@ -1304,6 +1296,16 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	hsr, action, err := svc.ds.SetHostScriptExecutionResult(ctx, result, attemptNumber)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host script result")
+	}
+
+	// Fleet queues the notification script for itself, so a user-requested run
+	// can't be one and doesn't need looking up. This is the difference between
+	// one extra query per script result in the whole deployment and one per
+	// script Fleet queued for itself.
+	if hsr != nil && hsr.IsInternal {
+		if err := svc.recordEndUserNotificationOutcome(ctx, result); err != nil {
+			return ctxerr.Wrap(ctx, err, "record end user notification outcome")
+		}
 	}
 
 	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?

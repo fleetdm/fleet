@@ -82,6 +82,10 @@ type Service struct {
 
 	// orgLogoStore stores the bytes of customer-uploaded org logos.
 	orgLogoStore fleet.OrgLogoStore
+
+	// notificationKinds is what an end user notification's kind column resolves
+	// to. Built once here so core never switches on a kind name.
+	notificationKinds map[string]fleet.NotificationKind
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -197,6 +201,7 @@ func NewService(
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
+		notificationKinds:               notificationKindRegistry(),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
