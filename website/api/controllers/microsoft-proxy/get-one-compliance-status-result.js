@@ -59,7 +59,7 @@ module.exports = {
     .intercept((err)=>{
       // If the request to the Microsoft API returns a non-2xx response, log a warning and return a microsoftApiError response
       sails.log.warn(`An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-      return 'microsoftApiError'
+      return 'microsoftApiError';
     });
 
     // Log responses from Micrsoft APIs for Fleet's integration
