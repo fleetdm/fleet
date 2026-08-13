@@ -1190,7 +1190,6 @@ func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 
 func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
-	// Default: not an Autopilot host. The Autopilot case is covered separately.
 	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
 		return nil, &notFoundErrorForTest{}
 	}
@@ -2786,8 +2785,6 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		require.Equal(t, host.UUID, hostUUID)
 		return returnEnrollmentsUpdated, nil
 	}
-	// Default: not an Autopilot host. A pending Autopilot host keeps installed_from_dep, which the Autopilot subtests
-	// override.
 	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
 		return nil, &notFoundErrorForTest{}
 	}
@@ -4884,9 +4881,7 @@ type notFoundErrorForTest struct{}
 func (e *notFoundErrorForTest) Error() string    { return "not found" }
 func (e *notFoundErrorForTest) IsNotFound() bool { return true }
 
-// A pending Autopilot host must keep installed_from_dep when its enrollment is linked out of OOBE. Clearing it would
-// demote a device that enrolled through Autopilot to "On (manual)", and enrolling out of OOBE is normal for an
-// Autopilot device that has already been provisioned, so MDMNotInOOBE alone cannot distinguish the two.
+// A pending Autopilot host must keep installed_from_dep when its enrollment is linked out of OOBE.
 func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 	t.Parallel()
 
@@ -4905,8 +4900,6 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
 				return true, nil
 			}
-			// Enrolled out of OOBE, which is what puts the marker at risk. The valid UPN is needed to get past the
-			// early return that precedes the installed_from_dep branch.
 			ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 				return &fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: "user@example.com", MDMNotInOOBE: true}, nil
 			}
@@ -4944,8 +4937,7 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 
 // osquery detail ingest runs on every refetch and derives installed_from_dep from the enrollment's OOBE flag. An
 // already-provisioned Autopilot device re-enrolls out of OOBE, so without an exception the next refetch would clear
-// the marker and demote the host to manual, undoing what the enrollment link path decided. The ordinary in-OOBE and
-// out-of-OOBE cases are already covered by TestDirectIngestMDMWindows.
+// the marker and demote the host to manual.
 func TestDirectIngestMDMWindowsKeepsAutopilotMarker(t *testing.T) {
 	t.Parallel()
 
@@ -4978,11 +4970,7 @@ func TestDirectIngestMDMWindowsKeepsAutopilotMarker(t *testing.T) {
 	assert.True(t, gotAutomatic, "an Autopilot host that re-enrolls out of OOBE must still read as automatic")
 }
 
-// The Windows enrollment default fleet is assigned only to hosts created at or after their enrollment row, on the
-// assumption that MDM-first ordering means a freshly created host. Autopilot inverts that: the sync creates the host
-// potentially days before the device enrolls. Not assigning is the correct outcome, since automation has already placed
-// the host and must not be overridden, but it is a behaviour change for anyone relying on the default fleet who then
-// turns on Autopilot sync. Asserted here so it cannot regress silently.
+// The Windows enrollment default fleet is assigned only to hosts created at or after their enrollment row.
 func TestWindowsEnrollmentDefaultFleetSkipsPendingAutopilotHost(t *testing.T) {
 	t.Parallel()
 
