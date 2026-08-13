@@ -7,10 +7,12 @@ func init() {
 }
 
 func Up_20260812223244(tx *sql.Tx) error {
-	// The Autopilot ZTDID a Windows device supplies at MDM enrollment, in the MS-MDE2 ZeroTouchProvisioning context
-	// item. It is the same GUID Microsoft Graph returns as windowsAutopilotDeviceIdentity.id, so it links an
+	// The Autopilot device ID a Windows device supplies at MDM enrollment, in the MS-MDE2 ZeroTouchProvisioning
+	// context item. It is the same GUID Microsoft Graph returns as windowsAutopilotDeviceIdentity.id, so it links an
 	// enrollment to a pending Autopilot host exactly, without depending on the hardware serial. Empty for devices that
 	// are not Autopilot-registered.
+	//
+	// ZtdRegistrationId is the literal registry value under HKLM\SOFTWARE\Microsoft\Provisioning\Diagnostics\Autopilot\EstablishedCorrelations
 	_, err := tx.Exec(`
 		ALTER TABLE mdm_windows_enrollments
 		ADD COLUMN ztd_registration_id VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''`)
@@ -18,9 +20,7 @@ func Up_20260812223244(tx *sql.Tx) error {
 		return err
 	}
 
-	// host_autopilot_devices is filtered on tenant_id by every sync pass and on autopilot_device_id by every Autopilot
-	// Windows MDM enrollment. The table holds one row per registered device, which the feature sizes at 100k+, so
-	// without these both are full scans.
+	// autopilot_device_id is looked up on every Autopilot Windows MDM enrollment and is unique per row.
 	if _, err := tx.Exec(`
 		ALTER TABLE host_autopilot_devices
 		ADD KEY idx_host_autopilot_tenant_id (tenant_id),
