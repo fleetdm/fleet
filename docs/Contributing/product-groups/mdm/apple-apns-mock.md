@@ -51,9 +51,11 @@ Target is 300k concurrent connections. The token registry is sharded 256 ways to
 
 Debugging aid: `tools/mdm/apple/apnspush -direct` sends raw pushes from a Fleet database to any APNs endpoint (real, sandbox, or this mock) and dumps the raw response. Its `-fake` flag derives mdmtest-style tokens for hosts that aren't in `nano_enrollments`.
 
-## Fleet server changes (#31311)
+## Configuring Fleet to use a custom APNs server
 
-To be written when the wiring lands. Plan: a dev-mode env var that switches the buford host from `bufordpush.Production` (`server/mdm/nanomdm/push/buford/buford.go`) to the mock's URL. Note that `fleethttp` blocks loopback and private addresses unless the server runs with `--dev` or `FLEET_SERVER_BYPASS_NETWORK_BLOCKING=1`.
+To configure Fleet to use the mock APNs server, set `FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL` to the base URL of the mock server. 
+
+This requires Fleet to be started with `--dev`, and does **not** work alongside `FLEET_DEV_MDM_APPLE_DISABLE_PUSH`.
 
 ## osquery-perf changes (#31313)
 
