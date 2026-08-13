@@ -48,6 +48,42 @@
         }
       }
     }
-  
+
+    &__target-readonly {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-small;
+    }
+
+    &__target-description,
+    &__target-edit-hint {
+      font-size: $x-small;
+      color: $ui-fleet-black-75;
+      margin: 0;
+    }
+
+    &__target-labels-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      border: 1px solid $ui-fleet-black-10;
+      border-radius: $border-radius-medium;
+      overflow: hidden;
+
+      li {
+        padding: 0 $pad-large;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        font-size: $x-small;
+        color: $core-fleet-black;
+        border-bottom: 1px solid $ui-fleet-black-10;
+
+        &:last-child {
+          border-bottom: none;
+        }
+      }
+    }
+
   }
 }
