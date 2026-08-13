@@ -1223,6 +1223,68 @@ func TestModifyManualLabel(t *testing.T) {
 	})
 }
 
+func TestModifyLabelRejectsHostsForComputedMembership(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	membershipType := fleet.LabelMembershipTypeDynamic
+	ds.LabelFunc = func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{
+			Label: fleet.Label{
+				ID:                  lid,
+				LabelMembershipType: membershipType,
+			},
+		}, nil, nil
+	}
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+	}
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+		return []uint{99}, nil
+	}
+	mockListHostsLiteByIDs(ds)
+
+	computedTypes := []struct {
+		name           string
+		membershipType fleet.LabelMembershipType
+	}{
+		{"dynamic", fleet.LabelMembershipTypeDynamic},
+		{"host vitals", fleet.LabelMembershipTypeHostVitals},
+	}
+	payloads := []struct {
+		name    string
+		payload fleet.ModifyLabelPayload
+	}{
+		{"empty host IDs", fleet.ModifyLabelPayload{HostIDs: []uint{}}},
+		{"host IDs", fleet.ModifyLabelPayload{HostIDs: []uint{1}}},
+		{"empty hostnames", fleet.ModifyLabelPayload{Hosts: []string{}}},
+		{"hostnames", fleet.ModifyLabelPayload{Hosts: []string{"host1"}}},
+	}
+
+	for _, lblType := range computedTypes {
+		for _, tc := range payloads {
+			t.Run(lblType.name+"/"+tc.name, func(t *testing.T) {
+				membershipType = lblType.membershipType
+				ds.SaveLabelFuncInvoked = false
+
+				_, _, err := svc.ModifyLabel(ctx, 1, tc.payload)
+				require.ErrorContains(t, err, "cannot provide a list of hosts for a dynamic label")
+				require.False(t, ds.SaveLabelFuncInvoked)
+			})
+		}
+	}
+
+	t.Run("manual label can still be cleared", func(t *testing.T) {
+		membershipType = fleet.LabelMembershipTypeManual
+		ds.SaveLabelFuncInvoked = false
+
+		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{HostIDs: []uint{}})
+		require.NoError(t, err)
+		require.True(t, ds.SaveLabelFuncInvoked)
+	})
+}
+
 func TestNewHostVitalsLabel(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)

@@ -5629,6 +5629,23 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, lbl2Hosts[1].ID, listHostsResp.Hosts[0].ID)
 		assert.Equal(t, lbl2Hosts[2].ID, listHostsResp.Hosts[1].ID)
 
+		// a dynamic label's membership cannot be replaced, and an empty list is a
+		// replacement too (it would clear all of its members)
+		for _, payload := range []fleet.ModifyLabelPayload{
+			{HostIDs: []uint{}},
+			{HostIDs: []uint{lbl2Hosts[0].ID}},
+			{Hosts: []string{}},
+			{Hosts: []string{lbl2Hosts[0].UUID}},
+		} {
+			res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl2.ID), &payload, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "cannot provide a list of hosts for a dynamic label")
+		}
+
+		listHostsResp = listHostsResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
+		assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts))
+
 		// list hosts in manual label 1
 		listHostsResp = listHostsResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", manualLbl1.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id")

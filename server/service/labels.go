@@ -264,6 +264,9 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if label.LabelType == fleet.LabelTypeBuiltIn {
 		return nil, nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
 	}
+	if label.LabelMembershipType != fleet.LabelMembershipTypeManual && (payload.Hosts != nil || payload.HostIDs != nil) {
+		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
+	}
 	if payload.Name != nil {
 		// Check if the new name is a reserved label name
 		for name := range fleet.ReservedLabelNames() {
@@ -288,10 +291,6 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		// If an empry list was provided, create an empty list of IDs
 		// so that we can remove all hosts from the label.
 		hostIDs = make([]uint, 0)
-	}
-
-	if len(hostIDs) > 0 && label.LabelMembershipType != fleet.LabelMembershipTypeManual {
-		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
 	}
 
 	// Verify the caller is authorized to write labels to each target host
