@@ -12,7 +12,8 @@ func Up_20260812223244(tx *sql.Tx) error {
 	// enrollment to a pending Autopilot host exactly, without depending on the hardware serial. Empty for devices that
 	// are not Autopilot-registered.
 	//
-	// ZtdRegistrationId is the literal registry value under HKLM\SOFTWARE\Microsoft\Provisioning\Diagnostics\Autopilot\EstablishedCorrelations
+	// ZTD (Zero Touch Deployment) is Microsoft's codename for Autopilot. The name follows the device's own
+	// ZtdRegistrationId registry value rather than Graph, which calls the same GUID plain "id".
 	_, err := tx.Exec(`
 		ALTER TABLE mdm_windows_enrollments
 		ADD COLUMN ztd_registration_id VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''`)
@@ -21,6 +22,8 @@ func Up_20260812223244(tx *sql.Tx) error {
 	}
 
 	// autopilot_device_id is looked up on every Autopilot Windows MDM enrollment and is unique per row.
+	// Adding index for tenant_id to future-proof and because switching to a different tenant may keep some rows in this table,
+	// so we can have multiple tenant_ids.
 	if _, err := tx.Exec(`
 		ALTER TABLE host_autopilot_devices
 		ADD KEY idx_host_autopilot_tenant_id (tenant_id),
