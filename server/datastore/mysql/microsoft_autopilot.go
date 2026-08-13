@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -152,18 +151,24 @@ func (ds *Datastore) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantI
 
 const hostAutopilotDeviceColumns = 6
 
-// hostAutopilotDeviceBatchSize is how many devices go into one INSERT statement. At 6 placeholders each that is 6k per
-// statement, well under MySQL's 65535 limit. A var so tests can shrink it and exercise the batch boundary.
+// hostAutopilotDeviceBatchSize is how many devices one ingest transaction handles, which makes it the size of every
+// statement inside that transaction. The widest is the 6-column host_autopilot_devices upsert at 6k placeholders, well
+// under MySQL's 65535 limit. Chunking happens once, at the entry point; helpers called inside a chunk take the slice as
+// given rather than re-batching it, since a second pass at the same size can only ever yield one chunk. A var so tests
+// can shrink it and exercise the batch boundary.
 var hostAutopilotDeviceBatchSize = 1000
 
-// BatchUpsertHostAutopilotDevices stores the Autopilot metadata for many hosts. Re-inserting after a soft delete clears
-// deleted_at, so a device that leaves and later rejoins the Autopilot list becomes live again rather than staying
-// invisible behind a stale tombstone.
-func (ds *Datastore) BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*fleet.HostAutopilotDevice) error {
-	return batchUpsertHostAutopilotDevicesDB(ctx, ds.writer(ctx), devices)
-}
+// hostAutopilotDeviceReadBatchSize is how many IDs go into one lookup IN clause. Reads carry a single placeholder per
+// row rather than six and take no locks, so they chunk far more coarsely than writes: at 100k devices this is 10
+// queries instead of 100. Kept well below MySQL's 65535 placeholder ceiling, above which the IN list also starts to
+// cost real parse time for no further round-trip saving. A var so tests can shrink it and exercise the boundary.
+var hostAutopilotDeviceReadBatchSize = 10000
 
 func batchUpsertHostAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, devices []*fleet.HostAutopilotDevice) error {
+	if len(devices) == 0 {
+		return nil
+	}
+
 	const stmt = `
 INSERT INTO host_autopilot_devices
 	(host_id, autopilot_device_id, entra_device_id, group_tag, hardware_serial, tenant_id)
@@ -176,20 +181,15 @@ ON DUPLICATE KEY UPDATE
 	tenant_id = VALUES(tenant_id),
 	deleted_at = NULL`
 
-	err := common_mysql.BatchProcessSimple(devices, hostAutopilotDeviceBatchSize, func(batch []*fleet.HostAutopilotDevice) error {
-		args := make([]any, 0, len(batch)*hostAutopilotDeviceColumns)
-		for _, dev := range batch {
-			args = append(args, dev.HostID, dev.AutopilotDeviceID, dev.EntraDeviceID, dev.GroupTag, dev.HardwareSerial, dev.TenantID)
-		}
-		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?),", len(batch)), ",")
-
-		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "exec batch")
-		}
-		return nil
-	})
-
-	return ctxerr.Wrap(ctx, err, "batch upsert host autopilot devices")
+	args := make([]any, 0, len(devices)*hostAutopilotDeviceColumns)
+	for _, dev := range devices {
+		args = append(args, dev.HostID, dev.AutopilotDeviceID, dev.EntraDeviceID, dev.GroupTag, dev.HardwareSerial, dev.TenantID)
+	}
+	values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?),", len(devices)), ",")
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host autopilot devices")
+	}
+	return nil
 }
 
 // BatchSoftDeleteHostAutopilotDevices tombstones the Autopilot records for the given hosts, marking the devices as no
@@ -262,55 +262,65 @@ func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices 
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load app config for windows autopilot ingest")
 	}
-	// A pending Autopilot host must point at the same mobile_device_management_solutions row as an enrolled Windows
-	// host. That table is keyed on (name, server_url), and Windows enrollment registers the discovery URL, so
-	// resolving anything else here would file pending hosts under a second "Fleet" solution.
+	// mobile_device_management_solutions is unique on (name, server_url) and the name is always Fleet, so the URL
+	// alone decides which solution row a host is filed under. Nothing has been reported about these devices yet, so
+	// this URL is derived from config rather than observed.
 	serverURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "resolve windows mdm discovery url")
 	}
 
-	// One transaction per chunk rather than one for the whole list. A tenant can register 100k+ devices, and the
-	// first sync creates a host, an MDM row and two label memberships for each. Doing that in a single transaction
-	// would hold row locks across the hosts table for the duration and ship one enormous binlog event, stalling
-	// replicas and concurrent enrollments. Chunking is safe because the work is idempotent: a chunk that fails is
-	// simply redone on the next sync.
+	// Resolve which devices Fleet already has a host for once, up front. This sync is the only production writer of
+	// host_autopilot_devices, so nothing can claim a device between this read and the writes below.
+	ztdIDs := make([]string, 0, len(devices))
+	for _, dev := range devices {
+		ztdIDs = append(ztdIDs, dev.AutopilotDeviceID)
+	}
+	hostIDByZTD, err := hostIDsByAutopilotDeviceIDDB(ctx, ds.reader(ctx), ztdIDs)
+	if err != nil {
+		return err
+	}
+
+	// One row per Fleet deployment, so resolve it once for the whole ingest rather than per chunk. The shared helper
+	// reads the replica first and only writes on a miss, which after the first pass is every pass.
+	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL, fleet.WellKnownMDMFleet)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get or insert windows mdm solution")
+	}
+
+	// One transaction per chunk rather than one for the whole list.
 	return common_mysql.BatchProcessSimple(devices, hostAutopilotDeviceBatchSize, func(batch []*fleet.HostAutopilotDevice) error {
 		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			return ingestWindowsAutopilotDevicesDB(ctx, tx, serverURL, batch)
+			return ingestWindowsAutopilotDevicesDB(ctx, tx, serverURL, mdmID, batch, hostIDByZTD)
 		})
 	})
 }
 
-func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, devices []*fleet.HostAutopilotDevice) error {
-	// Resolution is keyed on the Autopilot device ID, not the hardware serial. Windows serials are not unique: OEMs
-	// ship duplicates and a device can be re-registered, so two Autopilot records can carry one serial and they are
-	// genuinely two devices. Keying on serial would collapse them onto one host and the second machine would never
-	// appear in Fleet at all. Each Autopilot record gets its own host, and the MDM enrollment path links each one
-	// exactly by the same ID.
-	ztdIDs := make([]string, 0, len(devices))
+// hostIDByZTD is resolved by the caller for the whole device list, not just this chunk.
+func ingestWindowsAutopilotDevicesDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	serverURL string,
+	mdmID uint,
+	devices []*fleet.HostAutopilotDevice,
+	hostIDByZTD map[string]uint,
+) error {
+	// Resolution is keyed on the Autopilot device ID. Windows serials are not unique.
 	serials := make([]string, 0, len(devices))
 	for _, dev := range devices {
-		ztdIDs = append(ztdIDs, dev.AutopilotDeviceID)
 		serials = append(serials, dev.HardwareSerial)
-	}
-
-	hostIDByZTD, err := hostIDsByAutopilotDeviceIDDB(ctx, tx, ztdIDs)
-	if err != nil {
-		return err
 	}
 	// Hosts carrying this serial that no Autopilot record has claimed yet. Adopting one covers the machine that was
 	// already enrolled in Fleet before it was registered in Autopilot; without it we would create a duplicate host.
 	// Hosts already claimed by a different Autopilot record are excluded, which is what keeps two records for one
 	// serial on two hosts.
+	// Doing the read inside the TX to make sure we have the latest host data and to eliminate races.
 	unclaimedBySerial, err := unclaimedHostIDsBySerialDB(ctx, tx, serials)
 	if err != nil {
 		return err
 	}
 
-	// host_autopilot_devices is keyed by host_id, so handing one host to two devices silently drops one of them. The
-	// rows that would prove a host is taken are only written at the end of this function, so "unclaimed" as the
-	// database sees it stays true for the whole transaction and cannot be relied on twice. Track claims in memory.
+	// host_autopilot_devices is keyed by host_id. Track device claims in memory to make sure a one-to-one match.
 	claimed := make(map[uint]struct{}, len(devices))
 	resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	toCreate := make([]*fleet.HostAutopilotDevice, 0, len(devices))
@@ -340,9 +350,7 @@ func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, se
 		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, createSerials); err != nil {
 			return err
 		}
-		// This re-query also returns the hosts adopted above, because their host_autopilot_devices rows are not
-		// written until the end of this function. Skipping the ones already claimed is what leaves exactly the rows
-		// just inserted. Assign them in id order so a serial needing two hosts gets two.
+		// This query returns the host ids of newly created hosts.
 		created, err := unclaimedHostIDsBySerialDB(ctx, tx, createSerials)
 		if err != nil {
 			return err
@@ -362,14 +370,13 @@ func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, se
 			newHostIDs = append(newHostIDs, hostID)
 			newHosts = append(newHosts, fleet.Host{ID: hostID, HardwareSerial: copied.HardwareSerial})
 		}
-		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, serverURL, newHostIDs); err != nil {
+		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, serverURL, mdmID, newHostIDs); err != nil {
 			return err
 		}
 		if err := upsertWindowsAutopilotHostLabelsDB(ctx, tx, newHostIDs); err != nil {
 			return err
 		}
-		// Without a host_display_names row the host is invisible in the UI: the host list INNER JOINs that table
-		// whenever it sorts by display_name, which is the default. ADE ingestion does the same thing.
+		// Without a host_display_names row the host is invisible in the UI.
 		if err := insertHostDisplayNamesIfAbsent(ctx, tx, newHosts...); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert display names for pending autopilot hosts")
 		}
@@ -394,20 +401,20 @@ func popUnclaimedHostID(bySerial map[string][]uint, serial string, claimed map[u
 }
 
 // hostIDsByAutopilotDeviceIDDB maps Autopilot device IDs to the host already carrying that record.
-func hostIDsByAutopilotDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, ztdIDs []string) (map[string]uint, error) {
+func hostIDsByAutopilotDeviceIDDB(ctx context.Context, q sqlx.QueryerContext, ztdIDs []string) (map[string]uint, error) {
 	byID := make(map[string]uint, len(ztdIDs))
-	err := common_mysql.BatchProcessSimple(ztdIDs, hostAutopilotDeviceBatchSize, func(batch []string) error {
+	err := common_mysql.BatchProcessSimple(ztdIDs, hostAutopilotDeviceReadBatchSize, func(batch []string) error {
 		stmt, args, err := sqlx.In(
 			`SELECT host_id, autopilot_device_id FROM host_autopilot_devices
 			 WHERE autopilot_device_id IN (?) AND deleted_at IS NULL`, batch)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build IN clause")
+			return ctxerr.Wrap(ctx, err, "build IN clause for autopilot device ids")
 		}
 		var rows []struct {
 			HostID            uint   `db:"host_id"`
 			AutopilotDeviceID string `db:"autopilot_device_id"`
 		}
-		if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		if err := sqlx.SelectContext(ctx, q, &rows, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "select host ids by autopilot device id")
 		}
 		for _, row := range rows {
@@ -416,7 +423,7 @@ func hostIDsByAutopilotDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, ztdID
 		return nil
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "map host ids by autopilot device id")
+		return nil, err
 	}
 	return byID, nil
 }
@@ -424,84 +431,58 @@ func hostIDsByAutopilotDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, ztdID
 // unclaimedHostIDsBySerialDB returns, per serial, the Windows hosts that no live Autopilot record points at, in id
 // order. Scoped to Windows because a macOS host can carry a colliding serial and must never be claimed.
 func unclaimedHostIDsBySerialDB(ctx context.Context, tx sqlx.ExtContext, serials []string) (map[string][]uint, error) {
-	bySerial := make(map[string][]uint, len(serials))
-	err := common_mysql.BatchProcessSimple(serials, hostAutopilotDeviceBatchSize, func(batch []string) error {
-		stmt, args, err := sqlx.In(`
+	stmt, args, err := sqlx.In(`
 SELECT h.id, h.hardware_serial
 FROM hosts h
 LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
 WHERE h.hardware_serial IN (?) AND h.platform = 'windows' AND had.host_id IS NULL
-ORDER BY h.id`, batch)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build IN clause")
-		}
-		var rows []struct {
-			ID             uint   `db:"id"`
-			HardwareSerial string `db:"hardware_serial"`
-		}
-		if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "select unclaimed host ids by serial")
-		}
-		for _, row := range rows {
-			bySerial[row.HardwareSerial] = append(bySerial[row.HardwareSerial], row.ID)
-		}
-		return nil
-	})
+ORDER BY h.id`, serials)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "map unclaimed host ids by serial")
+		return nil, ctxerr.Wrap(ctx, err, "build IN clause for serials")
+	}
+	var rows []struct {
+		ID             uint   `db:"id"`
+		HardwareSerial string `db:"hardware_serial"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select unclaimed host ids by serial")
+	}
+	bySerial := make(map[string][]uint, len(rows))
+	for _, row := range rows {
+		bySerial[row.HardwareSerial] = append(bySerial[row.HardwareSerial], row.ID)
 	}
 	return bySerial, nil
 }
 
-// insertPendingWindowsAutopilotHostsDB creates the bare host rows, matching how ADE ingestion creates pending Apple
-// hosts. The never-timestamp sentinel on last_enrolled_at and detail_updated_at marks the host as never having checked
-// in; it does not by itself protect the host from CleanupExpiredHosts, which treats the sentinel as null and falls
-// through to created_at. Protection comes from the host_autopilot_devices cross-reference in that query, mirroring the
-// host_dep_assignments one that protects ADE hosts.
+// insertPendingWindowsAutopilotHostsDB creates the bare host rows. The never-timestamp sentinel on last_enrolled_at and
+// detail_updated_at marks the host as never having checked in
 func insertPendingWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, serials []string) error {
+	if len(serials) == 0 {
+		return nil
+	}
+
 	stmt := `
 INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested)
 VALUES %s`
 
-	err := common_mysql.BatchProcessSimple(serials, hostAutopilotDeviceBatchSize, func(batch []string) error {
-		args := make([]any, 0, len(batch))
-		for _, serial := range batch {
-			args = append(args, serial)
-		}
-		values := strings.TrimSuffix(strings.Repeat(
-			"(?, '', 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1),", len(batch)), ",")
-		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "exec batch")
-		}
-		return nil
-	})
-	return ctxerr.Wrap(ctx, err, "insert pending windows autopilot hosts")
+	args := make([]any, 0, len(serials))
+	for _, serial := range serials {
+		args = append(args, serial)
+	}
+	values := strings.TrimSuffix(strings.Repeat(
+		"(?, '', 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1),", len(serials)), ",")
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert pending windows autopilot hosts")
+	}
+	return nil
 }
 
 // upsertWindowsAutopilotHostMDMInfoDB marks the hosts as pending: enrolled=0 with installed_from_dep=1 renders as
 // "Pending" through the generated host_mdm.enrollment_status column, and flips to "On (automatic)" when the device
 // enrolls for real.
-func upsertWindowsAutopilotHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, hostIDs []uint) error {
+func upsertWindowsAutopilotHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, mdmID uint, hostIDs []uint) error {
 	if len(hostIDs) == 0 {
 		return nil
-	}
-
-	result, err := tx.ExecContext(ctx, `
-		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
-		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
-		fleet.WellKnownMDMFleet, serverURL)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert windows mdm solution")
-	}
-	var mdmID int64
-	if insertOnDuplicateDidInsertOrUpdate(result) {
-		mdmID, _ = result.LastInsertId()
-	} else {
-		if err := sqlx.GetContext(ctx, tx, &mdmID,
-			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`,
-			fleet.WellKnownMDMFleet, serverURL); err != nil {
-			return ctxerr.Wrap(ctx, err, "query windows mdm solution id")
-		}
 	}
 
 	stmt := `
@@ -513,18 +494,15 @@ ON DUPLICATE KEY UPDATE
 	installed_from_dep = VALUES(installed_from_dep),
 	mdm_id = VALUES(mdm_id)`
 
-	err = common_mysql.BatchProcessSimple(hostIDs, hostAutopilotDeviceBatchSize, func(batch []uint) error {
-		args := make([]any, 0, len(batch)*4)
-		for _, hostID := range batch {
-			args = append(args, hostID, serverURL, mdmID)
-		}
-		values := strings.TrimSuffix(strings.Repeat("(?, 0, ?, 1, ?, 0),", len(batch)), ",")
-		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "exec batch")
-		}
-		return nil
-	})
-	return ctxerr.Wrap(ctx, err, "upsert windows autopilot host mdm info")
+	args := make([]any, 0, len(hostIDs)*3)
+	for _, hostID := range hostIDs {
+		args = append(args, hostID, serverURL, mdmID)
+	}
+	values := strings.TrimSuffix(strings.Repeat("(?, 0, ?, 1, ?, 0),", len(hostIDs)), ",")
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert windows autopilot host mdm info")
+	}
+	return nil
 }
 
 // upsertWindowsAutopilotHostLabelsDB puts the pending hosts into the "All Hosts" and "MS Windows" builtin labels so
@@ -549,20 +527,17 @@ func upsertWindowsAutopilotHostLabelsDB(ctx context.Context, tx sqlx.ExtContext,
 	}
 
 	stmt := `INSERT INTO label_membership (host_id, label_id) VALUES %s ON DUPLICATE KEY UPDATE host_id = host_id`
-	err := common_mysql.BatchProcessSimple(hostIDs, hostAutopilotDeviceBatchSize, func(batch []uint) error {
-		args := make([]any, 0, len(batch)*len(labels)*2)
-		for _, hostID := range batch {
-			for _, label := range labels {
-				args = append(args, hostID, label.ID)
-			}
+	args := make([]any, 0, len(hostIDs)*len(labels)*2)
+	for _, hostID := range hostIDs {
+		for _, label := range labels {
+			args = append(args, hostID, label.ID)
 		}
-		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(batch)*len(labels)), ",")
-		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "exec batch")
-		}
-		return nil
-	})
-	return ctxerr.Wrap(ctx, err, "insert windows autopilot label membership")
+	}
+	values := strings.TrimSuffix(strings.Repeat("(?,?),", len(hostIDs)*len(labels)), ",")
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert windows autopilot label membership")
+	}
+	return nil
 }
 
 // RemoveWindowsAutopilotHosts handles devices that have left the tenant's Autopilot registry. A host still in the
@@ -584,58 +559,44 @@ func (ds *Datastore) RemoveWindowsAutopilotHosts(ctx context.Context, hostIDs []
 }
 
 func removeWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
-	{
-		// Pending state alone is not enough to delete. A device that installs fleetd but never MDM-enrolls keeps
-		// enrolled = 0 and installed_from_dep = 1, so deleting on that predicate would destroy a live host and
-		// everything hostRefs cleans up with it. Require that the host has never checked in by either route.
-		//
-		// FOR UPDATE because the delete below goes by ID and never re-checks this predicate. A plain read here is a
-		// consistent snapshot, so an enrollment committing between the two statements would leave a host that is now
-		// live in the candidate list and it would be deleted anyway. Locking the candidates serializes this against
-		// enrollment; withRetryTxx handles the deadlock that lock ordering can produce.
-		stmt, args, err := sqlx.In(`
+	// Pending state alone is not enough to delete. A device that installs fleetd but never MDM-enrolls keeps
+	// enrolled = 0 and installed_from_dep = 1, so deleting on that predicate would destroy a live host and
+	// everything hostRefs cleans up with it. Require that the host has never checked in by either route.
+	// FOR UPDATE locks the host rows that are about to be deleted.
+	stmt, args, err := sqlx.In(`
 SELECT h.id
 FROM hosts h
 JOIN host_mdm hm ON hm.host_id = h.id
 WHERE h.id IN (?) AND hm.enrolled = 0 AND hm.installed_from_dep = 1
 	AND h.osquery_host_id IS NULL AND h.orbit_node_key IS NULL
 FOR UPDATE`, hostIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build IN clause for pending autopilot hosts")
-		}
-		var pendingHostIDs []uint
-		if err := sqlx.SelectContext(ctx, tx, &pendingHostIDs, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "select pending autopilot hosts")
-		}
-
-		// Tombstone every Autopilot row first. The rows for deleted hosts go away with the host through hostRefs, but
-		// tombstoning first keeps the enrolled-host case correct if the delete below fails and the tx retries.
-		tombstone, args, err := sqlx.In(
-			`UPDATE host_autopilot_devices SET deleted_at = NOW(6) WHERE deleted_at IS NULL AND host_id IN (?)`, hostIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build IN clause for autopilot tombstone")
-		}
-		if _, err := tx.ExecContext(ctx, tombstone, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "tombstone host autopilot devices")
-		}
-
-		if len(pendingHostIDs) == 0 {
-			return nil
-		}
-		return deleteHosts(ctx, tx, pendingHostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN clause for pending autopilot hosts")
 	}
+	var pendingHostIDs []uint
+	if err := sqlx.SelectContext(ctx, tx, &pendingHostIDs, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select pending autopilot hosts")
+	}
+
+	// Tombstone every Autopilot row first. We keep the rows for live hosts.
+	tombstone, args, err := sqlx.In(
+		`UPDATE host_autopilot_devices SET deleted_at = NOW(6) WHERE deleted_at IS NULL AND host_id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN clause for autopilot tombstone")
+	}
+	if _, err := tx.ExecContext(ctx, tombstone, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "tombstone host autopilot devices")
+	}
+
+	if len(pendingHostIDs) == 0 {
+		return nil
+	}
+	return deleteHosts(ctx, tx, pendingHostIDs)
 }
 
 // UpdateMicrosoftGraphCredentialInvalidAggregate recomputes MDM.MicrosoftGraphCredentialInvalid from the credentials
 // table and saves the app config only when the value actually changed.
-//
-// The flag is stored rather than derived on read so that GET /config never joins the credentials table, which means it
-// is only as fresh as its last recomputation. Both the credential write paths and the sync cron have to call this, and
-// they live in different packages: the premium service cannot be imported by cron, so the shared logic belongs here.
-// The read is forced to the primary because every caller reaches this immediately after writing.
 func (ds *Datastore) UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.Context) error {
-	ctx = ctxdb.RequirePrimary(ctx, true)
-
 	var anyInvalid bool
 	if err := sqlx.GetContext(ctx, ds.writer(ctx), &anyInvalid,
 		`SELECT EXISTS(SELECT 1 FROM mdm_microsoft_graph_credentials WHERE credential_invalid = 1)`); err != nil {

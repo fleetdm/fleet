@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
@@ -79,7 +80,8 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 
 	// A credential that was just verified is healthy, and a deleted one can no longer be unhealthy, so the aggregate is
 	// recomputed after a change.
-	if err := svc.ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctx); err != nil {
+	// Reads the credentials just persisted above, so it cannot be served by a replica.
+	if err := svc.ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctxdb.RequirePrimary(ctx, true)); err != nil {
 		return ctxerr.Wrap(ctx, err, "refresh microsoft graph credential invalid aggregate")
 	}
 

@@ -89,7 +89,7 @@ func newAutopilotHosts(t *testing.T, ds *Datastore, prefix string, n int) []*fle
 
 func upsertAutopilotDevices(t *testing.T, ds *Datastore, devices ...*fleet.HostAutopilotDevice) {
 	t.Helper()
-	require.NoError(t, ds.BatchUpsertHostAutopilotDevices(t.Context(), devices))
+	require.NoError(t, batchUpsertHostAutopilotDevicesDB(t.Context(), ds.writer(t.Context()), devices))
 }
 
 // autopilotTimestamp reads a timestamp column straight from the row, bypassing the datastore's soft-delete filtering.

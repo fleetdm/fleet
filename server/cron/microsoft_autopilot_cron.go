@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
@@ -63,7 +64,8 @@ func cronMicrosoftAutopilotSync(ctx context.Context, ds fleet.Datastore, factory
 	// would leave a credential that expired in the field correctly flagged in the credentials table while the banner
 	// never appears, with nothing failing to indicate it.
 	if flagChanged {
-		if err := ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctx); err != nil {
+		// Reads the flag it just wrote, so it cannot be served by a replica.
+		if err := ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctxdb.RequirePrimary(ctx, true)); err != nil {
 			return ctxerr.Wrap(ctx, err, "refresh microsoft graph credential invalid aggregate")
 		}
 	}
