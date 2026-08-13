@@ -154,6 +154,25 @@ Editing inside already-gated code (adding a field to a premium-only form, fixing
 ## Command palette
 If you edit `frontend/router/paths.ts` or `frontend/router/index.tsx`, add a new MDM connector / singleton config, add a new global create / automation / settings action, or add a new picker action, load the `command-palette` skill before finishing — these changes almost always need a matching entry under `frontend/components/CommandPalette/groups/`. The palette is for navigation and global actions — not per-entity (row-level) operations, bulk-select actions, or per-view UI toggles.
 
+## Test coverage
+
+Ship tests with:
+- **New reusable components, hooks, or utilities** — co-located `ComponentName.tests.tsx`.
+- **Bug fixes** — one `it("...")` named for the regression so an issue-number grep finds it. Must fail without the fix.
+- **New user-visible logic in an app widget or page** — submit flow, validation, filter/sort, empty/loading/error, tier/permission gating.
+
+Skip tests for copy-only edits, styling-only tweaks, and presentational refactors that don't change user-visible behavior.
+
+**Function coverage:** Codecov reports per-flag frontend coverage on every PR (informational, not gating — see `codecov.yml`). New reusable code (components, hooks, utilities) should not lower the frontend function-coverage delta on the PR. Legacy files without tests are grandfathered — don't retrofit unless you're already touching them.
+
+**Do not:**
+- Snapshot-test as a substitute for behavior assertions.
+- Assert on class names, internal state, or private handlers.
+- Delete a failing test to unblock CI — update the assertion if behavior legitimately changed; otherwise the test caught a regression.
+- Test React Query internals — assert on rendered UI once data resolves.
+
+Mechanics (`renderWithSetup` vs `createCustomRenderer`, MSW handler setup, entity mocks, semantic queries, `userEvent`) live in [frontend/docs/patterns.md#testing](../../frontend/docs/patterns.md#testing).
+
 ## Linting & Formatting
 - ESLint: extends airbnb + typescript-eslint + prettier
 - Prettier: default config (`.prettierrc.json`)

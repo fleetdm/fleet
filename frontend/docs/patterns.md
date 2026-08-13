@@ -1019,6 +1019,31 @@ data being passed to it.
 
 At a bare minimum, critical bugs released involving the UI will have automated testing discussed at the critical bug post-mortem with a frontend engineer and an engineering manager. We make every effort to add an automated test to either the unit, integration, or E2E layer to prevent the critical bug from resurfacing.
 
+Frontend coverage is reported to Codecov (`frontend` flag) on every PR — informational, not gating. See `codecov.yml` at the repo root for flag paths and carry-forward rules. Coverage report is the source of truth for both backend and frontend across a PR.
+
+### Choosing a render helper
+
+Both live in [`frontend/test/test-utils.tsx`](../test/test-utils.tsx).
+
+- `renderWithSetup(component)` — simple prop-driven components with no context or API dependency. Returns `{ user, ...renderResult }` where `user` is a `userEvent` instance.
+- `createCustomRenderer({ context, withBackendMock })` — components that read `AppContext` / `PolicyContext` / `QueryContext`, or fetch data via React Query. Pass `withBackendMock: true` to wrap in a `QueryClientProvider` with retries disabled. Pass `context: { app: { currentUser: ... } }` to seed context.
+
+### Queries and interactions
+
+- Prefer semantic queries: `getByRole`, `getByLabelText`, `getByText`. Reach for `getByTestId` only when nothing semantic exists.
+- Drive interactions with `userEvent` (from `renderWithSetup`'s returned `user`), never `fireEvent` — `userEvent` more closely models real browser events (focus, keydown sequences, etc.).
+
+### Fixtures and API mocks
+
+- Use entity fixtures from [`frontend/__mocks__/`](../__mocks__/) — e.g. `createMockHost`, `createMockUser`, `createMockConfig`. Don't hand-roll minimal `{ id: 1, ... }` shapes inline; they drift from the real interface.
+- Default MSW handlers live in [`frontend/test/default-handlers.ts`](../test/default-handlers.ts). Custom handlers live under [`frontend/test/handlers/`](../test/handlers/) and are applied per-test with `mockServer.use(customHandler)`.
+
+### What to assert
+
+- User-visible behavior for each meaningful prop branch — empty / loading / error states, disabled variants, `isPremiumTier` on/off, permission gating.
+- Forms: submit disabled on invalid, exact error copy (matches the field-error [copy rules](#data-validation)), submit handler called with the expected payload.
+- Split `it(...)` blocks by behavior — one giant "renders and works" hides which assertion failed.
+
 ## Security considerations
 
 ### Sanitization for `dangerouslySetInnerHTML`
