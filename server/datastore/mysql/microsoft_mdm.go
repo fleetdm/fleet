@@ -521,8 +521,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			host_uuid             = VALUES(host_uuid),
 			credentials_hash      = VALUES(credentials_hash),
 			credentials_acknowledged = VALUES(credentials_acknowledged),
-			-- Keep a previously captured ZTDID when this enrollment did not carry one, so a re-enrollment that omits
-			-- the context item does not erase the link key.
+			-- A re-enrollment may not have ztd id, so don't overwrite.
 			ztd_registration_id   = IF(VALUES(ztd_registration_id) = '', ztd_registration_id, VALUES(ztd_registration_id))
 	`
 	_, err := ds.writer(ctx).ExecContext(
