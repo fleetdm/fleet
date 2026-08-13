@@ -171,9 +171,7 @@ form,
   overflow-wrap: break-word; // allow long words to break to avoid overflow
 
   &__label {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-fleet-black;
+    @include form-label;
     line-height: $line-height;
 
     // compensate for height added by tooltip wrapper underline
