@@ -2,7 +2,8 @@
 
 Fleet supports triggering automations across [activities](#activity-automations), [policies](#policy-automations), [reports](#report-automations), [vulnerabilities](#vulnerability-automations), and [host status](#host-status-automations).
 
-You can configure Fleet to automatically [install software](https://fleetdm.com/guides/automatic-software-install-in-fleet), [run scripts](https://fleetdm.com/guides/policy-automation-run-script), trigger or send report results to webhooks, create tickets, and reserve time in your end users' calendars ([maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows)).
+You can configure Fleet to automatically [install software](https://fleetdm.com/guides/automatic-software-install-in-fleet), [run scripts](https://fleetdm.com/guides/policy-automation-run-script), [resend configuration profiles](https://fleetdm.com/guides/policy-automation-resend-configuration-profile), trigger or send report results to webhooks, create tickets, and reserve time in your end users' calendars ([maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows)).
+
 
 ## Activity automations
 
@@ -27,11 +28,11 @@ windows), trigger or send report results to webhooks, or create tickets.
 
 To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
 
-### Software and scripts
+### Software, scripts, and configuration profiles
 
 _Available in Fleet Premium_, fleet-level policies only.
 
-By default, software and script automations are only triggered when a policy is newly failing on a host. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail." A policy that remains failing ("fail" → "fail") does not re-trigger the automation.
+By default, software, script, and configuration profile automations are only triggered when a policy is newly failing on a host. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail." A policy that remains failing ("fail" → "fail") does not re-trigger the automation.
 
 To install software and script automations on every subsequent failing result, instead of only on newly failing hosts, set `continuous_automations_enabled` to `true` on the policy. When enabled, Fleet triggers the software install or script each time it receives a failing response, including consecutive failures ("fail" → "fail"). Because this can retry an automation that doesn't resolve the policy, it may cause a retry loop. Continuous automations don't affect webhooks, tickets, calendar events, or conditional access, which always trigger only on newly failing hosts.
 
