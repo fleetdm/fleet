@@ -151,9 +151,9 @@ resource "aws_ecs_task_definition" "apple_apns_mock" {
 # ---- ECS Service ----
 
 resource "aws_ecs_service" "apple_apns_mock" {
-  count           = var.enable_apple_mdm ? 1 : 0
-  name            = "${local.customer}-apple-apns-mock"
-  cluster         = module.loadtest.byo-db.byo-ecs.service.cluster
+  count = var.enable_apple_mdm ? 1 : 0
+  name  = "${local.customer}-apple-apns-mock"
+  cluster         = module.loadtest.byo-db.cluster.cluster_name
   task_definition = aws_ecs_task_definition.apple_apns_mock[0].arn
   desired_count   = 1
   launch_type     = "FARGATE"

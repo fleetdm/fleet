@@ -1,4 +1,7 @@
-FROM golang:1.26.4-alpine3.23@sha256:f23e8b227fb4493eabe03bede4d5a32d04092da71962f1fb79b5f7d1e6c2a17f
+# Must be >= the `go` directive in the cloned repo's go.mod. The official Go
+# images set GOTOOLCHAIN=local, so a lower version here does not silently
+# download a newer toolchain -- it fails the build.
+FROM golang:1.26.5-alpine3.23@sha256:622e56dbc11a8cfe87cafa2331e9a201877271cbff918af53d3be315f3da88cc
 ARG TAG
 RUN apk add git
 RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git
