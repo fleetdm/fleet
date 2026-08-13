@@ -1,12 +1,14 @@
 ## 1.59.0 (Aug 13, 2026)
 
-* Updated Orbit CA certs
+* Added a new `ai_tools` table that inventories AI software (desktop apps, IDE plugins, agent CLIs, MCP servers, live AI/MCP sockets, agent instruction files, and browser extensions) with a `type` discriminator and per-row `risk_flags`, `sha256`, and JSON `detail` columns. Because the extension runs as root/SYSTEM, it reads only regular files and does not follow symlinks; AI config or binary paths that are symlinks (e.g. managed by a dotfile tool) are intentionally not resolved.
 
-* Added a new `ai_tools` table to the fleetd tables extension, giving hosts running plain osquery a single table that inventories AI software (desktop apps, IDE plugins, agent CLIs, MCP servers, live AI/MCP sockets, agent instruction files, and browser extensions) with a `type` discriminator and per-row `risk_flags`, `sha256`, and JSON `detail` columns. Because the extension runs as root/SYSTEM, it reads only regular files and does not follow symlinks; AI config or binary paths that are symlinks (e.g. managed by a dotfile tool) are intentionally not resolved.
+* Fixed LUKS disk encryption key escrow failing with a misleading "passphrase incorrect" error on Linux hosts whose passphrase is stored in a key slot other than slot 0. The existing passphrase is now validated against any key slot.
 
 * Removed the wmic.exe dependency in the `mdm_bridge` table implementation.
 
 * Upgraded the nfpm packaging dependency in fleetctl to v2.47.0.
+
+* Updated Orbit CA certs.
 
 ## 1.58.0 (Jul 17, 2026)
 
