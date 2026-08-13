@@ -3321,7 +3321,7 @@ func TestRefetchHostAndroidNotSupported(t *testing.T) {
 	require.Error(t, err)
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre)
-	assert.Equal(t, "Refetch is not supported for Android hosts. Android hosts sync data automatically when it changes.", bre.Message)
+	require.ErrorContains(t, err, "Refetch is not supported for Android hosts. Android hosts sync data automatically when it changes.")
 
 	// the refetch flag must not be set for a host that can't be refetched
 	assert.True(t, ds.HostLiteFuncInvoked)
