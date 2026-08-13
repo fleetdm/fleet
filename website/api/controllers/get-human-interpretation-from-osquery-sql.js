@@ -56,14 +56,11 @@ Please give me all of the above in JSON, with this data shape:
 
 Please do not add any text outside of the JSON report or wrap it in a code fence.`;
     // > Note that this returns `whatWillHappenDuringMaintenance` instead of `whatWillProbablyHappenDuringMaintenance`.
-    // > This naming gets a better (more decisive-sounding) result from Open AI. We'll rename it for our final response.
+    // > This naming gets a better (more decisive-sounding) result from LLMs. We'll rename it for our final response.
 
     // Fallback message in case LLM API request fails.
     let failureMessage = 'Failed to generate human interpretation using generative AI.';
 
-    let BASE_MODEL = 'gpt-4';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
-    // (Max tokens for gpt-3.5 ≈≈ 4000) (Max tokens for gpt-4 ≈≈ 8000)
-    // [?] API: https://platform.openai.com/docs/api-reference/chat/create
     let llmResponse = await sails.helpers.ai.prompt.with({prompt, expectJson: true, baseModel: 'claude-haiku-4-5'})
     .tolerate((err)=>{
       sails.log.warn(failureMessage+'  Error details from LLM: '+err.stack);
