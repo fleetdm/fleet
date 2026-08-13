@@ -4902,6 +4902,14 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 			ds := new(mock.Store)
 			var depCleared bool
 
+			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+				return true, nil
+			}
+			// Enrolled out of OOBE, which is what puts the marker at risk. The valid UPN is needed to get past the
+			// early return that precedes the installed_from_dep branch.
+			ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				return &fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: "user@example.com", MDMNotInOOBE: true}, nil
+			}
 			ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
 				if tc.hasAutopilotRow {
 					return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
@@ -4912,68 +4920,62 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 				depCleared = !enrolledFromDEP
 				return nil
 			}
-
-			isAutopilot, err := hostHasLiveAutopilotRecord(t.Context(), ds, 1)
-			require.NoError(t, err)
-			if !isAutopilot {
-				require.NoError(t, ds.UpdateMDMInstalledFromDEP(t.Context(), 1, false))
+			// No default fleet configured, so the assignment helper returns before touching anything else.
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return nil, "", nil
 			}
+			ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
+				return nil
+			}
+			ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+				return nil, &notFoundErrorForTest{}
+			}
+			ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+				return nil, nil
+			}
+
+			updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1")
+			require.NoError(t, err)
+			require.True(t, updated)
 			assert.Equal(t, tc.wantDEPCleared, depCleared)
 		})
 	}
 }
 
-// osquery detail ingest runs on every refetch, and it derives installed_from_dep from the enrollment's OOBE flag. An
-// already-provisioned Autopilot device re-enrolls out of OOBE, so without an exception this would clear the marker on
-// the next refetch and demote the host to manual, undoing what the enrollment link path decided.
+// osquery detail ingest runs on every refetch and derives installed_from_dep from the enrollment's OOBE flag. An
+// already-provisioned Autopilot device re-enrolls out of OOBE, so without an exception the next refetch would clear
+// the marker and demote the host to manual, undoing what the enrollment link path decided. The ordinary in-OOBE and
+// out-of-OOBE cases are already covered by TestDirectIngestMDMWindows.
 func TestDirectIngestMDMWindowsKeepsAutopilotMarker(t *testing.T) {
 	t.Parallel()
 
-	for _, tc := range []struct {
-		name            string
-		notInOOBE       bool
-		hasAutopilotRow bool
-		wantAutomatic   bool
-	}{
-		{"autopilot host enrolled in OOBE stays automatic", false, true, true},
-		{"autopilot host enrolled out of OOBE stays automatic", true, true, true},
-		{"ordinary host enrolled out of OOBE is manual", true, false, false},
-		{"ordinary host enrolled in OOBE is automatic", false, false, true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ds := new(mock.Store)
-			var gotAutomatic, gotEnrolled bool
+	ds := new(mock.Store)
+	var gotAutomatic, gotEnrolled bool
 
-			ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
-				if tc.hasAutopilotRow {
-					return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
-				}
-				return nil, &notFoundErrorForTest{}
-			}
-			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
-				return &fleet.MDMWindowsEnrolledDevice{MDMNotInOOBE: tc.notInOOBE}, nil
-			}
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string,
-				installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool,
-			) error {
-				gotEnrolled, gotAutomatic = enrolled, installedFromDep
-				return nil
-			}
-
-			host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
-			rows := []map[string]string{{
-				"discovery_service_url": "https://example.com/api/mdm/microsoft/discovery",
-				"aad_resource_id":       "https://example.com",
-				"provider_id":           fleet.WellKnownMDMFleet,
-				"installation_type":     "Client",
-			}}
-			require.NoError(t, directIngestMDMWindows(t.Context(), slog.New(slog.DiscardHandler), host, ds, rows))
-
-			assert.True(t, gotEnrolled)
-			assert.Equal(t, tc.wantAutomatic, gotAutomatic,
-				"installed_from_dep drives whether the host reads as automatic or manual")
-		})
+	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+		return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
 	}
+	ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+		return &fleet.MDMWindowsEnrolledDevice{MDMNotInOOBE: true}, nil
+	}
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string,
+		installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool,
+	) error {
+		gotEnrolled, gotAutomatic = enrolled, installedFromDep
+		return nil
+	}
+
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+	rows := []map[string]string{{
+		"discovery_service_url": "https://example.com/api/mdm/microsoft/discovery",
+		"aad_resource_id":       "https://example.com",
+		"provider_id":           fleet.WellKnownMDMFleet,
+		"installation_type":     "Client",
+	}}
+	require.NoError(t, directIngestMDMWindows(t.Context(), slog.New(slog.DiscardHandler), host, ds, rows))
+
+	assert.True(t, gotEnrolled)
+	assert.True(t, gotAutomatic, "an Autopilot host that re-enrolls out of OOBE must still read as automatic")
 }
 
 // The Windows enrollment default fleet is assigned only to hosts created at or after their enrollment row, on the

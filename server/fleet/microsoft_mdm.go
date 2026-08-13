@@ -924,10 +924,7 @@ type MDMWindowsEnrolledDevice struct {
 	MDMEnrollProtoVersion  string `db:"enroll_proto_version"`
 	MDMEnrollClientVersion string `db:"enroll_client_version"`
 	MDMNotInOOBE           bool   `db:"not_in_oobe"`
-	// ZTDRegistrationID is the Autopilot ZTDID the device supplied at enrollment, in the MS-MDE2
-	// ZeroTouchProvisioning context item. It equals windowsAutopilotDeviceIdentity.id in Microsoft Graph, so it links
-	// this enrollment to a pending Autopilot host exactly, without depending on the hardware serial. Empty for devices
-	// that are not Autopilot-registered.
+	// ZTDRegistrationID is the Autopilot ZTDID the device supplied at enrollment
 	ZTDRegistrationID       string                          `db:"ztd_registration_id"`
 	AwaitingConfiguration   WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
