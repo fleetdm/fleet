@@ -383,6 +383,11 @@ The server pushes events to the agent over a long-lived HTTP response using the 
 - **Cons:** Unidirectional (server to agent only). The agent cannot send data back over the same connection, so all agent-to-server communication still requires separate HTTP calls (which is also true of our WebSocket design). More critically, SSE requires HTTP/1.1 chunked transfer or HTTP/2. ALB-to-target communication in Fleet's topology is HTTP/1.1, which limits concurrent SSE streams per browser/client. Enterprise middleboxes (TLS-inspecting proxies) often buffer chunked responses, breaking the real-time delivery that SSE depends on.
 - **Why not chosen:** The middlebox buffering problem is the same class of issue that led Kolide to add an HTTP fallback for gRPC. WebSockets have a cleaner upgrade mechanism that middleboxes handle better in practice. Fleet already runs WebSockets in production (live query results in the UI), so operational experience exists.
 
+Some additional notes on WebSockets vs SSE:
+
+- Fleet already uses SSE in production for the Android enterprise signup flow, where @getvictor solved response buffering with anti-buffering headers. That flow runs from the admin's browser to the server through infrastructure the deployer controls, so it doesn't tell us whether SSE survives the TLS-inspecting middleboxes on end-user networks that agents sit behind — but it does mean SSE is not new surface for Fleet.
+- @lukeheath and @mikermcneil have prior experience deploying WebSockets at scale. We will ship WebSockets first, and treat SSE as the next-best option if WebSockets prove problematic on Fleet's production infrastructure. Because the channel is strictly server→agent notifications, switching to SSE later would not change the design — only the transport. The main capability lost would be pong-based liveness (the server could no longer confirm within seconds that a held connection is alive).
+
 ### gRPC streaming
 
 Replace the HTTP API with gRPC bidirectional streaming. The agent holds a persistent gRPC stream to the server.
