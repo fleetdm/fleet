@@ -88,13 +88,9 @@ const CurrentVersionSection = ({
         lastUpdatedAt={data?.counts_updated_at}
         customTooltipText={
           <>
-            Fleet periodically queries all hosts to
-            <br />
-            retrieve operating systems. Click to
-            <br />
-            view hosts for the most up-to-date
-            <br />
-            lists.
+            Fleet periodically queries all hosts to retrieve operating systems.
+            {"  "}
+            Click to view hosts for the most up-to-date lists.
           </>
         }
       />

@@ -32,14 +32,9 @@ const HostLifecycleSection = ({
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  When enabled, allows automatic cleanup of
-                  <br />
-                  hosts that have not communicated with Fleet
-                  <br />
-                  in the number of days specified.{" "}
-                  <em>
-                    (Default: <strong>Off</strong>)
-                  </em>
+                  When enabled, allows automatic cleanup of hosts that have not
+                  communicated with Fleet in the number of days specified.{" "}
+                  (Default: <strong>Off</strong>)
                 </>
               )
             }
