@@ -10,7 +10,7 @@
 - **You don't need a new detection for this one.** The app ships as a standard `.deb` or `.rpm` package, so it's visible through the same package queries you already run for everything else.
 - **Visibility here compounds with the rest of your AI governance.** Once this app (or any other AI client) shows up in inventory, it's the same starting point for policy enforcement, patch tracking, and CVE matching as any other piece of software.
 
-<a purpose="cta-button" href="/linux-management">See Linux management in Fleet</a>
+<a purpose="cta-button" href="https://fleetdm.com/linux-management">See Linux management in Fleet</a>
 
 Developers have been asking OpenAI for a native Linux client for a while, and now they have one: a preview release with `.deb` and `.rpm` packages for Ubuntu, Debian, and Fedora, bundling ChatGPT and OpenAI's Codex coding agent. It's a good, overdue release for anyone doing agentic development on Linux.
 
