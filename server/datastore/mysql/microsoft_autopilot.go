@@ -308,19 +308,24 @@ func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, se
 		return err
 	}
 
+	// host_autopilot_devices is keyed by host_id, so handing one host to two devices silently drops one of them. The
+	// rows that would prove a host is taken are only written at the end of this function, so "unclaimed" as the
+	// database sees it stays true for the whole transaction and cannot be relied on twice. Track claims in memory.
+	claimed := make(map[uint]struct{}, len(devices))
 	resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	toCreate := make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	for _, dev := range devices {
 		if hostID, ok := hostIDByZTD[dev.AutopilotDeviceID]; ok {
 			copied := *dev
 			copied.HostID = hostID
+			claimed[hostID] = struct{}{}
 			resolved = append(resolved, &copied)
 			continue
 		}
-		if candidates := unclaimedBySerial[dev.HardwareSerial]; len(candidates) > 0 {
+		if hostID, ok := popUnclaimedHostID(unclaimedBySerial, dev.HardwareSerial, claimed); ok {
 			copied := *dev
-			copied.HostID = candidates[0]
-			unclaimedBySerial[dev.HardwareSerial] = candidates[1:]
+			copied.HostID = hostID
+			claimed[hostID] = struct{}{}
 			resolved = append(resolved, &copied)
 			continue
 		}
@@ -335,8 +340,9 @@ func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, se
 		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, createSerials); err != nil {
 			return err
 		}
-		// The rows just inserted are exactly the unclaimed hosts for these serials, since anything pre-existing was
-		// adopted above. Assign them in id order so a serial needing two hosts gets two.
+		// This re-query also returns the hosts adopted above, because their host_autopilot_devices rows are not
+		// written until the end of this function. Skipping the ones already claimed is what leaves exactly the rows
+		// just inserted. Assign them in id order so a serial needing two hosts gets two.
 		created, err := unclaimedHostIDsBySerialDB(ctx, tx, createSerials)
 		if err != nil {
 			return err
@@ -344,17 +350,17 @@ func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, se
 		newHostIDs := make([]uint, 0, len(toCreate))
 		newHosts := make([]fleet.Host, 0, len(toCreate))
 		for _, dev := range toCreate {
-			candidates := created[dev.HardwareSerial]
-			if len(candidates) == 0 {
+			hostID, ok := popUnclaimedHostID(created, dev.HardwareSerial, claimed)
+			if !ok {
 				// Should not happen: we just inserted one host per device. Skip rather than write host_id 0.
 				continue
 			}
 			copied := *dev
-			copied.HostID = candidates[0]
-			created[dev.HardwareSerial] = candidates[1:]
+			copied.HostID = hostID
+			claimed[hostID] = struct{}{}
 			resolved = append(resolved, &copied)
-			newHostIDs = append(newHostIDs, copied.HostID)
-			newHosts = append(newHosts, fleet.Host{ID: copied.HostID, HardwareSerial: copied.HardwareSerial})
+			newHostIDs = append(newHostIDs, hostID)
+			newHosts = append(newHosts, fleet.Host{ID: hostID, HardwareSerial: copied.HardwareSerial})
 		}
 		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, serverURL, newHostIDs); err != nil {
 			return err
@@ -370,6 +376,21 @@ func ingestWindowsAutopilotDevicesDB(ctx context.Context, tx sqlx.ExtContext, se
 	}
 
 	return batchUpsertHostAutopilotDevicesDB(ctx, tx, resolved)
+}
+
+// popUnclaimedHostID takes the next host for a serial that no device in this batch has claimed yet, consuming it from
+// the candidate list so a later device cannot take the same one.
+func popUnclaimedHostID(bySerial map[string][]uint, serial string, claimed map[uint]struct{}) (uint, bool) {
+	candidates := bySerial[serial]
+	for i, hostID := range candidates {
+		if _, taken := claimed[hostID]; taken {
+			continue
+		}
+		bySerial[serial] = candidates[i+1:]
+		return hostID, true
+	}
+	bySerial[serial] = nil
+	return 0, false
 }
 
 // hostIDsByAutopilotDeviceIDDB maps Autopilot device IDs to the host already carrying that record.
@@ -567,12 +588,18 @@ func removeWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, host
 		// Pending state alone is not enough to delete. A device that installs fleetd but never MDM-enrolls keeps
 		// enrolled = 0 and installed_from_dep = 1, so deleting on that predicate would destroy a live host and
 		// everything hostRefs cleans up with it. Require that the host has never checked in by either route.
+		//
+		// FOR UPDATE because the delete below goes by ID and never re-checks this predicate. A plain read here is a
+		// consistent snapshot, so an enrollment committing between the two statements would leave a host that is now
+		// live in the candidate list and it would be deleted anyway. Locking the candidates serializes this against
+		// enrollment; withRetryTxx handles the deadlock that lock ordering can produce.
 		stmt, args, err := sqlx.In(`
 SELECT h.id
 FROM hosts h
 JOIN host_mdm hm ON hm.host_id = h.id
 WHERE h.id IN (?) AND hm.enrolled = 0 AND hm.installed_from_dep = 1
-	AND h.osquery_host_id IS NULL AND h.orbit_node_key IS NULL`, hostIDs)
+	AND h.osquery_host_id IS NULL AND h.orbit_node_key IS NULL
+FOR UPDATE`, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build IN clause for pending autopilot hosts")
 		}

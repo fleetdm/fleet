@@ -44,6 +44,7 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		{"RemoveWindowsAutopilotHosts", testRemoveWindowsAutopilotHosts},
 		{"IngestKeysOnAutopilotDeviceID", testIngestKeysOnAutopilotDeviceID},
 		{"IngestAdoptsExistingHostBySerial", testIngestAdoptsExistingHostBySerial},
+		{"IngestAdoptAndCreateShareOneSerialInOneBatch", testIngestAdoptAndCreateShareOneSerialInOneBatch},
 		{"IngestSpansChunkedTransactions", testIngestSpansChunkedTransactions},
 		{"OrbitEnrollReusesPendingAutopilotHost", testOrbitEnrollReusesPendingAutopilotHost},
 		{"HostResponsesCarryGroupTag", testHostResponsesCarryGroupTag},
@@ -734,6 +735,49 @@ func testIngestSpansChunkedTransactions(t *testing.T, ds *Datastore) {
 		_, dup := seenHostIDs[d.HostID]
 		assert.False(t, dup, "two Autopilot records must never share a host")
 		seenHostIDs[d.HostID] = struct{}{}
+	}
+}
+
+// The batch that adopts an existing host and creates a new one for the same serial is where host reuse hides: the
+// row that proves a host is claimed is only written at the end of the transaction, so the post-insert re-query still
+// reports the adopted host as free. Handing it out twice would put both devices on one host_id and orphan the host
+// that was just created.
+func testIngestAdoptAndCreateShareOneSerialInOneBatch(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	seedWindowsBuiltinLabels(t, ds)
+
+	const serial = "MIXED-SERIAL"
+	existing, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: new("osquery-mixed"), NodeKey: new("nodekey-mixed"), UUID: "uuid-mixed",
+		HardwareSerial: serial, Hostname: "DESKTOP-MIXED", Platform: "windows",
+	})
+	require.NoError(t, err)
+
+	// Both devices carry the serial of the host above, in one ingest call: the first adopts it, the second must get a
+	// freshly created host.
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		{AutopilotDeviceID: "ap-mixed-1", EntraDeviceID: "aad-1", HardwareSerial: serial, TenantID: testTenantA},
+		{AutopilotDeviceID: "ap-mixed-2", EntraDeviceID: "aad-2", HardwareSerial: serial, TenantID: testTenantA},
+	}))
+
+	devices, err := ds.ListHostAutopilotDevices(ctx, testTenantA)
+	require.NoError(t, err)
+	require.Len(t, devices, 2, "both Autopilot records must survive")
+	assert.NotEqual(t, devices[0].HostID, devices[1].HostID, "one host cannot carry two Autopilot records")
+
+	var hostIDs []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
+		`SELECT id FROM hosts WHERE hardware_serial = ? ORDER BY id`, serial))
+	require.Len(t, hostIDs, 2, "exactly one host per Autopilot device, with no orphan left behind")
+	assert.Equal(t, existing.ID, hostIDs[0], "the pre-existing host is adopted rather than duplicated")
+
+	// Every host must carry a record, so neither device was silently dropped.
+	assigned := map[uint]struct{}{}
+	for _, d := range devices {
+		assigned[d.HostID] = struct{}{}
+	}
+	for _, id := range hostIDs {
+		assert.Contains(t, assigned, id, "host %d has no Autopilot record", id)
 	}
 }
 

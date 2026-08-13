@@ -79,6 +79,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		fleetd_sync_capable,
 		has_pending_commands,
 		hardware_serial,
+		ztd_registration_id,
 		created_at,
 		updated_at,
 		host_uuid
@@ -169,6 +170,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		credentials_hash,
 		credentials_acknowledged,
 		hardware_serial,
+		ztd_registration_id,
 		created_at,
 		updated_at,
 		host_uuid
@@ -212,6 +214,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx conte
 		credentials_hash,
 		credentials_acknowledged,
 		hardware_serial,
+		ztd_registration_id,
 		created_at,
 		updated_at,
 		host_uuid
@@ -292,6 +295,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 		credentials_hash,
 		credentials_acknowledged,
 		hardware_serial,
+		ztd_registration_id,
 		created_at,
 		updated_at,
 		host_uuid
