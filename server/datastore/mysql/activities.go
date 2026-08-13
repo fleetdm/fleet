@@ -1857,3 +1857,124 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 
 	return activities, meta, nil
 }
+
+// activateNextScriptActivitiesForHosts activates the next upcoming activity for
+// each of the given hosts, but only where that next activity is a script. It runs
+// three statements for the whole set rather than three per host, which is what
+// makes a sweep over a large batch of hosts affordable.
+//
+// A host whose turn belongs to any other type of activity is left alone, as is a
+// host that already has an activity activated. Those are picked up by
+// activateNextUpcomingActivityForBatchOfHosts or by the completion of whatever is
+// running now, so a caller that just queued a script on every host in the set may
+// still find some of those scripts waiting afterwards.
+//
+// Every host is handled in the caller's transaction, so the caller decides how
+// many hosts is a reasonable amount to lock at once.
+func (ds *Datastore) activateNextScriptActivitiesForHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	// Rank each host's queue the way the single-host path orders it, then keep the
+	// hosts whose turn is a script that has not been activated yet. The ranking
+	// has to consider activities of every type, or a script would activate ahead
+	// of an install queued before it. Only the first activity per host is
+	// considered, because scripts never activate more than one at a time.
+	findNextScriptsStmt := `
+SELECT
+	execution_id
+FROM (
+	SELECT
+		execution_id,
+		activity_type,
+		activated_at,
+		ROW_NUMBER() OVER (
+			PARTITION BY host_id
+			ORDER BY IF(activated_at IS NULL, 0, 1) DESC, priority DESC, created_at ASC
+		) AS rank_in_host
+	FROM
+		upcoming_activities
+	WHERE
+		host_id IN (?)
+		%s
+) candidates
+WHERE
+	rank_in_host = 1 AND
+	activity_type = 'script' AND
+	activated_at IS NULL
+`
+
+	// same columns as activateNextScriptActivity, for many hosts at once. The
+	// host filter it applies is not needed here because execution_id is unique
+	// across upcoming_activities and host_id comes from the selected row.
+	const insertScriptResultsStmt = `
+INSERT INTO
+	host_script_results
+(host_id, execution_id, script_content_id, output, script_id, policy_id,
+	user_id, sync_request, setup_experience_script_id, is_internal)
+SELECT
+	ua.host_id,
+	ua.execution_id,
+	sua.script_content_id,
+	'',
+	sua.script_id,
+	sua.policy_id,
+	ua.user_id,
+	COALESCE(ua.payload->'$.sync_request', 0),
+	sua.setup_experience_script_id,
+	COALESCE(ua.payload->'$.is_internal', 0)
+FROM
+	upcoming_activities ua
+	INNER JOIN script_upcoming_activities sua
+		ON sua.upcoming_activity_id = ua.id
+WHERE
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+
+	const markActivatedStmt = `
+UPDATE upcoming_activities
+SET
+	activated_at = NOW()
+WHERE
+	execution_id IN (?)
+`
+
+	var (
+		stmt string
+		args []any
+		err  error
+	)
+	if len(ds.testActivateSpecificNextActivities) > 0 {
+		stmt, args, err = sqlx.In(fmt.Sprintf(findNextScriptsStmt, ` AND execution_id IN (?) `),
+			hostIDs, ds.testActivateSpecificNextActivities)
+	} else {
+		stmt, args, err = sqlx.In(fmt.Sprintf(findNextScriptsStmt, ""), hostIDs)
+	}
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare statement to find next scripts to activate")
+	}
+
+	var execIDs []string
+	if err := sqlx.SelectContext(ctx, tx, &execIDs, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "find next scripts to activate")
+	}
+	if len(execIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err = sqlx.In(insertScriptResultsStmt, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert to activate scripts")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert to activate scripts")
+	}
+
+	stmt, args, err = sqlx.In(markActivatedStmt, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare statement to mark upcoming activities as activated")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark upcoming activities as activated")
+	}
+	return nil
+}

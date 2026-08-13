@@ -2757,7 +2757,7 @@ func newEndUserNotificationsSchedule(
 // else the host runs.
 func dispatchEndUserNotifications(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	// a batch is one notification for each of up to this many hosts
-	const endUserNotificationHostBatchSize = 1000
+	const endUserNotificationHostBatchSize = 500
 
 	expired, err := ds.ExpireEndUserNotifications(ctx)
 	if err != nil {
@@ -2800,9 +2800,10 @@ func dispatchEndUserNotifications(ctx context.Context, ds fleet.Datastore, logge
 
 		logger.InfoContext(ctx, "dispatched end user notifications", "count", len(notifications))
 
-		if len(notifications) < endUserNotificationHostBatchSize {
-			return nil
-		}
+		// a short batch is not the end of the queue: it means hosts in it had more
+		// than one notification due, so the pass keeps going until a batch comes
+		// back empty. Dispatching takes those hosts out of the next batch, so this
+		// always makes progress.
 	}
 }
 

@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS end_user_notifications (
   KEY idx_end_user_notifications_dispatch (status, next_attempt_at),
   KEY idx_end_user_notifications_host (host_id, status),
   KEY idx_end_user_notifications_execution_id (execution_id),
+  -- the expiry sweep runs every minute, and almost every row has no expiry, so
+  -- this is what keeps it from scanning the whole table to find nothing
+  KEY idx_end_user_notifications_expires_at (expires_at),
   CONSTRAINT fk_end_user_notifications_host_id FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
 `)

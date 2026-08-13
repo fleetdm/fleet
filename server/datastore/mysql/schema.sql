@@ -531,15 +531,15 @@ CREATE TABLE `end_user_notifications` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `host_id` int unsigned NOT NULL,
+  `status` varchar(31) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `kind` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `payload` json NOT NULL,
-  `status` varchar(31) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `attempt_count` int unsigned NOT NULL DEFAULT '0',
   `next_attempt_at` datetime(6) DEFAULT NULL,
+  `displayed_at` datetime(6) DEFAULT NULL,
   `execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `last_exit_code` int DEFAULT NULL,
   `last_reason` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `displayed_at` datetime(6) DEFAULT NULL,
   `expires_at` datetime(6) DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -548,6 +548,7 @@ CREATE TABLE `end_user_notifications` (
   KEY `idx_end_user_notifications_dispatch` (`status`,`next_attempt_at`),
   KEY `idx_end_user_notifications_host` (`host_id`,`status`),
   KEY `idx_end_user_notifications_execution_id` (`execution_id`),
+  KEY `idx_end_user_notifications_expires_at` (`expires_at`),
   CONSTRAINT `fk_end_user_notifications_host_id` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

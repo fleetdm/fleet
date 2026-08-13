@@ -3366,15 +3366,16 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "batch insert script upcoming activity details")
 		}
 
+		// activating in the same transaction as the inserts makes the batch all or
+		// nothing, so it can't leave hosts holding a queued script that never
+		// activated
+		if err := ds.activateNextScriptActivitiesForHosts(ctx, tx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate batch of queued scripts")
+		}
+
 		return nil
 	}); err != nil {
 		return nil, err
-	}
-
-	// activation opens its own transactions per chunk of hosts, so it runs after
-	// the inserts commit rather than inside them
-	if err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, hostIDs); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "activate batch of queued scripts")
 	}
 
 	return executionIDByHost, nil
