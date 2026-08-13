@@ -1045,13 +1045,13 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_fleet_desktop_sso
+## enabled_sso_fleet_desktop
 
 Generated when a user enables SSO in front of Fleet Desktop.
 
 This activity does not contain any detail fields.
 
-## disabled_fleet_desktop_sso
+## disabled_sso_fleet_desktop
 
 Generated when a user disables SSO in front of Fleet Desktop.
 
