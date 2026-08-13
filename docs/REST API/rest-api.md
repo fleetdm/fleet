@@ -7574,9 +7574,35 @@ _Available in Fleet Premium_
 | Name                                    | Type    | In    | Description                                                                                 |
 | --------------------------------------- | ------  | ----  | --------------------------------------------------------------------------------------      |
 | fleet_id                                | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
-| enable_disk_encryption                  | boolean | body  | Whether disk encryption should be enforced on devices that belong to the fleet (or "Unassigned"). |
-| enable_escrow_disk_encryption_key       | boolean | body  | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
-| windows_require_bitlocker_pin           | boolean | body | End users on Windows hosts will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| enable_disk_encryption                  | boolean | body  | _Deprecated._ Whether disk encryption should be enforced on all platforms. When set to true, enables `enable_disk_encryption` for all platforms. Use per-platform settings instead. |
+| windows_require_bitlocker_pin           | boolean | body  | End users on Windows hosts will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` or `windows_settings.enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| macos_settings                          | object  | body  | See `macos_settings` below. |
+| windows_settings                        | object  | body  | See `windows_settings` below. |
+| linux_settings                          | object  | body  | See `linux_settings` below. |
+
+##### macos_settings
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------- |
+| enable_disk_encryption            | boolean | Whether disk encryption should be enforced on macOS hosts that belong to the fleet (or "Unassigned"). |
+| enable_escrow_disk_encryption_key | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. |
+
+<br/>
+
+##### windows_settings
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------- |
+| enable_disk_encryption            | boolean | Whether disk encryption should be enforced on Windows hosts that belong to the fleet (or "Unassigned"). |
+
+<br/>
+
+##### linux_settings
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------- |
+| enable_escrow_disk_encryption_key | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. |
+
 
 #### Example
 
