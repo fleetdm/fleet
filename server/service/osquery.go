@@ -923,16 +923,51 @@ func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context,
 // A host authenticates with its node key and fully controls the fleet_policy_query_<id> keys it submits, so a result is
 // only trustworthy for a policy the host is actually assigned (by team, platform and label). Without this, any enrolled
 // host could forge membership for policies it was never sent, including policies belonging to another fleet.
+//
+// The allowed set mirrors the one policyQueriesForHost builds for this host's distributed/read response, including the
+// narrower subset used during setup experience, so the write accepts exactly what Fleet was willing to hand out.
 func (svc *Service) discardOutOfScopePolicyResults(ctx context.Context, host *fleet.Host, policyResults map[uint]*bool) error {
-	if len(policyResults) == 0 {
-		return nil
+	candidateIDs := make([]uint, 0, len(policyResults))
+	for policyID := range policyResults {
+		candidateIDs = append(candidateIDs, policyID)
 	}
-	hostPolicyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
+
+	// Not fatal: a host that cannot be resolved for setup experience (no osquery_host_id) cannot be in it, so the
+	// full in-scope set below is both the correct answer and the safe one -- it still enforces fleet, platform and
+	// label scope.
+	inSetupExperience, err := svc.hostIsInSetupExperience(ctx, host)
+	if err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "check if host is in setup experience"))
+		inSetupExperience = false
+	}
+	if inSetupExperience {
+		// Fleet answers this host's distributed/read with only the policies gating its pending setup-experience
+		// items, leaving its other policies skipped so unrelated automations do not fire mid-setup (see
+		// policyQueriesForHost). Accepting a result for one of those skipped policies here would fire them anyway.
+		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host uuid for setup experience policy queries")
+		}
+		gatingPolicyIDs, err := svc.ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+		}
+		gating := make(map[uint]struct{}, len(gatingPolicyIDs))
+		for _, policyID := range gatingPolicyIDs {
+			gating[policyID] = struct{}{}
+		}
+		candidateIDs = slices.DeleteFunc(candidateIDs, func(policyID uint) bool {
+			_, ok := gating[policyID]
+			return !ok
+		})
+	}
+
+	inScope, err := svc.ds.PolicyQueriesForHostFiltered(ctx, host, candidateIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieve policy queries")
 	}
 	for policyID := range policyResults {
-		if _, ok := hostPolicyQueries[fmt.Sprint(policyID)]; !ok {
+		if _, ok := inScope[fmt.Sprint(policyID)]; !ok {
 			svc.logger.DebugContext(ctx, "discarding result for out-of-scope policy", "policyID", policyID, "hostID", host.ID)
 			delete(policyResults, policyID)
 		}
@@ -1287,8 +1322,16 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
-	if err := svc.discardOutOfScopePolicyResults(ctx, host, policyResults); err != nil {
-		return ctxerr.Wrap(ctx, err, "discard out-of-scope policy results")
+	// Keep separate from the block below: this can empty policyResults, and an empty (rather than absent) result set
+	// makes RecordPolicyQueryExecutions treat every stored policy_membership row for the host as stale.
+	if len(policyResults) > 0 {
+		if err := svc.discardOutOfScopePolicyResults(ctx, host, policyResults); err != nil {
+			// Drop this cycle's policy results instead of failing the whole write: the host reports them again on
+			// its next check-in, whereas the detail and additional results from this same payload are only written
+			// further down (SaveHostAdditional, UpdateHost) and returning here would discard them.
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "discard out-of-scope policy results"))
+			clear(policyResults)
+		}
 	}
 
 	if len(policyResults) > 0 {

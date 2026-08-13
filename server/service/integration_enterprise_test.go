@@ -32198,7 +32198,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 
 // A host authenticates with its node key and fully controls the fleet_policy_query_<id> keys it
 // sends to distributed/write, so results for policies outside its scope must never be persisted.
-func (s *integrationEnterpriseTestSuite) TestPolicyResultsForOutOfScopePoliciesAreRejected() {
+func (s *integrationEnterpriseTestSuite) TestPolicyResultsForOutOfScopePoliciesAreDiscarded() {
 	t := s.T()
 	ctx := t.Context()
 
