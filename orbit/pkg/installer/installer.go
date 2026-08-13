@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -162,6 +163,11 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 		r.logger.Info().Msgf("received notification for software installers: %v", config.Notifications.PendingSoftwareInstallerIDs)
 	} else {
 		r.logger.Debug().Msg("starting software installers run")
+	}
+
+	for _, notificationID := range config.Notifications.GenericNotifications {
+		logger := r.logger.With().Str("notificationID", strconv.FormatUint(uint64(notificationID), 10)).Logger()
+		logger.Info().Msg("--------------- GOT NOTIFICATION " + strconv.FormatUint(uint64(notificationID), 10) + " ---------------")
 	}
 
 	var errs []error

@@ -1122,3 +1122,107 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 
 	return nil, fleet.ErrMissingLicense
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get a device's end user notification
+/////////////////////////////////////////////////////////////////////////////////
+
+type getDeviceNotificationRequest struct {
+	Token string `url:"token"`
+	UUID  string `url:"uuid"`
+}
+
+func (r *getDeviceNotificationRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type getDeviceNotificationResponse struct {
+	Payload json.RawMessage `json:"payload"`
+	Err     error           `json:"error,omitempty"`
+}
+
+func (r getDeviceNotificationResponse) Error() error { return r.Err }
+
+func getDeviceNotificationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req, ok := request.(*getDeviceNotificationRequest)
+	if !ok {
+		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
+	}
+
+	notification, err := svc.GetDeviceEndUserNotification(ctx, req.UUID)
+	if err != nil {
+		return getDeviceNotificationResponse{Err: err}, nil
+	}
+	return getDeviceNotificationResponse{Payload: notification.Payload}, nil
+}
+
+func (svc *Service) GetDeviceEndUserNotification(ctx context.Context, notificationUUID string) (*fleet.EndUserNotification, error) {
+	// the device auth middleware already authenticated the host
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+	}
+
+	notification, err := svc.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get end user notification")
+	}
+
+	// another host's notification is not found rather than forbidden, so the
+	// uuid can't be probed
+	if notification.HostID != host.ID {
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "no notification found for this host")
+	}
+
+	return notification, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Act on a device's end user notification
+/////////////////////////////////////////////////////////////////////////////////
+
+type deviceNotificationActionRequest struct {
+	Token string `url:"token"`
+	UUID  string `url:"uuid"`
+	fleet.EndUserNotificationAction
+}
+
+func (r *deviceNotificationActionRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type deviceNotificationActionResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deviceNotificationActionResponse) Error() error { return r.Err }
+
+func (r deviceNotificationActionResponse) Status() int { return http.StatusNoContent }
+
+func deviceNotificationActionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req, ok := request.(*deviceNotificationActionRequest)
+	if !ok {
+		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
+	}
+
+	if err := svc.DeviceEndUserNotificationAction(ctx, req.UUID, req.EndUserNotificationAction); err != nil {
+		return deviceNotificationActionResponse{Err: err}, nil
+	}
+	return deviceNotificationActionResponse{}, nil
+}
+
+func (svc *Service) DeviceEndUserNotificationAction(ctx context.Context, notificationUUID string, action fleet.EndUserNotificationAction) error {
+	// resolving it first is what confirms the notification belongs to the
+	// authenticated host
+	notification, err := svc.GetDeviceEndUserNotification(ctx, notificationUUID)
+	if err != nil {
+		return err
+	}
+
+	if err := svc.ds.UpdateEndUserNotification(ctx, notification.UUID, action); err != nil {
+		return ctxerr.Wrap(ctx, err, "update end user notification")
+	}
+	return nil
+}

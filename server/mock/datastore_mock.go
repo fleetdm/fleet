@@ -1568,6 +1568,8 @@ type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.
 
 type NewInternalHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
+type BatchNewInternalHostScriptExecutionRequestsFunc func(ctx context.Context, hostIDs []uint, contents string) (map[uint]string, error)
+
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (hsr *fleet.HostScriptResult, action string, err error)
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
@@ -2327,6 +2329,22 @@ type ListAppleOSUpdateHostsForReconcileFunc func(ctx context.Context, cursor str
 type SetAppleOSUpdateTargetsAndResendFunc func(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error
 
 type GetAppleOSUpdateHostByUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error)
+
+type NewEndUserNotificationFunc func(ctx context.Context, notification *fleet.EndUserNotification) (*fleet.EndUserNotification, error)
+
+type GetEndUserNotificationByUUIDFunc func(ctx context.Context, uuid string) (*fleet.EndUserNotification, error)
+
+type GetEndUserNotificationByExecutionIDFunc func(ctx context.Context, executionID string) (*fleet.EndUserNotification, error)
+
+type ListEndUserNotificationIDsForHostFunc func(ctx context.Context, hostID uint) ([]uint, error)
+
+type ListEndUserNotificationsToDispatchFunc func(ctx context.Context, limit int) ([]*fleet.EndUserNotification, error)
+
+type SetEndUserNotificationsDispatchedFunc func(ctx context.Context, notifications []*fleet.EndUserNotification) error
+
+type ExpireEndUserNotificationsFunc func(ctx context.Context) (int64, error)
+
+type UpdateEndUserNotificationFunc func(ctx context.Context, uuid string, action fleet.EndUserNotificationAction) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -4645,6 +4663,9 @@ type DataStore struct {
 	NewInternalHostScriptExecutionRequestFunc        NewInternalHostScriptExecutionRequestFunc
 	NewInternalHostScriptExecutionRequestFuncInvoked bool
 
+	BatchNewInternalHostScriptExecutionRequestsFunc        BatchNewInternalHostScriptExecutionRequestsFunc
+	BatchNewInternalHostScriptExecutionRequestsFuncInvoked bool
+
 	SetHostScriptExecutionResultFunc        SetHostScriptExecutionResultFunc
 	SetHostScriptExecutionResultFuncInvoked bool
 
@@ -5784,6 +5805,30 @@ type DataStore struct {
 
 	GetAppleOSUpdateHostByUUIDFunc        GetAppleOSUpdateHostByUUIDFunc
 	GetAppleOSUpdateHostByUUIDFuncInvoked bool
+
+	NewEndUserNotificationFunc        NewEndUserNotificationFunc
+	NewEndUserNotificationFuncInvoked bool
+
+	GetEndUserNotificationByUUIDFunc        GetEndUserNotificationByUUIDFunc
+	GetEndUserNotificationByUUIDFuncInvoked bool
+
+	GetEndUserNotificationByExecutionIDFunc        GetEndUserNotificationByExecutionIDFunc
+	GetEndUserNotificationByExecutionIDFuncInvoked bool
+
+	ListEndUserNotificationIDsForHostFunc        ListEndUserNotificationIDsForHostFunc
+	ListEndUserNotificationIDsForHostFuncInvoked bool
+
+	ListEndUserNotificationsToDispatchFunc        ListEndUserNotificationsToDispatchFunc
+	ListEndUserNotificationsToDispatchFuncInvoked bool
+
+	SetEndUserNotificationsDispatchedFunc        SetEndUserNotificationsDispatchedFunc
+	SetEndUserNotificationsDispatchedFuncInvoked bool
+
+	ExpireEndUserNotificationsFunc        ExpireEndUserNotificationsFunc
+	ExpireEndUserNotificationsFuncInvoked bool
+
+	UpdateEndUserNotificationFunc        UpdateEndUserNotificationFunc
+	UpdateEndUserNotificationFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -11192,6 +11237,13 @@ func (s *DataStore) NewInternalHostScriptExecutionRequest(ctx context.Context, r
 	return s.NewInternalHostScriptExecutionRequestFunc(ctx, request)
 }
 
+func (s *DataStore) BatchNewInternalHostScriptExecutionRequests(ctx context.Context, hostIDs []uint, contents string) (map[uint]string, error) {
+	s.mu.Lock()
+	s.BatchNewInternalHostScriptExecutionRequestsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchNewInternalHostScriptExecutionRequestsFunc(ctx, hostIDs, contents)
+}
+
 func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (hsr *fleet.HostScriptResult, action string, err error) {
 	s.mu.Lock()
 	s.SetHostScriptExecutionResultFuncInvoked = true
@@ -13850,4 +13902,60 @@ func (s *DataStore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID str
 	s.GetAppleOSUpdateHostByUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAppleOSUpdateHostByUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) NewEndUserNotification(ctx context.Context, notification *fleet.EndUserNotification) (*fleet.EndUserNotification, error) {
+	s.mu.Lock()
+	s.NewEndUserNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewEndUserNotificationFunc(ctx, notification)
+}
+
+func (s *DataStore) GetEndUserNotificationByUUID(ctx context.Context, uuid string) (*fleet.EndUserNotification, error) {
+	s.mu.Lock()
+	s.GetEndUserNotificationByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetEndUserNotificationByUUIDFunc(ctx, uuid)
+}
+
+func (s *DataStore) GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*fleet.EndUserNotification, error) {
+	s.mu.Lock()
+	s.GetEndUserNotificationByExecutionIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetEndUserNotificationByExecutionIDFunc(ctx, executionID)
+}
+
+func (s *DataStore) ListEndUserNotificationIDsForHost(ctx context.Context, hostID uint) ([]uint, error) {
+	s.mu.Lock()
+	s.ListEndUserNotificationIDsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListEndUserNotificationIDsForHostFunc(ctx, hostID)
+}
+
+func (s *DataStore) ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*fleet.EndUserNotification, error) {
+	s.mu.Lock()
+	s.ListEndUserNotificationsToDispatchFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListEndUserNotificationsToDispatchFunc(ctx, limit)
+}
+
+func (s *DataStore) SetEndUserNotificationsDispatched(ctx context.Context, notifications []*fleet.EndUserNotification) error {
+	s.mu.Lock()
+	s.SetEndUserNotificationsDispatchedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetEndUserNotificationsDispatchedFunc(ctx, notifications)
+}
+
+func (s *DataStore) ExpireEndUserNotifications(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.ExpireEndUserNotificationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpireEndUserNotificationsFunc(ctx)
+}
+
+func (s *DataStore) UpdateEndUserNotification(ctx context.Context, uuid string, action fleet.EndUserNotificationAction) error {
+	s.mu.Lock()
+	s.UpdateEndUserNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateEndUserNotificationFunc(ctx, uuid, action)
 }

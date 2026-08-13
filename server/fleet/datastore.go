@@ -2762,6 +2762,11 @@ type Datastore interface {
 	// activity feed. Use for server-driven follow-up actions (e.g. cleanup
 	// scripts after MDM events).
 	NewInternalHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
+	// BatchNewInternalHostScriptExecutionRequests queues the same script as an
+	// internal run on each of the given hosts, and returns the execution ID it
+	// queued for each one. For server-driven sweeps that would otherwise do a
+	// round trip per host.
+	BatchNewInternalHostScriptExecutionRequests(ctx context.Context, hostIDs []uint, contents string) (map[uint]string, error)
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// return nil, "", nil. action is populated if this script was an MDM action (lock/unlock/wipe/uninstall).
 	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload, attemptNumber *int) (hsr *HostScriptResult, action string, err error)
@@ -3948,6 +3953,32 @@ type Datastore interface {
 	SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*ComputedAppleSoftwareUpdateHost) error
 	// GetAppleOSUpdateHostByUUID retrieves stored Apple software update configuration for a given host by its UUID.
 	GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*AppleSoftwareUpdateHost, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// EndUserNotificationStore
+
+	// NewEndUserNotification creates a notification to deliver to a host's end
+	// user. The caller sets kind, payload and any expiry; the dispatcher cron
+	// owns everything after that.
+	NewEndUserNotification(ctx context.Context, notification *EndUserNotification) (*EndUserNotification, error)
+	GetEndUserNotificationByUUID(ctx context.Context, uuid string) (*EndUserNotification, error)
+	GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*EndUserNotification, error)
+	// ListEndUserNotificationIDsForHost returns the notifications still being
+	// delivered to a host, which is what fleetd is told about in its config.
+	ListEndUserNotificationIDsForHost(ctx context.Context, hostID uint) ([]uint, error)
+	// ListEndUserNotificationsToDispatch returns notifications whose next
+	// attempt is due, on hosts that can display them and have no other
+	// notification already dispatched.
+	ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*EndUserNotification, error)
+	// SetEndUserNotificationsDispatched records the execution each notification
+	// was queued as.
+	SetEndUserNotificationsDispatched(ctx context.Context, notifications []*EndUserNotification) error
+	// ExpireEndUserNotifications sets notifications past their expiry to expired
+	// and returns how many it expired.
+	ExpireEndUserNotifications(ctx context.Context) (int64, error)
+	// UpdateEndUserNotification applies what an end user's device reported about
+	// one of their notifications.
+	UpdateEndUserNotification(ctx context.Context, uuid string, action EndUserNotificationAction) error
 }
 
 type AndroidDatastore interface {

@@ -719,6 +719,10 @@ type GetMDMManualEnrollmentProfileFunc func(ctx context.Context, personal bool) 
 
 type TriggerLinuxDiskEncryptionEscrowFunc func(ctx context.Context, host *fleet.Host) error
 
+type GetDeviceEndUserNotificationFunc func(ctx context.Context, notificationUUID string) (*fleet.EndUserNotification, error)
+
+type DeviceEndUserNotificationActionFunc func(ctx context.Context, notificationUUID string, action fleet.EndUserNotificationAction) error
+
 type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error)
 
 type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpUUID string, personal bool) ([]byte, error)
@@ -2044,6 +2048,12 @@ type Service struct {
 
 	TriggerLinuxDiskEncryptionEscrowFunc        TriggerLinuxDiskEncryptionEscrowFunc
 	TriggerLinuxDiskEncryptionEscrowFuncInvoked bool
+
+	GetDeviceEndUserNotificationFunc        GetDeviceEndUserNotificationFunc
+	GetDeviceEndUserNotificationFuncInvoked bool
+
+	DeviceEndUserNotificationActionFunc        DeviceEndUserNotificationActionFunc
+	DeviceEndUserNotificationActionFuncInvoked bool
 
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFunc        CheckMDMAppleEnrollmentWithMinimumOSVersionFunc
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFuncInvoked bool
@@ -4906,6 +4916,20 @@ func (s *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fl
 	s.TriggerLinuxDiskEncryptionEscrowFuncInvoked = true
 	s.mu.Unlock()
 	return s.TriggerLinuxDiskEncryptionEscrowFunc(ctx, host)
+}
+
+func (s *Service) GetDeviceEndUserNotification(ctx context.Context, notificationUUID string) (*fleet.EndUserNotification, error) {
+	s.mu.Lock()
+	s.GetDeviceEndUserNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDeviceEndUserNotificationFunc(ctx, notificationUUID)
+}
+
+func (s *Service) DeviceEndUserNotificationAction(ctx context.Context, notificationUUID string, action fleet.EndUserNotificationAction) error {
+	s.mu.Lock()
+	s.DeviceEndUserNotificationActionFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeviceEndUserNotificationActionFunc(ctx, notificationUUID, action)
 }
 
 func (s *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {

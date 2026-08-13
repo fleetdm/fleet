@@ -430,7 +430,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		hsr.setup_experience_script_id,
 		hsr.canceled,
 		bahr.batch_execution_id,
-		hsr.attempt_number
+		hsr.attempt_number,
+		COALESCE(hsr.is_internal, 0) as is_internal
 	FROM
 		host_script_results hsr
 	LEFT JOIN
@@ -464,7 +465,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		sua.setup_experience_script_id,
 		0 as canceled,
 		NULL as batch_execution_id,
-		NULL as attempt_number
+		NULL as attempt_number,
+		COALESCE(ua.payload->'$.is_internal', 0) as is_internal
   FROM
 		upcoming_activities ua
 		INNER JOIN script_upcoming_activities sua
@@ -3292,4 +3294,88 @@ WHERE ba.status = 'started';
 
 func (ds *Datastore) MarkActivitiesAsCompleted(ctx context.Context) error {
 	return ds.markActivitiesAsCompleted(ctx, ds.writer(ctx))
+}
+
+// BatchNewInternalHostScriptExecutionRequests queues the same script on many
+// hosts as one internal (fleet-initiated) run each, and returns the execution ID
+// it queued for each host.
+//
+// The single-host NewInternalHostScriptExecutionRequest is a better fit for
+// anything user-facing. This exists for server-driven sweeps that would otherwise
+// do a round trip per host.
+func (ds *Datastore) BatchNewInternalHostScriptExecutionRequests(ctx context.Context, hostIDs []uint, contents string) (map[uint]string, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	// the execution IDs are generated here rather than read back, so the caller
+	// gets its host to execution mapping without another query
+	executionIDByHost := make(map[uint]string, len(hostIDs))
+	executionIDs := make([]string, 0, len(hostIDs))
+	for _, hostID := range hostIDs {
+		executionID := uuid.New().String()
+		executionIDByHost[hostID] = executionID
+		executionIDs = append(executionIDs, executionID)
+	}
+
+	const insertActivitiesStmt = `
+INSERT INTO upcoming_activities
+	(host_id, priority, activity_type, execution_id, payload)
+VALUES
+	(:host_id, 0, 'script', :execution_id,
+		JSON_OBJECT('sync_request', :sync_request, 'is_internal', :is_internal)
+	)`
+
+	// the child rows join back on execution_id rather than on the ids the insert
+	// above generated, which MySQL does not guarantee to be contiguous
+	const insertScriptActivitiesStmt = `
+INSERT INTO script_upcoming_activities
+	(upcoming_activity_id, script_content_id)
+SELECT
+	ua.id, ?
+FROM
+	upcoming_activities ua
+WHERE
+	ua.execution_id IN (?)`
+
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		contentsRes, err := insertScriptContents(ctx, tx, contents)
+		if err != nil {
+			return err
+		}
+		scriptContentID, _ := contentsRes.LastInsertId()
+
+		activityArgs := make([]map[string]any, 0, len(hostIDs))
+		for _, hostID := range hostIDs {
+			activityArgs = append(activityArgs, map[string]any{
+				"host_id":      hostID,
+				"execution_id": executionIDByHost[hostID],
+				"sync_request": false,
+				"is_internal":  true,
+			})
+		}
+		if _, err := sqlx.NamedExecContext(ctx, tx, insertActivitiesStmt, activityArgs); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert script upcoming activities")
+		}
+
+		stmt, args, err := sqlx.In(insertScriptActivitiesStmt, scriptContentID, executionIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build batch script upcoming activities insert")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert script upcoming activity details")
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// activation opens its own transactions per chunk of hosts, so it runs after
+	// the inserts commit rather than inside them
+	if err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, hostIDs); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "activate batch of queued scripts")
+	}
+
+	return executionIDByHost, nil
 }

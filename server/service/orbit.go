@@ -27,6 +27,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
 )
 
@@ -672,6 +673,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
+	// the notifications themselves are delivered as scripts, so this is only so
+	// orbit can see what is on its way
+	notificationIDs, err := svc.ds.ListEndUserNotificationIDsForHost(ctx, host.ID)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+	notifs.GenericNotifications = notificationIDs
+
 	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
 		host.DiskEncryptionEnabled != nil &&
 		*host.DiskEncryptionEnabled &&
@@ -1174,6 +1183,12 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand custom host vitals for host %d and script %s", host.ID, execID))
 	}
 
+	// TODO(JK) Expand auth token here:
+	script.ScriptContents, err = svc.expandAuthTokenForNotification(ctx, host, script)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand notification url for host %d and script %s", host.ID, execID))
+	}
+
 	// Fleet variables expand last: values are end-user-influenced (IdP data),
 	// so any $FLEET_SECRET_* or $FLEET_HOST_VITAL_* text they carry must stay
 	// literal rather than go through the expansions above. Skip executions
@@ -1203,6 +1218,54 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	}
 
 	return script, nil
+}
+
+// expandAuthTokenForNotification resolves $FLEET_VAR_PATCH_NOTIFICATION_URL in a
+// script Fleet queued for itself to the device page URL of the notification that
+// script was queued for.
+//
+// The token is resolved when fleetd fetches the script rather than when the cron
+// queues it, so script_contents never holds a live credential and a token that
+// rotates during a countdown only affects scripts not yet fetched. A script
+// fetched with a token that rotates before it runs loads nothing, which the
+// script reports as an HTTP failure and Fleet retries.
+func (svc *Service) expandAuthTokenForNotification(ctx context.Context, host *fleet.Host, script *fleet.HostScriptResult) (string, error) {
+	// checking is_internal first keeps admin-written scripts, which are every
+	// script that isn't this one, from being scanned for variables again here
+	if !script.IsInternal {
+		return script.ScriptContents, nil
+	}
+	if !slices.Contains(variables.Find(script.ScriptContents), string(fleet.FleetVarPatchNotificationURL)) {
+		return script.ScriptContents, nil
+	}
+
+	notification, err := svc.ds.GetEndUserNotificationByExecutionID(ctx, script.ExecutionID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get end user notification for script")
+	}
+
+	token, err := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)
+	switch {
+	case err == nil:
+		// fresh token in hand
+	case fleet.IsNotFound(err):
+		token, err = svc.mintHostDeviceAuthToken(ctx, host.ID)
+		if err != nil {
+			return "", err
+		}
+	default:
+		return "", ctxerr.Wrap(ctx, err, "check fresh device auth token")
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get app config for server url")
+	}
+
+	notificationURL := fmt.Sprintf("%s/device/%s/notifications/%s",
+		strings.TrimRight(appConfig.ServerSettings.ServerURL, "/"), token, notification.UUID)
+
+	return variables.Replace(script.ScriptContents, string(fleet.FleetVarPatchNotificationURL), notificationURL), nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

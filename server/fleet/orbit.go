@@ -65,6 +65,11 @@ type OrbitConfigNotifications struct {
 	// see EnforceBitLockerEncryption for Windows and RotateDiskEncryptionKey
 	// for macOS.
 	RunDiskEncryptionEscrow bool `json:"run_disk_encryption_escrow,omitempty"`
+
+	// GenericNotifications tell orbit what generic notifications are available
+	// to act on. TODO(JK): this currently doesn't offer any functionality
+	// maybe uuid instead of id?
+	GenericNotifications []uint `json:"generic_notifications,omitempty"`
 }
 
 type OrbitConfig struct {

@@ -355,6 +355,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return newCleanupExpiredADUEChallengesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 
+	deps.register("failed to register end user notifications schedule", func() (fleet.CronSchedule, error) {
+		return newEndUserNotificationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
 	if deps.config.Activity.EnableAuditLog {
 		deps.register("failed to register activities streaming schedule", func() (fleet.CronSchedule, error) {
 			return newActivitiesStreamingSchedule(ctx, deps.instanceID, deps.activitySvc, deps.ds, deps.logger, deps.auditLogger)

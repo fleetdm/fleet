@@ -1179,6 +1179,14 @@ type Service interface {
 
 	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
 
+	// GetDeviceEndUserNotification returns the authenticated host's notification
+	// with the given uuid, and not found for any other host's.
+	GetDeviceEndUserNotification(ctx context.Context, notificationUUID string) (*EndUserNotification, error)
+	// DeviceEndUserNotificationAction applies an end user's changes to one of
+	// their notifications, such as confirming it was displayed or pushing out its
+	// next attempt.
+	DeviceEndUserNotificationAction(ctx context.Context, notificationUUID string, action EndUserNotificationAction) error
+
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
 
