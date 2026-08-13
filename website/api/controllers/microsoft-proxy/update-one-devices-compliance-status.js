@@ -58,6 +58,8 @@ module.exports = {
     success: { description: 'A devices compliance status was successfully sent to an entra tenants instance'},
     missingUserPrincipalName: { description: 'A request to update a macOS device\'s complaince status was missing a userPrincipalName value.', responseType: 'badRequest'},
     unauthorized: { description: 'A request contained an invalid entraTenantId/fleetServerSecret combination.', responseType: 'unauthorized'},
+    microsoftApiRequestFailed: {description: 'An error occurred when sending a request to the Microsoft API.'},
+    microsoftApiError: {description: 'The Microsoft API returned an unexpected response.'},
   },
 
 
@@ -181,9 +183,17 @@ module.exports = {
           UploadTime: new Date().toISOString(),
           Content: JSON.stringify(complianceUpdateContent),
         }
-      }).intercept((err)=>{
-        return new Error(`An error occurred when sending a request to sync a device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+      })
+      .intercept('requestFailed', ()=>{
+        // If a request to the microsoft API fails with a requestFailed error, return a microsoftApiRequestFailed response to the Fleet server
+        return 'microsoftApiRequestFailed';
+      })
+      .intercept((err)=>{
+        // If the request to the Microsoft API returns a non-2xx response, log a warning and return a microsoftApiError response
+        sails.log.warn(`An error occurred when sending a request to sync a device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return 'microsoftApiError';
       });
+
       // Log responses from Micrsoft APIs for Fleet's integration
       if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
         sails.log.info(`Microsoft proxy: update-one-devices-compliance-status sent a compliance update: ${complianceUpdateResponse.body}`);
