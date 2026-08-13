@@ -3139,7 +3139,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	require.Equal(t, false, unexpectedProfileSeen)
 
 	require.Equal(t, totalAppsToInstall, installAppCount)
-	require.Equal(t, totalAppsToInstall, len(installedApps))
+	require.Len(t, installedApps, totalAppsToInstall)
 
 	// Each expected app should be installed exactly once
 	for _, app := range opts.VppAppsToInstall {
