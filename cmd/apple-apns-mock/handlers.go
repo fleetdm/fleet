@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -302,5 +301,7 @@ func apnsPushError(w http.ResponseWriter, headers *pushHeaders, err error) {
 		statusCode = statuser.Status()
 	}
 	w.WriteHeader(statusCode)
-	fmt.Fprintf(w, `{"reason":"%s"}`, err.Error())
+	_ = json.NewEncoder(w).Encode(struct {
+		Reason string `json:"reason"`
+	}{Reason: err.Error()})
 }

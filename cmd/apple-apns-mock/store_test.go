@@ -413,7 +413,7 @@ func TestConcurrentAccess(t *testing.T) {
 			select {
 			case <-done:
 				return
-			default:
+			case <-time.After(time.Millisecond):
 				s.sweep(time.Now())
 			}
 		}

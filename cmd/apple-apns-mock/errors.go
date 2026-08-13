@@ -6,122 +6,50 @@ type Statuser interface {
 	Status() int
 }
 
-type BadRequestError struct {
-	Reason string
-}
-
-func (e *BadRequestError) Error() string {
-	return e.Reason
-}
-
-func (e *BadRequestError) Status() int {
-	return http.StatusBadRequest
-}
-
-type invalidPushTypeError struct {
-	BadRequestError
-}
-
-func InvalidPushTypeError() *invalidPushTypeError {
-	return &invalidPushTypeError{
-		BadRequestError: BadRequestError{
-			Reason: "InvalidPushType",
-		},
-	}
-}
-
-type badDeviceTokenError struct {
-	BadRequestError
-}
-
-func BadDeviceTokenError() *badDeviceTokenError {
-	return &badDeviceTokenError{
-		BadRequestError: BadRequestError{
-			Reason: "BadDeviceToken",
-		},
-	}
-}
-
-type missingDeviceTokenError struct {
-	BadRequestError
-}
-
-func MissingDeviceTokenError() *missingDeviceTokenError {
-	return &missingDeviceTokenError{
-		BadRequestError: BadRequestError{
-			Reason: "MissingDeviceToken",
-		},
-	}
-}
-
-type badExpirationDateError struct {
-	BadRequestError
-}
-
-func BadExpirationDateError() *badExpirationDateError {
-	return &badExpirationDateError{
-		BadRequestError: BadRequestError{
-			Reason: "BadExpirationDate",
-		},
-	}
-}
-
-type payloadEmptyError struct {
-	BadRequestError
-}
-
-func PayloadEmptyError() *payloadEmptyError {
-	return &payloadEmptyError{
-		BadRequestError: BadRequestError{
-			Reason: "PayloadEmpty",
-		},
-	}
-}
-
-type badMessageIdError struct {
-	BadRequestError
-}
-
-func BadMessageIdError() *badMessageIdError {
-	return &badMessageIdError{
-		BadRequestError: BadRequestError{
-			Reason: "BadMessageId",
-		},
-	}
-}
-
-type payloadTooLargeError struct {
+type apnsError struct {
 	reason string
+	status int
 }
 
-func (e *payloadTooLargeError) Error() string {
-	return e.reason
+func (e *apnsError) Error() string { return e.reason }
+func (e *apnsError) Status() int   { return e.status }
+
+func newAPNSError(reason string, status int) *apnsError {
+	return &apnsError{reason: reason, status: status}
 }
 
-func (e *payloadTooLargeError) Status() int {
-	return http.StatusRequestEntityTooLarge
+func BadRequestError() *apnsError {
+	return newAPNSError("BadRequest", http.StatusBadRequest)
 }
 
-func PayloadTooLargeError() *payloadTooLargeError {
-	return &payloadTooLargeError{
-		reason: "PayloadTooLarge",
-	}
+func InvalidPushTypeError() *apnsError {
+	return newAPNSError("InvalidPushType", http.StatusBadRequest)
 }
 
-type internalServerError struct {
-	reason string
+func BadDeviceTokenError() *apnsError {
+	return newAPNSError("BadDeviceToken", http.StatusBadRequest)
 }
 
-func (e *internalServerError) Error() string {
-	return e.reason
+func MissingDeviceTokenError() *apnsError {
+	return newAPNSError("MissingDeviceToken", http.StatusBadRequest)
 }
 
-func (e *internalServerError) Status() int {
-	return http.StatusInternalServerError
+func BadExpirationDateError() *apnsError {
+	return newAPNSError("BadExpirationDate", http.StatusBadRequest)
 }
 
-func InternalServerError() *internalServerError {
-	return &internalServerError{
-		reason: "InternalServerError",
-	}
+func PayloadEmptyError() *apnsError {
+	return newAPNSError("PayloadEmpty", http.StatusBadRequest)
+}
+
+func BadMessageIdError() *apnsError {
+	return newAPNSError("BadMessageId", http.StatusBadRequest)
+}
+
+func PayloadTooLargeError() *apnsError {
+	return newAPNSError("PayloadTooLarge", http.StatusRequestEntityTooLarge)
+}
+
+func InternalServerError() *apnsError {
+	return newAPNSError("InternalServerError", http.StatusInternalServerError)
 }

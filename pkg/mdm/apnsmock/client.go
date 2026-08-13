@@ -1,3 +1,8 @@
+// Package apnsmock provides the client half of Fleet's mock APNS service
+// (cmd/apple-apns-mock). Simulated MDM devices (osquery-perf agents, mdmtest
+// clients) use Client as their stand-in for a real device's persistent APNS
+// courier connection: they subscribe with their device token and receive
+// each push Fleet sends as a Ping, which should trigger an MDM check-in
 package apnsmock
 
 import (
@@ -12,12 +17,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 )
-
-// Package apnsmock provides the client half of Fleet's mock APNS service
-// (cmd/apple-apns-mock). Simulated MDM devices (osquery-perf agents, mdmtest
-// clients) use Client as their stand-in for a real device's persistent APNS
-// courier connection: they subscribe with their device token and receive
-// each push Fleet sends as a Ping, which should trigger an MDM check-in
 
 // Ping is one push notification delivered by the mock APNS server. It is a
 // pure wake-up signal — like a real APNS MDM push, it carries no data beyond
@@ -66,6 +65,12 @@ type Option func(*Client)
 // hi).
 func WithBackoff(lo, hi time.Duration) Option {
 	return func(c *Client) {
+		if lo <= 0 {
+			lo = time.Second
+		}
+		if hi < lo {
+			hi = lo
+		}
 		c.backoffMin = lo
 		c.backoffMax = hi
 	}
@@ -131,7 +136,7 @@ func (c *Client) run(ctx context.Context) {
 
 	// hold the registration for jitter to avoid stampeding the server
 	if c.initialJitter > 0 {
-		sleep(time.Duration(rand.IntN(int(c.initialJitter)))) // nolint:gosec // weak rand is fine for jitter
+		sleep(time.Duration(rand.Int64N(int64(c.initialJitter)))) // nolint:gosec // weak rand is fine for jitter
 	}
 
 	backoff := c.backoffMin
@@ -195,7 +200,7 @@ func (c *Client) connectAndStream(ctx context.Context) (healthy bool, err error)
 	defer func() { healthy = pings > 0 || time.Since(connectedAt) >= c.backoffMax }()
 
 	scanner := bufio.NewScanner(resp.Body)
-	scanner.Buffer(make([]byte, 512), 8192)
+	scanner.Buffer(make([]byte, 512), 8192) // mock apns rejects payloads more than 4096 bytes
 
 	// An event's payload can span several data: lines (the server splits a
 	// payload containing newlines that way, since SSE frames are newline
