@@ -35,9 +35,14 @@ jobs:
           # GHSA-j965-2qgj-vjmq (aws-sdk v2 region validation) has no fixed v2
           # release; the guidance is to migrate to SDK v3. skipper-s3 (used by the
           # fleet-agent-downloader) supports only v2.
-          # GHSA-qh2h-chj9-jffq (growl command injection) and GHSA-6chw-6frg-f759
-          # (acorn ReDoS) are pinned inside sails-hook-grunt's npm-shrinkwrap.json
-          # (dev-only grunt tooling in the fleet-agent-downloader); they predate this
-          # allowlist but npm 10 lockfile regeneration marks shrinkwrapped subtrees as
-          # runtime scope, which makes dependency-review treat them as newly added.
-          allow-ghsas: GHSA-mh99-v99m-4gvg, GHSA-j965-2qgj-vjmq, GHSA-qh2h-chj9-jffq, GHSA-6chw-6frg-f759
+          # GHSA-qh2h-chj9-jffq (growl command injection), GHSA-6chw-6frg-f759
+          # (acorn ReDoS), and GHSA-93q8-gq69-wqmw (ansi-regex ReDoS) are one class:
+          # sails-hook-grunt's published npm-shrinkwrap.json wrongly includes its
+          # devDependencies (the eslint 4 and mocha 3 subtrees, dev-only lint/test
+          # tooling never loaded at runtime), and npm 10+ lockfile regeneration
+          # records parts of that subtree as runtime scope. Affects the website/ and
+          # ee/fleet-agent-downloader/ lockfiles, which both use sails-hook-grunt.
+          # TEMPORARY: remove all three once the upstream fix
+          # (https://github.com/sailshq/sails-hook-grunt/pull/12) is published and
+          # both lockfiles are regenerated.
+          allow-ghsas: GHSA-mh99-v99m-4gvg, GHSA-j965-2qgj-vjmq, GHSA-qh2h-chj9-jffq, GHSA-6chw-6frg-f759, GHSA-93q8-gq69-wqmw
