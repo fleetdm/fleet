@@ -82,8 +82,6 @@ Security reports come in through the private [fleetdm/security](https://github.c
 
 If a report names or otherwise identifies a Fleet customer, keep that context in [fleetdm/confidential](https://github.com/fleetdm/confidential) and link to it — never copy customer-identifying details or `customer-*` labels into fleetdm/security.
 
-Not every report is a fire drill — the severity determines the timing, not the urgency the reporter feels.
-
 **Initial review:** An engineer or Engineering Manager reviews every new security report within **one business day** to confirm the report, assign a severity, and decide on a remediation path.
 
 **Severity timelines:**
