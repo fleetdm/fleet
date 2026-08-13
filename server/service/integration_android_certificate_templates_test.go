@@ -1716,6 +1716,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.NotNil(t, profile.MaxRetries)
 		require.Equal(t, fleet.MaxCertificateInstallRetries, *profile.MaxRetries)
 		require.Empty(t, profile.Detail)
+		require.NotNil(t, profile.Retrying)
+		require.False(t, *profile.Retrying, "a first delivery is not a retry")
 
 		// Fail MaxCertificateInstallRetries times -- each should auto-retry (status resets to pending)
 		var previousDetail string
@@ -1734,6 +1736,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 					"re-delivering a retry must preserve the previous failure detail")
 				require.NotNil(t, profile.RetryCount)
 				require.Equal(t, i, *profile.RetryCount)
+				require.NotNil(t, profile.Retrying)
+				require.True(t, *profile.Retrying, "a re-delivered retry must still report as retrying")
 			}
 			detail := fmt.Sprintf("SCEP failure %d", i+1)
 			previousDetail = detail
@@ -1749,6 +1753,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 			profile = getCertProfile()
 			require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status)
 			require.Equal(t, detail, profile.Detail)
+			require.NotNil(t, profile.Retrying)
+			require.True(t, *profile.Retrying)
 			require.NotNil(t, profile.RetryCount)
 			require.Equal(t, i+1, *profile.RetryCount)
 			require.NotNil(t, profile.MaxRetries)
@@ -1771,6 +1777,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.Equal(t, terminalDetail, profile.Detail)
 		require.NotNil(t, profile.RetryCount)
 		require.Equal(t, fleet.MaxCertificateInstallRetries, *profile.RetryCount)
+		require.NotNil(t, profile.Retrying)
+		require.False(t, *profile.Retrying, "a terminal failure is not a retry")
 
 		// Verify terminal failure activity was logged on the host with correct details
 		var hostActivitiesResp listActivitiesResponse
@@ -1803,6 +1811,10 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.Empty(t, profile.Detail, "resend should clear the detail from the previous failure")
 		require.NotNil(t, profile.RetryCount)
 		require.Equal(t, fleet.MaxCertificateInstallRetries, *profile.RetryCount)
+		// The resend is indistinguishable from a final automatic retry by retry count and detail
+		// alone -- both sit at the maximum with no detail -- so this flag is the only separator.
+		require.NotNil(t, profile.Retrying)
+		require.False(t, *profile.Retrying, "a manual resend must not report as an automatic retry")
 
 		// Deliver and fail once more -- terminal immediately (no auto-retry after resend)
 		deliverCert()
@@ -1832,6 +1844,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.Empty(t, profile.Detail)
 		require.NotNil(t, profile.RetryCount)
 		require.EqualValues(t, 2, *profile.RetryCount)
+		require.NotNil(t, profile.Retrying)
+		require.True(t, *profile.Retrying, "a failure reported without a detail is still a retry")
 
 		deliverCert()
 		reportCertStatus(string(fleet.MDMDeliveryVerified), nil)

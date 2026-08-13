@@ -218,6 +218,7 @@ describe("OS setting status cell", () => {
         status: "delivered",
         detail: SCEP_ERROR,
         certificate_template_id: 4,
+        retrying: true,
         retry_count: 1,
         max_retries: 3,
         ...overrides,
@@ -269,7 +270,11 @@ describe("OS setting status cell", () => {
         createRetryingCertProfile()
       );
       const { container: enforcing } = renderStatusCell(
-        createRetryingCertProfile({ detail: "", retry_count: 0 })
+        createRetryingCertProfile({
+          retrying: false,
+          detail: "",
+          retry_count: 0,
+        })
       );
 
       expect(retrying.querySelector("svg")?.outerHTML).toEqual(
@@ -309,6 +314,7 @@ describe("OS setting status cell", () => {
 
     it("displays 'Enforcing' on a first delivery that has not failed", () => {
       const profile = createRetryingCertProfile({
+        retrying: false,
         detail: "",
         retry_count: 0,
       });
@@ -319,9 +325,11 @@ describe("OS setting status cell", () => {
     });
 
     it("displays 'Enforcing' after a manual resend, which clears the detail", () => {
-      // A resend sets the retry count to the maximum so the next failure is terminal, but it
-      // clears the detail, so it must not read as an automatic retry.
+      // A resend sets the retry count to the maximum so the next failure is terminal. The
+      // server reports retrying: false for it, which is the only thing separating it from the
+      // final automatic retry below.
       const profile = createRetryingCertProfile({
+        retrying: false,
         detail: "",
         retry_count: 3,
       });
@@ -348,6 +356,27 @@ describe("OS setting status cell", () => {
       });
     });
 
+    // The final automatic retry looks exactly like a manual resend from the client's side: both
+    // sit at the maximum retry count with no detail. Only the server can separate them, which is
+    // why `retrying` is server-decided rather than inferred here.
+    it("displays 'Retrying' on a final retry with no detail, unlike a resend", async () => {
+      const profile = createRetryingCertProfile({
+        detail: "",
+        retry_count: 3,
+      });
+      const { user } = renderStatusCell(profile);
+
+      const statusText = screen.getByText("Retrying");
+      expect(statusText).toBeInTheDocument();
+
+      await user.hover(statusText);
+      await waitFor(() => {
+        expect(
+          screen.getByText("Retrying enrollment (attempt 4 of 4).")
+        ).toBeInTheDocument();
+      });
+    });
+
     it("treats a blank detail the same as a missing one", async () => {
       const profile = createRetryingCertProfile({ detail: "   " });
       const { user } = renderStatusCell(profile);
@@ -362,7 +391,10 @@ describe("OS setting status cell", () => {
     });
 
     it("displays 'Removing enforcement' for a removal, which is never retried", () => {
-      const profile = createRetryingCertProfile({ operation_type: "remove" });
+      const profile = createRetryingCertProfile({
+        retrying: false,
+        operation_type: "remove",
+      });
       renderStatusCell(profile);
 
       expect(screen.getByText("Removing enforcement")).toBeInTheDocument();
@@ -371,6 +403,7 @@ describe("OS setting status cell", () => {
 
     it("still displays 'Failed' with the raw detail once the retries are exhausted", async () => {
       const profile = createRetryingCertProfile({
+        retrying: false,
         status: "failed",
         retry_count: 3,
       });

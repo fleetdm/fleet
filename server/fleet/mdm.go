@@ -551,10 +551,13 @@ type HostMDMProfile struct {
 	Scope                 *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
 	ManagedLocalAccount   *string          `db:"-" json:"managed_local_account"`
 	CertificateTemplateID *uint            `db:"-" json:"certificate_template_id,omitempty"`
-	// RetryCount is the number of retries already used (0-based) and MaxRetries is the maximum number
-	// of automatic retries Fleet will perform after the initial attempt. Manual resends may set
-	// RetryCount to MaxRetries; clients can use RetryCount/MaxRetries together with Detail to
-	// distinguish an automatic retry from a resend.
+	// Retrying reports that Fleet is in the middle of automatically retrying this profile after a
+	// failed install, which leaves it in an in-progress status with nothing else to distinguish it
+	// from a first delivery. RetryCount is the number of retries already used and MaxRetries the
+	// number allowed, for reporting which attempt is in flight. Note that RetryCount is also set by
+	// a manual resend, so it does not on its own mean Fleet is retrying — use Retrying for that.
+	// All three are only set for Android certificate templates.
+	Retrying   *bool `db:"-" json:"retrying,omitempty"`
 	RetryCount *uint `db:"-" json:"retry_count,omitempty"`
 	MaxRetries *uint `db:"-" json:"max_retries,omitempty"`
 }

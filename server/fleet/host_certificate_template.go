@@ -42,6 +42,7 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 	certTemplateID := p.CertificateTemplateID
 	retryCount := p.RetryCount
 	maxRetries := MaxCertificateInstallRetries
+	retrying := p.IsRetrying()
 	profile := HostMDMProfile{
 		HostUUID:              p.HostUUID,
 		Name:                  p.Name,
@@ -50,6 +51,7 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 		OperationType:         p.OperationType,
 		ProfileUUID:           AndroidCertificateTemplateProfileID,
 		CertificateTemplateID: &certTemplateID,
+		Retrying:              &retrying,
 		RetryCount:            &retryCount,
 		MaxRetries:            &maxRetries,
 	}
@@ -57,6 +59,29 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 		profile.Detail = *p.Detail
 	}
 	return profile
+}
+
+// IsRetrying reports whether Fleet is in the middle of automatically retrying this certificate
+// after a failed install. A retry is put back into an in-progress status and delivered again, so
+// nothing in the status itself distinguishes it from a first delivery.
+//
+// A manual resend also leaves a retry count behind, but it clears the detail to NULL, whereas a
+// retry always writes one — even an empty string, since the host is not required to report a
+// message with a failure. That NULL-versus-set distinction is only available here: the detail is
+// flattened to a plain string by the time it reaches an API consumer.
+func (p *HostCertificateTemplate) IsRetrying() bool {
+	if p == nil || p.OperationType != MDMOperationTypeInstall || p.RetryCount == 0 || p.Detail == nil {
+		// Removals are never retried, and a certificate that has not failed yet has no retries.
+		return false
+	}
+
+	switch p.Status {
+	case CertificateTemplatePending, CertificateTemplateDelivering, CertificateTemplateDelivered:
+		return true
+	default:
+		// Terminally failed or verified: whatever happened, Fleet is no longer retrying.
+		return false
+	}
 }
 
 type CertificateTemplateForHost struct {

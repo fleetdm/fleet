@@ -106,6 +106,95 @@ func TestHostCertificateTemplate(t *testing.T) {
 		}
 	})
 
+	// A retry and a manual resend both leave a retry count on an in-progress certificate. The only
+	// thing separating them is that a resend clears the detail to NULL while a retry always writes
+	// one, even an empty string. That distinction does not survive into the API response, so it has
+	// to be resolved here.
+	t.Run("IsRetrying", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			template *HostCertificateTemplate
+			expected bool
+		}{
+			{
+				name:     "nil template",
+				template: nil,
+			},
+			{
+				name: "first delivery, never failed",
+				template: &HostCertificateTemplate{
+					Status: CertificateTemplateDelivered, OperationType: MDMOperationTypeInstall,
+				},
+			},
+			{
+				name: "retry carrying the reported failure",
+				template: &HostCertificateTemplate{
+					Status: CertificateTemplateDelivered, OperationType: MDMOperationTypeInstall,
+					RetryCount: 1, Detail: new("SCEP failure"),
+				},
+				expected: true,
+			},
+			{
+				name: "retry where the host reported no detail",
+				template: &HostCertificateTemplate{
+					Status: CertificateTemplatePending, OperationType: MDMOperationTypeInstall,
+					RetryCount: 1, Detail: new(""),
+				},
+				expected: true,
+			},
+			{
+				name: "final retry, at the maximum with no detail",
+				template: &HostCertificateTemplate{
+					Status: CertificateTemplateDelivered, OperationType: MDMOperationTypeInstall,
+					RetryCount: MaxCertificateInstallRetries, Detail: new(""),
+				},
+				expected: true,
+			},
+			{
+				name: "manual resend, at the maximum with the detail cleared",
+				template: &HostCertificateTemplate{
+					Status: CertificateTemplatePending, OperationType: MDMOperationTypeInstall,
+					RetryCount: MaxCertificateInstallRetries, Detail: nil,
+				},
+			},
+			{
+				name: "terminally failed",
+				template: &HostCertificateTemplate{
+					Status: CertificateTemplateFailed, OperationType: MDMOperationTypeInstall,
+					RetryCount: MaxCertificateInstallRetries, Detail: new("SCEP failure"),
+				},
+			},
+			{
+				name: "verified after a retry succeeded",
+				template: &HostCertificateTemplate{
+					Status: CertificateTemplateVerified, OperationType: MDMOperationTypeInstall,
+					RetryCount: 1, Detail: new("SCEP failure"),
+				},
+			},
+			{
+				name: "removals are never retried",
+				template: &HostCertificateTemplate{
+					Status: CertificateTemplateDelivered, OperationType: MDMOperationTypeRemove,
+					RetryCount: 1, Detail: new("SCEP failure"),
+				},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				require.Equal(t, tt.expected, tt.template.IsRetrying())
+
+				profile := tt.template.ToHostMDMProfile()
+				if tt.template == nil {
+					require.Nil(t, profile.Retrying)
+					return
+				}
+				require.NotNil(t, profile.Retrying)
+				require.Equal(t, tt.expected, *profile.Retrying)
+			})
+		}
+	})
+
 	// The retry fields describe Fleet's automatic retry of an Android certificate install, which
 	// no other platform has. They must stay absent from every other profile's JSON rather than
 	// showing up as a misleading zero.
@@ -122,6 +211,7 @@ func TestHostCertificateTemplate(t *testing.T) {
 				encoded, err := json.Marshal(profile)
 				require.NoError(t, err)
 				require.NotContains(t, string(encoded), "retry_count")
+				require.NotContains(t, string(encoded), "retrying")
 				require.NotContains(t, string(encoded), "max_retries")
 			})
 		}

@@ -28,42 +28,17 @@ export type ProfileDisplayOption = {
   tooltip: TooltipInnerContentOption | null;
 } | null;
 
-/** Statuses an Android certificate template reports while its install is still in flight. */
-const ANDROID_CERT_IN_PROGRESS_STATUSES: OsSettingsTableStatusValue[] = [
-  "pending",
-  "delivering",
-  "delivered",
-];
-
 /**
  * When an Android certificate install fails, Fleet resets the certificate and delivers it again,
- * so the profile goes back to an in-progress status while carrying the retry count and the detail
- * from the failed attempt. Without this the row is indistinguishable from a first delivery and the
- * admin gets no signal that anything went wrong.
+ * so the profile goes back to an in-progress status and is otherwise indistinguishable from a
+ * first delivery. The server decides this: a manual resend leaves the same retry count behind, and
+ * telling the two apart needs state that does not survive into the API response.
  */
 export const isRetryingAndroidCertificate = (
   profile?: IHostMdmProfileWithAddedStatus
-) => {
-  if (
-    !profile ||
-    profile.profile_uuid !== FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID ||
-    // Only installs are retried, removals never are.
-    profile.operation_type !== "install" ||
-    !ANDROID_CERT_IN_PROGRESS_STATUSES.includes(profile.status) ||
-    !profile.retry_count
-  ) {
-    return false;
-  }
-
-  // A manual resend also sets a retry count, but it goes straight to the maximum and clears the
-  // detail. So anything below the maximum can only be an automatic retry, whether or not the host
-  // reported an error message, and only a used-up allowance needs the detail to tell them apart.
-  return (
-    profile.max_retries === undefined ||
-    profile.retry_count < profile.max_retries ||
-    !!profile.detail?.trim()
-  );
-};
+) =>
+  profile?.profile_uuid === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID &&
+  !!profile.retrying;
 
 /**
  * Builds the tooltip for a retrying Android certificate, e.g. "Network error during SCEP
