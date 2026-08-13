@@ -56,6 +56,9 @@ locals {
       FLEET_MYSQL_TLS_CA                  = local.cert_path
       FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
       FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
+
+      # Skip backfilling S3 config with dev values for load testing
+      FLEET_DEV_SKIP_S3_CONFIG = "1"
     },
     local.otel_environment_variables,
     local.elastic_apm_environment_variables

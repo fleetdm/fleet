@@ -8,7 +8,9 @@ paths:
 ## Migration Files
 - Location: `server/datastore/mysql/migrations/tables/`
 - Naming: `YYYYMMDDHHMMSS_CamelCaseName.go` (timestamp + descriptive CamelCase)
-- Every migration MUST have a corresponding `_test.go` file
+- Every migration that modifies data MUST have a corresponding `_test.go` file. That means changing existing data, adding new data, or
+  populating a table
+- Simple migrations that only add a table, column, or index do not need one
 - Structure:
   ```go
   func init() {

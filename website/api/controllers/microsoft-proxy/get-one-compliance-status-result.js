@@ -50,7 +50,7 @@ module.exports = {
         'Authorization': `Bearer ${accessToken}`
       }
     }).intercept((err)=>{
-      return new Error({error: `An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
+      return new Error(`An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
     });
 
     // Log responses from Micrsoft APIs for Fleet's integration
