@@ -129,7 +129,7 @@ module.exports = {
           'Authorization': `Bearer ${graphAccessToken}`
         }
       }).intercept((err)=>{
-        return new Error(`An error occurred when getting a user ID from a user principal name (${userPrincipalName}) for a complaince status update. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return new Error(`An error occurred when getting a user ID from a user principal name (${userPrincipalName}) for a compliance status update. Full error: ${require('util').inspect(err, {depth: 3})}`);
       });
 
       if(!informationAboutThisUser.id) {
