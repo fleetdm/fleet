@@ -246,7 +246,7 @@ func TestClientJoinsMultiLineData(t *testing.T) {
 	c.Start(t.Context())
 
 	p := recvPing(t, c.Pings(), 5*time.Second)
-	assert.JSONEq(t, "{\"mdm\":\"line1\nline2\"}", string(p.Raw), "the payload must be rejoined byte for byte")
+	assert.Equal(t, "{\"mdm\":\"line1\nline2\"}", string(p.Raw), "the payload must be rejoined byte for byte") // nolint:testifylint // not valid JSON
 	// A raw newline inside a JSON string is not valid JSON, so the magic
 	// cannot be parsed — the ping is still delivered, Raw intact.
 	assert.Empty(t, p.PushMagic)
