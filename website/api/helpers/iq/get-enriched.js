@@ -349,7 +349,7 @@ module.exports = {
           sails.log.info(`Unexpected result when enriching: Email domain inferred from matched organization website (${employer.emailDomain}) does not equal the parsed email domain (${emailDomain}) that was derived from the provided "emailAddress" (${emailAddress})`);
         }//ﬁ
 
-        // Use OpenAI to try and enrich some additional data, if it's missing.
+        // Use an LLM to try and enrich some additional data, if it's missing.
         if (!employer.numberOfEmployees) {
           if (!sails.config.custom.anthropicSecret) {
             throw new Error('sails.config.custom.anthropicSecret not set.');

@@ -19,8 +19,6 @@ module.exports = {
       type: 'string',
       description: 'The base model to use.',
       example: 'claude-sonnet-5',
-      // 'claude-sonnet-4-6-20260218'
-      // 'claude-opus-4-6-20260218'
       // 'claude-sonnet-5'
       // 'claude-haiku-4-5'
       // 'claude-opus-4-8'
