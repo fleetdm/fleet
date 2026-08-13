@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.22.0",
+      "version": "1.22.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.hovancik.stretchly';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.hovancik.stretchly' AND version_compare(bundle_short_version, '1.22.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.hovancik.stretchly' AND version_compare(bundle_short_version, '1.22.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'net.hovancik.stretchly');"
       },
-      "installer_url": "https://github.com/hovancik/stretchly/releases/download/v1.22.0/stretchly-1.22.0-arm64.dmg",
+      "installer_url": "https://github.com/hovancik/stretchly/releases/download/v1.22.1/stretchly-1.22.1-arm64.dmg",
       "install_script_ref": "b676d2d0",
       "uninstall_script_ref": "c429a99f",
-      "sha256": "2bc2107001af9f1bcad2b5dcef3a197428aad8b085d2ef9dc685df17800dd291",
+      "sha256": "ca307fe7f8d42776152bd6da39a3897061ece162cd83a2012923b827ef79f30b",
       "default_categories": [
         "Productivity"
       ]
