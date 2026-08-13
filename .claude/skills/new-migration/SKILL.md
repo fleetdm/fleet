@@ -43,7 +43,10 @@ func Down_{TIMESTAMP}(tx *sql.Tx) error {
 }
 ```
 
-### 3. Create Test File
+### 3. Create Test File (data migrations only)
+Only needed when the migration modifies data: changing existing data, adding new data, or populating a table. A migration that only adds a
+table, column, or index does not need a test file, since asserting the object exists afterwards only restates the DDL.
+
 Location: `server/datastore/mysql/migrations/tables/{TIMESTAMP}_{Name}_test.go`
 
 ```go
