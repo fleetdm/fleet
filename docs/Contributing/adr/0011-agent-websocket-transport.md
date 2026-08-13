@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed
+Approved
 
 ## Date
 
-2026-08-04
+2026-08-13
 
 ## 1. What & why
 
