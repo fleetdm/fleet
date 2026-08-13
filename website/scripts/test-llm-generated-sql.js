@@ -80,7 +80,7 @@ Please give me all of the above in JSON, with this data shape:
   "linuxCaveats": "TODO",
   "chromeOSCaveats": "TODO",
 }`;
-    let sqlReport = await sails.helpers.ai.prompt(sqlPrompt, 'o1-preview', true);
+    let sqlReport = await sails.helpers.ai.prompt(sqlPrompt, 'claude-sonnet-5', true);
 
 
     // Which of my computers dont have filevault enabled?
