@@ -137,7 +137,7 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		if license.IsPremium(ctx) {
 			_, err := a.installSetupExperienceAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
+				return ctxerr.Wrap(ctx, err, "installing setup experience apps on iOS/iPadOS")
 			}
 		}
 		// Refetch is handled by the iphone_ipad_refetcher cron, which now

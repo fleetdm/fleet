@@ -1,0 +1,1 @@
+- Added support for automatically installing in-house apps (`.ipa`) on iOS and iPadOS hosts when they enroll to Fleet, via Controls > Setup experience > Install software or GitOps (`setup_experience_platform`).
