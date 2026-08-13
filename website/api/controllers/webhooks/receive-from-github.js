@@ -264,6 +264,11 @@ Formatting rules for the haiku:
 - Use plain words and spaces.  Do not use any dash character (—, –, or -), ellipsis, colon, or semicolon anywhere.
 - To signal the pause between the two images, just start a new line — never a dash or ellipsis at the end of a line.
 
+Example of the formatting to match (not the content):
+Laptops wake at dawn
+new agents check in on time
+the fleet stands ready
+
 The GitHub issue is:
 ${issueSummary}`;
       let haikuText = await sails.helpers.ai.prompt.with({
