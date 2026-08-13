@@ -365,7 +365,6 @@ func (n *nodeKeyManager) Add(nodekey string) {
 
 type mdmAgent struct {
 	agentIndex                 int
-	MDMCheckInInterval         time.Duration
 	model                      string
 	serverAddress              string
 	softwareCount              softwareEntityCount
@@ -4299,7 +4298,7 @@ func main() {
 
 		mdmProb               = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
 		mdmUserProb           = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
-		mdmAPNSURL            = flag.String("mdm_apns_url", "", "APNS URL to check for MDM push notifications (e.g., http://localhost:8378) - required for MDM enrollments.")
+		mdmAPNSURL            = flag.String("mdm_apns_url", "", "APNS URL to check for MDM push notifications (e.g., http://localhost:8378) - required for Apple (macOS/iOS/iPadOS) MDM enrollments.")
 		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
 		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
 		mdmIOSBYODProb        = flag.Float64("mdm_ios_byod_prob", 0.0, "Probability of a simulated iOS/iPadOS device (os_templates iphone_14.6/ipad_13.18/iphone_17) reporting as a personal (BYOD) enrollment, which omits the newer device vitals fields from its DeviceInformation ack [0, 1]")
@@ -4395,11 +4394,9 @@ func main() {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
 	}
 
-	// only fail if mdm is turned on for any apple device and the mdm_apns_url is not specified.
+	// only fail if mdm is turned on for macOS devices and the mdm_apns_url is not specified.
 	if *mdmProb > 0 &&
-		(strings.Contains(*osTemplates, "macos") ||
-			strings.Contains(*osTemplates, "iphone") ||
-			strings.Contains(*osTemplates, "ipad")) &&
+		strings.Contains(*osTemplates, "macos") &&
 		*mdmAPNSURL == "" {
 		log.Fatalf("Argument mdm_apns_url must be specified when mdm_prob is greater than 0")
 	}
@@ -4474,6 +4471,9 @@ func main() {
 		}
 
 		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" || tmpl.Name() == "iphone_17.tmpl" {
+			if *mdmAPNSURL == "" {
+				log.Fatalf("Argument mdm_apns_url must be specified when iOS/iPadOS templates are used.")
+			}
 			model := "iPhone 14,6"
 			var osVersion, supplementalOSVersionExtra string
 			// iphone_17 simulates a device with a Rapid Security Response (RSR) installed,
@@ -4488,7 +4488,6 @@ func main() {
 			}
 			mobileDevice := mdmAgent{
 				agentIndex:                 i + 1,
-				MDMCheckInInterval:         *mdmCheckInInterval,
 				model:                      model,
 				serverAddress:              *serverURL,
 				osVersion:                  osVersion,
