@@ -924,42 +924,16 @@ func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context,
 // only trustworthy for a policy the host is actually assigned (by team, platform and label). Without this, any enrolled
 // host could forge membership for policies it was never sent, including policies belonging to another fleet.
 //
-// The allowed set mirrors the one policyQueriesForHost builds for this host's distributed/read response, including the
-// narrower subset used during setup experience, so the write accepts exactly what Fleet was willing to hand out.
+// The lookup is restricted to the reported IDs rather than loading the host's whole in-scope set, since every
+// policy-reporting check-in pays for it.
+//
+// A host in setup experience is sent a subset of its in-scope policies, but it is checked against the full set: those
+// policies are legitimately the host's, so a result for one of them is worth keeping even if setup experience had not
+// asked for it yet.
 func (svc *Service) discardOutOfScopePolicyResults(ctx context.Context, host *fleet.Host, policyResults map[uint]*bool) error {
 	candidateIDs := make([]uint, 0, len(policyResults))
 	for policyID := range policyResults {
 		candidateIDs = append(candidateIDs, policyID)
-	}
-
-	// Not fatal: a host that cannot be resolved for setup experience (no osquery_host_id) cannot be in it, so the
-	// full in-scope set below is both the correct answer and the safe one -- it still enforces fleet, platform and
-	// label scope.
-	inSetupExperience, err := svc.hostIsInSetupExperience(ctx, host)
-	if err != nil {
-		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "check if host is in setup experience"))
-		inSetupExperience = false
-	}
-	if inSetupExperience {
-		// Fleet answers this host's distributed/read with only the policies gating its pending setup-experience
-		// items, leaving its other policies skipped so unrelated automations do not fire mid-setup (see
-		// policyQueriesForHost). Accepting a result for one of those skipped policies here would fire them anyway.
-		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get host uuid for setup experience policy queries")
-		}
-		gatingPolicyIDs, err := svc.ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
-		}
-		gating := make(map[uint]struct{}, len(gatingPolicyIDs))
-		for _, policyID := range gatingPolicyIDs {
-			gating[policyID] = struct{}{}
-		}
-		candidateIDs = slices.DeleteFunc(candidateIDs, func(policyID uint) bool {
-			_, ok := gating[policyID]
-			return !ok
-		})
 	}
 
 	inScope, err := svc.ds.PolicyQueriesForHostFiltered(ctx, host, candidateIDs)

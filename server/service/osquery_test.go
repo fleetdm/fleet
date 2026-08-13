@@ -3705,10 +3705,6 @@ func TestPolicyMembershipOutOfScopeCleanup(t *testing.T) {
 		return map[string]string{"1": "select 1"}, nil
 	}
 	mockPolicyQueriesForHostFiltered(ds)
-	// Policy 1 gates this host's setup experience, so its result is accepted in both the in-setup and normal cases.
-	ds.GetSetupExperiencePolicyIDsForHostFunc = func(ctx context.Context, hostUUID string) ([]uint, error) {
-		return []uint{1}, nil
-	}
 	stalePolicyIDs := []uint{7, 9}
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
@@ -3757,15 +3753,14 @@ func TestPolicyMembershipOutOfScopeCleanup(t *testing.T) {
 	require.False(t, ds.ClearHostPolicyMembershipForPoliciesFuncInvoked)
 	require.False(t, ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked)
 
-	// No stale policies: nothing is deleted. The setup experience gate is still checked, because the incoming
-	// results have to be scoped against what setup experience would have distributed (see
-	// discardOutOfScopePolicyResults); that check is the one extra lookup a policy-reporting write now pays for.
+	// No stale policies: nothing is deleted and the setup experience gate is
+	// not even checked.
 	resetInvoked()
 	inSetupExperience = false
 	stalePolicyIDs = nil
 	submit(policyResults)
 	require.False(t, ds.ClearHostPolicyMembershipForPoliciesFuncInvoked)
-	require.True(t, ds.GetHostAwaitingConfigurationFuncInvoked)
+	require.False(t, ds.GetHostAwaitingConfigurationFuncInvoked)
 
 	// The "no policies in scope" wildcard also cleans up stale rows.
 	resetInvoked()
@@ -3830,6 +3825,8 @@ func TestOutOfScopePolicyResultsAreDiscarded(t *testing.T) {
 		ds.PolicyQueriesForHostFuncInvoked = false
 		ds.UpdateHostFuncInvoked = false
 		ds.SaveHostAdditionalFuncInvoked = false
+		ds.GetHostAwaitingConfigurationFuncInvoked = false
+		ds.GetSetupExperiencePolicyIDsForHostFuncInvoked = false
 		err := svc.SubmitDistributedQueryResults(ctx, results, statuses, map[string]string{}, map[string]*fleet.Stats{})
 		require.NoError(t, err)
 	}
@@ -3889,10 +3886,10 @@ func TestOutOfScopePolicyResultsAreDiscarded(t *testing.T) {
 		require.Equal(t, map[uint]*bool{1: new(true)}, recordedResults)
 	})
 
-	// A host in setup experience is sent only the policies gating its pending items; its other in-scope policies stay
-	// skipped so unrelated automations do not fire mid-setup. A result for one of those skipped policies must
-	// therefore be rejected even though the policy genuinely belongs to the host.
-	t.Run("during setup experience only gating policies are accepted", func(t *testing.T) {
+	// A host in setup experience is sent only the policies gating its pending items, but results are checked against
+	// its full in-scope set: those policies are legitimately the host's, so a result for one is worth keeping even if
+	// setup experience had not asked for it yet. Setup experience is therefore not consulted on this path at all.
+	t.Run("setup experience does not narrow the accepted set", func(t *testing.T) {
 		inSetupExperience = true
 		setupExperiencePolicyIDs = []uint{1}
 		t.Cleanup(func() {
@@ -3901,13 +3898,16 @@ func TestOutOfScopePolicyResultsAreDiscarded(t *testing.T) {
 		})
 
 		submit(map[string][]map[string]string{
-			hostPolicyQueryPrefix + "1":  {{"col1": "val1"}}, // gates a pending setup item, so Fleet did send it
-			hostPolicyQueryPrefix + "2":  {},                 // in scope, but Fleet withholds it until setup ends
+			hostPolicyQueryPrefix + "1":  {{"col1": "val1"}}, // gates a pending setup item
+			hostPolicyQueryPrefix + "2":  {{"col1": "val1"}}, // in scope, but not gating one
 			hostPolicyQueryPrefix + "99": {},                 // not in scope for this host at all
 		}, map[string]fleet.OsqueryStatus{})
 
-		require.Equal(t, map[uint]*bool{1: new(true)}, recordedResults)
-		require.Equal(t, []uint{1}, filteredForIDs)
+		require.Equal(t, map[uint]*bool{1: new(true), 2: new(true)}, recordedResults)
+		require.ElementsMatch(t, []uint{1, 2, 99}, filteredForIDs)
+		// No setup-experience lookup: a policy-reporting check-in pays for the scope query and nothing else.
+		require.False(t, ds.GetHostAwaitingConfigurationFuncInvoked)
+		require.False(t, ds.GetSetupExperiencePolicyIDsForHostFuncInvoked)
 	})
 
 	t.Run("scope lookup failure drops policy results without failing the write", func(t *testing.T) {
@@ -3962,17 +3962,6 @@ func TestOutOfScopePolicyResultsAreDiscarded(t *testing.T) {
 		require.JSONEq(t, `{"extra_bits":[{"n":"1"}]}`, string(*savedAdditional))
 	})
 
-	t.Run("setup experience host with no gating policies records nothing", func(t *testing.T) {
-		inSetupExperience = true
-		setupExperiencePolicyIDs = nil
-		t.Cleanup(func() { inSetupExperience = false })
-
-		submit(map[string][]map[string]string{
-			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
-		}, map[string]fleet.OsqueryStatus{})
-
-		require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
-	})
 }
 
 func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
