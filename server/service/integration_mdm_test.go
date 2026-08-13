@@ -23484,8 +23484,12 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		},
 	}, http.StatusForbidden, &ttsqr)
 
-	// Attempt to remove a query from the team's schedule, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", t1.ID, q1.ID), deleteTeamScheduleRequest{}, http.StatusForbidden, &deleteTeamScheduleResponse{})
+	// Attempt to remove a query from the team's schedule, should fail. q1 is a
+	// global query, so it is not in t1's schedule at all: the fleet_id in the
+	// path no longer matches the report, and the response is the same
+	// not-found a nonexistent report would get rather than a forbidden that
+	// would confirm the report exists outside this fleet.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", t1.ID, q1.ID), deleteTeamScheduleRequest{}, http.StatusNotFound, &deleteTeamScheduleResponse{})
 
 	// Attempt to add/remove a manual label from a team host, should allow.
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), addLabelsToHostRequest{

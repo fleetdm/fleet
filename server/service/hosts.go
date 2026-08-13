@@ -919,7 +919,7 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 		}
 
 		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
-		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, host, notFoundErr); err != nil {
+		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, notFoundErr); err != nil {
 			return err
 		}
 	}
@@ -1146,7 +1146,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	// rather than a forbidden that would confirm the host exists on some
 	// other team.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
-	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, host, notFoundErr); err != nil {
+	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
