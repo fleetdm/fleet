@@ -64,7 +64,7 @@ Please do not add any text outside of the JSON report or wrap it in a code fence
     let llmResponse = await sails.helpers.ai.prompt.with({prompt, expectJson: true, baseModel: 'claude-haiku-4-5'})
     .tolerate((err)=>{
       sails.log.warn(failureMessage+'  Error details from LLM: '+err.stack);
-      return { risks: failureMessage, whatWillProbablyHappenDuringMaintenance:failureMessage};
+      return { risks: failureMessage, whatWillHappenDuringMaintenance: failureMessage};
     });
 
     let report;

@@ -482,7 +482,7 @@ module.exports = {
           let glboalDomainPrompt = `Given this domain "${enrichmentData.employer.emailDomain}", assuming we want a global customer account entry in our CRM, what might be the equivalent global domain? If the website is already the global domain, respond with that. (Respond only with the domain, as a JSON string.)`;
           let globalDomain = await sails.helpers.ai.prompt.with({prompt: glboalDomainPrompt, baseModel:'claude-haiku-4-5', expectJson: true})
           .tolerate((err)=>{
-            sails.log.warn(`When trying to ask ChatGPT about the global domain of an organization for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+            sails.log.warn(`When trying to ask an LLM about the global domain of an organization for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
             // If an error occurs getting the global domain, return the emailDomain from the get-enriched helper.
             return enrichmentData.employer.emailDomain;// Note: This will make the account search below
           });
