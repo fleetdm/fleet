@@ -1045,6 +1045,18 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_fleet_desktop_sso
+
+Generated when a user enables SSO in front of Fleet Desktop.
+
+This activity does not contain any detail fields.
+
+## disabled_fleet_desktop_sso
+
+Generated when a user disables SSO in front of Fleet Desktop.
+
+This activity does not contain any detail fields.
+
 ## enabled_historical_dataset
 
 Generated when collection of a chart historical dataset is enabled, either globally or for a specific fleet.
