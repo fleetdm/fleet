@@ -28,6 +28,10 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       root.style.textWrap = "balance";
       const range = document.createRange();
       range.selectNodeContents(root);
+      // jsdom (Jest) doesn't implement Range.getClientRects, so measurement is
+      // a no-op there — balancing is a visual concern with no test coverage
+      // to preserve.
+      if (typeof range.getClientRects !== "function") return;
       const rects = range.getClientRects();
       let widest = 0;
       for (let i = 0; i < rects.length; i += 1) {
