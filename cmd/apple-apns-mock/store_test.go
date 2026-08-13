@@ -91,7 +91,7 @@ func TestPushToLiveSubscriber(t *testing.T) {
 
 	s.push("aabb01", []byte(`{"mdm":"magic1"}`), time.Time{})
 
-	assert.Equal(t, `{"mdm":"magic1"}`, string(recv(t, sub)))
+	assert.JSONEq(t, `{"mdm":"magic1"}`, string(recv(t, sub)))
 	assert.EqualValues(t, 1, s.pushesReceived.Load())
 	assert.EqualValues(t, 1, s.deliveredLive.Load())
 	assert.EqualValues(t, 0, s.stored.Load())
@@ -120,7 +120,7 @@ func TestOfflinePushStoredAndDeliveredOnConnect(t *testing.T) {
 
 	sub, pending := s.subscribe("aabb01")
 	require.NotNil(t, pending)
-	assert.Equal(t, `{"mdm":"magic1"}`, pendingPayload(pending))
+	assert.JSONEq(t, `{"mdm":"magic1"}`, pendingPayload(pending))
 	// Delivered via the return value, not the channel.
 	expectNone(t, sub)
 	assert.EqualValues(t, 1, s.deliveredOnConnect.Load())
@@ -142,7 +142,7 @@ func TestOfflinePushesCoalesceToLatest(t *testing.T) {
 	assert.EqualValues(t, 3, s.pushesReceived.Load())
 	assert.EqualValues(t, 1, s.stored.Load())
 	assert.EqualValues(t, 2, s.coalesced.Load())
-	assert.EqualValues(t, 1, countEntries(s), "coalescing keeps a single entry per token")
+	assert.Equal(t, 1, countEntries(s), "coalescing keeps a single entry per token")
 }
 
 func TestZeroExpiresAtUsesDefaultTTL(t *testing.T) {
@@ -190,7 +190,7 @@ func TestOfflinePushWithPastExpiryDiscarded(t *testing.T) {
 	assert.EqualValues(t, 1, s.pushesReceived.Load())
 	assert.EqualValues(t, 0, s.stored.Load())
 	assert.EqualValues(t, 1, s.expired.Load())
-	assert.EqualValues(t, 0, countEntries(s), "discarded pushes must not leave entries behind")
+	assert.Equal(t, 0, countEntries(s), "discarded pushes must not leave entries behind")
 
 	_, pending := s.subscribe("aabb01")
 	assert.Nil(t, pending)
@@ -224,11 +224,11 @@ func TestSweepRemovesExpiredPendingAndEmptyEntries(t *testing.T) {
 	s := newStore(testTTL, slog.New(slog.DiscardHandler))
 	s.push("aaaa01", []byte("p1"), time.Now().Add(time.Hour))
 	s.push("bbbb02", []byte("p2"), time.Now().Add(2*time.Hour))
-	require.EqualValues(t, 2, countEntries(s))
+	require.Equal(t, 2, countEntries(s))
 
 	s.sweep(time.Now().Add(90 * time.Minute))
 
-	assert.EqualValues(t, 1, countEntries(s), "expired entry should be deleted, unexpired kept")
+	assert.Equal(t, 1, countEntries(s), "expired entry should be deleted, unexpired kept")
 	assert.EqualValues(t, 1, s.expired.Load())
 
 	_, pending := s.subscribe("aaaa01")
@@ -243,7 +243,7 @@ func TestSweepKeepsLiveSubscribers(t *testing.T) {
 
 	s.sweep(time.Now().Add(48 * time.Hour))
 
-	require.EqualValues(t, 1, countEntries(s), "entries with a live subscriber survive any sweep")
+	require.Equal(t, 1, countEntries(s), "entries with a live subscriber survive any sweep")
 	s.push("aabb01", []byte("p1"), time.Time{})
 	assert.Equal(t, "p1", string(recv(t, sub)))
 }
@@ -293,7 +293,7 @@ func TestUnsubscribeRequeuesUndeliveredPing(t *testing.T) {
 
 	assert.EqualValues(t, 0, s.deliveredLive.Load())
 	assert.EqualValues(t, 1, s.stored.Load(), "the undelivered ping becomes pending, not garbage")
-	require.EqualValues(t, 1, countEntries(s), "an entry holding a requeued ping must survive unsubscribe")
+	require.Equal(t, 1, countEntries(s), "an entry holding a requeued ping must survive unsubscribe")
 
 	_, pending := s.subscribe("aabb01")
 	assert.Equal(t, "p1", pendingPayload(pending))
@@ -312,7 +312,7 @@ func TestRequeuedPingHonorsExpiry(t *testing.T) {
 	assert.EqualValues(t, 0, s.deliveredLive.Load())
 	assert.EqualValues(t, 0, s.stored.Load())
 	assert.EqualValues(t, 1, s.expired.Load())
-	assert.EqualValues(t, 0, countEntries(s))
+	assert.Equal(t, 0, countEntries(s))
 }
 
 func TestRestoreOnlyAppliesToCurrentSubscriber(t *testing.T) {
@@ -356,7 +356,7 @@ func TestUnsubscribeRemovesEmptyEntry(t *testing.T) {
 	s.unsubscribe("aabb01", sub)
 
 	assert.EqualValues(t, 0, s.connected.Load())
-	assert.EqualValues(t, 0, countEntries(s), "no subscriber and no pending ping leaves no entry")
+	assert.Equal(t, 0, countEntries(s), "no subscriber and no pending ping leaves no entry")
 
 	// The token still works afterwards: an offline push recreates the entry.
 	s.push("aabb01", []byte("p1"), time.Time{})

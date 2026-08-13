@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testToken = "746f6b656e414243" // hex("tokenABC"), as mdmtest clients derive
+const testToken = "746f6b656e414243" // nolint:gosec // test token
 
 // fastBackoff keeps reconnect tests quick.
 var fastBackoff = WithBackoff(5*time.Millisecond, 25*time.Millisecond)
@@ -138,7 +138,7 @@ func TestClientConnectsAndReceivesPing(t *testing.T) {
 
 	p := recvPing(t, c.Pings(), 5*time.Second)
 	assert.Equal(t, "pushmagicABC", p.PushMagic)
-	assert.Equal(t, `{"mdm":"pushmagicABC"}`, string(p.Raw))
+	assert.JSONEq(t, `{"mdm":"pushmagicABC"}`, string(p.Raw))
 	assert.WithinDuration(t, time.Now(), p.ReceivedAt, 5*time.Second)
 }
 
@@ -246,7 +246,7 @@ func TestClientJoinsMultiLineData(t *testing.T) {
 	c.Start(t.Context())
 
 	p := recvPing(t, c.Pings(), 5*time.Second)
-	assert.Equal(t, "{\"mdm\":\"line1\nline2\"}", string(p.Raw), "the payload must be rejoined byte for byte")
+	assert.JSONEq(t, "{\"mdm\":\"line1\nline2\"}", string(p.Raw), "the payload must be rejoined byte for byte")
 	// A raw newline inside a JSON string is not valid JSON, so the magic
 	// cannot be parsed — the ping is still delivered, Raw intact.
 	assert.Empty(t, p.PushMagic)

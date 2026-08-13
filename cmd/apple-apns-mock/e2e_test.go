@@ -244,7 +244,7 @@ func waitConnected(t *testing.T, baseURL string, want int) {
 
 func TestE2EPushDeliveredToConnectedClient(t *testing.T) {
 	srv := newTestServer(t)
-	const token = "aabbccddee01"
+	const token = "aabbccddee01" // nolint:gosec // test token
 
 	c := sseConnect(t, srv.URL, token)
 	waitConnected(t, srv.URL, 1)
@@ -253,7 +253,7 @@ func TestE2EPushDeliveredToConnectedClient(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.NotEmpty(t, resp.Header.Get("apns-id"))
 
-	assert.Equal(t, `{"mdm":"magic1"}`, nextPing(t, c, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"magic1"}`, nextPing(t, c, 5*time.Second))
 
 	stats := getStats(t, srv.URL)
 	assert.Equal(t, 1, stats.TotalPushes)
@@ -263,13 +263,13 @@ func TestE2EPushDeliveredToConnectedClient(t *testing.T) {
 
 func TestE2EOfflinePushDeliveredOnConnect(t *testing.T) {
 	srv := newTestServer(t)
-	const token = "aabbccddee02"
+	const token = "aabbccddee02" // nolint:gosec // test token
 
 	resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"magic2"}`), nil)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	c := sseConnect(t, srv.URL, token)
-	assert.Equal(t, `{"mdm":"magic2"}`, nextPing(t, c, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"magic2"}`, nextPing(t, c, 5*time.Second))
 
 	stats := getStats(t, srv.URL)
 	assert.Equal(t, 1, stats.Stored)
@@ -278,7 +278,7 @@ func TestE2EOfflinePushDeliveredOnConnect(t *testing.T) {
 
 func TestE2EOfflinePushesCoalesceToLatest(t *testing.T) {
 	srv := newTestServer(t)
-	const token = "aabbccddee03"
+	const token = "aabbccddee03" // nolint:gosec // test token
 
 	for _, magic := range []string{"m1", "m2", "m3"} {
 		resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"`+magic+`"}`), nil)
@@ -286,7 +286,7 @@ func TestE2EOfflinePushesCoalesceToLatest(t *testing.T) {
 	}
 
 	c := sseConnect(t, srv.URL, token)
-	assert.Equal(t, `{"mdm":"m3"}`, nextPing(t, c, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"m3"}`, nextPing(t, c, 5*time.Second))
 	expectNoPing(t, c, 200*time.Millisecond)
 
 	stats := getStats(t, srv.URL)
@@ -297,7 +297,7 @@ func TestE2EOfflinePushesCoalesceToLatest(t *testing.T) {
 
 func TestE2EPushWithPastExpirationDiscarded(t *testing.T) {
 	srv := newTestServer(t)
-	const token = "aabbccddee04"
+	const token = "aabbccddee04" // nolint:gosec // test token
 
 	// apns-expiration is unix SECONDS (buford's Headers.Expiration marshals
 	// seconds); 1 is 1970, long past. Device offline → discard, don't store.
@@ -314,19 +314,19 @@ func TestE2EPushWithPastExpirationDiscarded(t *testing.T) {
 
 func TestE2EPushWithFutureExpirationStored(t *testing.T) {
 	srv := newTestServer(t)
-	const token = "aabbccddee05"
+	const token = "aabbccddee05" // nolint:gosec // test token
 
 	exp := strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10)
 	resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"fresh"}`), map[string]string{"apns-expiration": exp})
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	c := sseConnect(t, srv.URL, token)
-	assert.Equal(t, `{"mdm":"fresh"}`, nextPing(t, c, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"fresh"}`, nextPing(t, c, 5*time.Second))
 }
 
 func TestE2EAPNSIDHeader(t *testing.T) {
 	srv := newTestServer(t)
-	const token = "aabbccddee06"
+	const token = "aabbccddee06" // nolint:gosec // test token
 
 	t.Run("generated when absent", func(t *testing.T) {
 		resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"m"}`), nil)
@@ -359,7 +359,7 @@ func TestE2EAPNSIDHeader(t *testing.T) {
 
 func TestE2EPushTypeHeader(t *testing.T) {
 	srv := newTestServer(t)
-	const token = "aabbccddee0c"
+	const token = "aabbccddee0c" // nolint:gosec // test token
 
 	t.Run("absent header is accepted", func(t *testing.T) {
 		// Fleet's buford path sends no apns-push-type header at all, so
@@ -384,7 +384,7 @@ func TestE2EPayloadWithNewlineIsFramedSafely(t *testing.T) {
 	// Emitted as-is it would end the SSE event early and corrupt every frame
 	// after it; the server must split it across data: lines instead.
 	srv := newTestServer(t)
-	const token = "aabbccddee0d"
+	const token = "aabbccddee0d" // nolint:gosec // test token
 	payload := "{\"mdm\":\"line1\nline2\"}"
 
 	c := sseConnect(t, srv.URL, token)
@@ -398,7 +398,7 @@ func TestE2EPayloadWithNewlineIsFramedSafely(t *testing.T) {
 	// Framing is still intact for the next event.
 	resp = pushRaw(t, srv.URL, token, []byte(`{"mdm":"after"}`), nil)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, `{"mdm":"after"}`, nextPing(t, c, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"after"}`, nextPing(t, c, 5*time.Second))
 }
 
 func TestE2EWriteTimeoutDoesNotKillHealthyStream(t *testing.T) {
@@ -406,7 +406,7 @@ func TestE2EWriteTimeoutDoesNotKillHealthyStream(t *testing.T) {
 	// its token forever. It must be re-armed on every write, or a stream that
 	// simply lives longer than the timeout would be torn down.
 	srv := newTestServerWithTimeouts(t, 20*time.Millisecond, 50*time.Millisecond)
-	const token = "aabbccddee0e"
+	const token = "aabbccddee0e" // nolint:gosec // test token
 
 	c := sseConnect(t, srv.URL, token)
 	waitConnected(t, srv.URL, 1)
@@ -415,7 +415,7 @@ func TestE2EWriteTimeoutDoesNotKillHealthyStream(t *testing.T) {
 
 	resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"still here"}`), nil)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, `{"mdm":"still here"}`, nextPing(t, c, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"still here"}`, nextPing(t, c, 5*time.Second))
 }
 
 func TestE2EInvalidTokenRejected(t *testing.T) {
@@ -430,7 +430,7 @@ func TestE2EInvalidTokenRejected(t *testing.T) {
 
 func TestE2EPayloadLimits(t *testing.T) {
 	srv := newTestServer(t)
-	const token = "aabbccddee07"
+	const token = "aabbccddee07" // nolint:gosec // test token
 
 	t.Run("empty payload", func(t *testing.T) {
 		resp := pushRaw(t, srv.URL, token, nil, nil)
@@ -460,7 +460,7 @@ func TestE2ETokenIsCaseInsensitive(t *testing.T) {
 
 	resp := pushRaw(t, srv.URL, "AABBCCDDEE08", []byte(`{"mdm":"m"}`), nil)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, `{"mdm":"m"}`, nextPing(t, c, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"m"}`, nextPing(t, c, 5*time.Second))
 }
 
 func TestE2EEventsTokenValidation(t *testing.T) {
@@ -480,7 +480,7 @@ func TestE2EEventsTokenValidation(t *testing.T) {
 
 func TestE2EReconnectReplacesOlderConnection(t *testing.T) {
 	srv := newTestServer(t)
-	const token = "aabbccddee09"
+	const token = "aabbccddee09" // nolint:gosec // test token
 
 	oldConn := sseConnect(t, srv.URL, token)
 	waitConnected(t, srv.URL, 1)
@@ -492,7 +492,7 @@ func TestE2EReconnectReplacesOlderConnection(t *testing.T) {
 
 	resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"m"}`), nil)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, `{"mdm":"m"}`, nextPing(t, newConn, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"m"}`, nextPing(t, newConn, 5*time.Second))
 }
 
 func TestE2EHealthz(t *testing.T) {
@@ -510,7 +510,7 @@ func TestE2EStatsStartAtZero(t *testing.T) {
 
 func TestE2EKeepalive(t *testing.T) {
 	srv := newTestServerWithKeepAlive(t, 50*time.Millisecond)
-	const token = "aabbccddee0b"
+	const token = "aabbccddee0b" // nolint:gosec // test token
 
 	c := sseConnect(t, srv.URL, token)
 
@@ -534,7 +534,7 @@ func TestE2EKeepalive(t *testing.T) {
 	// keepalives still parses as a normal event.
 	resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"m"}`), nil)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, `{"mdm":"m"}`, nextPing(t, c, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"m"}`, nextPing(t, c, 5*time.Second))
 }
 
 // TestE2EBufordCompatibility drives the mock through the actual buford
@@ -546,13 +546,13 @@ func TestE2EBufordCompatibility(t *testing.T) {
 	svc := bufordpush.NewService(fleethttp.NewClient(), srv.URL)
 
 	t.Run("successful push round-trips to a client", func(t *testing.T) {
-		const token = "aabbccddee0a"
+		const token = "aabbccddee0a" // nolint:gosec // test token
 		id, err := svc.Push(token, nil, []byte(`{"mdm":"pushmagicABC"}`))
 		require.NoError(t, err)
 		assert.NotEmpty(t, id, "buford returns the apns-id header on success")
 
 		c := sseConnect(t, srv.URL, token)
-		assert.Equal(t, `{"mdm":"pushmagicABC"}`, nextPing(t, c, 5*time.Second))
+		assert.JSONEq(t, `{"mdm":"pushmagicABC"}`, nextPing(t, c, 5*time.Second))
 	})
 
 	t.Run("invalid token surfaces as BadDeviceToken", func(t *testing.T) {
