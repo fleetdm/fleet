@@ -33,8 +33,11 @@ const HostLifecycleSection = ({
               !disableChildren && (
                 <>
                   When enabled, allows automatic cleanup of hosts that have not
-                  communicated with Fleet in the number of days specified.{" "}
-                  (Default: <strong>Off</strong>)
+                  communicated with Fleet in the number of days specified.
+                  <br />
+                  <i>
+                    (Default: <strong>Off</strong>)
+                  </i>
                 </>
               )
             }

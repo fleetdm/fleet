@@ -75,10 +75,11 @@ const ServerAuthenticationSection = ({
         error={formErrors.domain}
         tooltip={
           <>
-            If you need to specify a HELO domain, you can do it here{" "}
-            <em>
+            If you need to specify a HELO domain, you can do it here.
+            <br />
+            <i>
               (Default: <strong>Blank</strong>)
-            </em>
+            </i>
           </>
         }
       />
@@ -89,10 +90,12 @@ const ServerAuthenticationSection = ({
         parseTarget
         labelTooltipContent={
           <>
-            Turn this off (not recommended) if you use a self-signed certificate{" "}
-            <em>
+            Turn this off (not recommended) if you use a self-signed
+            certificate.
+            <br />
+            <i>
               (Default: <strong>On</strong>)
-            </em>
+            </i>
           </>
         }
       >
@@ -106,10 +109,11 @@ const ServerAuthenticationSection = ({
         labelTooltipContent={
           <>
             Detects if STARTTLS is enabled in your SMTP server and starts to use
-            it.{" "}
-            <em>
+            it.
+            <br />
+            <i>
               (Default: <strong>On</strong>)
-            </em>
+            </i>
           </>
         }
       >

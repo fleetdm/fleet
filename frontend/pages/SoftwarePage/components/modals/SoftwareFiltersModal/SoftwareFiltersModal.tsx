@@ -76,10 +76,11 @@ const validate = (data: IFormData): IFormErrors => {
     max !== undefined &&
     min > max
   ) {
+    // stylistcally better with <br />
     errors.disableApplyButton = (
       <>
-        Minimum CVSS score cannot be greater
-        <br /> than the maximum CVSS score.
+        Minimum CVSS score cannot be greater <br />
+        than the maximum CVSS score.
       </>
     );
   }
@@ -178,9 +179,8 @@ const SoftwareFiltersModal = ({
       <TooltipWrapper
         tipContent={
           <>
-            The worst case impact across different environments
-            <br />
-            (CVSS version 3.x base score).
+            The worst case impact across different environments (CVSS version
+            3.x base score).
           </>
         }
         clickable={false}

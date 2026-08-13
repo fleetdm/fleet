@@ -39,14 +39,7 @@ const InventoryVersion = ({
 
   const lastOpenedTitle =
     INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source] === "linux" ? (
-      <TooltipWrapper
-        tipContent={
-          <>
-            The last time the package was opened by the end user <br />
-            or accessed by any process on the host.
-          </>
-        }
-      >
+      <TooltipWrapper tipContent="The last time the package was opened by the end user or accessed by any process on the host.">
         Last opened
       </TooltipWrapper>
     ) : (

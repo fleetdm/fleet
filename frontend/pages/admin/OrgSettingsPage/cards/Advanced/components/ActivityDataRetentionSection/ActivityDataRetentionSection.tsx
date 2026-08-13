@@ -54,10 +54,11 @@ const ActivityDataRetentionSection = ({
               !disableChildren && (
                 <>
                   When enabled, allows automatic cleanup of audit logs older
-                  than the number of days specified.{" "}
-                  <em>
+                  than the number of days specified.
+                  <br />
+                  <i>
                     (Default: <strong>Off</strong>)
-                  </em>
+                  </i>
                 </>
               )
             }
@@ -101,10 +102,11 @@ const ActivityDataRetentionSection = ({
                   re-enrollment. Currently only supported for company-owned (AB)
                   Apple hosts.{" "}
                   <strong>Delete activities &gt; Max activity age </strong>
-                  still applies.{" "}
-                  <em>
+                  still applies.
+                  <br />
+                  <i>
                     (Default: <b>Off</b>)
-                  </em>
+                  </i>
                 </>
               )
             }
@@ -132,10 +134,11 @@ const ActivityDataRetentionSection = ({
                   Disabling stored results will decrease database usage, but
                   will prevent you from accessing report results in Fleet and
                   will delete existing results. This can also be disabled on a
-                  per-report basis.{" "}
-                  <em>
+                  per-report basis.
+                  <br />
+                  <i>
                     (Default: <b>On</b>)
-                  </em>
+                  </i>
                 </>
               )
             }
@@ -162,10 +165,11 @@ const ActivityDataRetentionSection = ({
               !disableChildren && (
                 <>
                   When disabled, Fleet stops collecting hourly hosts online data
-                  used by the dashboard chart.{" "}
-                  <em>
+                  used by the dashboard chart.
+                  <br />
+                  <i>
                     (Default: <strong>On</strong>)
-                  </em>
+                  </i>
                 </>
               )
             }
@@ -192,10 +196,11 @@ const ActivityDataRetentionSection = ({
                 !disableChildren && (
                   <>
                     When disabled, Fleet stops collecting historical
-                    vulnerability exposure data used by the dashboard chart.{" "}
-                    <em>
+                    vulnerability exposure data used by the dashboard chart.
+                    <br />
+                    <i>
                       (Default: <strong>On</strong>)
-                    </em>
+                    </i>
                   </>
                 )
               }
