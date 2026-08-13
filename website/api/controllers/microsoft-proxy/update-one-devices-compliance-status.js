@@ -57,7 +57,7 @@ module.exports = {
   exits: {
     success: { description: 'A devices compliance status was successfully sent to an entra tenants instance'},
     missingUserPrincipalName: { description: 'A request to update a macOS device\'s complaince status was missing a userPrincipalName value.', responseType: 'badRequest'},
-
+    unauthorized: { description: 'A request contained an invalid entraTenantId/fleetServerSecret combination.', responseType: 'unauthorized'},
   },
 
 
@@ -66,7 +66,7 @@ module.exports = {
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
     if(!informationAboutThisTenant) {
-      return new Error('No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.');
+      throw 'unauthorized';
     }
 
     if(os.toLowerCase() === 'windows') {
@@ -133,7 +133,7 @@ module.exports = {
       });
 
       if(!informationAboutThisUser.id) {
-        return new Error(`An error occurred when getting information about a user (${userPrincipalName}). The response from the Microsoft graph API did not include an ID.`);
+        throw new Error(`An error occurred when getting information about a user (${userPrincipalName}). The response from the Microsoft graph API did not include an ID.`);
       }
 
       let lastUpdateTime = new Date().toISOString();
