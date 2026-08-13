@@ -1990,7 +1990,11 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 	const perPage = 1000
 	var titles []fleet.SoftwareTitleListResult
 	for page := 0; ; page++ {
-		query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=%d&page=%d", teamID, perPage, page)
+		// order_key is load-bearing here, not cosmetic: the default order is by
+		// hosts_count, which changes as hosts install and uninstall software. An
+		// unstable order across a paginated read can duplicate or skip titles, and it
+		// makes every regenerated file differ from the last for no config reason.
+		query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=%d&page=%d&order_key=name", teamID, perPage, page)
 		pageTitles, err := client.ListSoftwareTitles(query)
 		if err != nil {
 			return nil, nil, nil, err
@@ -2078,7 +2082,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		return nil, nil // software is premium-only
 	}
 
-	query := fmt.Sprintf("available_for_install=1&fleet_id=%d", teamID)
+	// Sorted by name so regenerating an unchanged config produces an unchanged file.
+	// The default order is by hosts_count, so the software list reshuffles whenever a
+	// host installs or uninstalls something, which shows up as a diff with no
+	// configuration change behind it.
+	query := fmt.Sprintf("available_for_install=1&fleet_id=%d&order_key=name", teamID)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)
