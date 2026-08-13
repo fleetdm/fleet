@@ -67,6 +67,7 @@ export TF_VAR_fleet_config='{"FLEET_DEV_MDM_APPLE_DISABLE_PUSH":"1","FLEET_DEV_M
 - The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument.
 - The above `export TF_VAR_fleet_config=...` command was tested on `bash`. It did not work in `zsh`.
 - Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1`. We don't want to generate push notifications against fake UUIDs (otherwise it may cause Apple to rate limit due to invalid requests).
+  - We now support push notifications for Apple MDM enrollments via the mock APNs server. To configure it, set the `FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL` to the base URL of the mock APNs server.
 - Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY=1` to skip verification of Apple certificates for OTA enrollments.
 This has an impact on real devices because they will not be notified of any command to execute (it may take a reboot for them to reach out to Fleet for more commands).
 
