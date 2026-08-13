@@ -43,7 +43,7 @@ module.exports = {
     \`\`\`
 
     Please respond in JSON, with the same data shape as the provided context, but with the array filtered to include only relevant tables.`;
-    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'gpt-4o', true);
+    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'claude-haiku-4-5', true);
 
 
 
