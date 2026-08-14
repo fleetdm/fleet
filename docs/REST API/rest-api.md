@@ -1377,7 +1377,7 @@ Returns time-series data for a dashboard chart, as a list of per-bucket distinct
 The available metrics are:
 
 - `uptime`: the number of hosts online (checking in to Fleet) during each bucket.
-- `cve`: _Available in Fleet Premium_. The number of hosts with critical (CVSS >= 9.0) vulnerabilities in tracked software during each bucket.
+- `cve`: _Available in Fleet Premium_. The number of hosts with vulnerabilities in tracked software during each bucket. Use `severity_min` and `severity_max` to limit the chart to a CVSS score range.
 
 `GET /api/v1/fleet/charts/:metric`
 
@@ -1398,7 +1398,11 @@ The available metrics are:
 | has_known_exploit    | boolean | query | `cve` metric only. If `true`, only include CVEs with a known exploit (present in the CISA Known Exploited Vulnerabilities catalog).                                                                |
 | epss_min             | number  | query | `cve` metric only. Minimum EPSS probability, from `0.0` to `1.0`.                                                                                                                                  |
 | epss_max             | number  | query | `cve` metric only. Maximum EPSS probability, from `0.0` to `1.0`.                                                                                                                                  |
+| severity_min         | number  | query | `cve` metric only. Minimum CVSS version 3.x base score, from `0.0` to `10.0`. Omit for no lower bound.                                                                                             |
+| severity_max         | number  | query | `cve` metric only. Maximum CVSS version 3.x base score, from `0.0` to `10.0`. Omit for no upper bound.                                                                                             |
 | exclude_vulnerabilities | string | query | `cve` metric only. Comma-separated list of CVEs (for example `CVE-2024-1234`) to exclude from the chart.                                                                                         |
+
+> Omitting `severity_min` or `severity_max` removes that bound entirely, which isn't the same as passing the full `0.0` to `10.0` range. Fleet doesn't have vulnerability metadata for every CVE, and `severity_min`, `severity_max`, `epss_min`, `epss_max`, and `has_known_exploit` all need it. Vulnerabilities without metadata are included only when none of these filters is set.
 
 #### Response fields
 
@@ -1425,7 +1429,9 @@ The available metrics are:
   "days": 7,
   "filters": {
     "software_filters": ["browsers", "adobe"],
-    "has_known_exploit": true
+    "has_known_exploit": true,
+    "severity_min": 9.0,
+    "severity_max": 10.0
   },
   "data": [
     {
