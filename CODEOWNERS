@@ -74,7 +74,7 @@ go.mod @fleetdm/go
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
 /docs/Contributing/reference                            @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
-/render.yaml                                            @edwardsb
+/render.yaml                                            @rfairburn
 /it-and-security                                        @allenhouchins
 /articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn # « Infra: active notification of changes to IP Allowlists
 /openspec                                               @lukeheath
