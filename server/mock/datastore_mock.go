@@ -1378,6 +1378,8 @@ type InsertABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) (*fleet.A
 
 type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
 
+type ListABMTokenDefaultFleetsFunc func(ctx context.Context) ([]fleet.MDMAppleABMAssignmentInfo, error)
+
 type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 
 type GetABMTokenByIDFunc func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error)
@@ -4389,6 +4391,9 @@ type DataStore struct {
 
 	ListABMTokensFunc        ListABMTokensFunc
 	ListABMTokensFuncInvoked bool
+
+	ListABMTokenDefaultFleetsFunc        ListABMTokenDefaultFleetsFunc
+	ListABMTokenDefaultFleetsFuncInvoked bool
 
 	DeleteABMTokenFunc        DeleteABMTokenFunc
 	DeleteABMTokenFuncInvoked bool
@@ -10600,6 +10605,13 @@ func (s *DataStore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error
 	s.ListABMTokensFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListABMTokensFunc(ctx)
+}
+
+func (s *DataStore) ListABMTokenDefaultFleets(ctx context.Context) ([]fleet.MDMAppleABMAssignmentInfo, error) {
+	s.mu.Lock()
+	s.ListABMTokenDefaultFleetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListABMTokenDefaultFleetsFunc(ctx)
 }
 
 func (s *DataStore) DeleteABMToken(ctx context.Context, tokenID uint) error {

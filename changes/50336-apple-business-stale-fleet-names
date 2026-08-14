@@ -1,0 +1,1 @@
+* Resolved stale fleet names in mdm.apple_business after a fleet rename, affecting the UI, fleetctl get config, and fleetctl generate-gitops.

@@ -121,6 +121,7 @@ func TestMDMApple(t *testing.T) {
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
 		{"ABMTokensTokenInvalid", testMDMAppleABMTokensTokenInvalid},
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
+		{"ListABMTokenDefaultFleets", testListABMTokenDefaultFleets},
 		{"HostMDMCommands", testHostMDMCommands},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
@@ -9903,6 +9904,59 @@ func testMDMAppleABMTokensTokenInvalid(t *testing.T, ds *Datastore) {
 	_, err = ds.IsABMTokenInvalidForOrgName(ctx, "no-such-token")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+func testListABMTokenDefaultFleets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// No tokens yet.
+	got, err := ds.ListABMTokenDefaultFleets(ctx)
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	workstations, err := ds.NewTeam(ctx, &fleet.Team{Name: "Workstations"})
+	require.NoError(t, err)
+	mobile, err := ds.NewTeam(ctx, &fleet.Team{Name: "Mobile"})
+	require.NoError(t, err)
+
+	encTok := uuid.NewString()
+	_, err = ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName:   "Acme Inc.",
+		EncryptedToken:     []byte(encTok),
+		RenewAt:            time.Now().Add(365 * 24 * time.Hour),
+		MacOSDefaultTeamID: &workstations.ID,
+		IOSDefaultTeamID:   &mobile.ID,
+	})
+	require.NoError(t, err)
+
+	// Unassigned platforms come back as the empty string, matching how the app
+	// config representation spells "no fleet".
+	got, err = ds.ListABMTokenDefaultFleets(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []fleet.MDMAppleABMAssignmentInfo{
+		{OrganizationName: "Acme Inc.", MacOSTeam: "Workstations", IOSTeam: "Mobile", IpadOSTeam: "", BYODTeam: ""},
+	}, got)
+
+	// Renaming a fleet is reflected immediately, since names are resolved by
+	// join rather than stored.
+	workstations.Name = "Laptops"
+	_, err = ds.SaveTeam(ctx, workstations)
+	require.NoError(t, err)
+
+	got, err = ds.ListABMTokenDefaultFleets(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []fleet.MDMAppleABMAssignmentInfo{
+		{OrganizationName: "Acme Inc.", MacOSTeam: "Laptops", IOSTeam: "Mobile", IpadOSTeam: "", BYODTeam: ""},
+	}, got)
+
+	// Deleting a fleet nulls the FK, which reads back as "no fleet".
+	require.NoError(t, ds.DeleteTeam(ctx, mobile.ID))
+
+	got, err = ds.ListABMTokenDefaultFleets(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []fleet.MDMAppleABMAssignmentInfo{
+		{OrganizationName: "Acme Inc.", MacOSTeam: "Laptops", IOSTeam: "", IpadOSTeam: "", BYODTeam: ""},
+	}, got)
 }
 
 func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
