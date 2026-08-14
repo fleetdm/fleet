@@ -349,29 +349,49 @@ var androidHostRefsForReset = []string{
 }
 
 // AndroidResetOnReenrollment clears the state a re-enrolling Android host no longer
-// has: machine-derived label membership, non-osquery vitals, pending MDM commands and
-// pending software installs. Manually assigned labels are preserved, and past host
-// activities are only cleared when preserveHostActivities is false.
+// has: dynamic label membership, non-osquery vitals, pending MDM commands and their
+// host_mdm_actions refs, and pending software installs. Past host activities are only
+// cleared when preserveHostActivities is false.
+//
+// Pending installs are failed rather than deleted, so it returns the users and
+// activities the caller must emit, the same contract as
+// MarkAllPendingVPPInstallsAsFailedForAndroidHost.
 //
 // This must run before the enrollment's own data is written back (see
 // Service.updateHost), otherwise it deletes the vitals that were just reported.
-func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Clear dynamic and host-vitals label membership; both are machine-derived and
-		// repopulate on their own. Manual membership is the admin's choice, so it stays.
+func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint, hostUUID string,
+	preserveHostActivities bool,
+) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+	// Both are used unqualified in DELETEs below, so a zero value would widen them to
+	// every host with an empty uuid rather than affecting nothing.
+	if hostID == 0 || hostUUID == "" {
+		return nil, nil, ctxerr.New(ctx, "resetting android enrollment requires a host id and uuid")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// withRetryTxx re-runs this closure on a deadlock, so start from empty rather
+		// than appending a second copy of everything.
+		users, activities = nil, nil
+
+		// Clear dynamic label membership only.
+		//
+		// Host-vitals membership (IdP group/department) is deliberately kept: it is
+		// derived from the IdP account, which survives the re-enroll, and only the
+		// 5-minute host-vitals cron re-derives it. Deleting it would open a window in
+		// which the profile scope query reads the host as a confirmed non-member (it
+		// counts any label_membership_type <> 0 as reported), so an explicitly excluded
+		// profile would install and host-vitals-scoped setup experience apps would drop
+		// out of scope for this enrollment entirely.
+		//
+		// Builtin labels are kept for the opposite reason: "All Hosts" is dynamic, and
+		// nothing re-adds the Android builtin memberships outside NewAndroidHost, so a
+		// host that lost them would disappear from the host list for good.
 		if _, err := tx.ExecContext(ctx, `
 			DELETE lm FROM label_membership lm
 			JOIN labels l ON l.id = lm.label_id
-			WHERE lm.host_id = ? AND l.label_membership_type != ?`,
-			hostID, fleet.LabelMembershipTypeManual); err != nil {
+			WHERE lm.host_id = ? AND l.label_membership_type = ? AND l.label_type != ?`,
+			hostID, fleet.LabelMembershipTypeDynamic, fleet.LabelTypeBuiltIn); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear dynamic label membership on android reenroll")
-		}
-
-		// Restore the builtin ("All Hosts", "Android") memberships, mirroring what Apple's
-		// reset does. Nothing else re-adds them for Android, so a host that lost them would
-		// disappear from the host list until it was deleted and re-created.
-		if err := ds.insertAndroidHostLabelMembershipTx(ctx, tx, hostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "restore builtin label membership on android reenroll")
 		}
 
 		// Clear non-osquery vitals.
@@ -388,14 +408,20 @@ func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint
 			return ctxerr.Wrap(ctx, err, "cancel pending android commands on reenroll")
 		}
 
-		// Cancel pending software installs. We mark them canceled rather than deleting them
-		// so the install history and any linked activity survive.
-		if _, err := tx.ExecContext(ctx, `
-			UPDATE host_vpp_software_installs
-			SET canceled = 1
-			WHERE host_id = ? AND removed = 0 AND canceled = 0
-			  AND verification_at IS NULL AND verification_failed_at IS NULL`, hostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "cancel pending android software installs on reenroll")
+		// Drop the lock/wipe/clear-passcode refs in the same transaction as the commands
+		// they point at. Service.updateHost clears these again later, but doing it here
+		// means a failure in between cannot leave a ref pointing at a deleted command.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear host_mdm_actions on android reenroll")
+		}
+
+		// Fail the installs the previous enrollment left pending. This reuses the helper
+		// behind the Android unenroll path so the two produce the same observable result:
+		// marking them canceled instead would hide them from the host software list and
+		// from the activity feed, losing the record entirely.
+		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, hostID, "android", softwareTypeVPP)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fail pending android software installs on reenroll")
 		}
 
 		if !preserveHostActivities {
@@ -406,6 +432,10 @@ func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return users, activities, nil
 }
 
 func (ds *Datastore) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs []string, teamID *uint) error {

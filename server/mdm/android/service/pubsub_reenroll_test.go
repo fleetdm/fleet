@@ -99,13 +99,13 @@ func TestPubSubEnrollment_ResetsStateOnReEnroll(t *testing.T) {
 			// The reset has to run before the enrollment's own data is written back,
 			// otherwise it deletes the vitals that were just reported.
 			var resetBeforeUpdate bool
-			mockDS.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) error {
+			mockDS.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) ([]*fleet.User, []fleet.ActivityDetails, error) {
 				require.Equal(t, existingHostID, hostID)
 				require.Equal(t, testBrandTestSerialHashed, hostUUID)
 				require.Equal(t, preserveActivities, preserveHostActivities,
 					"the preserve_host_activities_on_reenrollment setting must be forwarded to the datastore")
 				resetBeforeUpdate = !mockDS.UpdateAndroidHostFuncInvoked
-				return nil
+				return nil, nil, nil
 			}
 
 			msg := enrollmentMessageForSecret(t, "reenroll", DeviceOwnershipCompanyOwned)
@@ -131,9 +131,9 @@ func TestPubSub_NoResetOnStatusReport(t *testing.T) {
 		Device: &android.Device{HostID: 7, DeviceID: createAndroidDeviceId("status")},
 	}
 	setupReenrollMocks(t, mockDS, existingHost)
-	mockDS.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) error {
+	mockDS.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) ([]*fleet.User, []fleet.ActivityDetails, error) {
 		t.Error("a status report must not reset host state")
-		return nil
+		return nil, nil, nil
 	}
 
 	// No applied policy name, so the report only updates the host's details.
@@ -150,9 +150,9 @@ func TestPubSubEnrollment_NoResetOnFirstEnrollment(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
 
 	setupReenrollMocks(t, mockDS, nil /* no existing host */)
-	mockDS.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) error {
+	mockDS.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) ([]*fleet.User, []fleet.ActivityDetails, error) {
 		t.Error("a first enrollment must not reset host state")
-		return nil
+		return nil, nil, nil
 	}
 
 	msg := enrollmentMessageForSecret(t, "first-enroll", DeviceOwnershipPersonallyOwned)

@@ -167,11 +167,27 @@ func (s *reenrollTestSuite) TestClearsStateOnReenrollment() {
 	// Machine-derived state the device no longer has is gone.
 	require.ElementsMatch(t, append(append([]string{}, builtinLabels...), "manual-label"), labelNames(),
 		"a re-enroll must drop dynamic label membership but keep manual and builtin memberships")
+	require.Subset(t, labelNames(), builtinLabels,
+		"the builtin memberships must survive: nothing else re-adds them for Android")
 	require.Zero(t, countFor(`SELECT COUNT(*) FROM mdm_android_commands WHERE host_uuid = ? AND status = 'pending'`, hostUUID),
 		"pending commands from the previous enrollment must be cancelled")
 	require.Equal(t, 1, countFor(
-		`SELECT COUNT(*) FROM host_vpp_software_installs WHERE command_uuid = ? AND canceled = 1`, installCmdUUID),
-		"the pending install must be cancelled, and its record kept")
+		`SELECT COUNT(*) FROM host_vpp_software_installs
+		 WHERE command_uuid = ? AND verification_failed_at IS NOT NULL AND canceled = 0`, installCmdUUID),
+		"the pending install must be marked failed, and its record left visible")
+
+	// No host_mdm_actions ref may outlive the command it points at. This is the
+	// invariant the reset has to hold, and it is stronger than the lock/wipe status
+	// assertions below (those pass on their own thanks to ClearHostMDMActions).
+	require.Zero(t, countFor(`
+		SELECT COUNT(*) FROM host_mdm_actions hma
+		WHERE hma.host_id = ?
+		  AND (
+			(hma.lock_ref IS NOT NULL AND NOT EXISTS (SELECT 1 FROM mdm_android_commands c WHERE c.command_uuid = hma.lock_ref)) OR
+			(hma.wipe_ref IS NOT NULL AND NOT EXISTS (SELECT 1 FROM mdm_android_commands c WHERE c.command_uuid = hma.wipe_ref)) OR
+			(hma.clear_passcode_ref IS NOT NULL AND NOT EXISTS (SELECT 1 FROM mdm_android_commands c WHERE c.command_uuid = hma.clear_passcode_ref))
+		  )`, hostID),
+		"a re-enroll must not leave a lock/wipe/clear-passcode ref pointing at a deleted command")
 
 	// The host is not left looking locked or wiped.
 	require.Zero(t, countFor(`SELECT COUNT(*) FROM host_mdm_actions WHERE host_id = ?`, hostID))

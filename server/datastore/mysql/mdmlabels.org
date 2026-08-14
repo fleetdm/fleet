@@ -1,0 +1,20 @@
+* Server apple profiles/batch
+  - [ ] [[file:~/src/github.com/fleetdm/fleet/server/service/handler.go::ue.POST("/api/_version_/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesEndpoint, batchSetMDMAppleProfilesRequest{})][apple handler method]]
+    - [ ] [[file:~/src/github.com/fleetdm/fleet/server/service/apple_mdm.go::if err := svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs); err != nil {][Apple service method One above that]]
+      - [ ] [[file:apple_mdm.go::_, err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles)][apple One above]]
+        - [ ] [[file:apple_mdm.go::if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels,][batch label apply Deep in the batch]]
+* Server generic profiles batch
+  - [-] [[file:~/src/github.com/fleetdm/fleet/server/service/handler.go::ue.POST("/api/_version_/fleet/mdm/profiles/batch", batchSetMDMProfilesEndpoint, batchSetMDMProfilesRequest{})][generic handler method]]
+    - [-] [[file:~/src/github.com/fleetdm/fleet/server/service/mdm.go::for i := range profiles {][batch service method]]
+      - [X] [[file:~/src/github.com/fleetdm/fleet/server/service/mdm.go::for _, labelName := range prof.LabelsExcludeAny {][get mdm apply profiles]]
+      - [X] [[file:~/src/github.com/fleetdm/fleet/server/service/mdm.go::func getWindowsProfiles(][get mdm windows profiles]]
+      - [ ] [[file:mdm.go::func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles \[\]*fleet.MDMAppleConfigProfile,][datastore batch set mdm profile]]
+      - [ ] [[file:mdm.go::func batchSetProfileLabelAssociationsDB(][datastore bulk label insert]]
+      - [ ] [[file:mdm.go::func (ds *Datastore) BulkSetPendingMDMHostProfiles(][datastore bulksetpendingmdmhostprofiles]]
+        - [ ] [[file:mdm.go::func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(][datastore bulkSetPendingMDMHostProfilesDB]]
+          - [ ] [[file:apple_mdm.go::-- except "would be removed" profiles if they are a broken label-based profile][datastore bulk setpending mdm apple]]
+        - [ ] [[file:microsoft_mdm.go::func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(][datastore bulk set pending windows profiles]]
+          - [ ] [[file:microsoft_mdm.go::mcpl.label_id IS NULL][datastore list windows profiles to remove]]
+* client
+  - [X] [[file:~/src/github.com/fleetdm/fleet/server/service/client.go::if err := c.ApplyNoTeamProfiles(fileContents, opts.ApplySpecOptions, assumeEnabled); err != nil {][no team apply]]
+  - [X] [[file:~/src/github.com/fleetdm/fleet/server/service/client.go::if err := c.ApplyTeamProfiles(currentTeamName, profs, teamOpts); err != nil {][team apply]]

@@ -4166,9 +4166,10 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 	ctx := testCtx()
 	test.AddBuiltinLabels(t, ds)
 
-	// Labels the reset has to discriminate between. Note that AddBuiltinLabels creates
-	// "All Hosts" as a dynamic label, so this also covers the builtin memberships being
-	// restored rather than left deleted.
+	// The three label kinds the reset has to discriminate between. Only the dynamic one
+	// may be cleared: host-vitals membership is IdP-derived and is only re-populated by a
+	// 5-minute cron, and the builtin memberships ("All Hosts" is dynamic-typed) are never
+	// re-added for Android outside NewAndroidHost.
 	newLabel := func(name string, membershipType fleet.LabelMembershipType) uint {
 		var labelID uint
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -4197,7 +4198,7 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	// installKinds are seeded for both hosts; only "pending" may be canceled by the reset.
+	// installKinds are seeded for both hosts; only "pending" may be failed by the reset.
 	installKinds := []string{"pending", "removed", "canceled", "verified", "verification-failed"}
 
 	// seedHost creates an Android host with one row of every kind of state the reset
@@ -4219,8 +4220,15 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 			Name: "Android", Version: "14", Platform: "android",
 		}))
 
+		// A pending lock command, which also writes host_mdm_actions.lock_ref.
+		require.NoError(t, ds.LockHostViaAndroidMDM(ctx, host.Host, &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      host.Host.UUID,
+			OperationName: "operations/" + esid + "-lock",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
 		for _, status := range []android.MDMAndroidCommandStatus{
-			android.MDMAndroidCommandStatusPending,
 			android.MDMAndroidCommandStatusAcknowledged,
 			android.MDMAndroidCommandStatusError,
 		} {
@@ -4304,9 +4312,16 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_disks WHERE host_id = ?`, hostID))
 		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_operating_system WHERE host_id = ?`, hostID))
 		require.Equal(t, 3, countFor(`SELECT COUNT(*) FROM mdm_android_commands WHERE host_uuid = ?`, hostUUID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_mdm_actions WHERE host_id = ?`, hostID))
 		require.Equal(t, 1, countFor(
 			`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ? AND canceled = 1`, hostID))
 		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?`, hostID))
+		// Every install that has not reached a verification verdict is still listed as
+		// awaiting one. This is the positive control for the "no longer pending"
+		// assertions below: without it, a WHERE clause that matched nothing would pass.
+		pending, err := ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, hostUUID, 100)
+		require.NoError(t, err)
+		require.Len(t, pending, 3, "pending, removed and canceled installs all still await verification")
 	}
 
 	hostA := seedHost("esid-reset-a")
@@ -4315,12 +4330,21 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 	requireSeededState(t, hostB)
 
 	// Reset host A, preserving its activities.
-	require.NoError(t, ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, hostA.Host.UUID, true))
+	users, activities, err := ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, hostA.Host.UUID, true)
+	require.NoError(t, err)
 
-	t.Run("keeps manual and builtin labels, clears the rest", func(t *testing.T) {
-		require.ElementsMatch(t,
-			[]string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameAndroid, "manual-label"},
-			labelNamesFor(hostA.Host.ID))
+	t.Run("rejects a zero host id or uuid", func(t *testing.T) {
+		_, _, err := ds.AndroidResetOnReenrollment(ctx, 0, hostA.Host.UUID, true)
+		require.Error(t, err)
+		_, _, err = ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, "", true)
+		require.Error(t, err)
+	})
+
+	t.Run("keeps manual, host-vitals and builtin labels, clears dynamic", func(t *testing.T) {
+		require.ElementsMatch(t, []string{
+			fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameAndroid,
+			"manual-label", "vitals-label",
+		}, labelNamesFor(hostA.Host.ID))
 	})
 
 	t.Run("clears non-osquery vitals", func(t *testing.T) {
@@ -4328,7 +4352,7 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 		require.Zero(t, countFor(`SELECT COUNT(*) FROM host_operating_system WHERE host_id = ?`, hostA.Host.ID))
 	})
 
-	t.Run("deletes only pending commands", func(t *testing.T) {
+	t.Run("deletes pending commands and their refs together", func(t *testing.T) {
 		var statuses []string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &statuses,
@@ -4338,22 +4362,39 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 			string(android.MDMAndroidCommandStatusAcknowledged),
 			string(android.MDMAndroidCommandStatusError),
 		}, statuses)
+		// The lock_ref pointed at the deleted command, so it must go in the same
+		// transaction rather than being left dangling.
+		require.Zero(t, countFor(`SELECT COUNT(*) FROM host_mdm_actions WHERE host_id = ?`, hostA.Host.ID))
 	})
 
-	t.Run("cancels only pending software installs", func(t *testing.T) {
-		var canceledCmdUUIDs []string
+	t.Run("fails only pending software installs, and reports them", func(t *testing.T) {
+		var failedCmdUUIDs []string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &canceledCmdUUIDs,
-				`SELECT command_uuid FROM host_vpp_software_installs WHERE host_id = ? AND canceled = 1`, hostA.Host.ID)
+			return sqlx.SelectContext(ctx, q, &failedCmdUUIDs,
+				`SELECT command_uuid FROM host_vpp_software_installs
+				 WHERE host_id = ? AND verification_failed_at IS NOT NULL`, hostA.Host.ID)
 		})
-		require.ElementsMatch(t, []string{"esid-reset-a-pending", "esid-reset-a-canceled"}, canceledCmdUUIDs)
-		// The records are kept, not deleted.
+		// markAllPendingVPPInstallsAsFailedForHost fails every install without a verdict,
+		// which is the same set the Android unenroll path fails. Only the already-verified
+		// install keeps its successful outcome.
+		require.ElementsMatch(t, []string{
+			"esid-reset-a-pending", "esid-reset-a-removed", "esid-reset-a-canceled",
+			"esid-reset-a-verification-failed",
+		}, failedCmdUUIDs)
+		// The records are kept, not deleted, and nothing is hidden behind canceled.
 		require.Equal(t, len(installKinds),
 			countFor(`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ?`, hostA.Host.ID))
-		// A canceled install must no longer be a candidate for verification.
+		require.Equal(t, 1,
+			countFor(`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ? AND canceled = 1`, hostA.Host.ID))
+		// A failed install is no longer a candidate for verification.
 		pending, err := ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, hostA.Host.UUID, 100)
 		require.NoError(t, err)
 		require.Empty(t, pending)
+		// The caller gets one activity per newly failed install so the admin can see it.
+		// The already-canceled and already-failed rows are excluded, matching the
+		// idempotency contract of the shared helper.
+		require.Len(t, activities, 2)
+		require.Len(t, users, len(activities))
 	})
 
 	t.Run("preserves past activities when asked to", func(t *testing.T) {
@@ -4364,8 +4405,10 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 		requireSeededState(t, hostB)
 	})
 
-	t.Run("clears past activities when not preserving them", func(t *testing.T) {
-		require.NoError(t, ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, hostA.Host.UUID, false))
+	t.Run("is idempotent and clears past activities when not preserving them", func(t *testing.T) {
+		_, repeatActivities, err := ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, hostA.Host.UUID, false)
+		require.NoError(t, err)
+		require.Empty(t, repeatActivities, "a second reset must not re-emit failed-install activities")
 		require.Zero(t, countFor(`SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?`, hostA.Host.ID))
 		// Still scoped to host A.
 		requireSeededState(t, hostB)
