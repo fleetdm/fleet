@@ -13225,7 +13225,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
 | ----            | ------- | ---- | --------------------------------------------     |
 | install_uuid | string | path | **Required**. The software installation UUID.|
 
-When install attempt was skipped because a patch policy has `patch_when_closed` or `notify_before_patching` enabled, and the app was open. `status` will be `failed_install`, and `pre_install_query_output` will be `"Query didn't return result\nThe app was open."` or `"Query didn't return result\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced."`. Fleet won't retry when 3 times in this case. It will try again on the next policy run.
+When an install attempt was skipped because a patch policy has `patch_when_closed` or `notify_before_patching` enabled, and the app was open, `status` will be `failed_install`, and `pre_install_query_output` will be `"Query didn't return result\nThe app was open."` or `"Query didn't return result\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced."`. In this case, Fleet will try again on the next policy run.
 
 #### Example
 
