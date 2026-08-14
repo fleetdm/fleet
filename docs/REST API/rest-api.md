@@ -5574,6 +5574,8 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
 Returns the list of hosts corresponding to the search criteria in CSV format, ready for download when
 requested by a web browser.
 
+Some cell values are escaped so that spreadsheet applications treat them as text. Numbers are not modified.
+
 `GET /api/v1/fleet/hosts/report`
 
 #### Parameters
