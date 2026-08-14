@@ -48,5 +48,5 @@ To create a new ADR:
 - [ADR-0008: Migrate from go-kit/log to slog](0008-migrate-to-slog.md)
 - [ADR-0009: Attribute naming conventions for logs, traces, and metrics](0009-attribute-naming-conventions.md)
 - [ADR-0010: OpenSpec Adoption](0010-openspec-adoption.md) (Rejected)
-- [ADR-0011: Agent WebSocket Transport](0011-agent-websocket-transport.md)
+- [ADR-0011: Agent WebSocket transport](0011-agent-websocket-transport.md)
 - [ADR-0012: Conditional requests for the osquery config endpoint](0012-osquery-config-conditional-requests.md)

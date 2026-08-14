@@ -1,11 +1,6 @@
 .configuration-profiles {
   @include vertical-card-layout;
 
-  .empty-profiles {
-    font-size: px-to-rem(14);
-    text-align: center;
-  }
-
   .upload-list {
     &__list {
       .list-item__label-count {

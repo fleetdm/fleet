@@ -48,7 +48,7 @@ var allTypes = []string{"mcp_server", "ide_plugins", "agents", "apps", "sockets"
 var columns = []string{
 	"type",       // mcp_server | ide_plugins | agents | apps | sockets | agent_instruction | browser_extension
 	"name",       // server/plugin/agent/app/process/instruction-file name
-	"identifier", // plugin_id | bundle_id | mcp server name | agent binary | socket service
+	"identifier", // plugin_id | known-app key | mcp server name | agent binary | socket service
 	"category",   // classification bucket (coding-assistant, agent-runtime, ai-api-egress, ...)
 	"location",   // local | remote
 	"source",     // provenance: client | editor | install_method | platform_source | direction | tool
@@ -135,13 +135,12 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 		}
 	}
 	if has("ide_plugins") {
-		for _, h := range hs {
-			if err := ctx.Err(); err != nil {
-				return nil, err
-			}
-			for _, p := range ide.Scan(h) {
-				rows = append(rows, ideRow(p))
-			}
+		plugins, err := ide.Scan(ctx, hs)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range plugins {
+			rows = append(rows, ideRow(p))
 		}
 	}
 	if has("agents") {
@@ -269,6 +268,10 @@ func ideRow(p ide.Plugin) map[string]string {
 		"editor_family": p.EditorFamily,
 		"publisher":     p.Publisher,
 		"manifest_path": p.ManifestPath,
+		// scope distinguishes an extension installed in this user's editor profile
+		// from one bundled inside a machine-wide editor install (which has no owner,
+		// so uid/username are empty).
+		"scope": p.Scope,
 	})
 }
 
@@ -298,8 +301,8 @@ func agentRow(a agents.Agent) map[string]string {
 func appRow(a apps.App) map[string]string {
 	return row(map[string]string{
 		"type":       "apps",
-		"name":       a.Name,
-		"identifier": a.BundleID,
+		"name":       a.DisplayName,
+		"identifier": a.Name,
 		"location":   "local",
 		"source":     a.PlatformSource,
 		"version":    a.Version,

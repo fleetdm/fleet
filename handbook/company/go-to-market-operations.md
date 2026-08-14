@@ -700,7 +700,7 @@ In every case, the website first calls `updateOrCreateContactAndAccount` to ensu
 | `Website_visit_reason__c` | Ad attribution string, if the user arrived via an ad within the last 30 minutes. |
 | `Related_campaign__c` | Related Salesforce campaign, if applicable. |
 
-> Historical event records are only created in the production environment. When deleting a contact's data (e.g. for a data deletion request), any related Historical event records associated with that contact are also automaticly deleted.
+> Historical event records are only created in the production environment. When deleting a contact's data (e.g. for a data deletion request), any related Historical event records associated with that contact are also automatically deleted.
 
 
 ##  Go-to-market attribution

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.85.0",
+      "version": "4.86.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop' AND path NOT LIKE '%.back%' AND version_compare(bundle_short_version, '4.85.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.electron.dockerdesktop');"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker' AND path NOT LIKE '%.back%' AND version_compare(bundle_short_version, '4.86.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.docker.docker');"
       },
-      "installer_url": "https://desktop.docker.com/mac/main/arm64/235549/Docker.dmg",
+      "installer_url": "https://desktop.docker.com/mac/main/arm64/236216/Docker.dmg",
       "install_script_ref": "4afb9744",
       "uninstall_script_ref": "ba7543f2",
-      "sha256": "84b1224c93456fe261955ebc91f3cd88ce19778ffdb6d0a0d423ce37246f7c2b",
+      "sha256": "4b662c088e9cb4dfcfb59a64c6ea9ff39063af303a660c604e6f4a5eec5c5fe4",
       "default_categories": [
         "Developer tools"
       ]

@@ -73,11 +73,14 @@ var (
 	rhel10KernelsFS embed.FS
 	//go:embed windows_11-software.json.bz2
 	windowsSoftwareFS embed.FS
+	//go:embed macos_26x-software.json.bz2
+	macOSSoftwareFS embed.FS
 
 	macosVulnerableSoftware            []fleet.Software
 	vsCodeExtensionsVulnerableSoftware []fleet.Software
 	windowsSoftware                    []map[string]string
 	ubuntuSoftware                     []map[string]string
+	macOSSoftware                      []map[string]string
 	ubuntuKernels                      []map[string]string
 	rhel8Kernels                       []map[string]string
 	rhel9Kernels                       []map[string]string
@@ -150,6 +153,9 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 		UpgradeCode string `json:"upgrade_code"`
 		Release     string `json:"release,omitempty"`
 		Arch        string `json:"arch,omitempty"`
+		// macOS template fields.
+		BundleIdentifier string `json:"bundle_identifier,omitempty"`
+		InstalledPath    string `json:"installed_path,omitempty"`
 	}
 	var softwareList []softwareJSON
 	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
@@ -159,12 +165,20 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 
 	softwareRows := make([]map[string]string, 0, len(softwareList))
 	for _, s := range softwareList {
-		softwareRows = append(softwareRows, map[string]string{
+		row := map[string]string{
 			"name":         s.Name,
 			"version":      s.Version,
 			"source":       source,
 			"upgrade_code": s.UpgradeCode,
-		})
+		}
+
+		if s.BundleIdentifier != "" {
+			row["bundle_identifier"] = s.BundleIdentifier
+		}
+		if s.InstalledPath != "" {
+			row["installed_path"] = s.InstalledPath
+		}
+		softwareRows = append(softwareRows, row)
 	}
 	return softwareRows
 }
@@ -285,6 +299,7 @@ func init() {
 	loadExtraVulnerableSoftware()
 	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2", "programs")
 	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2", "deb_packages")
+	macOSSoftware = loadSoftwareItems(macOSSoftwareFS, "macos_26x-software.json.bz2", "apps")
 	ubuntuKernels = loadDebKernelList(ubuntuKernelsFS, "ubuntu_2204-kernels.json")
 	rhel8Kernels = loadRPMKernelList(rhel8KernelsFS, "rhel_8-kernels.json")
 	rhel9Kernels = loadRPMKernelList(rhel9KernelsFS, "rhel_9-kernels.json")
@@ -511,6 +526,14 @@ type agent struct {
 	// notNowProfiles tracks the profile identifiers (per channel) this agent has
 	// already responded NotNow to, so the redelivered command is acknowledged.
 	notNowProfiles map[string]bool
+
+	// installedProfiles tracks the configuration profiles this agent has
+	// acknowledged installing, keyed by channel ("device" or "user") + "/" +
+	// payload identifier. The MDM loop goroutine writes it while the osquery
+	// query goroutines read it to answer profile verification queries (see
+	// mdmConfigProfilesMac), hence the mutex.
+	installedProfilesMu sync.Mutex
+	installedProfiles   map[string]installedMDMProfile
 
 	disableScriptExec   bool
 	disableFleetDesktop bool
@@ -918,6 +941,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	if a.macMDMClient != nil {
 		mdmEnrollWithRetry("macOS", a.stats.IncrementMDMErrors, a.macMDMClient.Enroll)
 		a.setMDMEnrolled()
+		a.seedEnrollmentProfile()
 		a.stats.IncrementMDMEnrollments()
 
 		if rand.Float64() < a.mdmUserProb {
@@ -1286,6 +1310,127 @@ func (a *agent) runOrbitLoop() {
 	}
 }
 
+// installedMDMProfile is a configuration profile a simulated device has
+// acknowledged installing via MDM.
+type installedMDMProfile struct {
+	identifier  string
+	displayName string
+	installDate time.Time
+}
+
+// installProfilePayload returns the raw (unsigned) mobileconfig carried by a
+// delivered InstallProfile command, or nil if the command is not an
+// InstallProfile or cannot be parsed.
+func installProfilePayload(cmd *mdm.Command) []byte {
+	var full micromdm.CommandPayload
+	if err := plist.Unmarshal(cmd.Raw, &full); err != nil || full.Command.InstallProfile == nil {
+		return nil
+	}
+	profile := full.Command.InstallProfile.Payload
+	// The mobileconfig may be PKCS7-signed; unwrap to the raw XML plist.
+	if !bytes.HasPrefix(profile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(profile)
+		if err != nil {
+			return nil
+		}
+		profile = p7.Content
+	}
+	return profile
+}
+
+// parseInstallProfileCommand extracts the payload identifier and display name
+// of the profile carried by a delivered InstallProfile command.
+func parseInstallProfileCommand(cmd *mdm.Command) (identifier, displayName string, ok bool) {
+	profile := installProfilePayload(cmd)
+	if profile == nil {
+		return "", "", false
+	}
+	var parsed struct {
+		PayloadIdentifier  string `plist:"PayloadIdentifier"`
+		PayloadDisplayName string `plist:"PayloadDisplayName"`
+	}
+	if err := plist.Unmarshal(profile, &parsed); err != nil || parsed.PayloadIdentifier == "" {
+		return "", "", false
+	}
+	if parsed.PayloadDisplayName == "" {
+		parsed.PayloadDisplayName = parsed.PayloadIdentifier
+	}
+	return parsed.PayloadIdentifier, parsed.PayloadDisplayName, true
+}
+
+// removeProfileIdentifier returns the payload identifier targeted by a
+// delivered RemoveProfile command, or "" if the command cannot be parsed.
+func removeProfileIdentifier(cmd *mdm.Command) string {
+	var full micromdm.CommandPayload
+	if err := plist.Unmarshal(cmd.Raw, &full); err != nil || full.Command.RemoveProfile == nil {
+		return ""
+	}
+	return full.Command.RemoveProfile.Identifier
+}
+
+// profileNotFoundErrChain is the error a real Apple device reports when asked
+// to remove a profile that is not installed. The server treats it as a
+// successful removal (see apple_mdm.IsProfileNotFoundError).
+func profileNotFoundErrChain(identifier string) []mdm.ErrorChain {
+	return []mdm.ErrorChain{
+		{
+			ErrorCode:            89,
+			ErrorDomain:          "MDMClientError",
+			LocalizedDescription: fmt.Sprintf("Profile with identifier '%s' not found.", identifier),
+		},
+	}
+}
+
+// recordInstalledProfile tracks the profile carried by an acknowledged
+// InstallProfile command as installed on the given channel.
+func (a *agent) recordInstalledProfile(channel string, cmd *mdm.Command) {
+	identifier, displayName, ok := parseInstallProfileCommand(cmd)
+	if !ok {
+		return
+	}
+	a.installedProfilesMu.Lock()
+	defer a.installedProfilesMu.Unlock()
+	if a.installedProfiles == nil {
+		a.installedProfiles = make(map[string]installedMDMProfile)
+	}
+	a.installedProfiles[channel+"/"+identifier] = installedMDMProfile{
+		identifier:  identifier,
+		displayName: displayName,
+		installDate: time.Now(),
+	}
+}
+
+// removeInstalledProfile untracks the given profile identifier on the given
+// channel, reporting whether it was installed (i.e. whether a RemoveProfile
+// command for it should succeed).
+func (a *agent) removeInstalledProfile(channel, identifier string) bool {
+	a.installedProfilesMu.Lock()
+	defer a.installedProfilesMu.Unlock()
+	key := channel + "/" + identifier
+	if _, ok := a.installedProfiles[key]; !ok {
+		return false
+	}
+	delete(a.installedProfiles, key)
+	return true
+}
+
+// seedEnrollmentProfile tracks the Fleet enrollment profile as installed on
+// the device channel. It is installed during enrollment rather than via an
+// InstallProfile command, and the server sends a RemoveProfile for it when a
+// host is unenrolled, so it must be tracked for that removal to succeed.
+func (a *agent) seedEnrollmentProfile() {
+	a.installedProfilesMu.Lock()
+	defer a.installedProfilesMu.Unlock()
+	if a.installedProfiles == nil {
+		a.installedProfiles = make(map[string]installedMDMProfile)
+	}
+	a.installedProfiles["device/"+apple_mdm.FleetPayloadIdentifier] = installedMDMProfile{
+		identifier:  apple_mdm.FleetPayloadIdentifier,
+		displayName: "Enrollment Profile",
+		installDate: time.Now(),
+	}
+}
+
 // profileNotNowRequested reports whether the delivered InstallProfile command
 // carries a profile whose decoded content contains the marker string "NotNow"
 // and this agent has not yet responded NotNow to that profile identifier on
@@ -1293,20 +1438,8 @@ func (a *agent) runOrbitLoop() {
 // redelivered command is acknowledged. Only called from the MDM loop
 // goroutine, so notNowProfiles needs no locking.
 func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
-	var full micromdm.CommandPayload
-	if err := plist.Unmarshal(cmd.Raw, &full); err != nil || full.Command.InstallProfile == nil {
-		return false
-	}
-	profile := full.Command.InstallProfile.Payload
-	// The mobileconfig may be PKCS7-signed; unwrap to the raw XML plist.
-	if !bytes.HasPrefix(profile, []byte("<?xml")) {
-		p7, err := pkcs7.Parse(profile)
-		if err != nil {
-			return false
-		}
-		profile = p7.Content
-	}
-	if !bytes.Contains(profile, []byte("NotNow")) {
+	profile := installProfilePayload(cmd)
+	if profile == nil || !bytes.Contains(profile, []byte("NotNow")) {
 		return false
 	}
 	var parsed struct {
@@ -1386,12 +1519,27 @@ func (a *agent) runMacosMDMLoop() {
 						}
 					}
 
+					a.recordInstalledProfile("device", mdmCommandPayload)
+
 					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
 					if err != nil {
 						log.Printf("MDM Acknowledge request failed: %s", err)
 						a.stats.IncrementMDMErrors()
 						break INNER_FOR_LOOP
 					}
+				}
+
+			case "RemoveProfile":
+				identifier := removeProfileIdentifier(mdmCommandPayload)
+				if identifier != "" && a.removeInstalledProfile("device", identifier) {
+					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				} else {
+					mdmCommandPayload, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, profileNotFoundErrChain(identifier))
+				}
+				if err != nil {
+					log.Printf("MDM RemoveProfile response failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
 				}
 
 			case "DeclarativeManagement":
@@ -1566,12 +1714,27 @@ func (a *agent) runMacosMDMLoop() {
 							continue
 						}
 
+						a.recordInstalledProfile("user", mdmCommandPayload)
+
 						mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
 						if err != nil {
 							log.Printf("MDM Acknowledge request failed: %s", err)
 							a.stats.IncrementMDMUserErrors()
 							break INNER_FOR_LOOP_USER
 						}
+					}
+
+				case "RemoveProfile":
+					identifier := removeProfileIdentifier(mdmCommandPayload)
+					if identifier != "" && a.removeInstalledProfile("user", identifier) {
+						mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+					} else {
+						mdmCommandPayload, err = a.macMDMClient.UserChannelErr(mdmCommandPayload.CommandUUID, profileNotFoundErrChain(identifier))
+					}
+					if err != nil {
+						log.Printf("MDM RemoveProfile response failed: %s", err)
+						a.stats.IncrementMDMUserErrors()
+						break INNER_FOR_LOOP_USER
 					}
 
 				case "DeclarativeManagement":
@@ -2406,6 +2569,28 @@ func (a *agent) softwareMacOS() []map[string]string {
 		}
 	}
 
+	// Template software is served identically to every macOS host, mirroring the
+	// Windows and Ubuntu templates. This is what makes a simulated Mac fleet
+	// homogeneous: every host reports the same titles, so concurrent ingest
+	// contends on the software_titles unique index the way a real corporate
+	// Mac fleet does. Unlike the "common" pool, it is never sliced per-host.
+	templateSoftware := make([]map[string]string, 0, len(macOSSoftware))
+	for _, s := range macOSSoftware {
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(s["name"]); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		baseVersion := s["version"]
+		templateSoftware = append(templateSoftware, map[string]string{
+			"name":              s["name"],
+			"version":           a.selectSoftwareVersion(s["name"], baseVersion, baseVersion+".1"),
+			"bundle_identifier": s["bundle_identifier"],
+			"source":            s["source"],
+			"last_opened_at":    lastOpenedAt,
+			"installed_path":    s["installed_path"],
+		})
+	}
+
 	commonSoftware := make([]map[string]string, 0)
 	duplicateBundleSoftware := make([]map[string]string, 0)
 	groupSize := 4
@@ -2543,7 +2728,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 	}
 
 	// Combine all software
-	software := commonSoftware
+	software := templateSoftware
+	software = append(software, commonSoftware...)
 	software = append(software, uniqueSoftware...)
 	software = append(software, realSoftware...)
 	software = append(software, duplicateBundleSoftware...)
@@ -2926,14 +3112,23 @@ func (a *agent) mdmMac() []map[string]string {
 	}
 }
 
+// mdmConfigProfilesMac returns the profiles this agent has acknowledged
+// installing on the device and user channels, merged as the server's
+// mdm_config_profiles_darwin_with_user query does with the macos_profiles and
+// macos_user_profiles tables.
 func (a *agent) mdmConfigProfilesMac() []map[string]string {
-	return []map[string]string{
-		{
-			"identifier":   "osquery-perf",
-			"display_name": "OSQuery Perf Agent",
-			"install_date": "2006-01-02 15:04:05 -0700",
-		},
+	a.installedProfilesMu.Lock()
+	defer a.installedProfilesMu.Unlock()
+
+	results := make([]map[string]string, 0, len(a.installedProfiles))
+	for _, profile := range a.installedProfiles {
+		results = append(results, map[string]string{
+			"identifier":   profile.identifier,
+			"display_name": profile.displayName,
+			"install_date": profile.installDate.Format("2006-01-02 15:04:05 -0700"),
+		})
 	}
+	return results
 }
 
 func (a *agent) entraConditionalAccess() []map[string]string {
@@ -3283,7 +3478,13 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = statusNotOK
 		}
 		return true, results, &ss, nil, nil
-	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin_with_user", name == hostDetailQueryPrefix+"mdm_config_profiles_darwin":
+	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin":
+		// Simulated fleetd has the macos_user_profiles table, so this legacy
+		// query's discovery fails (it requires the table to NOT exist) and
+		// only mdm_config_profiles_darwin_with_user runs. Report no results
+		// and no status, as osquery does for queries whose discovery fails.
+		return true, nil, nil, nil, nil
+	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin_with_user":
 		ss := statusOK
 		if rand.Intn(10) > 0 { // 90% success
 			results = a.mdmConfigProfilesMac()
@@ -3842,6 +4043,13 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 
 	a.stats.IncrementMDMEnrollments()
 
+	// installedProfiles tracks the profiles this device has acknowledged
+	// installing, so RemoveProfile commands succeed or fail like on a real
+	// device. Seeded with the enrollment profile, which is installed during
+	// enrollment rather than via an InstallProfile command. Only this
+	// goroutine touches it, so it needs no locking.
+	installedProfiles := map[string]struct{}{apple_mdm.FleetPayloadIdentifier: {}}
+
 	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
 
 	for range mdmCheckInTicker {
@@ -3881,7 +4089,18 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 					}
 					mdmCommandPayload, err = mdmClient.Err(mdmCommandPayload.CommandUUID, errChain)
 				} else {
+					if identifier, _, ok := parseInstallProfileCommand(mdmCommandPayload); ok {
+						installedProfiles[identifier] = struct{}{}
+					}
 					mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				}
+			case "RemoveProfile":
+				identifier := removeProfileIdentifier(mdmCommandPayload)
+				if _, ok := installedProfiles[identifier]; identifier != "" && ok {
+					delete(installedProfiles, identifier)
+					mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				} else {
+					mdmCommandPayload, err = mdmClient.Err(mdmCommandPayload.CommandUUID, profileNotFoundErrChain(identifier))
 				}
 
 			default:

@@ -9767,6 +9767,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.InsertAppleSoftwareUpdateDeviceID(ctx, host.UUID, "bogus-update-id")
 	require.NoError(t, err)
 
+	// Insert into host_autopilot_devices table (no host FK, cleaned up via hostRefs).
+	err = ds.BatchUpsertHostAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{{
+		HostID: host.ID, TenantID: "delete-host-tenant", HardwareSerial: "delete-host-serial",
+	}})
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.6.7.1268",
+      "version": "9.6.8.1270",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.rdbrck.shift';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rdbrck.shift' AND version_compare(bundle_short_version, '9.6.7.1268') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rdbrck.shift' AND version_compare(bundle_short_version, '9.6.8.1270') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.rdbrck.shift');"
       },
-      "installer_url": "https://updates.tryshift.com/v9.6.7/stable/shift-v9.6.7.1268-stable-arm64.dmg",
+      "installer_url": "https://updates.tryshift.com/v9.6.8/stable/shift-v9.6.8.1270-stable-arm64.dmg",
       "install_script_ref": "526e5310",
       "uninstall_script_ref": "c93f6ce6",
-      "sha256": "8a70d9e5a86511d5ac025e582faf18a506f38117c48fa4c337de3f5b3c97a40a",
+      "sha256": "1b567995c2dd75168dee38118a79ff807f7a9622c68efd34e923b9bc9862a981",
       "default_categories": [
         "Productivity"
       ]
