@@ -20,6 +20,13 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
+const (
+	cvssMinScore = 0.0
+	cvssMaxScore = 10.0
+	epssMinScore = 0.0
+	epssMaxScore = 1.0
+)
+
 // Service is the chart bounded context service implementation.
 type Service struct {
 	authz     platform_authz.Authorizer
@@ -121,12 +128,11 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid resolution value: %d (must be 0 or a positive divisor of 24)", opts.Resolution)}
 	}
 
-	// This check is scoped to the CVE metric because severity is only applied there. Other
-	// metrics ignore the bounds, as they already ignore the rest of the CVE
-	// entity filters, so rejecting a value that would have no effect would be
-	// surprising.
 	if metric == api.MetricCVE {
-		if err := validateSeverityBounds(opts.SeverityMin, opts.SeverityMax); err != nil {
+		if err := validateScoreBounds("severity", opts.SeverityMin, opts.SeverityMax, cvssMinScore, cvssMaxScore); err != nil {
+			return nil, err
+		}
+		if err := validateScoreBounds("epss", opts.EPSSMin, opts.EPSSMax, epssMinScore, epssMaxScore); err != nil {
 			return nil, err
 		}
 	}
@@ -217,29 +223,21 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 	}, nil
 }
 
-// cvssMinScore and cvssMaxScore bound a CVSS v3 base score.
-const (
-	cvssMinScore = 0.0
-	cvssMaxScore = 10.0
-)
-
-// validateSeverityBounds checks that each supplied severity bound is a valid
-// CVSS v3 base score and that the range isn't inverted. A nil bound is valid
-// and means "unbounded on that side".
-func validateSeverityBounds(minScore, maxScore *float64) error {
-	if minScore != nil && (math.IsNaN(*minScore) || *minScore < cvssMinScore || *minScore > cvssMaxScore) {
+func validateScoreBounds(label string, minScore, maxScore *float64, lo, hi float64) error {
+	if minScore != nil && (math.IsNaN(*minScore) || *minScore < lo || *minScore > hi) {
 		return &platform_http.BadRequestError{
-			Message: fmt.Sprintf("invalid severity_min value: %v (must be between %v and %v)", *minScore, cvssMinScore, cvssMaxScore),
+			Message: fmt.Sprintf("invalid %s_min value: %v (must be between %v and %v)", label, *minScore, lo, hi),
 		}
 	}
-	if maxScore != nil && (math.IsNaN(*maxScore) || *maxScore < cvssMinScore || *maxScore > cvssMaxScore) {
+	if maxScore != nil && (math.IsNaN(*maxScore) || *maxScore < lo || *maxScore > hi) {
 		return &platform_http.BadRequestError{
-			Message: fmt.Sprintf("invalid severity_max value: %v (must be between %v and %v)", *maxScore, cvssMinScore, cvssMaxScore),
+			Message: fmt.Sprintf("invalid %s_max value: %v (must be between %v and %v)", label, *maxScore, lo, hi),
 		}
 	}
 	if minScore != nil && maxScore != nil && *minScore > *maxScore {
 		return &platform_http.BadRequestError{
-			Message: fmt.Sprintf("invalid severity range: severity_min (%v) must not be greater than severity_max (%v)", *minScore, *maxScore),
+			Message: fmt.Sprintf("invalid %s range: %s_min (%v) must not be greater than %s_max (%v)",
+				label, label, *minScore, label, *maxScore),
 		}
 	}
 	return nil

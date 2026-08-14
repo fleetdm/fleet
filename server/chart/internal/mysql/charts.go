@@ -311,23 +311,24 @@ func (ds *Datastore) CollectibleCVEs(ctx context.Context) ([]string, error) {
 // the curated universe with the filter's predicates (software category, CVSS
 // range, EPSS range, known-exploit) and subtracting any excluded CVEs.
 //
-// A CVSS range of 9.0–10.0 with no other narrowing reproduces the "tracked
-// critical CVEs" set, which is what the UI seeds by default.
-//
 // Filtering on any cve_meta column (CVSS, EPSS, known-exploit) requires that
 // row to exist, so those filters exclude CVEs Fleet has no NVD metadata for.
-// When no such filter is set the join is dropped and they resolve, matching
-// what the collector records. Note NULL fails every comparison, so an explicit
-// 0.0–10.0 CVSS range still excludes a CVE whose cvss_score is NULL, while no
-// CVSS bound at all includes it.
+// When no such filter is set the join is dropped and they resolve. NULL fails
+// every comparison, so an explicit 0.0–10.0 CVSS range still excludes a CVE
+// whose cvss_score is NULL, while no CVSS bound at all includes it.
 //
 // Returns a non-nil empty slice when the filter resolves to nothing, so callers
 // never pass nil to GetSCDData, which would mean "no entity filter" and widen
 // the chart to everything the collector recorded.
 func (ds *Datastore) ResolveCVEChartEntities(ctx context.Context, filter types.CVEChartFilter) ([]string, error) {
-	set := make(map[string]struct{})
 	cats := categorySet(filter.Categories) // nil == all categories
 	metaClause, metaArgs := cveMetaPredicate(filter)
+
+	if cats == nil && metaClause == "" && len(filter.ExcludeCVEs) == 0 {
+		return ds.CollectibleCVEs(ctx)
+	}
+
+	set := make(map[string]struct{})
 
 	swMetaJoin, osMetaJoin := "", ""
 	if metaClause != "" {

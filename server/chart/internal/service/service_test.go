@@ -598,6 +598,68 @@ func TestGetChartDataSeverityValidation(t *testing.T) {
 	})
 }
 
+func TestGetChartDataEPSSValidation(t *testing.T) {
+	cases := []struct {
+		name    string
+		min     *float64
+		max     *float64
+		wantErr bool
+	}{
+		{name: "no bounds", wantErr: false},
+		{name: "full range", min: new(0.0), max: new(1.0), wantErr: false},
+		{name: "equal bounds", min: new(0.5), max: new(0.5), wantErr: false},
+		{name: "min only", min: new(0.85), wantErr: false},
+		{name: "max only", max: new(0.1), wantErr: false},
+		{name: "unconverted percentage", min: new(50.0), wantErr: true},
+		{name: "min above range", min: new(1.1), wantErr: true},
+		{name: "max above range", max: new(100.0), wantErr: true},
+		{name: "min below range", min: new(-0.1), wantErr: true},
+		{name: "max below range", max: new(-1.0), wantErr: true},
+		{name: "min greater than max", min: new(0.9), max: new(0.2), wantErr: true},
+		{name: "min is NaN", min: new(math.NaN()), wantErr: true},
+		{name: "max is NaN", max: new(math.NaN()), wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := &mockDatastore{}
+			resolveCalled := false
+			ds.resolveCVEEntitiesFn = func(_ context.Context, _ types.CVEChartFilter) ([]string, error) {
+				resolveCalled = true
+				return []string{}, nil
+			}
+			svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+			svc.RegisterDataset(&chart.CVEDataset{})
+
+			_, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{
+				Days:    7,
+				EPSSMin: tc.min,
+				EPSSMax: tc.max,
+			})
+			if !tc.wantErr {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			var badReq *platform_http.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+			require.False(t, resolveCalled, "an invalid bound must be rejected before any query runs")
+		})
+	}
+
+	t.Run("non-CVE metrics ignore invalid EPSS bounds", func(t *testing.T) {
+		svc := NewService(&mockAuthorizer{}, &mockDatastore{}, globalViewer(), nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{
+			Days:    7,
+			EPSSMin: new(50.0),
+			EPSSMax: new(-1.0),
+		})
+		require.NoError(t, err)
+	})
+}
+
 // TestGetChartDataOmitsUnsetSeverityFromEcho verifies the response's filters
 // object reports absent bounds as absent. The echo is what the client reads back
 // to seed its controls, so filling in 0.0/10.0 here would claim a narrowing that

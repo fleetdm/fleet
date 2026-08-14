@@ -123,15 +123,9 @@ func TestResolveCVEChartEntities(t *testing.T) {
 	seedCVEMeta(t, tdb, "CVE-F", 10.0, 0.99, true)
 	seedSoftware(t, tdb, "Google Chrome", "apps", "CVE-G")
 	seedCVEMetaNoScore(t, tdb, "CVE-G", 0.40, false)
-	// No cve_meta row at all — the collector records these (severity unknown),
-	// so the resolver must be able to return them when nothing is filtered on
-	// cve_meta. Seeded on both sides because the software- and OS-side joins are
-	// built independently, so one side dropping the join proves nothing about
-	// the other.
 	seedSoftware(t, tdb, "Google Chrome", "apps", "CVE-H")
 	seedOSVuln(t, tdb, 1, "CVE-I")
 
-	// critical is what the UI seeds by default, so it's the band most cases use.
 	critMin, critMax := new(9.0), new(10.0)
 	allCats := types.CVEChartFilter{CVSSMin: critMin, CVSSMax: critMax}
 
