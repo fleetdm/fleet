@@ -129,19 +129,17 @@ const DeviceNotificationPage = ({
         action: action.id,
       }),
     {
-      onSuccess: (updatedView, { isPrimary }) => {
+      onSuccess: (updatedView, { action, isPrimary }) => {
         // Server owns the post-action state (e.g. Installing…). Replace the
         // cached view so re-render happens without a follow-up GET.
         queryClient.setQueryData(queryKey, updatedView);
-        if (isPrimary) {
-          // The end user picked the primary action; the window stays open
-          // so they can watch the installs start.
-          postBridgeMessage("primary");
-        } else {
-          // Secondaries close the toast via the bridge; the native window
-          // handles the actual close on receiving `dismiss`.
-          postBridgeMessage("dismiss");
-        }
+        // `dismiss` id always closes the toast, regardless of position — the
+        // server reuses it for any "close" action, including the lone `Hide`
+        // in the Installing state where positionally it would otherwise be
+        // the primary. Only real primary CTAs (e.g. `update_now`) keep the
+        // window open.
+        const shouldClose = action.id === "dismiss" || !isPrimary;
+        postBridgeMessage(shouldClose ? "dismiss" : "primary");
       },
     }
   );

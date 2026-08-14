@@ -230,6 +230,34 @@ describe("DeviceNotificationPage", () => {
     expect(primaryCalls).toHaveLength(0);
   });
 
+  it("posts `dismiss` (not `primary`) when the sole action's id is `dismiss` — Installing-state Hide", async () => {
+    // Post-`update_now` view: single Hide action whose id is `dismiss`. It is
+    // positionally the primary (last of 1) but semantically closes the toast.
+    mockServer.use(
+      customDeviceNotificationHandler(
+        createMockNotificationView({
+          actions: [{ id: "dismiss", label: "Hide" }],
+        })
+      ),
+      defaultDeviceNotificationActionHandler
+    );
+
+    const { user } = renderPage();
+
+    const hide = await screen.findByRole("button", { name: "Hide" });
+    await user.click(hide);
+
+    await waitFor(() => {
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "dismiss" })
+      );
+    });
+    const primaryCalls = postMessage.mock.calls.filter(
+      ([msg]) => msg.action === "primary"
+    );
+    expect(primaryCalls).toHaveLength(0);
+  });
+
   it("surfaces an inline error when the action POST fails", async () => {
     mockServer.use(
       customDeviceNotificationHandler(),
