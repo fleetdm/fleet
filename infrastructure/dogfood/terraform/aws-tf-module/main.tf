@@ -390,6 +390,32 @@ module "main" {
       enabled = true
     }
     idle_timeout = 905
+
+    # Only serve requests addressed to the canonical hostname. Any other Host
+    # (raw ALB IP, spoofed Host, scanners) is rejected at the edge with a 403 so
+    # that hostname-scoped WAF rules cannot be bypassed by hitting the load
+    # balancer directly. See fleetdm/confidential#17178.
+    https_listener_rules = [{
+      priority = 100
+      conditions = [{
+        host_headers = ["dogfood.fleetdm.com"]
+      }]
+      actions = [{
+        type               = "forward"
+        target_group_index = 0
+      }]
+    }]
+
+    # Replace the default forward action (which forwards every request regardless
+    # of Host) with a fixed 403. Matching traffic is forwarded by the rule above.
+    https_overrides = {
+      forward = null
+      fixed_response = {
+        content_type = "text/plain"
+        message_body = "Forbidden"
+        status_code  = "403"
+      }
+    }
     #    extra_target_groups = [
     #      {
     #        name             = module.saml_auth_proxy.name
