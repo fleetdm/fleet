@@ -122,6 +122,8 @@ go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep
 
 `mdm_ios_byod_prob` determines the probability that a simulated iOS/iPadOS device (`iphone_14.6`, `ipad_13.18`, `iphone_17` templates) reports as a personal (BYOD) enrollment, which omits the newer device vitals fields from its `DeviceInformation` ack, matching what Fleet's server asks a real BYOD device for. The default is 0 (all simulated iOS/iPadOS devices report the full vitals set).
 
+`mdm_apns_url` sets the mock APNs server URL for the simulated Apple MDM devices. It is required when using iPhone/iPad templates and required when using macOS templates with a non-zero `mdm_prob`.
+
 ### Apple Platform SSO (PSSO)
 
 A subset of macOS MDM agents can additionally exercise Apple Platform SSO: device
