@@ -222,7 +222,7 @@ func (svc *Service) validateAppleDDMAsset(ctx context.Context, data []byte) (ide
 
 	// We disallow authentication, as we force MDM auth when serving the assets.
 	if rawAsset.Payload.Authentication != nil {
-		return "", "", &fleet.BadRequestError{Message: "Asset payload must not contain an authentication key"}
+		return "", "", &fleet.BadRequestError{Message: "Asset payload must not contain an authentication key. Fleet enforces 'MDM' authentication."}
 	}
 
 	if rawAsset.Payload.Reference.DataURL == "" {

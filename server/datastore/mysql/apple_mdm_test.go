@@ -6011,6 +6011,13 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 		}
 		return names
 	}
+	labelUpdatedAt := func(t *testing.T, h *fleet.Host) time.Time {
+		var ts time.Time
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &ts,
+			`SELECT label_updated_at FROM hosts WHERE id = ?`, h.ID))
+		return ts
+	}
+	neverSentinel := common_mysql.GetDefaultNonZeroTime()
 	seeded := counts{label: 3, upcoming: 1, pssoDevice: 1, pssoKey: 1}
 
 	t.Run("clears expected tables and leaves other hosts untouched", func(t *testing.T) {
@@ -6019,19 +6026,26 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 		seedHostData(t, hostA)
 		seedHostData(t, hostB)
 
-		// sanity: both hosts start fully seeded
+		// sanity: both hosts start fully seeded, with label_updated_at set by
+		// NewHost to a real (non-sentinel) time.
 		require.Equal(t, seeded, countRows(t, hostA))
 		require.Equal(t, seeded, countRows(t, hostB))
+		require.False(t, labelUpdatedAt(t, hostA).Equal(neverSentinel))
+		hostBLabelUpdatedAt := labelUpdatedAt(t, hostB)
+		require.False(t, hostBLabelUpdatedAt.Equal(neverSentinel))
 
 		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
 
-		// Host A keeps only its built-in memberships.
+		// Host A keeps only its built-in memberships, and its label_updated_at
+		// is reset to the "never" sentinel since its label results are gone.
 		assert.Equal(t, counts{label: 2}, countRows(t, hostA))
 		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelIPadOS}, labelNames(t, hostA))
+		assert.True(t, labelUpdatedAt(t, hostA).Equal(neverSentinel))
 
-		// Host B is untouched, including its custom membership.
+		// Host B is untouched, including its custom membership and timestamp.
 		assert.Equal(t, seeded, countRows(t, hostB))
 		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameMacOS, "label-" + hostB.UUID}, labelNames(t, hostB))
+		assert.True(t, labelUpdatedAt(t, hostB).Equal(hostBLabelUpdatedAt))
 	})
 
 	t.Run("returns error and changes nothing when host UUID does not exist", func(t *testing.T) {
@@ -6046,6 +6060,7 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 		// host A's seeded data must still be present - the failed call must
 		// not have any side effects.
 		assert.Equal(t, seeded, countRows(t, hostA))
+		assert.False(t, labelUpdatedAt(t, hostA).Equal(neverSentinel))
 	})
 
 	// seedHostActivityData seeds the rows whose deletion is gated by the
@@ -8647,7 +8662,7 @@ func testReconcileAppleProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {
 
 	// Source dedup: the reconcile snapshot must surface the UUID exactly once,
 	// keeping the highest host id.
-	hosts, _, _, _, err := ds.GetAppleProfileReconcileSnapshot(ctx, "", 5000)
+	hosts, _, _, _, _, err := ds.GetAppleProfileReconcileSnapshot(ctx, "", 5000)
 	require.NoError(t, err)
 	var forUUID []*fleet.AppleHostReconcileInfo
 	for _, h := range hosts {
@@ -8661,7 +8676,7 @@ func testReconcileAppleProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {
 	// Force the duplicate group across a batch boundary: with batchSize=1 the
 	// query returns a single row, and the h.id DESC tiebreak must make it the
 	// highest-id host rather than an arbitrary one.
-	boundaryHosts, _, _, _, err := ds.GetAppleProfileReconcileSnapshot(ctx, "", 1)
+	boundaryHosts, _, _, _, _, err := ds.GetAppleProfileReconcileSnapshot(ctx, "", 1)
 	require.NoError(t, err)
 	require.Len(t, boundaryHosts, 1)
 	require.Equal(t, hHigh.ID, boundaryHosts[0].HostID)

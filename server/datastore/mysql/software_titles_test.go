@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,8 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
 		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
 		{"SoftwareTitleByIDNoFleetScopedToVisibleFleets", testSoftwareTitleByIDNoFleetScopedToVisibleFleets},
+		{"GetFleetMaintainedVersionsOrder", testGetFleetMaintainedVersionsOrder},
+		{"MarkFleetMaintainedAppVersionCurrent", testMarkFleetMaintainedAppVersionCurrent},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3039,4 +3042,143 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, schedules, 1)
 	require.Equal(t, title3ID, schedules[0].TitleID)
+}
+
+func testGetFleetMaintainedVersionsOrder(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// maxCachedFMAVersions caps the cache at two per team and title.
+	cases := []struct {
+		name string
+		// real versions from ee/maintained-apps/outputs, in the order they were published
+		published []string
+		// what the datastore must return, most recently downloaded first
+		wantNewestFirst []string
+	}{
+		{
+			// A version-string sort used to put 76 above 109 here.
+			name:            "chrome four part build numbers",
+			published:       []string{"151.0.7922.76", "151.0.7922.109"},
+			wantNewestFirst: []string{"151.0.7922.109", "151.0.7922.76"},
+		},
+		{
+			// iMazing really did publish 3.3.1.0 after 3.5.5.0. Fails if a version sort comes back.
+			name:            "app published a lower version than before",
+			published:       []string{"3.5.5.0", "3.3.1.0"},
+			wantNewestFirst: []string{"3.3.1.0", "3.5.5.0"},
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+				Name:             fmt.Sprintf("Maintained%d", i),
+				Slug:             fmt.Sprintf("maintained%d", i),
+				Platform:         "darwin",
+				UniqueIdentifier: fmt.Sprintf("fleet.maintained%d", i),
+			})
+			require.NoError(t, err)
+
+			tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+			require.NoError(t, err)
+			activeInstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				Title:                fmt.Sprintf("testpkg%d", i),
+				Source:               "apps",
+				Platform:             "darwin",
+				InstallScript:        "echo install",
+				UninstallScript:      "echo uninstall",
+				InstallerFile:        tfr,
+				StorageID:            fmt.Sprintf("storage-%d-0", i),
+				Filename:             fmt.Sprintf("test-%d-0.pkg", i),
+				Version:              c.published[0],
+				UserID:               user.ID,
+				ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+				FleetMaintainedAppID: new(app.ID),
+			})
+			require.NoError(t, err)
+
+			// Cache the rest of the versions the way the auto-update cron does.
+			for j, version := range c.published[1:] {
+				_, err := ds.InsertFleetMaintainedAppVersion(ctx, activeInstallerID, &fleet.UploadSoftwareInstallerPayload{
+					Version:         version,
+					StorageID:       fmt.Sprintf("storage-%d-%d", i, j+1),
+					Filename:        fmt.Sprintf("test-%d-%d.pkg", i, j+1),
+					Extension:       "pkg",
+					InstallScript:   "echo install",
+					UninstallScript: "echo uninstall",
+				})
+				require.NoError(t, err)
+			}
+
+			fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+			require.NoError(t, err)
+			require.Equal(t, c.wantNewestFirst, versionStrings(fmaVersions))
+		})
+	}
+}
+
+func versionStrings(versions []fleet.FleetMaintainedVersion) []string {
+	got := make([]string, 0, len(versions))
+	for _, version := range versions {
+		got = append(got, version.Version)
+	}
+	return got
+}
+
+func testMarkFleetMaintainedAppVersionCurrent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Marked", Slug: "marked", Platform: "darwin", UniqueIdentifier: "fleet.marked",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+	olderID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "Marked", Source: "apps", Platform: "darwin",
+		InstallScript: "echo install", UninstallScript: "echo uninstall",
+		InstallerFile: tfr, StorageID: "marked-storage-1", Filename: "marked-1.pkg", Version: "1.0",
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(app.ID),
+	})
+	require.NoError(t, err)
+	newerID, err := ds.InsertFleetMaintainedAppVersion(ctx, olderID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "1.1", StorageID: "marked-storage-2", Filename: "marked-2.pkg", Extension: "pkg",
+		InstallScript: "echo install", UninstallScript: "echo uninstall",
+	})
+	require.NoError(t, err)
+
+	uploadedAt := func(installerID uint) time.Time {
+		var at time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &at, `SELECT uploaded_at FROM software_installers WHERE id = ?`, installerID)
+		})
+		return at
+	}
+
+	require.NoError(t, ds.MarkFleetMaintainedAppVersionCurrent(ctx, olderID))
+	require.True(t, uploadedAt(olderID).After(uploadedAt(newerID)))
+
+	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0", "1.1"}, versionStrings(versions))
+
+	// Rows tied on the microsecond are ordered by id, so the lower-id row still has to be
+	// markable or it could never become current.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE software_installers SET uploaded_at = '2026-01-01 00:00:00.123456' WHERE id IN (?, ?)`,
+			olderID, newerID)
+		return err
+	})
+	versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.1", "1.0"}, versionStrings(versions), "the higher id wins a tie")
+
+	require.NoError(t, ds.MarkFleetMaintainedAppVersionCurrent(ctx, olderID))
+	versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0", "1.1"}, versionStrings(versions))
 }
