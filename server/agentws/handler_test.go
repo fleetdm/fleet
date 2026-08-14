@@ -103,6 +103,22 @@ func TestHandlerNotifyDelivery(t *testing.T) {
 	var msg fleet.AgentWSMessage
 	require.NoError(t, ws.ReadJSON(&msg))
 	assert.Equal(t, fleet.AgentWSMessageTypeDistributedRead, msg.Type)
+
+	// Byte counters: the delivered notification (and the 101 handshake
+	// response) count as bytes out; a client data frame counts as bytes in.
+	require.NoError(t, ws.WriteMessage(websocket.TextMessage, []byte("client data")))
+	require.Eventually(t, func() bool {
+		snap := hub.Snapshot()
+		return len(snap) == 1 && snap[0].BytesOut > 0 && snap[0].BytesIn > 0
+	}, 2*time.Second, 5*time.Millisecond)
+
+	snap := hub.Snapshot()
+	require.Len(t, snap, 1)
+	assert.Equal(t, uint(1), snap[0].HostID)
+	assert.Equal(t, int64(1), snap[0].NotifiedCount)
+	assert.Equal(t, int64(0), snap[0].DroppedCount)
+	assert.NotNil(t, snap[0].LastNotifiedAt)
+	assert.False(t, snap[0].ConnectedAt.IsZero())
 }
 
 func TestHandlerEvictsPreviousConnection(t *testing.T) {

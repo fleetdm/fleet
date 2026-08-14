@@ -1010,7 +1010,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 	debugHandler := &debugMux{
-		fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+		fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds, agentWSHub),
 	}
 	rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 

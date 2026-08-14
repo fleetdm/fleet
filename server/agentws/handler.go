@@ -56,7 +56,10 @@ func NewHandler(hub *Hub, auth HostAuthenticator, logger *slog.Logger) http.Hand
 			return
 		}
 
-		ws, err := upgrader.Upgrade(w, r, nil)
+		// Wrap the hijacked connection so raw bytes in/out are counted (see
+		// countingConn); the hub reaches the counters via ws.NetConn().
+		cw := &hijackCountingResponseWriter{ResponseWriter: w}
+		ws, err := upgrader.Upgrade(cw, r, nil)
 		if err != nil {
 			// Upgrade already replied to the client.
 			logger.DebugContext(ctx, "agent websocket upgrade failed", "host_id", host.ID, "err", err)

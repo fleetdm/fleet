@@ -40,7 +40,7 @@ var testConfig = config.FleetConfig{
 }
 
 func TestDebugHandlerAuthenticationTokenMissing(t *testing.T) {
-	handler := MakeDebugHandler(&mockService{}, testConfig, nil, nil, nil)
+	handler := MakeDebugHandler(&mockService{}, testConfig, nil, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/profile", nil)
 	res := httptest.NewRecorder()
@@ -57,7 +57,7 @@ func TestDebugHandlerAuthenticationSessionInvalid(t *testing.T) {
 		"fake_session_key",
 	).Return(nil, errors.New("invalid session"))
 
-	handler := MakeDebugHandler(svc, testConfig, nil, nil, nil)
+	handler := MakeDebugHandler(svc, testConfig, nil, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/profile", nil)
 	req.Header.Add("Authorization", "BEARER fake_session_key")
@@ -87,7 +87,7 @@ func TestDebugHandlerAuthenticationFailsDueToRole(t *testing.T) {
 				uint(42),
 			).Return(&user, nil)
 
-			handler := MakeDebugHandler(svc, testConfig, nil, nil, nil)
+			handler := MakeDebugHandler(svc, testConfig, nil, nil, nil, nil)
 
 			req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/cmdline", nil)
 			req.Header.Add("Authorization", "BEARER fake_session_key")
@@ -112,7 +112,7 @@ func TestDebugHandlerAuthenticationSucceeds(t *testing.T) {
 		uint(42),
 	).Return(&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}, nil)
 
-	handler := MakeDebugHandler(svc, testConfig, nil, nil, nil)
+	handler := MakeDebugHandler(svc, testConfig, nil, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/cmdline", nil)
 	req.Header.Add("Authorization", "BEARER fake_session_key")

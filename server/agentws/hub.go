@@ -1,7 +1,9 @@
 package agentws
 
 import (
+	"cmp"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
@@ -125,6 +127,48 @@ func (h *Hub) ConnCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.conns)
+}
+
+// ConnectionInfo describes one held connection, for observability (the
+// /debug/agentws endpoint).
+type ConnectionInfo struct {
+	HostID         uint       `json:"host_id"`
+	RemoteAddr     string     `json:"remote_addr"`
+	ConnectedAt    time.Time  `json:"connected_at"`
+	LastNotifiedAt *time.Time `json:"last_notified_at,omitempty"`
+	NotifiedCount  int64      `json:"notified_count"`
+	DroppedCount   int64      `json:"dropped_count"`
+	// BytesIn/BytesOut are raw bytes on the underlying connection (post-TLS),
+	// including WebSocket framing and ping/pong control frames.
+	BytesIn  int64 `json:"bytes_in"`
+	BytesOut int64 `json:"bytes_out"`
+}
+
+// Snapshot returns a point-in-time view of the connections this instance
+// holds, sorted by host ID.
+func (h *Hub) Snapshot() []ConnectionInfo {
+	h.mu.RLock()
+	infos := make([]ConnectionInfo, 0, len(h.conns))
+	for _, c := range h.conns {
+		info := ConnectionInfo{
+			HostID:        c.hostID,
+			RemoteAddr:    c.remoteAddr,
+			ConnectedAt:   c.connectedAt,
+			NotifiedCount: c.notified.Load(),
+			DroppedCount:  c.dropped.Load(),
+		}
+		info.BytesIn, info.BytesOut = c.bytesInOut()
+		if last := c.lastNotified(); !last.IsZero() {
+			info.LastNotifiedAt = &last
+		}
+		infos = append(infos, info)
+	}
+	h.mu.RUnlock()
+
+	slices.SortFunc(infos, func(a, b ConnectionInfo) int {
+		return cmp.Compare(a.HostID, b.HostID)
+	})
+	return infos
 }
 
 // Shutdown closes all held connections.

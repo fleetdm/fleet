@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
@@ -83,7 +84,7 @@ func jsonHandler(
 }
 
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
-func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog.Logger, eh *errorstore.Handler, ds fleet.Datastore) http.Handler {
+func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog.Logger, eh *errorstore.Handler, ds fleet.Datastore, agentWSHub *agentws.Hub) http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -99,6 +100,18 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 		return ds.GetTraceSamplerSettings(ctx)
 	})).Methods(http.MethodGet)
 	r.HandleFunc("/debug/trace_sampler", patchTraceSamplerHandler(logger, ds)).Methods(http.MethodPatch)
+	// Agent WebSocket transport observability (ADR-0011): a point-in-time view
+	// of the connections held by THIS server instance (each instance holds its
+	// own; in a multi-instance deployment, query each instance directly).
+	r.HandleFunc("/debug/agentws", jsonHandler(logger, func(ctx context.Context) (any, error) {
+		if agentWSHub == nil {
+			return map[string]any{"enabled": false}, nil
+		}
+		return map[string]any{
+			"enabled":     true,
+			"connections": agentWSHub.Snapshot(),
+		}, nil
+	})).Methods(http.MethodGet)
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,

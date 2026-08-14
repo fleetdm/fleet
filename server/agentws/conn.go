@@ -20,9 +20,11 @@ import (
 const sendBufferSize = 8
 
 type conn struct {
-	hostID uint
-	ws     *websocket.Conn
-	send   chan fleet.AgentWSMessage
+	hostID      uint
+	ws          *websocket.Conn
+	send        chan fleet.AgentWSMessage
+	connectedAt time.Time
+	remoteAddr  string
 
 	closeOnce sync.Once
 	done      chan struct{}
@@ -32,15 +34,38 @@ type conn struct {
 	// notification paths so agents are not re-notified within the grace
 	// period.
 	lastNotifiedNano atomic.Int64
+	// notified/dropped count enqueued and buffer-overflow-dropped
+	// notifications, for observability (see Hub.Snapshot).
+	notified atomic.Int64
+	dropped  atomic.Int64
+	// counting is the byte-counting wrapper around the underlying net.Conn,
+	// installed at upgrade time; nil when the connection wasn't wrapped (e.g.
+	// tests that dial the hub directly).
+	counting *countingConn
 }
 
 func newConn(hostID uint, ws *websocket.Conn) *conn {
-	return &conn{
-		hostID: hostID,
-		ws:     ws,
-		send:   make(chan fleet.AgentWSMessage, sendBufferSize),
-		done:   make(chan struct{}),
+	c := &conn{
+		hostID:      hostID,
+		ws:          ws,
+		send:        make(chan fleet.AgentWSMessage, sendBufferSize),
+		connectedAt: time.Now(),
+		remoteAddr:  ws.RemoteAddr().String(),
+		done:        make(chan struct{}),
 	}
+	if cc, ok := ws.NetConn().(*countingConn); ok {
+		c.counting = cc
+	}
+	return c
+}
+
+// bytesInOut returns the raw bytes received/sent on the connection, or zeros
+// when byte counting isn't installed.
+func (c *conn) bytesInOut() (in, out int64) {
+	if c.counting == nil {
+		return 0, 0
+	}
+	return c.counting.bytesIn.Load(), c.counting.bytesOut.Load()
 }
 
 // enqueue queues msg for delivery, dropping the oldest queued message when the
@@ -49,15 +74,21 @@ func (c *conn) enqueue(msg fleet.AgentWSMessage) {
 	c.lastNotifiedNano.Store(time.Now().UnixNano())
 	select {
 	case c.send <- msg:
+		c.notified.Add(1)
+		return
 	default:
-		select {
-		case <-c.send:
-		default:
-		}
-		select {
-		case c.send <- msg:
-		default:
-		}
+	}
+	// Buffer full: drop the oldest queued message to make room.
+	select {
+	case <-c.send:
+		c.dropped.Add(1)
+	default:
+	}
+	select {
+	case c.send <- msg:
+		c.notified.Add(1)
+	default:
+		c.dropped.Add(1)
 	}
 }
 
