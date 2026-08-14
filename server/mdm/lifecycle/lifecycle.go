@@ -357,9 +357,9 @@ func (t *HostLifecycle) deleteApple(ctx context.Context, opts HostOptions) error
 			return nil
 		}
 
-		// if ABM is not enabled and configured, delete the host_dep_assignment row to avoid orphaned rows.
+		// If ABM is not enabled and configured, mark the host_dep_assignments row as deleted to avoid orphaned rows.
 		if err = t.ds.MarkHostDEPAssignmentDeleted(ctx, opts.Host.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete host dep assignment")
+			return ctxerr.Wrap(ctx, err, "mark host dep assignment deleted")
 		}
 
 		return nil
