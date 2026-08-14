@@ -166,12 +166,18 @@ type VulnerabilitySettings struct {
 // MDMAppleABMAssignmentInfo represents an user definition of the association
 // between an ABM token (via organization name) and the teams used to associate
 // hosts when they're ingested during the ABM sync.
+//
+// Do NOT read the team names in this struct for logic: like
+// WindowsEnrollment.DefaultFleet, it is the transport/display shape only, and
+// the copy stored in app_config_json goes stale after a fleet rename. The
+// source of truth is the abm_tokens table, read via
+// Datastore.ListABMTokenDefaultFleets.
 type MDMAppleABMAssignmentInfo struct {
-	OrganizationName string `json:"organization_name"`
-	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
-	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
-	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
-	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
+	OrganizationName string `json:"organization_name" db:"organization_name"`
+	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet" db:"macos_team"`
+	IOSTeam          string `json:"ios_team" renameto:"ios_fleet" db:"ios_team"`
+	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet" db:"ipados_team"`
+	BYODTeam         string `json:"byod_team" renameto:"byod_fleet" db:"byod_team"`
 }
 
 func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {

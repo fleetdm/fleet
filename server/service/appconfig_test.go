@@ -3663,3 +3663,74 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		})
 	}
 }
+
+// The fleet names in mdm.apple_business are a denormalized copy of the
+// abm_tokens FKs and go stale when a fleet is renamed, so reads must hydrate
+// them from the resolved names.
+func TestAppConfigObfuscatedHydratesABMDefaultFleets(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	// What the abm_tokens table resolves to after "Workstations" was renamed to
+	// "Laptops" and the iPad assignment was cleared.
+	resolved := []fleet.MDMAppleABMAssignmentInfo{
+		{OrganizationName: "Acme Inc.", MacOSTeam: "Laptops", IOSTeam: "Mobile", IpadOSTeam: "", BYODTeam: ""},
+	}
+
+	setup := func(t *testing.T, stored []fleet.MDMAppleABMAssignmentInfo, set bool) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		if set {
+			dsAppConfig.MDM.AppleBusinessManager = optjson.SetSlice(stored)
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+			return nil, "", nil
+		}
+		ds.ListABMTokenDefaultFleetsFunc = func(ctx context.Context) ([]fleet.MDMAppleABMAssignmentInfo, error) {
+			return resolved, nil
+		}
+		return svc, ctx, ds
+	}
+
+	t.Run("stale fleet names are replaced with the current ones", func(t *testing.T) {
+		svc, ctx, ds := setup(t, []fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: "Acme Inc.", MacOSTeam: "Workstations", IOSTeam: "Mobile", IpadOSTeam: "Tablets"},
+		}, true)
+
+		ac, err := svc.AppConfigObfuscated(ctx)
+		require.NoError(t, err)
+		require.True(t, ds.ListABMTokenDefaultFleetsFuncInvoked)
+		require.Equal(t, resolved, ac.MDM.AppleBusinessManager.Value)
+	})
+
+	t.Run("entries with no matching token are left alone", func(t *testing.T) {
+		stored := []fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: "Deleted Org", MacOSTeam: "Workstations"},
+			{OrganizationName: "Acme Inc.", MacOSTeam: "Workstations"},
+		}
+		svc, ctx, _ := setup(t, stored, true)
+
+		ac, err := svc.AppConfigObfuscated(ctx)
+		require.NoError(t, err)
+		// Order is preserved and the unmatched entry is untouched, so we never
+		// drop an org the caller is still tracking.
+		require.Len(t, ac.MDM.AppleBusinessManager.Value, 2)
+		require.Equal(t, stored[0], ac.MDM.AppleBusinessManager.Value[0])
+		require.Equal(t, "Laptops", ac.MDM.AppleBusinessManager.Value[1].MacOSTeam)
+	})
+
+	t.Run("no query when nothing is configured", func(t *testing.T) {
+		svc, ctx, ds := setup(t, nil, false)
+
+		ac, err := svc.AppConfigObfuscated(ctx)
+		require.NoError(t, err)
+		require.False(t, ds.ListABMTokenDefaultFleetsFuncInvoked, "app config reads are a hot path")
+		require.Empty(t, ac.MDM.AppleBusinessManager.Value)
+	})
+}

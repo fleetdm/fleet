@@ -6701,6 +6701,37 @@ LEFT OUTER JOIN
 	return tokens, nil
 }
 
+func (ds *Datastore) ListABMTokenDefaultFleets(ctx context.Context) ([]fleet.MDMAppleABMAssignmentInfo, error) {
+	// A NULL default team means "no fleet", which the app config representation
+	// spells as the empty string (see UpdateABMTokenTeams), so COALESCE to ''
+	// rather than to fleet.TeamNameNoTeam as ListABMTokens does.
+	const stmt = `
+SELECT
+	abt.organization_name,
+	COALESCE(t1.name, '') AS macos_team,
+	COALESCE(t2.name, '') AS ios_team,
+	COALESCE(t3.name, '') AS ipados_team,
+	COALESCE(t4.name, '') AS byod_team
+FROM
+	abm_tokens abt
+LEFT OUTER JOIN
+	teams t1 ON t1.id = abt.macos_default_team_id
+LEFT OUTER JOIN
+	teams t2 ON t2.id = abt.ios_default_team_id
+LEFT OUTER JOIN
+	teams t3 ON t3.id = abt.ipados_default_team_id
+LEFT OUTER JOIN
+	teams t4 ON t4.id = abt.byod_default_team_id
+`
+
+	var assignments []fleet.MDMAppleABMAssignmentInfo
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &assignments, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list ABM token default fleets")
+	}
+
+	return assignments, nil
+}
+
 func (ds *Datastore) DeleteABMToken(ctx context.Context, tokenID uint) error {
 	const stmt = `
 DELETE FROM
