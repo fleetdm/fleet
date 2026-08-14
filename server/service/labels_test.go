@@ -491,9 +491,9 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 			fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", name))
 	}
 
-	// case-variant names should also be rejected (MySQL collation is case-insensitive,
-	// so a case-variant name would overwrite the built-in label row)
-	for _, variant := range []string{"all hosts", "ALL HOSTS", "All hosts"} {
+	// case-variant names must also be rejected: labels.name has a case-insensitive
+	// collation, so the upsert would overwrite the built-in label row.
+	for _, variant := range []string{"all hosts", "ALL HOSTS", "All hosts", "fedora linux", "MS WINDOWS"} {
 		err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
 			{
 				Name:      variant,
@@ -501,7 +501,7 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 				LabelType: fleet.LabelTypeRegular,
 			},
 		}, nil, nil)
-		assert.ErrorContains(t, err, "conflicts with the name of a built-in label", "case variant %q should be rejected", variant)
+		require.ErrorContains(t, err, "conflicts with the name of a built-in label", "case variant %q should be rejected", variant)
 	}
 
 	const errorMessage = "cannot modify or add built-in label"
@@ -541,6 +541,45 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 	}
 	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}, nil, nil)
 	assert.ErrorIs(t, err, assert.AnError)
+}
+
+func TestBuiltInLabelNameCaseVariants(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+		lbl.ID = 1
+		return lbl, nil
+	}
+	ds.LabelFunc = func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{
+			Label: fleet.Label{ID: lid, Name: "a regular label", Query: "select 1;", LabelType: fleet.LabelTypeRegular},
+		}, nil, nil
+	}
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+		return nil
+	}
+	ds.SaveLabelFunc = func(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{Label: *label}, nil, nil
+	}
+
+	for _, variant := range []string{"all hosts", "ALL HOSTS", "aLl HoStS"} {
+		t.Run(variant, func(t *testing.T) {
+			_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: variant, Query: "select 1;"})
+			require.ErrorContains(t, err, "cannot add label 'All Hosts' because it conflicts with the name of a built-in label")
+			require.False(t, ds.NewLabelFuncInvoked)
+
+			_, _, err = svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{Name: &variant})
+			require.ErrorContains(t, err, "cannot rename label to 'All Hosts' because it conflicts with the name of a built-in label")
+			require.False(t, ds.SaveLabelFuncInvoked)
+
+			err = svc.DeleteLabel(ctx, variant)
+			require.ErrorContains(t, err, "cannot delete built-in label 'All Hosts'")
+			require.False(t, ds.DeleteLabelFuncInvoked)
+		})
+	}
 }
 
 func TestApplyLabelSpecsCustomHostVitalCriteria(t *testing.T) {

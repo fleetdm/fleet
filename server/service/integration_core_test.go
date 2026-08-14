@@ -5403,9 +5403,11 @@ func (s *integrationTestSuite) TestLabels() {
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
 
-		// create invalid label, conflicts with builtin name
+		// create invalid label, conflicts with builtin name (case-insensitive)
 		for n := range builtinsMap {
 			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: n, Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
+			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ToLower(n), Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
+			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ToUpper(n), Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
 		}
 
 		// try to create a label with an invalid platform
@@ -5514,6 +5516,8 @@ func (s *integrationTestSuite) TestLabels() {
 		// attempt to modify a label to a reserved name
 		for n := range builtinsMap {
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(n)}, http.StatusUnprocessableEntity, &modResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(strings.ToLower(n))}, http.StatusUnprocessableEntity, &modResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(strings.ToUpper(n))}, http.StatusUnprocessableEntity, &modResp)
 		}
 
 		// modify a non-existing label
@@ -5795,6 +5799,24 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// delete a non-existing label by name
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusNotFound, &delResp)
+
+		// delete a built-in label by name (case-insensitive)
+		for n := range builtinsMap {
+			for _, variant := range []string{n, strings.ToLower(n), strings.ToUpper(n)} {
+				res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(variant)), nil, http.StatusUnprocessableEntity)
+				errMsg = extractServerErrorText(res.Body)
+				require.Contains(t, errMsg, "cannot delete built-in label")
+			}
+		}
+		listResp = fleet.ListLabelsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+		var remainingBuiltIns int
+		for _, lbl := range listResp.Labels {
+			if _, ok := builtinsMap[lbl.Name]; ok {
+				remainingBuiltIns++
+			}
+		}
+		require.Equal(t, len(builtinsMap), remainingBuiltIns)
 
 		// delete a manual label by id
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", manualLbl1.ID), nil, http.StatusOK, &delIDResp)

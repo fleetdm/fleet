@@ -110,6 +110,7 @@ func TestLabels(t *testing.T) {
 		{"SetAsideLabels", testSetAsideLabels},
 		{"ApplyLabelSpecsWithManualTeamLabels", testApplyLabelSpecsWithManualTeamLabels},
 		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
+		{"ApplyLabelSpecsCannotDemoteBuiltInLabel", testApplyLabelSpecsCannotDemoteBuiltInLabel},
 		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
 		{"ListLabelsOrderKeys", testListLabelsOrderKeys},
 		{"LabelMembershipHostIDs", testLabelMembershipHostIDs},
@@ -3716,6 +3717,35 @@ func testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam(t *testing.T, ds *Dat
 	// Updating the original label on the same team should still work
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
 		{Name: "conflicting-label", Query: "SELECT 1 updated", TeamID: &team1.ID},
+	})
+	require.NoError(t, err)
+}
+
+func testApplyLabelSpecsCannotDemoteBuiltInLabel(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	builtIn, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "All Hosts",
+		Query:               "select 1;",
+		LabelType:           fleet.LabelTypeBuiltIn,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "all hosts", Query: "select 'BYPASSED';", LabelType: fleet.LabelTypeRegular},
+	})
+	require.ErrorContains(t, err, "cannot modify built-in label 'All Hosts'")
+
+	stored, _, err := ds.Label(ctx, builtIn.ID, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Equal(t, "All Hosts", stored.Name)
+	require.Equal(t, fleet.LabelTypeBuiltIn, stored.LabelType)
+	require.Equal(t, "select 1;", stored.Query)
+
+	// re-applying the built-in unchanged is still allowed
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "All Hosts", Query: "select 1;", LabelType: fleet.LabelTypeBuiltIn, LabelMembershipType: fleet.LabelMembershipTypeDynamic},
 	})
 	require.NoError(t, err)
 }
