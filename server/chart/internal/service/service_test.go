@@ -75,10 +75,6 @@ func (s stubLicense) GetTier() string {
 func (s stubLicense) GetOrganization() string { return "test" }
 func (s stubLicense) GetDeviceCount() int     { return 1 }
 
-// requirePremiumRequired asserts err is the premium-license refusal. The
-// service returns a generic UserMessageError rather than a dedicated type, so
-// the 402 status is what identifies it — assert on that, not on the type, which
-// any 422 would also satisfy.
 func requirePremiumRequired(t *testing.T, err error) {
 	t.Helper()
 	var msgErr *platform_http.UserMessageError
@@ -87,20 +83,16 @@ func requirePremiumRequired(t *testing.T, err error) {
 	require.Contains(t, err.Error(), "Fleet Premium")
 }
 
-// premiumCtx returns a context carrying a premium license, as the server's base
-// context does in production.
 func premiumCtx(t *testing.T) context.Context {
 	t.Helper()
 	return license.NewContext(t.Context(), stubLicense{premium: true})
 }
 
-// freeCtx returns a context carrying a free-tier license.
 func freeCtx(t *testing.T) context.Context {
 	t.Helper()
 	return license.NewContext(t.Context(), stubLicense{premium: false})
 }
 
-// mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
 	getSCDDataFunc          func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error)
 	getHostIDsForFilterFunc func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
@@ -371,17 +363,12 @@ func TestGetChartDataUptimePassesNilEntityIDs(t *testing.T) {
 	assert.True(t, gotEntityIDsIsNil, "uptime must pass nil entityIDs — the CVE branch must not leak")
 }
 
-// newCVEService builds a service with the CVE dataset registered, which is the
-// setup nearly every CVE read-path test needs.
 func newCVEService(ds *mockDatastore) *Service {
 	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.CVEDataset{})
 	return svc
 }
 
-// captureCVEFilter points the resolver at a recorder so a test can assert on
-// the filter the service built. Returns a pointer the caller reads after the
-// service call.
 func captureCVEFilter(ds *mockDatastore) *types.CVEChartFilter {
 	got := &types.CVEChartFilter{}
 	ds.resolveCVEEntitiesFn = func(_ context.Context, filter types.CVEChartFilter) ([]string, error) {
@@ -391,10 +378,6 @@ func captureCVEFilter(ds *mockDatastore) *types.CVEChartFilter {
 	return got
 }
 
-// TestGetChartDataCVESeverityPassthrough verifies severity bounds reach the
-// resolver untouched and are echoed back unchanged. An absent bound must stay
-// nil rather than being filled in with the range endpoint: nil drops the CVSS
-// predicate, while 0.0 or 10.0 would still exclude CVEs that have no score.
 func TestGetChartDataCVESeverityPassthrough(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -429,10 +412,6 @@ func TestGetChartDataCVESeverityPassthrough(t *testing.T) {
 	}
 }
 
-// TestGetChartDataCVEAlwaysResolvesEntities verifies that entity resolution
-// always runs for the CVE metric and its result is forwarded to GetSCDData as a
-// concrete (never-nil) set, so the chart never falls back to "all collected
-// entities", and that the remaining entity filters are forwarded intact.
 func TestGetChartDataCVEAlwaysResolvesEntities(t *testing.T) {
 	t.Run("no filters still resolves a concrete set", func(t *testing.T) {
 		ds := &mockDatastore{}
@@ -474,9 +453,6 @@ func TestGetChartDataCVEAlwaysResolvesEntities(t *testing.T) {
 	})
 }
 
-// TestGetChartDataCVERequiresPremium verifies the CVE metric is gated on a
-// premium license at the service layer, not just hidden in the UI, and that the
-// gate is scoped to that metric so the free-tier uptime chart keeps working.
 func TestGetChartDataCVERequiresPremium(t *testing.T) {
 	// The uptime dataset is registered alongside CVE so the "other metrics"
 	// case exercises a real free-tier chart rather than an unknown metric.
@@ -528,9 +504,6 @@ func TestGetChartDataCVERequiresPremium(t *testing.T) {
 	})
 }
 
-// TestGetChartDataSeverityValidation verifies severity bounds are validated as
-// a 0.0–10.0 CVSS range with min <= max, rejecting bad input rather than
-// clamping it, and that the guards only reject genuinely invalid input.
 func TestGetChartDataSeverityValidation(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -548,11 +521,6 @@ func TestGetChartDataSeverityValidation(t *testing.T) {
 		{name: "min below range", min: new(-1.0), wantErr: true},
 		{name: "max below range", max: new(-0.1), wantErr: true},
 		{name: "min greater than max", min: new(8.0), max: new(2.0), wantErr: true},
-		// strconv.ParseFloat accepts "NaN", so a client can reach this with
-		// ?severity_min=NaN. Every ordered comparison against NaN is false, so
-		// the range and inversion guards let it through unless NaN is rejected
-		// explicitly — and a NaN in the response's filters echo fails to
-		// JSON-encode, turning a bad request into a server error.
 		{name: "min is NaN", min: new(math.NaN()), wantErr: true},
 		{name: "max is NaN", max: new(math.NaN()), wantErr: true},
 	}
@@ -582,9 +550,6 @@ func TestGetChartDataSeverityValidation(t *testing.T) {
 		})
 	}
 
-	// Severity is applied only to the CVE metric, so other metrics ignore the
-	// bounds rather than rejecting them, matching how software_filters,
-	// has_known_exploit, and the EPSS bounds are already ignored for uptime.
 	t.Run("non-CVE metrics ignore invalid severity bounds", func(t *testing.T) {
 		svc := NewService(&mockAuthorizer{}, &mockDatastore{}, globalViewer(), nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
@@ -660,11 +625,6 @@ func TestGetChartDataEPSSValidation(t *testing.T) {
 	})
 }
 
-// TestGetChartDataOmitsUnsetSeverityFromEcho verifies the response's filters
-// object reports absent bounds as absent. The echo is what the client reads back
-// to seed its controls, so filling in 0.0/10.0 here would claim a narrowing that
-// was never applied — and 0.0–10.0 is not equivalent to no bound, since it
-// excludes CVEs with no CVSS score.
 func TestGetChartDataOmitsUnsetSeverityFromEcho(t *testing.T) {
 	ds := &mockDatastore{}
 	ds.resolveCVEEntitiesFn = func(_ context.Context, _ types.CVEChartFilter) ([]string, error) {

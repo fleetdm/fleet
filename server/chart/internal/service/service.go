@@ -108,8 +108,6 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("unknown chart metric: %s", metric)}
 	}
 
-	// The vulnerability exposure chart is premium-only. Gate it here rather than
-	// at the transport layer so every caller goes through the same check.
 	if metric == api.MetricCVE && !license.IsPremium(ctx) {
 		return nil, platform_http.NewUserMessageError(
 			errors.New("the vulnerability exposure chart requires a Fleet Premium license"),
