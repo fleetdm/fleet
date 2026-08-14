@@ -3800,6 +3800,38 @@ func TestAppConfigObfuscatedHydratesABMDefaultFleets(t *testing.T) {
 		require.Equal(t, "Laptops", ac.MDM.AppleBusinessManager.Value[1].MacOSTeam)
 	})
 
+	t.Run("nothing is rewritten when the stored names already match", func(t *testing.T) {
+		stored := []fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: "Acme Inc.", MacOSTeam: "Laptops", IOSTeam: "Mobile"},
+		}
+		svc, ctx, ds := setup(t, stored, true)
+
+		ac, err := svc.AppConfigObfuscated(ctx)
+		require.NoError(t, err)
+		require.True(t, ds.ListABMTokenDefaultFleetsFuncInvoked)
+		require.Equal(t, stored, ac.MDM.AppleBusinessManager.Value)
+		// Nothing was stale, so the stored slice is handed back untouched instead
+		// of being replaced by a rewritten copy.
+		require.Same(t, &stored[0], &ac.MDM.AppleBusinessManager.Value[0])
+	})
+
+	t.Run("the shared app config is not mutated", func(t *testing.T) {
+		// ds.AppConfig hands back the cached *fleet.AppConfig, which concurrent
+		// readers share, so hydration has to write to its own copy. Holding on to
+		// the slice we stored and asserting it is untouched afterwards catches a
+		// rewrite of that shared backing array.
+		stored := []fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: "Acme Inc.", MacOSTeam: "Workstations", IOSTeam: "Mobile", IpadOSTeam: "Tablets"},
+		}
+		svc, ctx, _ := setup(t, stored, true)
+
+		ac, err := svc.AppConfigObfuscated(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "Laptops", ac.MDM.AppleBusinessManager.Value[0].MacOSTeam, "the response should still be hydrated")
+		require.Equal(t, "Workstations", stored[0].MacOSTeam, "hydration wrote through to the shared app config")
+		require.Equal(t, "Tablets", stored[0].IpadOSTeam, "hydration wrote through to the shared app config")
+	})
+
 	t.Run("no query when nothing is configured", func(t *testing.T) {
 		svc, ctx, ds := setup(t, nil, false)
 
