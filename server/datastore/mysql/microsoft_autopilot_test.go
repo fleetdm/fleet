@@ -101,6 +101,14 @@ func autopilotTimestamp(t *testing.T, ds *Datastore, stmt string, hostID uint) t
 // storedGraphCredential reads one credential back through the decrypting list, which is the only credential read path
 // production uses. There is no single-tenant datastore read because nothing needs one. It fails the test when the
 // tenant is absent, so callers can use the result directly.
+// graphCredentialBanner reads the app-config flag that drives the unhealthy-credential banner.
+func graphCredentialBanner(t *testing.T, ds *Datastore) bool {
+	t.Helper()
+	appCfg, err := ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	return appCfg.MDM.MicrosoftGraphCredentialInvalid
+}
+
 func storedGraphCredential(t *testing.T, ds *Datastore, tenantID string) *fleet.MicrosoftGraphCredential {
 	t.Helper()
 	cred := findGraphCredential(t, ds, tenantID)
@@ -261,6 +269,11 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	got := storedGraphCredential(t, ds, testTenantA)
 	assert.True(t, got.CredentialInvalid)
 
+	// The app-config banner is a stored aggregate over the per-tenant flags, so it only reflects the flag above once
+	// it is recomputed. The service and the sync cron both call this after a change; nothing else keeps it in step.
+	require.NoError(t, ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctx))
+	assert.True(t, graphCredentialBanner(t, ds), "one unhealthy credential raises the banner")
+
 	// Clearing works the same way.
 	wasSet, err = ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, false)
 	require.NoError(t, err)
@@ -268,6 +281,13 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 
 	got = storedGraphCredential(t, ds, testTenantA)
 	assert.False(t, got.CredentialInvalid)
+
+	require.NoError(t, ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctx))
+	assert.False(t, graphCredentialBanner(t, ds), "the banner clears once no credential is unhealthy")
+
+	// Recomputing when nothing changed is a no-op rather than a rewrite, which is what lets the sync call it freely.
+	require.NoError(t, ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctx))
+	assert.False(t, graphCredentialBanner(t, ds))
 
 	// A credential deleted between listing and flagging is not an error: there is nothing left to flag, and the sync
 	// must not fail the whole pass over it.

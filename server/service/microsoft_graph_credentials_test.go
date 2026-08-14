@@ -126,7 +126,6 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 		}
 		return out, nil
 	}
-	// Mirrors the real aggregate: recompute the banner flag from the stored credentials.
 	ds.UpdateMicrosoftGraphCredentialInvalidAggregateFunc = func(ctx context.Context) error {
 		var anyInvalid bool
 		for _, c := range env.stored {
@@ -138,9 +137,6 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 		ac, err := ds.AppConfig(ctx)
 		if err != nil {
 			return err
-		}
-		if ac.MDM.MicrosoftGraphCredentialInvalid == anyInvalid {
-			return nil
 		}
 		ac.MDM.MicrosoftGraphCredentialInvalid = anyInvalid
 		return ds.SaveAppConfig(ctx, ac)
