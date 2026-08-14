@@ -6914,6 +6914,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// With a live session, a SAMLResponse that can't be verified is a different
 	// failure. The user hasn't run out of time, so the timeout message would be
 	// wrong -- this stays generic.
+	prevCookieSecure := cookieSecure
+	t.Cleanup(func() { cookieSecure = prevCookieSecure })
 	cookieSecure = false
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
