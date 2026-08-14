@@ -106,8 +106,8 @@ func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 	require.NoError(t, err)
 }
 
-func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
-	builtins := []*fleet.Label{
+func BuiltinLabels() []*fleet.Label {
+	return []*fleet.Label{
 		{
 			Name:                "All Hosts",
 			Query:               "select 1",
@@ -122,7 +122,7 @@ func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
 		},
 		{
 			Name:                "Ubuntu Linux",
-			Query:               "select 1 from os_version where platform = 'ubuntu';",
+			Query:               "select 1 from os_version where platform = 'ubuntu' or platform_like like '%ubuntu%';",
 			LabelType:           fleet.LabelTypeBuiltIn,
 			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 		},
@@ -179,7 +179,7 @@ func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
 		{
 			Name:                "Fedora Linux",
 			Platform:            "rhel",
-			Query:               "select 1 from os_version where name = 'Fedora Linux';",
+			Query:               "select 1 from os_version where name like '%fedora%';",
 			LabelType:           fleet.LabelTypeBuiltIn,
 			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 		},
@@ -191,6 +191,10 @@ func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 		},
 	}
+}
+
+func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
+	builtins := BuiltinLabels()
 
 	names := fleet.ReservedLabelNames()
 	require.Equal(t, len(builtins), len(names))

@@ -1300,7 +1300,7 @@ spec:
   label_membership_type: dynamic
   label_type: builtin
   name: Ubuntu Linux
-  query: select 1 from os_version where platform = 'ubuntu';
+  query: select 1 from os_version where platform = 'ubuntu' or platform_like like '%ubuntu%';
 `
 	packsSpec = `---
 apiVersion: v1
@@ -2038,7 +2038,7 @@ func TestApplyLabels(t *testing.T) {
 	ubuntuLabel := &fleet.Label{
 		ID:                  8,
 		Name:                fleet.BuiltinLabelNameUbuntuLinux,
-		Query:               "select 1 from os_version where platform = 'ubuntu';",
+		Query:               "select 1 from os_version where platform = 'ubuntu' or platform_like like '%ubuntu%';",
 		Description:         "All Ubuntu hosts",
 		LabelType:           fleet.LabelTypeBuiltIn,
 		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
