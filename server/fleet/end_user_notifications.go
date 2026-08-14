@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// Where a notification is in its delivery, which is separate from whether it
-// reached the end user: that is displayed_at being set.
+// Where a notification is in its delivery. Whether it reached the end user is
+// displayed_at, not a status.
 const (
 	EndUserNotificationPending    = "pending"
 	EndUserNotificationDispatched = "dispatched"
@@ -22,9 +22,8 @@ const (
 	EndUserNotificationActionDelay  = "delay"
 )
 
-// Why the last attempt to display a notification ended the way it did. Recorded
-// for Fleet to decide when to try again, not shown to anyone: the UI reads the
-// script's exit code instead.
+// Why the last delivery attempt ended the way it did. Internal only; the UI
+// reads the script's exit code instead.
 const (
 	EndUserNotificationReasonDelayed           = "delayed"
 	EndUserNotificationReasonBadInvocation     = "bad_invocation"
@@ -40,13 +39,11 @@ const (
 	EndUserNotificationReasonUnexpectedFailure = "unexpected_failure"
 )
 
-// How long a delayed notification waits. Fleet decides this rather than the
-// device, so an end user cannot push a notification out indefinitely.
+// How long a delayed notification waits. Fleet decides this, not the device.
 const EndUserNotificationDelayInterval = time.Hour
 
-// How long Fleet waits before trying a notification again. A host that needs an
-// admin to install or upgrade Fleet Desktop waits longer, since retrying it every
-// few minutes only fills the log with the same failure.
+// How long Fleet waits before retrying. Needing an admin to install or upgrade
+// Fleet Desktop gets the longer one.
 const (
 	EndUserNotificationShortRetryInterval = 30 * time.Second
 	EndUserNotificationLongRetryInterval  = 30 * time.Minute
@@ -78,9 +75,7 @@ type EndUserNotification struct {
 }
 
 // EndUserNotificationAction is what an end user's device reported about one of
-// their notifications. Action says what it did; the rest carries anything only
-// the device knows, which for now is when the notification actually appeared.
-// When it is delayed Fleet picks the new time itself.
+// their notifications.
 type EndUserNotificationAction struct {
 	Action      *string    `json:"action"`
 	DisplayedAt *time.Time `json:"displayed_at"`
@@ -95,22 +90,17 @@ type NotificationOutcome struct {
 	ExecutionID string
 }
 
-// NotificationKind owns everything about a notification that is specific to why
-// it was sent: what its payload means, what an end user acting on it should
-// cause, and what a delivery outcome should cause. Core owns getting it to the
-// host and knows none of that.
-//
-// Kinds are registered once when the service is built, in server/service.
+// NotificationKind owns what a notification's payload means and what happens
+// when an end user acts on it or an attempt ends. Core owns delivery.
 type NotificationKind interface {
 	// Name is the value stored in end_user_notifications.kind.
 	Name() string
-	// OnVerify runs after Fleet has recorded that the notification appeared on
-	// screen, at the time the device says it did.
+	// OnVerify sets when the notification was displayed on the host. Currently
+	// unused because Fleet uses the script endpoint to report when the
+	// notification was displayed.
 	OnVerify(ctx context.Context, notification *EndUserNotification, displayedAt time.Time) error
-	// OnDelay runs after Fleet has put the notification back in the queue at the
-	// end user's request.
-	OnDelay(ctx context.Context, notification *EndUserNotification, nextAttemptAt time.Time) error
-	// OnOutcome runs after Fleet has recorded how an attempt ended, whether or
-	// not it will try again.
+	// OnDelay sets the notification to attempt later at a time the kind chooses.
+	OnDelay(ctx context.Context, notification *EndUserNotification) error
+	// OnOutcome runs after Fleet records how an attempt ended.
 	OnOutcome(ctx context.Context, notification *EndUserNotification, outcome NotificationOutcome) error
 }

@@ -1212,18 +1212,11 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	return script, nil
 }
 
-// expandAuthTokenForNotification resolves $FLEET_VAR_PATCH_NOTIFICATION_URL in a
-// script Fleet queued for itself to the device page URL of the notification that
-// script was queued for.
-//
-// The token is resolved when fleetd fetches the script rather than when the cron
-// queues it, so script_contents never holds a live credential and a token that
-// rotates during a countdown only affects scripts not yet fetched. A script
-// fetched with a token that rotates before it runs loads nothing, which the
-// script reports as an HTTP failure and Fleet retries.
+// expandAuthTokenForNotification resolves $FLEET_VAR_PATCH_NOTIFICATION_URL to
+// the notification's device page URL. Resolved at fetch time rather than when
+// queued, so script_contents never holds a live credential.
 func (svc *Service) expandAuthTokenForNotification(ctx context.Context, host *fleet.Host, script *fleet.HostScriptResult) (string, error) {
-	// checking is_internal first keeps admin-written scripts, which are every
-	// script that isn't this one, from being scanned for variables again here
+	// admin-written scripts are never internal, so this skips them without a scan
 	if !script.IsInternal {
 		return script.ScriptContents, nil
 	}

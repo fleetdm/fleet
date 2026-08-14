@@ -1143,7 +1143,7 @@ type getDeviceNotificationResponse struct {
 
 func (r getDeviceNotificationResponse) Error() error { return r.Err }
 
-func getDeviceNotificationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getDeviceNotificationEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req, ok := request.(*getDeviceNotificationRequest)
 	if !ok {
 		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
@@ -1201,7 +1201,7 @@ func (r deviceNotificationActionResponse) Error() error { return r.Err }
 
 func (r deviceNotificationActionResponse) Status() int { return http.StatusNoContent }
 
-func deviceNotificationActionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deviceNotificationActionEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req, ok := request.(*deviceNotificationActionRequest)
 	if !ok {
 		return nil, fmt.Errorf("internal error: invalid request type: %T", request)

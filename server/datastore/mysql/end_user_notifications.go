@@ -96,26 +96,15 @@ func (ds *Datastore) GetEndUserNotificationByExecutionID(ctx context.Context, ex
 }
 
 // ListEndUserNotificationsToDispatch returns the oldest due notifications, at most
-// one per host, so the caller never has to remember which hosts it has already
-// dispatched for. limit bounds how many notifications are read, so a batch holds
-// fewer hosts than that when a host has several due at once; the rest of that
-// host's wait for a later pass.
+// one per host; limit bounds notifications read, not hosts returned.
 //
-// Only macOS hosts running fleetd are considered, since nothing else can run the
-// script at all. Whether Fleet Desktop is installed and new enough to display a
-// notification is the script's own check, reported as exit 100 or 101: the
-// version fleetd reports is its own bundled component, not the app the notify
-// subcommand lives in.
+// Only macOS hosts running fleetd are considered; whether Fleet Desktop itself is
+// installed and new enough is the script's own check (exit 100/101). A host with
+// an undelivered dispatch is skipped, so only one notification is ever in flight
+// per host.
 //
-// A host Fleet is still trying to get a notification onto is skipped, so only one
-// is ever in flight per host. One that already reached the screen no longer holds
-// the host, since its delivery is done.
-//
-// One per host is applied in Go rather than by a GROUP BY, because grouping has to
-// finish over every dispatchable notification before LIMIT applies: measured at
-// 10ms for a batch against a backlog of 2k and 323ms against 100k, where this form
-// stays at 4ms. The map it costs holds one batch, not one entry per host in the
-// fleet.
+// Dedupes to one per host in Go rather than with GROUP BY: grouping has to finish
+// over the whole backlog before LIMIT applies (323ms at 100k rows vs 4ms here).
 func (ds *Datastore) ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*fleet.EndUserNotification, error) {
 	const listStmt = `
 SELECT ` + endUserNotificationColumns + `
@@ -155,12 +144,8 @@ LIMIT ?
 }
 
 // SetEndUserNotificationsDispatched records the execution each notification was
-// queued as, in one statement.
-//
-// The execution IDs differ per row, so rather than send a value per row it joins
-// the executions that were just queued and reads each one from there. One host
-// has one of them, and the uuid list picks one notification per host, so the join
-// matches a single row on both sides.
+// queued as, joining the just-queued executions rather than sending one value per
+// row.
 func (ds *Datastore) SetEndUserNotificationsDispatched(ctx context.Context, notifications []*fleet.EndUserNotification) error {
 	if len(notifications) == 0 {
 		return nil
@@ -199,11 +184,8 @@ WHERE
 	return nil
 }
 
-// ExpireEndUserNotifications sets notifications past their expiry to expired so
-// they are never dispatched again, and returns how many it expired.
-//
-// One that already reached the end user is left alone whatever its expiry says:
-// it was delivered, and expiring it would rewrite that as a failure.
+// ExpireEndUserNotifications sets notifications past their expiry to expired, and
+// returns how many. One already displayed is left alone regardless of expiry.
 func (ds *Datastore) ExpireEndUserNotifications(ctx context.Context) (int64, error) {
 	const updateStmt = `
 UPDATE end_user_notifications
@@ -227,13 +209,12 @@ WHERE expires_at IS NOT NULL AND expires_at <= NOW(6)
 	return expired, nil
 }
 
-// VerifyEndUserNotification records that the device confirmed the notification
-// reached the end user, at the time the device says it appeared, so Fleet stops
-// trying to deliver it.
+// VerifyEndUserNotification records the first time the notification reached the
+// end user; a later call doesn't move the timestamp.
 func (ds *Datastore) VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error {
 	const updateStmt = `
 UPDATE end_user_notifications
-SET displayed_at = ?
+SET displayed_at = IF(displayed_at IS NULL, ?, displayed_at)
 WHERE uuid = ?
 `
 
@@ -262,69 +243,60 @@ WHERE uuid = ?
 	return nil
 }
 
-// SetEndUserNotificationOutcome records how an attempt to display a notification
-// ended. A non-nil nextAttemptAt returns it to the queue for another try;
-// otherwise this was the last attempt.
+// SetEndUserNotificationOutcome records how a display attempt ended. A
+// successful display is delegated to VerifyEndUserNotification, the only place
+// displayed_at is written. A non-nil nextAttemptAt returns it to the queue;
+// otherwise this was the last attempt, and either way the transition is skipped
+// once past expires_at, so a late result can't revive an expired notification.
 func (ds *Datastore) SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome fleet.NotificationOutcome, nextAttemptAt *time.Time) error {
-	const updateStmt = `
+	const recordStmt = `
 UPDATE end_user_notifications
-SET
-	status = ?,
-	last_exit_code = ?,
-	last_reason = ?,
-	next_attempt_at = ?,
-	displayed_at = IF(? AND displayed_at IS NULL, NOW(6), displayed_at)
+SET last_exit_code = ?, last_reason = ?
 WHERE uuid = ?
 `
-
-	status := fleet.EndUserNotificationFailed
-	switch {
-	case outcome.Displayed:
-		// it made it to the screen, so nothing more is delivered for this one.
-		// displayed_at below is what says it got there.
-		status = fleet.EndUserNotificationDispatched
-	case nextAttemptAt != nil:
-		// still on its way, just not now
-		status = fleet.EndUserNotificationPending
-	}
 
 	var reason *string
 	if outcome.Reason != "" {
 		reason = &outcome.Reason
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, updateStmt,
-		status, outcome.ExitCode, reason, nextAttemptAt, outcome.Displayed, notificationUUID,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "set end user notification outcome")
+	if _, err := ds.writer(ctx).ExecContext(ctx, recordStmt, outcome.ExitCode, reason, notificationUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "record end user notification outcome")
+	}
+
+	if outcome.Displayed {
+		return ds.VerifyEndUserNotification(ctx, notificationUUID, time.Now().UTC())
+	}
+
+	status := fleet.EndUserNotificationFailed
+	if nextAttemptAt != nil {
+		status = fleet.EndUserNotificationPending
+	}
+
+	const transitionStmt = `
+UPDATE end_user_notifications
+SET status = ?, next_attempt_at = ?
+WHERE uuid = ? AND (expires_at IS NULL OR expires_at > NOW(6))
+`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, transitionStmt, status, nextAttemptAt, notificationUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification status")
 	}
 	return nil
 }
 
-// activateNextScriptActivitiesForHosts lives here rather than with the rest of
-// the activity queue because it exists for the notification dispatcher and is not
-// a general replacement for activateNextUpcomingActivityForBatchOfHosts. Doing
-// this for every activity type is the real fix.
-//
 // activateNextScriptActivitiesForHosts activates the next upcoming activity for
-// each of the given hosts, but only where that next activity is a script. It runs
-// three statements for the whole set rather than three per host, which is what
-// makes a sweep over a large batch of hosts affordable.
+// each host, but only where that activity is a script, in a fixed number of
+// statements for the whole set rather than per host. Lives here rather than with
+// the rest of the activity queue since it's specific to the notification
+// dispatcher, not a general replacement for
+// activateNextUpcomingActivityForBatchOfHosts.
 //
-// A host whose turn belongs to any other type of activity is left alone, as is a
-// host that already has an activity activated. Those are picked up by
-// activateNextUpcomingActivityForBatchOfHosts or by the completion of whatever is
-// running now, so a caller that just queued a script on every host in the set may
-// still find some of those scripts waiting afterwards.
-//
-// Every host is handled in the caller's transaction, so the caller decides how
-// many hosts is a reasonable amount to lock at once.
+// A host whose turn belongs to another activity type, or that already has one
+// activated, is left for that other path to pick up.
 func (ds *Datastore) activateNextScriptActivitiesForHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
-	// Rank each host's queue the way the single-host path orders it, then keep the
-	// hosts whose turn is a script that has not been activated yet. The ranking
-	// has to consider activities of every type, or a script would activate ahead
-	// of an install queued before it. Only the first activity per host is
-	// considered, because scripts never activate more than one at a time.
+	// Ranks every activity type so a script can't activate ahead of an install
+	// queued earlier; only rank 1 matters since scripts never batch.
 	findNextScriptsStmt := `
 SELECT
 	execution_id
@@ -349,9 +321,7 @@ WHERE
 	activated_at IS NULL
 `
 
-	// same columns as activateNextScriptActivity, for many hosts at once. The
-	// host filter it applies is not needed here because execution_id is unique
-	// across upcoming_activities and host_id comes from the selected row.
+	// same columns as activateNextScriptActivity, for many hosts at once
 	const insertScriptResultsStmt = `
 INSERT INTO
 	host_script_results

@@ -201,7 +201,7 @@ func NewService(
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
-		notificationKinds:               notificationKindRegistry(),
+		notificationKinds:               notificationKindRegistry(ds),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

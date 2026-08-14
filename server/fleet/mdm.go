@@ -88,12 +88,9 @@ const (
 	FleetVarHostTargetOSVersion  FleetVarName = "HOST_TARGET_OS_VERSION"
 	FleetVarHostTargetOSDeadline FleetVarName = "HOST_TARGET_OS_DEADLINE"
 
-	// FleetVarPatchNotificationURL is Fleet-internal in the same way: it is only
-	// ever placed in the script Fleet queues for an end user notification, and
-	// resolves to that notification's device page URL when fleetd fetches the
-	// script. It carries a device auth token, so it is deliberately absent from
-	// FleetVarsSupportedInScripts and from the lists of variables admins may use
-	// in their own profiles and declarations.
+	// FleetVarPatchNotificationURL is Fleet-internal in the same way: resolved to
+	// a notification's device page URL at fetch time, and deliberately absent
+	// from FleetVarsSupportedInScripts since it carries a device auth token.
 	FleetVarPatchNotificationURL FleetVarName = "PATCH_NOTIFICATION_URL"
 
 	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in

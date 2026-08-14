@@ -13,8 +13,10 @@ import (
 // to act on, by the name stored in end_user_notifications.kind. A kind is added
 // here and nowhere else: core resolves the column through this map rather than
 // switching on it, so adding one touches no delivery code.
-func notificationKindRegistry() map[string]fleet.NotificationKind {
-	kinds := []fleet.NotificationKind{}
+func notificationKindRegistry(ds fleet.Datastore) map[string]fleet.NotificationKind {
+	kinds := []fleet.NotificationKind{
+		&patchNotificationKind{ds: ds},
+	}
 
 	registry := make(map[string]fleet.NotificationKind, len(kinds))
 	for _, kind := range kinds {
@@ -23,12 +25,9 @@ func notificationKindRegistry() map[string]fleet.NotificationKind {
 	return registry
 }
 
-// notificationOutcomeForExitCode maps what the notification script reported to
-// why it ended that way and how long to wait before trying again, where nil means
-// no further attempt.
-//
-// The codes come from FleetDesktop's notify subcommand and the script that calls
-// it, apps/fleet-desktop-macos/FleetDesktop/cli.swift.
+// notificationOutcomeForExitCode maps a notify exit code to a reason and a retry
+// wait, nil meaning no retry. Codes come from
+// apps/fleet-desktop-macos/FleetDesktop/cli.swift.
 func notificationOutcomeForExitCode(exitCode int64) (reason string, retryIn *time.Duration) {
 	shortRetry := fleet.EndUserNotificationShortRetryInterval
 	longRetry := fleet.EndUserNotificationLongRetryInterval
@@ -69,9 +68,8 @@ func notificationOutcomeForExitCode(exitCode int64) (reason string, retryIn *tim
 	}
 }
 
-// recordEndUserNotificationOutcome records how an attempt to display a
-// notification ended, if the script result belongs to one, and hands the outcome
-// to the kind that asked for it.
+// recordEndUserNotificationOutcome records the outcome of a script result that
+// belongs to a notification, and hands it to the kind.
 func (svc *Service) recordEndUserNotificationOutcome(ctx context.Context, result *fleet.HostScriptResultPayload) error {
 	if result == nil || result.ExecutionID == "" {
 		return nil
@@ -107,8 +105,8 @@ func (svc *Service) recordEndUserNotificationOutcome(ctx context.Context, result
 		return ctxerr.Wrap(ctx, err, "set end user notification outcome")
 	}
 
-	kind, ok := svc.notificationKinds[notification.Kind]
-	if !ok {
+	kind, kindRegistered := svc.notificationKinds[notification.Kind]
+	if !kindRegistered {
 		svc.logger.WarnContext(ctx, "no kind registered for end user notification",
 			"kind", notification.Kind, "notification_uuid", notification.UUID)
 		return nil
@@ -119,23 +117,25 @@ func (svc *Service) recordEndUserNotificationOutcome(ctx context.Context, result
 	return nil
 }
 
-// applyEndUserNotificationAction records what the device reported, then hands the
-// action to the kind. Fleet owns the timing of a delay so an end user cannot
-// push a notification out forever; only the time it appeared comes from the
-// device, which is the one thing Fleet cannot know.
+// applyEndUserNotificationAction validates the device's report and carries out
+// the action. Verify always writes displayed_at, since other logic depends on
+// it; delay only happens if a kind is registered to decide it.
 func (svc *Service) applyEndUserNotificationAction(ctx context.Context, notification *fleet.EndUserNotification, action fleet.EndUserNotificationAction) error {
 	if action.Action == nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("action", "is required"))
 	}
 
-	kind, ok := svc.notificationKinds[notification.Kind]
-	if !ok {
+	kind, kindRegistered := svc.notificationKinds[notification.Kind]
+	if !kindRegistered {
 		svc.logger.WarnContext(ctx, "no kind registered for end user notification",
 			"kind", notification.Kind, "notification_uuid", notification.UUID)
 	}
 
 	switch *action.Action {
 	case fleet.EndUserNotificationActionVerify:
+		// Always verifies displayed_at for the notification. This case is currently unused, as
+		// we currently trigger script runs to display notifications and set when they were
+		// displayed when the script result is saved.
 		displayedAt := time.Now().UTC()
 		if action.DisplayedAt != nil {
 			displayedAt = action.DisplayedAt.UTC()
@@ -148,21 +148,18 @@ func (svc *Service) applyEndUserNotificationAction(ctx context.Context, notifica
 		if err := svc.ds.VerifyEndUserNotification(ctx, notification.UUID, displayedAt); err != nil {
 			return ctxerr.Wrap(ctx, err, "verify end user notification")
 		}
-		if ok {
+		if kindRegistered {
 			if err := kind.OnVerify(ctx, notification, displayedAt); err != nil {
 				return ctxerr.Wrap(ctx, err, "notification kind handling verify")
 			}
 		}
 
 	case fleet.EndUserNotificationActionDelay:
-		nextAttemptAt := time.Now().UTC().Add(fleet.EndUserNotificationDelayInterval)
-		if err := svc.ds.DelayEndUserNotification(ctx, notification.UUID, nextAttemptAt); err != nil {
-			return ctxerr.Wrap(ctx, err, "delay end user notification")
+		if !kindRegistered {
+			return nil
 		}
-		if ok {
-			if err := kind.OnDelay(ctx, notification, nextAttemptAt); err != nil {
-				return ctxerr.Wrap(ctx, err, "notification kind handling delay")
-			}
+		if err := kind.OnDelay(ctx, notification); err != nil {
+			return ctxerr.Wrap(ctx, err, "notification kind handling delay")
 		}
 
 	default:
