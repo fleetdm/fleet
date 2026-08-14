@@ -1,5 +1,6 @@
 import React from "react";
 
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { dateAgo } from "utilities/date_format";
 
 import {
@@ -53,7 +54,11 @@ const InventoryVersion = ({
       borderRadiusSize="medium"
     >
       <div className={`${baseClass}__row`}>
-        <DataSet title="Version" value={version.version} textOnly />
+        <DataSet
+          title="Version"
+          value={version.version || DEFAULT_EMPTY_CELL_VALUE}
+          textOnly
+        />
         <DataSet
           title="Type"
           value={formatSoftwareType({ source, extension_for })}
