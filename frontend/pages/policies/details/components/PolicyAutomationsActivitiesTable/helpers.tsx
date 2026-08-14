@@ -1,6 +1,7 @@
 import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
 import { Colors } from "styles/var/colors";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
@@ -18,17 +19,22 @@ export const getAutomationRunDisplayName = (
 
   switch (type) {
     case ActivityType.InstalledSoftware:
-    case ActivityType.InstalledAppStoreApp:
+    case ActivityType.InstalledAppStoreApp: {
+      const softwareName = getDisplayedSoftwareName(
+        details?.software_title,
+        details?.software_display_name
+      );
       // A patch-when-closed skip is recorded as a failed_install, but it was
       // deferred because the app was open — not a failure. Label it distinctly,
       // matching the activity feed and install-details treatment.
       if (details?.skipped_install) {
-        return withName("Patch skipped", details?.software_title);
+        return withName("Patch skipped", softwareName);
       }
       return withName(
         failed ? "Software failed" : "Software installed",
-        details?.software_title
+        softwareName
       );
+    }
     case ActivityType.RanScript:
       return withName(
         failed ? "Script failed" : "Script ran",

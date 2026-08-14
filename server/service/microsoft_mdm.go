@@ -2657,10 +2657,12 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 				return nil, err
 			}
 			var softwareTitle string
+			var softwareDisplayName string
 			var softwareTitleID uint
 			for _, s := range statuses {
 				if (s.Status == fleet.SetupExperienceStatusPending || s.Status == fleet.SetupExperienceStatusRunning) && s.IsForSoftware() {
 					softwareTitle = s.Name
+					softwareDisplayName = s.DisplayName
 					if s.SoftwareTitleID != nil {
 						softwareTitleID = *s.SoftwareTitleID
 					}
@@ -2668,10 +2670,11 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 				}
 			}
 			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-				SoftwareTitle:   softwareTitle,
-				SoftwareTitleID: softwareTitleID,
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       softwareTitle,
+				SoftwareDisplayName: softwareDisplayName,
+				SoftwareTitleID:     softwareTitleID,
 			}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating canceled setup experience activity on timeout")
 			}

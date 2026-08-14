@@ -1219,6 +1219,7 @@ type ActivityTypeInstalledSoftware struct {
 	HostID              uint    `json:"host_id"`
 	HostDisplayName     string  `json:"host_display_name"`
 	SoftwareTitle       string  `json:"software_title"`
+	SoftwareDisplayName string  `json:"software_display_name"`
 	SoftwarePackage     string  `json:"software_package"`
 	HashSHA256          *string `json:"hash_sha256,omitempty"`
 	SelfService         bool    `json:"self_service"`
@@ -1259,13 +1260,14 @@ func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint,
 }
 
 type ActivityTypeUninstalledSoftware struct {
-	HostID          uint    `json:"host_id"`
-	HostDisplayName string  `json:"host_display_name"`
-	SoftwareTitle   string  `json:"software_title"`
-	ExecutionID     string  `json:"script_execution_id"`
-	SelfService     bool    `json:"self_service"`
-	Status          string  `json:"status"`
-	Source          *string `json:"source,omitempty"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	SoftwareDisplayName string  `json:"software_display_name"`
+	ExecutionID         string  `json:"script_execution_id"`
+	SelfService         bool    `json:"self_service"`
+	Status              string  `json:"status"`
+	Source              *string `json:"source,omitempty"`
 }
 
 func (a ActivityTypeUninstalledSoftware) ActivityName() string {
@@ -1499,6 +1501,7 @@ type ActivityInstalledAppStoreApp struct {
 	HostID              uint    `json:"host_id"`
 	HostDisplayName     string  `json:"host_display_name"`
 	SoftwareTitle       string  `json:"software_title"`
+	SoftwareDisplayName string  `json:"software_display_name"`
 	AppStoreID          string  `json:"app_store_id"`
 	CommandUUID         string  `json:"command_uuid"`
 	Status              string  `json:"status,omitempty"`
@@ -1721,6 +1724,7 @@ type ActivityTypeCanceledInstallSoftware struct {
 	HostID              uint   `json:"host_id"`
 	HostDisplayName     string `json:"host_display_name"`
 	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
 	SoftwareTitleID     uint   `json:"software_title_id"`
 	FromSetupExperience bool   `json:"from_setup_experience"`
 }
@@ -1738,10 +1742,11 @@ func (a ActivityTypeCanceledInstallSoftware) WasFromAutomation() bool {
 }
 
 type ActivityTypeCanceledUninstallSoftware struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	SoftwareTitleID uint   `json:"software_title_id"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
 }
 
 func (a ActivityTypeCanceledUninstallSoftware) ActivityName() string {
@@ -1756,6 +1761,7 @@ type ActivityTypeCanceledInstallAppStoreApp struct {
 	HostID              uint   `json:"host_id"`
 	HostDisplayName     string `json:"host_display_name"`
 	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
 	SoftwareTitleID     uint   `json:"software_title_id"`
 	FromSetupExperience bool   `json:"from_setup_experience"`
 }
@@ -2212,10 +2218,11 @@ func (a ActivityTypeClearedPasscode) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledSetupExperience struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	SoftwareTitleID uint   `json:"software_title_id"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
 }
 
 func (a ActivityTypeCanceledSetupExperience) ActivityName() string {

@@ -1363,6 +1363,7 @@ SELECT
 	hvsi.host_id AS host_id,
 	hdn.display_name AS host_display_name,
 	st.name AS software_title,
+	COALESCE(NULLIF(stdn.display_name, ''), st.name) AS software_display_name,
 	hvsi.adam_id AS app_store_id,
 	hvsi.command_uuid AS command_uuid,
 	hvsi.self_service AS self_service,
@@ -1376,6 +1377,7 @@ FROM
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
 	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
+	LEFT OUTER JOIN software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = COALESCE(h.team_id, 0)
 	LEFT OUTER JOIN policies p ON p.id = hvsi.policy_id
 WHERE
 	hvsi.command_uuid = :command_uuid AND
@@ -1383,18 +1385,19 @@ WHERE
 `
 
 	type result struct {
-		HostID          uint    `db:"host_id"`
-		HostDisplayName string  `db:"host_display_name"`
-		SoftwareTitle   string  `db:"software_title"`
-		AppStoreID      string  `db:"app_store_id"`
-		CommandUUID     string  `db:"command_uuid"`
-		UserName        *string `db:"user_name"`
-		UserID          *uint   `db:"user_id"`
-		UserEmail       *string `db:"user_email"`
-		SelfService     bool    `db:"self_service"`
-		PolicyID        *uint   `db:"policy_id"`
-		PolicyName      *string `db:"policy_name"`
-		HostPlatform    string  `db:"platform"`
+		HostID              uint    `db:"host_id"`
+		HostDisplayName     string  `db:"host_display_name"`
+		SoftwareTitle       string  `db:"software_title"`
+		SoftwareDisplayName string  `db:"software_display_name"`
+		AppStoreID          string  `db:"app_store_id"`
+		CommandUUID         string  `db:"command_uuid"`
+		UserName            *string `db:"user_name"`
+		UserID              *uint   `db:"user_id"`
+		UserEmail           *string `db:"user_email"`
+		SelfService         bool    `db:"self_service"`
+		PolicyID            *uint   `db:"policy_id"`
+		PolicyName          *string `db:"policy_name"`
+		HostPlatform        string  `db:"platform"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -1437,16 +1440,17 @@ WHERE
 	}
 
 	act := &fleet.ActivityInstalledAppStoreApp{
-		HostID:          res.HostID,
-		HostDisplayName: res.HostDisplayName,
-		SoftwareTitle:   res.SoftwareTitle,
-		AppStoreID:      res.AppStoreID,
-		CommandUUID:     res.CommandUUID,
-		SelfService:     res.SelfService,
-		PolicyID:        res.PolicyID,
-		PolicyName:      res.PolicyName,
-		Status:          status,
-		HostPlatform:    res.HostPlatform,
+		HostID:              res.HostID,
+		HostDisplayName:     res.HostDisplayName,
+		SoftwareTitle:       res.SoftwareTitle,
+		SoftwareDisplayName: res.SoftwareDisplayName,
+		AppStoreID:          res.AppStoreID,
+		CommandUUID:         res.CommandUUID,
+		SelfService:         res.SelfService,
+		PolicyID:            res.PolicyID,
+		PolicyName:          res.PolicyName,
+		Status:              status,
+		HostPlatform:        res.HostPlatform,
 	}
 
 	return user, act, nil

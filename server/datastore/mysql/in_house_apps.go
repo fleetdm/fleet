@@ -697,6 +697,7 @@ SELECT
 	hihsi.host_id AS host_id,
 	hdn.display_name AS host_display_name,
 	st.name AS software_title,
+	COALESCE(NULLIF(stdn.display_name, ''), st.name) AS software_display_name,
 	hihsi.command_uuid AS command_uuid,
 	hihsi.self_service AS self_service
 FROM
@@ -705,20 +706,22 @@ FROM
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hihsi.host_id
 	LEFT OUTER JOIN in_house_apps iha ON hihsi.in_house_app_id = iha.id
 	LEFT OUTER JOIN software_titles st ON st.id = iha.title_id
+	LEFT OUTER JOIN software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = iha.global_or_team_id
 WHERE
 	hihsi.command_uuid = :command_uuid AND
 	hihsi.canceled = 0
 	`
 
 	type result struct {
-		HostID          uint    `db:"host_id"`
-		HostDisplayName string  `db:"host_display_name"`
-		SoftwareTitle   string  `db:"software_title"`
-		CommandUUID     string  `db:"command_uuid"`
-		UserName        *string `db:"user_name"`
-		UserID          *uint   `db:"user_id"`
-		UserEmail       *string `db:"user_email"`
-		SelfService     bool    `db:"self_service"`
+		HostID              uint    `db:"host_id"`
+		HostDisplayName     string  `db:"host_display_name"`
+		SoftwareTitle       string  `db:"software_title"`
+		SoftwareDisplayName string  `db:"software_display_name"`
+		CommandUUID         string  `db:"command_uuid"`
+		UserName            *string `db:"user_name"`
+		UserID              *uint   `db:"user_id"`
+		UserEmail           *string `db:"user_email"`
+		SelfService         bool    `db:"self_service"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -761,12 +764,13 @@ WHERE
 	}
 
 	act := &fleet.ActivityTypeInstalledSoftware{
-		HostID:          res.HostID,
-		HostDisplayName: res.HostDisplayName,
-		SoftwareTitle:   res.SoftwareTitle,
-		CommandUUID:     res.CommandUUID,
-		Status:          status,
-		SelfService:     res.SelfService,
+		HostID:              res.HostID,
+		HostDisplayName:     res.HostDisplayName,
+		SoftwareTitle:       res.SoftwareTitle,
+		SoftwareDisplayName: res.SoftwareDisplayName,
+		CommandUUID:         res.CommandUUID,
+		Status:              status,
+		SelfService:         res.SelfService,
 	}
 
 	return user, act, nil

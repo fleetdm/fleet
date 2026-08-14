@@ -486,12 +486,13 @@ func (ds *Datastore) batchCancelAllHostUpcomingActivities(ctx context.Context, t
 }
 
 type activityToCancel struct {
-	ActivityType    string `db:"activity_type"`
-	HostID          uint   `db:"host_id"`
-	HostDisplayName string `db:"host_display_name"`
-	CanceledName    string `db:"canceled_name"`
-	CanceledID      *uint  `db:"canceled_id"`
-	Activated       bool   `db:"activated"`
+	ActivityType        string `db:"activity_type"`
+	HostID              uint   `db:"host_id"`
+	HostDisplayName     string `db:"host_display_name"`
+	CanceledName        string `db:"canceled_name"`
+	CanceledDisplayName string `db:"canceled_display_name"`
+	CanceledID          *uint  `db:"canceled_id"`
+	Activated           bool   `db:"activated"`
 }
 
 func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, activateNext bool) (fleet.ActivityDetails, error) {
@@ -502,6 +503,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
 		COALESCE(ses.name, scr.name, '') as canceled_name, -- script name in this case
+		'' as canceled_display_name, -- scripts have no display name
 		NULL as canceled_id, -- no ID for scripts in the canceled activity
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -526,6 +528,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
 		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		COALESCE(NULLIF(stdn.display_name, ''), st.name, ua.payload->>'$.software_title_name', '') as canceled_display_name,
 		st.id as canceled_id,
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -536,6 +539,10 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		software_installers si ON si.id = siua.software_installer_id
 	LEFT OUTER JOIN
 		software_titles st ON st.id = si.title_id
+	LEFT OUTER JOIN
+		hosts h ON h.id = ua.host_id
+	LEFT OUTER JOIN
+		software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = COALESCE(h.team_id, 0)
 	LEFT OUTER JOIN
 		host_display_names hdn ON hdn.host_id = ua.host_id
 	WHERE
@@ -550,6 +557,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
 		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		COALESCE(NULLIF(stdn.display_name, ''), st.name, ua.payload->>'$.software_title_name', '') as canceled_display_name,
 		st.id as canceled_id,
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -560,6 +568,10 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		software_installers si ON si.id = siua.software_installer_id
 	LEFT OUTER JOIN
 		software_titles st ON st.id = si.title_id
+	LEFT OUTER JOIN
+		hosts h ON h.id = ua.host_id
+	LEFT OUTER JOIN
+		software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = COALESCE(h.team_id, 0)
 	LEFT OUTER JOIN
 		host_display_names hdn ON hdn.host_id = ua.host_id
 	WHERE
@@ -574,6 +586,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
 		COALESCE(st.name, '') as canceled_name, -- software title name in this case
+		COALESCE(NULLIF(stdn.display_name, ''), st.name, '') as canceled_display_name,
 		st.id as canceled_id,
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -583,9 +596,13 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 	LEFT OUTER JOIN
 		host_display_names hdn ON hdn.host_id = ua.host_id
 	LEFT OUTER JOIN
+		hosts h ON h.id = ua.host_id
+	LEFT OUTER JOIN
 		vpp_apps vpa ON vaua.adam_id = vpa.adam_id AND vaua.platform = vpa.platform
 	LEFT OUTER JOIN
 		software_titles st ON st.id = vpa.title_id
+	LEFT OUTER JOIN
+		software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = COALESCE(h.team_id, 0)
 	WHERE
 		ua.host_id = :host_id AND
 		ua.execution_id = :execution_id AND
@@ -598,6 +615,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
 		COALESCE(st.name, '') as canceled_name, -- software title name in this case
+		COALESCE(NULLIF(stdn.display_name, ''), st.name, '') as canceled_display_name,
 		st.id as canceled_id,
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -610,6 +628,8 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		in_house_apps iha ON ihua.in_house_app_id = iha.id
 	LEFT OUTER JOIN
 		software_titles st ON st.id = iha.title_id
+	LEFT OUTER JOIN
+		software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = iha.global_or_team_id
 	WHERE
 		ua.host_id = :host_id AND
 		ua.execution_id = :execution_id AND
@@ -745,10 +765,11 @@ func cancelHostInHouseAppInstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 		titleID = *act.CanceledID
 	}
 	return fleet.ActivityTypeCanceledInstallSoftware{
-		HostID:          act.HostID,
-		HostDisplayName: act.HostDisplayName,
-		SoftwareTitle:   act.CanceledName,
-		SoftwareTitleID: titleID,
+		HostID:              act.HostID,
+		HostDisplayName:     act.HostDisplayName,
+		SoftwareTitle:       act.CanceledName,
+		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareTitleID:     titleID,
 	}, nil
 }
 
@@ -783,10 +804,11 @@ func cancelHostVPPAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtCon
 		titleID = *act.CanceledID
 	}
 	return fleet.ActivityTypeCanceledInstallAppStoreApp{
-		HostID:          act.HostID,
-		HostDisplayName: act.HostDisplayName,
-		SoftwareTitle:   act.CanceledName,
-		SoftwareTitleID: titleID,
+		HostID:              act.HostID,
+		HostDisplayName:     act.HostDisplayName,
+		SoftwareTitle:       act.CanceledName,
+		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareTitleID:     titleID,
 	}, nil
 }
 
@@ -813,10 +835,11 @@ func cancelHostSoftwareUninstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 		titleID = *act.CanceledID
 	}
 	return fleet.ActivityTypeCanceledUninstallSoftware{
-		HostID:          act.HostID,
-		HostDisplayName: act.HostDisplayName,
-		SoftwareTitle:   act.CanceledName,
-		SoftwareTitleID: titleID,
+		HostID:              act.HostID,
+		HostDisplayName:     act.HostDisplayName,
+		SoftwareTitle:       act.CanceledName,
+		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareTitleID:     titleID,
 	}, nil
 }
 
@@ -841,10 +864,11 @@ func cancelHostSoftwareInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtC
 		titleID = *act.CanceledID
 	}
 	return fleet.ActivityTypeCanceledInstallSoftware{
-		HostID:          act.HostID,
-		HostDisplayName: act.HostDisplayName,
-		SoftwareTitle:   act.CanceledName,
-		SoftwareTitleID: titleID,
+		HostID:              act.HostID,
+		HostDisplayName:     act.HostDisplayName,
+		SoftwareTitle:       act.CanceledName,
+		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareTitleID:     titleID,
 	}, nil
 }
 

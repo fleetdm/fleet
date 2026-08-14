@@ -743,8 +743,8 @@ type Datastore interface {
 	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
 	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error
 	// GetDetailsForUninstallFromExecutionID returns details from a software uninstall execution needed to create the corresponding activity
-	// Non-error returns are software title name and whether the uninstall was self-service, respectively
-	GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error)
+	// Non-error returns are software title name, software title display name, and whether the uninstall was self-service, respectively
+	GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, string, bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore

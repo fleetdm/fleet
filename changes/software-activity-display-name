@@ -1,0 +1,1 @@
+- Fixed software install, uninstall, and cancellation activity entries (host activity feed, global activity feed, and policy automation activity table) showing a software title's raw name (as pulled from the installer/App Store) instead of its admin-set display name.

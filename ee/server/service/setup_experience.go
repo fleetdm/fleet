@@ -385,6 +385,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					SoftwareTitle:       sw.Name,
+					SoftwareDisplayName: sw.DisplayName,
 					AppStoreID:          ptr.ValOrZero(sw.VPPAppAdamID),
 					Status:              string(fleet.SoftwareInstallFailed),
 					HostPlatform:        host.Platform,

@@ -23,6 +23,7 @@ import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
 } from "utilities/helpers";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
@@ -1523,13 +1524,18 @@ const TAGGED_TEMPLATES = {
 
     const {
       host_display_name: hostName,
-      software_title: title,
+      software_title,
+      software_display_name,
       status,
       source,
       self_service,
       from_setup_experience,
       skipped_install,
     } = details;
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
 
     const showSoftwarePackage =
       !!details.software_package &&
@@ -1584,9 +1590,14 @@ const TAGGED_TEMPLATES = {
 
     const {
       host_display_name: hostName,
-      software_title: title,
+      software_title,
+      software_display_name,
       self_service,
     } = details;
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     const status =
       details.status === "failed" ? "failed_uninstall" : details.status;
 
@@ -1668,8 +1679,12 @@ const TAGGED_TEMPLATES = {
     );
   },
   addedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
+    const { software_title, software_display_name, platform: swPlatform } =
       activity.details || {};
+    const swTitle = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1688,8 +1703,12 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
+    const { software_title, software_display_name, platform: swPlatform } =
       activity.details || {};
+    const swTitle = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1708,8 +1727,12 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
+    const { software_title, software_display_name, platform: swPlatform } =
       activity.details || {};
+    const swTitle = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1833,10 +1856,15 @@ const TAGGED_TEMPLATES = {
   },
   canceledInstallSoftware: (activity: IActivity) => {
     const {
-      software_title: title,
+      software_title,
+      software_display_name,
       host_display_name: hostName,
       from_setup_experience: fromSetupExperience,
     } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1849,8 +1877,15 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledSetupExperience: (activity: IActivity) => {
-    const { software_title: title, host_display_name: hostName } =
-      activity.details || {};
+    const {
+      software_title,
+      software_display_name,
+      host_display_name: hostName,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1860,8 +1895,15 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledUninstallSoftware: (activity: IActivity) => {
-    const { software_title: title, host_display_name: hostName } =
-      activity.details || {};
+    const {
+      software_title,
+      software_display_name,
+      host_display_name: hostName,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}

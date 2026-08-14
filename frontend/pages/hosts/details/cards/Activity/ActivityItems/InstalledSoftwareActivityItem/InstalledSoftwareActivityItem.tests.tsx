@@ -51,4 +51,34 @@ describe("InstalledSoftwareActivityItem", () => {
     expect(screen.getByText(/failed to install/)).toBeInTheDocument();
     expect(screen.queryByText(/skipped install/)).not.toBeInTheDocument();
   });
+
+  it("renders the software's display name instead of its raw name when set", () => {
+    const activity = createMockHostPastActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Fleet",
+      fleet_initiated: true,
+      details: {
+        software_title: "unFLOW SmartClient",
+        software_display_name: "Cisco Secure Client - Cloud Management",
+        software_package: "cisco.pkg",
+        host_display_name: "Test Host",
+        source: "apps",
+        status: "installed",
+        install_uuid: "uuid-456",
+      },
+    });
+
+    render(
+      <InstalledSoftwareActivityItem
+        activity={activity}
+        tab="past"
+        onShowDetails={noop}
+      />
+    );
+
+    expect(
+      screen.getByText("Cisco Secure Client - Cloud Management")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("unFLOW SmartClient")).not.toBeInTheDocument();
+  });
 });

@@ -2257,6 +2257,7 @@ SELECT
 	hsi.install_script_output,
 	hsi.host_id AS host_id,
 	COALESCE(st.name, hsi.software_title_name) AS software_title,
+	COALESCE(NULLIF(stdn.display_name, ''), st.name, hsi.software_title_name) AS software_display_name,
 	hsi.software_title_id,
 	hsi.software_installer_id,
 	si.storage_id AS hash_sha256,
@@ -2277,6 +2278,7 @@ FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
+	LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = si.global_or_team_id
 	LEFT JOIN policies p ON hsi.policy_id = p.id
 WHERE
 	hsi.execution_id = :execution_id AND
@@ -2292,6 +2294,7 @@ SELECT
 	NULL AS install_script_output,
 	ua.host_id AS host_id,
 	COALESCE(st.name, ua.payload->>'$.software_title_name') AS software_title,
+	COALESCE(NULLIF(stdn.display_name, ''), st.name, ua.payload->>'$.software_title_name') AS software_display_name,
 	siua.software_title_id,
 	siua.software_installer_id,
 	si.storage_id AS hash_sha256,
@@ -2316,6 +2319,8 @@ FROM
 		ON siua.software_title_id = st.id
 	LEFT JOIN software_installers si
 		ON siua.software_installer_id = si.id
+	LEFT JOIN software_title_display_names stdn
+		ON stdn.software_title_id = st.id AND stdn.team_id = si.global_or_team_id
 	LEFT JOIN policies p
 		ON siua.policy_id = p.id
 WHERE
@@ -3978,36 +3983,45 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	return hasInstallers, nil
 }
 
-func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error) {
+func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, string, bool, error) {
 	stmt := `
-	SELECT COALESCE(st.name, hsi.software_title_name) name, hsi.self_service
+	SELECT
+		COALESCE(st.name, hsi.software_title_name) name,
+		COALESCE(NULLIF(stdn.display_name, ''), st.name, hsi.software_title_name) display_name,
+		hsi.self_service
 	FROM software_titles st
 	INNER JOIN software_installers si ON si.title_id = st.id
 	INNER JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
+	LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = si.global_or_team_id
 	WHERE hsi.execution_id = ? AND hsi.uninstall = TRUE
 
 	UNION
 
-	SELECT st.name, COALESCE(ua.payload->'$.self_service', FALSE) self_service
+	SELECT
+		st.name,
+		COALESCE(NULLIF(stdn.display_name, ''), st.name) display_name,
+		COALESCE(ua.payload->'$.self_service', FALSE) self_service
 	FROM
 		software_titles st
 		INNER JOIN software_installers si ON si.title_id = st.id
 		INNER JOIN software_install_upcoming_activities siua
 			ON siua.software_installer_id = si.id
 		INNER JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+		LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = si.global_or_team_id
 	WHERE
 		ua.execution_id = ? AND
 		ua.activity_type = 'software_uninstall'
 	`
 	var result struct {
 		Name        string `db:"name"`
+		DisplayName string `db:"display_name"`
 		SelfService bool   `db:"self_service"`
 	}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, executionID, executionID)
 	if err != nil {
-		return "", false, ctxerr.Wrap(ctx, err, "get software details for uninstall activity from execution ID")
+		return "", "", false, ctxerr.Wrap(ctx, err, "get software details for uninstall activity from execution ID")
 	}
-	return result.Name, result.SelfService, nil
+	return result.Name, result.DisplayName, result.SelfService, nil
 }
 
 func (ds *Datastore) GetSoftwareInstallersPendingUninstallScriptPopulation(ctx context.Context) (map[uint]string, error) {
