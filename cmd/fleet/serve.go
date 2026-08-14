@@ -579,7 +579,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			} else {
 				softwareInstallStore = store
 				logger.InfoContext(ctx,
-					"using local filesystem software installer store, this is not suitable for production use", "directory",
+					"using local filesystem software installer store, this is not suitable for multi-container deployments", "directory",
 					installerDir)
 			}
 
