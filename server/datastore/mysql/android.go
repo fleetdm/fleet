@@ -2315,6 +2315,10 @@ WHERE
 	h.uuid = ? AND
 	h.platform = ? AND
 	CAST(hvsi.associated_event_id AS SIGNED INT) <= ? AND
+	-- not removed or canceled (a re-enroll cancels the installs the previous
+	-- enrollment left pending; they must not be verified afterwards)
+	hvsi.removed = 0 AND
+	hvsi.canceled = 0 AND
 	hvsi.verification_at IS NULL AND
 	hvsi.verification_failed_at IS NULL
 `
