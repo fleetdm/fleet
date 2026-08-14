@@ -83,9 +83,8 @@ type Service struct {
 	// orgLogoStore stores the bytes of customer-uploaded org logos.
 	orgLogoStore fleet.OrgLogoStore
 
-	// notificationKinds is what an end user notification's kind column resolves
-	// to. Built once here so core never switches on a kind name.
-	notificationKinds map[string]fleet.NotificationKind
+	// notificationsSvc is the notifications bounded context service for write operations.
+	notificationsSvc fleet.NotificationsWriteService
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -201,7 +200,6 @@ func NewService(
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
-		notificationKinds:               notificationKindRegistry(ds),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
@@ -214,6 +212,12 @@ func (svc *Service) SendEmail(ctx context.Context, mail fleet.Email) error {
 // This should be called after NewService to inject the activity service dependency.
 func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	svc.activitySvc = activitySvc
+}
+
+// SetNotificationsService sets the notifications bounded context service for write operations.
+// This should be called after NewService to inject the notifications service dependency.
+func (svc *Service) SetNotificationsService(notificationsSvc fleet.NotificationsWriteService) {
+	svc.notificationsSvc = notificationsSvc
 }
 
 // SetACMEService sets the ACME service module service for write operations.

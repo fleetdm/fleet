@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -2731,6 +2732,7 @@ func newEndUserNotificationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	notificationsSvc notifications_api.Service,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -2742,69 +2744,11 @@ func newEndUserNotificationsSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dispatch_end_user_notifications", func(ctx context.Context) error {
-			return dispatchEndUserNotifications(ctx, ds, logger)
+			return notificationsSvc.Dispatch(ctx)
 		}),
 	)
 
 	return s, nil
-}
-
-// dispatchEndUserNotifications expires notifications past their expiry, then
-// queues a script for each notification that is due.
-//
-// TODO(JK): notifications are delivered by queueing a script rather than by
-// orbit acting on the config, so they share the unified queue with everything
-// else the host runs.
-func dispatchEndUserNotifications(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
-	// a batch is one notification for each of up to this many hosts
-	const endUserNotificationHostBatchSize = 500
-
-	expired, err := ds.ExpireEndUserNotifications(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "expiring end user notifications")
-	}
-	if expired > 0 {
-		logger.InfoContext(ctx, "expired end user notifications", "count", expired)
-	}
-
-	for {
-		notifications, err := ds.ListEndUserNotificationsToDispatch(ctx, endUserNotificationHostBatchSize)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "listing end user notifications to dispatch")
-		}
-		if len(notifications) == 0 {
-			return nil
-		}
-
-		hostIDs := make([]uint, 0, len(notifications))
-		for _, notification := range notifications {
-			hostIDs = append(hostIDs, notification.HostID)
-		}
-
-		// the script is the same for every notification, so nothing is rendered
-		// here. GetHostScript puts each notification's URL into it when fleetd
-		// fetches it.
-		executionIDByHost, err := ds.BatchNewInternalHostScriptExecutionRequests(ctx, hostIDs, fleet.EndUserNotificationScript)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "queueing end user notification scripts")
-		}
-
-		for _, notification := range notifications {
-			executionID := executionIDByHost[notification.HostID]
-			notification.ExecutionID = &executionID
-		}
-
-		if err := ds.SetEndUserNotificationsDispatched(ctx, notifications); err != nil {
-			return ctxerr.Wrap(ctx, err, "marking end user notifications dispatched")
-		}
-
-		logger.InfoContext(ctx, "dispatched end user notifications", "count", len(notifications))
-
-		// a short batch is not the end of the queue: it means hosts in it had more
-		// than one notification due, so the pass keeps going until a batch comes
-		// back empty. Dispatching takes those hosts out of the next batch, so this
-		// always makes progress.
-	}
 }
 
 func newAppleMDMOSUpdatesSchedule(

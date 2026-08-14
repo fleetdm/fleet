@@ -689,6 +689,9 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
+	// SetNotificationsService sets the notifications bounded context service for write operations.
+	SetNotificationsService(notificationsSvc NotificationsWriteService)
+
 	// SetActivityService sets the activity bounded context service for write operations.
 	// This should be called after service creation to inject the activity service dependency.
 	SetActivityService(activitySvc ActivityWriteService)
@@ -1178,14 +1181,6 @@ type Service interface {
 	GetMDMManualEnrollmentProfile(ctx context.Context, personal bool) ([]byte, error)
 
 	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
-
-	// GetDeviceEndUserNotification returns the authenticated host's notification
-	// with the given uuid, and not found for any other host's.
-	GetDeviceEndUserNotification(ctx context.Context, notificationUUID string) (*EndUserNotification, error)
-	// DeviceEndUserNotificationAction applies an end user's changes to one of
-	// their notifications, such as confirming it was displayed or pushing out its
-	// next attempt.
-	DeviceEndUserNotificationAction(ctx context.Context, notificationUUID string, action EndUserNotificationAction) error
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)

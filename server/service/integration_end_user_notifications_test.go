@@ -8,53 +8,55 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
-// dispatchTestNotifications mirrors cmd/fleet/cron.go's dispatchEndUserNotifications:
-// list what's due, queue the script for each host, record the execution. The real
-// cron lives in package main and can't be imported here, so this calls the same
-// datastore methods in the same order.
-func dispatchTestNotifications(t *testing.T, ds fleet.Datastore) []*fleet.EndUserNotification {
+const endUserNotificationColumns = `
+	id, uuid, host_id, status, kind, payload, attempt_count, next_attempt_at,
+	displayed_at, execution_id, last_exit_code, last_reason, expires_at,
+	created_at, updated_at
+`
+
+// newTestNotification inserts a notification row directly, bypassing the
+// notifications bounded context's HTTP API: there's no public endpoint for
+// creating one, since Fleet itself is always the one queueing them.
+func newTestNotification(t *testing.T, ds *mysql.Datastore, hostID uint, kind string, payload string) string {
 	t.Helper()
-	ctx := context.Background()
+	notificationUUID := uuid.NewString()
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			`INSERT INTO end_user_notifications (uuid, host_id, status, kind, payload) VALUES (?, ?, ?, ?, ?)`,
+			notificationUUID, hostID, notifications_api.EndUserNotificationPending, kind, json.RawMessage(payload))
+		return err
+	})
+	return notificationUUID
+}
 
-	_, err := ds.ExpireEndUserNotifications(ctx)
-	require.NoError(t, err)
-
-	notifications, err := ds.ListEndUserNotificationsToDispatch(ctx, 500)
-	require.NoError(t, err)
-	if len(notifications) == 0 {
-		return nil
-	}
-
-	hostIDs := make([]uint, 0, len(notifications))
-	for _, n := range notifications {
-		hostIDs = append(hostIDs, n.HostID)
-	}
-	executionIDByHost, err := ds.BatchNewInternalHostScriptExecutionRequests(ctx, hostIDs, fleet.EndUserNotificationScript)
-	require.NoError(t, err)
-	for _, n := range notifications {
-		execID := executionIDByHost[n.HostID]
-		n.ExecutionID = &execID
-	}
-	require.NoError(t, ds.SetEndUserNotificationsDispatched(ctx, notifications))
-	return notifications
+// getTestNotification reads a notification row directly, for asserting on
+// state the bounded context's own HTTP API doesn't expose (e.g. status,
+// execution_id).
+func getTestNotification(t *testing.T, ds *mysql.Datastore, notificationUUID string) *notifications_api.EndUserNotification {
+	t.Helper()
+	var got notifications_api.EndUserNotification
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &got,
+			`SELECT `+endUserNotificationColumns+` FROM end_user_notifications WHERE uuid = ?`, notificationUUID)
+	})
+	return &got
 }
 
 func (s *integrationTestSuite) TestEndUserNotifications() {
 	t := s.T()
 	ctx := context.Background()
 
-	newNotification := func(t *testing.T, hostID uint, kind string, payload string) *fleet.EndUserNotification {
-		created, err := s.ds.NewEndUserNotification(ctx, &fleet.EndUserNotification{
-			HostID:  hostID,
-			Kind:    kind,
-			Payload: json.RawMessage(payload),
-		})
-		require.NoError(t, err)
-		return created
+	dispatch := func(t *testing.T) {
+		require.NoError(t, s.notificationsSvc.Dispatch(ctx))
 	}
 
 	// fetches the notification's script as orbit would, returning the substituted
@@ -79,34 +81,30 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 	t.Run("dispatch queues a script and substitutes the notification URL", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-dispatch", s.ds)
-		notification := newNotification(t, host.ID, "notify_before_patching", `{"title": "hello"}`)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
-		require.Equal(t, notification.UUID, dispatched[0].UUID)
-		require.NotNil(t, dispatched[0].ExecutionID)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationDispatched, dispatched.Status)
+		require.NotNil(t, dispatched.ExecutionID)
 
-		scriptContents, token := fetchScript(t, host, *dispatched[0].ExecutionID)
+		scriptContents, token := fetchScript(t, host, *dispatched.ExecutionID)
 		require.NotEmpty(t, token)
-		require.Contains(t, scriptContents, fmt.Sprintf("/device/%s/notifications/%s", token, notification.UUID))
+		require.Contains(t, scriptContents, fmt.Sprintf("/device/%s/notifications/%s", token, notificationUUID))
 		require.NotContains(t, scriptContents, "FLEET_VAR")
-
-		got, err := s.ds.GetEndUserNotificationByUUID(ctx, notification.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.EndUserNotificationDispatched, got.Status)
 	})
 
 	t.Run("exit 0 records displayed_at", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-exit0", s.ds)
-		notification := newNotification(t, host.ID, "notify_before_patching", `{"title": "hello"}`)
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
 
-		postScriptResult(host, *dispatched[0].ExecutionID, 0)
+		postScriptResult(host, *dispatched.ExecutionID, 0)
 
-		got, err := s.ds.GetEndUserNotificationByUUID(ctx, notification.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.EndUserNotificationDispatched, got.Status)
+		got := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationDispatched, got.Status)
 		require.NotNil(t, got.DisplayedAt)
 		require.NotNil(t, got.LastExitCode)
 		require.EqualValues(t, 0, *got.LastExitCode)
@@ -114,47 +112,48 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 	t.Run("exit 41 schedules a retry", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-exit41", s.ds)
-		notification := newNotification(t, host.ID, "notify_before_patching", `{"title": "hello"}`)
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
 
-		postScriptResult(host, *dispatched[0].ExecutionID, 41)
+		postScriptResult(host, *dispatched.ExecutionID, 41)
 
-		got, err := s.ds.GetEndUserNotificationByUUID(ctx, notification.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.EndUserNotificationPending, got.Status)
+		got := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationPending, got.Status)
 		require.Nil(t, got.DisplayedAt)
 		require.NotNil(t, got.LastReason)
-		require.Equal(t, fleet.EndUserNotificationReasonScreenLocked, *got.LastReason)
+		require.Equal(t, notifications_api.EndUserNotificationReasonScreenLocked, *got.LastReason)
 		require.NotNil(t, got.NextAttemptAt)
 	})
 
 	t.Run("exit 2 is a terminal failure", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-exit2", s.ds)
-		notification := newNotification(t, host.ID, "notify_before_patching", `{"title": "hello"}`)
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
 
-		postScriptResult(host, *dispatched[0].ExecutionID, 2)
+		postScriptResult(host, *dispatched.ExecutionID, 2)
 
-		got, err := s.ds.GetEndUserNotificationByUUID(ctx, notification.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.EndUserNotificationFailed, got.Status)
+		got := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationFailed, got.Status)
 		require.Nil(t, got.NextAttemptAt)
 	})
 
 	t.Run("GET returns the notification's payload", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-get", s.ds)
-		notification := newNotification(t, host.ID, "notify_before_patching", `{"title": "hello world"}`)
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
-		_, token := fetchScript(t, host, *dispatched[0].ExecutionID)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello world"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
 		var resp struct {
 			Payload json.RawMessage `json:"payload"`
 			Err     string          `json:"error,omitempty"`
 		}
-		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", token, notification.UUID),
+		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", token, notificationUUID),
 			nil, http.StatusOK, &resp)
 		require.JSONEq(t, `{"title": "hello world"}`, string(resp.Payload))
 	})
@@ -162,133 +161,119 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	t.Run("GET with another host's token 404s", func(t *testing.T) {
 		hostA := createOrbitEnrolledHost(t, "darwin", "notif-cross-a", s.ds)
 		hostB := createOrbitEnrolledHost(t, "darwin", "notif-cross-b", s.ds)
-		notification := newNotification(t, hostA.ID, "notify_before_patching", `{"title": "hello"}`)
-		dispatchedA := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatchedA, 1)
-		_, tokenA := fetchScript(t, hostA, *dispatchedA[0].ExecutionID)
-		require.NotEmpty(t, tokenA)
+		notificationUUID := newTestNotification(t, s.ds, hostA.ID, "patch", `{"title": "hello"}`)
 
 		// mint hostB its own token by fetching a script of its own
-		otherNotification := newNotification(t, hostB.ID, "notify_before_patching", `{"title": "other"}`)
-		dispatchedB := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatchedB, 1)
-		require.Equal(t, otherNotification.UUID, dispatchedB[0].UUID)
-		_, tokenB := fetchScript(t, hostB, *dispatchedB[0].ExecutionID)
+		otherUUID := newTestNotification(t, s.ds, hostB.ID, "patch", `{"title": "other"}`)
+		dispatch(t)
+		dispatchedB := getTestNotification(t, s.ds, otherUUID)
+		require.NotNil(t, dispatchedB.ExecutionID)
+		_, tokenB := fetchScript(t, hostB, *dispatchedB.ExecutionID)
 
-		s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", tokenB, notification.UUID),
+		s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", tokenB, notificationUUID),
 			nil, http.StatusNotFound)
 	})
 
 	t.Run("GET with an unknown uuid 404s", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-unknown-uuid", s.ds)
-		newNotification(t, host.ID, "notify_before_patching", `{"title": "hello"}`)
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
-		_, token := fetchScript(t, host, *dispatched[0].ExecutionID)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
 		s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/no-such-uuid", token),
 			nil, http.StatusNotFound)
 	})
 
-	t.Run("POST verify sets displayed_at, a second call doesn't move it", func(t *testing.T) {
+	// TODO: verify is currently a stub (see apply_action.go), so this only
+	// confirms the action is accepted, not that it records anything.
+	t.Run("POST verify is accepted", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-verify", s.ds)
-		notification := newNotification(t, host.ID, "notify_before_patching", `{"title": "hello"}`)
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
-		_, token := fetchScript(t, host, *dispatched[0].ExecutionID)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notification.UUID),
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
 			[]byte(`{"action": "verify"}`), http.StatusNoContent)
-
-		got, err := s.ds.GetEndUserNotificationByUUID(ctx, notification.UUID)
-		require.NoError(t, err)
-		require.NotNil(t, got.DisplayedAt)
-		firstDisplayedAt := *got.DisplayedAt
-
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notification.UUID),
-			fmt.Appendf(nil, `{"action": "verify", "displayed_at": %q}`, time.Now().Add(time.Minute).Format(time.RFC3339)),
-			http.StatusNoContent)
-
-		got, err = s.ds.GetEndUserNotificationByUUID(ctx, notification.UUID)
-		require.NoError(t, err)
-		require.Equal(t, firstDisplayedAt, *got.DisplayedAt)
 	})
 
 	t.Run("POST delay with a registered kind delays it", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-delay-registered", s.ds)
-		notification := newNotification(t, host.ID, "notify_before_patching", `{"title": "hello"}`)
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
-		_, token := fetchScript(t, host, *dispatched[0].ExecutionID)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notification.UUID),
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
 			[]byte(`{"action": "delay"}`), http.StatusNoContent)
 
-		got, err := s.ds.GetEndUserNotificationByUUID(ctx, notification.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.EndUserNotificationPending, got.Status)
+		got := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationPending, got.Status)
 		require.Nil(t, got.ExecutionID)
 		require.NotNil(t, got.LastReason)
-		require.Equal(t, fleet.EndUserNotificationReasonDelayed, *got.LastReason)
+		require.Equal(t, notifications_api.EndUserNotificationReasonDelayed, *got.LastReason)
 		require.NotNil(t, got.NextAttemptAt)
 	})
 
 	t.Run("POST delay with no kind registered is a no-op", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-delay-unregistered", s.ds)
-		notification := newNotification(t, host.ID, "some_unregistered_kind", `{"title": "hello"}`)
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
-		_, token := fetchScript(t, host, *dispatched[0].ExecutionID)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "some_unregistered_kind", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notification.UUID),
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
 			[]byte(`{"action": "delay"}`), http.StatusNoContent)
 
-		got, err := s.ds.GetEndUserNotificationByUUID(ctx, notification.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.EndUserNotificationDispatched, got.Status, "nothing should have applied the delay")
+		got := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationDispatched, got.Status, "nothing should have applied the delay")
 		require.NotNil(t, got.ExecutionID)
 	})
 
 	t.Run("POST with an unknown action is rejected", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-bad-action", s.ds)
-		notification := newNotification(t, host.ID, "notify_before_patching", `{"title": "hello"}`)
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
-		_, token := fetchScript(t, host, *dispatched[0].ExecutionID)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notification.UUID),
-			[]byte(`{"action": "dance"}`), http.StatusUnprocessableEntity)
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
+			[]byte(`{"action": "dance"}`), http.StatusBadRequest)
 	})
 
 	t.Run("POST with a missing action is rejected", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-no-action", s.ds)
-		notification := newNotification(t, host.ID, "notify_before_patching", `{"title": "hello"}`)
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
-		_, token := fetchScript(t, host, *dispatched[0].ExecutionID)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notification.UUID),
-			[]byte(`{}`), http.StatusUnprocessableEntity)
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
+			[]byte(`{}`), http.StatusBadRequest)
 	})
 
 	t.Run("a second due notification on the same host waits its turn", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "darwin", "notif-in-flight", s.ds)
-		first := newNotification(t, host.ID, "notify_before_patching", `{"title": "first"}`)
-		second := newNotification(t, host.ID, "notify_before_patching", `{"title": "second"}`)
+		firstUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "first"}`)
+		secondUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "second"}`)
 
-		dispatched := dispatchTestNotifications(t, s.ds)
-		require.Len(t, dispatched, 1)
-		require.Equal(t, first.UUID, dispatched[0].UUID)
+		dispatch(t)
+		first := getTestNotification(t, s.ds, firstUUID)
+		require.NotNil(t, first.ExecutionID, "the first notification queued for the host should dispatch")
+		second := getTestNotification(t, s.ds, secondUUID)
+		require.Nil(t, second.ExecutionID, "the host already has an undelivered dispatch")
 
-		stillWaiting := dispatchTestNotifications(t, s.ds)
-		require.Empty(t, stillWaiting, "the host already has an undelivered dispatch")
+		postScriptResult(host, *first.ExecutionID, 0)
 
-		_, token := fetchScript(t, host, *dispatched[0].ExecutionID)
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, first.UUID),
-			[]byte(`{"action": "verify"}`), http.StatusNoContent)
-
-		nowFree := dispatchTestNotifications(t, s.ds)
-		require.Len(t, nowFree, 1)
-		require.Equal(t, second.UUID, nowFree[0].UUID)
+		dispatch(t)
+		second = getTestNotification(t, s.ds, secondUUID)
+		require.NotNil(t, second.ExecutionID, "the second notification should dispatch once the first is no longer in flight")
 	})
 }

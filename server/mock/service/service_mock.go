@@ -409,6 +409,8 @@ type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets 
 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
+type SetNotificationsServiceFunc func(notificationsSvc fleet.NotificationsWriteService)
+
 type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
 
 type SetACMEServiceFunc func(acmeSvc fleet.ACMEWriteService)
@@ -718,10 +720,6 @@ type TriggerMigrateMDMDeviceFunc func(ctx context.Context, host *fleet.Host) err
 type GetMDMManualEnrollmentProfileFunc func(ctx context.Context, personal bool) ([]byte, error)
 
 type TriggerLinuxDiskEncryptionEscrowFunc func(ctx context.Context, host *fleet.Host) error
-
-type GetDeviceEndUserNotificationFunc func(ctx context.Context, notificationUUID string) (*fleet.EndUserNotification, error)
-
-type DeviceEndUserNotificationActionFunc func(ctx context.Context, notificationUUID string, action fleet.EndUserNotificationAction) error
 
 type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error)
 
@@ -1584,6 +1582,9 @@ type Service struct {
 	ApplyTeamSpecsFunc        ApplyTeamSpecsFunc
 	ApplyTeamSpecsFuncInvoked bool
 
+	SetNotificationsServiceFunc        SetNotificationsServiceFunc
+	SetNotificationsServiceFuncInvoked bool
+
 	SetActivityServiceFunc        SetActivityServiceFunc
 	SetActivityServiceFuncInvoked bool
 
@@ -2048,12 +2049,6 @@ type Service struct {
 
 	TriggerLinuxDiskEncryptionEscrowFunc        TriggerLinuxDiskEncryptionEscrowFunc
 	TriggerLinuxDiskEncryptionEscrowFuncInvoked bool
-
-	GetDeviceEndUserNotificationFunc        GetDeviceEndUserNotificationFunc
-	GetDeviceEndUserNotificationFuncInvoked bool
-
-	DeviceEndUserNotificationActionFunc        DeviceEndUserNotificationActionFunc
-	DeviceEndUserNotificationActionFuncInvoked bool
 
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFunc        CheckMDMAppleEnrollmentWithMinimumOSVersionFunc
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFuncInvoked bool
@@ -3833,6 +3828,13 @@ func (s *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, a
 	return s.ApplyTeamSpecsFunc(ctx, specs, applyOpts)
 }
 
+func (s *Service) SetNotificationsService(notificationsSvc fleet.NotificationsWriteService) {
+	s.mu.Lock()
+	s.SetNotificationsServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetNotificationsServiceFunc(notificationsSvc)
+}
+
 func (s *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	s.mu.Lock()
 	s.SetActivityServiceFuncInvoked = true
@@ -4916,20 +4918,6 @@ func (s *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fl
 	s.TriggerLinuxDiskEncryptionEscrowFuncInvoked = true
 	s.mu.Unlock()
 	return s.TriggerLinuxDiskEncryptionEscrowFunc(ctx, host)
-}
-
-func (s *Service) GetDeviceEndUserNotification(ctx context.Context, notificationUUID string) (*fleet.EndUserNotification, error) {
-	s.mu.Lock()
-	s.GetDeviceEndUserNotificationFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetDeviceEndUserNotificationFunc(ctx, notificationUUID)
-}
-
-func (s *Service) DeviceEndUserNotificationAction(ctx context.Context, notificationUUID string, action fleet.EndUserNotificationAction) error {
-	s.mu.Lock()
-	s.DeviceEndUserNotificationActionFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeviceEndUserNotificationActionFunc(ctx, notificationUUID, action)
 }
 
 func (s *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {

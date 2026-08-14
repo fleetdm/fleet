@@ -1,8 +1,9 @@
-package fleet
+// Package api provides the public API for the notifications bounded context.
+// External code should use this package to interact with notifications.
+package api
 
 import (
 	"context"
-	_ "embed"
 	"encoding/json"
 	"time"
 )
@@ -49,13 +50,6 @@ const (
 	EndUserNotificationLongRetryInterval  = 30 * time.Minute
 )
 
-// EndUserNotificationScript is queued for every notification. It is the same
-// script every time, so all notifications share one script_contents row and the
-// URL is what tells them apart.
-//
-//go:embed embedded_scripts/end_user_notification.sh
-var EndUserNotificationScript string
-
 type EndUserNotification struct {
 	ID            uint            `db:"id"`
 	UUID          string          `db:"uuid"`
@@ -91,7 +85,9 @@ type NotificationOutcome struct {
 }
 
 // NotificationKind owns what a notification's payload means and what happens
-// when an end user acts on it or an attempt ends. Core owns delivery.
+// when an end user acts on it or an attempt ends. Core owns delivery. Kinds
+// are implemented in server/service and registered with RegisterKind, since a
+// kind may need features (e.g. software) this context doesn't have.
 type NotificationKind interface {
 	// Name is the value stored in end_user_notifications.kind.
 	Name() string

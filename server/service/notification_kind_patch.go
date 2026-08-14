@@ -4,35 +4,46 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 )
 
 // patchNotificationKind is the notify-before-patching kind. OnVerify and
 // OnOutcome aren't implemented yet (#50912).
 type patchNotificationKind struct {
-	ds fleet.Datastore
+	delaySvc notifications_api.DelayNotificationService
+}
+
+// NewPatchNotificationKind creates the "patch" notification kind, for
+// registration with the notifications bounded context.
+func NewPatchNotificationKind(delaySvc notifications_api.DelayNotificationService) notifications_api.NotificationKind {
+	return &patchNotificationKind{delaySvc: delaySvc}
 }
 
 func (k *patchNotificationKind) Name() string {
-	return "notify_before_patching"
+	return "patch"
 }
 
-func (k *patchNotificationKind) OnVerify(ctx context.Context, notification *fleet.EndUserNotification, displayedAt time.Time) error {
+func (k *patchNotificationKind) OnVerify(ctx context.Context, notification *notifications_api.EndUserNotification, displayedAt time.Time) error {
 	return nil
 }
 
-// 55 minutes from creation, not from now, so a delay rejoins the notification's
-// 1-hour-then-5-minute schedule instead of starting a fresh wait. Falls back to
-// a full delay from now if that mark has already passed.
-func (k *patchNotificationKind) OnDelay(ctx context.Context, notification *fleet.EndUserNotification) error {
+// 55 minutes from when it was first displayed, not from now, so a delay
+// rejoins the notification's 1-hour-then-5-minute schedule instead of
+// starting a fresh wait. Falls back to a full delay from now if it was never
+// displayed, or if that mark has already passed.
+//
+// TODO: should there be a grace period where we install no matter what?
+func (k *patchNotificationKind) OnDelay(ctx context.Context, notification *notifications_api.EndUserNotification) error {
 	now := time.Now().UTC()
-	nextAttemptAt := notification.CreatedAt.Add(55 * time.Minute)
-	if nextAttemptAt.Before(now) {
-		nextAttemptAt = now.Add(fleet.EndUserNotificationDelayInterval)
+	nextAttemptAt := now.Add(notifications_api.EndUserNotificationDelayInterval)
+	if notification.DisplayedAt != nil {
+		if fromDisplay := notification.DisplayedAt.Add(55 * time.Minute); fromDisplay.After(now) {
+			nextAttemptAt = fromDisplay
+		}
 	}
-	return k.ds.DelayEndUserNotification(ctx, notification.UUID, nextAttemptAt)
+	return k.delaySvc.DelayNotification(ctx, notification.UUID, nextAttemptAt)
 }
 
-func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *fleet.EndUserNotification, outcome fleet.NotificationOutcome) error {
+func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *notifications_api.EndUserNotification, outcome notifications_api.NotificationOutcome) error {
 	return nil
 }

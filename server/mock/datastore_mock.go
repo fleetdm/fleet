@@ -2330,24 +2330,6 @@ type SetAppleOSUpdateTargetsAndResendFunc func(ctx context.Context, targets []*f
 
 type GetAppleOSUpdateHostByUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error)
 
-type NewEndUserNotificationFunc func(ctx context.Context, notification *fleet.EndUserNotification) (*fleet.EndUserNotification, error)
-
-type GetEndUserNotificationByUUIDFunc func(ctx context.Context, uuid string) (*fleet.EndUserNotification, error)
-
-type GetEndUserNotificationByExecutionIDFunc func(ctx context.Context, executionID string) (*fleet.EndUserNotification, error)
-
-type ListEndUserNotificationsToDispatchFunc func(ctx context.Context, limit int) ([]*fleet.EndUserNotification, error)
-
-type SetEndUserNotificationsDispatchedFunc func(ctx context.Context, notifications []*fleet.EndUserNotification) error
-
-type ExpireEndUserNotificationsFunc func(ctx context.Context) (int64, error)
-
-type VerifyEndUserNotificationFunc func(ctx context.Context, uuid string, displayedAt time.Time) error
-
-type DelayEndUserNotificationFunc func(ctx context.Context, uuid string, nextAttemptAt time.Time) error
-
-type SetEndUserNotificationOutcomeFunc func(ctx context.Context, uuid string, outcome fleet.NotificationOutcome, nextAttemptAt *time.Time) error
-
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -5807,33 +5789,6 @@ type DataStore struct {
 
 	GetAppleOSUpdateHostByUUIDFunc        GetAppleOSUpdateHostByUUIDFunc
 	GetAppleOSUpdateHostByUUIDFuncInvoked bool
-
-	NewEndUserNotificationFunc        NewEndUserNotificationFunc
-	NewEndUserNotificationFuncInvoked bool
-
-	GetEndUserNotificationByUUIDFunc        GetEndUserNotificationByUUIDFunc
-	GetEndUserNotificationByUUIDFuncInvoked bool
-
-	GetEndUserNotificationByExecutionIDFunc        GetEndUserNotificationByExecutionIDFunc
-	GetEndUserNotificationByExecutionIDFuncInvoked bool
-
-	ListEndUserNotificationsToDispatchFunc        ListEndUserNotificationsToDispatchFunc
-	ListEndUserNotificationsToDispatchFuncInvoked bool
-
-	SetEndUserNotificationsDispatchedFunc        SetEndUserNotificationsDispatchedFunc
-	SetEndUserNotificationsDispatchedFuncInvoked bool
-
-	ExpireEndUserNotificationsFunc        ExpireEndUserNotificationsFunc
-	ExpireEndUserNotificationsFuncInvoked bool
-
-	VerifyEndUserNotificationFunc        VerifyEndUserNotificationFunc
-	VerifyEndUserNotificationFuncInvoked bool
-
-	DelayEndUserNotificationFunc        DelayEndUserNotificationFunc
-	DelayEndUserNotificationFuncInvoked bool
-
-	SetEndUserNotificationOutcomeFunc        SetEndUserNotificationOutcomeFunc
-	SetEndUserNotificationOutcomeFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -13907,67 +13862,4 @@ func (s *DataStore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID str
 	s.GetAppleOSUpdateHostByUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAppleOSUpdateHostByUUIDFunc(ctx, hostUUID)
-}
-
-func (s *DataStore) NewEndUserNotification(ctx context.Context, notification *fleet.EndUserNotification) (*fleet.EndUserNotification, error) {
-	s.mu.Lock()
-	s.NewEndUserNotificationFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewEndUserNotificationFunc(ctx, notification)
-}
-
-func (s *DataStore) GetEndUserNotificationByUUID(ctx context.Context, uuid string) (*fleet.EndUserNotification, error) {
-	s.mu.Lock()
-	s.GetEndUserNotificationByUUIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetEndUserNotificationByUUIDFunc(ctx, uuid)
-}
-
-func (s *DataStore) GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*fleet.EndUserNotification, error) {
-	s.mu.Lock()
-	s.GetEndUserNotificationByExecutionIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetEndUserNotificationByExecutionIDFunc(ctx, executionID)
-}
-
-func (s *DataStore) ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*fleet.EndUserNotification, error) {
-	s.mu.Lock()
-	s.ListEndUserNotificationsToDispatchFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListEndUserNotificationsToDispatchFunc(ctx, limit)
-}
-
-func (s *DataStore) SetEndUserNotificationsDispatched(ctx context.Context, notifications []*fleet.EndUserNotification) error {
-	s.mu.Lock()
-	s.SetEndUserNotificationsDispatchedFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetEndUserNotificationsDispatchedFunc(ctx, notifications)
-}
-
-func (s *DataStore) ExpireEndUserNotifications(ctx context.Context) (int64, error) {
-	s.mu.Lock()
-	s.ExpireEndUserNotificationsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ExpireEndUserNotificationsFunc(ctx)
-}
-
-func (s *DataStore) VerifyEndUserNotification(ctx context.Context, uuid string, displayedAt time.Time) error {
-	s.mu.Lock()
-	s.VerifyEndUserNotificationFuncInvoked = true
-	s.mu.Unlock()
-	return s.VerifyEndUserNotificationFunc(ctx, uuid, displayedAt)
-}
-
-func (s *DataStore) DelayEndUserNotification(ctx context.Context, uuid string, nextAttemptAt time.Time) error {
-	s.mu.Lock()
-	s.DelayEndUserNotificationFuncInvoked = true
-	s.mu.Unlock()
-	return s.DelayEndUserNotificationFunc(ctx, uuid, nextAttemptAt)
-}
-
-func (s *DataStore) SetEndUserNotificationOutcome(ctx context.Context, uuid string, outcome fleet.NotificationOutcome, nextAttemptAt *time.Time) error {
-	s.mu.Lock()
-	s.SetEndUserNotificationOutcomeFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetEndUserNotificationOutcomeFunc(ctx, uuid, outcome, nextAttemptAt)
 }

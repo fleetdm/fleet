@@ -3953,35 +3953,6 @@ type Datastore interface {
 	SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*ComputedAppleSoftwareUpdateHost) error
 	// GetAppleOSUpdateHostByUUID retrieves stored Apple software update configuration for a given host by its UUID.
 	GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*AppleSoftwareUpdateHost, error)
-
-	///////////////////////////////////////////////////////////////////////////////
-	// EndUserNotificationStore
-
-	// NewEndUserNotification creates a notification to deliver to a host's end
-	// user. The caller sets kind, payload and any expiry; the dispatcher cron
-	// owns everything after that.
-	NewEndUserNotification(ctx context.Context, notification *EndUserNotification) (*EndUserNotification, error)
-	GetEndUserNotificationByUUID(ctx context.Context, uuid string) (*EndUserNotification, error)
-	GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*EndUserNotification, error)
-	// ListEndUserNotificationsToDispatch returns notifications whose next
-	// attempt is due, on hosts that can display them and have no other
-	// notification already dispatched.
-	ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*EndUserNotification, error)
-	// SetEndUserNotificationsDispatched records the execution each notification
-	// was queued as.
-	SetEndUserNotificationsDispatched(ctx context.Context, notifications []*EndUserNotification) error
-	// ExpireEndUserNotifications sets notifications past their expiry to expired
-	// and returns how many it expired.
-	ExpireEndUserNotifications(ctx context.Context) (int64, error)
-	// VerifyEndUserNotification records that the device confirmed the notification
-	// reached the end user, at the time the device says it appeared.
-	VerifyEndUserNotification(ctx context.Context, uuid string, displayedAt time.Time) error
-	// DelayEndUserNotification puts a notification back in the queue for a later
-	// attempt.
-	DelayEndUserNotification(ctx context.Context, uuid string, nextAttemptAt time.Time) error
-	// SetEndUserNotificationOutcome records how an attempt to display a
-	// notification ended. A non-nil nextAttemptAt schedules another try.
-	SetEndUserNotificationOutcome(ctx context.Context, uuid string, outcome NotificationOutcome, nextAttemptAt *time.Time) error
 }
 
 type AndroidDatastore interface {

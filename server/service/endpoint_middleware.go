@@ -126,9 +126,30 @@ func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.E
 	return middleware_log.Logged(authDeviceFunc)
 }
 
+// DeviceAuthMiddleware wraps authenticatedDevice for a bounded context's
+// device-authenticated endpoints. onHost is called with the authenticated
+// host's ID once auth succeeds, so a bounded context that can't depend on
+// *fleet.Host gets just what it needs into its own context.
+func DeviceAuthMiddleware(svc fleet.Service, logger *slog.Logger, onHost func(ctx context.Context, hostID uint) context.Context) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedDevice(svc, logger, func(ctx context.Context, request any) (any, error) {
+			if host, ok := hostctx.FromContext(ctx); ok {
+				ctx = onHost(ctx, host.ID)
+			}
+			return next(ctx, request)
+		})
+	}
+}
+
 func getDeviceAuthToken(r interface{}) (string, error) {
 	if dat, ok := r.(interface{ deviceAuthToken() string }); ok {
 		return dat.deviceAuthToken(), nil
+	}
+	// Exported form, for request types defined outside this package (e.g. a
+	// bounded context), since an unexported method can only satisfy an
+	// interface declared in its own package.
+	if dat, ok := r.(interface{ DeviceAuthToken() string }); ok {
+		return dat.DeviceAuthToken(), nil
 	}
 	return "", fleet.NewAuthRequiredError("request type does not implement deviceAuthToken method. This is likely a Fleet programmer error.")
 }

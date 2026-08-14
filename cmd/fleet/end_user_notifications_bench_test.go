@@ -9,9 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/acl/notificationsacl"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	notifications_bootstrap "github.com/fleetdm/fleet/v4/server/notifications/bootstrap"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -119,8 +122,8 @@ func seedDispatchableFleet(tb testing.TB, ds *mysql.Datastore, sz cronBenchSize)
 			return []any{
 				fmt.Sprintf("notification-%d", i+1),
 				i + 1,
-				fleet.EndUserNotificationPending,
-				"notify_before_patching",
+				notifications_api.EndUserNotificationPending,
+				"patch",
 				payload,
 			}
 		})
@@ -135,7 +138,7 @@ func resetDispatchedFleet(tb testing.TB, ds *mysql.Datastore) {
 		"DELETE FROM upcoming_activities",
 		"DELETE FROM host_script_results",
 		fmt.Sprintf("UPDATE end_user_notifications SET status = '%s', execution_id = NULL, attempt_count = 0",
-			fleet.EndUserNotificationPending),
+			notifications_api.EndUserNotificationPending),
 	}
 	for _, stmt := range stmts {
 		mysqltest.ExecAdhocSQL(tb, ds, func(q sqlx.ExtContext) error {
@@ -145,21 +148,37 @@ func resetDispatchedFleet(tb testing.TB, ds *mysql.Datastore) {
 	}
 }
 
+// countDispatchableNotifications confirms the seed produced the expected
+// amount of due work, without depending on the notifications bounded
+// context's internals.
+func countDispatchableNotifications(tb testing.TB, ds *mysql.Datastore) int {
+	tb.Helper()
+	var count int
+	mysqltest.ExecAdhocSQL(tb, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count,
+			"SELECT COUNT(*) FROM end_user_notifications WHERE status = ?", notifications_api.EndUserNotificationPending)
+	})
+	return count
+}
+
+func newBenchNotificationsService(tb testing.TB, ds *mysql.Datastore, logger *slog.Logger) notifications_api.Service {
+	tb.Helper()
+	dbConns := &common_mysql.DBConnections{Primary: ds.TestPrimaryDB(), Replica: ds.TestPrimaryDB()}
+	svc, _ := notifications_bootstrap.New(dbConns, notificationsacl.NewFleetServiceAdapter(ds), logger)
+	return svc
+}
+
 func BenchmarkDispatchEndUserNotifications(b *testing.B) {
 	ds := mysqltest.CreateMySQLDS(b)
 	sz := pickCronBenchSize(b)
 	seedDispatchableFleet(b, ds, sz)
 
-	ctx := context.Background()
 	logger := slog.New(slog.DiscardHandler)
+	notificationsSvc := newBenchNotificationsService(b, ds, logger)
 
 	// confirm the seed really is all dispatchable, or the pass would measure
 	// almost nothing
-	dispatchable, err := ds.ListEndUserNotificationsToDispatch(ctx, sz.numHosts)
-	if err != nil {
-		b.Fatal(err)
-	}
-	if len(dispatchable) == 0 {
+	if countDispatchableNotifications(b, ds) == 0 {
 		b.Fatal("seed produced no dispatchable notifications")
 	}
 
@@ -170,7 +189,7 @@ func BenchmarkDispatchEndUserNotifications(b *testing.B) {
 		resetDispatchedFleet(b, ds)
 		b.StartTimer()
 
-		if err := dispatchEndUserNotifications(ctx, ds, logger); err != nil {
+		if err := notificationsSvc.Dispatch(b.Context()); err != nil {
 			b.Fatal(err)
 		}
 		passes++
@@ -189,26 +208,22 @@ func BenchmarkDispatchEndUserNotificationsIdle(b *testing.B) {
 	sz := pickCronBenchSize(b)
 	seedDispatchableFleet(b, ds, sz)
 
-	ctx := context.Background()
 	logger := slog.New(slog.DiscardHandler)
+	notificationsSvc := newBenchNotificationsService(b, ds, logger)
 
 	mysqltest.ExecAdhocSQL(b, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "UPDATE end_user_notifications SET status = ?",
-			fleet.EndUserNotificationDispatched)
+		_, err := q.ExecContext(context.Background(), "UPDATE end_user_notifications SET status = ?",
+			notifications_api.EndUserNotificationDispatched)
 		return err
 	})
 
-	nothingDue, err := ds.ListEndUserNotificationsToDispatch(ctx, sz.numHosts)
-	if err != nil {
-		b.Fatal(err)
-	}
-	if len(nothingDue) != 0 {
-		b.Fatalf("%d notifications still dispatchable, want none", len(nothingDue))
+	if countDispatchableNotifications(b, ds) != 0 {
+		b.Fatal("notifications still dispatchable, want none")
 	}
 
 	b.ReportAllocs()
 	for b.Loop() {
-		if err := dispatchEndUserNotifications(ctx, ds, logger); err != nil {
+		if err := notificationsSvc.Dispatch(b.Context()); err != nil {
 			b.Fatal(err)
 		}
 	}

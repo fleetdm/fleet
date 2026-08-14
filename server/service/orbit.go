@@ -1224,7 +1224,7 @@ func (svc *Service) expandAuthTokenForNotification(ctx context.Context, host *fl
 		return script.ScriptContents, nil
 	}
 
-	notification, err := svc.ds.GetEndUserNotificationByExecutionID(ctx, script.ExecutionID)
+	notificationUUID, err := svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get end user notification for script")
 	}
@@ -1248,7 +1248,7 @@ func (svc *Service) expandAuthTokenForNotification(ctx context.Context, host *fl
 	}
 
 	notificationURL := fmt.Sprintf("%s/device/%s/notifications/%s",
-		strings.TrimRight(appConfig.ServerSettings.ServerURL, "/"), token, notification.UUID)
+		strings.TrimRight(appConfig.ServerSettings.ServerURL, "/"), token, notificationUUID)
 
 	return variables.Replace(script.ScriptContents, string(fleet.FleetVarPatchNotificationURL), notificationURL), nil
 }
@@ -1296,7 +1296,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	// one extra query per script result in the whole deployment and one per
 	// script Fleet queued for itself.
 	if hsr != nil && hsr.IsInternal {
-		if err := svc.recordEndUserNotificationOutcome(ctx, result); err != nil {
+		if err := svc.notificationsSvc.RecordOutcome(ctx, result.ExecutionID, int64(result.ExitCode), result.Output); err != nil {
 			return ctxerr.Wrap(ctx, err, "record end user notification outcome")
 		}
 	}
