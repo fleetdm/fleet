@@ -147,6 +147,34 @@ Any crash output sits immediately above that line. A deliberate quit logs `sessi
 reason instead — including `signal: terminated`, so a `killall` or a logout doesn't read as a
 crash. `HANGAR_LOG_LEVEL=debug` raises the level for a run.
 
+### Reporting a crash
+
+Ask for `hangar.log`, and ask them to **relaunch Hangar first** — the verdict on a dead session is
+written at the *next* startup, so a relaunch is what turns "it vanished" into a timestamped line:
+
+```sh
+zip -j ~/Desktop/hangar-logs.zip ~/Library/Logs/com.fleetdm.fleet-hangar/hangar.log*
+```
+
+The glob picks up `hangar.log.1` too, in case the log rotated and the crash landed in the previous
+generation. Worth collecting alongside it: the build (bottom of the Settings sidebar), roughly when
+it happened and what the Mac was doing (lid closed, monitor plugged or unplugged, idle), whether
+their `fleet serve`/ngrok survived — that separates "Hangar died" from "everything died" — and
+`~/Library/Logs/DiagnosticReports/Fleet Hangar*.ips` if it exists. That last one won't exist for a
+Go `fatal error`, which prints its dump and calls `exit(2)` — a normal exit as far as macOS is
+concerned, and the reason these crashes left no trace at all before `hangar.log`. A segfault down
+in the Objective-C/webview layer does die by signal and does produce one.
+
+Reading it, working backwards from the end:
+
+| What you see | What happened |
+|---|---|
+| `session end` with a reason | Quit, or signalled. Not a crash. |
+| No `session end`; next session logs `previous session never recorded an exit` | It died — `last_alive` dates it to within 30s |
+| `fatal error:` / `panic:` + goroutine dump | The cause, with every goroutine (a stalled main thread shows as the pile-up behind it) |
+| `screen parameters changed` or `displays woke` just before the end | The Wails screen crash is back — reopen [wailsapp/wails#5556](https://github.com/wailsapp/wails/issues/5556) |
+| Nothing — the log just stops | Killed hard (jetsam, OOM, `kill -9`). The last heartbeat's `heap_mb`/`goroutines` and an `.ips` are the evidence |
+
 ## Known issues
 
 - **Crash on display sleep/wake or monitor changes — fixed upstream, keep an eye out for it.**
