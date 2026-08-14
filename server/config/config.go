@@ -136,6 +136,7 @@ type ServerConfig struct {
 	PrivateKeySecretSTSExternalID    string        `yaml:"private_key_sts_external_id"`
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
+	VPPInstallReapTimeout            time.Duration `yaml:"vpp_install_reap_timeout"`
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
@@ -1512,6 +1513,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.private_key_sts_external_id", "", "External ID for STS role assumption when accessing private key secret")
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
+	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
+		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
@@ -2044,6 +2047,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			PrivateKeySecretSTSExternalID:    man.getConfigString("server.private_key_sts_external_id"),
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
+			VPPInstallReapTimeout:            man.getConfigDuration("server.vpp_install_reap_timeout"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
