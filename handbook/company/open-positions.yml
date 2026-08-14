@@ -179,6 +179,7 @@
   hiringManagerName: Zay Hanlon
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
   hiringManagerGithubUsername: zayhanlon
+  onTargetEarnings: $150,000 - $200,000 based on experience
   responsibilities: |
     - 🧑‍🔬 Manage the architecture, development, and implementation of Fleet's internal and customer infrastructure.
     - 💭 Manage and optimize scalable distributed systems in the cloud, including tri-weekly cloud upgrades. 
