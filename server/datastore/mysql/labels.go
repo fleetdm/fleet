@@ -202,15 +202,17 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			for _, spec := range specs {
+				if spec.LabelType == fleet.LabelTypeBuiltIn {
+					return ctxerr.Errorf(ctx, "cannot modify or add built-in label '%s'", spec.Name)
+				}
 				existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]
 				if !ok {
 					continue
 				}
 				// The lookup above and the unique index the upsert keys on both inherit
-				// the case-insensitive collation of labels.name, so a spec named as a
-				// case variant of a built-in would overwrite that built-in row in place
-				// and demote it to a regular label.
-				if existingLabel.LabelType == fleet.LabelTypeBuiltIn && spec.LabelType != fleet.LabelTypeBuiltIn {
+				// the case-insensitive collation of labels.name, so even a spec merely
+				// named as a case variant of a built-in resolves to that built-in row.
+				if existingLabel.LabelType == fleet.LabelTypeBuiltIn {
 					return ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", existingLabel.Name)
 				}
 				if existingLabel.TeamID != nil && spec.TeamID == nil ||
