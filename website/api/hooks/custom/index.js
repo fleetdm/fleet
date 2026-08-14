@@ -150,6 +150,33 @@ will be disabled and/or hidden in the UI.
           if (requestCountInLastMinute === 0) {
             return;// Stay quiet on idle minutes so the metric lines are easy to grep.
           }
+
+          // Send the number of requests to Datadog.
+          if (sails.config.environment === 'production' && sails.config.custom.datadogApiKey) {
+            let timestampInSeconds = Math.floor(Date.now() / 1000);
+            let thisDyno = process.env.DYNO;
+            sails.helpers.http.post.with({
+              url: 'https://api.us5.datadoghq.com/api/v2/series',
+              data: {
+                series: [{
+                  metric: 'android_proxy.amapi_request_count',
+                  type: 1,// count
+                  interval: 60,
+                  points: [{ timestamp: timestampInSeconds, value: requestCountInLastMinute }],
+                  tags: [`dyno:${thisDyno}`],
+                }],
+              },
+              headers: {
+                'DD-API-KEY': sails.config.custom.datadogApiKey,
+                'Content-Type': 'application/json',
+              },
+            }).exec((err)=>{
+              if (err) {
+                sails.log.warn(`Background task failed: failed to send AMAPI request-count metric to Datadog. Full error: ${require('util').inspect(err)}`);
+              }
+            });//_∏_
+          }//ﬁ
+
           sails.log.info(`Android proxy: ${requestCountInLastMinute} Android Management API request(s) in the last minute.`);
         };
         // Align the first tick to the top of the next minute so every web dyno logs on the same

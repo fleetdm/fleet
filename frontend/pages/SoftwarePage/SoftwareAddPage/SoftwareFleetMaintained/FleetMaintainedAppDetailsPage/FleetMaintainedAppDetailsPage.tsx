@@ -57,9 +57,8 @@ const FleetAppSummary = ({
       <TooltipWrapper
         tipContent={
           <>
-            To preview the version select <b>Show details</b>
-            <br />
-            and download {name} using the URL.
+            To preview the version, select <strong>Show details</strong> and
+            download {name} using the URL.
           </>
         }
       >

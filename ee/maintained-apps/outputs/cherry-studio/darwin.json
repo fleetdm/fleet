@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.0.3",
+      "version": "2.0.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.kangfenmao.CherryStudio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kangfenmao.CherryStudio' AND version_compare(bundle_short_version, '2.0.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kangfenmao.CherryStudio' AND version_compare(bundle_short_version, '2.0.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.kangfenmao.CherryStudio');"
       },
-      "installer_url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.0.3/Cherry-Studio-2.0.3-arm64.dmg",
+      "installer_url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.0.5/Cherry-Studio-2.0.5-arm64.dmg",
       "install_script_ref": "31529318",
       "uninstall_script_ref": "69da7eb5",
-      "sha256": "53db371fc24ca4ec46c74871ff59da0a8d7b5e331c7c03545dabe8398f937ffe",
+      "sha256": "9e9b127ba1f91ee501d2005ba702c0c4706cd96d5de16931b17c5eaa27dccfc1",
       "default_categories": [
         "Developer tools"
       ]

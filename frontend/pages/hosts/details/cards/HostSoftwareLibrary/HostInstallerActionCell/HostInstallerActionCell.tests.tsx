@@ -1024,4 +1024,37 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
       expect(uninstallBtn.closest("button")).toBeEnabled();
     }
   );
+
+  it("leaves reinstall/uninstall buttons enabled after clicking Uninstall on My Device (fleet#50856)", async () => {
+    // Empty installed_versions surfaces Uninstall as a standalone button rather
+    // than under the More dropdown, so we can click it directly in a test.
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{
+          ...createMockHostSoftware({
+            software_package: mockSoftwarePackage,
+            installed_versions: [],
+          }),
+          status: "installed",
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const uninstallBtn = screen.getByTestId(
+      `${baseClass}__uninstall-button--test`
+    );
+    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
+
+    await user.click(uninstallBtn);
+
+    expect(uninstallBtn.closest("button")).toBeEnabled();
+    expect(installBtn.closest("button")).toBeEnabled();
+  });
 });

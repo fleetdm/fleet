@@ -20,7 +20,7 @@ describe("InstalledAllSelfServiceSoftwareActivityItem", () => {
 
     expect(screen.getByText("End user")).toBeVisible();
     expect(
-      screen.getByText(/installed all the software in self-service/i)
+      screen.getByText(/installed all the software in self service/i)
     ).toBeVisible();
     // The actor is dropped in favor of "End user".
     expect(screen.queryByText("Test User")).not.toBeInTheDocument();
@@ -38,7 +38,7 @@ describe("InstalledAllSelfServiceSoftwareActivityItem", () => {
     );
 
     expect(
-      screen.getByText(/installed all the software in self-service/i)
+      screen.getByText(/installed all the software in self service/i)
     ).toBeVisible();
   });
 

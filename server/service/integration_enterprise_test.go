@@ -8184,16 +8184,19 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to delete own query, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", tcqr.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
-	// Attempt to edit query created by somebody else, should fail.
+	// Attempt to edit query created by somebody else, should fail. A team
+	// GitOps user can't read global queries either (unlike every other team
+	// role), so this reports not-found rather than forbidden: a forbidden
+	// would confirm the global query exists to a caller with no view of it.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Query.ID), fleet.ModifyQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  new("foo4"),
 			Query: new("SELECT * FROM system_info;"),
 		},
-	}, http.StatusForbidden, &fleet.ModifyQueryResponse{})
+	}, http.StatusNotFound, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete query created by somebody else, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusNotFound, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to read the global schedule, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
@@ -32193,6 +32196,92 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 		require.NoError(t, err)
 		_, ok := queries[fmt.Sprint(policy.ID)]
 		require.Equal(t, tc.match, ok, "host %s match expectation", tc.host.Hostname)
+	}
+}
+
+// A host authenticates with its node key and fully controls the fleet_policy_query_<id> keys it
+// sends to distributed/write, so results for policies outside its scope must never be persisted.
+func (s *integrationEnterpriseTestSuite) TestPolicyResultsForOutOfScopePoliciesAreDiscarded() {
+	t := s.T()
+	ctx := t.Context()
+
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lbl := lblResp.Label
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// The victim host: darwin, no team, not a member of lbl.
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + ".local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	inScope, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "in-scope-" + t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// Out of scope three different ways:
+	// 1. another fleet
+	otherFleet, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{Name: "other-fleet-" + t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	// 2. another platform
+	otherPlatform, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name: "other-platform-" + t.Name(), Query: "SELECT 1", Platform: "linux",
+	})
+	require.NoError(t, err)
+	// 3. label the host lacks
+	otherLabel, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name: "other-label-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name},
+	})
+	require.NoError(t, err)
+
+	// Only the in-scope policy is distributed to the host.
+	distributedQueries, err := s.ds.PolicyQueriesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Contains(t, distributedQueries, fmt.Sprint(inScope.ID))
+	for _, p := range []*fleet.Policy{otherFleet, otherPlatform, otherLabel} {
+		require.NotContains(t, distributedQueries, fmt.Sprint(p.ID))
+	}
+
+	// Forge the write: the payload keys are entirely host-controlled, so a node key plus a hand-rolled body is
+	// enough to claim a failing result for all four policies -- including the three never distributed above.
+	// The write is accepted (200) and the out-of-scope results are dropped during ingestion rather than
+	// rejecting the whole check-in, which would also discard the host's legitimate results.
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{
+		inScope.ID:       new(false),
+		otherFleet.ID:    new(false),
+		otherPlatform.ID: new(false),
+		otherLabel.ID:    new(false),
+	}), http.StatusOK, &distributedResp)
+
+	// Nothing was persisted for the out-of-scope policies. This asserts on policy_membership rather than
+	// ListPoliciesForHost because the latter re-applies the scope filter on read and would hide the rows.
+	var storedPolicyIDs []uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &storedPolicyIDs, `SELECT policy_id FROM policy_membership WHERE host_id = ?`, host.ID)
+	})
+	require.Equal(t, []uint{inScope.ID}, storedPolicyIDs)
+
+	// The forged results do not surface the host in policy-filtered host listings either.
+	countFailingHosts := func(policyID uint) int {
+		var listResp listHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp,
+			"policy_id", fmt.Sprint(policyID), "policy_response", "failing")
+		return len(listResp.Hosts)
+	}
+	require.Equal(t, 1, countFailingHosts(inScope.ID))
+	for _, p := range []*fleet.Policy{otherFleet, otherPlatform, otherLabel} {
+		require.Zero(t, countFailingHosts(p.ID), "policy %s", p.Name)
 	}
 }
 

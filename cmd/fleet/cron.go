@@ -2488,22 +2488,47 @@ func newUpcomingActivitiesSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	installReapTimeout time.Duration,
+	verifyTimeout time.Duration,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUpcomingActivitiesMaintenance)
 		defaultInterval = 10 * time.Minute
 	)
-	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds, ds,
-		schedule.WithLogger(logger.With("cron", name)),
-		schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
-			const maxUnblockHosts = 500
-			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
-			return err
-		}),
-	)
+	logger = logger.With("cron", name)
 
-	return s, nil
+	opts := []schedule.Option{schedule.WithLogger(logger)}
+	if installReapTimeout > 0 {
+		// Both timeouts age an acknowledged install from the same instant, its command
+		// result's updated_at, so a reap timeout under the verification budget would fail
+		// installs verification was still entitled to be working on. Raised rather than
+		// honoured, since it asks Fleet to give up before it has finished trying.
+		if installReapTimeout < verifyTimeout {
+			logger.WarnContext(ctx, "raising stuck app install reap timeout to the verification timeout",
+				"vpp_install_reap_timeout", installReapTimeout.String(),
+				"vpp_verify_timeout", verifyTimeout.String())
+			installReapTimeout = verifyTimeout
+		}
+		// Registered ahead of the unblock job so that if a reap frees a head but leaves
+		// nothing activated, the unblock job catches it in this run rather than the next.
+		opts = append(opts, schedule.WithJob("reap_stuck_activated_mdm_installs", func(ctx context.Context) error {
+			const maxReapHosts = 500
+			return service.ReapStuckMDMInstalls(ctx, ds, logger, newActivityFn, installReapTimeout, maxReapHosts)
+		}))
+	} else {
+		// Left unregistered rather than run with a non-positive timeout, which would fail
+		// every activated install on the fleet instead of none.
+		logger.InfoContext(ctx, "stuck app install reaper disabled by configuration",
+			"vpp_install_reap_timeout", installReapTimeout.String())
+	}
+	opts = append(opts, schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
+		const maxUnblockHosts = 500
+		_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
+		return err
+	}))
+
+	return schedule.New(ctx, name, instanceID, defaultInterval, ds, ds, opts...), nil
 }
 
 func newBatchActivitiesSchedule(
