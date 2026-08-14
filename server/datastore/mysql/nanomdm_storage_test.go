@@ -63,15 +63,30 @@ func testEnqueueUnlockUserAccountCommand(t *testing.T, ds *Datastore) {
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "unlock-user-host",
-		OsqueryHostID: ptr.String("unlock-user-host"),
-		NodeKey:       ptr.String("unlock-user-host"),
+		OsqueryHostID: new("unlock-user-host"),
+		NodeKey:       new("unlock-user-host"),
 		UUID:          "unlock-user-host",
 		Platform:      "darwin",
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, false)
 
-	commandUUID, err := ns.EnqueueUnlockUserAccountCommand(ctx, host.UUID, "anna", newUnlockUserAccountCommand(t, "unlock-anna-1", "anna"))
+	otherHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "unlock-user-other-host",
+		OsqueryHostID: new("unlock-user-other-host"),
+		NodeKey:       new("unlock-user-other-host"),
+		UUID:          "unlock-user-other-host",
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, otherHost, false)
+
+	commandUUID, err := ns.EnqueueUnlockUserAccountCommand(ctx, otherHost.UUID, "anna", newUnlockUserAccountCommand(t, "unlock-anna-other-host", "anna"))
+	require.NoError(t, err)
+	require.Equal(t, "unlock-anna-other-host", commandUUID)
+
+	// A pending command for another host is not reused.
+	commandUUID, err = ns.EnqueueUnlockUserAccountCommand(ctx, host.UUID, "anna", newUnlockUserAccountCommand(t, "unlock-anna-1", "anna"))
 	require.NoError(t, err)
 	require.Equal(t, "unlock-anna-1", commandUUID)
 
@@ -117,9 +132,24 @@ func testEnqueueUnlockUserAccountCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "unlock-bob-1", commandUUID)
 
+	// A malformed custom command with the same request type cannot be proven
+	// equivalent, so it is skipped and a new command is enqueued.
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO nano_commands (command_uuid, request_type, command)
+		VALUES (?, 'UnlockUserAccount', '<?xml')`, "unlock-malformed")
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`,
+		host.UUID, "unlock-malformed")
+	require.NoError(t, err)
+
+	commandUUID, err = ns.EnqueueUnlockUserAccountCommand(ctx, host.UUID, "carol", newUnlockUserAccountCommand(t, "unlock-carol-valid", "carol"))
+	require.NoError(t, err)
+	require.Equal(t, "unlock-carol-valid", commandUUID)
+
 	commands, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
-	require.Len(t, commands, 4)
+	require.Len(t, commands, 7)
 }
 
 func testEnqueueUnlockUserAccountCommandRaceCondition(t *testing.T, ds *Datastore) {
@@ -129,8 +159,8 @@ func testEnqueueUnlockUserAccountCommandRaceCondition(t *testing.T, ds *Datastor
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "unlock-user-race-host",
-		OsqueryHostID: ptr.String("unlock-user-race-host"),
-		NodeKey:       ptr.String("unlock-user-race-host"),
+		OsqueryHostID: new("unlock-user-race-host"),
+		NodeKey:       new("unlock-user-race-host"),
 		UUID:          "unlock-user-race-host",
 		Platform:      "darwin",
 	})

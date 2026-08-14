@@ -80,7 +80,7 @@ export const UnlockUserAccountCommandStatus = ({
 }: IUnlockUserAccountCommandStatusProps) => {
   const isDeleted = result.status === "Deleted";
   const hostName = result.hostname || hostDisplayName || "this host";
-  const accountName = username || "the requested";
+  const accountName = username || "requested";
   const displayTime = result.updated_at
     ? ` (${timeAgo(new Date(result.updated_at), { addSuffix: true })})`
     : "";

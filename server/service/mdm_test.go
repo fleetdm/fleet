@@ -727,27 +727,29 @@ func TestUnlockUserAccount(t *testing.T) {
 	errAppConfig := errors.New("app config failed")
 
 	testCases := []struct {
-		name             string
-		username         string
-		platform         string
-		hostMDM          *fleet.HostMDM
-		accessRights     int
-		failAPNS         bool
-		mdmConfigured    *bool
-		appConfigErr     error
-		wantEnqueued     bool
-		wantErr          string
-		wantErrCause     error
-		wantHTTPStatus   int
-		wantNoHTTPStatus bool
+		name                string
+		username            string
+		platform            string
+		hostMDM             *fleet.HostMDM
+		accessRights        int
+		failAPNS            bool
+		mdmConfigured       *bool
+		appConfigErr        error
+		permissionsNotFound bool
+		wantEnqueued        bool
+		wantErr             string
+		wantErrCause        error
+		wantHTTPStatus      int
+		wantNoHTTPStatus    bool
 	}{
 		{name: "empty username", username: "   ", platform: "darwin", wantErr: "Username is required"},
 		{name: "wrong platform", username: "anna", platform: "windows", wantErr: "only supported on macOS"},
-		{name: "MDM not configured", username: "anna", platform: "darwin", mdmConfigured: ptr.Bool(false), wantErr: fleet.AppleMDMNotConfiguredMessage, wantHTTPStatus: http.StatusBadRequest},
+		{name: "MDM not configured", username: "anna", platform: "darwin", mdmConfigured: new(false), wantErr: fleet.AppleMDMNotConfiguredMessage, wantHTTPStatus: http.StatusBadRequest},
 		{name: "app config datastore error", username: "anna", platform: "darwin", appConfigErr: errAppConfig, wantErr: errAppConfig.Error(), wantErrCause: errAppConfig, wantNoHTTPStatus: true},
 		{name: "MDM disconnected", username: "anna", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true}, wantErr: "doesn't have MDM turned on"},
 		{name: "personal enrollment", username: "anna", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true, ConnectedToFleet: true, IsPersonalEnrollment: true}, wantErr: "personally enrolled"},
 		{name: "missing access right", username: "anna", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true, ConnectedToFleet: true}, accessRights: apple_mdm.MDMAccessRightAll &^ apple_mdm.MDMAccessRightDeviceLock, wantErr: "doesn't allow unlocking user accounts"},
+		{name: "enrollment permissions not found", username: "anna", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true, ConnectedToFleet: true}, permissionsNotFound: true, wantEnqueued: true},
 		{name: "APNs failure after enqueue", username: "anna", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true, ConnectedToFleet: true}, accessRights: apple_mdm.MDMAccessRightAll, failAPNS: true, wantEnqueued: true, wantErr: "APNS delivery failed"},
 		{name: "success", username: "  anna  ", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true, ConnectedToFleet: true}, accessRights: apple_mdm.MDMAccessRightAll, wantEnqueued: true},
 	}
@@ -789,6 +791,9 @@ func TestUnlockUserAccount(t *testing.T) {
 			}
 			ds.GetHostMDMFunc = func(context.Context, uint) (*fleet.HostMDM, error) { return tt.hostMDM, nil }
 			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(context.Context, string) (*fleet.HostMDMApplePermissions, error) {
+				if tt.permissionsNotFound {
+					return nil, newNotFoundError()
+				}
 				return &fleet.HostMDMApplePermissions{AccessRights: tt.accessRights}, nil
 			}
 

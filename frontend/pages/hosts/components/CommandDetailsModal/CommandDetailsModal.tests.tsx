@@ -143,4 +143,19 @@ describe("UnlockUserAccountCommandStatus", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/custom MDM command/i)).not.toBeInTheDocument();
   });
+
+  it("renders the requested account fallback without a duplicate article", () => {
+    render(
+      <UnlockUserAccountCommandStatus
+        result={result("Acknowledged")}
+        actorFullName="Jay Moore"
+      />
+    );
+
+    const accountName = screen.getByText("requested");
+    expect(accountName.parentElement).toHaveTextContent(
+      "unlocked the requested user account"
+    );
+    expect(screen.queryByText("the requested")).not.toBeInTheDocument();
+  });
 });
