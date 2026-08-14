@@ -2,6 +2,8 @@
 
 You can add print support to Android hosts by deploying a print service app. Android has no concept of installing an individual printer, through Fleet or any other MDM, since printing on Android depends entirely on a print service app that discovers printers on the network on its own. Deploying that app is the whole task.
 
+> **Note:** The Android Management API does have a `printingPolicy` setting, but it only allows or blocks printing outright. It doesn't configure or install a specific printer, so it doesn't help here.
+
 ## Prerequisites
 
 - Fleet, with Android hosts enrolled and [Android MDM turned on](https://fleetdm.com/guides/android-mdm-setup).

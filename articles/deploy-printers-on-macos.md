@@ -17,7 +17,7 @@ You can deploy printers to macOS hosts with the same scripts and configuration p
 3. Under **Advanced options**, add the uninstall script.
 4. Check **Self-service**, then select **Add software**.
 
-The script adds the printer with [`lpadmin`](https://www.cups.org/doc/man-lpadmin.html). If the manufacturer doesn't provide a PPD, macOS falls back to a generic driver that supports basic printing.
+The script adds the printer with [`lpadmin`](https://www.cups.org/doc/man-lpadmin.html), using IPP Everywhere's driverless mode, which covers most current network printers without a manufacturer PPD.
 
 ```sh
 #!/bin/sh
@@ -25,12 +25,11 @@ The script adds the printer with [`lpadmin`](https://www.cups.org/doc/man-lpadmi
 PRINTER_NAME="Floor2-LaserJet"
 PRINTER_LOCATION="Floor 2"
 PRINTER_URI="ipp://192.0.2.10/ipp/print"
-PRINTER_PPD="/System/Library/Frameworks/ApplicationServices.framework/Versions/A/Frameworks/PrintCore.framework/Resources/Generic.ppd"
 
-/usr/sbin/lpadmin -p "$PRINTER_NAME" -L "$PRINTER_LOCATION" -E -v "$PRINTER_URI" -P "$PRINTER_PPD" -o printer-is-shared=false
+/usr/sbin/lpadmin -p "$PRINTER_NAME" -L "$PRINTER_LOCATION" -E -v "$PRINTER_URI" -m everywhere -o printer-is-shared=false
 ```
 
-> **Note:** If the printer has a PPD, install it to `/Library/Printers/PPDs/Contents/Resources/` first (for example, with a separate software package), then point `PRINTER_PPD` at that file instead of the generic driver.
+> **Note:** If the printer doesn't support IPP Everywhere, stage the manufacturer's PPD on the host first (for example, with a separate software package, at `/Library/Printers/PPDs/Contents/Resources/`), then replace `-m everywhere` with `-P /path/to/printer.ppd`.
 
 Uninstall script:
 
@@ -87,9 +86,9 @@ controls:
 
 `lpadmin` returns success even when the connection URI is wrong, since it only creates the queue. Confirm the IP address, hostname, and resource path against the printer's own network settings page.
 
-**Prints blank or garbled pages with the generic driver**
+**The printer doesn't support IPP Everywhere**
 
-The generic PostScript driver only supports basic printing. Stage the manufacturer's PPD on the host and point `-P` at it instead, following the note under the script above.
+`-m everywhere` fails, or the queue installs but prints garbled output, on printers old enough to lack IPP Everywhere support. Stage the manufacturer's PPD on the host and use `-P` instead, following the note under the script above.
 
 **The configuration profile doesn't add a second printer**
 

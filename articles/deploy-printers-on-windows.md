@@ -14,7 +14,7 @@ Windows has no CSP for installing a network printer with a vendor driver, aside 
 
 ## Deploy a printer with a script
 
-Most current printers support IPP, which Windows can print to using its built-in Microsoft IPP Class Driver, without installing a vendor driver.
+Most current printers support IPP. `Add-Printer`'s `-IppURL` parameter discovers the printer directly at that URL and has Windows pick a driver for it, typically its built-in Microsoft IPP Class Driver, without installing a vendor driver yourself.
 
 1. Go to **Software**, choose a fleet, and select **Add software > Custom package**.
 2. Choose a `.ps1` file containing the script below.
@@ -25,8 +25,10 @@ Most current printers support IPP, which Windows can print to using its built-in
 $printerName = "Floor2-LaserJet"
 $printerUri = "http://192.0.2.10:631/ipp/print"
 
-Add-Printer -Name $printerName -PortName $printerUri -DriverName "Microsoft IPP Class Driver"
+Add-Printer -Name $printerName -IppURL $printerUri
 ```
+
+> **Note:** `-IppURL` and `-DriverName`/`-PortName` belong to different, mutually exclusive parameter sets on `Add-Printer`. Don't combine them, Windows selects the driver on its own once it discovers the printer at the URL.
 
 Uninstall script:
 
@@ -125,7 +127,7 @@ software:
 
 `Add-Printer` returns success even when the connection URI is wrong, since it only creates the queue. Confirm the IP address, hostname, and resource path against the printer's own network settings page.
 
-**"The specified driver is invalid"**
+**"The specified driver is invalid" (vendor driver path only)**
 
 The driver name in `-DriverName` doesn't match an installed driver exactly. Run `Get-PrinterDriver` on the host to see the exact name Windows registered, and use that string, not the name from the manufacturer's packaging.
 
