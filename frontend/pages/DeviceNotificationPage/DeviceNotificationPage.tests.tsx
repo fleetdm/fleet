@@ -138,7 +138,7 @@ describe("DeviceNotificationPage", () => {
     expect(strongText).toContain("work");
   });
 
-  it("marks the last action as primary", async () => {
+  it("renders the last action as the default Button variant and others as subdued", async () => {
     mockServer.use(
       customDeviceNotificationHandler(
         createMockNotificationView({
@@ -156,8 +156,8 @@ describe("DeviceNotificationPage", () => {
     const secondary = screen.getByRole("button", {
       name: "Remind me in 1 hour",
     });
-    expect(primary.className).toMatch(/--primary/);
-    expect(secondary.className).not.toMatch(/--primary/);
+    expect(primary.className).toMatch(/button--default/);
+    expect(secondary.className).toMatch(/button--subdued/);
   });
 
   it("renders both light-mode and dark-mode logo sources", async () => {
