@@ -38,7 +38,7 @@ export const createMockNotificationView = (
   org_logo_url_light_mode: "https://example.com/fleet-logo-light.png",
   org_logo_url_dark_mode: "https://example.com/fleet-logo-dark.png",
   title: "These apps will close and update in **1 hour**",
-  description: "Save your work.",
+  description: "Save your work 💾",
   items: [
     createMockNotificationItem({
       software_title_id: 1,
