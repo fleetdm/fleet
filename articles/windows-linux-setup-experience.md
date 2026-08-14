@@ -38,9 +38,7 @@ When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwi
 
 ### End user experience
 
-Fleet automatically opens the default web browser to show end users software install progress:
-
-![screen shot of Fleet setup experience webpage](../website/assets/images/articles/setup-experience-browser-1795x1122@2x.png)
+Fleet automatically opens the default web browser to show end users software install progress.
 
 The browser can be closed, and the installation will continue in the background. End users can return to the setup experience page by clicking **My Device** from Fleet Desktop.  Once all steps have completed, the **My Device** page will show the host information as usual.
 
