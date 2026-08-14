@@ -83,25 +83,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-  }
-
-  &__action {
-    padding: 8px 16px;
-    border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    font-size: 13px;
-
-    @media (prefers-color-scheme: dark) {
-      border-color: rgba(255, 255, 255, 0.2);
-    }
-
-    &--primary {
-      background: #2f56aa;
-      border-color: #2f56aa;
-      color: #ffffff;
-    }
+    // Buttons themselves are Fleet's <Button> — default variant for the
+    // primary action, `variant="subdued"` for secondaries.
   }
 }
