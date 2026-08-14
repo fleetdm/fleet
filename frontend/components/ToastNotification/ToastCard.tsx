@@ -39,6 +39,10 @@ const variantIcon: Record<
   error: { name: "error-outline", color: "status-error" },
 };
 
+// Serialized payloads that hold nothing worth revealing. Compared against the
+// pretty-printed JSON, so an empty object is "{}" rather than "{\n}".
+const EMPTY_DETAIL_TEXT = ["", "{}", "[]", "null", '""'];
+
 /**
  * `ToastCard` is the single source of truth for every toast variant. It is
  * rendered inside Sonner's headless `toast.custom()` wrapper — Sonner
@@ -56,7 +60,6 @@ const ToastCard = ({
   toastId,
 }: IToastCardProps): JSX.Element => {
   const [isOpen, setIsOpen] = useState(false);
-  const hasDetail = detail !== undefined;
   const icon = variantIcon[variant];
 
   const toggle = (): void => {
@@ -73,7 +76,7 @@ const ToastCard = ({
   // identical to the "Manage activity automations" modal's payload.
   let detailHtml = "";
   let detailText = "";
-  if (hasDetail) {
+  if (detail !== undefined) {
     try {
       detailText = JSON.stringify(detail, null, 2);
       detailHtml = syntaxHighlight(detail);
@@ -86,6 +89,13 @@ const ToastCard = ({
         .replace(/>/g, "&gt;");
     }
   }
+
+  // Callers pass caught errors straight through as `response`, and an `Error`'s
+  // own properties (message, stack) are non-enumerable, so JSON.stringify
+  // returns "{}" without throwing — the panel would open on an empty object.
+  // Treat a payload that carries nothing as no payload at all: the message
+  // already holds the error text, and an empty panel is worse than no panel.
+  const hasDetail = !EMPTY_DETAIL_TEXT.includes(detailText);
 
   // Capture when the toast first rendered. Snapshotted once via the lazy
   // initializer so the timestamp stays stable across re-renders (toggling
