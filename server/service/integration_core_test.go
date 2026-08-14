@@ -11140,7 +11140,59 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 		}
 	}
 
-	// with a label id
+	var putDMResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID),
+		putHostDeviceMappingRequest{Email: "=1+1", Source: "custom"}, http.StatusOK, &putDMResp)
+
+	deviceMappingForHost0 := func(cols string) ([]string, string) {
+		res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", cols)
+		rows, err := csv.NewReader(res.Body).ReadAll()
+		res.Body.Close()
+		require.NoError(t, err)
+		require.Len(t, rows, len(hosts)+1)
+
+		idIx, dmIx := -1, -1
+		for i, hdr := range rows[0] {
+			switch hdr {
+			case "id":
+				idIx = i
+			case "device_mapping":
+				dmIx = i
+			}
+		}
+		require.NotEqual(t, -1, idIx)
+		require.NotEqual(t, -1, dmIx)
+
+		for _, row := range rows[1:] {
+			if row[idIx] == fmt.Sprint(hosts[0].ID) {
+				return rows[0], row[dmIx]
+			}
+		}
+		t.Fatalf("no row found for host %d", hosts[0].ID)
+		return nil, ""
+	}
+
+	reqCols := []string{"id", "display_name", "device_mapping"}
+	hdr, cell := deviceMappingForHost0(strings.Join(reqCols, ","))
+	require.Equal(t, reqCols, hdr)
+	require.Equal(t, "'=1+1", cell)
+
+	hdr, cell = deviceMappingForHost0("")
+	require.Greater(t, len(hdr), len(reqCols))
+	require.Equal(t, "'=1+1", cell)
+
+	adminToken := s.token
+	s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
+	_, cell = deviceMappingForHost0(strings.Join(reqCols, ","))
+	require.Equal(t, "'=1+1", cell)
+	s.token = adminToken
+
+	require.Len(t, putDMResp.DeviceMapping, 1)
+	require.Equal(t, "=1+1", putDMResp.DeviceMapping[0].Email)
+
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID),
+		putHostDeviceMappingRequest{Email: ""}, http.StatusOK, &putDMResp)
+
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "label_id", fmt.Sprintf("%d", customLabelID))
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
