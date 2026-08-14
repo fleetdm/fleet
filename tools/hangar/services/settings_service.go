@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/tools/hangar/internal/buildinfo"
+	"github.com/fleetdm/fleet/tools/hangar/internal/netinfo"
 	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
 	"github.com/fleetdm/fleet/tools/hangar/internal/settings"
 )
@@ -19,6 +20,11 @@ type SettingsService struct{}
 // BuildInfo identifies the running build, so whoever has the app open can read
 // off which one it is without going near a terminal.
 func (s *SettingsService) BuildInfo() buildinfo.Info { return buildinfo.Current() }
+
+// LanIP is the host's current LAN IPv4, for the surfaces that show an address
+// another device has to dial (SCEP enrollment URLs, the python file server).
+// Empty means "unknown" — see netinfo.LanIP.
+func (s *SettingsService) LanIP() string { return netinfo.LanIP() }
 
 // GetSettings loads the persisted settings (defaults if none saved yet).
 func (s *SettingsService) GetSettings() (settings.Settings, error) {

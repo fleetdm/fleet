@@ -46,6 +46,15 @@ export function GetSettings(): $CancellablePromise<settings$0.Settings> {
 }
 
 /**
+ * LanIP is the host's current LAN IPv4, for the surfaces that show an address
+ * another device has to dial (SCEP enrollment URLs, the python file server).
+ * Empty means "unknown" — see netinfo.LanIP.
+ */
+export function LanIP(): $CancellablePromise<string> {
+    return $Call.ByID(421620667);
+}
+
+/**
  * NewScepProfile returns a fresh SCEP launch profile (unique id, next free port
  * starting at 2016, challenge/debug defaults), leaving name/depot for the caller
  * to fill before saving. The slot is derived from the currently-saved profiles

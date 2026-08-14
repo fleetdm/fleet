@@ -170,6 +170,10 @@ export const DEFAULT_FLEET_SERVE_CONFIG: FleetServeConfig = {
 
 export const api = {
   buildInfo: () => cast<BuildInfo>(SettingsService.BuildInfo()),
+  // The host's LAN address, for anywhere we show something another device has
+  // to dial. It changes with the network, so read it when it's shown rather
+  // than holding on to it.
+  lanIp: () => cast<string>(SettingsService.LanIP()),
   getSettings: () => cast<Settings>(SettingsService.GetSettings()),
   saveSettings: (settings: Settings) =>
     SettingsService.SaveSettings(settings as never),
@@ -249,7 +253,6 @@ export const api = {
     ScepService.StartProfile(profile as never),
   scepStopProfile: (profileId: string) =>
     ScepService.StopProfile(profileId),
-  scepLanIp: () => cast<string>(ScepService.LanIP()),
 
   // MDM assets export (tools/mdm/assets).
   mdmAssetsConfigsList: () =>
