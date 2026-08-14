@@ -42,15 +42,16 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       const lineBounds = new Map<number, { left: number; right: number }>();
       for (let i = 0; i < rects.length; i += 1) {
         const rect = rects[i];
-        if (rect.width === 0) continue;
-        // Round to bucket sub-pixel variation on the same visual line.
-        const lineKey = Math.round(rect.top);
-        const bounds = lineBounds.get(lineKey);
-        if (bounds) {
-          if (rect.left < bounds.left) bounds.left = rect.left;
-          if (rect.right > bounds.right) bounds.right = rect.right;
-        } else {
-          lineBounds.set(lineKey, { left: rect.left, right: rect.right });
+        if (rect.width !== 0) {
+          // Round to bucket sub-pixel variation on the same visual line.
+          const lineKey = Math.round(rect.top);
+          const bounds = lineBounds.get(lineKey);
+          if (bounds) {
+            if (rect.left < bounds.left) bounds.left = rect.left;
+            if (rect.right > bounds.right) bounds.right = rect.right;
+          } else {
+            lineBounds.set(lineKey, { left: rect.left, right: rect.right });
+          }
         }
       }
       let widest = 0;

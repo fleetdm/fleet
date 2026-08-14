@@ -96,26 +96,41 @@ describe("TooltipWrapper", () => {
     // jsdom doesn't implement Range.getClientRects; the effect should feature-
     // detect and no-op rather than throw. If the guard regresses this test
     // will surface as an unhandled TypeError during the hover.
-    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
-    const { user } = renderWithSetup(
-      <TooltipWrapper tipContent="Guarded tooltip">
-        <span>Hover me</span>
-      </TooltipWrapper>
-    );
+    try {
+      const { user } = renderWithSetup(
+        <TooltipWrapper tipContent="Guarded tooltip">
+          <span>Hover me</span>
+        </TooltipWrapper>
+      );
 
-    await user.hover(screen.getByText("Hover me"));
+      await user.hover(screen.getByText("Hover me"));
 
-    await waitFor(() => {
-      expect(screen.getByText("Guarded tooltip")).toBeInTheDocument();
-    });
+      await waitFor(() => {
+        expect(screen.getByText("Guarded tooltip")).toBeInTheDocument();
+      });
 
-    // No TypeError from getClientRects should have been logged.
-    const errorCalls = errorSpy.mock.calls.map((args) => String(args[0]));
-    expect(
-      errorCalls.some((msg) => msg.includes("getClientRects is not a function"))
-    ).toBe(false);
+      // BalancedTipContent's measurement runs inside a requestAnimationFrame
+      // scheduled from useLayoutEffect — waitFor above may resolve before it
+      // fires. Flush one animation frame so the getClientRects call (and any
+      // TypeError it would throw without the guard) is captured by the spy
+      // before we assert.
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
 
-    errorSpy.mockRestore();
+      // No TypeError from getClientRects should have been logged.
+      const errorCalls = errorSpy.mock.calls.map((args) => String(args[0]));
+      expect(
+        errorCalls.some((msg) =>
+          msg.includes("getClientRects is not a function")
+        )
+      ).toBe(false);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
