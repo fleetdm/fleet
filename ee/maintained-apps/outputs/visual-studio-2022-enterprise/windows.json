@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "17.14.37",
+      "version": "17.14.38",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE (name = 'Visual Studio Enterprise 2022' OR name LIKE 'Visual Studio Enterprise 2022 (%') AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Visual Studio Enterprise 2022' OR name LIKE 'Visual Studio Enterprise 2022 (%') AND publisher = 'Microsoft Corporation') AND version_compare(version, '17.14.37') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Visual Studio Enterprise 2022' OR name LIKE 'Visual Studio Enterprise 2022 (%') AND publisher = 'Microsoft Corporation') AND version_compare(version, '17.14.38') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'visual studio enterprise 2022.exe');"
       },
-      "installer_url": "https://download.visualstudio.microsoft.com/download/pr/f7f5ecbc-83ca-4cf0-bdb2-aaf70efb6d97/2229b67966b6ae32a74599b68acc1d7d88bc21e93fcceb2f8c1c8253b6e92b29/vs_Enterprise.exe",
+      "installer_url": "https://download.visualstudio.microsoft.com/download/pr/00d9d26c-2727-42c2-aa9e-eda63b03e1ee/9b991a5af6fc3a3a9f3b0af6729b0ac1c581081f75f225d1b9d0e7455410bbef/vs_Enterprise.exe",
       "install_script_ref": "1662986f",
       "uninstall_script_ref": "4e3130f5",
-      "sha256": "2229b67966b6ae32a74599b68acc1d7d88bc21e93fcceb2f8c1c8253b6e92b29",
+      "sha256": "9b991a5af6fc3a3a9f3b0af6729b0ac1c581081f75f225d1b9d0e7455410bbef",
       "default_categories": [
         "Developer tools"
       ]
