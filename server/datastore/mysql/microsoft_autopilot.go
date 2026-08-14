@@ -367,7 +367,7 @@ func ingestWindowsAutopilotDevicesDB(
 		for _, dev := range toCreate {
 			createSerials = append(createSerials, dev.HardwareSerial)
 		}
-		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, defaultTeamID, createSerials); err != nil {
+		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, defaultTeamID, toCreate); err != nil {
 			return err
 		}
 		// This query returns the host ids of newly created hosts.
@@ -388,7 +388,10 @@ func ingestWindowsAutopilotDevicesDB(
 			claimed[hostID] = struct{}{}
 			resolved = append(resolved, &copied)
 			newHostIDs = append(newHostIDs, hostID)
-			newHosts = append(newHosts, fleet.Host{ID: hostID, HardwareSerial: copied.HardwareSerial})
+			// The model is what makes the display name render as "model (serial)"
+			newHosts = append(newHosts, fleet.Host{
+				ID: hostID, HardwareSerial: copied.HardwareSerial, HardwareModel: copied.HardwareModel,
+			})
 		}
 		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, serverURL, mdmID, newHostIDs); err != nil {
 			return err
@@ -476,21 +479,21 @@ ORDER BY h.id`, serials)
 
 // insertPendingWindowsAutopilotHostsDB creates the bare host rows. The never-timestamp sentinel on last_enrolled_at and
 // detail_updated_at marks the host as never having checked in
-func insertPendingWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, teamID *uint, serials []string) error {
-	if len(serials) == 0 {
+func insertPendingWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, teamID *uint, devices []*fleet.HostAutopilotDevice) error {
+	if len(devices) == 0 {
 		return nil
 	}
 
 	stmt := `
-INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested, team_id)
+INSERT INTO hosts (hardware_serial, hardware_model, hardware_vendor, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested, team_id)
 VALUES %s`
 
-	args := make([]any, 0, len(serials)*2)
-	for _, serial := range serials {
-		args = append(args, serial, teamID)
+	args := make([]any, 0, len(devices)*4)
+	for _, dev := range devices {
+		args = append(args, dev.HardwareSerial, dev.HardwareModel, dev.HardwareVendor, teamID)
 	}
 	values := strings.TrimSuffix(strings.Repeat(
-		"(?, '', 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1, ?),", len(serials)), ",")
+		"(?, ?, ?, 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1, ?),", len(devices)), ",")
 	if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert pending windows autopilot hosts")
 	}

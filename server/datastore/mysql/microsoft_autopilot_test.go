@@ -494,6 +494,8 @@ func autopilotDevice(serial, tag string) *fleet.HostAutopilotDevice {
 		EntraDeviceID:     "aad-" + serial,
 		GroupTag:          tag,
 		HardwareSerial:    serial,
+		HardwareModel:     "Virtual Machine",
+		HardwareVendor:    "Microsoft Corporation",
 		TenantID:          testTenantA,
 	}
 }
@@ -580,11 +582,17 @@ func testIngestWindowsAutopilotDevices(t *testing.T, ds *Datastore) {
 		EnrollmentStatus *string `db:"enrollment_status"`
 		ServerURL        string  `db:"server_url"`
 		TeamID           *uint   `db:"team_id"`
+		HardwareModel    string  `db:"hardware_model"`
+		HardwareVendor   string  `db:"hardware_vendor"`
+		DisplayName      *string `db:"display_name"`
 	}
 	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &got, `
 SELECT h.id, h.platform, h.hardware_serial, h.osquery_host_id, h.team_id,
+       h.hardware_model, h.hardware_vendor, hdn.display_name,
        hm.enrolled, hm.installed_from_dep, hm.enrollment_status, hm.server_url
-FROM hosts h JOIN host_mdm hm ON hm.host_id = h.id
+FROM hosts h
+JOIN host_mdm hm ON hm.host_id = h.id
+LEFT JOIN host_display_names hdn ON hdn.host_id = h.id
 WHERE h.hardware_serial LIKE 'AP-SERIAL-%' ORDER BY h.hardware_serial`))
 	require.Len(t, got, 2)
 	for _, h := range got {
@@ -598,6 +606,13 @@ WHERE h.hardware_serial LIKE 'AP-SERIAL-%' ORDER BY h.hardware_serial`))
 			"pending hosts must share the Windows MDM solution row, not the Apple one")
 		require.NotNil(t, h.TeamID, "a pending host lands in the default fleet, not No team")
 		assert.Equal(t, team.ID, *h.TeamID)
+
+		// Autopilot is the only source of hardware identity until osquery runs.
+		assert.Equal(t, "Virtual Machine", h.HardwareModel)
+		assert.Equal(t, "Microsoft Corporation", h.HardwareVendor)
+		require.NotNil(t, h.DisplayName)
+		assert.Equal(t, "Virtual Machine ("+h.HardwareSerial+")", *h.DisplayName,
+			"a pending host must be identifiable in the host list before it boots")
 	}
 
 	// The Autopilot metadata is stored against the created hosts.

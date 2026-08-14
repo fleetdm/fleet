@@ -183,6 +183,8 @@ func autopilotDevicesToIngest(devices []msgraph.WindowsAutopilotDevice, tenantID
 			EntraDeviceID:     dev.EntraDeviceID,
 			GroupTag:          dev.GroupTag,
 			HardwareSerial:    dev.SerialNumber,
+			HardwareModel:     dev.Model,
+			HardwareVendor:    dev.Manufacturer,
 			TenantID:          tenantID,
 		})
 	}
