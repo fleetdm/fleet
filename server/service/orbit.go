@@ -1175,36 +1175,29 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand custom host vitals for host %d and script %s", host.ID, execID))
 	}
 
-	// TODO(JK) Expand auth token here:
-	script.ScriptContents, err = svc.expandAuthTokenForNotification(ctx, host, script)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand notification url for host %d and script %s", host.ID, execID))
+	// Skip executions that already have a result so a re-fetch can't record a
+	// second one.
+	if script.ExitCode == nil {
+		expanded, failureMessage, err := svc.expandAuthTokenForNotification(ctx, host, script)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand notification url for host %d and script %s", host.ID, execID))
+		}
+		if failureMessage != "" {
+			return svc.recordScriptResolutionFailure(ctx, script, failureMessage)
+		}
+		script.ScriptContents = expanded
 	}
 
 	// Fleet variables expand last: values are end-user-influenced (IdP data),
 	// so any $FLEET_SECRET_* or $FLEET_HOST_VITAL_* text they carry must stay
-	// literal rather than go through the expansions above. Skip executions
-	// that already have a result so a re-fetch can't record a second one.
+	// literal rather than go through the expansions above.
 	if script.ExitCode == nil {
 		expanded, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and script %s", host.ID, execID))
 		}
 		if failureMessage != "" {
-			// Record the failed result server-side so the execution leaves the
-			// queue: returning an error would make fleetd stop processing its
-			// whole script queue, while returning the script with an exit code
-			// already set makes fleetd skip just this execution.
-			if err := svc.SaveHostScriptResult(ctx, &fleet.HostScriptResultPayload{
-				ExecutionID: script.ExecutionID,
-				Output:      failureMessage,
-				ExitCode:    fleet.ExitCodeFleetVarResolutionFailed,
-			}); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "record fleet variable resolution failure")
-			}
-			script.ExitCode = new(int64(fleet.ExitCodeFleetVarResolutionFailed))
-			script.Output = failureMessage
-			return script, nil
+			return svc.recordScriptResolutionFailure(ctx, script, failureMessage)
 		}
 		script.ScriptContents = expanded
 	}
@@ -1212,45 +1205,64 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	return script, nil
 }
 
+// recordScriptResolutionFailure records the failed result server-side so the
+// execution leaves the queue: returning an error would make fleetd stop
+// processing its whole script queue, while returning the script with an exit
+// code already set makes fleetd skip just this execution.
+func (svc *Service) recordScriptResolutionFailure(ctx context.Context, script *fleet.HostScriptResult, failureMessage string) (*fleet.HostScriptResult, error) {
+	if err := svc.SaveHostScriptResult(ctx, &fleet.HostScriptResultPayload{
+		ExecutionID: script.ExecutionID,
+		Output:      failureMessage,
+		ExitCode:    fleet.ExitCodeFleetVarResolutionFailed,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "record script resolution failure")
+	}
+	script.ExitCode = new(int64(fleet.ExitCodeFleetVarResolutionFailed))
+	script.Output = failureMessage
+	return script, nil
+}
+
 // expandAuthTokenForNotification resolves $FLEET_VAR_PATCH_NOTIFICATION_URL to
 // the notification's device page URL. Resolved at fetch time rather than when
-// queued, so script_contents never holds a live credential.
-func (svc *Service) expandAuthTokenForNotification(ctx context.Context, host *fleet.Host, script *fleet.HostScriptResult) (string, error) {
+// queued, so script_contents never holds a live credential. Anything that goes
+// wrong resolving it comes back as a failureMessage, not an error, so only this
+// execution fails rather than the host's whole queue.
+func (svc *Service) expandAuthTokenForNotification(ctx context.Context, host *fleet.Host, script *fleet.HostScriptResult) (expanded string, failureMessage string, err error) {
 	// admin-written scripts are never internal, so this skips them without a scan
 	if !script.IsInternal {
-		return script.ScriptContents, nil
+		return script.ScriptContents, "", nil
 	}
 	if !slices.Contains(variables.Find(script.ScriptContents), string(fleet.FleetVarPatchNotificationURL)) {
-		return script.ScriptContents, nil
+		return script.ScriptContents, "", nil
 	}
 
-	notificationUUID, err := svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "get end user notification for script")
+	notificationUUID, lookupErr := svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
+	if lookupErr != nil {
+		return "", "Fleet couldn't find the notification for this script.", nil
 	}
 
-	token, err := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)
+	token, tokenErr := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)
 	switch {
-	case err == nil:
+	case tokenErr == nil:
 		// fresh token in hand
-	case fleet.IsNotFound(err):
-		token, err = svc.mintHostDeviceAuthToken(ctx, host.ID)
-		if err != nil {
-			return "", err
+	case fleet.IsNotFound(tokenErr):
+		token, tokenErr = svc.mintHostDeviceAuthToken(ctx, host.ID)
+		if tokenErr != nil {
+			return "", "Fleet couldn't mint a device auth token for this host.", nil
 		}
 	default:
-		return "", ctxerr.Wrap(ctx, err, "check fresh device auth token")
+		return "", "Fleet couldn't check this host's device auth token.", nil
 	}
 
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "get app config for server url")
+	appConfig, appConfigErr := svc.ds.AppConfig(ctx)
+	if appConfigErr != nil {
+		return "", "Fleet couldn't load its app config to build the notification URL.", nil
 	}
 
 	notificationURL := fmt.Sprintf("%s/device/%s/notifications/%s",
 		strings.TrimRight(appConfig.ServerSettings.ServerURL, "/"), token, notificationUUID)
 
-	return variables.Replace(script.ScriptContents, string(fleet.FleetVarPatchNotificationURL), notificationURL), nil
+	return variables.Replace(script.ScriptContents, string(fleet.FleetVarPatchNotificationURL), notificationURL), "", nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -1321,8 +1333,9 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		}
 	}
 
-	// don't create a "past" activity if the result was for a canceled activity
-	if hsr != nil && !hsr.Canceled {
+	// don't create a "past" activity if the result was for a canceled activity,
+	// or for a script Fleet queued for itself rather than a user-requested run
+	if hsr != nil && !hsr.Canceled && !hsr.IsInternal {
 		var user *fleet.User
 		if hsr.UserID != nil {
 			user, err = svc.ds.UserByID(ctx, *hsr.UserID)

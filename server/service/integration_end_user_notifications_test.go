@@ -213,7 +213,8 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 		got := getTestNotification(t, s.ds, notificationUUID)
 		require.Equal(t, notifications_api.EndUserNotificationPending, got.Status)
-		require.Nil(t, got.ExecutionID)
+		require.NotNil(t, got.ExecutionID, "keeps its execution_id so a late result can still find it")
+		require.Equal(t, *dispatched.ExecutionID, *got.ExecutionID)
 		require.NotNil(t, got.LastReason)
 		require.Equal(t, notifications_api.EndUserNotificationReasonDelayed, *got.LastReason)
 		require.NotNil(t, got.NextAttemptAt)

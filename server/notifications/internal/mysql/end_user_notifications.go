@@ -6,7 +6,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -105,11 +107,13 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 	return &notification, nil
 }
 
+// GetEndUserNotificationByExecutionID reads from primary because callers look
+// up an execution the dispatcher may have written a moment ago.
 func (ds *Datastore) GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*api.EndUserNotification, error) {
 	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM end_user_notifications eun WHERE eun.execution_id = ?`
 
 	var notification api.EndUserNotification
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, executionID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt, executionID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, &types.NotFoundError{Identifier: executionID})
 		}
@@ -166,60 +170,60 @@ LIMIT ?
 	return notifications, nil
 }
 
-// SetEndUserNotificationsDispatched records the execution each notification was
-// queued as, joining the just-queued executions rather than sending one value per
-// row.
+// SetEndUserNotificationsDispatched records the execution each notification
+// was queued as. The pairs are joined in as a literal derived table rather
+// than looked up in upcoming_activities, since a script that finishes before
+// this runs has already had its queue row deleted.
 func (ds *Datastore) SetEndUserNotificationsDispatched(ctx context.Context, notifications []*api.EndUserNotification) error {
 	if len(notifications) == 0 {
 		return nil
 	}
 
-	const updateStmt = `
-UPDATE end_user_notifications eun
-	JOIN upcoming_activities ua
-		ON ua.host_id = eun.host_id AND ua.execution_id IN (?)
-SET
-	eun.status = ?,
-	eun.execution_id = ua.execution_id,
-	eun.attempt_count = eun.attempt_count + 1
-WHERE
-	eun.uuid IN (?)
-`
-
-	executionIDs := make([]string, 0, len(notifications))
-	uuids := make([]string, 0, len(notifications))
+	selectParts := make([]string, 0, len(notifications))
+	args := make([]any, 0, len(notifications)*2+1)
 	for _, notification := range notifications {
 		if notification.ExecutionID == nil {
 			return ctxerr.New(ctx, "end user notification dispatched without an execution id")
 		}
-		executionIDs = append(executionIDs, *notification.ExecutionID)
-		uuids = append(uuids, notification.UUID)
+		selectParts = append(selectParts, "SELECT ? AS uuid, ? AS execution_id")
+		args = append(args, notification.UUID, *notification.ExecutionID)
 	}
+	args = append(args, api.EndUserNotificationDispatched)
 
-	stmt, args, err := sqlx.In(updateStmt, executionIDs, api.EndUserNotificationDispatched, uuids)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build end user notifications dispatched update")
-	}
+	updateStmt := fmt.Sprintf(`
+UPDATE end_user_notifications eun
+	JOIN (%s) queued ON queued.uuid = eun.uuid
+SET
+	eun.status = ?,
+	eun.execution_id = queued.execution_id,
+	eun.attempt_count = eun.attempt_count + 1
+`, strings.Join(selectParts, " UNION ALL "))
 
-	if _, err := ds.primary.ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := ds.primary.ExecContext(ctx, updateStmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "set end user notifications dispatched")
 	}
 	return nil
 }
 
-// ExpireEndUserNotifications sets notifications past their expiry to expired, and
+// ExpireEndUserNotifications sets notifications past their expiry to expired,
+// along with any dispatched past EndUserNotificationStuckDispatchTimeout, and
 // returns how many. One already displayed is left alone regardless of expiry.
 func (ds *Datastore) ExpireEndUserNotifications(ctx context.Context) (int64, error) {
 	const updateStmt = `
 UPDATE end_user_notifications
 SET status = ?
-WHERE expires_at IS NOT NULL AND expires_at <= NOW(6)
-	AND status IN (?, ?)
-	AND displayed_at IS NULL
+WHERE displayed_at IS NULL
+	AND (
+		(status IN (?, ?) AND expires_at IS NOT NULL AND expires_at <= NOW(6))
+		OR (status = ? AND updated_at <= ?)
+	)
 `
 
+	stuckBefore := time.Now().UTC().Add(-api.EndUserNotificationStuckDispatchTimeout)
 	res, err := ds.primary.ExecContext(ctx, updateStmt,
-		api.EndUserNotificationExpired, api.EndUserNotificationPending, api.EndUserNotificationDispatched,
+		api.EndUserNotificationExpired,
+		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
+		api.EndUserNotificationDispatched, stuckBefore,
 	)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "expire end user notifications")
@@ -250,16 +254,21 @@ WHERE uuid = ?
 }
 
 // DelayEndUserNotification puts a notification back in the queue for a later
-// attempt, dropping the execution it was dispatched with.
+// attempt. It keeps execution_id, since the script it was dispatched with is
+// still running and its result has to land somewhere. Expired and failed
+// notifications are left alone so a delay can't revive one.
 func (ds *Datastore) DelayEndUserNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time) error {
 	const updateStmt = `
 UPDATE end_user_notifications
-SET status = ?, next_attempt_at = ?, last_reason = ?, execution_id = NULL
+SET status = ?, next_attempt_at = ?, last_reason = ?
 WHERE uuid = ?
+	AND status NOT IN (?, ?)
+	AND (expires_at IS NULL OR expires_at > NOW(6))
 `
 
 	if _, err := ds.primary.ExecContext(ctx, updateStmt,
 		api.EndUserNotificationPending, nextAttemptAt, api.EndUserNotificationReasonDelayed, notificationUUID,
+		api.EndUserNotificationExpired, api.EndUserNotificationFailed,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "delay end user notification")
 	}

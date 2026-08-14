@@ -214,6 +214,22 @@ func testSetEndUserNotificationsDispatched(t *testing.T, env *testEnv) {
 		assert.Equal(t, *notifications[0].ExecutionID, *got.ExecutionID)
 		assert.EqualValues(t, 1, got.AttemptCount)
 	})
+
+	t.Run("records the execution even if the queued script already completed", func(t *testing.T) {
+		// no upcoming_activities row, unlike withExecutionID: that's the state
+		// a script that already finished leaves behind
+		hostID := newDarwinHost(t, env, "dispatched-already-completed", true)
+		notificationUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+		executionID := notificationUUID + "-exec"
+		notifications := []*api.EndUserNotification{{UUID: notificationUUID, ExecutionID: &executionID}}
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, notifications))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationDispatched, got.Status)
+		require.NotNil(t, got.ExecutionID)
+		assert.Equal(t, executionID, *got.ExecutionID)
+	})
 }
 
 func testExpireEndUserNotifications(t *testing.T, env *testEnv) {
@@ -228,9 +244,21 @@ func testExpireEndUserNotifications(t *testing.T, env *testEnv) {
 	require.NoError(t, env.ds.VerifyEndUserNotification(ctx, pastButDisplayedUUID, time.Now()))
 	futureExpiryUUID := env.InsertNotification(t, hostID, "k", nil, &future)
 
+	// dispatched, no expires_at, untouched for longer than the timeout: the
+	// host never came back with a result
+	stuckDispatchedUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+	require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, stuckDispatchedUUID, hostID)))
+	longAgo := time.Now().Add(-api.EndUserNotificationStuckDispatchTimeout - time.Hour)
+	_, err := env.DB.ExecContext(ctx, "UPDATE end_user_notifications SET updated_at = ? WHERE uuid = ?", longAgo, stuckDispatchedUUID)
+	require.NoError(t, err)
+
+	// dispatched just now, no expires_at: still in flight, must be left alone
+	recentlyDispatchedUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+	require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, recentlyDispatchedUUID, hostID)))
+
 	count, err := env.ds.ExpireEndUserNotifications(ctx)
 	require.NoError(t, err)
-	assert.EqualValues(t, 1, count)
+	assert.EqualValues(t, 2, count)
 
 	assertStatus := func(uuid, want string) {
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, uuid)
@@ -241,6 +269,8 @@ func testExpireEndUserNotifications(t *testing.T, env *testEnv) {
 	assertStatus(pastButDisplayedUUID, api.EndUserNotificationPending)
 	assertStatus(futureExpiryUUID, api.EndUserNotificationPending)
 	assertStatus(pastNoExpiryUUID, api.EndUserNotificationPending)
+	assertStatus(stuckDispatchedUUID, api.EndUserNotificationExpired)
+	assertStatus(recentlyDispatchedUUID, api.EndUserNotificationDispatched)
 }
 
 func testVerifyEndUserNotification(t *testing.T, env *testEnv) {
@@ -266,21 +296,60 @@ func testVerifyEndUserNotification(t *testing.T, env *testEnv) {
 
 func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 	ctx := t.Context()
-	hostID := newDarwinHost(t, env, "delay", true)
-	notificationUUID := env.InsertNotification(t, hostID, "k", nil, nil)
-	require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, notificationUUID, hostID)))
 
-	nextAttempt := time.Now().Add(55 * time.Minute).UTC().Truncate(time.Second)
-	require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, nextAttempt))
+	t.Run("delays a dispatched notification", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "delay", true)
+		notificationUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+		notifications := withExecutionID(t, env, notificationUUID, hostID)
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, notifications))
 
-	got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
-	require.NoError(t, err)
-	assert.Equal(t, api.EndUserNotificationPending, got.Status)
-	assert.Nil(t, got.ExecutionID)
-	require.NotNil(t, got.LastReason)
-	assert.Equal(t, api.EndUserNotificationReasonDelayed, *got.LastReason)
-	require.NotNil(t, got.NextAttemptAt)
-	assert.WithinDuration(t, nextAttempt, *got.NextAttemptAt, time.Second)
+		nextAttempt := time.Now().Add(55 * time.Minute).UTC().Truncate(time.Second)
+		require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, nextAttempt))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationPending, got.Status)
+		require.NotNil(t, got.ExecutionID, "keeps its execution_id so a late result can still find it")
+		assert.Equal(t, *notifications[0].ExecutionID, *got.ExecutionID)
+		require.NotNil(t, got.LastReason)
+		assert.Equal(t, api.EndUserNotificationReasonDelayed, *got.LastReason)
+		require.NotNil(t, got.NextAttemptAt)
+		assert.WithinDuration(t, nextAttempt, *got.NextAttemptAt, time.Second)
+	})
+
+	t.Run("does not resurrect an already-expired notification", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "delay-expired", true)
+		notificationUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, notificationUUID, hostID)))
+		require.NoError(t, env.ds.SetEndUserNotificationOutcome(ctx, notificationUUID, api.NotificationOutcome{
+			ExitCode: 2, Reason: api.EndUserNotificationReasonBadInvocation,
+		}, nil))
+		// the outcome above leaves it failed, so set expired directly
+		_, err := env.DB.ExecContext(ctx, "UPDATE end_user_notifications SET status = ? WHERE uuid = ?",
+			api.EndUserNotificationExpired, notificationUUID)
+		require.NoError(t, err)
+
+		require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, time.Now().Add(time.Hour)))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationExpired, got.Status, "delay must not revive an expired notification")
+	})
+
+	t.Run("does not resurrect an already-failed notification", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "delay-failed", true)
+		notificationUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, notificationUUID, hostID)))
+		require.NoError(t, env.ds.SetEndUserNotificationOutcome(ctx, notificationUUID, api.NotificationOutcome{
+			ExitCode: 2, Reason: api.EndUserNotificationReasonBadInvocation,
+		}, nil))
+
+		require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, time.Now().Add(time.Hour)))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationFailed, got.Status, "delay must not revive a failed notification")
+	})
 }
 
 func testSetEndUserNotificationOutcome(t *testing.T, env *testEnv) {
