@@ -118,4 +118,65 @@ describe("DeviceNotificationPage", () => {
 
     expect(await screen.findByText(/apps will close/i)).toBeInTheDocument();
   });
+
+  it("renders **bold** markup in title and description as <strong>", async () => {
+    mockServer.use(
+      customDeviceNotificationHandler(
+        createMockNotificationView({
+          title: "Apps will close in **1 hour**",
+          description: "Save your **work** first.",
+        })
+      )
+    );
+
+    const { container } = renderPage();
+
+    await screen.findByText(/Apps will close in/);
+    const strongs = container.querySelectorAll("strong");
+    const strongText = Array.from(strongs).map((el) => el.textContent);
+    expect(strongText).toContain("1 hour");
+    expect(strongText).toContain("work");
+  });
+
+  it("marks the last action as primary", async () => {
+    mockServer.use(
+      customDeviceNotificationHandler(
+        createMockNotificationView({
+          actions: [
+            { id: "remind", label: "Remind me in 1 hour" },
+            { id: "update_now", label: "Update now" },
+          ],
+        })
+      )
+    );
+
+    renderPage();
+
+    const primary = await screen.findByRole("button", { name: "Update now" });
+    const secondary = screen.getByRole("button", {
+      name: "Remind me in 1 hour",
+    });
+    expect(primary.className).toMatch(/--primary/);
+    expect(secondary.className).not.toMatch(/--primary/);
+  });
+
+  it("renders both light-mode and dark-mode logo sources", async () => {
+    mockServer.use(
+      customDeviceNotificationHandler(
+        createMockNotificationView({
+          org_logo_url_light_mode: "https://example.com/light.png",
+          org_logo_url_dark_mode: "https://example.com/dark.png",
+        })
+      )
+    );
+
+    const { container } = renderPage();
+
+    await screen.findByText(/apps will close/i);
+    const source = container.querySelector("source");
+    const img = container.querySelector("picture img");
+    expect(source?.getAttribute("srcset")).toBe("https://example.com/dark.png");
+    expect(source?.getAttribute("media")).toBe("(prefers-color-scheme: dark)");
+    expect(img?.getAttribute("src")).toBe("https://example.com/light.png");
+  });
 });
