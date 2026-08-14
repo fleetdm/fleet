@@ -25,6 +25,7 @@ import {
   TufService,
 } from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services";
 
+import type * as buildinfoM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/buildinfo/models";
 import type * as settingsM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/settings/models";
 import type * as processesM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/processes/models";
 import type * as gitrepoM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/gitrepo/models";
@@ -50,6 +51,7 @@ function cast<T>(p: unknown): Promise<T> {
 // enum whose values are these strings; the union is the accurate runtime type
 // and avoids enum/literal friction in the Settings UI).
 export type ThemePreference = "system" | "light" | "dark";
+export type BuildInfo = buildinfoM.Info;
 
 // Settings aliases the generated model but keeps theme as the union above and
 // servers as the FleetServeConfig-aliased ServerProfile.
@@ -167,6 +169,7 @@ export const DEFAULT_FLEET_SERVE_CONFIG: FleetServeConfig = {
 };
 
 export const api = {
+  buildInfo: () => cast<BuildInfo>(SettingsService.BuildInfo()),
   getSettings: () => cast<Settings>(SettingsService.GetSettings()),
   saveSettings: (settings: Settings) =>
     SettingsService.SaveSettings(settings as never),

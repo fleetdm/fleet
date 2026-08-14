@@ -7,6 +7,7 @@ package services
 import (
 	"fmt"
 
+	"github.com/fleetdm/fleet/tools/hangar/internal/buildinfo"
 	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
 	"github.com/fleetdm/fleet/tools/hangar/internal/settings"
 )
@@ -14,6 +15,10 @@ import (
 // SettingsService exposes settings, repo probing, ngrok parsing, and the
 // sandboxed file helpers. Mirrors the settings/* commands from settings.rs.
 type SettingsService struct{}
+
+// BuildInfo identifies the running build, so whoever has the app open can read
+// off which one it is without going near a terminal.
+func (s *SettingsService) BuildInfo() buildinfo.Info { return buildinfo.Current() }
 
 // GetSettings loads the persisted settings (defaults if none saved yet).
 func (s *SettingsService) GetSettings() (settings.Settings, error) {
