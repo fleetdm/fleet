@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 import deviceNotificationsAPI from "services/entities/device_notifications";
@@ -125,22 +126,12 @@ const DeviceNotificationPage = ({
         </ul>
         <div className={`${baseClass}__actions`}>
           {secondaryActions.map((action) => (
-            <button
-              key={action.id}
-              type="button"
-              className={`${baseClass}__action`}
-            >
+            <Button key={action.id} variant="subdued">
               {action.label}
-            </button>
+            </Button>
           ))}
           {primaryAction && (
-            <button
-              key={primaryAction.id}
-              type="button"
-              className={`${baseClass}__action ${baseClass}__action--primary`}
-            >
-              {primaryAction.label}
-            </button>
+            <Button key={primaryAction.id}>{primaryAction.label}</Button>
           )}
         </div>
       </div>
