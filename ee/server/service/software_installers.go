@@ -2447,6 +2447,20 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 	return scriptResult, nil
 }
 
+// setupExperiencePlatformsForBareIPABoolean resolves the bare setup_experience
+// boolean for an .ipa into the explicit platform list it stands for: true
+// means iOS only, the documented default. The boolean must not stay attached
+// to the base payload directly because on a hash-matched re-apply the base
+// payload is whichever of the app's two platform rows the lookup returned
+// first. An explicit setup_experience_platform list, false, or a non-.ipa
+// package passes through unchanged.
+func setupExperiencePlatformsForBareIPABoolean(extension string, setupPlatforms *[]string, installDuringSetup *bool) *[]string {
+	if extension == "ipa" && setupPlatforms == nil && installDuringSetup != nil && *installDuringSetup {
+		return &[]string{string(fleet.IOSPlatform)}
+	}
+	return setupPlatforms
+}
+
 // installDuringSetupForFannedOutPlatform derives InstallDuringSetup for the
 // second platform payload fanned out from a single .ipa entry. The base
 // payload's value was computed against the base platform (and the shallow copy
@@ -3774,6 +3788,13 @@ func (svc *Service) softwareBatchUpload(
 			if fleet.IsMacOSPlatform(installer.Platform) && ptr.ValOrZero(installer.InstallDuringSetup) && manualAgentInstall {
 				return errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`)
 			}
+
+			// The bare setup_experience boolean on an .ipa defaults to iOS (see
+			// yaml-files.md). Pin it to an explicit platform list so the
+			// selection doesn't ride on whichever of the app's two rows the
+			// hash lookup happened to return as the base payload.
+			installer.SetupExperiencePlatforms = setupExperiencePlatformsForBareIPABoolean(
+				installer.Extension, installer.SetupExperiencePlatforms, installer.InstallDuringSetup)
 
 			// Canonicalize and reject platforms incompatible with the
 			// installer's extension before the batch reaches the datastore.

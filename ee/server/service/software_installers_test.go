@@ -3028,6 +3028,43 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 	}
 }
 
+// TestSetupExperiencePlatformsForBareIPABoolean is the regression test for the
+// bare setup_experience boolean landing on an arbitrary platform row: on a
+// hash-matched re-apply the base payload can be the iPadOS row, so the boolean
+// must be pinned to an explicit iOS platform list before any per-platform
+// derivation happens.
+func TestSetupExperiencePlatformsForBareIPABoolean(t *testing.T) {
+	t.Parallel()
+
+	explicit := &[]string{"ipados"}
+
+	cases := []struct {
+		name           string
+		extension      string
+		setupPlatforms *[]string
+		installFlag    *bool
+		want           *[]string
+	}{
+		{name: "bare true on ipa pins to ios", extension: "ipa", installFlag: new(true), want: &[]string{"ios"}},
+		{name: "explicit list wins over boolean", extension: "ipa", setupPlatforms: explicit, installFlag: new(true), want: explicit},
+		{name: "bare false passes through", extension: "ipa", installFlag: new(false), want: nil},
+		{name: "nothing set passes through", extension: "ipa", want: nil},
+		{name: "non-ipa passes through", extension: "pkg", installFlag: new(true), want: nil},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := setupExperiencePlatformsForBareIPABoolean(c.extension, c.setupPlatforms, c.installFlag)
+			if c.want == nil {
+				require.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			assert.Equal(t, *c.want, *got)
+		})
+	}
+}
+
 // TestInstallDuringSetupForFannedOutPlatform is the regression test for the
 // .ipa batch fan-out sharing the base payload's InstallDuringSetup pointer:
 // the fanned-out platform must get its own value derived from
