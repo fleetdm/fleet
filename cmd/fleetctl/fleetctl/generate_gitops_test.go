@@ -33,6 +33,7 @@ type MockClient struct {
 	IsFree           bool
 	TeamNameOverride string
 	WithoutMDM       bool
+	WindowsMDMOnly   bool
 	WithoutVPP       bool
 	WithAssets       bool
 	WithActivations  bool
@@ -62,6 +63,12 @@ func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
 		appConfig.MDM.EnabledAndConfigured = false
 		appConfig.MDM.AndroidEnabledAndConfigured = false
 		appConfig.MDM.WindowsEnabledAndConfigured = false
+	}
+
+	if c.WindowsMDMOnly {
+		appConfig.MDM.EnabledAndConfigured = false
+		appConfig.MDM.AndroidEnabledAndConfigured = false
+		appConfig.MDM.WindowsEnabledAndConfigured = true
 	}
 
 	return &appConfig, nil
@@ -1228,6 +1235,42 @@ func TestGenerateGitopsWithoutMDM(t *testing.T) {
 	}, flagSet, nil)
 	err := action(cliContext)
 	require.NoError(t, err, buf.String()) // just checking for success to verify #33667
+
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Fatalf("failed to remove temp dir: %v", err)
+		}
+	})
+}
+
+// TestGenerateGitopsWindowsMDMOnly covers #50757: the EULA used to be exported
+// only when Apple MDM was configured, so a Windows server produced an empty
+// value and a later gitops run of those files deleted the uploaded EULA.
+func TestGenerateGitopsWindowsMDMOnly(t *testing.T) {
+	configureFMAManifestServer(t)
+	fleetClient := &MockClient{WindowsMDMOnly: true}
+	action := createGenerateGitopsAction(fleetClient)
+	buf := new(bytes.Buffer)
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
+	cliContext := cli.NewContext(&cli.App{
+		Name:      "test",
+		Usage:     "test",
+		Writer:    buf,
+		ErrWriter: buf,
+	}, flagSet, nil)
+	err := action(cliContext)
+	require.NoError(t, err, buf.String())
+
+	defaultYML, err := os.ReadFile(filepath.Join(tempDir, "default.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(defaultYML), "end_user_license_agreement: ./lib/eula/test.pdf")
+
+	eulaContent, err := os.ReadFile(filepath.Join(tempDir, "lib", "eula", "test.pdf"))
+	require.NoError(t, err)
+	assert.Equal(t, "This is the EULA content.", string(eulaContent))
 
 	t.Cleanup(func() {
 		if err := os.RemoveAll(tempDir); err != nil {
@@ -2747,6 +2790,9 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 	require.NoError(t, err)
 	appConfig.MDM.EnabledAndConfigured = false
 	appConfig.MDM.WindowsEnabledAndConfigured = false
+	// The EULA export is gated on any MDM platform, so Android has to be off too
+	// for this to be the "no MDM configured" case the test name describes.
+	appConfig.MDM.AndroidEnabledAndConfigured = false
 	appConfig.MDM.AppleBusinessManager = optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{}
 	appConfig.MDM.AppleServerURL = ""
 	appConfig.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{}

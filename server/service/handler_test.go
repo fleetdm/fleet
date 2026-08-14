@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -409,5 +410,96 @@ func TestGzipResponses(t *testing.T) {
 		defer resp.Body.Close()
 
 		require.Empty(t, resp.Header.Get("Content-Encoding"), "Expected no gzip Content-Encoding when disabled")
+	})
+}
+
+// TestEULARoutesMDMGating covers #50757. The EULA is part of the setup
+// experience, which is not Apple-only, so its routes are gated on any MDM
+// platform rather than on Apple specifically.
+//
+// MDM middleware runs before authentication, so a gated route answers "MDM not
+// configured" while an ungated one falls through to auth or to the handler.
+// Asserting on the message rather than the status keeps this precise: the
+// multipart upload routes reject an empty body with a 400 of their own, which a
+// status-only check cannot tell apart.
+func TestEULARoutesMDMGating(t *testing.T) {
+	eulaRoutes := []struct{ method, path string }{
+		{"GET", "/api/latest/fleet/setup_experience/eula/metadata"},
+		{"GET", "/api/latest/fleet/mdm/setup/eula/metadata"},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata"},
+		{"DELETE", "/api/latest/fleet/setup_experience/eula/token"},
+		{"DELETE", "/api/latest/fleet/mdm/setup/eula/token"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token"},
+		// The POST upload routes are deliberately absent. They accept
+		// multipart/form-data, which is parsed before the MDM middleware runs, so
+		// an empty body answers "failed to parse multipart form" whether or not
+		// the route is gated. That makes an assertion either way meaningless. Same
+		// limitation is noted on the commented-out entries in
+		// mdmConfigurationRequiredEndpoints().
+
+		// Device-facing, token authenticated rather than user authenticated.
+		{"GET", "/api/latest/fleet/setup_experience/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172"},
+		{"GET", "/api/latest/fleet/mdm/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172"},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172"},
+	}
+
+	newServer := func(t *testing.T, mdm fleet.MDM) *httptest.Server {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: mdm}, nil
+		}
+		// The device-facing route is token authenticated, so it reaches the
+		// datastore without a user session. Mock it so the handler answers
+		// instead of panicking.
+		ds.MDMGetEULABytesFunc = func(ctx context.Context, token string) (*fleet.MDMEULA, error) {
+			return nil, newNotFoundError()
+		}
+		_, server := RunServerForTestsWithDS(t, ds, &TestServerOpts{
+			License:             &fleet.LicenseInfo{Tier: fleet.TierPremium},
+			SkipCreateTestUsers: true,
+		})
+		t.Cleanup(server.Close)
+		return server
+	}
+
+	requestMessage := func(t *testing.T, server *httptest.Server, method, path string) string {
+		t.Helper()
+		req, err := http.NewRequest(method, server.URL+path, nil)
+		require.NoError(t, err)
+		resp, err := fleethttp.NewClient().Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		return string(body)
+	}
+
+	t.Run("windows MDM only", func(t *testing.T) {
+		server := newServer(t, fleet.MDM{WindowsEnabledAndConfigured: true})
+		for _, route := range eulaRoutes {
+			t.Run(route.method+" "+route.path, func(t *testing.T) {
+				require.NotContains(t, requestMessage(t, server, route.method, route.path),
+					fleet.MDMNotConfiguredMessage,
+					"EULA route must not be gated on Apple MDM specifically")
+			})
+		}
+
+		// Control: a genuinely Apple-only route still reports MDM not configured
+		// on this same server, so the assertions above are not passing vacuously.
+		t.Run("control GET /apns is still Apple gated", func(t *testing.T) {
+			require.Contains(t, requestMessage(t, server, "GET", "/api/latest/fleet/apns"),
+				fleet.MDMNotConfiguredMessage)
+		})
+	})
+
+	t.Run("no MDM platform configured", func(t *testing.T) {
+		server := newServer(t, fleet.MDM{})
+		for _, route := range eulaRoutes {
+			t.Run(route.method+" "+route.path, func(t *testing.T) {
+				require.Contains(t, requestMessage(t, server, route.method, route.path),
+					fleet.MDMNotConfiguredMessage,
+					"EULA route requires some MDM platform to be configured")
+			})
+		}
 	})
 }
