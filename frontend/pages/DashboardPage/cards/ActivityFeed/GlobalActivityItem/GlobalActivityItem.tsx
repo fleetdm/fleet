@@ -307,7 +307,7 @@ const TAGGED_TEMPLATES = {
           <TooltipWrapper
             tipContent={
               <>
-                The host expiry window configured in
+                The host expiry window configured in{" "}
                 <strong>
                   Settings &gt; Organization settings &gt; Advanced options
                 </strong>

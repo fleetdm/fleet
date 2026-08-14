@@ -33,10 +33,31 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       // to preserve.
       if (typeof range.getClientRects !== "function") return;
       const rects = range.getClientRects();
-      let widest = 0;
+      // Range.getClientRects returns one rect per text run per line, so a line
+      // containing text plus a nested <strong>/<em>/<b> produces multiple
+      // narrower rects. Taking the widest single rect would under-measure the
+      // line width. Group rects by their top edge (visual line) and compute
+      // each line's true width from the leftmost/rightmost extents, then pick
+      // the widest line.
+      const lineBounds = new Map<number, { left: number; right: number }>();
       for (let i = 0; i < rects.length; i += 1) {
-        if (rects[i].width > widest) widest = rects[i].width;
+        const rect = rects[i];
+        if (rect.width === 0) continue;
+        // Round to bucket sub-pixel variation on the same visual line.
+        const lineKey = Math.round(rect.top);
+        const bounds = lineBounds.get(lineKey);
+        if (bounds) {
+          if (rect.left < bounds.left) bounds.left = rect.left;
+          if (rect.right > bounds.right) bounds.right = rect.right;
+        } else {
+          lineBounds.set(lineKey, { left: rect.left, right: rect.right });
+        }
       }
+      let widest = 0;
+      lineBounds.forEach(({ left, right }) => {
+        const lineWidth = right - left;
+        if (lineWidth > widest) widest = lineWidth;
+      });
       if (widest > 0) {
         const style = window.getComputedStyle(root);
         const padLeft = parseFloat(style.paddingLeft) || 0;

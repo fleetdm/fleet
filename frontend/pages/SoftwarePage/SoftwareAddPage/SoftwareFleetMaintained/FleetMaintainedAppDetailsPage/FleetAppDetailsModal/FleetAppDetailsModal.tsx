@@ -56,7 +56,7 @@ const FleetAppDetailsModal = ({
     versionElement = (
       <TooltipWrapper
         tipContent={
-          <>To preview the version download {name} using the URL below.</>
+          <>To preview the version, download {name} using the URL below.</>
         }
       >
         Latest

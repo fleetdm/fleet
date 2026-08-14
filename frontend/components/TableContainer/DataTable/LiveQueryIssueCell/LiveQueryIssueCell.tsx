@@ -28,8 +28,8 @@ const LiveQueryIssueCell = ({
               <>Offline hosts will not respond to a live report.</>
             ) : (
               <>
-                This host might take up to
-                {distributedInterval} seconds to respond.
+                This host might take up to {distributedInterval} seconds to
+                respond.
               </>
             )}
           </span>
