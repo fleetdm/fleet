@@ -639,6 +639,13 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ReplaceMicrosoftGraphCredentialsFunc = func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
 		return nil
 	}
+	// Reads of the app config hydrate the mdm.apple_business fleet names from
+	// this, so it has to be stubbed for any test that GETs the config with ABM
+	// configured. Returning nothing resolvable leaves the stored entries as they
+	// are; tests exercising hydration override it.
+	ds.ListABMTokenDefaultFleetsFunc = func(ctx context.Context) ([]fleet.MDMAppleABMAssignmentInfo, error) {
+		return nil, nil
+	}
 	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
 		return nil, &notFoundError{}
 	}
