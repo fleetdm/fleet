@@ -8,8 +8,12 @@ import (
 )
 
 var jarvisCmd = &cobra.Command{
-	Use:   "jarvis",
-	Short: "Personal work dashboard — your GitHub work, sorted by leverage",
+	Use: "jarvis",
+	// jarvis prints its own actionable guidance on setup failures (e.g. a missing
+	// gh `project` scope), so suppress cobra's usage dump and duplicate error line.
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	Short:         "Personal work dashboard — your GitHub work, sorted by leverage",
 	Long: `jarvis is an interactive TUI that aggregates your open GitHub work into
 leverage-ordered buckets: what's blocking others, what you can merge right now,
 what needs your hands, your review queue, and what's gone cold.
@@ -26,6 +30,12 @@ Actions drive the development lifecycle:
   - M  merge + start a Claude cherry-pick session for the merged PR
   - a  mark Awaiting QA · p pin/unpin to Focus
   - b  open the selected issue's most recently updated project board
+
+Press B for the Branch cleanup view — local branches across your fleet folders
+(clone_base_dirs matching branch_scan_glob, default "fleet*"), each tagged pushed
+/ ahead / gone / local. Delete the selected branch (d), all fully-pushed branches
+(p), or all branches except main (D); press F to fetch + prune first so branches
+whose merged remote was deleted show as "gone".
 
 With primary_projects set in ~/.config/gm/jarvis/config.json (a list of project
 numbers, gm aliases, or names, e.g. ["g-apple-at-work", "g-auto-patching"]), the

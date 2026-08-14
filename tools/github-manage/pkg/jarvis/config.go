@@ -15,6 +15,11 @@ type Config struct {
 	// Defaults to ["~/projects"]. Paths may use ~ for the home directory.
 	CloneBaseDirs []string `json:"clone_base_dirs,omitempty"`
 
+	// BranchScanGlob is the folder-name glob (relative to each CloneBaseDirs
+	// entry) that the branch-cleanup view scans for local git repos. Defaults to
+	// "fleet*" so it picks up ~/projects/fleet, fleet-plan, fleet-2, etc.
+	BranchScanGlob string `json:"branch_scan_glob,omitempty"`
+
 	// PrimaryProjects are the project boards whose assigned-to-you issues surface
 	// in the top "YOUR PROJECTS" section. Each entry may be a project number, a
 	// known gm alias, or a project name/title (e.g. "g-apple-at-work"). Managers
@@ -79,6 +84,9 @@ func LoadConfig(path string) *Config {
 	}
 	if len(c.CloneBaseDirs) == 0 {
 		c.CloneBaseDirs = []string{"~/projects"}
+	}
+	if c.BranchScanGlob == "" {
+		c.BranchScanGlob = "fleet*"
 	}
 	return c
 }

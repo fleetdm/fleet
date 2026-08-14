@@ -39,6 +39,9 @@ func (m Model) View() string {
 			fmt.Sprintf("  %v\n\n", m.err) +
 			dimStyle.Render("  Check `gh auth status` and your network, then press R to retry · q to quit") + "\n"
 	}
+	if m.branchView {
+		return m.renderBranches()
+	}
 	if m.focusView {
 		return m.renderFocus()
 	}
@@ -152,7 +155,11 @@ func (m Model) renderBoard() string {
 
 	now := time.Now()
 	var lines []string
-	cursorLine := 0
+	// revealLine tracks the bottom line of the item lookaheadItems positions
+	// past the cursor, so scrolling keeps the next couple of items in view
+	// instead of pinning the cursor to the last visible row.
+	const lookaheadItems = 2
+	revealLine := 0
 	itemIdx := 0
 	// No primary projects configured — nudge the user to the picker.
 	if len(m.config.PrimaryProjects) == 0 {
@@ -167,9 +174,6 @@ func (m Model) renderBoard() string {
 		}
 		lines = append(lines, m.bucketHeader(bk, len(items)))
 		for _, it := range items {
-			if itemIdx == m.cursor {
-				cursorLine = len(lines)
-			}
 			// Project View issues render as a two-line block (issue, then its PR/
 			// branch). Everything else is a single line.
 			if bk == BucketPrimary && it.Kind == KindIssue {
@@ -180,6 +184,11 @@ func (m Model) renderBoard() string {
 					hiddenLabel = m.triage.Label(m.key(it))
 				}
 				lines = append(lines, m.itemLine(it, itemIdx == m.cursor, hiddenLabel, bk))
+			}
+			// Keep the bottom line of the cursor item and the next lookaheadItems
+			// items visible when we scroll.
+			if itemIdx >= m.cursor && itemIdx <= m.cursor+lookaheadItems {
+				revealLine = len(lines) - 1
 			}
 			itemIdx++
 		}
@@ -192,8 +201,11 @@ func (m Model) renderBoard() string {
 	}
 	start := 0
 	if len(lines) > viewport {
-		if cursorLine >= viewport {
-			start = cursorLine - viewport + 1
+		// Scroll so the look-ahead line (a couple of items past the cursor) is
+		// visible; near the end of the list the clamp below lets the cursor
+		// still reach the final row.
+		if revealLine >= viewport {
+			start = revealLine - viewport + 1
 		}
 		if start+viewport > len(lines) {
 			start = len(lines) - viewport
@@ -392,6 +404,143 @@ func (m Model) issueAnnotation(it Item) (status, prText string, focused bool) {
 	return w.Status, prText, w.Focused
 }
 
+// renderBranches draws the branch-cleanup view: local branches grouped by clone
+// folder, each tagged with its push/merge state, plus the delete actions.
+func (m Model) renderBranches() string {
+	var b strings.Builder
+
+	pushed, gone := 0, 0
+	for _, r := range m.branchRows {
+		switch r.State {
+		case BranchPushed:
+			pushed++
+		case BranchGone:
+			gone++
+		}
+	}
+	title := fmt.Sprintf("🌿 Jarvis · branch cleanup · %d branch(es) · %d pushed · %d gone",
+		len(m.branchRows), pushed, gone)
+	b.WriteString(titleBarStyle.Render(title))
+	b.WriteString("\n")
+
+	if m.notice != "" {
+		style := noticeStyle
+		if m.noticeErr {
+			style = errStyle
+		}
+		b.WriteString(style.Render("  " + m.notice))
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+
+	if m.branchLoading {
+		b.WriteString(dimStyle.Render("  scanning…"))
+		b.WriteString("\n\n")
+		b.WriteString(m.branchFooter())
+		return b.String()
+	}
+	if len(m.branchRows) == 0 {
+		b.WriteString(reasonStyle.Render("  No branches found under the configured fleet folders. 🎉"))
+		b.WriteString("\n\n")
+		b.WriteString(m.branchFooter())
+		return b.String()
+	}
+
+	// Build the flat line list, grouped by repo folder, tracking the cursor line.
+	var lines []string
+	cursorLine := 0
+	lastRepo := ""
+	for i, r := range m.branchRows {
+		if r.Repo != lastRepo {
+			if lastRepo != "" {
+				lines = append(lines, "")
+			}
+			lines = append(lines, headerStyle.Render(r.Repo))
+			lastRepo = r.Repo
+		}
+		if i == m.branchCursor {
+			cursorLine = len(lines)
+		}
+		lines = append(lines, m.branchLine(r, i == m.branchCursor))
+	}
+
+	viewport := m.height - 7 // title + notice + blank + 2-line footer
+	if viewport < 3 {
+		viewport = 3
+	}
+	const lookahead = 2
+	start := 0
+	if len(lines) > viewport {
+		if cursorLine+lookahead >= viewport {
+			start = cursorLine + lookahead - viewport + 1
+		}
+		if start+viewport > len(lines) {
+			start = len(lines) - viewport
+		}
+		if start < 0 {
+			start = 0
+		}
+	}
+	end := start + viewport
+	if end > len(lines) {
+		end = len(lines)
+	}
+	b.WriteString(strings.Join(lines[start:end], "\n"))
+	b.WriteString("\n")
+	b.WriteString(m.branchFooter())
+	return b.String()
+}
+
+// branchLine renders one branch row: cursor marker, colored state tag, name, and
+// (for protected/ahead branches) a short note on why it's kept.
+func (m Model) branchLine(r BranchRow, selected bool) string {
+	tag := r.State.Label()
+	if r.State == BranchAhead && r.Ahead > 0 {
+		tag = fmt.Sprintf("ahead %d", r.Ahead)
+	}
+	note := ""
+	switch {
+	case r.Current:
+		note = "  (current — kept)"
+	case r.Protected:
+		note = "  (kept)"
+	case r.State == BranchGone:
+		note = "  (merged & remote gone — d to delete)"
+	}
+
+	if selected {
+		plain := fmt.Sprintf("  ▸ [%-8s] %s%s", tag, r.Branch, note)
+		return selectedStyle.Render(plain)
+	}
+	styledTag := branchStateStyle(r.State).Render(fmt.Sprintf("[%-8s]", tag))
+	return "    " + styledTag + " " + r.Branch + dimStyle.Render(note)
+}
+
+// branchStateStyle colors a branch's state tag: green for safely-pushed, orange
+// for ahead (unpushed work), red for gone, grey for never-pushed local-only.
+func branchStateStyle(s BranchState) lipgloss.Style {
+	switch s {
+	case BranchPushed:
+		return reasonStyle
+	case BranchAhead:
+		return statusStyle
+	case BranchGone:
+		return errStyle
+	default:
+		return dimStyle
+	}
+}
+
+// branchFooter renders the branch-cleanup key hints, or the delete confirmation.
+func (m Model) branchFooter() string {
+	if m.mode == modeConfirmBranchDelete {
+		return errStyle.Render(m.branchPlanMsg+" ") + "[y] yes  " + dimStyle.Render("· any other key cancels")
+	}
+	nav := "↑/↓ move · g/G top/bottom · F fetch+prune · r rescan · B/esc back · q quit"
+	actions := "d delete selected · p delete all pushed · D delete all but main"
+	return dimStyle.Render(nav) + "\n" + dimStyle.Render(actions)
+}
+
 func (m Model) footer() string {
 	switch m.mode {
 	case modeSnooze:
@@ -413,6 +562,8 @@ func (m Model) footer() string {
 		return m.commentInput.View() + "\n" + dimStyle.Render("enter post · esc cancel")
 	case modeStartWork:
 		return m.startWorkFooter()
+	case modeNewClone:
+		return m.newCloneFooter()
 	default:
 		if m.focusView {
 			nav := "↑/↓ move · g/G top/bottom · enter open · J jump · b project · f board-view · r/R refresh(one/all) · q quit"
@@ -430,7 +581,7 @@ func (m Model) footer() string {
 			}
 			hidden = dimStyle.Render(fmt.Sprintf(" · %d hidden (H to %s)", m.hidden, state))
 		}
-		nav := "↑/↓ move · g/G top/bottom · enter open · b project · f focus · J jump · r/R refresh(one/all) · q quit"
+		nav := "↑/↓ move · g/G top/bottom · enter open · b project · f focus · B branches · J jump · r/R refresh(one/all) · q quit"
 		actions := "w start · v review · m merge · M merge+cp · p pin · P projects · c comment · s snooze · d dismiss · x done · u clear"
 		if m.config.EffectiveRole() == RoleQA {
 			actions += " · t test"
@@ -451,7 +602,8 @@ func (m Model) startWorkFooter() string {
 		b.WriteString("\n")
 		b.WriteString("branch: " + m.startBranchInput.View() + "\n")
 	}
-	if len(m.startClones) == 0 {
+	// QA needs an existing clone to test in; a fresh clone has nothing to verify.
+	if len(m.startClones) == 0 && m.startQA {
 		b.WriteString(errStyle.Render(fmt.Sprintf("  no local clone of %s under %s", m.repo, strings.Join(m.config.CloneBaseDirs, ", "))))
 		b.WriteString("\n" + dimStyle.Render("esc cancel · set clone_base_dirs in ~/.config/gm/jarvis/config.json"))
 		return b.String()
@@ -470,11 +622,35 @@ func (m Model) startWorkFooter() string {
 		}
 		b.WriteString(line + "\n")
 	}
+	// Non-QA: a virtual row to clone a fresh fleet-* working dir.
+	if !m.startQA {
+		newRow := "＋ create new fleet-… working dir"
+		if m.startCloneCursor == len(m.startClones) {
+			b.WriteString(selectedStyle.Render("▸ "+newRow) + "\n")
+		} else {
+			b.WriteString("  " + reasonStyle.Render(newRow) + "\n")
+		}
+	}
 	action := "enter start · esc cancel"
 	if m.startQA {
 		action = "enter test · esc cancel"
 	}
 	b.WriteString(dimStyle.Render(action))
+	return b.String()
+}
+
+// newCloneFooter renders the new-working-dir prompt: the fleet- prefix, the name
+// input, and where the clone will land.
+func (m Model) newCloneFooter() string {
+	var b strings.Builder
+	b.WriteString(titleBarStyle.Render(fmt.Sprintf("New working dir · start #%d on %s", m.startIssue, m.startBranch)))
+	b.WriteString("\n")
+	base := "~/projects"
+	if len(m.config.CloneBaseDirs) > 0 {
+		base = m.config.CloneBaseDirs[0]
+	}
+	b.WriteString(dimStyle.Render("clones "+m.repo+" into "+base+"/") + "fleet-" + m.newCloneInput.View() + "\n")
+	b.WriteString(dimStyle.Render("enter clone & start · esc back to clone list"))
 	return b.String()
 }
 

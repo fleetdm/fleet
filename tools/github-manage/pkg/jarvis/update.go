@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"fleetdm/gm/pkg/ghapi"
@@ -183,6 +184,33 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.noticeErr = false
 		return m, nil
 
+	case branchScanMsg:
+		m.branchRows = msg.rows
+		m.branchLoading = false
+		if m.branchCursor >= len(m.branchRows) {
+			m.branchCursor = len(m.branchRows) - 1
+		}
+		if m.branchCursor < 0 {
+			m.branchCursor = 0
+		}
+		if msg.pruned {
+			m.notice = "fetched + pruned · rescanned"
+			m.noticeErr = false
+		}
+		return m, nil
+
+	case branchDeleteDoneMsg:
+		if msg.failed > 0 {
+			m.notice = fmt.Sprintf("deleted %d branch(es) · %d failed", msg.deleted, msg.failed)
+			m.noticeErr = true
+		} else {
+			m.notice = fmt.Sprintf("deleted %d branch(es)", msg.deleted)
+			m.noticeErr = false
+		}
+		// Rescan (offline) so the view reflects the deletions immediately.
+		m.branchLoading = true
+		return m, scanBranchesCmd(m.config.CloneBaseDirs, m.config.BranchScanGlob, false)
+
 	case sessionReturnedMsg:
 		// Returned from a Claude session jarvis launched/resumed. Don't hit GitHub —
 		// just drop back to the cached loadout we already have in memory (press R to
@@ -207,6 +235,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.mode == modeStartWork {
 		var cmd tea.Cmd
 		m.startBranchInput, cmd = m.startBranchInput.Update(msg)
+		return m, cmd
+	}
+	if m.mode == modeNewClone {
+		var cmd tea.Cmd
+		m.newCloneInput, cmd = m.newCloneInput.Update(msg)
 		return m, cmd
 	}
 	return m, nil
@@ -257,6 +290,10 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleCommentKey(msg)
 	case modeStartWork:
 		return m.handleStartWorkKey(msg)
+	case modeConfirmBranchDelete:
+		return m.handleConfirmBranchDeleteKey(msg)
+	case modeNewClone:
+		return m.handleNewCloneKey(msg)
 	default:
 		return m.handleNormalKey(msg)
 	}
@@ -264,6 +301,10 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.notice = "" // any keypress clears a stale notice
+	// The branch-cleanup view owns navigation and delete keys while open.
+	if m.branchView {
+		return m.handleBranchKey(msg)
+	}
 	switch msg.String() {
 	case "esc":
 		if m.focusView {
@@ -355,6 +396,14 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "f":
 		// Toggle the focus (pinned work items) view.
 		m.focusView = !m.focusView
+
+	case "B":
+		// Open the branch-cleanup view: scan the configured fleet folders offline.
+		m.branchView = true
+		m.branchCursor = 0
+		m.branchLoading = true
+		m.notice = ""
+		return m, scanBranchesCmd(m.config.CloneBaseDirs, m.config.BranchScanGlob, false)
 
 	case "b":
 		// On a project header row, open that project board.
@@ -535,6 +584,137 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleBranchKey drives the branch-cleanup view: navigation, a fetch+prune
+// rescan (F), and the three delete flows (d individual, p all-pushed, D
+// all-but-main), each of which routes through a y/N confirmation.
+func (m *Model) handleBranchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	case "esc", "B":
+		m.branchView = false
+		return m, nil
+
+	case "up", "k":
+		if m.branchCursor > 0 {
+			m.branchCursor--
+		}
+	case "down", "j":
+		if m.branchCursor < len(m.branchRows)-1 {
+			m.branchCursor++
+		}
+	case "g", "home":
+		m.branchCursor = 0
+	case "G", "end":
+		if len(m.branchRows) > 0 {
+			m.branchCursor = len(m.branchRows) - 1
+		}
+
+	case "r", "R":
+		m.branchLoading = true
+		return m, scanBranchesCmd(m.config.CloneBaseDirs, m.config.BranchScanGlob, false)
+
+	case "F":
+		// Fetch + prune each repo so merged-then-deleted branches show as gone.
+		m.branchLoading = true
+		m.notice = "fetching + pruning…"
+		m.noticeErr = false
+		return m, scanBranchesCmd(m.config.CloneBaseDirs, m.config.BranchScanGlob, true)
+
+	case "d", "x":
+		// Delete just the highlighted branch (handles the merged-from-web, no
+		// upstream case the bulk sweeps miss).
+		if r, ok := m.currentBranch(); ok {
+			if r.Protected {
+				m.notice = fmt.Sprintf("can't delete %s (protected)", r.Branch)
+				m.noticeErr = true
+				return m, nil
+			}
+			m.branchPlan = []BranchRow{r}
+			m.branchPlanMsg = fmt.Sprintf("Delete %s/%s?", r.Repo, r.Branch)
+			m.mode = modeConfirmBranchDelete
+		}
+
+	case "p":
+		// Delete every fully-pushed branch — safe, recoverable from origin.
+		plan := m.branchesToDelete(func(r BranchRow) bool { return r.State == BranchPushed })
+		if len(plan) == 0 {
+			m.notice = "no fully-pushed branches to delete"
+			return m, nil
+		}
+		m.branchPlan = plan
+		m.branchPlanMsg = fmt.Sprintf("Delete %d pushed branch(es) across %d repo(s)? Recoverable from origin.",
+			len(plan), countBranchRepos(plan))
+		m.mode = modeConfirmBranchDelete
+
+	case "D":
+		// Delete every branch except main/master (and the checked-out one).
+		plan := m.branchesToDelete(func(r BranchRow) bool { return true })
+		if len(plan) == 0 {
+			m.notice = "nothing to delete"
+			return m, nil
+		}
+		m.branchPlan = plan
+		m.branchPlanMsg = fmt.Sprintf("Delete ALL %d non-main branch(es) across %d repo(s)? Includes unpushed work!",
+			len(plan), countBranchRepos(plan))
+		m.mode = modeConfirmBranchDelete
+	}
+	return m, nil
+}
+
+func (m *Model) handleConfirmBranchDeleteKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "Y":
+		m.mode = modeNormal
+		plan := m.branchPlan
+		m.branchPlan = nil
+		if len(plan) == 0 {
+			return m, nil
+		}
+		m.notice = "deleting…"
+		m.noticeErr = false
+		return m, deleteBranchesCmd(plan)
+	default:
+		m.mode = modeNormal
+		m.branchPlan = nil
+		m.notice = "delete cancelled"
+		m.noticeErr = false
+	}
+	return m, nil
+}
+
+// currentBranch returns the highlighted branch row in the cleanup view.
+func (m *Model) currentBranch() (BranchRow, bool) {
+	if m.branchCursor >= 0 && m.branchCursor < len(m.branchRows) {
+		return m.branchRows[m.branchCursor], true
+	}
+	return BranchRow{}, false
+}
+
+// branchesToDelete returns the non-protected branches matching keep, i.e. the
+// deletion plan for a bulk action.
+func (m *Model) branchesToDelete(match func(BranchRow) bool) []BranchRow {
+	var out []BranchRow
+	for _, r := range m.branchRows {
+		if r.Protected {
+			continue
+		}
+		if match(r) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// countBranchRepos counts the distinct clones touched by a deletion plan.
+func countBranchRepos(plan []BranchRow) int {
+	seen := map[string]bool{}
+	for _, r := range plan {
+		seen[r.Path] = true
+	}
+	return len(seen)
+}
+
 // snoozeOptions maps the picker keys to durations.
 var snoozeOptions = []struct {
 	key   string
@@ -641,11 +821,27 @@ func (m *Model) handleStartWorkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "down", "ctrl+n":
-		if m.startCloneCursor < len(m.startClones)-1 {
+		if m.startCloneCursor < m.startCloneMaxCursor() {
 			m.startCloneCursor++
 		}
 		return m, nil
 	case "enter":
+		// The virtual last row (non-QA only) starts a fresh clone instead of
+		// reusing an existing one.
+		if !m.startQA && m.startCloneCursor == len(m.startClones) {
+			branch := strings.TrimSpace(m.startBranchInput.Value())
+			if branch == "" {
+				m.notice = "enter a branch name first"
+				m.noticeErr = true
+				return m, nil
+			}
+			m.startBranch = branch
+			m.startBranchInput.Blur()
+			m.newCloneInput.SetValue("")
+			m.newCloneInput.Focus()
+			m.mode = modeNewClone
+			return m, textinput.Blink
+		}
 		if len(m.startClones) == 0 {
 			m.notice = "no local clone of " + m.repo + " found (set clone_base_dirs in config.json)"
 			m.noticeErr = true
@@ -680,6 +876,64 @@ func (m *Model) handleStartWorkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.startBranchInput, cmd = m.startBranchInput.Update(msg)
 		return m, cmd
 	}
+}
+
+// startCloneMaxCursor is the highest selectable index in the clone picker. Non-QA
+// starts add one virtual row (index == len(startClones)) for "create new clone".
+func (m *Model) startCloneMaxCursor() int {
+	if m.startQA {
+		return len(m.startClones) - 1
+	}
+	return len(m.startClones) // the extra "create new" row
+}
+
+// handleNewCloneKey drives the new-working-dir prompt: it takes a name, prefixes
+// it with "fleet-", clones the repo under the first clone_base_dirs entry, then
+// runs the normal Start Work flow in the fresh clone.
+func (m *Model) handleNewCloneKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		// Back to the clone picker without losing the branch name.
+		m.mode = modeStartWork
+		m.newCloneInput.Blur()
+		m.startBranchInput.SetValue(m.startBranch)
+		m.startBranchInput.Focus()
+		return m, nil
+	case "enter":
+		name := sanitizeCloneName(m.newCloneInput.Value())
+		if name == "" {
+			m.notice = "enter a name for the new working dir"
+			m.noticeErr = true
+			return m, nil
+		}
+		base := "~/projects"
+		if len(m.config.CloneBaseDirs) > 0 {
+			base = m.config.CloneBaseDirs[0]
+		}
+		dest := filepath.Join(expandHome(base), "fleet-"+name)
+		m.mode = modeNormal
+		m.newCloneInput.Blur()
+		m.notice = fmt.Sprintf("cloning %s into fleet-%s… (this can take a while)", m.repo, name)
+		m.noticeErr = false
+		return m, cloneAndStartWorkCmd(m.repo, dest, m.startIssue, m.startProject, m.startBranch)
+	default:
+		var cmd tea.Cmd
+		m.newCloneInput, cmd = m.newCloneInput.Update(msg)
+		return m, cmd
+	}
+}
+
+// sanitizeCloneName trims a user-entered working-dir name to a safe folder
+// segment: it drops any leading "fleet-" the user typed (we add it), trims
+// slashes/spaces, and keeps it to a single path segment.
+func sanitizeCloneName(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "fleet-")
+	s = strings.Trim(s, "/ ")
+	if i := strings.IndexAny(s, "/\\"); i >= 0 {
+		s = s[:i]
+	}
+	return strings.TrimSpace(s)
 }
 
 // startPrompt builds the role-aware seed prompt for a freshly launched Claude

@@ -30,12 +30,14 @@ const (
 type uiMode int
 
 const (
-	modeNormal        uiMode = iota
-	modeSnooze               // picking a snooze duration
-	modeConfirmMerge         // confirming a merge
-	modeComment              // typing a comment
-	modeStartWork            // naming a branch + picking a clone to start work in
-	modeProjectSelect        // picking primary project boards (the P picker)
+	modeNormal              uiMode = iota
+	modeSnooze                     // picking a snooze duration
+	modeConfirmMerge               // confirming a merge
+	modeComment                    // typing a comment
+	modeStartWork                  // naming a branch + picking a clone to start work in
+	modeProjectSelect              // picking primary project boards (the P picker)
+	modeConfirmBranchDelete        // confirming a local-branch deletion in the cleanup view
+	modeNewClone                   // naming a fresh fleet-* working dir to clone for Start Work
 )
 
 // Model is the Bubble Tea model for the jarvis dashboard.
@@ -74,6 +76,14 @@ type Model struct {
 	focusList   []WorkItem
 	focusCursor int
 
+	// Branch cleanup view: local branches across the configured fleet folders.
+	branchView    bool
+	branchRows    []BranchRow
+	branchCursor  int
+	branchLoading bool
+	branchPlan    []BranchRow // branches pending a delete confirmation
+	branchPlanMsg string      // human summary shown in the confirm footer
+
 	commentInput textinput.Model
 	notice       string
 	noticeErr    bool
@@ -92,6 +102,11 @@ type Model struct {
 	startBranchInput textinput.Model
 	startClones      []CloneStatus
 	startCloneCursor int
+	// New-clone sub-flow: when the user picks "create new" in the clone picker,
+	// startBranch stashes the entered branch and newCloneInput names the fleet-*
+	// folder to clone into before the normal Start Work steps run.
+	startBranch   string
+	newCloneInput textinput.Model
 	// startQA marks the Start Work modal as a QA "test" launch: pick a clone and
 	// launch a repro/verify Claude session, with no branch creation or status write.
 	startQA bool
@@ -120,6 +135,10 @@ func NewModel(repo string, limit int, noCache bool) *Model {
 	bi.Placeholder = "branch-name"
 	bi.CharLimit = 120
 
+	ci := textinput.New()
+	ci.Placeholder = "working-dir-name"
+	ci.CharLimit = 60
+
 	triage, _ := LoadTriageStore(DefaultTriagePath())
 	links, _ := LoadLinkStore(DefaultLinkPath())
 	focus, _ := LoadFocusStore(DefaultFocusPath())
@@ -138,6 +157,7 @@ func NewModel(repo string, limit int, noCache bool) *Model {
 		noCache:          noCache,
 		commentInput:     ti,
 		startBranchInput: bi,
+		newCloneInput:    ci,
 		statuses:         map[int]string{},
 		projects:         map[int]int{},
 		issueProjects:    map[int][]ProjectRef{},
@@ -676,6 +696,23 @@ func startWorkCmd(issue, project int, clonePath, branch string) tea.Cmd {
 	}
 }
 
+// cloneAndStartWorkCmd clones repo into dest, then runs the normal Start Work
+// steps there (branch off main + set In progress). The result flows through the
+// same startWorkDoneMsg path as an existing-clone start, so linking, pinning, and
+// the Claude session launch all behave identically.
+func cloneAndStartWorkCmd(repo, dest string, issue, project int, branch string) tea.Cmd {
+	return func() tea.Msg {
+		if err := CloneRepo(repo, dest); err != nil {
+			return startWorkDoneMsg{issue: issue, project: project, err: fmt.Errorf("clone: %w", err)}
+		}
+		statusSet, warn, err := StartWork(issue, project, dest, branch)
+		return startWorkDoneMsg{
+			issue: issue, project: project, clonePath: dest, branch: branch,
+			statusSet: statusSet, warn: warn, err: err,
+		}
+	}
+}
+
 // refreshPRCmd re-fetches a single PR's mergeability/CI/review state + threads.
 func refreshPRCmd(repo string, number int) tea.Cmd {
 	return func() tea.Msg {
@@ -746,6 +783,46 @@ func setStatusCmd(issue, project int, intents []string) tea.Cmd {
 	return func() tea.Msg {
 		statusSet, err := resolveAndSetStatus(issue, project, intents)
 		return statusWriteMsg{issue: issue, statusSet: statusSet, err: err}
+	}
+}
+
+// branchScanMsg carries the result of a branch-cleanup scan. pruned marks a scan
+// that ran `git fetch --prune` first (so the notice can say so).
+type branchScanMsg struct {
+	rows   []BranchRow
+	pruned bool
+}
+
+// branchDeleteDoneMsg carries the outcome of a branch-deletion batch.
+type branchDeleteDoneMsg struct {
+	deleted int
+	failed  int
+}
+
+// scanBranchesCmd scans the configured fleet folders for local branches in the
+// background. When prune is set it fetches + prunes each repo first (network).
+func scanBranchesCmd(baseDirs []string, glob string, prune bool) tea.Cmd {
+	return func() tea.Msg {
+		return branchScanMsg{rows: ScanFleetBranches(baseDirs, glob, prune), pruned: prune}
+	}
+}
+
+// deleteBranchesCmd force-deletes the planned branches (skipping any protected
+// ones as a safety net) and reports how many succeeded/failed.
+func deleteBranchesCmd(plan []BranchRow) tea.Cmd {
+	return func() tea.Msg {
+		var deleted, failed int
+		for _, r := range plan {
+			if r.Protected {
+				continue
+			}
+			if DeleteBranch(r.Path, r.Branch) == nil {
+				deleted++
+			} else {
+				failed++
+			}
+		}
+		return branchDeleteDoneMsg{deleted: deleted, failed: failed}
 	}
 }
 

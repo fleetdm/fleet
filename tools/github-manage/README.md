@@ -151,6 +151,68 @@ chmod +x gm
 - **Error Context**: Detailed error messages with actionable information
 - **Performance Metrics**: Operation timing and success rates
 
+## 🎩 jarvis — Personal Work Dashboard
+
+`./gm jarvis` opens an interactive TUI that gathers all of your open GitHub work
+onto one screen, ordered by leverage. It pulls three sources — pull requests you
+authored, pull requests awaiting your review, and issues assigned to you (with
+their project board Status) — and refreshes on demand (`r` for the highlighted
+item, `R` for everything). Fetches are cached for 4h so it opens instantly.
+
+First run walks you through a role picker and a project-board picker, saved to
+`~/.config/gm/jarvis/config.json`. jarvis needs the gh `project` scope; if the
+board listing fails it tells you to run `gh auth refresh -s project`.
+
+### How items land in each section
+
+Every item is placed in the **highest** section that applies, so the most
+leveraged work is always at the top:
+
+| Section | What ends up here |
+|---------|-------------------|
+| **PROJECT VIEW** | Issues assigned to you on your primary project boards, plus a count of the Ready backlog. Grouped by board; each board always shows (even when empty) so you can pick up new work. |
+| **WAITING ON YOU** | Others are blocked on you — changes/comments bounced back on your PR, unresolved review threads, or a PR you reviewed that changed since. |
+| **QUICK WINS** | Your PRs that can merge right now: CI green, approved, no conflicts. |
+| **NEEDS YOUR HANDS** | Your own work needing action: merge conflicts, failing CI, or an assigned issue with no PR yet. |
+| **CLAUDE SESSIONS** | Local Claude sessions waiting on your reply. |
+| **REVIEW QUEUE** | PRs awaiting a first review from you. |
+| **COLD** | Waiting on others or gone stale: CI still running, awaiting others' review, drafts, stale assignments. |
+
+### Triage — and automatic reappearance
+
+- `x` mark done · `d` dismiss · `s` snooze (1h / 4h / tomorrow / 1 week) · `u` clear · `H` show hidden
+- **Anything you hide comes back on its own when it gets new activity.** When you
+  mark something done (or dismiss/snooze it), jarvis records the item's
+  last-updated time. If the issue or PR is updated after that — a new comment, a
+  push, a status change — it automatically returns to its section on the next
+  refresh. Nothing stays buried once someone touches it again.
+- Merged/closed PRs and closed issues are marked done for you and drop off.
+
+### Start work
+
+Press `w` on an issue to start work: name a branch, then pick a local clone to
+work in — or choose **＋ create new fleet-… working dir** to clone a fresh copy
+first (you name it, jarvis prefixes `fleet-` and clones under your first
+`clone_base_dirs` entry). Either way jarvis branches off main, sets the issue to
+In progress, and launches a Claude session seeded with the issue context.
+
+### 🌿 Branch cleanup
+
+Press `B` for the branch-cleanup view. It scans every git repo matching
+`branch_scan_glob` (default `fleet*`) under your `clone_base_dirs` and lists each
+local branch tagged by state:
+
+- `pushed` — fully on origin, safe to delete (recoverable with a fetch)
+- `ahead` — has local commits not yet pushed
+- `gone` — the upstream was deleted (e.g. the PR merged from the web); shows after a prune
+- `local` — never pushed
+
+Actions: `d` delete the selected branch, `p` delete all `pushed` branches, `D`
+delete everything except main/master. Press `F` first to `git fetch --prune`
+every repo so branches whose merged remote was deleted surface as `gone`. The
+checked-out branch and main/master are always protected, and every delete asks
+for confirmation.
+
 ## 🏗️ Architecture
 
 GM is built with modern Go patterns and best practices:

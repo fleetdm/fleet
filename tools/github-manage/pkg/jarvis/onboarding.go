@@ -1,7 +1,9 @@
 package jarvis
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -375,7 +377,10 @@ func runOnboarding(repo, configPath string) (cancelled bool, err error) {
 	owner := repoOwner(repo)
 	projects, err := ghapi.ListOrgProjects(owner)
 	if err != nil {
-		return false, fmt.Errorf("listing projects for %s: %w", owner, err)
+		// The overwhelmingly common first-run cause is a gh token without the
+		// `project` scope (gh doesn't grant it by default). Print actionable setup
+		// guidance instead of the opaque "exit status 1".
+		return false, reportProjectAccessFailure(owner)
 	}
 	open := projects[:0]
 	for _, p := range projects {
@@ -402,4 +407,32 @@ func runOnboarding(repo, configPath string) (cancelled bool, err error) {
 		return false, fmt.Errorf("saving config: %w", err)
 	}
 	return false, nil
+}
+
+// reportProjectAccessFailure prints actionable guidance to stderr for a failed
+// project listing at onboarding and returns a terse error to stop setup. It
+// tailors the message: log in first if gh isn't authenticated, otherwise grant
+// the `project` scope gh omits by default. The detail lives in the printed block,
+// so callers should silence cobra's usage/error dump for a clean result.
+func reportProjectAccessFailure(owner string) error {
+	var b strings.Builder
+	b.WriteString(errStyle.Render("jarvis couldn't list your GitHub projects for "+owner+".") + "\n\n")
+	if !ghLoggedIn() {
+		b.WriteString("You're not logged in to the GitHub CLI. Log in with project access, then run jarvis again:\n\n")
+		b.WriteString("    " + reasonStyle.Render("gh auth login") + "\n")
+		b.WriteString("    " + reasonStyle.Render("gh auth refresh -s project") + "\n\n")
+	} else {
+		b.WriteString("Your GitHub CLI login is missing the " + reasonStyle.Render("project") +
+			" scope (gh doesn't grant it by default).\nAdd it, then run jarvis again:\n\n")
+		b.WriteString("    " + reasonStyle.Render("gh auth refresh -s project") + "\n\n")
+	}
+	b.WriteString(dimStyle.Render("See the \"Setup\" section of the github-manage README for details."))
+	fmt.Fprintln(os.Stderr, b.String())
+	return errors.New("GitHub project access required (see instructions above)")
+}
+
+// ghLoggedIn reports whether the gh CLI is authenticated to at least one host.
+func ghLoggedIn() bool {
+	_, err := ghapi.RunGH("auth", "status")
+	return err == nil
 }

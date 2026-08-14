@@ -1,6 +1,7 @@
 package jarvis
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -69,6 +70,21 @@ func DiscoverClones(baseDirs []string, repo string) []CloneStatus {
 		return out[i].Path < out[j].Path
 	})
 	return out
+}
+
+// CloneRepo clones repo ("owner/name") into dest using the gh CLI, so it reuses
+// the user's gh auth and sets origin (and origin/HEAD) correctly. dest must not
+// already exist as a non-empty directory. Combined output is folded into the
+// error so failures (e.g. dest exists, no auth) are legible.
+func CloneRepo(repo, dest string) error {
+	if _, err := os.Stat(dest); err == nil {
+		return fmt.Errorf("%s already exists", dest)
+	}
+	out, err := exec.Command("gh", "repo", "clone", repo, dest).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s", firstLine(string(out)))
+	}
+	return nil
 }
 
 func isGitDir(dir string) bool {
