@@ -9,17 +9,17 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260812170926, Down_20260812170926)
+	MigrationClient.AddMigration(Up_20260723181413, Down_20260723181413)
 }
 
-// Up_20260812170926 removes redundant App Store app installs that Fleet queued for itself, keeping
+// Up_20260723181413 removes redundant App Store app installs that Fleet queued for itself, keeping
 // the most recently queued one per host and app, or none where an install of that app has already
 // been sent to the device. A host whose queue stops draining collects one copy per cycle from
 // automatic updates and from policy automations alike, and installs the app once per copy on drain.
 //
 // An install a person asked for is never removed, so a host holding one of those and an automated
 // duplicate keeps both.
-func Up_20260812170926(tx *sql.Tx) error {
+func Up_20260723181413(tx *sql.Tx) error {
 	step := incrementalMigrationStep(countRedundantQueuedVPPAppInstalls, deleteRedundantQueuedVPPAppInstalls)
 	if err := step(tx); err != nil {
 		return fmt.Errorf("deleting redundant queued VPP app installs: %w", err)
@@ -164,6 +164,6 @@ func deleteRedundantQueuedVPPAppInstalls(tx *sql.Tx, increment incrementCountFn)
 	return nil
 }
 
-func Down_20260812170926(tx *sql.Tx) error {
+func Down_20260723181413(tx *sql.Tx) error {
 	return nil
 }
