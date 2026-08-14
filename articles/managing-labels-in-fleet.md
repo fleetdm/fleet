@@ -132,7 +132,7 @@ The following built-in host vitals are availlable to use in host vitals labels:
 | Country | `geolocation.country_iso` | `geolocation_country_iso` | string | ISO 3166-1 alpha-2 country code derived from a GeoIP lookup of the host's public IP address. |
 | City | `geolocation.city_name` | `geolocation_city_name` | string | City name derived from a GeoIP lookup of the host's public IP address. |
 | Timezone | `timezone` | `timezone` | string | The host's configured IANA timezone (currently only ingested for iOS/iPadOS hosts via MDM). Useful for maintenance-window scheduling or region-based targeting. |
-| Public IP | `public_ip` | `public_ip` | string | The host's cpublic IP address. |
+| Public IP | `public_ip` | `public_ip` | string | The host's public IP address. |
 
 
 
