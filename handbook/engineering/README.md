@@ -114,6 +114,40 @@ All conversation about an unfixed vulnerability stays in the private [fleetdm/se
 **Link the PR back to the security ticket.** Since the PR description can't reference the security issue, post a comment on the fleetdm/security ticket with the PR URL when the PR opens (and again when it merges). That's how we maintain the audit trail without exposing the link publicly.
 
 
+### Pull request etiquette
+
+This applies to anyone who opens a pull request in the Fleet repo. That includes engineers in the owning product group, Fleeties from other groups, members of the Customer Success team, and open source contributors.
+
+
+#### Open a pull request
+
+Review is where Fleet spends most of its engineering time. How a pull request arrives decides how quickly it lands.
+
+1. **Ask before starting something large.** Comment on the issue, or ask in the owning [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel, before writing a lot of code. The Engineering Manager (EM) knows whether the work is already underway and whether the approach fits. They can also say when the group can review it.
+
+2. **Keep the change small.** A small pull request gets reviewed sooner than a large one. When a change has to be large, split it into pieces that each stand on their own. Explain in the description how they fit together.
+
+3. **Use a draft PR until the work is done.** Draft is a normal state, and it tells reviewers the PR isn't waiting on them yet. Take it out of draft once:
+   - The change does what the linked issue asks, and nothing more.
+   - Automated tests cover the change and CI passes.
+   - You have read your own diff and QA'd the change yourself.
+   - The submitter checklist in the description is filled in.
+   - Any user-visible change includes a screenshot or recording.
+
+Marking a pull request ready for review asks a reviewer to set aside their own work. It also commits you to answering questions and making revisions.
+
+
+#### Hand off a pull request before time off
+
+While you're away, a reviewer can't ask you questions. Picking up an unfinished change usually costs more than writing it fresh. Before you go:
+
+- **If the work is done, say so.** Note in the pull request that you'll be out, and when you're back.
+- **If it isn't done, move it back to draft.** Returning a pull request to draft costs you nothing, and it isn't a mark against the work. It keeps a reviewer from spending a pass on something unfinished.
+- **If it has to keep moving, hand it to someone.** Find a person who agrees to take it over. Name them in the pull request, because one left open without an owner waits until you're back.
+
+Whichever applies, say it in the pull request, not only in Slack. The person who picks it up may not be the person you told.
+
+
 ### Community contributions
 
 Fleet values every community contribution. We want to be upfront about how our engineering workflow has evolved so contributors know what to expect.
