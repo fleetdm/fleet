@@ -144,7 +144,7 @@ describe("SoftwareInstallDetailsModal", () => {
             status: "failed_install",
           })}
           isMyDevicePage={false}
-          installSkippedWhenAppOpen
+          skippedInstall
         />
       );
 
@@ -343,7 +343,7 @@ describe("SoftwareInstallDetailsModal", () => {
         <SoftwareInstallDetailsModal
           details={{
             ...baseDetails,
-            install_skipped_when_app_open: true,
+            skipped_install: true,
           }}
           onCancel={noop}
         />
