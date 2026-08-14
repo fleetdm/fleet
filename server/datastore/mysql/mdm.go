@@ -1748,7 +1748,8 @@ SELECT
 	h.id                  AS host_id,
 	h.platform            AS platform,
 	hmap.profile_uuid     AS profile_uuid,
-	hmap.has_acme_payload AS has_acme_payload
+	hmap.has_acme_payload AS has_acme_payload,
+	hmap.scope            AS scope
 FROM host_mdm_apple_profiles hmap
 	JOIN hosts h
 		ON h.uuid = hmap.host_uuid

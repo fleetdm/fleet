@@ -1097,6 +1097,13 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+// SendRawResponse sends an arbitrary plist payload to the MDM server as a
+// command response. This is useful for simulating command results that include
+// extra data (e.g., CertificateList responses with certificate data).
+func (c *TestAppleMDMClient) SendRawResponse(payload map[string]any) (*mdm.Command, error) {
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
 // NotNow sends a NotNow message to the MDM server.
 // The cmdUUID is the UUID of the command to reference.
 //

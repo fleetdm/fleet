@@ -358,10 +358,11 @@ type HostMDMProfileRetryCount struct {
 // com.apple.security.acme payload. Computed in a single query keyed on
 // (host_uuid, command_uuid).
 type ProfileACMECommandResult struct {
-	HostID         uint   `db:"host_id"`
-	Platform       string `db:"platform"`
-	ProfileUUID    string `db:"profile_uuid"`
-	HasACMEPayload bool   `db:"has_acme_payload"`
+	HostID         uint         `db:"host_id"`
+	Platform       string       `db:"platform"`
+	ProfileUUID    string       `db:"profile_uuid"`
+	HasACMEPayload bool         `db:"has_acme_payload"`
+	Scope          PayloadScope `db:"scope"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,

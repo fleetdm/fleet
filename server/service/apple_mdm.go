@@ -6223,8 +6223,22 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 		return nil
 	}
 
+	// For user-scoped profiles the ACME cert lands in the user's login
+	// keychain. CertificateList on the device channel only returns system-
+	// keychain certs, so send the command to the user enrollment instead.
+	enrollmentID := hostUUID
+	if res.Scope == fleet.PayloadScopeUser {
+		userEnrollment, err := svc.ds.GetNanoMDMUserEnrollment(ctx, hostUUID)
+		if err != nil {
+			svc.logger.WarnContext(ctx, "get user enrollment for CertificateList",
+				"err", err, "host_uuid", hostUUID)
+		} else if userEnrollment != nil {
+			enrollmentID = userEnrollment.ID
+		}
+	}
+
 	cmdUUID := uuid.NewString()
-	if err := svc.commander.CertificateList(ctx, []string{hostUUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+	if err := svc.commander.CertificateList(ctx, []string{enrollmentID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueue CertificateList")
 	}
 
