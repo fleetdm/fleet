@@ -1,0 +1,1 @@
+- Fixed the **Save** button in the end user migration workflow settings staying clickable while a save was in progress, which allowed the same update to be submitted multiple times. The button is now disabled and shows a loading spinner until the request finishes.
