@@ -1124,6 +1124,9 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 
 	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &amapiCmd)
 	if err != nil {
+		if androidmgmt.IsBadRequestError(err) {
+			return nil, &fleet.BadRequestError{Message: "AMAPI rejected the command: " + err.Error(), InternalErr: err}
+		}
 		return nil, ctxerr.Wrap(ctx, err, "amapi issue custom command")
 	}
 
