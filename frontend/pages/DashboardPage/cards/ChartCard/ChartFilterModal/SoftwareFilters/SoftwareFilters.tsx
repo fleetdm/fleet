@@ -15,9 +15,12 @@ import RevealButton from "components/buttons/RevealButton";
 import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import SeverityFilter, {
+  ISeverityFilterValue,
+} from "components/SeverityFilter";
 
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
-import { getEpssError, NO_CATEGORIES_MSG } from "./helpers";
+import { ISoftwareFilterErrors, SoftwareFilterField } from "./helpers";
 
 const baseClass = "software-filters";
 
@@ -30,12 +33,22 @@ interface ISoftwareFiltersProps {
   knownExploit: boolean;
   epssMin: string;
   epssMax: string;
+  severityFilter: ISeverityFilterValue;
+  /** Start with the Advanced section open. For entry points that mean "show me
+   * what is filtered" — most of what narrows the chart lives in there. */
+  initialShowAdvanced?: boolean;
+  /** The errors currently being shown. The parent decides when a field has
+   * earned one — see frontend/docs/patterns.md#data-validation. */
+  errors: ISoftwareFilterErrors;
   excludeCVEs: string[];
   setCategories: (categories: string[]) => void;
   setKnownExploit: (value: boolean) => void;
   setEpssMin: (value: string) => void;
   setEpssMax: (value: string) => void;
+  setSeverityFilter: (next: ISeverityFilterValue) => void;
   setExcludeCVEs: (cves: string[]) => void;
+  onFieldBlur: (field: SoftwareFilterField) => void;
+  onFieldFocus: (field: SoftwareFilterField) => void;
 }
 
 const SoftwareFilters = ({
@@ -44,14 +57,31 @@ const SoftwareFilters = ({
   knownExploit,
   epssMin,
   epssMax,
+  severityFilter,
+  initialShowAdvanced = false,
+  errors,
   excludeCVEs,
   setCategories,
   setKnownExploit,
   setEpssMin,
   setEpssMax,
+  setSeverityFilter,
   setExcludeCVEs,
+  onFieldBlur,
+  onFieldFocus,
 }: ISoftwareFiltersProps): JSX.Element => {
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(initialShowAdvanced);
+  // Every field that can error lives in this section, so Apply would otherwise
+  // surface errors behind a collapsed reveal. Keyed on the errors being shown,
+  // not on the raw values.
+  const hasAdvancedError = !!(
+    errors.epssMin ||
+    errors.epssMax ||
+    errors.cvssMin ||
+    errors.cvssMax
+  );
+  const advancedVisible = showAdvanced || hasAdvancedError;
+
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [pageCount, setPageCount] = useState(1);
@@ -87,8 +117,8 @@ const SoftwareFilters = ({
         query: searchQuery || undefined,
       }),
     // The CVE search UI lives entirely inside the Advanced section, so don't
-    // fetch until the user opens it.
-    { keepPreviousData: true, staleTime: 30000, enabled: showAdvanced }
+    // fetch until it is on screen.
+    { keepPreviousData: true, staleTime: 30000, enabled: advancedVisible }
   );
 
   const cves: IVulnerability[] = vulnData?.vulnerabilities ?? [];
@@ -140,9 +170,9 @@ const SoftwareFilters = ({
             {cat.label}
           </Checkbox>
         ))}
-        {categories.length === 0 && (
+        {errors.categories && (
           <div className={`${baseClass}__categories-error`} role="alert">
-            {NO_CATEGORIES_MSG}
+            {errors.categories}
           </div>
         )}
       </div>
@@ -163,14 +193,16 @@ const SoftwareFilters = ({
 
       <RevealButton
         className={`${baseClass}__advanced-toggle`}
-        isShowing={showAdvanced}
+        isShowing={advancedVisible}
         showText="Advanced options"
         hideText="Advanced options"
         caretPosition="after"
-        onClick={() => setShowAdvanced((prev) => !prev)}
+        // Toggle from what's displayed, not from internal state, so the button
+        // stays in step while an error holds the section open.
+        onClick={() => setShowAdvanced(!advancedVisible)}
       />
 
-      {showAdvanced && (
+      {advancedVisible && (
         <div className={`${baseClass}__advanced`}>
           <div className={`${baseClass}__epss`}>
             <h3 className={`${baseClass}__section-title`}>
@@ -197,8 +229,10 @@ const SoftwareFilters = ({
                 type="number"
                 value={epssMin}
                 placeholder="0"
-                error={getEpssError(epssMin)}
+                error={errors.epssMin}
                 onChange={setEpssMin}
+                onBlur={() => onFieldBlur("epssMin")}
+                onFocus={() => onFieldFocus("epssMin")}
               />
               <InputField
                 label="Max"
@@ -206,11 +240,29 @@ const SoftwareFilters = ({
                 type="number"
                 value={epssMax}
                 placeholder="100"
-                error={getEpssError(epssMax)}
+                error={errors.epssMax}
                 onChange={setEpssMax}
+                onBlur={() => onFieldBlur("epssMax")}
+                onFocus={() => onFieldFocus("epssMax")}
               />
             </div>
           </div>
+
+          {/* SeverityFilter renders its own label and spacing, and its label
+          already matches __section-title, so it needs no section wrapper. */}
+          <SeverityFilter
+            severity={severityFilter.severity}
+            minScore={severityFilter.minScore}
+            maxScore={severityFilter.maxScore}
+            onChange={setSeverityFilter}
+            errors={{ minScore: errors.cvssMin, maxScore: errors.cvssMax }}
+            onScoreBlur={(field) =>
+              onFieldBlur(field === "minScore" ? "cvssMin" : "cvssMax")
+            }
+            onScoreFocus={(field) =>
+              onFieldFocus(field === "minScore" ? "cvssMin" : "cvssMax")
+            }
+          />
 
           <div className={`${baseClass}__exclude-cves`}>
             <h3 className={`${baseClass}__section-title`}>
