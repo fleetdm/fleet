@@ -55,59 +55,116 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 			"echo $OTHER_VAR",
 			"",
 		} {
-			expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
+			expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
 			require.NoError(t, err)
 			require.Empty(t, failMsg)
 			require.Equal(t, contents, expanded)
+			require.Empty(t, fleetVars)
 		}
 	})
 
-	t.Run("host variables expand", func(t *testing.T) {
+	t.Run("host variables resolve to env values without touching the script body", func(t *testing.T) {
 		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
-		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
-			"echo $FLEET_VAR_HOST_UUID $FLEET_VAR_HOST_HARDWARE_SERIAL ${FLEET_VAR_HOST_PLATFORM}")
+		// On a POSIX host the token is left in place; the shell expands it from
+		// the environment we return in fleetVars.
+		contents := "echo $FLEET_VAR_HOST_UUID $FLEET_VAR_HOST_HARDWARE_SERIAL ${FLEET_VAR_HOST_PLATFORM}"
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
 		require.NoError(t, err)
 		require.Empty(t, failMsg)
-		require.Equal(t, "echo ABC-123 SERIAL-1 macos", expanded)
+		require.Equal(t, contents, expanded)
+		require.Equal(t, map[string]string{
+			"FLEET_VAR_HOST_UUID":            "ABC-123",
+			"FLEET_VAR_HOST_HARDWARE_SERIAL": "SERIAL-1",
+			"FLEET_VAR_HOST_PLATFORM":        "macos",
+		}, fleetVars)
 	})
 
-	t.Run("platform passes through for linux and windows", func(t *testing.T) {
-		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
-		for platform, want := range map[string]string{"ubuntu": "ubuntu", "rhel": "rhel", "windows": "windows"} {
-			h := *host
-			h.Platform = platform
-			expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, "echo $FLEET_VAR_HOST_PLATFORM")
-			require.NoError(t, err)
-			require.Empty(t, failMsg)
-			require.Equal(t, "echo "+want, expanded)
-		}
-	})
-
-	t.Run("IdP variables expand", func(t *testing.T) {
+	t.Run("windows rewrites tokens to PowerShell env syntax, preserving braces", func(t *testing.T) {
 		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
 		mockScimUser(ds, scimUser)
-		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
-			"user: $FLEET_VAR_HOST_END_USER_IDP_USERNAME\n"+
-				"email: user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.example.com\n"+
-				"name: $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME\n"+
-				"groups: $FLEET_VAR_HOST_END_USER_IDP_GROUPS\n"+
-				"dept: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT\n")
+		h := *host
+		h.Platform = "windows"
+		// b: a braced token adjacent to a suffix must stay braced so PowerShell
+		//    doesn't read the suffix as part of the variable name.
+		// c/d: overlapping supported names (USERNAME vs USERNAME_LOCAL_PART) must
+		//    each rewrite independently (longest-first).
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h,
+			"a=$FLEET_VAR_HOST_UUID\n"+
+				"b=${FLEET_VAR_HOST_PLATFORM}_backup.log\n"+
+				"c=$FLEET_VAR_HOST_END_USER_IDP_USERNAME\n"+
+				"d=${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@x\n")
 		require.NoError(t, err)
 		require.Empty(t, failMsg)
-		require.Equal(t, "user: user@example.com\n"+
-			"email: user_user@corp.example.com\n"+
-			"name: Ada Lovelace\n"+
-			"groups: g1,g2\n"+
-			"dept: Engineering\n", expanded)
+		require.Equal(t, "a=$env:FLEET_VAR_HOST_UUID\n"+
+			"b=${env:FLEET_VAR_HOST_PLATFORM}_backup.log\n"+
+			"c=$env:FLEET_VAR_HOST_END_USER_IDP_USERNAME\n"+
+			"d=${env:FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@x\n", expanded)
+		require.Equal(t, "windows", fleetVars["FLEET_VAR_HOST_PLATFORM"])
+		require.Equal(t, "user@example.com", fleetVars["FLEET_VAR_HOST_END_USER_IDP_USERNAME"])
+		require.Equal(t, "user", fleetVars["FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART"])
+	})
+
+	t.Run("platform passes through for linux", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		for _, platform := range []string{"ubuntu", "rhel"} {
+			h := *host
+			h.Platform = platform
+			expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, "echo $FLEET_VAR_HOST_PLATFORM")
+			require.NoError(t, err)
+			require.Empty(t, failMsg)
+			require.Equal(t, "echo $FLEET_VAR_HOST_PLATFORM", expanded)
+			require.Equal(t, platform, fleetVars["FLEET_VAR_HOST_PLATFORM"])
+		}
+	})
+
+	t.Run("IdP variables resolve to env values", func(t *testing.T) {
+		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+		mockScimUser(ds, scimUser)
+		contents := "user: $FLEET_VAR_HOST_END_USER_IDP_USERNAME\n" +
+			"local: ${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}\n" +
+			"name: $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME\n" +
+			"groups: $FLEET_VAR_HOST_END_USER_IDP_GROUPS\n" +
+			"dept: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT\n"
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		// tokens are untouched on POSIX; the values only appear in fleetVars
+		require.Equal(t, contents, expanded)
+		require.Equal(t, map[string]string{
+			"FLEET_VAR_HOST_END_USER_IDP_USERNAME":            "user@example.com",
+			"FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART": "user",
+			"FLEET_VAR_HOST_END_USER_IDP_FULL_NAME":           "Ada Lovelace",
+			"FLEET_VAR_HOST_END_USER_IDP_GROUPS":              "g1,g2",
+			"FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT":          "Engineering",
+		}, fleetVars)
+	})
+
+	t.Run("injection payload in an IdP value never reaches the script body", func(t *testing.T) {
+		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+		payloadUser := *scimUser
+		payloadUser.Department = new("Engineering`touch /tmp/pwned`")
+		mockScimUser(ds, &payloadUser)
+
+		contents := "echo \"dept: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT\""
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		// The dangerous value is delivered out-of-band and must NOT be spliced
+		// into the script text, so it can never be re-parsed as a command.
+		require.Equal(t, contents, expanded)
+		require.NotContains(t, expanded, "touch")
+		require.NotContains(t, expanded, "`")
+		require.Equal(t, "Engineering`touch /tmp/pwned`", fleetVars["FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"])
 	})
 
 	t.Run("missing IdP user is a resolution failure", func(t *testing.T) {
 		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
 		mockScimUser(ds, nil)
-		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
 			"echo $FLEET_VAR_HOST_END_USER_IDP_USERNAME")
 		require.NoError(t, err)
 		require.Empty(t, expanded)
+		require.Empty(t, fleetVars)
 		require.Contains(t, failMsg, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
 	})
 
@@ -116,9 +173,10 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		mockScimUser(ds, nil)
 		h := *host
 		h.HardwareSerial = ""
-		_, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h,
+		_, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h,
 			"echo $FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_HOST_END_USER_IDP_USERNAME")
 		require.NoError(t, err)
+		require.Empty(t, fleetVars)
 		require.Contains(t, failMsg, "There is no hardware serial for this host.")
 		require.Contains(t, failMsg, "There is no IdP username for this host.")
 		require.Len(t, splitLines(failMsg), 2)
@@ -127,23 +185,26 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 	t.Run("unsupported variable names are left untouched", func(t *testing.T) {
 		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
 		contents := "echo $FLEET_VAR_SOMETHING_ELSE and $FLEET_VAR_HOST_UUID"
-		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
 		require.NoError(t, err)
 		require.Empty(t, failMsg)
-		require.Equal(t, "echo $FLEET_VAR_SOMETHING_ELSE and ABC-123", expanded)
+		require.Equal(t, contents, expanded)
+		require.Equal(t, map[string]string{"FLEET_VAR_HOST_UUID": "ABC-123"}, fleetVars)
 	})
 
 	t.Run("variables on free license fail instead of expanding", func(t *testing.T) {
 		svc, ctx, _ := newSvcAndCtx(fleet.TierFree)
-		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, "echo $FLEET_VAR_HOST_UUID")
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, "echo $FLEET_VAR_HOST_UUID")
 		require.NoError(t, err)
 		require.Empty(t, expanded)
+		require.Empty(t, fleetVars)
 		require.Contains(t, failMsg, "Fleet Premium license")
 
 		// variable-free content is unaffected on free
-		expanded, failMsg, err = svc.maybeExpandScriptFleetVariables(ctx, host, "echo hello")
+		expanded, fleetVars, failMsg, err = svc.maybeExpandScriptFleetVariables(ctx, host, "echo hello")
 		require.NoError(t, err)
 		require.Empty(t, failMsg)
+		require.Empty(t, fleetVars)
 		require.Equal(t, "echo hello", expanded)
 	})
 }
@@ -201,7 +262,12 @@ func TestGetHostScriptFleetVariables(t *testing.T) {
 
 		script, err := svc.GetHostScript(ctx, "exec-1")
 		require.NoError(t, err)
-		require.Equal(t, "echo ABC-123 on ubuntu", script.ScriptContents)
+		// the script body keeps the tokens; the values ride along as env vars
+		require.Equal(t, "echo $FLEET_VAR_HOST_UUID on $FLEET_VAR_HOST_PLATFORM", script.ScriptContents)
+		require.Equal(t, map[string]string{
+			"FLEET_VAR_HOST_UUID":     "ABC-123",
+			"FLEET_VAR_HOST_PLATFORM": "ubuntu",
+		}, script.FleetVariables)
 		require.Nil(t, script.ExitCode)
 		require.True(t, ds.ExpandEmbeddedSecretsFuncInvoked)
 	})
@@ -294,9 +360,16 @@ func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
 
 		details, err := svc.GetSoftwareInstallDetails(ctx, "install-1")
 		require.NoError(t, err)
-		require.Equal(t, "install SERIAL-1", details.InstallScript)
-		require.Equal(t, "post ABC-123", details.PostInstallScript)
-		require.Equal(t, "uninstall ubuntu", details.UninstallScript)
+		// script bodies keep the tokens; the resolved values from all three
+		// scripts are collected into FleetVariables for env delivery
+		require.Equal(t, "install $FLEET_VAR_HOST_HARDWARE_SERIAL", details.InstallScript)
+		require.Equal(t, "post ${FLEET_VAR_HOST_UUID}", details.PostInstallScript)
+		require.Equal(t, "uninstall $FLEET_VAR_HOST_PLATFORM", details.UninstallScript)
+		require.Equal(t, map[string]string{
+			"FLEET_VAR_HOST_HARDWARE_SERIAL": "SERIAL-1",
+			"FLEET_VAR_HOST_UUID":            "ABC-123",
+			"FLEET_VAR_HOST_PLATFORM":        "ubuntu",
+		}, details.FleetVariables)
 	})
 
 	t.Run("scripts without variables are unchanged", func(t *testing.T) {

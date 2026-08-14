@@ -415,9 +415,16 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerFleetVariables() {
 		InstallUUID:  installUUID,
 		OrbitNodeKey: *host.OrbitNodeKey,
 	}, http.StatusOK, &detailsResp)
-	require.Equal(t, "install "+host.HardwareSerial, detailsResp.InstallScript)
-	require.Equal(t, "post "+host.UUID, detailsResp.PostInstallScript)
-	require.Equal(t, "uninstall ubuntu", detailsResp.UninstallScript)
+	// tokens stay in the script bodies; the resolved values are delivered as
+	// env vars via FleetVariables for the agent to expose at exec time
+	require.Equal(t, "install $FLEET_VAR_HOST_HARDWARE_SERIAL", detailsResp.InstallScript)
+	require.Equal(t, "post ${FLEET_VAR_HOST_UUID}", detailsResp.PostInstallScript)
+	require.Equal(t, "uninstall $FLEET_VAR_HOST_PLATFORM", detailsResp.UninstallScript)
+	require.Equal(t, map[string]string{
+		"FLEET_VAR_HOST_HARDWARE_SERIAL": host.HardwareSerial,
+		"FLEET_VAR_HOST_UUID":            host.UUID,
+		"FLEET_VAR_HOST_PLATFORM":        "ubuntu",
+	}, detailsResp.FleetVariables)
 
 	// the host completes the install so the queue is free for the failure case
 	s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{

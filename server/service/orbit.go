@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -1179,7 +1180,7 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	// literal rather than go through the expansions above. Skip executions
 	// that already have a result so a re-fetch can't record a second one.
 	if script.ExitCode == nil {
-		expanded, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
+		expanded, fleetVars, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and script %s", host.ID, execID))
 		}
@@ -1200,6 +1201,7 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 			return script, nil
 		}
 		script.ScriptContents = expanded
+		script.FleetVariables = fleetVars
 	}
 
 	return script, nil
@@ -1746,8 +1748,9 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 	// resolve Fleet variables in the installer's scripts for this host, after
 	// the secrets and custom host vitals expansions done by the datastore
 	var failures []string
+	resolvedVars := make(map[string]string)
 	for _, script := range []*string{&details.InstallScript, &details.PostInstallScript, &details.UninstallScript} {
-		expanded, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, *script)
+		expanded, fleetVars, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, *script)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and install %s", host.ID, installUUID))
 		}
@@ -1758,6 +1761,7 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 			continue
 		}
 		*script = expanded
+		maps.Copy(resolvedVars, fleetVars)
 	}
 	if len(failures) > 0 {
 		// Record the failed result server-side so the install leaves the
@@ -1780,6 +1784,9 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 			}
 		}
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "software install with unresolvable fleet variables")
+	}
+	if len(resolvedVars) > 0 {
+		details.FleetVariables = resolvedVars
 	}
 
 	return details, nil

@@ -160,3 +160,25 @@ func TestExecCmdSuccess(t *testing.T) {
 		t.Fatalf("Expected output %q, got: %q", expectedOutput, output)
 	}
 }
+
+// TestExecCmdDoesNotExecuteEnvValues is the end-to-end guard for the script
+// variable injection issue: a Fleet variable delivered through the environment
+// must be expanded by the shell as data, never re-parsed as a command, even
+// when its value contains shell metacharacters.
+func TestExecCmdDoesNotExecuteEnvValues(t *testing.T) {
+	tmpDir := t.TempDir()
+	marker := filepath.Join(tmpDir, "marker")
+	payload := "inject`touch " + marker + "`"
+
+	scriptPath := filepath.Join(tmpDir, "script.sh")
+	require.NoError(t, os.WriteFile(scriptPath, []byte(`echo "$FLEET_VAR_X"`), os.ModePerm)) //nolint:gosec // ignore non-standard permissions
+
+	env := append(os.Environ(), "FLEET_VAR_X="+payload)
+	output, exitCode, err := ExecCmd(context.Background(), scriptPath, env)
+	require.NoError(t, err)
+	require.Equal(t, 0, exitCode)
+	// the value is printed verbatim, proving it was treated as data
+	require.Equal(t, payload, strings.TrimSpace(string(output)))
+	// the embedded command must not have run
+	require.NoFileExists(t, marker)
+}

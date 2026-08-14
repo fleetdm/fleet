@@ -347,10 +347,12 @@ type mockExecCmd struct {
 	err      error
 	count    int
 	execFn   func() ([]byte, int, error)
+	gotEnv   []string
 }
 
 func (m *mockExecCmd) run(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
 	m.count++
+	m.gotEnv = env
 	if m.execFn != nil {
 		return m.execFn()
 	}
@@ -403,4 +405,59 @@ func (m *mockClient) SaveHostScriptResult(result *fleet.HostScriptResultPayload)
 		m.saveErr = nil
 	}
 	return err
+}
+
+// TestRunnerDeliversFleetVariablesAsEnv verifies the runner hands resolved Fleet
+// variables to the interpreter as environment variables (appended to the
+// inherited environment), rather than expecting them substituted into the
+// script body. A value containing shell metacharacters must be passed verbatim.
+func TestRunnerDeliversFleetVariablesAsEnv(t *testing.T) {
+	const payload = "Engineering`touch /tmp/should_not_run`"
+	client := &mockClient{
+		scripts: map[string]*fleet.HostScriptResult{
+			"a": {
+				ExecutionID:    "a",
+				ScriptContents: `echo "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"`,
+				FleetVariables: map[string]string{
+					"FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT": payload,
+				},
+			},
+		},
+	}
+	execer := &mockExecCmd{}
+	runner := &Runner{
+		Client:                 client,
+		ScriptExecutionEnabled: true,
+		tempDirFn:              t.TempDir,
+		execCmdFn:              execer.run,
+	}
+
+	require.NoError(t, runner.Run([]string{"a"}))
+	require.Equal(t, 1, execer.count)
+	// the value is delivered through the environment, verbatim
+	require.Contains(t, execer.gotEnv, "FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT="+payload)
+	// the inherited environment is preserved (env replaces, not augments, at exec)
+	require.Subset(t, execer.gotEnv, os.Environ())
+}
+
+// TestRunnerNoFleetVariablesInheritsEnvImplicitly verifies that when there are
+// no Fleet variables the runner passes a nil env, letting the child inherit
+// orbit's environment as before.
+func TestRunnerNoFleetVariablesInheritsEnvImplicitly(t *testing.T) {
+	client := &mockClient{
+		scripts: map[string]*fleet.HostScriptResult{
+			"a": {ExecutionID: "a", ScriptContents: "echo hello"},
+		},
+	}
+	execer := &mockExecCmd{}
+	runner := &Runner{
+		Client:                 client,
+		ScriptExecutionEnabled: true,
+		tempDirFn:              t.TempDir,
+		execCmdFn:              execer.run,
+	}
+
+	require.NoError(t, runner.Run([]string{"a"}))
+	require.Equal(t, 1, execer.count)
+	require.Nil(t, execer.gotEnv)
 }

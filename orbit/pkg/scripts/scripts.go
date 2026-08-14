@@ -125,9 +125,21 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 	if execCmdFn == nil {
 		execCmdFn = ExecCmd
 	}
+	// Fleet variables (e.g. IdP attributes) are delivered as environment
+	// variables and expanded by the interpreter at exec time, rather than being
+	// substituted into the script body server-side, so their values can never be
+	// re-parsed as code. Inherit the current environment and append them.
+	var env []string
+	if len(script.FleetVariables) > 0 {
+		env = os.Environ()
+		for name, value := range script.FleetVariables {
+			env = append(env, name+"="+value)
+		}
+	}
+
 	start := time.Now()
 	log.Debug().Msgf("starting script execution of %v with timeout of %v", script.ExecutionID, r.ScriptExecutionTimeout)
-	output, exitCode, execErr := execCmdFn(ctx, scriptFile, nil)
+	output, exitCode, execErr := execCmdFn(ctx, scriptFile, env)
 	log.Debug().Msgf("after script execution of %v", script.ExecutionID)
 	duration := time.Since(start)
 

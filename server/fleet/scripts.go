@@ -310,6 +310,14 @@ type HostScriptResult struct {
 	// nil = not triggered by a policy failure
 	// 1,2,3 attempt, 3 being max retries
 	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
+
+	// FleetVariables holds resolved Fleet variables (keyed by their full
+	// FLEET_VAR_* name) that the agent must expose to the script as environment
+	// variables at execution time. Values are end-user-influenced (IdP data), so
+	// they are delivered out-of-band rather than substituted into ScriptContents,
+	// letting the interpreter expand them without re-parsing the value. It is set
+	// by the endpoint and not part of the host_script_results table.
+	FleetVariables map[string]string `json:"fleet_variables,omitempty" db:"-"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {

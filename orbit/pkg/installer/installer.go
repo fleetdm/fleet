@@ -501,7 +501,7 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 	}
 
 	logger.Info().Msg("about to run install script")
-	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptFileExtension(installer.InstallScript, runtime.GOOS))
+	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptFileExtension(installer.InstallScript, runtime.GOOS), installer.FleetVariables)
 	payload.InstallScriptOutput = &installOutput
 	payload.InstallScriptExitCode = &installExitCode
 	if err != nil {
@@ -512,7 +512,7 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 
 	if installer.PostInstallScript != "" {
 		logger.Info().Str("installerPath", installerPath).Msg("about to run post-install script")
-		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptFileExtension(installer.PostInstallScript, runtime.GOOS))
+		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptFileExtension(installer.PostInstallScript, runtime.GOOS), installer.FleetVariables)
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
 
@@ -534,7 +534,7 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 				uninstallScript = file.GetRemoveScript(ext)
 			}
 			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath,
-				"rollback-script"+scriptFileExtension(uninstallScript, runtime.GOOS))
+				"rollback-script"+scriptFileExtension(uninstallScript, runtime.GOOS), installer.FleetVariables)
 			logger.Info().Msgf(
 				"rollback status: exit code: %d, error: %s, output: %s",
 				uninstallExitCode, uninstallErr, uninstallOutput,
@@ -650,7 +650,7 @@ func scriptFileExtension(contents, goos string) string {
 	return ".sh"
 }
 
-func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, installerPath string, fileName string) (string, int, error) {
+func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, installerPath string, fileName string, fleetVars map[string]string) (string, int, error) {
 	// run script in installer directory
 	installerDir := filepath.Dir(installerPath)
 	scriptPath := filepath.Join(installerDir, fileName)
@@ -670,6 +670,12 @@ func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, 
 	env := os.Environ()
 	installerPathEnv := fmt.Sprintf("INSTALLER_PATH=%s", installerPath)
 	env = append(env, installerPathEnv)
+	// Fleet variables (e.g. IdP attributes) are expanded by the interpreter from
+	// the environment at exec time rather than substituted into the script body,
+	// so their values can never be re-parsed as code.
+	for name, value := range fleetVars {
+		env = append(env, name+"="+value)
+	}
 
 	output, exitCode, err := execFn(ctx, scriptPath, env)
 	if err != nil {
