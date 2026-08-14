@@ -161,6 +161,7 @@ will be disabled and/or hidden in the UI.
                 series: [{
                   metric: 'android_proxy.amapi_request_count',
                   type: 1,// count
+                  interval: 60,
                   points: [{ timestamp: timestampInSeconds, value: requestCountInLastMinute }],
                   tags: [`dyno:${thisDyno}`],
                 }],
