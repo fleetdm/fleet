@@ -91,8 +91,8 @@ The following built-in host vitals are availlable to use in host vitals labels:
 
 | Name | Host vital | Criteria name | Type | Description |
 |---|---|---|---|---|
-| IDP group | `end_user_idp_group` | `end_user_idp_group` | string | The SCIM group the host's end user belongs to. Requires a connected IdP. |
-| IDP department | `end_user_idp_department` | `end_user_idp_department` | string | The SCIM department of the host's end user. Requires a connected IdP. |
+| IdP group | `end_user_idp_group` | `end_user_idp_group` | string | The SCIM group the host's end user belongs to. Requires a connected IdP. |
+| IdP department | `end_user_idp_department` | `end_user_idp_department` | string | The SCIM department of the host's end user. Requires a connected IdP. |
 | Platform | `platform` | `platform` | string | The host's OS platform, as reported by osquery. Can be one of: `darwin`, `windows`, `chrome`, `ios`, `ipados`, `android`, or a Linux distribution identifier (e.g. `ubuntu`, `rhel`, `debian`). If using this criteria, it's recommended not to specify a platform for your label. |
 | OS build | `build` | `build` | string | The precise OS build number (e.g. `24C101`), more granular than `os_version` — useful for targeting or excluding a specific problematic build. |
 | Hardware model | `hardware_model` | `hardware_model` | string | The device's hardware model identifier (e.g. `"MacBookPro17,1"`, `"Latitude 5420"`). |
