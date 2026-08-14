@@ -1763,6 +1763,14 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 		ctxerr.Handle(ctx, err)
 		return false
 	}
+	// Linking is keyed on the host UUID, and a pending Autopilot host has none until fleetd enrolls and supplies one.:
+	// The enrollment stays unlinked, so this path runs again on every management session. Wait for the UUID instead of proceeding.
+	if host.UUID == "" {
+		svc.logger.DebugContext(ctx, "windows mdm: autopilot host has no uuid yet, deferring link until fleetd enrolls",
+			"device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
+		return false
+	}
+
 	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "windows mdm: autopilot link failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
