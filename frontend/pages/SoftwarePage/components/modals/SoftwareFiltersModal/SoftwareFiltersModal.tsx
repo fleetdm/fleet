@@ -76,7 +76,7 @@ const validate = (data: IFormData): IFormErrors => {
     max !== undefined &&
     min > max
   ) {
-    // stylistcally better with <br />
+    // Break at the score comparison so both sides read as parallel constraints.
     errors.disableApplyButton = (
       <>
         Minimum CVSS score cannot be greater <br />

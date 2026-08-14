@@ -813,10 +813,7 @@ const PolicyForm = ({
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
                 <TooltipWrapper
-                  tipContent="
-                      Select the platforms this policy will be checked on to
-                      save or run the policy.
-                  "
+                  tipContent="Select the platforms this policy will be checked on to save or run the policy."
                   tooltipClass={`${baseClass}__button-wrap--tooltip`}
                   position="top"
                   disableTooltip={!isEditMode || isAnyPlatformSelected}

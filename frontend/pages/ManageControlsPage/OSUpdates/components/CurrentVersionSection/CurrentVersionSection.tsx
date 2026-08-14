@@ -86,13 +86,7 @@ const CurrentVersionSection = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data?.counts_updated_at}
-        customTooltipText={
-          <>
-            Fleet periodically queries all hosts to retrieve operating systems.
-            {"  "}
-            Click to view hosts for the most up-to-date lists.
-          </>
-        }
+        customTooltipText="Fleet periodically queries all hosts to retrieve operating systems. Click to view hosts for the most up-to-date lists."
       />
     );
   };

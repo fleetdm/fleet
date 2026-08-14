@@ -105,7 +105,7 @@ const ActivityDataRetentionSection = ({
                   still applies.
                   <br />
                   <i>
-                    (Default: <b>Off</b>)
+                    (Default: <strong>Off</strong>)
                   </i>
                 </>
               )
@@ -137,7 +137,7 @@ const ActivityDataRetentionSection = ({
                   per-report basis.
                   <br />
                   <i>
-                    (Default: <b>On</b>)
+                    (Default: <strong>On</strong>)
                   </i>
                 </>
               )

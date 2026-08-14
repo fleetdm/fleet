@@ -87,6 +87,7 @@ const DiskSpaceIndicator = ({
     totalDiskSpaceContent || allPartitionsContent ? (
       <>
         {totalDiskSpaceContent}
+        {totalDiskSpaceContent && allPartitionsContent && <br />}
         {allPartitionsContent}
       </>
     ) : null;

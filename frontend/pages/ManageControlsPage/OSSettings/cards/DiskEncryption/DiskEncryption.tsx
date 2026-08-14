@@ -152,8 +152,8 @@ const DiskEncryption = ({
       return (
         <>
           For Ubuntu and Fedora Linux. Currently, full disk encryption must be
-          turned on <strong>during OS setup setup</strong>. If disk encryption
-          is off, the end user must re-install their operating system.
+          turned on <strong>during OS setup</strong>. If disk encryption is off,
+          the end user must re-install their operating system.
         </>
       );
     }
