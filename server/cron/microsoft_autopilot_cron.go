@@ -161,8 +161,8 @@ func reconcileMicrosoftAutopilotTenant(
 		if err := ds.RemoveWindowsAutopilotHosts(ctx, removedHostIDs); err != nil {
 			return ctxerr.Wrap(ctx, err, "remove windows autopilot hosts")
 		}
-		logger.InfoContext(ctx, "removed hosts for devices no longer in autopilot",
-			"tenant_id", cred.TenantID, "removed", len(removedHostIDs))
+		logger.InfoContext(ctx, "removed autopilot records for devices that left the tenant",
+			"tenant_id", cred.TenantID, "records", len(removedHostIDs))
 	}
 	return nil
 }
