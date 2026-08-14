@@ -110,7 +110,7 @@ The combined apt/dnf script degrades gracefully on a host with neither package m
 ```yaml
 labels:
   - name: Linux (apt)
-    query: "SELECT 1 FROM os_version WHERE platform = 'debian' OR platform_like LIKE '%debian%' OR platform_like LIKE '%ubuntu%';"
+    query: "SELECT 1 FROM os_version WHERE platform_like = 'debian';"
     label_membership_type: dynamic
 ```
 
