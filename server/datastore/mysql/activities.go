@@ -973,10 +973,14 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 const mdmApplePushDeliveryGraceDays = 7
 
 // reapableActivatedInstallWhere matches an activated MDM-command-backed install that is old enough
-// to reap and can no longer make progress: the device answered it that long ago, or it has no live
-// queue row left, or it has gone undelivered past the delivery grace. Anything else is still in
-// flight, including an unanswered command for a device that is simply switched off. Arguments come
-// from reapableActivatedInstallArgs.
+// to reap and can no longer make progress. Answered installs are judged on the age of the answer
+// alone; only unanswered ones are judged on delivery, having either lost their queue row or gone
+// past the delivery grace. Anything else is still in flight, including an unanswered command for a
+// device that is simply switched off. Arguments come from reapableActivatedInstallArgs.
+//
+// Delivery is scoped to unanswered installs because a device that has been away longer than the
+// grace still answers when it returns, and that answer starts a verification entitled to its own
+// budget. Judging it on delivery then would fail an install the device is in the middle of running.
 //
 // Microseconds and not seconds: truncating a duration to whole seconds turns any positive
 // sub-second value into INTERVAL 0, which matches every activated install on the fleet and walks
@@ -1004,13 +1008,23 @@ const reapableActivatedInstallWhere = `
 				AND ncr.status != 'NotNow'
 				AND ncr.updated_at < NOW(6) - INTERVAL ? MICROSECOND
 		)
-		OR NOT EXISTS (
-			SELECT 1
-			FROM nano_enrollment_queue neq
-			WHERE neq.command_uuid = ua.execution_id
-				AND neq.active = 1
+		OR (
+			NOT EXISTS (
+				SELECT 1
+				FROM nano_command_results ncr
+				WHERE ncr.command_uuid = ua.execution_id
+					AND ncr.status != 'NotNow'
+			)
+			AND (
+				NOT EXISTS (
+					SELECT 1
+					FROM nano_enrollment_queue neq
+					WHERE neq.command_uuid = ua.execution_id
+						AND neq.active = 1
+				)
+				OR ua.activated_at < NOW(6) - INTERVAL ? DAY
+			)
 		)
-		OR ua.activated_at < NOW(6) - INTERVAL ? DAY
 	)`
 
 // reapableActivatedInstallArgs returns the positional arguments

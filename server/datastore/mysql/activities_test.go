@@ -2249,6 +2249,20 @@ func testReapStuckActivatedMDMInstalls(t *testing.T, ds *Datastore) {
 	ageActivations(backdatedExec) // 48h, past the reap floor
 	ageNanoQueue(backdatedExec, time.Now().Add(-30*24*time.Hour))
 
+	// hLateAck: away longer than the delivery grace, then came back and acknowledged. The delivery
+	// branches must not apply to an install that has been answered, or returning after a long
+	// absence would fail the install the device is at that moment running.
+	hLateAck := newMDMHost()
+	lateAckExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hLateAck)
+	advance(hLateAck, "")
+	answeredAt(hLateAck, lateAckExec, "Acknowledged", time.Now())
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE upcoming_activities SET activated_at = ? WHERE execution_id = ?`,
+			time.Now().Add(-9*24*time.Hour), lateAckExec)
+		return err
+	})
+
 	// hUndeliverable: activated longer ago than the delivery grace, still unanswered, so Fleet has
 	// stopped pushing it and it is never going to arrive
 	hExpired := newMDMHost()
@@ -2410,6 +2424,12 @@ func testReapStuckActivatedMDMInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{justAckedExec}, queuedExecIDs(hJustAcked))
 	require.Nil(t, vppVerifyState(justAckedExec).VerificationFailedAt)
 	require.NotContains(t, byCommandUUID, justAckedExec)
+
+	// and it keeps it even when the absence ran past the delivery grace, since the answer settles
+	// delivery and the grace no longer has anything to say
+	require.Equal(t, []string{lateAckExec}, queuedExecIDs(hLateAck))
+	require.Nil(t, vppVerifyState(lateAckExec).VerificationFailedAt)
+	require.NotContains(t, byCommandUUID, lateAckExec)
 
 	// the whole batch goes in one pass, and the install waiting behind it activates
 	require.Equal(t, []string{batchExecs[5]}, queuedExecIDs(hBatch))
