@@ -31,6 +31,9 @@ func TestSessionStore(t *testing.T) {
 		sess, err = store.get("sessionID123")
 		var authRequiredError *fleet.AuthRequiredError
 		assert.ErrorAs(t, err, &authRequiredError)
+		// The SSO callbacks tell an expired session apart from other failures
+		// with this, so that they can explain the timeout to the end user.
+		require.ErrorIs(t, err, ErrSessionNotFound)
 		assert.Nil(t, sess)
 
 		// Create another session for 1 second
