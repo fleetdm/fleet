@@ -802,6 +802,19 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(ctx, q, &slackInstallerID, `SELECT id FROM software_installers WHERE fleet_maintained_app_id = ?`, appDarwin2.ID)
 	})
 
+	// A dynamic policy that installs the app is not a patch policy, and must leave both
+	// flags alone. Asserted before any patch policy exists, so the per-slug OR can't mask it.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO policies (name, query, description, checksum, team_id, software_installer_id)
+			VALUES ('install slack', 'SELECT 1', '', UNHEX(MD5('install slack')), ?, ?)`, fleet.PolicyNoTeamID, slackInstallerID)
+		return err
+	})
+
+	macOSApps, _, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("slack/darwin", false, false), fmaUsage("zoom/darwin", false, false)}, macOSApps)
+
 	// A patch policy with no software automation, and one with a software automation.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
@@ -820,14 +833,6 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("slack/darwin", true, true), fmaUsage("zoom/darwin", true, false)}, macOSApps)
 	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("microsoft-teams/windows", false, false), fmaUsage("zoom/windows", false, false)}, windowsApps)
-
-	// A dynamic policy pointing at the same title must not register as a patch policy.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			INSERT INTO policies (name, query, description, checksum, team_id, software_installer_id)
-			VALUES ('install slack', 'SELECT 1', '', UNHEX(MD5('install slack')), ?, ?)`, fleet.PolicyNoTeamID, slackInstallerID)
-		return err
-	})
 
 	// The same app installed on another team, with no patch policy of its own. The slug must
 	// still appear exactly once, with the booleans OR'd across teams -- this is what the
@@ -925,6 +930,20 @@ func testPoliciesAutomationEnabledSoftware(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
+	var vppAppsTeamsID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform, name) VALUES ('12345', 'darwin', 'Numbers')`); err != nil {
+			return err
+		}
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id) VALUES ('12345', 'darwin', 0)`)
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		vppAppsTeamsID = uint(id) //nolint:gosec // test fixture
+		return nil
+	})
+
 	insertPolicy := func(name, columns, values string, args ...any) {
 		t.Helper()
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -936,24 +955,30 @@ func testPoliciesAutomationEnabledSoftware(t *testing.T, ds *Datastore) {
 		})
 	}
 
-	// Not software automations: a plain dynamic policy, and a script automation.
+	// A dynamic policy with no automation columns set is not a software automation.
 	insertPolicy("plain", "", "")
 	count, err = amountPoliciesAutomationEnabledSoftwareDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 
-	// A dynamic policy that installs software counts.
+	// A dynamic policy that installs a package counts.
 	insertPolicy("install ruby", ", software_installer_id", ", ?", installerID)
 	count, err = amountPoliciesAutomationEnabledSoftwareDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
+
+	// So does one that installs a VPP app.
+	insertPolicy("install vpp", ", vpp_apps_teams_id", ", ?", vppAppsTeamsID)
+	count, err = amountPoliciesAutomationEnabledSoftwareDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
 
 	// A patch policy counts even with no install automation attached -- this matches the
 	// automation_type=software filter in createAutomationClause, which the API exposes.
 	insertPolicy("patch ruby", ", type, patch_software_title_id", ", 'patch', ?", titleID)
 	count, err = amountPoliciesAutomationEnabledSoftwareDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
-	assert.Equal(t, 2, count)
+	assert.Equal(t, 3, count)
 }
 
 func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
