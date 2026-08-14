@@ -3997,6 +3997,11 @@ type AndroidDatastore interface {
 	NewAndroidHost(ctx context.Context, host *AndroidHost, companyOwned bool) (*AndroidHost, error)
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll, companyOwned bool) error
+	// AndroidResetOnReenrollment clears the stale state of a re-enrolling Android host:
+	// dynamic and host-vitals label membership, non-osquery vitals, pending MDM commands
+	// and pending software installs. Manually assigned labels are preserved, and past host
+	// activities are preserved when preserveHostActivities is true.
+	AndroidResetOnReenrollment(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) error
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)

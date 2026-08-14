@@ -76,6 +76,7 @@ func TestAndroid(t *testing.T) {
 		{"HasAndroidAppConfigurationChanged", testHasAndroidAppConfigurationChanged},
 		{"UpdateTeamIDOnAndroidDevices", testUpdateTeamIDOnAndroidDevices},
 		{"GetAndroidDeviceLastTeamID", testGetAndroidDeviceLastTeamID},
+		{"AndroidResetOnReenrollment", testAndroidResetOnReenrollment},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4159,4 +4160,214 @@ func testGetAndroidDeviceLastTeamID(t *testing.T, ds *Datastore) {
 	_, found, err = ds.GetAndroidDeviceLastTeamID(ctx, "no-such-device")
 	require.NoError(t, err)
 	require.False(t, found)
+}
+
+func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	test.AddBuiltinLabels(t, ds)
+
+	// Labels the reset has to discriminate between. Note that AddBuiltinLabels creates
+	// "All Hosts" as a dynamic label, so this also covers the builtin memberships being
+	// restored rather than left deleted.
+	newLabel := func(name string, membershipType fleet.LabelMembershipType) uint {
+		var labelID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `
+				INSERT INTO labels (name, description, query, platform, label_type, label_membership_type)
+				VALUES (?, '', '', '', ?, ?)`, name, fleet.LabelTypeRegular, membershipType)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			labelID = uint(id) //nolint:gosec // test-only, ids are small
+			return nil
+		})
+		return labelID
+	}
+	manualLabelID := newLabel("manual-label", fleet.LabelMembershipTypeManual)
+	dynamicLabelID := newLabel("dynamic-label", fleet.LabelMembershipTypeDynamic)
+	vitalsLabelID := newLabel("vitals-label", fleet.LabelMembershipTypeHostVitals)
+
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.app.vpp1", Platform: fleet.AndroidPlatform}},
+	}, nil)
+	require.NoError(t, err)
+
+	// installKinds are seeded for both hosts; only "pending" may be canceled by the reset.
+	installKinds := []string{"pending", "removed", "canceled", "verified", "verification-failed"}
+
+	// seedHost creates an Android host with one row of every kind of state the reset
+	// touches, and returns it.
+	seedHost := func(esid string) *fleet.AndroidHost {
+		host, err := ds.NewAndroidHost(ctx, createAndroidHost(esid), false)
+		require.NoError(t, err)
+		hostID := host.Host.ID
+
+		for _, labelID := range []uint{manualLabelID, dynamicLabelID, vitalsLabelID} {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `INSERT INTO label_membership (host_id, label_id) VALUES (?, ?)`, hostID, labelID)
+				return err
+			})
+		}
+
+		require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, hostID, 10, 50, 20, nil))
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, hostID, fleet.OperatingSystem{
+			Name: "Android", Version: "14", Platform: "android",
+		}))
+
+		for _, status := range []android.MDMAndroidCommandStatus{
+			android.MDMAndroidCommandStatusPending,
+			android.MDMAndroidCommandStatusAcknowledged,
+			android.MDMAndroidCommandStatusError,
+		} {
+			require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+				CommandUUID:   uuid.NewString(),
+				HostUUID:      host.Host.UUID,
+				OperationName: fmt.Sprintf("operations/%s-%s", esid, status),
+				CommandType:   string(android.MDMAndroidCommandTypeLock),
+				Status:        string(status),
+			}))
+		}
+
+		for _, kind := range installKinds {
+			cmdUUID := fmt.Sprintf("%s-%s", esid, kind)
+			require.NoError(t, ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
+				HostID:            hostID,
+				AdamID:            vppApp.AdamID,
+				CommandUUID:       cmdUUID,
+				AssociatedEventID: "1",
+			}))
+			var set string
+			switch kind {
+			case "pending":
+				continue
+			case "removed":
+				set = "removed = 1"
+			case "canceled":
+				set = "canceled = 1"
+			case "verified":
+				set = "verification_at = CURRENT_TIMESTAMP(6)"
+			case "verification-failed":
+				set = "verification_failed_at = CURRENT_TIMESTAMP(6)"
+			}
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, "UPDATE host_vpp_software_installs SET "+set+" WHERE command_uuid = ?", cmdUUID)
+				return err
+			})
+		}
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO activity_past (user_name, activity_type, details) VALUES ('admin', 'ran_script', '{}')`)
+			if err != nil {
+				return err
+			}
+			activityID, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `INSERT INTO activity_host_past (host_id, activity_id) VALUES (?, ?)`, hostID, activityID)
+			return err
+		})
+
+		return host
+	}
+
+	countFor := func(query string, args ...any) int {
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, query, args...)
+		})
+		return count
+	}
+	labelNamesFor := func(hostID uint) []string {
+		labels, err := ds.ListLabelsForHost(ctx, hostID)
+		require.NoError(t, err)
+		names := make([]string, 0, len(labels))
+		for _, label := range labels {
+			names = append(names, label.Name)
+		}
+		return names
+	}
+	// requireSeededState asserts the host still has every row seedHost created, which is
+	// how the untouched control host is checked.
+	requireSeededState := func(t *testing.T, host *fleet.AndroidHost) {
+		hostID, hostUUID := host.Host.ID, host.Host.UUID
+		require.ElementsMatch(t, []string{
+			fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameAndroid,
+			"manual-label", "dynamic-label", "vitals-label",
+		}, labelNamesFor(hostID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_disks WHERE host_id = ?`, hostID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_operating_system WHERE host_id = ?`, hostID))
+		require.Equal(t, 3, countFor(`SELECT COUNT(*) FROM mdm_android_commands WHERE host_uuid = ?`, hostUUID))
+		require.Equal(t, 1, countFor(
+			`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ? AND canceled = 1`, hostID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?`, hostID))
+	}
+
+	hostA := seedHost("esid-reset-a")
+	hostB := seedHost("esid-reset-b")
+	requireSeededState(t, hostA)
+	requireSeededState(t, hostB)
+
+	// Reset host A, preserving its activities.
+	require.NoError(t, ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, hostA.Host.UUID, true))
+
+	t.Run("keeps manual and builtin labels, clears the rest", func(t *testing.T) {
+		require.ElementsMatch(t,
+			[]string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameAndroid, "manual-label"},
+			labelNamesFor(hostA.Host.ID))
+	})
+
+	t.Run("clears non-osquery vitals", func(t *testing.T) {
+		require.Zero(t, countFor(`SELECT COUNT(*) FROM host_disks WHERE host_id = ?`, hostA.Host.ID))
+		require.Zero(t, countFor(`SELECT COUNT(*) FROM host_operating_system WHERE host_id = ?`, hostA.Host.ID))
+	})
+
+	t.Run("deletes only pending commands", func(t *testing.T) {
+		var statuses []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &statuses,
+				`SELECT status FROM mdm_android_commands WHERE host_uuid = ?`, hostA.Host.UUID)
+		})
+		require.ElementsMatch(t, []string{
+			string(android.MDMAndroidCommandStatusAcknowledged),
+			string(android.MDMAndroidCommandStatusError),
+		}, statuses)
+	})
+
+	t.Run("cancels only pending software installs", func(t *testing.T) {
+		var canceledCmdUUIDs []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &canceledCmdUUIDs,
+				`SELECT command_uuid FROM host_vpp_software_installs WHERE host_id = ? AND canceled = 1`, hostA.Host.ID)
+		})
+		require.ElementsMatch(t, []string{"esid-reset-a-pending", "esid-reset-a-canceled"}, canceledCmdUUIDs)
+		// The records are kept, not deleted.
+		require.Equal(t, len(installKinds),
+			countFor(`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ?`, hostA.Host.ID))
+		// A canceled install must no longer be a candidate for verification.
+		pending, err := ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, hostA.Host.UUID, 100)
+		require.NoError(t, err)
+		require.Empty(t, pending)
+	})
+
+	t.Run("preserves past activities when asked to", func(t *testing.T) {
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?`, hostA.Host.ID))
+	})
+
+	t.Run("leaves other hosts untouched", func(t *testing.T) {
+		requireSeededState(t, hostB)
+	})
+
+	t.Run("clears past activities when not preserving them", func(t *testing.T) {
+		require.NoError(t, ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, hostA.Host.UUID, false))
+		require.Zero(t, countFor(`SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?`, hostA.Host.ID))
+		// Still scoped to host A.
+		requireSeededState(t, hostB)
+	})
 }

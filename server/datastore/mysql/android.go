@@ -338,6 +338,76 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	return err
 }
 
+// androidHostRefsForReset are the host_id-keyed detail tables cleared when an
+// Android host re-enrolls. Unlike appleHostRefsForMDMReset this list is small:
+// Android only populates disk and OS vitals from the AMAPI status report
+// (host_batteries, host_munki_*, host_certificates, etc. are never written for
+// Android hosts).
+var androidHostRefsForReset = []string{
+	"host_disks",
+	"host_operating_system",
+}
+
+// AndroidResetOnReenrollment clears the state a re-enrolling Android host no longer
+// has: machine-derived label membership, non-osquery vitals, pending MDM commands and
+// pending software installs. Manually assigned labels are preserved, and past host
+// activities are only cleared when preserveHostActivities is false.
+//
+// This must run before the enrollment's own data is written back (see
+// Service.updateHost), otherwise it deletes the vitals that were just reported.
+func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Clear dynamic and host-vitals label membership; both are machine-derived and
+		// repopulate on their own. Manual membership is the admin's choice, so it stays.
+		if _, err := tx.ExecContext(ctx, `
+			DELETE lm FROM label_membership lm
+			JOIN labels l ON l.id = lm.label_id
+			WHERE lm.host_id = ? AND l.label_membership_type != ?`,
+			hostID, fleet.LabelMembershipTypeManual); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear dynamic label membership on android reenroll")
+		}
+
+		// Restore the builtin ("All Hosts", "Android") memberships, mirroring what Apple's
+		// reset does. Nothing else re-adds them for Android, so a host that lost them would
+		// disappear from the host list until it was deleted and re-created.
+		if err := ds.insertAndroidHostLabelMembershipTx(ctx, tx, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "restore builtin label membership on android reenroll")
+		}
+
+		// Clear non-osquery vitals.
+		for _, table := range androidHostRefsForReset {
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE host_id = ?", table), hostID); err != nil {
+				return ctxerr.Wrap(ctx, err, fmt.Sprintf("clear %s on android reenroll", table))
+			}
+		}
+
+		// Cancel pending AMAPI commands. These are keyed by host_uuid, and the device that
+		// just re-enrolled will never acknowledge a command issued to the previous install.
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM mdm_android_commands WHERE host_uuid = ? AND status = 'pending'`, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "cancel pending android commands on reenroll")
+		}
+
+		// Cancel pending software installs. We mark them canceled rather than deleting them
+		// so the install history and any linked activity survive.
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE host_vpp_software_installs
+			SET canceled = 1
+			WHERE host_id = ? AND removed = 0 AND canceled = 0
+			  AND verification_at IS NULL AND verification_failed_at IS NULL`, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "cancel pending android software installs on reenroll")
+		}
+
+		if !preserveHostActivities {
+			if _, err := tx.ExecContext(ctx,
+				`DELETE FROM activity_host_past WHERE host_id = ?`, hostID); err != nil {
+				return ctxerr.Wrap(ctx, err, "clear past host activities on android reenroll")
+			}
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs []string, teamID *uint) error {
 	hostUUIDs = slices.DeleteFunc(hostUUIDs, func(s string) bool { return s == "" })
 	if len(hostUUIDs) == 0 {
