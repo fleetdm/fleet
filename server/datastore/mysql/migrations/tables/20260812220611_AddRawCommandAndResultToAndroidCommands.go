@@ -12,8 +12,8 @@ func init() {
 func Up_20260812220611(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE mdm_android_commands
-	ADD COLUMN raw_command TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER command_type,
-	ADD COLUMN raw_result  TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER error_message
+	ADD COLUMN raw_command MEDIUMTEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER command_type,
+	ADD COLUMN raw_result  MEDIUMTEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER error_message
 `)
 	if err != nil {
 		return fmt.Errorf("alter table mdm_android_commands: %w", err)
