@@ -277,9 +277,12 @@ describe("OS setting status cell", () => {
         })
       );
 
-      expect(retrying.querySelector("svg")?.outerHTML).toEqual(
-        enforcing.querySelector("svg")?.outerHTML
-      );
+      const retryingIcon = retrying.querySelector("svg");
+      const enforcingIcon = enforcing.querySelector("svg");
+      // Both must actually render an icon, otherwise the comparison below is vacuous.
+      expect(retryingIcon).not.toBeNull();
+      expect(enforcingIcon).not.toBeNull();
+      expect(retryingIcon?.outerHTML).toEqual(enforcingIcon?.outerHTML);
     });
 
     it("counts the final attempt when the retries are used up", async () => {
