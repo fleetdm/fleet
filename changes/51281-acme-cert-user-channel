@@ -1,0 +1,1 @@
+Fixed ACME certificates deployed via user-scoped profiles not showing on macOS host details page.
