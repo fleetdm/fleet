@@ -1324,14 +1324,16 @@ func testSetupExperienceInHouseApps(t *testing.T, ds *Datastore) {
 	require.Empty(t, titles)
 	require.Zero(t, count)
 
-	// a mobile-only platform list includes both titles; any mix with a
-	// non-mobile platform keeps the exclusion
+	// any platform list that includes a mobile platform surfaces in-house
+	// titles (restricted to their own platforms); desktop-only lists keep
+	// excluding them
 	titles, _, _, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios,ipados", team.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, titles, 2)
 	titles, _, _, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios,darwin", team.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Empty(t, titles)
+	require.Len(t, titles, 1)
+	require.Equal(t, iosTitleID, titles[0].ID)
 
 	// selecting the iOS title leaves the iPadOS sibling unselected
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team.ID, []uint{iosTitleID})

@@ -2407,8 +2407,10 @@ func (c *MockClientInHouseApp) GetSetupExperienceSoftware(platform string, teamI
 	if teamID != 9 {
 		return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
 	}
-	// In-house apps only surface when the query is exclusively mobile platforms.
-	if platform == "ios,ipados" {
+	// In-house apps surface whenever the platform list includes a mobile
+	// platform, so the generator's combined query returns them; the "macos"
+	// cross-selection query does not.
+	if strings.Contains(platform, "ios") {
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:              20,

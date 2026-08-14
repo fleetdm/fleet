@@ -2095,36 +2095,24 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
 		return nil, err
 	}
+	// Each .ipa produces one title per platform but is deduplicated to a single
+	// YAML entry below, so collect its selections keyed by filename and emit
+	// them as setup_experience_platform instead of the setup_experience boolean.
+	inHouseSetupPlatformsByFilename := make(map[string][]string)
 	for _, software := range setupSoftware {
 		pkg := software.SoftwarePackage
 		if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
+			if filepath.Ext(pkg.Name) == ".ipa" {
+				inHouseSetupPlatformsByFilename[pkg.Name] = append(inHouseSetupPlatformsByFilename[pkg.Name], pkg.Platform)
+			} else {
+				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
+			}
 		}
 		if software.AppStoreApp != nil {
 			appStoreApp := software.AppStoreApp
 			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
 				setupSoftwareByPlatformAndAppID[appStoreApp.FullyQualifiedName()] = struct{}{}
 			}
-		}
-	}
-
-	// In-house apps only surface in the setup experience listing when the query
-	// is exclusively mobile platforms, and each .ipa is deduplicated to a single
-	// YAML entry below, so collect selections across both of its titles keyed by
-	// filename and emit them as setup_experience_platform.
-	inHouseSetupPlatformsByFilename := make(map[string][]string)
-	mobileSetupSoftware, err := cmd.Client.GetSetupExperienceSoftware("ios,ipados", teamID)
-	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting iOS/iPadOS setup software: %s\n", err)
-		return nil, err
-	}
-	for _, t := range mobileSetupSoftware {
-		pkg := t.SoftwarePackage
-		if pkg == nil || filepath.Ext(pkg.Name) != ".ipa" {
-			continue
-		}
-		if pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-			inHouseSetupPlatformsByFilename[pkg.Name] = append(inHouseSetupPlatformsByFilename[pkg.Name], pkg.Platform)
 		}
 	}
 
