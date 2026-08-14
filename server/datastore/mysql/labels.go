@@ -167,10 +167,11 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 	}
 
 	type existingLabel struct {
-		ID       uint   `db:"id"`
-		Name     string `db:"name"`
-		Platform string `db:"platform"`
-		TeamID   *uint  `db:"team_id"`
+		ID        uint            `db:"id"`
+		Name      string          `db:"name"`
+		Platform  string          `db:"platform"`
+		TeamID    *uint           `db:"team_id"`
+		LabelType fleet.LabelType `db:"label_type"`
 	}
 	existingLabels := make(map[string]existingLabel, len(specs))
 
@@ -179,13 +180,13 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 	// should've been cleaned up by SetAsideLabels).
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO: do we want to allow on duplicate updating label_type or
-		// label_membership_type or should those always be immutable?
-		// are we ok depending solely on the caller to ensure that these fields
-		// are not changed?
+		// TODO: do we want to allow on duplicate updating label_membership_type
+		// or should that always be immutable?
+		// are we ok depending solely on the caller to ensure that field
+		// is not changed?
 
 		if len(labelNames) > 0 {
-			stmt := `SELECT id, name, platform, team_id FROM labels WHERE name IN (?)`
+			stmt := `SELECT id, name, platform, team_id, label_type FROM labels WHERE name IN (?)`
 			stmt, args, err := sqlx.In(stmt, labelNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build existing labels query")
@@ -201,10 +202,22 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			for _, spec := range specs {
-				if existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]; ok &&
-					(existingLabel.TeamID != nil && spec.TeamID == nil ||
-						existingLabel.TeamID == nil && spec.TeamID != nil ||
-						(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID)) {
+				if spec.LabelType == fleet.LabelTypeBuiltIn {
+					return ctxerr.Errorf(ctx, "cannot modify or add built-in label '%s'", spec.Name)
+				}
+				existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]
+				if !ok {
+					continue
+				}
+				// The lookup above and the unique index the upsert keys on both inherit
+				// the case-insensitive collation of labels.name, so even a spec merely
+				// named as a case variant of a built-in resolves to that built-in row.
+				if existingLabel.LabelType == fleet.LabelTypeBuiltIn {
+					return ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", existingLabel.Name)
+				}
+				if existingLabel.TeamID != nil && spec.TeamID == nil ||
+					existingLabel.TeamID == nil && spec.TeamID != nil ||
+					(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID) {
 					return ctxerr.New(ctx, "one or more specified labels exists on another team")
 				}
 			}

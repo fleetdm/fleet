@@ -482,6 +482,8 @@ WHERE
 		listStmt = `SELECT * FROM (` + winStmt + `) u WHERE TRUE`
 		countStmt = `SELECT COUNT(1) FROM (` + winStmt + `) u`
 		params = winParams
+	default:
+		return []*fleet.MDMCommand{}, nil, nil, nil
 	}
 
 	// TODO: Maybe move this to the service method? What about pagination metadata?
