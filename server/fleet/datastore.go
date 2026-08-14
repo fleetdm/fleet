@@ -951,9 +951,8 @@ type Datastore interface {
 	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
 	// ReapStuckActivatedMDMInstalls fails App Store and in-house app installs that have been
 	// activated longer than olderThan and can no longer make progress, releasing the activity
-	// queue each one is holding. Success for these is recorded on verification, so one that never
-	// verifies blocks its host's queue indefinitely, and UnblockHostsUpcomingActivityQueue cannot
-	// rescue it because something is activated.
+	// queue each one is holding. See ReapStuckMDMInstalls for why such an install blocks a queue
+	// that UnblockHostsUpcomingActivityQueue cannot rescue.
 	//
 	// It returns one entry per install it failed. Emitting the activities and updating any setup
 	// experience step is left to the caller.

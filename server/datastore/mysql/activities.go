@@ -972,15 +972,15 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 const mdmApplePushDeliveryGraceDays = 7
 
 // reapableActivatedInstallWhere matches an activated MDM-command-backed install that is old enough
-// to reap and can no longer make progress. An answered install is judged on the age of the answer
-// alone; only an unanswered one is judged on delivery, having either lost its queue row or gone past
-// the delivery grace. Anything else is still in flight, including an unanswered command for a device
-// that is simply switched off. Arguments come from reapableActivatedInstallArgs.
+// to reap and can no longer make progress. An answered install is judged on the age of the answer,
+// taken from ncr.updated_at, the column Fleet measures the verification budget from. Only an
+// unanswered one is judged on delivery, having either lost its queue row or gone past the delivery
+// grace. Anything else is still in flight, including an unanswered command for a device that is
+// simply switched off. Arguments come from reapableActivatedInstallArgs.
 //
-// An answer resets what matters, which is why it decides the branch and why its own age comes from
-// ncr.updated_at, the column Fleet measures the verification budget from. A device unreachable for
-// days accumulates activation age the whole time, so judging it on that age, or on delivery, would
-// fail the install seconds after the device came back and started running it.
+// A device unreachable for days accumulates activation age the whole time, which is why neither
+// branch uses that age: judging it on activation, or on delivery once it has answered, would fail
+// the install seconds after the device came back and started running it.
 //
 // A NotNow answer does not count: nanomdm records one but keeps the command queued and re-serves it
 // (RetrieveNextCommand joins results with `status != 'NotNow'`), so the install has not run.
@@ -1111,18 +1111,27 @@ func (ds *Datastore) reapStuckActivatedMDMInstallsForHost(ctx context.Context, h
 				swType = softwareTypeInHouseApp
 			}
 
-			// The predicate is re-applied rather than trusted from the select above,
-			// because a device check-in can reach a terminal state in between and this
-			// must not overwrite it. No rows affected means exactly that: there is
-			// nothing to record, but the queue still has to be advanced past the row.
+			// Eligibility is re-checked here, not trusted from the select above: that
+			// select took the transaction's snapshot while this update reads the latest
+			// committed rows, so a device that checked in between would otherwise be
+			// overruled mid-verification. No rows affected means it did check in, so
+			// nothing is recorded here, though the queue is still advanced past the row.
 			failStmt := fmt.Sprintf(`
 UPDATE %s
 SET verification_failed_at = CURRENT_TIMESTAMP(6)
 WHERE command_uuid = ?
 	AND verification_at IS NULL
 	AND verification_failed_at IS NULL
-	AND canceled = 0`, swType.getInstallMappingTableName())
-			res, err := tx.ExecContext(ctx, failStmt, inst.ExecutionID)
+	AND canceled = 0
+	AND NOT EXISTS (
+		SELECT 1
+		FROM nano_command_results ncr
+		WHERE ncr.command_uuid = ?
+			AND ncr.status != 'NotNow'
+			AND ncr.updated_at >= NOW(6) - INTERVAL ? MICROSECOND
+	)`, swType.getInstallMappingTableName())
+			res, err := tx.ExecContext(ctx, failStmt,
+				inst.ExecutionID, inst.ExecutionID, olderThan.Microseconds())
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "set stuck activated MDM install as failed")
 			}
