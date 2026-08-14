@@ -3673,8 +3673,8 @@ func testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending(t *testin
 
 	// Create one enrolled darwin host.
 	enrolledHost, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   ptr.String("plat-enrolled-1"),
-		NodeKey:         ptr.String("plat-enrolled-key-1"),
+		OsqueryHostID:   new("plat-enrolled-1"),
+		NodeKey:         new("plat-enrolled-key-1"),
 		DetailUpdatedAt: now,
 		LabelUpdatedAt:  now,
 		PolicyUpdatedAt: now,
@@ -3689,8 +3689,8 @@ func testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending(t *testin
 
 	// Create one pending darwin host.
 	pendingHost, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   ptr.String("plat-pending-1"),
-		NodeKey:         ptr.String("plat-pending-key-1"),
+		OsqueryHostID:   new("plat-pending-1"),
+		NodeKey:         new("plat-pending-key-1"),
 		DetailUpdatedAt: now,
 		LabelUpdatedAt:  now,
 		PolicyUpdatedAt: now,
@@ -3705,8 +3705,8 @@ func testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending(t *testin
 
 	// Create one host with no MDM data (should always be counted).
 	_, err = ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   ptr.String("plat-nomdm-1"),
-		NodeKey:         ptr.String("plat-nomdm-key-1"),
+		OsqueryHostID:   new("plat-nomdm-1"),
+		NodeKey:         new("plat-nomdm-key-1"),
 		DetailUpdatedAt: now,
 		LabelUpdatedAt:  now,
 		PolicyUpdatedAt: now,
