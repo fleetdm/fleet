@@ -1,0 +1,1 @@
+- Fleet now clears dynamic labels, non-osquery vitals, and pending commands and software installs when an Android host re-enrolls. Manually assigned labels are preserved.

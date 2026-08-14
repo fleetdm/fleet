@@ -247,6 +247,9 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.SetAndroidHostEnrolledFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
+	ds.Store.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) error {
+		return nil
+	}
 	return &ds
 }
 
