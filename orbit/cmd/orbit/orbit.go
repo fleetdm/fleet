@@ -56,6 +56,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/wstransport"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
@@ -1328,6 +1329,11 @@ func orbitAction(c *cli.Context) error {
 	})
 	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
 
+	// Watch the orbit config for the server's WebSocket transport directive
+	// (ADR-0011). A toggle persists the new state and restarts orbit, since
+	// flipping osquery's --distributed_plugin requires relaunching osquery.
+	orbitClient.RegisterConfigReceiver(wstransport.NewToggleReceiver(c.String("root-dir"), orbitClient.TriggerOrbitRestart))
+
 	// Floor for server-driven debug toggling: --debug at startup pins debug on.
 	startedInDebug := c.Bool("debug")
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
@@ -1404,6 +1410,17 @@ func orbitAction(c *cli.Context) error {
 		interrupt: orbitClient.InterruptConfigReceivers,
 	})
 
+	// The WebSocket transport toggle is read once per process lifetime, after
+	// the early config fetch above had a chance to persist a server-directed
+	// change (and restart orbit if it did). Everything derives from this one
+	// bool — the osquery flag flip, the distributed plugin registration and
+	// the WebSocket manager subsystem — so there is no mixed state within a
+	// process run.
+	wsTransportEnabled := wstransport.Enabled(c.String("root-dir"))
+	if wsTransportEnabled {
+		log.Info().Msg("websocket transport enabled: orbit will proxy osquery's distributed queries")
+	}
+
 	// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
 	// `"", nil`. Therefore there's no platform-specific stuff required here
 	augeasPath, err := augeas.CopyLenses(c.String("root-dir"))
@@ -1437,6 +1454,14 @@ func orbitAction(c *cli.Context) error {
 	hostIdentifier := c.String("host-identifier")
 	options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
 	options = append(options, optionsAfterFlagfile...)
+
+	// Route osquery's distributed queries through orbit's extension plugin
+	// (ADR-0011). Set after --flagfile so user flagfiles can't override it
+	// (repeated gflags: last one wins, overriding --distributed_plugin=tls
+	// from FleetFlags).
+	if wsTransportEnabled {
+		options = append(options, osquery.WithFlags([]string{"--distributed_plugin", wstransport.DistributedPluginName}))
+	}
 
 	// Handle additional args after '--' in the command line. These are added last and should
 	// override all other flags and flagfile entries.
@@ -1491,9 +1516,7 @@ func orbitAction(c *cli.Context) error {
 		}
 	}
 
-	registerExtensionRunner(
-		&g,
-		r.ExtensionSocketPath(),
+	extensionOpts := []table.Opt{
 		table.WithExtension(orbit_info.New(
 			orbitClient,
 			c.String("orbit-channel"),
@@ -1505,6 +1528,35 @@ func orbitAction(c *cli.Context) error {
 			scriptsEnabledFn,
 			opt.ServerURL,
 		)),
+	}
+
+	if wsTransportEnabled {
+		// The query cache links the two halves of the WebSocket transport: the
+		// manager fills it on "check now" notifications (or polling fallback),
+		// and osquery drains it through the distributed plugin on its local
+		// distributed poll.
+		wsQueryCache := wstransport.NewQueryCache()
+		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsQueryCache, orbitClient)))
+
+		parsedFleetURL, err := url.Parse(fleetURL)
+		if err != nil {
+			return fmt.Errorf("parse Fleet URL for websocket transport: %w", err)
+		}
+		addSubsystem(&g, "websocket transport", wstransport.NewManager(wstransport.Options{
+			ServerURL:          parsedFleetURL,
+			RootCA:             c.String("fleet-certificate"),
+			InsecureSkipVerify: c.Bool("insecure"),
+			ClientCertificate:  fleetClientCertificate,
+			NodeKeyFunc:        orbitClient.GetNodeKey,
+			Client:             orbitClient,
+			Cache:              wsQueryCache,
+		}))
+	}
+
+	registerExtensionRunner(
+		&g,
+		r.ExtensionSocketPath(),
+		extensionOpts...,
 	)
 
 	if c.Bool("fleet-desktop") {

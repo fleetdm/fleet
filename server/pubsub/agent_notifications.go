@@ -1,0 +1,164 @@
+package pubsub
+
+import (
+	"context"
+	"encoding/json"
+	"log/slog"
+	"slices"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	redigo "github.com/gomodule/redigo/redis"
+)
+
+// agentNotificationsChannel is the Redis pub/sub channel used for agent
+// check-in wake-ups (ADR-0011). A single channel is shared by all server
+// instances: every instance subscribes at boot and each delivers
+// notifications only to the agents whose WebSocket connections it holds.
+const agentNotificationsChannel = "agent_notifications"
+
+// publishHostIDsChunkSize bounds the size of a single published message.
+const publishHostIDsChunkSize = 10_000
+
+// subscribeRetryBaseInterval/Max bound the resubscribe backoff when the
+// subscription connection to Redis fails.
+const (
+	subscribeRetryBaseInterval = 1 * time.Second
+	subscribeRetryMaxInterval  = 30 * time.Second
+)
+
+// AgentNotification is the payload published on the agent notifications
+// channel. It carries only the notification type, the targeted host IDs and
+// (for live queries) the campaign ID — never query content or results.
+type AgentNotification struct {
+	Type       string `json:"type"`
+	HostIDs    []uint `json:"host_ids"`
+	CampaignID uint   `json:"campaign_id,omitempty"`
+}
+
+// RedisAgentNotifier publishes and subscribes to agent check-in wake-ups over
+// Redis pub/sub. It implements fleet.AgentCheckInNotifier.
+type RedisAgentNotifier struct {
+	pool   fleet.RedisPool
+	logger *slog.Logger
+}
+
+var _ fleet.AgentCheckInNotifier = (*RedisAgentNotifier)(nil)
+
+func NewRedisAgentNotifier(pool fleet.RedisPool, logger *slog.Logger) *RedisAgentNotifier {
+	return &RedisAgentNotifier{
+		pool:   pool,
+		logger: logger,
+	}
+}
+
+// NotifyAgentsForLiveQuery publishes a distributed/read wake-up for the hosts
+// targeted by a newly created live query campaign. In Redis Cluster, PUBLISH
+// is broadcast cluster-wide, so publishing on any node reaches all
+// subscribers.
+func (n *RedisAgentNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hostIDs []uint, campaignID uint) error {
+	// pub-sub can publish and listen on any node in the cluster
+	conn := redis.ReadOnlyConn(n.pool, n.pool.Get())
+	defer conn.Close()
+
+	for chunk := range slices.Chunk(hostIDs, publishHostIDsChunkSize) {
+		payload, err := json.Marshal(AgentNotification{
+			Type:       fleet.AgentWSMessageTypeDistributedRead,
+			HostIDs:    chunk,
+			CampaignID: campaignID,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshal agent notification")
+		}
+		if _, err := conn.Do("PUBLISH", agentNotificationsChannel, payload); err != nil {
+			return ctxerr.Wrap(ctx, err, "publish agent notification")
+		}
+	}
+	return nil
+}
+
+// Subscribe is the boot-time, process-wide subscription loop: it delivers
+// every notification published on the agent notifications channel to the
+// deliver callback until ctx is done, resubscribing with backoff when the
+// Redis connection fails.
+//
+// Run it in its own goroutine; deliver is called synchronously from the loop
+// and must not block for long.
+func (n *RedisAgentNotifier) Subscribe(ctx context.Context, deliver func(AgentNotification)) {
+	backoff := subscribeRetryBaseInterval
+	for {
+		if ctx.Err() != nil {
+			return
+		}
+
+		err := n.subscribeOnce(ctx, deliver, func() { backoff = subscribeRetryBaseInterval })
+		if ctx.Err() != nil {
+			return
+		}
+		n.logger.ErrorContext(ctx, "agent notifications subscription failed; resubscribing",
+			"err", err, "backoff", backoff.String())
+
+		select {
+		case <-time.After(backoff):
+		case <-ctx.Done():
+			return
+		}
+		backoff = min(backoff*2, subscribeRetryMaxInterval)
+	}
+}
+
+// subscribeOnce holds one subscription until it fails or ctx is done. The
+// onSubscribed callback runs once the SUBSCRIBE succeeds (used to reset the
+// caller's backoff).
+func (n *RedisAgentNotifier) subscribeOnce(ctx context.Context, deliver func(AgentNotification), onSubscribed func()) error {
+	// pub-sub can publish and listen on any node in the cluster
+	conn := redis.ReadOnlyConn(n.pool, n.pool.Get())
+	defer conn.Close()
+
+	psc := &redigo.PubSubConn{Conn: conn}
+	if err := psc.Subscribe(agentNotificationsChannel); err != nil {
+		return ctxerr.Wrap(ctx, err, "subscribe to agent notifications channel")
+	}
+	defer psc.Unsubscribe(agentNotificationsChannel) //nolint:errcheck
+	onSubscribed()
+
+	// Close the connection when ctx is done to unblock ReceiveWithTimeout.
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = conn.Close()
+		case <-done:
+		}
+	}()
+
+	for {
+		switch msg := psc.ReceiveWithTimeout(1 * time.Hour).(type) {
+		case redigo.Message:
+			var notification AgentNotification
+			if err := json.Unmarshal(msg.Data, &notification); err != nil {
+				n.logger.ErrorContext(ctx, "unmarshal agent notification", "err", err)
+				continue
+			}
+			deliver(notification)
+		case error:
+			return ctxerr.Wrap(ctx, msg, "receive agent notification")
+		case redigo.Subscription:
+			// Subscribe/unsubscribe confirmations; nothing to do.
+		}
+	}
+}
+
+// HealthCheck verifies that the redis backend can be pinged.
+func (n *RedisAgentNotifier) HealthCheck() error {
+	conn := n.pool.Get()
+	defer conn.Close()
+
+	if _, err := conn.Do("PING"); err != nil {
+		return ctxerr.Wrap(context.Background(), err, "reading from redis")
+	}
+	return nil
+}

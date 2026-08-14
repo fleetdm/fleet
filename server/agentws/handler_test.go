@@ -1,0 +1,188 @@
+package agentws
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type fakeAuthenticator struct {
+	hosts map[string]uint // node key -> host ID
+}
+
+func (f *fakeAuthenticator) AuthenticateOrbitHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
+	id, ok := f.hosts[nodeKey]
+	if !ok {
+		return nil, false, errors.New("invalid node key")
+	}
+	return &fleet.Host{ID: id}, false, nil
+}
+
+func discardLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
+}
+
+func newTestServer(t *testing.T, hub *Hub) *httptest.Server {
+	t.Helper()
+	auth := &fakeAuthenticator{hosts: map[string]uint{"key-1": 1, "key-2": 2}}
+	srv := httptest.NewServer(NewHandler(hub, auth, discardLogger()))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func dial(t *testing.T, srv *httptest.Server, nodeKey string) *websocket.Conn {
+	t.Helper()
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+	header := http.Header{}
+	if nodeKey != "" {
+		header.Set("Authorization", nodeKeyAuthScheme+nodeKey)
+	}
+	ws, resp, err := websocket.DefaultDialer.Dial(url, header)
+	require.NoError(t, err)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
+	t.Cleanup(func() { ws.Close() })
+	return ws
+}
+
+func waitForConnCount(t *testing.T, hub *Hub, want int) {
+	t.Helper()
+	require.Eventually(t, func() bool { return hub.ConnCount() == want },
+		2*time.Second, 5*time.Millisecond, "expected %d connections", want)
+}
+
+func TestHandlerRejectsBadAuth(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+	srv := newTestServer(t, hub)
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	for _, tc := range []struct {
+		name   string
+		header http.Header
+	}{
+		{"missing header", http.Header{}},
+		{"wrong scheme", http.Header{"Authorization": []string{"Bearer key-1"}}},
+		{"invalid key", http.Header{"Authorization": []string{nodeKeyAuthScheme + "bogus"}}},
+		{"empty key", http.Header{"Authorization": []string{nodeKeyAuthScheme}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ws, resp, err := websocket.DefaultDialer.Dial(url, tc.header)
+			require.Error(t, err)
+			require.Nil(t, ws)
+			require.NotNil(t, resp)
+			defer resp.Body.Close()
+			assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+			assert.Equal(t, 0, hub.ConnCount())
+		})
+	}
+}
+
+func TestHandlerNotifyDelivery(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+	srv := newTestServer(t, hub)
+
+	ws := dial(t, srv, "key-1")
+	waitForConnCount(t, hub, 1)
+
+	// Host 1 is connected, hosts 2 and 3 are not.
+	sent := hub.Notify(fleet.AgentWSMessageTypeDistributedRead, []uint{1, 2, 3})
+	assert.Equal(t, 1, sent)
+
+	require.NoError(t, ws.SetReadDeadline(time.Now().Add(2*time.Second)))
+	var msg fleet.AgentWSMessage
+	require.NoError(t, ws.ReadJSON(&msg))
+	assert.Equal(t, fleet.AgentWSMessageTypeDistributedRead, msg.Type)
+}
+
+func TestHandlerEvictsPreviousConnection(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+	srv := newTestServer(t, hub)
+
+	first := dial(t, srv, "key-1")
+	waitForConnCount(t, hub, 1)
+
+	second := dial(t, srv, "key-1")
+	waitForConnCount(t, hub, 1)
+
+	// The first connection is closed by the server.
+	require.NoError(t, first.SetReadDeadline(time.Now().Add(2*time.Second)))
+	_, _, err := first.ReadMessage()
+	require.Error(t, err)
+
+	// The second connection still receives notifications.
+	require.Equal(t, 1, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, []uint{1}))
+	require.NoError(t, second.SetReadDeadline(time.Now().Add(2*time.Second)))
+	var msg fleet.AgentWSMessage
+	require.NoError(t, second.ReadJSON(&msg))
+	assert.Equal(t, fleet.AgentWSMessageTypeDistributedRead, msg.Type)
+}
+
+func TestHandlerDisconnectUnregisters(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+	srv := newTestServer(t, hub)
+
+	ws := dial(t, srv, "key-1")
+	waitForConnCount(t, hub, 1)
+
+	ws.Close()
+	waitForConnCount(t, hub, 0)
+	assert.Equal(t, 0, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, []uint{1}))
+}
+
+func TestHandlerKeepaliveClosesDeadPeer(t *testing.T) {
+	// Millisecond-scale keepalive: the client never reads, so it never answers
+	// pings, and the server's read deadline (pingInterval+pongTimeout) expires.
+	hub := NewHub(discardLogger(), 20*time.Millisecond, 20*time.Millisecond)
+	srv := newTestServer(t, hub)
+
+	dial(t, srv, "key-1")
+	waitForConnCount(t, hub, 1)
+	waitForConnCount(t, hub, 0)
+}
+
+func TestHubFilterDueForRenotify(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+	srv := newTestServer(t, hub)
+
+	ws1 := dial(t, srv, "key-1")
+	dial(t, srv, "key-2")
+	waitForConnCount(t, hub, 2)
+	_ = ws1
+
+	// Nothing notified yet: both are due; unheld host 3 is filtered out.
+	assert.ElementsMatch(t, []uint{1, 2}, hub.FilterDueForRenotify([]uint{1, 2, 3}, time.Minute))
+
+	// After notifying host 1, it is inside the grace period; host 2 is still due.
+	hub.Notify(fleet.AgentWSMessageTypeDistributedRead, []uint{1})
+	assert.ElementsMatch(t, []uint{2}, hub.FilterDueForRenotify([]uint{1, 2}, time.Minute))
+
+	// Once the grace period has passed, every connected host is due again.
+	time.Sleep(5 * time.Millisecond)
+	assert.ElementsMatch(t, []uint{1, 2}, hub.FilterDueForRenotify([]uint{1, 2}, time.Millisecond))
+}
+
+func TestHubShutdown(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+	srv := newTestServer(t, hub)
+
+	ws := dial(t, srv, "key-1")
+	waitForConnCount(t, hub, 1)
+
+	hub.Shutdown()
+	assert.Equal(t, 0, hub.ConnCount())
+
+	require.NoError(t, ws.SetReadDeadline(time.Now().Add(2*time.Second)))
+	_, _, err := ws.ReadMessage()
+	require.Error(t, err)
+}

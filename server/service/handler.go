@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -69,6 +70,7 @@ type extraHandlerOpts struct {
 	mdmSsoRateLimit *throttled.Rate
 	ssoRateLimit    *throttled.Rate
 	httpSigVerifier mux.MiddlewareFunc
+	agentWSHub      *agentws.Hub
 }
 
 // ExtraHandlerOption allows adding extra configuration to the HTTP handler.
@@ -100,6 +102,15 @@ func WithSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
 func WithHTTPSigVerifier(m mux.MiddlewareFunc) ExtraHandlerOption {
 	return func(o *extraHandlerOpts) {
 		o.httpSigVerifier = m
+	}
+}
+
+// WithAgentWSHub provides the hub of agent WebSocket connections (ADR-0011);
+// when set (and the websocket transport is enabled in the config), the agent
+// notifications WebSocket endpoint is registered.
+func WithAgentWSHub(hub *agentws.Hub) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.agentWSHub = hub
 	}
 }
 
@@ -1234,6 +1245,16 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// the handler.
 	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/",
 		makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
+
+	// The agent notifications WebSocket endpoint (ADR-0011) is a raw
+	// http.Handler on the NoAuth endpointer: the upgrade request is
+	// authenticated inside the handler with the orbit node key. It is only
+	// registered when the websocket transport is enabled, so with the feature
+	// off (the default) upgrade attempts get a 404.
+	if config.WebSocket.TransportEnabled && extra.agentWSHub != nil {
+		ne.HandleHTTPHandler("/api/fleet/orbit/notifications",
+			agentws.NewHandler(extra.agentWSHub, svc, logger), "GET")
+	}
 
 	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
 	ne.

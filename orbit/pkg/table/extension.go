@@ -30,6 +30,7 @@ import (
 type Runner struct {
 	socket          string
 	tableExtensions []Extension
+	plugins         []osquery.OsqueryPlugin
 	executeDone     chan struct{}
 
 	// mu protects access to srv, ctx and cancel in Execute and Interrupt.
@@ -61,6 +62,14 @@ type PluginOpts struct {
 func WithExtension(t Extension) Opt {
 	return func(r *Runner) {
 		r.tableExtensions = append(r.tableExtensions, t)
+	}
+}
+
+// WithPlugin registers an arbitrary osquery plugin (e.g. a distributed plugin)
+// on the Runner, alongside the table plugins.
+func WithPlugin(p osquery.OsqueryPlugin) Opt {
+	return func(r *Runner) {
+		r.plugins = append(r.plugins, p)
 	}
 }
 
@@ -127,6 +136,7 @@ func (r *Runner) Execute() error {
 			t.GenerateFunc,
 		))
 	}
+	plugins = append(plugins, r.plugins...)
 	r.srv.RegisterPlugin(plugins...)
 
 	if err := r.srv.Run(); err != nil {

@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/chart"
@@ -648,6 +649,32 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Bootstrap chart bounded context
 	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
 
+	// Bootstrap the agent WebSocket notification transport (ADR-0011): the
+	// per-instance hub of agent connections, the Redis pub/sub subscription
+	// that fans live query wake-ups out to all instances, and the per-instance
+	// interval check job. All of it is inert unless websocket.transport_enabled
+	// is set.
+	var agentWSHub *agentws.Hub
+	if config.WebSocket.TransportEnabled {
+		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
+			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
+		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
+		svc.SetAgentCheckInNotifier(agentNotifier)
+		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
+			agentWSHub.Notify(n.Type, n.HostIDs)
+		})
+		// Each instance checks only the connections it holds, so this is a
+		// plain per-instance goroutine, not a locked cron job.
+		go (&agentws.IntervalChecker{
+			Hub:       agentWSHub,
+			Svc:       svc,
+			Interval:  config.WebSocket.CheckInterval,
+			Grace:     config.WebSocket.RenotifyGracePeriod,
+			BatchSize: config.WebSocket.CheckBatchSize,
+			Logger:    logger.With("component", "agentws-interval-checker"),
+		}).Run(ctx)
+	}
+
 	// Trace sampler runtime control. The poller re-reads trace_sampler_settings every 60s and atomically swaps the sampler's
 	// ratios and force_full so support can flip a 100% debug window via PATCH /debug/trace_sampler without restarting any
 	// replicas. No-op when OTEL is disabled.
@@ -749,6 +776,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			extra = append(extra, service.WithSsoRateLimit(throttled.PerMin(config.Auth.SSORateLimitPerMinute)))
 		}
 		extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
+		if agentWSHub != nil {
+			extra = append(extra, service.WithAgentWSHub(agentWSHub))
+		}
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)

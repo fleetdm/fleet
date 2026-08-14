@@ -79,6 +79,14 @@ type OsqueryService interface {
 	SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	YaraRuleByName(ctx context.Context, name string) (*YaraRule, error)
+
+	// ListHostIDsDueForDistributedRead returns the subset of hostIDs whose next
+	// distributed/read would include interval work (label, policy or detail
+	// queries due per their update intervals, or a pending refetch). It is used
+	// by the WebSocket transport's per-instance interval check job (ADR-0011)
+	// to decide which connected agents to notify, and applies the same
+	// staleness gates (including per-host jitter) as GetDistributedQueries.
+	ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) ([]uint, error)
 }
 
 // UserLookupService provides methods for looking up users.
@@ -696,6 +704,11 @@ type Service interface {
 	// SetACMEService sets the ACME service module for write operations.
 	// This should be called after service creation to inject the ACME service dependency.
 	SetACMEService(acmeSvc ACMEWriteService)
+
+	// SetAgentCheckInNotifier sets the notifier used to wake up agents
+	// connected over the WebSocket transport (ADR-0011). This should be called
+	// after service creation when the transport is enabled.
+	SetAgentCheckInNotifier(notifier AgentCheckInNotifier)
 
 	// NewACMEEnrollment creates a new ACME enrollment using the ACME service module. It returns the
 	// ACME identifier for the new enrollment, which is used to track the enrollment process and link it to a host.
