@@ -9,13 +9,19 @@ You can add print support to Android hosts by deploying a print service app. And
 - Fleet, with Android hosts enrolled and [Android MDM turned on](https://fleetdm.com/guides/android-mdm-setup).
 - Admin or maintainer access to the fleet you're deploying to.
 - [Fleet Premium](https://fleetdm.com/pricing) to scope the app to a subset of hosts with labels.
-- The printer manufacturer's Play Store app ID, or use [Mopria Print Service](https://play.google.com/store/apps/details?id=org.mopria.printplugin) (`org.mopria.printplugin`) for broad printer support.
+- The printer manufacturer's print service app, or use [Mopria Print Service](https://play.google.com/store/apps/details?id=org.mopria.printplugin) (`org.mopria.printplugin`) for broad printer support. A manufacturer's own app is often a better choice than Mopria when the printer supports it, since it can expose features (finishing options, ink levels, and similar) that a generic print service can't. Common ones:
+  - [HP Print Service Plugin](https://play.google.com/store/apps/details?id=com.hp.android.printservice) (`com.hp.android.printservice`)
+  - [Brother Print Service Plugin](https://play.google.com/store/apps/details?id=com.brother.printservice) (`com.brother.printservice`)
+  - [Canon Print Service](https://play.google.com/store/apps/details?id=jp.co.canon.android.printservice.plugin) (`jp.co.canon.android.printservice.plugin`)
+  - [Epson Print Enabler](https://play.google.com/store/apps/details?id=com.epson.mobilephone.android.epsonprintserviceplugin) (`com.epson.mobilephone.android.epsonprintserviceplugin`)
 
 ## Add the print service app
 
 1. In Fleet, go to **Software**, choose a fleet, and select **Add software > App store**.
 2. Choose the Android platform, then enter the app ID.
-3. To let end users install it themselves from their managed Google Play Store, select **Actions > Edit software** after adding it and check **Self-service**. To push it to every host in the fleet without end user action, set up [automatic installation](https://fleetdm.com/guides/automatic-software-install-in-fleet) instead.
+3. Select **Actions > Edit software** after adding it and check **Self-service**, so it appears in the end user's managed Google Play Store for them to install.
+
+> **Note:** Fleet doesn't support automatic installation (pushing an app to every host without end user action) for Android yet. See [this tracking issue](https://github.com/fleetdm/fleet/issues/36424) for status. Until then, self-service is the way to get this app onto hosts without installing it one at a time.
 
 In GitOps:
 
@@ -31,8 +37,8 @@ Once the print service app is installed and enabled, printers on the network app
 
 ## Verify
 
-1. On the host, open the **Print** option from any app and confirm the printer appears in the list.
-2. On the host's **Host details** page in Fleet, open the **Software** tab and confirm the app shows as installed.
+1. On the host's **Host details** page in Fleet, open the **Software** tab and confirm the app shows as installed.
+2. On the host, open the **Print** option from any app and confirm the printer appears in the list.
 3. Print a test page from the host to confirm the connection works, not just that the app installed.
 
 ## Troubleshoot
@@ -48,7 +54,6 @@ Some manufacturer print service apps need the printer added to Wi-Fi Direct or a
 ## Further reading
 
 - [Install app store apps](https://fleetdm.com/guides/install-app-store-apps): adding and managing Google Play Store apps in Fleet.
-- [Automatically install software](https://fleetdm.com/guides/automatic-software-install-in-fleet): pushing an app to hosts without end user action.
 - [Deploy printers with Fleet](https://fleetdm.com/guides/deploy-printers-with-fleet): the same task on other platforms.
 
 <meta name="articleTitle" value="Add print support on Android with Fleet">

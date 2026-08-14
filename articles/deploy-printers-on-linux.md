@@ -6,12 +6,14 @@ You can deploy printers to Linux hosts with the same self-service scripts you'd 
 
 - Fleet, with Linux hosts enrolled.
 - Admin or maintainer access to the fleet you're deploying to.
-- `fleetd` deployed with scripts enabled. See [enable scripts](https://fleetdm.com/guides/scripts#enable-scripts).
+- `fleetd` deployed with [scripts enabled](https://fleetdm.com/guides/scripts#enable-scripts).
 - [Fleet Premium](https://fleetdm.com/pricing) to offer the printer in self-service or scope it to a subset of hosts with labels. Running a script on demand or via policy automation works on Fleet Free.
-- `cups-client` (Debian, Ubuntu) or `cups` (Fedora, RHEL) installed on your hosts. It's not guaranteed to ship by default, so confirm it before deploying the script below.
+- `cups-client` (Debian, Ubuntu), `cups` (Fedora, RHEL, and Arch), or the CUPS package for your distribution installed on your hosts. It's not guaranteed to ship by default, so confirm it before deploying the script below.
 - The printer's hostname or IP address, and the queue or resource path it prints to.
 
 ## Offer a printer in self-service
+
+Add the printer as a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages):
 
 1. Go to **Software**, choose a fleet, and select **Add software > Custom package**.
 2. Choose a `.sh` file containing the script below.
@@ -28,7 +30,7 @@ PRINTER_URI="ipp://192.0.2.10/ipp/print"
 lpadmin -p "$PRINTER_NAME" -L "$PRINTER_LOCATION" -E -v "$PRINTER_URI" -m everywhere
 ```
 
-`-m everywhere` uses IPP Everywhere's driverless printing, which covers most current network printers without a PPD. If the printer doesn't support it, point `-P` at a PPD you've staged on the host instead.
+`-m everywhere` uses IPP Everywhere's driverless printing, which covers most current network printers without a PPD. If the printer doesn't support it, stage the manufacturer's PPD on the host first: add a second software package containing the PPD as a `.tar.gz` archive, with an install script like `cp "$INSTALLER_PATH"/*.ppd /usr/share/cups/model/printer.ppd`, and deploy it as an automatic install. Then, in the printer script above, replace `-m everywhere` with `-P /usr/share/cups/model/printer.ppd`.
 
 Uninstall script:
 
@@ -54,8 +56,8 @@ software:
 
 ## Verify
 
-1. On the host, check the printer queue with `lpstat -p`, or open your distribution's printer settings panel.
-2. On the host's **Host details** page in Fleet, open the **Activity** tab and confirm the script install shows a success status.
+1. On the host's **Host details** page in Fleet, open the **Activity** tab and confirm the script install shows a success status.
+2. On the host, check the printer queue with `lpstat -p`, or open your distribution's printer settings panel.
 3. Print a test page from the host to confirm the connection works, not just that the queue was created.
 
 ## Troubleshoot
@@ -68,11 +70,7 @@ software:
 
 `cups-client` or `cups` isn't installed on the host. Install it first, either as a prerequisite software package or as the first step of the install script, before running `lpadmin`.
 
-## Further reading
-
-- [Scripts](https://fleetdm.com/guides/scripts): running scripts on demand, in self-service, and through policy automation.
-- [Deploy software](https://fleetdm.com/guides/deploy-software-packages#script-only-packages): script-only packages and self-service options.
-- [Deploy printers with Fleet](https://fleetdm.com/guides/deploy-printers-with-fleet): the same task on other platforms.
+See [Deploy printers with Fleet](https://fleetdm.com/guides/deploy-printers-with-fleet) for the same task on other platforms.
 
 <meta name="articleTitle" value="Deploy printers on Linux with Fleet">
 <meta name="authorFullName" value="Kitzy">

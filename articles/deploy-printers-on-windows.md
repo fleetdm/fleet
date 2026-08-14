@@ -8,13 +8,15 @@ Windows has no CSP for installing a network printer with a vendor driver, aside 
 
 - Fleet, with Windows hosts enrolled.
 - Admin or maintainer access to the fleet you're deploying to.
-- `fleetd` deployed with scripts enabled. This happens automatically for hosts with MDM turned on. Otherwise, see [enable scripts](https://fleetdm.com/guides/scripts#enable-scripts).
+- `fleetd` deployed with [scripts enabled](https://fleetdm.com/guides/scripts#enable-scripts). This happens automatically for hosts with MDM turned on.
 - [Fleet Premium](https://fleetdm.com/pricing) to offer the printer in self-service or scope it to a subset of hosts with labels. Running a script on demand or via policy automation works on Fleet Free.
 - The printer's hostname or IP address, and the queue or resource path it prints to.
 
 ## Deploy a printer with a script
 
-Most current printers support IPP. `Add-Printer`'s `-IppURL` parameter discovers the printer directly at that URL and has Windows pick a driver for it, typically its built-in Microsoft IPP Class Driver, without installing a vendor driver yourself.
+Most current printers support IPP. [`Add-Printer`](https://learn.microsoft.com/en-us/powershell/module/printmanagement/add-printer)'s `-IppURL` parameter discovers the printer directly at that URL and has Windows pick a driver for it, typically its built-in Microsoft IPP Class Driver, without installing a vendor driver yourself.
+
+Add the printer as a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages):
 
 1. Go to **Software**, choose a fleet, and select **Add software > Custom package**.
 2. Choose a `.ps1` file containing the script below.
@@ -52,7 +54,7 @@ software:
 
 ## Use a vendor driver instead
 
-If the printer doesn't support IPP, or you need the features of the manufacturer's own driver, install that driver first, then reference it by name instead of the Microsoft IPP Class Driver.
+If the printer doesn't support IPP, or you need the features of the manufacturer's own driver, install that driver first, then reference it by name instead of the Microsoft IPP Class Driver. This driver package is a regular [software package](https://fleetdm.com/guides/deploy-software-packages), not a script-only one, since it needs to carry the actual driver files.
 
 1. Get the driver package from the manufacturer. You need the raw driver files (a folder containing an `.inf` file), not a self-extracting setup executable. Compress the folder into a `.tar.gz` archive.
 2. Go to **Software**, choose a fleet, and select **Add software > Custom package**.
@@ -71,8 +73,10 @@ pnputil /add-driver "$infPath" /install
 Exit $LASTEXITCODE
 ```
 
-5. After the driver installs on a test host, run `Get-PrinterDriver` on that host to get the exact driver name Windows registered. Vendor documentation often doesn't match this string exactly.
-6. Add a second software package for the printer itself, following the same steps as the IPP printer above, but with this script instead:
+This uses [`pnputil /add-driver`](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/pnputil-examples) to stage the driver into the Windows driver store.
+
+5. After the driver installs on a test host, run [`Get-PrinterDriver`](https://learn.microsoft.com/en-us/powershell/module/printmanagement/get-printerdriver) on that host to get the exact driver name Windows registered. Vendor documentation often doesn't match this string exactly.
+6. Add a second software package for the printer itself, as a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages) following the same steps as the IPP printer above, but with this script instead:
 
 ```powershell
 $printerName = "Floor2-LaserJet"
@@ -117,8 +121,8 @@ software:
 
 ## Verify
 
-1. On the host, open **Settings > Bluetooth & devices > Printers & scanners** and confirm the printer appears.
-2. On the host's **Host details** page in Fleet, open the **Activity** tab and confirm the script or package install shows a success status.
+1. On the host's **Host details** page in Fleet, open the **Activity** tab and confirm the script or package install shows a success status.
+2. On the host, open **Settings > Bluetooth & devices > Printers & scanners** and confirm the printer appears.
 3. Print a test page from the host to confirm the driver and connection both work, not just that the queue was created.
 
 ## Troubleshoot
@@ -131,12 +135,7 @@ software:
 
 The driver name in `-DriverName` doesn't match an installed driver exactly. Run `Get-PrinterDriver` on the host to see the exact name Windows registered, and use that string, not the name from the manufacturer's packaging.
 
-## Further reading
-
-- [Scripts](https://fleetdm.com/guides/scripts): running scripts on demand, in self-service, and through policy automation.
-- [Deploy software](https://fleetdm.com/guides/deploy-software-packages#script-only-packages): script-only packages and self-service options.
-- Microsoft's [Add-Printer](https://learn.microsoft.com/en-us/powershell/module/printmanagement/add-printer), [Add-PrinterDriver](https://learn.microsoft.com/en-us/powershell/module/printmanagement/add-printerdriver), and [`pnputil`](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/pnputil-examples) reference.
-- [Deploy printers with Fleet](https://fleetdm.com/guides/deploy-printers-with-fleet): the same task on other platforms.
+See [Deploy printers with Fleet](https://fleetdm.com/guides/deploy-printers-with-fleet) for the same task on other platforms.
 
 <meta name="articleTitle" value="Deploy printers on Windows with Fleet">
 <meta name="authorFullName" value="Kitzy">
