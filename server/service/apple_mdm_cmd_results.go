@@ -94,9 +94,11 @@ func NewInstalledApplicationListResultsHandler(
 			// Nothing is left to verify, so release the verify command the same way the
 			// terminal path below does. Holding it would suppress the next install's
 			// acknowledgement on this host until the daily cleanup removes it.
-			return ctxerr.Wrap(ctx,
+			return ctxerr.Wrap(
+				ctx,
 				ds.RemoveHostMDMCommandByHostUUID(ctx, installedAppResult.HostUUID(), fleet.VerifySoftwareInstallVPPPrefix),
-				"InstalledApplicationList handler: removing host mdm command with no installs to verify")
+				"InstalledApplicationList handler: removing host mdm command with no installs to verify",
+			)
 		}
 
 		installsByBundleID := map[string]fleet.Software{}
