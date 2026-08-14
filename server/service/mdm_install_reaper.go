@@ -28,8 +28,8 @@ func ReapStuckMDMInstalls(ctx context.Context, ds fleet.Datastore, logger *slog.
 		return nil
 	}
 
-	// An install failed by a partially successful run still has to be recorded, so this error is
-	// held until the installs that were returned have been dealt with.
+	// A partially successful run still returns the installs it did fail, and those have to be
+	// recorded, so this error waits until they have been.
 	reaped, err := ds.ReapStuckActivatedMDMInstalls(ctx, olderThan, maxHosts)
 	var errs []error
 	if err != nil {
@@ -49,14 +49,14 @@ func ReapStuckMDMInstalls(ctx context.Context, ds fleet.Datastore, logger *slog.
 	return errors.Join(errs...)
 }
 
-// recordReapedMDMInstall does what the verify result handler does when an install times out, in the
-// same order, so a reaped install ends up in the state one Fleet gave up on normally would.
+// recordReapedMDMInstall does what the verify result handler does when an install times out, and in
+// the same order, so a reaped install ends up in the same state as one Fleet gave up on normally.
 //
 // The install is already failed and its queue row deleted by now, so it can no longer match the reap
-// predicate and none of this is retried. Hence the setup experience step goes first, having the more
-// lasting effect, and its error no longer skips the activity: maybeUpdateSetupExperienceStatus
-// reports `updated` alongside an error from the cancel-the-rest step that runs after its own commit,
-// so returning early there used to discard both.
+// predicate and none of this is retried. One failure must therefore not cost two things. The setup
+// experience step goes first, having the more lasting effect, and its error does not skip the
+// activity: maybeUpdateSetupExperienceStatus reports `updated` alongside an error from the
+// cancel-the-rest step that runs after its own commit.
 func recordReapedMDMInstall(ctx context.Context, ds fleet.Datastore, install fleet.ReapedMDMInstall,
 	newActivityFn fleet.NewActivityFunc,
 ) error {

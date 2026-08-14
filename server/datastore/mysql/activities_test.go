@@ -2084,6 +2084,31 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[4], host4ScriptE.ExecutionID)
 }
 
+// TestReapableActivatedInstallArgs pins the conversion the reap predicate depends on. A duration
+// that reaches the query as 0 makes the cutoff NOW(), so every activated install on the fleet is
+// past it. The sub-second case in testReapStuckActivatedMDMInstalls says the same thing end to end,
+// but has to race a wall clock to do it.
+func TestReapableActivatedInstallArgs(t *testing.T) {
+	for _, tc := range []struct {
+		olderThan  time.Duration
+		wantMicros int64
+	}{
+		{time.Microsecond, 1},
+		{time.Millisecond, 1_000},
+		{500 * time.Millisecond, 500_000},
+		{999 * time.Millisecond, 999_000},
+		{24 * time.Hour, 86_400_000_000},
+	} {
+		t.Run(tc.olderThan.String(), func(t *testing.T) {
+			args := reapableActivatedInstallArgs(tc.olderThan)
+			require.Len(t, args, 3)
+			require.Equal(t, tc.wantMicros, args[0], "reap age must not truncate")
+			require.Equal(t, tc.wantMicros, args[1], "answer age must not truncate")
+			require.Equal(t, mdmApplePushDeliveryGraceDays, args[2])
+		})
+	}
+}
+
 func testReapStuckActivatedMDMInstalls(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -2463,12 +2488,11 @@ func testReapStuckActivatedMDMInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, reaped)
 
-	// A sub-second age is positive, so it clears the callers' non-positive guards, and it must not
-	// truncate to an interval of zero on the way into the query. If it did, the cutoff would be
-	// NOW() and every activated install on the fleet would be past it, which is the outcome those
-	// guards exist to prevent. 900ms truncates to 0 whole seconds, so it discriminates: the install
-	// below sits 100ms inside the window and must survive.
-	const subSecondTimeout = 900 * time.Millisecond
+	// A sub-second age clears the callers' non-positive guards, so it must not then truncate to an
+	// interval of zero and match everything. 999ms still truncates to 0 whole seconds, so it
+	// discriminates, and the install below sits 1ms inside it. That leaves just under a second
+	// before the assertion races the clock, which is as wide as a sub-second timeout allows.
+	const subSecondTimeout = 999 * time.Millisecond
 	hSubSecond := newMDMHost()
 	subSecondExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hSubSecond)
 	advance(hSubSecond, "")
@@ -2481,7 +2505,7 @@ func testReapStuckActivatedMDMInstalls(t *testing.T, ds *Datastore) {
 			return err
 		})
 	}
-	setActivatedAgo(subSecondExec, 100_000)
+	setActivatedAgo(subSecondExec, 1_000)
 
 	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, subSecondTimeout, 10)
 	require.NoError(t, err)

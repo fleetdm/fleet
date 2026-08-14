@@ -966,33 +966,27 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 // which Fleet stops pushing it.
 //
 // Measured from activated_at, not from nano_enrollment_queue.created_at even though that is the
-// column the pusher compares: both enqueue paths copy the queue row's created_at from the activity's
+// column the pusher compares. Both enqueue paths copy the queue row's created_at from the activity's
 // to preserve ordering, so a command that activates after a long wait is born already outside the
-// window. Keying on the queue row would give it no grace at all, and that is the state of every
-// install behind a head the reaper has just freed.
+// window, which is the state of every install behind a head the reaper has just freed.
 const mdmApplePushDeliveryGraceDays = 7
 
 // reapableActivatedInstallWhere matches an activated MDM-command-backed install that is old enough
-// to reap and can no longer make progress. Answered installs are judged on the age of the answer
-// alone; only unanswered ones are judged on delivery, having either lost their queue row or gone
-// past the delivery grace. Anything else is still in flight, including an unanswered command for a
-// device that is simply switched off. Arguments come from reapableActivatedInstallArgs.
+// to reap and can no longer make progress. An answered install is judged on the age of the answer
+// alone; only an unanswered one is judged on delivery, having either lost its queue row or gone past
+// the delivery grace. Anything else is still in flight, including an unanswered command for a device
+// that is simply switched off. Arguments come from reapableActivatedInstallArgs.
 //
-// Delivery is scoped to unanswered installs because a device that has been away longer than the
-// grace still answers when it returns, and that answer starts a verification entitled to its own
-// budget. Judging it on delivery then would fail an install the device is in the middle of running.
-//
-// Microseconds and not seconds: truncating a duration to whole seconds turns any positive
-// sub-second value into INTERVAL 0, which matches every activated install on the fleet and walks
-// straight past the callers' non-positive guards.
-//
-// The answered branch ages from ncr.updated_at because what is awaited after an answer is
-// verification, whose own budget Fleet measures from that same column. On activation age alone, a
-// device unreachable past the timeout would arrive already reapable and be failed seconds after
-// coming back and acknowledging.
+// An answer resets what matters, which is why it decides the branch and why its own age comes from
+// ncr.updated_at, the column Fleet measures the verification budget from. A device unreachable for
+// days accumulates activation age the whole time, so judging it on that age, or on delivery, would
+// fail the install seconds after the device came back and started running it.
 //
 // A NotNow answer does not count: nanomdm records one but keeps the command queued and re-serves it
 // (RetrieveNextCommand joins results with `status != 'NotNow'`), so the install has not run.
+//
+// Microseconds and not seconds: truncating to whole seconds turns any positive sub-second value into
+// INTERVAL 0, which matches every activated install on the fleet and walks past the callers' guards.
 //
 // The nano lookups key on command_uuid alone, its primary key in nano_commands, so there is nothing
 // for an enrollment id to disambiguate.

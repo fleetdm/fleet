@@ -9634,7 +9634,7 @@ func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	// RemoveHostMDMCommandByHostUUID has to tolerate two hosts sharing a UUID, which hosts.uuid
 	// permits: it carries only a non-unique index, and cloned VMs and double-enrolled devices do
 	// collide. Resolving the host with a scalar subselect would fail with ER_SUBQUERY_NO_1_ROW on
-	// exactly those hosts, and the caller now propagates that error.
+	// exactly those hosts, and its caller propagates that error rather than swallowing it.
 	const sharedUUID = "shared-uuid-across-two-hosts"
 	twinA, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(), PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
