@@ -106,6 +106,16 @@ type Session struct {
 	stop     chan struct{}
 	warnOnce sync.Once
 
+	// markerMu serializes marker writes, and exitRecorded latches once a
+	// terminal reason has been written. Closing s.stop doesn't stop a tick
+	// that has already been selected, so without this a heartbeat landing in
+	// the same instant as Close could rewrite the marker with an empty exit
+	// after Close recorded the real one — turning a clean quit into a crash
+	// report at the next launch, which is the exact signal this file exists
+	// to get right.
+	markerMu     sync.Mutex
+	exitRecorded bool
+
 	mu    sync.Mutex
 	stats func() []any
 }
@@ -288,10 +298,23 @@ func (s *Session) watchSignals() {
 	}()
 }
 
+// writeMarker persists the liveness record. An empty exit is a routine
+// liveness refresh; a non-empty one is terminal and can never be walked back
+// by a later refresh (see markerMu).
 func (s *Session) writeMarker(exit string) {
 	if s.markerPath == "" {
 		return
 	}
+
+	s.markerMu.Lock()
+	defer s.markerMu.Unlock()
+	if exit == "" && s.exitRecorded {
+		return
+	}
+	if exit != "" {
+		s.exitRecorded = true
+	}
+
 	rec := sessionRecord{
 		PID:       os.Getpid(),
 		StartedAt: s.startedAt,

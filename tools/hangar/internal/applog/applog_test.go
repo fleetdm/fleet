@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -146,6 +147,35 @@ func TestCloseIsIdempotentAndKeepsFirstReason(t *testing.T) {
 
 	if got := readSessionMarker(t, dir).Exit; got != "signal: terminated" {
 		t.Errorf("marker exit = %q, want the first reason", got)
+	}
+}
+
+// Closing s.stop doesn't unwind a tick that has already been selected, so a
+// heartbeat can still write its liveness refresh after Close has recorded the
+// real reason. If that refresh won, the next launch would report a clean quit
+// as a crash. Run with -race.
+func TestConcurrentHeartbeatCannotEraseTheExitReason(t *testing.T) {
+	isolate(t)
+	dir := t.TempDir()
+
+	s := Setup(dir)
+
+	// Hammer the marker the way the ticker does, across the Close.
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 200; j++ {
+				s.writeMarker("")
+			}
+		}()
+	}
+	s.Close("user quit")
+	wg.Wait()
+
+	if got := readSessionMarker(t, dir).Exit; got != "user quit" {
+		t.Errorf("marker exit = %q after concurrent refreshes, want %q", got, "user quit")
 	}
 }
 
