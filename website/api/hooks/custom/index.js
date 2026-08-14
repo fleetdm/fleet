@@ -171,7 +171,7 @@ will be disabled and/or hidden in the UI.
               },
             }).exec((err)=>{
               if (err) {
-                sails.log.warn(`Android proxy: failed to send AMAPI request-count metric to Datadog. Full error: ${require('util').inspect(err)}`);
+                sails.log.warn(`Background task failed: failed to send AMAPI request-count metric to Datadog. Full error: ${require('util').inspect(err)}`);
               }
             });//_∏_
           }//ﬁ
