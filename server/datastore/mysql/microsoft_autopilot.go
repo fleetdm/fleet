@@ -301,10 +301,16 @@ func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices 
 		return ctxerr.Wrap(ctx, err, "get or insert windows mdm solution")
 	}
 
+	// A host created here is placed straight into the Windows enrollment default fleet.
+	defaultTeamID, _, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
+	}
+
 	// One transaction per chunk rather than one for the whole list.
 	return common_mysql.BatchProcessSimple(devices, hostAutopilotDeviceBatchSize, func(batch []*fleet.HostAutopilotDevice) error {
 		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			return ingestWindowsAutopilotDevicesDB(ctx, tx, serverURL, mdmID, batch, hostIDByZTD)
+			return ingestWindowsAutopilotDevicesDB(ctx, tx, serverURL, mdmID, defaultTeamID, batch, hostIDByZTD)
 		})
 	})
 }
@@ -315,6 +321,7 @@ func ingestWindowsAutopilotDevicesDB(
 	tx sqlx.ExtContext,
 	serverURL string,
 	mdmID uint,
+	defaultTeamID *uint,
 	devices []*fleet.HostAutopilotDevice,
 	hostIDByZTD map[string]uint,
 ) error {
@@ -360,7 +367,7 @@ func ingestWindowsAutopilotDevicesDB(
 		for _, dev := range toCreate {
 			createSerials = append(createSerials, dev.HardwareSerial)
 		}
-		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, createSerials); err != nil {
+		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, defaultTeamID, createSerials); err != nil {
 			return err
 		}
 		// This query returns the host ids of newly created hosts.
@@ -469,21 +476,21 @@ ORDER BY h.id`, serials)
 
 // insertPendingWindowsAutopilotHostsDB creates the bare host rows. The never-timestamp sentinel on last_enrolled_at and
 // detail_updated_at marks the host as never having checked in
-func insertPendingWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, serials []string) error {
+func insertPendingWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, teamID *uint, serials []string) error {
 	if len(serials) == 0 {
 		return nil
 	}
 
 	stmt := `
-INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested)
+INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested, team_id)
 VALUES %s`
 
-	args := make([]any, 0, len(serials))
+	args := make([]any, 0, len(serials)*2)
 	for _, serial := range serials {
-		args = append(args, serial)
+		args = append(args, serial, teamID)
 	}
 	values := strings.TrimSuffix(strings.Repeat(
-		"(?, '', 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1),", len(serials)), ",")
+		"(?, '', 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1, ?),", len(serials)), ",")
 	if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert pending windows autopilot hosts")
 	}

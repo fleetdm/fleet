@@ -539,6 +539,11 @@ func testIngestWindowsAutopilotDevices(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedWindowsBuiltinLabels(t, ds)
 
+	// A device found in Autopilot is placed into the default fleet as it is created
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Workstations"})
+	require.NoError(t, err)
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, &team.ID))
+
 	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
 		autopilotDevice("AP-SERIAL-1", "Engineering"),
 		autopilotDevice("AP-SERIAL-2", ""),
@@ -554,9 +559,10 @@ func testIngestWindowsAutopilotDevices(t *testing.T, ds *Datastore) {
 		InstalledFromDep bool    `db:"installed_from_dep"`
 		EnrollmentStatus *string `db:"enrollment_status"`
 		ServerURL        string  `db:"server_url"`
+		TeamID           *uint   `db:"team_id"`
 	}
 	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &got, `
-SELECT h.id, h.platform, h.hardware_serial, h.osquery_host_id,
+SELECT h.id, h.platform, h.hardware_serial, h.osquery_host_id, h.team_id,
        hm.enrolled, hm.installed_from_dep, hm.enrollment_status, hm.server_url
 FROM hosts h JOIN host_mdm hm ON hm.host_id = h.id
 WHERE h.hardware_serial LIKE 'AP-SERIAL-%' ORDER BY h.hardware_serial`))
@@ -570,6 +576,8 @@ WHERE h.hardware_serial LIKE 'AP-SERIAL-%' ORDER BY h.hardware_serial`))
 		assert.Equal(t, "Pending", *h.EnrollmentStatus)
 		assert.Contains(t, h.ServerURL, "/api/mdm/microsoft/discovery",
 			"pending hosts must share the Windows MDM solution row, not the Apple one")
+		require.NotNil(t, h.TeamID, "a pending host lands in the default fleet, not No team")
+		assert.Equal(t, team.ID, *h.TeamID)
 	}
 
 	// The Autopilot metadata is stored against the created hosts.
