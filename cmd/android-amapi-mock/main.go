@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -122,6 +123,12 @@ func (ds *deviceStore) raisePolicyVersionCounter(version int64) {
 // known. An existing device is updated in place so that state other handlers hold a pointer
 // to (pending commands, pending certificates) survives a device registering again.
 //
+// A device's policy is only changed by a registration that actually reports one (d.PolicyName
+// is set). A registration without a policy — a freshly started agent, or one whose reported
+// version was rejected — leaves the known policy alone: overwriting it with the default policy
+// at version 0 would tell Fleet the applied policy regressed and strand every profile already
+// delivered. A new device with no reported policy starts on the default policy.
+//
 // It reports false, and registers nothing, for a device that was deleted. The check shares
 // the write lock with the insert so a delete can't land between the two.
 func (ds *deviceStore) register(d *fakeDevice) bool {
@@ -140,13 +147,25 @@ func (ds *deviceStore) register(d *fakeDevice) bool {
 		delete(ds.byName, existing.DeviceName)
 		existing.DeviceName = d.DeviceName
 		existing.EnterpriseID = d.EnterpriseID
-		existing.PolicyName = d.PolicyName
-		existing.PolicyVersion = d.PolicyVersion
+		switch {
+		case d.PolicyName == "":
+			// Nothing reported: keep what we already know.
+		case d.PolicyName == existing.PolicyName:
+			// Same policy: never lower the version the device already observed.
+			existing.PolicyVersion = max(existing.PolicyVersion, d.PolicyVersion)
+		default:
+			existing.PolicyName = d.PolicyName
+			existing.PolicyVersion = d.PolicyVersion
+		}
 		existing.mu.Unlock()
 		ds.byName[existing.DeviceName] = existing
 		return true
 	}
 
+	if d.PolicyName == "" && d.EnterpriseID != "" {
+		d.PolicyName = fmt.Sprintf("enterprises/%s/policies/default", d.EnterpriseID)
+		d.PolicyVersion = 0
+	}
 	ds.byESID[d.EnterpriseSpecificID] = d
 	ds.byName[d.DeviceName] = d
 	return true

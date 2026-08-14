@@ -355,6 +355,45 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 		})
 	}
 
+	// A registration that reports no policy must not clobber the policy this process already
+	// has for the device: reporting the default policy at version 0 is exactly the regression
+	// that strands every already-delivered profile.
+	t.Run("a registration without a policy keeps the known policy", func(t *testing.T) {
+		mux, store := newTestMux(t)
+		req := defaultRegisterRequest()
+		req.PolicyName = testPolicyName(testESID)
+		req.PolicyVersion = 57
+		registerTestDevice(t, mux, req, http.StatusOK)
+
+		// Same device registers again, reporting nothing (e.g. a freshly started agent).
+		registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+
+		d := store.getByESID(testESID)
+		require.NotNil(t, d)
+		assert.Equal(t, testPolicyName(testESID), d.PolicyName)
+		assert.Equal(t, int64(57), d.PolicyVersion)
+		assert.Equal(t, int64(57), getTestState(t, mux, testESID, http.StatusOK).PolicyVersion)
+	})
+
+	// Same protection when the reported version is rejected as out of range.
+	t.Run("an out-of-range version keeps the known policy", func(t *testing.T) {
+		mux, store := newTestMux(t)
+		req := defaultRegisterRequest()
+		req.PolicyName = testPolicyName(testESID)
+		req.PolicyVersion = 57
+		registerTestDevice(t, mux, req, http.StatusOK)
+
+		bogus := defaultRegisterRequest()
+		bogus.PolicyName = testPolicyName(testESID)
+		bogus.PolicyVersion = maxRestorablePolicyVersion + 1
+		registerTestDevice(t, mux, bogus, http.StatusOK)
+
+		d := store.getByESID(testESID)
+		require.NotNil(t, d)
+		assert.Equal(t, testPolicyName(testESID), d.PolicyName)
+		assert.Equal(t, int64(57), d.PolicyVersion)
+	})
+
 	// Re-registration must not discard state other handlers already attached to the device.
 	t.Run("re-registration keeps pending state", func(t *testing.T) {
 		mux, store := newTestMux(t)

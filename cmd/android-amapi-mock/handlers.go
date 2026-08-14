@@ -47,25 +47,20 @@ func handleRegister(store *deviceStore) http.HandlerFunc {
 			PolicyName:           req.PolicyName,
 			PolicyVersion:        req.PolicyVersion,
 		}
-		// A device that registers again after this process lost its state (restart) reports
-		// the policy it last observed. Keep it, otherwise the device would tell Fleet its
-		// applied policy regressed to the default at version 0.
+		// A device that registers again after this process lost its state (restart) reports the
+		// policy it last observed, so it doesn't tell Fleet its applied policy regressed.
 		//
 		// A version outside the restorable range is a bug in the caller rather than recovered
 		// state, and must not be reported to Fleet: Fleet verifies profiles whose
 		// included_in_policy_version is <= the applied version, so an absurdly high version
-		// would flip every pending profile to Verified. Fall back to a fresh registration.
-		restorable := d.PolicyVersion >= 0 && d.PolicyVersion <= maxRestorablePolicyVersion
-		if !restorable {
+		// would flip every pending profile to Verified. Drop the reported policy in that case;
+		// store.register then keeps whatever policy it already has for the device, or starts a
+		// new device on the default policy.
+		if d.PolicyVersion < 0 || d.PolicyVersion > maxRestorablePolicyVersion {
 			log.Printf("Ignoring out-of-range policy version %d reported by device %s", d.PolicyVersion, d.EnterpriseSpecificID) // #nosec G706 -- load testing tool
-		}
-		if d.PolicyName == "" || !restorable {
-			d.PolicyVersion = 0
 			d.PolicyName = ""
-			if d.EnterpriseID != "" {
-				d.PolicyName = fmt.Sprintf("enterprises/%s/policies/default", d.EnterpriseID)
-			}
-		} else {
+			d.PolicyVersion = 0
+		} else if d.PolicyName != "" {
 			store.raisePolicyVersionCounter(d.PolicyVersion)
 		}
 
