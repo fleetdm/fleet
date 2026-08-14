@@ -1,3 +1,107 @@
+// Placeholder palette and spacing — refine to match Figma
+// (nodes 5546:42428, 5546:42432, 5555:46491) in a designer-review pass.
+
 .device-notification-page {
-  // Styles land with the toast layout implementation in #50916.
+  // Page background is transparent — the native ToastWindow supplies the
+  // rounded corners and shadow (ToastWindow.swift:43, :47). A page-level
+  // background would square the corners off.
+  background: transparent;
+  margin: 0;
+  padding: 0;
+
+  &__card {
+    background: #ffffff;
+    color: #14181f;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    // Follow system appearance, not Fleet's stored theme preference.
+    // The WebKit view inherits the OS setting.
+    @media (prefers-color-scheme: dark) {
+      background: #1c1e22;
+      color: #f4f5f7;
+    }
+  }
+
+  &__logo {
+    align-self: flex-end;
+    max-height: 24px;
+
+    img {
+      max-height: 24px;
+      max-width: 160px;
+    }
+  }
+
+  &__title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  &__description {
+    font-size: 13px;
+    margin: 0;
+    opacity: 0.85;
+  }
+
+  // Four-and-a-half rows of items visible, then scroll. The half row is the
+  // affordance signaling more content below (Figma dev note 5546:42433).
+  &__item-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(4.5 * 44px);
+    overflow-y: auto;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    min-height: 44px;
+  }
+
+  &__item-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+  }
+
+  &__item-status {
+    opacity: 0.6;
+    font-size: 12px;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  &__action {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-size: 13px;
+
+    @media (prefers-color-scheme: dark) {
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    &--primary {
+      background: #2f56aa;
+      border-color: #2f56aa;
+      color: #ffffff;
+    }
+  }
 }
