@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260812170926(t *testing.T) {
+func TestUp_20260723181413(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// vpp_app_upcoming_activities has an FK on (adam_id, platform).
@@ -228,7 +228,7 @@ func TestUp_20260812170926(t *testing.T) {
 	before := allActivityIDs()
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	require.NoError(t, Up_20260812170926(tx))
+	require.NoError(t, Up_20260723181413(tx))
 	require.NoError(t, tx.Commit())
 	require.Equal(t, before, allActivityIDs())
 }

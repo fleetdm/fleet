@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260731100711(t *testing.T) {
+func TestUp_20260723181412(t *testing.T) {
 	db := applyUpToPrev(t)
 	oldBatchSize := backfillAppleBuiltinLabelMembershipsBatchSize
 	backfillAppleBuiltinLabelMembershipsBatchSize = 2
@@ -57,7 +57,7 @@ func TestUp_20260731100711(t *testing.T) {
 	// Running the migration again is safe and does not create duplicate rows.
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	require.NoError(t, Up_20260731100711(tx))
+	require.NoError(t, Up_20260723181412(tx))
 	require.NoError(t, tx.Commit())
 	assertAppleBuiltinLabelMemberships(t, db)
 }
