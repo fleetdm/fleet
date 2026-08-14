@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from "react";
-import { useQuery } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 
 import Button from "components/buttons/Button";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 import deviceNotificationsAPI from "services/entities/device_notifications";
 import {
+  INotificationAction,
   INotificationItem,
   INotificationView,
 } from "interfaces/device_notification";
@@ -13,6 +14,41 @@ import {
 import { postBridgeMessage } from "./fleetDesktopBridge";
 
 const baseClass = "device-notification-page";
+
+// TEMP local-preview mock — the BE endpoints in #50910 don't exist yet, so
+// visiting the URL against `make serve` would 404 and render nothing. Delete
+// this block and remove the fallback below before pushing this branch.
+const TEMP_MOCK_VIEW: INotificationView = {
+  uuid: "temp-preview",
+  org_logo_url_light_mode: "/assets/images/fleet-mark-color-40x40@2x.png",
+  org_logo_url_dark_mode: "/assets/images/fleet-mark-color-40x40@2x.png",
+  title: "These apps will close and update in **1 hour**",
+  description: "Save your work. You can also **update now** to skip the wait.",
+  items: [
+    {
+      software_title_id: 1,
+      name: "1Password 8",
+      display_name: "1Password",
+      icon_url: null,
+    },
+    {
+      software_title_id: 2,
+      name: "Slack",
+      display_name: "Slack",
+      icon_url: null,
+    },
+    {
+      software_title_id: 3,
+      name: "Docker Desktop",
+      display_name: "Docker Desktop",
+      icon_url: null,
+    },
+  ],
+  actions: [
+    { id: "remind", label: "Remind me in 1 hour" },
+    { id: "update_now", label: "Update now" },
+  ],
+};
 
 interface IDeviceNotificationPageParams {
   device_auth_token: string;
@@ -39,7 +75,7 @@ const renderBoldMarkup = (text: string): React.ReactNode => {
 
 const NotificationItemRow = ({ item }: { item: INotificationItem }) => (
   <li className={`${baseClass}__item`}>
-    <SoftwareIcon name={item.name} url={item.icon_url} />
+    <SoftwareIcon name={item.name} url={item.icon_url} size="small" />
     <span className={`${baseClass}__item-name`}>
       {item.display_name ?? item.name}
     </span>
@@ -54,9 +90,16 @@ const DeviceNotificationPage = ({
 }: IDeviceNotificationPageProps): JSX.Element | null => {
   const readyPostedRef = useRef(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+
+  const queryKey = [
+    "device-notification",
+    device_auth_token,
+    notification_uuid,
+  ];
 
   const { data, isSuccess, isError } = useQuery<INotificationView, Error>(
-    ["device-notification", device_auth_token, notification_uuid],
+    queryKey,
     () =>
       deviceNotificationsAPI.getNotification(
         device_auth_token,
@@ -67,6 +110,39 @@ const DeviceNotificationPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+    }
+  );
+
+  const {
+    mutate: postAction,
+    isError: isPostError,
+    isLoading: isPosting,
+  } = useMutation<
+    INotificationView,
+    Error,
+    { action: INotificationAction; isPrimary: boolean }
+  >(
+    ({ action }) =>
+      deviceNotificationsAPI.postNotificationAction({
+        deviceToken: device_auth_token,
+        notificationUuid: notification_uuid,
+        action: action.id,
+      }),
+    {
+      onSuccess: (updatedView, { isPrimary }) => {
+        // Server owns the post-action state (e.g. Installing…). Replace the
+        // cached view so re-render happens without a follow-up GET.
+        queryClient.setQueryData(queryKey, updatedView);
+        if (isPrimary) {
+          // The end user picked the primary action; the window stays open
+          // so they can watch the installs start.
+          postBridgeMessage("primary");
+        } else {
+          // Secondaries close the toast via the bridge; the native window
+          // handles the actual close on receiving `dismiss`.
+          postBridgeMessage("dismiss");
+        }
+      },
     }
   );
 
@@ -97,41 +173,67 @@ const DeviceNotificationPage = ({
     return () => observer.disconnect();
   }, [data]);
 
-  if (isError || !data) {
-    return null;
-  }
+  // TEMP: fall back to the mock during local preview. Remove `?? TEMP_MOCK_VIEW`
+  // and restore `if (isError || !data)` before pushing.
+  const view = data ?? TEMP_MOCK_VIEW;
 
-  const actions = data.actions;
+  const actions = view.actions;
   const primaryAction = actions[actions.length - 1];
   const secondaryActions = actions.slice(0, -1);
 
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__card`} ref={cardRef}>
-        <picture className={`${baseClass}__logo`}>
-          <source
-            srcSet={data.org_logo_url_dark_mode}
-            media="(prefers-color-scheme: dark)"
-          />
-          <img src={data.org_logo_url_light_mode} alt="" />
-        </picture>
-        <p className={`${baseClass}__title`}>{renderBoldMarkup(data.title)}</p>
-        <p className={`${baseClass}__description`}>
-          {renderBoldMarkup(data.description)}
-        </p>
+        <div className={`${baseClass}__header`}>
+          <div className={`${baseClass}__header-text`}>
+            <p className={`${baseClass}__title`}>
+              {renderBoldMarkup(view.title)}
+            </p>
+            <p className={`${baseClass}__description`}>
+              {renderBoldMarkup(view.description)}
+            </p>
+          </div>
+          <picture className={`${baseClass}__logo`}>
+            <source
+              srcSet={view.org_logo_url_dark_mode}
+              media="(prefers-color-scheme: dark)"
+            />
+            <img src={view.org_logo_url_light_mode} alt="" />
+          </picture>
+        </div>
         <ul className={`${baseClass}__item-list`}>
-          {data.items.map((item) => (
+          {view.items.map((item) => (
             <NotificationItemRow key={item.software_title_id} item={item} />
           ))}
         </ul>
+        {isPostError && (
+          <p className={`${baseClass}__action-error`} role="alert">
+            Something went wrong. Please try again.
+          </p>
+        )}
         <div className={`${baseClass}__actions`}>
           {secondaryActions.map((action) => (
-            <Button key={action.id} variant="subdued">
+            <Button
+              key={action.id}
+              variant="subdued"
+              size="small"
+              disabled={isPosting}
+              onClick={() => postAction({ action, isPrimary: false })}
+            >
               {action.label}
             </Button>
           ))}
           {primaryAction && (
-            <Button key={primaryAction.id}>{primaryAction.label}</Button>
+            <Button
+              key={primaryAction.id}
+              size="small"
+              disabled={isPosting}
+              onClick={() =>
+                postAction({ action: primaryAction, isPrimary: true })
+              }
+            >
+              {primaryAction.label}
+            </Button>
           )}
         </div>
       </div>

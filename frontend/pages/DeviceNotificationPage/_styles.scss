@@ -1,89 +1,107 @@
-// Placeholder palette and spacing — refine to match Figma
-// (nodes 5546:42428, 5546:42432, 5555:46491) in a designer-review pass.
+// Layout matches the Figma toast (nodes 5546:42302 for the frame, 5546:42315
+// for the list). The native ToastWindow supplies the outer shadow and window
+// corners (ToastWindow.swift:43,47), so the card doesn't add its own shadow.
 
 .device-notification-page {
-  // Page background is transparent — the native ToastWindow supplies the
-  // rounded corners and shadow (ToastWindow.swift:43, :47). A page-level
-  // background would square the corners off.
+  // Page background stays transparent — the native window supplies rounded
+  // corners; a page-level background would square them off.
   background: transparent;
   margin: 0;
   padding: 0;
 
   &__card {
-    background: #ffffff;
-    color: #14181f;
-    border-radius: 12px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    background-color: $core-fleet-white;
+    color: $core-fleet-black;
+    border-radius: $border-radius-xlarge;
+    padding: $pad-large;
+    @include flex-column-24px-gap;
+  }
 
-    // Follow system appearance, not Fleet's stored theme preference.
-    // The WebKit view inherits the OS setting.
-    @media (prefers-color-scheme: dark) {
-      background: #1c1e22;
-      color: #f4f5f7;
-    }
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    gap: $pad-medium;
+  }
+
+  &__header-text {
+    flex: 1;
+    min-width: 0;
+    @include flex-column-8px-gap;
   }
 
   &__logo {
-    align-self: flex-end;
-    max-height: 24px;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
 
     img {
-      max-height: 24px;
-      max-width: 160px;
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
     }
   }
 
   &__title {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: $small;
+    font-weight: $bold;
     margin: 0;
   }
 
   &__description {
-    font-size: 13px;
+    font-size: $x-small;
     margin: 0;
-    opacity: 0.85;
+    color: $ui-fleet-black-75;
   }
 
-  // Four-and-a-half rows of items visible, then scroll. The half row is the
-  // affordance signaling more content below (Figma dev note 5546:42433).
+  // Rounded bordered container with 1px dividers between rows. Shows four
+  // full rows and a half; the half is the affordance signaling more content
+  // below (Figma dev note 5546:42433).
   &__item-list {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: flex;
-    flex-direction: column;
-    max-height: calc(4.5 * 44px);
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
     overflow-y: auto;
+    max-height: calc(4.5 * 48px);
   }
 
   &__item {
+    background-color: $core-fleet-white;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 0;
-    min-height: 44px;
+    gap: $pad-small;
+    padding: $pad-small;
+    height: 48px;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    &:last-child {
+      border-bottom: none;
+    }
   }
 
   &__item-name {
     flex: 1;
     min-width: 0;
-    font-size: 13px;
+    font-size: $x-small;
   }
 
   &__item-status {
-    opacity: 0.6;
-    font-size: 12px;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
   }
 
   &__actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-    // Buttons themselves are Fleet's <Button> — default variant for the
-    // primary action, `variant="subdued"` for secondaries.
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__action-error {
+    margin: 0;
+    font-size: $xx-small;
+    color: $ui-error;
+    text-align: right;
   }
 }

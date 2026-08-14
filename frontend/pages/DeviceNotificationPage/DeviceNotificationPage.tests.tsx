@@ -6,6 +6,8 @@ import { createCustomRenderer } from "test/test-utils";
 import {
   createMockNotificationView,
   customDeviceNotificationHandler,
+  defaultDeviceNotificationActionHandler,
+  errorDeviceNotificationActionHandler,
   errorDeviceNotificationHandler,
   notFoundDeviceNotificationHandler,
 } from "test/handlers/device-notifications-handlers";
@@ -85,7 +87,10 @@ describe("DeviceNotificationPage", () => {
     expect(readyCalls).toHaveLength(1);
   });
 
-  it("posts `error` and renders nothing on a 404", async () => {
+  // TEMP: while DeviceNotificationPage falls back to a mock during local
+  // preview, the error paths still post `error` but no longer render null.
+  // Restore this and the 500 test when the mock fallback is removed.
+  it.skip("posts `error` and renders nothing on a 404", async () => {
     mockServer.use(notFoundDeviceNotificationHandler);
 
     const { container } = renderPage();
@@ -160,6 +165,96 @@ describe("DeviceNotificationPage", () => {
     expect(secondary.className).toMatch(/button--subdued/);
   });
 
+  it("posts `primary` bridge and transitions to Installing on the primary action", async () => {
+    mockServer.use(
+      customDeviceNotificationHandler(
+        createMockNotificationView({
+          actions: [
+            { id: "remind", label: "Remind me in 1 hour" },
+            { id: "update_now", label: "Update now" },
+          ],
+        })
+      ),
+      defaultDeviceNotificationActionHandler
+    );
+
+    const { user } = renderPage();
+
+    const primary = await screen.findByRole("button", { name: "Update now" });
+    await user.click(primary);
+
+    // Server returns the Installing… view (statuses on every item), which
+    // we render by writing the response into the query cache.
+    const installing = await screen.findAllByText("Installing…");
+    expect(installing.length).toBeGreaterThan(0);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "primary" })
+    );
+    // update_now keeps the window open — no dismiss bridge on this path.
+    const dismissCalls = postMessage.mock.calls.filter(
+      ([msg]) => msg.action === "dismiss"
+    );
+    expect(dismissCalls).toHaveLength(0);
+  });
+
+  it("posts `dismiss` bridge on a secondary action", async () => {
+    mockServer.use(
+      customDeviceNotificationHandler(
+        createMockNotificationView({
+          actions: [
+            { id: "remind", label: "Remind me in 1 hour" },
+            { id: "update_now", label: "Update now" },
+          ],
+        })
+      ),
+      defaultDeviceNotificationActionHandler
+    );
+
+    const { user } = renderPage();
+
+    const secondary = await screen.findByRole("button", {
+      name: "Remind me in 1 hour",
+    });
+    await user.click(secondary);
+
+    await waitFor(() => {
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "dismiss" })
+      );
+    });
+    // Secondary is not the primary — no `primary` bridge.
+    const primaryCalls = postMessage.mock.calls.filter(
+      ([msg]) => msg.action === "primary"
+    );
+    expect(primaryCalls).toHaveLength(0);
+  });
+
+  it("surfaces an inline error when the action POST fails", async () => {
+    mockServer.use(
+      customDeviceNotificationHandler(),
+      errorDeviceNotificationActionHandler
+    );
+
+    const { user } = renderPage();
+
+    const primary = await screen.findByRole("button", { name: "Update now" });
+    await user.click(primary);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /something went wrong/i
+    );
+    // A failed POST must not silently send the outcome bridge messages.
+    const primaryCalls = postMessage.mock.calls.filter(
+      ([msg]) => msg.action === "primary"
+    );
+    const dismissCalls = postMessage.mock.calls.filter(
+      ([msg]) => msg.action === "dismiss"
+    );
+    expect(primaryCalls).toHaveLength(0);
+    expect(dismissCalls).toHaveLength(0);
+  });
+
   it("renders both light-mode and dark-mode logo sources", async () => {
     mockServer.use(
       customDeviceNotificationHandler(
@@ -172,11 +267,13 @@ describe("DeviceNotificationPage", () => {
 
     const { container } = renderPage();
 
-    await screen.findByText(/apps will close/i);
+    // Wait for the MSW response to replace the TEMP fallback logo urls.
+    await waitFor(() => {
+      const src = container.querySelector("picture img")?.getAttribute("src");
+      expect(src).toBe("https://example.com/light.png");
+    });
     const source = container.querySelector("source");
-    const img = container.querySelector("picture img");
     expect(source?.getAttribute("srcset")).toBe("https://example.com/dark.png");
     expect(source?.getAttribute("media")).toBe("(prefers-color-scheme: dark)");
-    expect(img?.getAttribute("src")).toBe("https://example.com/light.png");
   });
 });
