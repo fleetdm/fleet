@@ -108,22 +108,22 @@ const LiveResultsHeading = ({
                 isFinished ? (
                   <>
                     Results from{" "}
-                    <b>
+                    <strong>
                       {numHostsRespondedResults}{" "}
                       {pluralizeHost(numHostsRespondedResults)}
-                    </b>
+                    </strong>
                     <br />
                     No results from{" "}
-                    <b>
+                    <strong>
                       {numHostsRespondedNoErrorsAndNoResults}{" "}
                       {pluralizeHost(numHostsRespondedNoErrorsAndNoResults)}
-                    </b>
+                    </strong>
                     <br />
                     Errors from{" "}
-                    <b>
+                    <strong>
                       {numHostsRespondedErrors}{" "}
                       {pluralizeHost(numHostsRespondedErrors)}
-                    </b>
+                    </strong>
                   </>
                 ) : (
                   <>
@@ -151,8 +151,8 @@ const LiveResultsHeading = ({
             <TooltipWrapper
               tipContent={
                 <>
-                  The hosts&apos; distributed interval can <br />
-                  impact live report response times.
+                  The hosts&apos; distributed interval can impact live report
+                  response times.
                 </>
               }
             >
