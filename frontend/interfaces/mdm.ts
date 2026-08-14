@@ -230,8 +230,8 @@ export interface IHostMdmProfile {
   certificate_template_id?: number;
   /** Whether Fleet is in the middle of automatically retrying this profile after a failed
    * install, along with the retries already used and the number allowed. Only present on Android
-   * certificate templates. Note a manual resend also sets retry_count, so only `retrying`
-   * identifies an automatic retry. */
+   * certificate templates, and only on installs — removals are never retried. Note a manual
+   * resend also sets retry_count, so only `retrying` identifies an automatic retry. */
   retrying?: boolean;
   retry_count?: number;
   max_retries?: number;

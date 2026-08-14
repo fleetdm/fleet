@@ -185,8 +185,12 @@ func TestHostCertificateTemplate(t *testing.T) {
 				require.Equal(t, tt.expected, tt.template.IsRetrying())
 
 				profile := tt.template.ToHostMDMProfile()
-				if tt.template == nil {
+				// A nil template has no profile at all, and a removal omits the retry fields
+				// rather than reporting an allowance that will never be spent.
+				if tt.template == nil || tt.template.OperationType == MDMOperationTypeRemove {
 					require.Nil(t, profile.Retrying)
+					require.Nil(t, profile.RetryCount)
+					require.Nil(t, profile.MaxRetries)
 					return
 				}
 				require.NotNil(t, profile.Retrying)
@@ -217,14 +221,35 @@ func TestHostCertificateTemplate(t *testing.T) {
 		}
 	})
 
-	// The Android certificate rows do carry them, including a zero retry count on a first
+	// The Android certificate installs do carry them, including a zero retry count on a first
 	// delivery, which the UI needs in order to tell a first attempt from a retry.
-	t.Run("retry fields are always present for Android certificates", func(t *testing.T) {
-		template := &HostCertificateTemplate{Name: "BeyondCorp", Status: CertificateTemplateDelivered}
+	t.Run("retry fields are present for Android certificate installs", func(t *testing.T) {
+		template := &HostCertificateTemplate{
+			Name:          "BeyondCorp",
+			Status:        CertificateTemplateDelivered,
+			OperationType: MDMOperationTypeInstall,
+		}
 
 		encoded, err := json.Marshal(template.ToHostMDMProfile())
 		require.NoError(t, err)
+		require.Contains(t, string(encoded), `"retrying":false`)
 		require.Contains(t, string(encoded), `"retry_count":0`)
 		require.Contains(t, string(encoded), `"max_retries":3`)
+	})
+
+	// Removals go through the same conversion but are never retried, so the allowance would be
+	// reporting a retry budget that can never be spent.
+	t.Run("retry fields are omitted for Android certificate removals", func(t *testing.T) {
+		template := &HostCertificateTemplate{
+			Name:          "BeyondCorp",
+			Status:        CertificateTemplateDelivered,
+			OperationType: MDMOperationTypeRemove,
+		}
+
+		encoded, err := json.Marshal(template.ToHostMDMProfile())
+		require.NoError(t, err)
+		require.NotContains(t, string(encoded), "retrying")
+		require.NotContains(t, string(encoded), "retry_count")
+		require.NotContains(t, string(encoded), "max_retries")
 	})
 }

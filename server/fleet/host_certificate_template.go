@@ -40,9 +40,6 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 
 	status := string(p.Status)
 	certTemplateID := p.CertificateTemplateID
-	retryCount := p.RetryCount
-	maxRetries := MaxCertificateInstallRetries
-	retrying := p.IsRetrying()
 	profile := HostMDMProfile{
 		HostUUID:              p.HostUUID,
 		Name:                  p.Name,
@@ -51,9 +48,15 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 		OperationType:         p.OperationType,
 		ProfileUUID:           AndroidCertificateTemplateProfileID,
 		CertificateTemplateID: &certTemplateID,
-		Retrying:              &retrying,
-		RetryCount:            &retryCount,
-		MaxRetries:            &maxRetries,
+	}
+	// Removals are never retried, so reporting a retry allowance against one would only mislead.
+	if p.OperationType != MDMOperationTypeRemove {
+		retryCount := p.RetryCount
+		maxRetries := MaxCertificateInstallRetries
+		retrying := p.IsRetrying()
+		profile.Retrying = &retrying
+		profile.RetryCount = &retryCount
+		profile.MaxRetries = &maxRetries
 	}
 	if p.Detail != nil {
 		profile.Detail = *p.Detail

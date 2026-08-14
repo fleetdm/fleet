@@ -391,8 +391,12 @@ describe("OS setting status cell", () => {
     });
 
     it("displays 'Removing enforcement' for a removal, which is never retried", () => {
+      // The server omits the retry fields entirely on a removal rather than sending them as
+      // false/zero, so the row arrives without any of them.
       const profile = createRetryingCertProfile({
-        retrying: false,
+        retrying: undefined,
+        retry_count: undefined,
+        max_retries: undefined,
         operation_type: "remove",
       });
       renderStatusCell(profile);
