@@ -50,5 +50,5 @@ See [Configuration profiles](https://fleetdm.com/guides/custom-os-settings) for 
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-08-14">
+<meta name="publishedOn" value="2026-08-17">
 <meta name="description" value="Add AirPrint-capable printers to iOS and iPadOS hosts with a configuration profile.">

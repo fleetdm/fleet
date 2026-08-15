@@ -60,5 +60,5 @@ Some manufacturer print service apps need the printer added to Wi-Fi Direct or a
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-08-14">
+<meta name="publishedOn" value="2026-08-17">
 <meta name="description" value="Add print support to Android hosts by deploying a print service app like Mopria Print Service.">
