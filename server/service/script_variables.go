@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -114,8 +115,14 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 			// expands correctly instead of PowerShell reading the suffix as part
 			// of the variable name.
 			braced := "${env:FLEET_VAR_" + v + "}"
+			// The braced form is already delimited by its closing brace.
 			contents = strings.ReplaceAll(contents, "${FLEET_VAR_"+v+"}", braced)
-			contents = strings.ReplaceAll(contents, "$FLEET_VAR_"+v, braced)
+			// Match the unbraced form only as a complete token (trailing word
+			// boundary), so a supported name that prefixes a longer unsupported
+			// one (e.g. $FLEET_VAR_HOST_UUID vs $FLEET_VAR_HOST_UUID_OLD) is left
+			// untouched. ReplaceAllLiteralString keeps $ in the replacement literal.
+			unbraced := regexp.MustCompile(regexp.QuoteMeta("$FLEET_VAR_"+v) + `\b`)
+			contents = unbraced.ReplaceAllLiteralString(contents, braced)
 		}
 	}
 

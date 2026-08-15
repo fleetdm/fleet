@@ -96,14 +96,16 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 				"b=${FLEET_VAR_HOST_PLATFORM}_backup.log\n"+
 				"c=$FLEET_VAR_HOST_END_USER_IDP_USERNAME\n"+
 				"d=${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@x\n"+
-				"e=$FLEET_VAR_HOST_UUID.log\n")
+				"e=$FLEET_VAR_HOST_UUID.log\n"+
+				"f=$FLEET_VAR_HOST_UUID_OLD\n") // unsupported name that extends a supported one
 		require.NoError(t, err)
 		require.Empty(t, failMsg)
 		require.Equal(t, "a=${env:FLEET_VAR_HOST_UUID}\n"+
 			"b=${env:FLEET_VAR_HOST_PLATFORM}_backup.log\n"+
 			"c=${env:FLEET_VAR_HOST_END_USER_IDP_USERNAME}\n"+
 			"d=${env:FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@x\n"+
-			"e=${env:FLEET_VAR_HOST_UUID}.log\n", expanded)
+			"e=${env:FLEET_VAR_HOST_UUID}.log\n"+
+			"f=$FLEET_VAR_HOST_UUID_OLD\n", expanded) // left untouched
 		require.Equal(t, "windows", fleetVars["FLEET_VAR_HOST_PLATFORM"])
 		require.Equal(t, "user@example.com", fleetVars["FLEET_VAR_HOST_END_USER_IDP_USERNAME"])
 		require.Equal(t, "user", fleetVars["FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART"])
