@@ -584,7 +584,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
-- [Delete Android Enterprise](#delete-android-enterprise)
 - [Get Android enrollment token](#get-android-enrollment-token)
 - [Create Android enrollment token](#create-android-enrollment-token)
 - [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
@@ -1514,21 +1513,6 @@ This is callback URL that will be open after user completes Google's signup flow
 ```
 <html><!-- self-closing page --></html>
 ```
-
-### Delete Android Enterprise
-
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
-
-`DELETE /api/v1/fleet/android_enterprise/`
-
-#### Example
-
-`DELETE /api/v1/fleet/android_enterprise`
-
-##### Default response
-
-`Status: 200`
 
 ### Get Android enrollment token
 
