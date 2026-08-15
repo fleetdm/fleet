@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -166,6 +167,23 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		require.Empty(t, expanded)
 		require.Empty(t, fleetVars)
 		require.Contains(t, failMsg, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
+	})
+
+	t.Run("IdP lookup error is wrapped and returned", func(t *testing.T) {
+		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return nil, errors.New("datastore unavailable")
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return nil, nil
+		}
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
+			"echo $FLEET_VAR_HOST_END_USER_IDP_USERNAME")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "resolve IdP variable for script")
+		require.Empty(t, expanded)
+		require.Empty(t, fleetVars)
+		require.Empty(t, failMsg)
 	})
 
 	t.Run("multiple failures accumulate", func(t *testing.T) {
