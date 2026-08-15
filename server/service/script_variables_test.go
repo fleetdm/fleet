@@ -80,26 +80,30 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		}, fleetVars)
 	})
 
-	t.Run("windows rewrites tokens to PowerShell env syntax, preserving braces", func(t *testing.T) {
+	t.Run("windows rewrites tokens to PowerShell braced env syntax", func(t *testing.T) {
 		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
 		mockScimUser(ds, scimUser)
 		h := *host
 		h.Platform = "windows"
-		// b: a braced token adjacent to a suffix must stay braced so PowerShell
-		//    doesn't read the suffix as part of the variable name.
-		// c/d: overlapping supported names (USERNAME vs USERNAME_LOCAL_PART) must
-		//    each rewrite independently (longest-first).
+		// Both forms rewrite to the braced ${env:...} so the reference is always
+		// an explicitly delimited token:
+		//   b/e: a token adjacent to a suffix (braced or unbraced) must not read
+		//        the suffix as part of the variable name.
+		//   c/d: overlapping supported names (USERNAME vs USERNAME_LOCAL_PART)
+		//        each rewrite independently (longest-first).
 		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h,
 			"a=$FLEET_VAR_HOST_UUID\n"+
 				"b=${FLEET_VAR_HOST_PLATFORM}_backup.log\n"+
 				"c=$FLEET_VAR_HOST_END_USER_IDP_USERNAME\n"+
-				"d=${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@x\n")
+				"d=${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@x\n"+
+				"e=$FLEET_VAR_HOST_UUID.log\n")
 		require.NoError(t, err)
 		require.Empty(t, failMsg)
-		require.Equal(t, "a=$env:FLEET_VAR_HOST_UUID\n"+
+		require.Equal(t, "a=${env:FLEET_VAR_HOST_UUID}\n"+
 			"b=${env:FLEET_VAR_HOST_PLATFORM}_backup.log\n"+
-			"c=$env:FLEET_VAR_HOST_END_USER_IDP_USERNAME\n"+
-			"d=${env:FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@x\n", expanded)
+			"c=${env:FLEET_VAR_HOST_END_USER_IDP_USERNAME}\n"+
+			"d=${env:FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@x\n"+
+			"e=${env:FLEET_VAR_HOST_UUID}.log\n", expanded)
 		require.Equal(t, "windows", fleetVars["FLEET_VAR_HOST_PLATFORM"])
 		require.Equal(t, "user@example.com", fleetVars["FLEET_VAR_HOST_END_USER_IDP_USERNAME"])
 		require.Equal(t, "user", fleetVars["FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART"])
@@ -171,19 +175,32 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 
 	t.Run("IdP lookup error is wrapped and returned", func(t *testing.T) {
 		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+		lookupErr := errors.New("datastore unavailable")
 		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
-			return nil, errors.New("datastore unavailable")
+			return nil, lookupErr
 		}
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return nil, nil
 		}
 		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
 			"echo $FLEET_VAR_HOST_END_USER_IDP_USERNAME")
-		require.Error(t, err)
+		require.ErrorIs(t, err, lookupErr)
 		require.Contains(t, err.Error(), "resolve IdP variable for script")
 		require.Empty(t, expanded)
 		require.Empty(t, fleetVars)
 		require.Empty(t, failMsg)
+	})
+
+	t.Run("value with a NUL byte is rejected with a clear message", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		h := *host
+		h.HardwareSerial = "SER\x00IAL" // can't be represented as an env entry
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h,
+			"echo $FLEET_VAR_HOST_HARDWARE_SERIAL")
+		require.NoError(t, err)
+		require.Empty(t, expanded)
+		require.Empty(t, fleetVars)
+		require.Contains(t, failMsg, "The value for $FLEET_VAR_HOST_HARDWARE_SERIAL contains an invalid character")
 	})
 
 	t.Run("multiple failures accumulate", func(t *testing.T) {

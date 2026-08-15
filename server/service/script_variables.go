@@ -96,16 +96,26 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 			value = idpValue
 		}
 
+		// A NUL byte can't be represented in a process environment entry, so it
+		// would fail the exec with an opaque error. Reject it here with a clear,
+		// per-variable message instead, reusing the resolution-failure path.
+		if strings.IndexByte(value, 0) >= 0 {
+			_ = fail(fmt.Sprintf("The value for $FLEET_VAR_%s contains an invalid character and can't be used in a script.", v))
+			continue
+		}
+
 		// Deliver the value via the environment instead of splicing it into the
 		// script body, so the interpreter expands it without re-parsing it.
 		resolved["FLEET_VAR_"+v] = value
 		if isWindows {
-			// Rewrite to PowerShell's environment syntax. Keep the braced form
-			// braced ($env: -> ${env:...}) so a reference adjacent to other
-			// identifier characters, e.g. ${FLEET_VAR_HOST_UUID}_backup.log,
-			// stays a single delimited token instead of swallowing the suffix.
-			contents = strings.ReplaceAll(contents, "${FLEET_VAR_"+v+"}", "${env:FLEET_VAR_"+v+"}")
-			contents = strings.ReplaceAll(contents, "$FLEET_VAR_"+v, "$env:FLEET_VAR_"+v)
+			// Rewrite to PowerShell's braced environment syntax for both forms.
+			// The braces make the reference an explicitly delimited token, so a
+			// value followed by other characters (e.g. $FLEET_VAR_HOST_UUID.log)
+			// expands correctly instead of PowerShell reading the suffix as part
+			// of the variable name.
+			braced := "${env:FLEET_VAR_" + v + "}"
+			contents = strings.ReplaceAll(contents, "${FLEET_VAR_"+v+"}", braced)
+			contents = strings.ReplaceAll(contents, "$FLEET_VAR_"+v, braced)
 		}
 	}
 
