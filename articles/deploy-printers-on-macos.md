@@ -1,6 +1,6 @@
 # Deploy printers on macOS with Fleet
 
-You can deploy printers to macOS hosts with the same scripts and configuration profiles you'd use for any other software or setting. This guide covers two approaches: a self-service script that lets each end user install the printer for their location, and a configuration profile that force-installs a fixed printer list on every host.
+You can deploy printers to macOS hosts with the same scripts and configuration profiles you'd use for any other software or setting. This guide covers two approaches: a self-service script that lets each end user install the printer for their location, and a configuration profile that installs a fixed printer list on every host.
 
 ## Prerequisites
 
@@ -55,7 +55,7 @@ software:
 
 > **Note:** GitOps doesn't currently expose a field for an uninstall script on script-only packages. If you need one, set it once from the Fleet UI after the package exists; re-running GitOps won't remove it.
 
-## Force-install a printer with a configuration profile
+## Add the printer
 
 Use this when every host on a fleet needs the same printer, with no end user choice involved.
 
@@ -65,7 +65,7 @@ Use this when every host on a fleet needs the same printer, with no end user cho
 
 > **Warning:** [Apple allows only one Printing payload](https://support.apple.com/guide/deployment/printing-payload-settings-dep9514788c/web) per host. If you need more than one printer, add every printer to the same profile rather than uploading separate profiles, or the second upload replaces the first.
 
-> **Note:** Configuration profiles are force-install only today, so this option can't offer a choice of printer the way the self-service script above does. [Self-service configuration profiles](https://github.com/fleetdm/fleet/issues/46834) are planned for a future release of Fleet, after which end users will be able to opt in to a printer profile instead of having it pushed to them.
+> **Note:** Configuration profiles push to every targeted host today, so this option can't offer a choice of printer the way the self-service script above does. [Self-service configuration profiles](https://github.com/fleetdm/fleet/issues/46834) are planned for a future release of Fleet, after which end users will be able to opt in to a printer profile instead of having it pushed to them.
 
 In GitOps:
 
@@ -103,4 +103,4 @@ See [Configuration profiles](https://fleetdm.com/guides/custom-os-settings) for 
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-08-14">
-<meta name="description" value="Deploy printers to macOS hosts with a self-service script, or force-install one with a configuration profile.">
+<meta name="description" value="Deploy printers to macOS hosts with a self-service script, or install one with a configuration profile.">

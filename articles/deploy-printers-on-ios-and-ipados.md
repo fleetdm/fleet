@@ -9,7 +9,7 @@ You can add printers to iOS and iPadOS hosts with a configuration profile. iOS a
 - [Fleet Premium](https://fleetdm.com/pricing) to scope the profile to a subset of hosts with labels.
 - The printer's IP address or hostname and resource path. Confirm the printer supports AirPrint before you start.
 
-## Force-install a printer with a configuration profile
+## Add the printer
 
 1. Build an AirPrint (`com.apple.airprint`) payload in [iMazing Profile Creator](https://imazing.com/profile-editor), starting from this [example profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/ios-ipados/configuration-profiles/airprint.mobileconfig). For each printer, add its IP address or hostname and resource path. Or skip the GUI and have an AI coding agent generate and validate the payload for you. See [Build and validate configuration profiles with AI instead of a GUI](https://fleetdm.com/guides/build-configuration-profiles-with-ai).
 2. In Fleet, go to **Controls > OS settings > Configuration profiles** and choose a fleet.
@@ -17,7 +17,7 @@ You can add printers to iOS and iPadOS hosts with a configuration profile. iOS a
 
 Unlike the macOS Printing payload, [you can deliver more than one AirPrint payload](https://support.apple.com/guide/deployment/airprint-payload-settings-dep3b4cf515/web) to the same host.
 
-> **Note:** This is force-install only until [self-service configuration profiles](https://github.com/fleetdm/fleet/issues/46834), planned for a future release of Fleet, ship.
+> **Note:** This profile pushes to every targeted host until [self-service configuration profiles](https://github.com/fleetdm/fleet/issues/46834), planned for a future release of Fleet, ship.
 
 In GitOps:
 
