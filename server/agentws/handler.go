@@ -26,12 +26,16 @@ const nodeKeyAuthScheme = "Node key "
 // connection is promoted to a WebSocket and any connection state is allocated:
 // a failed auth returns 401 immediately.
 //
+// countBytes enables the per-connection raw byte counters surfaced on
+// /debug/agentws; it is meant to be tied to debug logging so production
+// servers don't pay the (small) per-read/write accounting cost.
+//
 // Note on hosts with an identity certificate (httpsig): AuthenticateOrbitHost
 // verifies the HTTP message signature of the current request, a per-request
 // model that a persistent socket cannot re-prove per message. The identity is
 // therefore verified once, at upgrade time. Agents whose upgrade request is
 // not signed fall back to polling (where each request is signed as usual).
-func NewHandler(hub *Hub, auth HostAuthenticator, logger *slog.Logger) http.Handler {
+func NewHandler(hub *Hub, auth HostAuthenticator, logger *slog.Logger, countBytes bool) http.Handler {
 	upgrader := websocket.Upgrader{
 		// Notifications are tiny; keep per-connection buffers small since an
 		// instance may hold tens of thousands of connections.
@@ -58,8 +62,11 @@ func NewHandler(hub *Hub, auth HostAuthenticator, logger *slog.Logger) http.Hand
 
 		// Wrap the hijacked connection so raw bytes in/out are counted (see
 		// countingConn); the hub reaches the counters via ws.NetConn().
-		cw := &hijackCountingResponseWriter{ResponseWriter: w}
-		ws, err := upgrader.Upgrade(cw, r, nil)
+		upgradeWriter := w
+		if countBytes {
+			upgradeWriter = &hijackCountingResponseWriter{ResponseWriter: w}
+		}
+		ws, err := upgrader.Upgrade(upgradeWriter, r, nil)
 		if err != nil {
 			// Upgrade already replied to the client.
 			logger.DebugContext(ctx, "agent websocket upgrade failed", "host_id", host.ID, "err", err)
@@ -67,7 +74,7 @@ func NewHandler(hub *Hub, auth HostAuthenticator, logger *slog.Logger) http.Hand
 		}
 
 		logger.DebugContext(ctx, "agent websocket connected", "host_id", host.ID)
-		hub.ServeConn(host.ID, ws)
+		hub.ServeConn(host.ID, host.Platform, ws)
 		logger.DebugContext(ctx, "agent websocket disconnected", "host_id", host.ID)
 	})
 }

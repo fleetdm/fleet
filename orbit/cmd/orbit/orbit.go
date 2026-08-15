@@ -1459,8 +1459,22 @@ func orbitAction(c *cli.Context) error {
 	// (ADR-0011). Set after --flagfile so user flagfiles can't override it
 	// (repeated gflags: last one wins, overriding --distributed_plugin=tls
 	// from FleetFlags).
+	//
+	// --extensions_require makes osqueryd wait for orbit's extension to
+	// register before activating plugins. Without it, plugin activation races
+	// extension registration (~1s window, observed on osquery 5.23): if
+	// activation runs first, the osqueryd worker exits fatally ("Cannot
+	// activate fleet_orbit_distributed distributed plugin"), the extension
+	// socket dies, orbit's extension runner times out a minute later and the
+	// whole process crashloops. The timeout gives orbit ample time to
+	// connect; if the extension never registers, osqueryd exits and the
+	// osquery runner brings the whole orbit process down for a clean restart.
 	if wsTransportEnabled {
-		options = append(options, osquery.WithFlags([]string{"--distributed_plugin", wstransport.DistributedPluginName}))
+		options = append(options, osquery.WithFlags([]string{
+			"--distributed_plugin", wstransport.DistributedPluginName,
+			"--extensions_require", table.ExtensionName,
+			"--extensions_timeout", "60",
+		}))
 	}
 
 	// Handle additional args after '--' in the command line. These are added last and should

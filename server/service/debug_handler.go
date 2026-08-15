@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -103,14 +104,30 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 	// Agent WebSocket transport observability (ADR-0011): a point-in-time view
 	// of the connections held by THIS server instance (each instance holds its
 	// own; in a multi-instance deployment, query each instance directly).
+	// Byte/read metrics are collected only when debug logging is enabled (see
+	// metrics_enabled), so production servers don't pay for them.
 	r.HandleFunc("/debug/agentws", jsonHandler(logger, func(ctx context.Context) (any, error) {
 		if agentWSHub == nil {
 			return map[string]any{"enabled": false}, nil
 		}
-		return map[string]any{
-			"enabled":     true,
-			"connections": agentWSHub.Snapshot(),
-		}, nil
+		payload := map[string]any{
+			"enabled":         true,
+			"metrics_enabled": config.Logging.Debug,
+			"connections":     agentWSHub.Snapshot(),
+			"read_stats":      agentWSHub.ReadStats(),
+		}
+		// Global host counts (every host, WebSocket-connected or not), scoped
+		// to the authenticated admin attached by the debug middleware.
+		if vc, ok := viewer.FromContext(ctx); ok {
+			summary, err := ds.GenerateHostStatusStatistics(ctx, fleet.TeamFilter{User: vc.User}, time.Now(), nil, nil)
+			if err != nil {
+				logger.ErrorContext(ctx, "generate host status statistics for /debug/agentws", "err", err)
+			} else if summary != nil {
+				payload["online_hosts"] = summary.OnlineCount
+				payload["total_hosts"] = summary.TotalsHostsCount
+			}
+		}
+		return payload, nil
 	})).Methods(http.MethodGet)
 
 	mw := &debugAuthenticationMiddleware{

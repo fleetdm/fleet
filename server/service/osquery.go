@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -441,6 +442,22 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error)
 		}
 	}
 
+	// TODO(lucas): Won't this break older agents and vanilla osquery hosts?
+	//
+	// When the WebSocket transport is enabled (ADR-0011), orbit points osquery
+	// at its own distributed plugin via the command line. Fleet's default agent
+	// options include `distributed_plugin: tls` as a config option, which
+	// osquery applies at runtime and which would silently flip the host back to
+	// TLS polling on its first config refresh. Strip the key: agents get their
+	// distributed plugin from the fleetd-managed command line either way (tls
+	// for old agents, orbit's plugin for WebSocket-enabled ones), so the config
+	// option is redundant at best and harmful here.
+	if svc.config.WebSocket.TransportEnabled {
+		if opts, ok := config["options"].(map[string]any); ok {
+			delete(opts, "distributed_plugin")
+		}
+	}
+
 	packConfig := fleet.Packs{}
 
 	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
@@ -614,6 +631,24 @@ type getDistributedQueriesResponse struct {
 }
 
 func (r getDistributedQueriesResponse) Error() error { return r.Err }
+
+// recordDistributedReadStats wraps the distributed/read endpoint to count
+// requests per host in the agent WebSocket hub, split by request path: the
+// /api/v1/... alias is what osqueryd's built-in tls plugin polls (legacy),
+// while orbit's WebSocket-driven client uses /api/osquery/... — the split
+// makes hosts that are still polling visible on /debug/agentws (ADR-0011).
+func recordDistributedReadStats(
+	hub *agentws.Hub,
+	next func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error),
+) func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	return func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+		if host, ok := hostctx.FromContext(ctx); ok {
+			path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
+			hub.RecordDistributedRead(host.ID, strings.HasPrefix(path, "/api/v1/"))
+		}
+		return next(ctx, request, svc)
+	}
+}
 
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)

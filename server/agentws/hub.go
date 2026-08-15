@@ -22,6 +22,11 @@ type Hub struct {
 
 	mu    sync.RWMutex
 	conns map[uint]*conn
+
+	// reads counts distributed/read requests per host, split by path (see
+	// ReadStats). Kept on the hub so the debug endpoint can report them
+	// alongside the connections.
+	reads readStatsRegistry
 }
 
 func NewHub(logger *slog.Logger, pingInterval, pongTimeout time.Duration) *Hub {
@@ -36,8 +41,9 @@ func NewHub(logger *slog.Logger, pingInterval, pongTimeout time.Duration) *Hub {
 // ServeConn registers ws as the connection for hostID and services it until
 // the peer disconnects or fails a keepalive check. It blocks (running the read
 // loop) and is meant to be called from the upgrade handler's goroutine.
-func (h *Hub) ServeConn(hostID uint, ws *websocket.Conn) {
-	c := newConn(hostID, ws)
+// platform is the host's platform (e.g. "darwin"), carried for observability.
+func (h *Hub) ServeConn(hostID uint, platform string, ws *websocket.Conn) {
+	c := newConn(hostID, platform, ws)
 	h.register(hostID, c)
 	go c.writeLoop(h.pingInterval, h.pongTimeout)
 	c.readLoop(h, h.pingInterval, h.pongTimeout)
@@ -133,6 +139,7 @@ func (h *Hub) ConnCount() int {
 // /debug/agentws endpoint).
 type ConnectionInfo struct {
 	HostID         uint       `json:"host_id"`
+	Platform       string     `json:"platform"`
 	RemoteAddr     string     `json:"remote_addr"`
 	ConnectedAt    time.Time  `json:"connected_at"`
 	LastNotifiedAt *time.Time `json:"last_notified_at,omitempty"`
@@ -152,6 +159,7 @@ func (h *Hub) Snapshot() []ConnectionInfo {
 	for _, c := range h.conns {
 		info := ConnectionInfo{
 			HostID:        c.hostID,
+			Platform:      c.platform,
 			RemoteAddr:    c.remoteAddr,
 			ConnectedAt:   c.connectedAt,
 			NotifiedCount: c.notified.Load(),

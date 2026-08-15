@@ -26,6 +26,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ExtensionName is the name orbit's extension manager server registers with
+// osquery. It is what osquery's --extensions_require flag takes to wait for
+// this extension before activating plugins.
+const ExtensionName = "com.fleetdm.orbit.osquery_extension.v1"
+
 // Runner wraps the osquery extension manager with okglog/run Execute and Interrupt functions.
 type Runner struct {
 	socket          string
@@ -98,7 +103,7 @@ func (r *Runner) Execute() error {
 	ticker := time.NewTicker(200 * time.Millisecond)
 	for {
 		srv, err := osquery.NewExtensionManagerServer(
-			"com.fleetdm.orbit.osquery_extension.v1",
+			ExtensionName,
 			r.socket,
 			// This timeout is only used for registering the extension tables
 			// and for the heartbeat ping requests in r.srv.Run().

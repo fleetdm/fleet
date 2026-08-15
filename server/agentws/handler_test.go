@@ -25,7 +25,7 @@ func (f *fakeAuthenticator) AuthenticateOrbitHost(ctx context.Context, nodeKey s
 	if !ok {
 		return nil, false, errors.New("invalid node key")
 	}
-	return &fleet.Host{ID: id}, false, nil
+	return &fleet.Host{ID: id, Platform: "darwin"}, false, nil
 }
 
 func discardLogger() *slog.Logger {
@@ -35,9 +35,30 @@ func discardLogger() *slog.Logger {
 func newTestServer(t *testing.T, hub *Hub) *httptest.Server {
 	t.Helper()
 	auth := &fakeAuthenticator{hosts: map[string]uint{"key-1": 1, "key-2": 2}}
-	srv := httptest.NewServer(NewHandler(hub, auth, discardLogger()))
+	srv := httptest.NewServer(NewHandler(hub, auth, discardLogger(), true))
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+func TestHandlerByteCountingDisabled(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+	auth := &fakeAuthenticator{hosts: map[string]uint{"key-1": 1}}
+	srv := httptest.NewServer(NewHandler(hub, auth, discardLogger(), false))
+	t.Cleanup(srv.Close)
+
+	ws := dial(t, srv, "key-1")
+	waitForConnCount(t, hub, 1)
+
+	require.Equal(t, 1, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, []uint{1}))
+	require.NoError(t, ws.SetReadDeadline(time.Now().Add(2*time.Second)))
+	var msg fleet.AgentWSMessage
+	require.NoError(t, ws.ReadJSON(&msg))
+
+	// Delivery works, but no byte accounting happens.
+	snap := hub.Snapshot()
+	require.Len(t, snap, 1)
+	assert.Zero(t, snap[0].BytesIn)
+	assert.Zero(t, snap[0].BytesOut)
 }
 
 func dial(t *testing.T, srv *httptest.Server, nodeKey string) *websocket.Conn {
@@ -115,6 +136,7 @@ func TestHandlerNotifyDelivery(t *testing.T) {
 	snap := hub.Snapshot()
 	require.Len(t, snap, 1)
 	assert.Equal(t, uint(1), snap[0].HostID)
+	assert.Equal(t, "darwin", snap[0].Platform)
 	assert.Equal(t, int64(1), snap[0].NotifiedCount)
 	assert.Equal(t, int64(0), snap[0].DroppedCount)
 	assert.NotNil(t, snap[0].LastNotifiedAt)
@@ -186,6 +208,23 @@ func TestHubFilterDueForRenotify(t *testing.T) {
 	// Once the grace period has passed, every connected host is due again.
 	time.Sleep(5 * time.Millisecond)
 	assert.ElementsMatch(t, []uint{1, 2}, hub.FilterDueForRenotify([]uint{1, 2}, time.Millisecond))
+}
+
+func TestHubReadStats(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+
+	assert.Empty(t, hub.ReadStats())
+
+	// Counting is independent of held connections: host 7 has no WebSocket.
+	hub.RecordDistributedRead(7, true)
+	hub.RecordDistributedRead(7, true)
+	hub.RecordDistributedRead(7, false)
+	hub.RecordDistributedRead(3, false)
+
+	stats := hub.ReadStats()
+	require.Len(t, stats, 2)
+	assert.Equal(t, ReadStats{HostID: 3, OrbitReads: 1, LegacyReads: 0}, stats[0])
+	assert.Equal(t, ReadStats{HostID: 7, OrbitReads: 1, LegacyReads: 2}, stats[1])
 }
 
 func TestHubShutdown(t *testing.T) {

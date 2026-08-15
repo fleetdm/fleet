@@ -1010,8 +1010,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// API. This allows us to deprecate osquery endpoints separately.
 	heHeader.WithAltPaths("/api/v1/osquery/config").
 		POST("/api/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
+	distReadEndpoint := getDistributedQueriesEndpoint
+	if extra.agentWSHub != nil && config.Logging.Debug {
+		// Count distributed/read requests per host and path for /debug/agentws.
+		// Debug-mode only: production servers skip the per-request accounting.
+		distReadEndpoint = recordDistributedReadStats(extra.agentWSHub, getDistributedQueriesEndpoint)
+	}
 	heHeader.WithAltPaths("/api/v1/osquery/distributed/read").
-		POST("/api/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
+		POST("/api/osquery/distributed/read", distReadEndpoint, getDistributedQueriesRequest{})
 		// /distributed/write and /log accept large payloads. The body-size
 		// policy depends on which auth scheme is in effect:
 		//   - body-auth mode: per-route limit (operator-tunable via
@@ -1253,7 +1259,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// off (the default) upgrade attempts get a 404.
 	if config.WebSocket.TransportEnabled && extra.agentWSHub != nil {
 		ne.HandleHTTPHandler("/api/fleet/orbit/notifications",
-			agentws.NewHandler(extra.agentWSHub, svc, logger), "GET")
+			agentws.NewHandler(extra.agentWSHub, svc, logger, config.Logging.Debug), "GET")
 	}
 
 	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
