@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"regexp"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/smallstep/pkcs7"
 )
@@ -98,4 +99,34 @@ var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2
 // IsValidUPN checks if the provided user ID is a valid UPN
 func IsValidUPN(userID string) bool {
 	return upnRegex.MatchString(userID)
+}
+
+// WindowsUserContextState reports whether the enrollment has, or could ever have, an MDM user context, which decides what
+// happens to its user-scoped profiles (deliver, hold, or fail fast).
+//
+// The discriminator for "could ever have" is UPN-ness of enroll_user_id, which is the same signal
+// isFleetdPresentOnDevice and the EUA token path already use to tell a user-driven enrollment from a programmatic one.
+// Measured on both paths: an Entra-join Autopilot enrollment stores a real UPN (and its user channel becomes writable once
+// the user signs in), while a programmatic fleetd enrollment stores the orbit node key, has an empty UPN in the device's
+// enrollment registry key, and rejects every user-channel write permanently.
+//
+// enroll_type agrees on both paths ("Device" for Entra join, "Full" for fleetd) and is available as a cross-check, but it
+// describes the enrollment flavor rather than the user context, so it is not what this keys on.
+func WindowsUserContextState(device *fleet.MDMWindowsEnrolledDevice) fleet.WindowsUserContextState {
+	if device == nil {
+		return fleet.WindowsUserContextCannotArrive
+	}
+	return WindowsUserContextStateFor(device.MDMEnrollUserID, device.LastLoginStatus)
+}
+
+// WindowsUserContextStateFor is WindowsUserContextState over the two fields it actually needs, for callers that load just
+// those (the profile reconciler resolves them in bulk rather than loading whole enrollments).
+func WindowsUserContextStateFor(enrollUserID string, lastLoginStatus *fleet.WindowsMDMLoginStatus) fleet.WindowsUserContextState {
+	if !IsValidUPN(enrollUserID) {
+		return fleet.WindowsUserContextCannotArrive
+	}
+	if lastLoginStatus != nil && *lastLoginStatus == fleet.WindowsMDMLoginStatusUser {
+		return fleet.WindowsUserContextPresent
+	}
+	return fleet.WindowsUserContextCanArrive
 }

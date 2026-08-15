@@ -65,6 +65,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestUpdateMDMWindowsConfigProfile", testUpdateMDMWindowsConfigProfile},
 		{"TestMDMWindowsProfileLabelsCombined", testMDMWindowsProfileLabelsCombined},
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
+		{"TestMDMWindowsUserChannelRetryAccounting", testUserChannelRetryAccounting},
 		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
 		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
@@ -4487,6 +4488,90 @@ func TestCompressWindowsMDMResponse(t *testing.T) {
 	t.Run("decompress rejects non-gzip data", func(t *testing.T) {
 		_, err := decompressWindowsMDMResponse([]byte("not-gzip-data"))
 		require.Error(t, err)
+	})
+}
+
+// testUserChannelRetryAccounting covers the rule that a user-channel rejection must not spend the profile's retry budget
+// while Fleet is still waiting for a user context that can arrive, and must spend it once the user is actually signed in.
+func testUserChannelRetryAccounting(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// An Entra-style enrollment: a real UPN binds a user identity, so a user context can still arrive.
+	enrolledDevice := createEnrolledDevice(t, ds)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET enroll_user_id = ? WHERE id = ?`,
+			"victor@example.com", enrolledDevice.ID)
+		return err
+	})
+	enrolledDevice.MDMEnrollUserID = "victor@example.com"
+
+	profileUUID := "w" + uuid.NewString()
+
+	// sendUserChannelFailure queues a user-scoped command, points the host profile row at it, and acks it with a 500 on
+	// the user-channel LocURI: the signature measured on hardware.
+	sendUserChannelFailure := func(t *testing.T) {
+		t.Helper()
+		commandUUID := uuid.NewString()
+		replaceUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID: commandUUID,
+			RawCommand: []byte(fmt.Sprintf(
+				`<Atomic><CmdID>%s</CmdID><Replace><CmdID>%s</CmdID><Item><Target>`+
+					`<LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowTailoredExperiencesWithDiagnosticData</LocURI>`+
+					`</Target><Data>0</Data></Item></Replace></Atomic>`, commandUUID, replaceUUID)),
+		}
+		require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{enrolledDevice.MDMDeviceID}, cmd))
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'pending', 'install', ?, 'user-scoped', ?)
+ON DUPLICATE KEY UPDATE status = 'pending', command_uuid = VALUES(command_uuid)`,
+				enrolledDevice.HostUUID, commandUUID, profileUUID)
+			return err
+		})
+
+		enriched := createResponseAsEnrichedSyncML(t, enrolledDevice, []enrichResponseEntry{
+			{Type: "Atomic", StatusCode: 507, UUID: commandUUID},
+			{Type: "Replace", StatusCode: 500, UUID: replaceUUID},
+		})
+		_, err := ds.MDMWindowsSaveResponse(ctx, enrolledDevice, enriched, []string{})
+		require.NoError(t, err)
+	}
+
+	type profileRow struct {
+		Status  *string `db:"status"`
+		Retries int     `db:"retries"`
+		Detail  string  `db:"detail"`
+	}
+	readRow := func(t *testing.T) profileRow {
+		t.Helper()
+		var row profileRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `SELECT status, retries, detail FROM host_mdm_windows_profiles
+				WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice.HostUUID, profileUUID)
+		})
+		return row
+	}
+
+	t.Run("no retry is spent while the user context can still arrive", func(t *testing.T) {
+		sendUserChannelFailure(t)
+
+		row := readRow(t)
+		require.Nil(t, row.Status, "the row returns to pending so the reconciler revisits it")
+		require.Zero(t, row.Retries, "a write Fleet sent too early must not consume the retry budget")
+		require.Equal(t, fleet.WindowsUserScopeHoldDetail, row.Detail)
+	})
+
+	t.Run("the exemption does not repeat once the user is signed in", func(t *testing.T) {
+		// The device now reports a signed-in MDM user, so the same rejection is a real failure.
+		require.NoError(t, ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, fleet.WindowsMDMLoginStatusUser))
+		signedIn := fleet.WindowsMDMLoginStatusUser
+		enrolledDevice.LastLoginStatus = &signedIn
+
+		sendUserChannelFailure(t)
+
+		require.Equal(t, 1, readRow(t).Retries, "normal retry accounting applies once the user context is present")
 	})
 }
 

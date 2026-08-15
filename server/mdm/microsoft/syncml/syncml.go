@@ -300,6 +300,15 @@ const (
 	// Alert payload user-driven unenrollment request
 	AlertUserUnenrollmentRequest = "com.microsoft:mdm.unenrollment.userrequest"
 
+	// AlertTypeLoginStatus is the Meta/Type of the device alert (CmdAlertClientEvent, "1224") Windows sends in DM package
+	// #1 of every management session to report whether an MDM user is signed in. Microsoft documents it under "Determine
+	// when a user is logged in through polling".
+	//
+	// Measured on a Windows 11 Pro 25H2 Autopilot enrollment: the alert is present in MsgID 1 and MsgID 2 of every
+	// session (the device repeats its alerts in the authenticated message after Fleet's challenge), and absent from
+	// MsgID 3 onward.
+	AlertTypeLoginStatus = "com.microsoft/MDM/LoginStatus"
+
 	// FleetdWindowsInstallerGUID is the GUID used for fleetd on Windows
 	FleetdWindowsInstallerGUID = "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall"
 

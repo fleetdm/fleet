@@ -79,6 +79,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		fleetd_sync_capable,
 		has_pending_commands,
 		hardware_serial,
+		last_login_status,
+		last_login_status_at,
 		created_at,
 		updated_at,
 		host_uuid
@@ -92,6 +94,65 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithDeviceID")
 	}
 	return &winMDMDevice, nil
+}
+
+// SetMDMWindowsEnrollmentLoginStatus records the com.microsoft/MDM/LoginStatus value the device reported for this enrollment.
+//
+// The write is unconditional rather than write-on-change: the observation time is itself the useful signal when debugging a
+// held profile ("when did Fleet last hear about user context"), and the alert arrives at most a couple of times per session.
+// It is deliberately NOT part of the caller's transaction: recording user context is independent of whatever else the
+// management session is doing, and a failure here must not fail the device's response.
+func (ds *Datastore) SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status fleet.WindowsMDMLoginStatus) error {
+	if !status.IsValid() {
+		// Defense in depth: the caller filters unknown values, but an unrecognized value must never be persisted, or a
+		// future Windows build could silently release the user-scoped profile gate.
+		return ctxerr.Errorf(ctx, "invalid windows mdm login status %q", status)
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET last_login_status = ?, last_login_status_at = NOW(6) WHERE id = ?`,
+		status, enrollmentID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set mdm windows enrollment login status")
+	}
+	return nil
+}
+
+// GetMDMWindowsUserContextByHostUUID returns, for each of the given hosts, the enrollment facts the user-scoped profile gate
+// needs: the enrolled user identity and the last observed LoginStatus. Hosts with no Windows MDM enrollment are absent from
+// the result.
+//
+// A host can accumulate several enrollment rows (re-enrollment, hardware ID reuse), so this takes the newest per host, the
+// same row MDMWindowsGetEnrolledDeviceWithDeviceID would resolve to.
+func (ds *Datastore) GetMDMWindowsUserContextByHostUUID(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error) {
+	if len(hostUUIDs) == 0 {
+		return map[string]fleet.WindowsEnrollmentUserContext{}, nil
+	}
+
+	stmt, args, err := sqlx.In(`
+		SELECT host_uuid, enroll_user_id, last_login_status
+		FROM (
+			SELECT
+				host_uuid,
+				enroll_user_id,
+				last_login_status,
+				ROW_NUMBER() OVER (PARTITION BY host_uuid ORDER BY created_at DESC, id DESC) AS rn
+			FROM mdm_windows_enrollments
+			WHERE host_uuid IN (?)
+		) newest
+		WHERE rn = 1`, hostUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building windows user context query")
+	}
+
+	var rows []fleet.WindowsEnrollmentUserContext
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting windows enrollment user context")
+	}
+
+	byHost := make(map[string]fleet.WindowsEnrollmentUserContext, len(rows))
+	for _, r := range rows {
+		byHost[r.HostUUID] = r
+	}
+	return byHost, nil
 }
 
 // setMDMWindowsEnrollmentPollScheduleRelaxedDB records the intended DMClient poll schedule for the given Windows MDM enrollment (relaxed vs
@@ -1266,7 +1327,8 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			}
 		}
 
-		if err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, tx, potentialProfilePayloads); err != nil {
+		if err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, tx, potentialProfilePayloads,
+			microsoft_mdm.WindowsUserContextState(enrolledDevice)); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating host profile status")
 		}
 
@@ -1378,6 +1440,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	payloads []*fleet.MDMWindowsProfilePayload,
+	userContextState fleet.WindowsUserContextState,
 ) error {
 	if len(payloads) == 0 {
 		return nil
@@ -1466,7 +1529,26 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		}
 		if payload.Status != nil && *payload.Status == fleet.MDMDeliveryFailed {
 			// Don't retry remove operations; removal is best-effort. Only retry install operations up to the max retry count.
-			if hp.OperationType != fleet.MDMOperationTypeRemove && hp.Retries < mdm.MaxWindowsProfileRetries {
+			switch {
+			case hp.OperationType == fleet.MDMOperationTypeRemove:
+				// best-effort, no retry
+
+			case payload.UserChannelRejected && userContextState == fleet.WindowsUserContextCanArrive:
+				// The device rejected a user-channel write while it has no MDM user context yet. That is not a
+				// failure of the profile, it is Fleet having sent it too early, so it must not spend the retry
+				// budget: the retry fires within ~30s, long before a user could sign in during OOBE.
+				//
+				// The exemption is keyed on the enrollment state rather than the status code, because no status
+				// code means "missing user context" on its own: 405 is also what an unsupported CSP node returns
+				// on a device that does have a user signed in. Once the enrollment reports a signed-in user, the
+				// state is no longer CanArrive and the normal accounting below applies.
+				//
+				// A NULL status returns the row to the reconciler, which now holds it behind the same user-context
+				// gate instead of re-sending it.
+				payload.Status = nil
+				payload.Detail = fleet.WindowsUserScopeHoldDetail
+
+			case hp.Retries < mdm.MaxWindowsProfileRetries:
 				// if we haven't hit the max retries, we set
 				// the host profile status to nil (which causes
 				// an install profile command to be enqueued

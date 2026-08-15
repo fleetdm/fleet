@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -928,6 +929,11 @@ type MDMWindowsEnrolledDevice struct {
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`
 	CredentialsAcknowledged bool                            `db:"credentials_acknowledged"`
+	// LastLoginStatus is the value of the com.microsoft/MDM/LoginStatus device alert the device last reported, and
+	// LastLoginStatusAt when it was observed. NULL means never observed, which is distinct from an observed "none": the
+	// user-scoped profile gate holds on both, but only a positive "user" observation releases it.
+	LastLoginStatus   *WindowsMDMLoginStatus `db:"last_login_status"`
+	LastLoginStatusAt *time.Time             `db:"last_login_status_at"`
 	// PollScheduleRelaxed is the INTENDED DMClient poll schedule for this enrollment: true once we have enqueued a Replace to relax its poll
 	// (because its fleetd can be woken on demand), false for the aggressive default. Delivery and acknowledgment of that Replace are tracked
 	// by the standard Windows MDM command queue, so this only records what we last asked for; the management session re-enqueues only when
@@ -1805,31 +1811,31 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	}
 
 	var details []string
+	// userChannelRejected records whether a user-channel LocURI is among the ones that failed. It is the per-LocURI
+	// signal, not the enclosing Atomic status: an Atomic returns 507 whenever any nested command fails, including the
+	// already-exists (418) case that the resend path recovers from, so 507 alone says nothing about user context.
+	var userChannelRejected bool
 	if commandStatus == MDMDeliveryFailed {
+		addDetail := func(cmd SyncMLCmd, status SyncMLCmd) {
+			locURI := cmd.GetTargetURI()
+			details = append(details, fmt.Sprintf("%s: status %s", locURI, *status.Data))
+			if isUserChannelLocURI(locURI) && isWindowsUserContextRejection(*status.Data) {
+				userChannelRejected = true
+			}
+		}
+
 		if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
 			// atomic profile
-			for _, nested := range cmds[0].ReplaceCommands {
+			for _, nested := range slices.Concat(cmds[0].ReplaceCommands, cmds[0].AddCommands, cmds[0].DeleteCommands) {
 				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
-				}
-			}
-
-			for _, nested := range cmds[0].AddCommands {
-				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
-				}
-			}
-
-			for _, nested := range cmds[0].DeleteCommands {
-				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+					addDetail(nested, status)
 				}
 			}
 		} else {
 			// non atomic profile, loop over all commands
 			for _, cmd := range cmds {
 				if status, ok := statuses[cmd.CmdID.Value]; ok && status.Data != nil {
-					details = append(details, fmt.Sprintf("%s: status %s", cmd.GetTargetURI(), *status.Data))
+					addDetail(cmd, status)
 				}
 			}
 		}
@@ -1837,12 +1843,40 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 
 	detail := strings.Join(details, ", ")
 	return &MDMWindowsProfilePayload{
-		HostUUID:      hostUUID,
-		Status:        &commandStatus,
-		OperationType: "",
-		Detail:        detail,
-		CommandUUID:   cmdWithSecret.CommandUUID,
+		HostUUID:            hostUUID,
+		Status:              &commandStatus,
+		OperationType:       "",
+		Detail:              detail,
+		CommandUUID:         cmdWithSecret.CommandUUID,
+		UserChannelRejected: userChannelRejected,
 	}, nil
+}
+
+// isUserChannelLocURI reports whether a LocURI targets the OMA-DM user channel, using the same canonicalization the scope
+// classifier uses so the two cannot disagree.
+func isUserChannelLocURI(locURI string) bool {
+	canon := CanonicalLocURI(locURI)
+	return canon == "User" || strings.HasPrefix(canon, "User/")
+}
+
+// isWindowsUserContextRejection reports whether a SyncML status on a user-channel LocURI is one Windows returns when the
+// write cannot be applied for want of a user context.
+//
+// This is an allow-list rather than "anything that is not 2xx", because some non-2xx statuses prove the opposite. 418
+// (already exists) means the node was reachable and set, which only happens when the user channel IS writable; treating it
+// as a user-context rejection would exempt the already-exists resend path from retry accounting and let it loop.
+//
+// The two entries are the codes actually observed: 500 on the SCEP root node of an enrollment with no bound user identity,
+// and 405 on a user-scope write during OOBE. Note that 405 is ambiguous on its own (an unsupported CSP node returns it on a
+// device that does have a user signed in), which is why the caller gates the retry exemption on the enrollment's user
+// context state and not on this alone.
+func isWindowsUserContextRejection(status string) bool {
+	switch status {
+	case syncml.CmdStatusCommandFailed, syncml.CmdStatusNotAllowed:
+		return true
+	default:
+		return false
+	}
 }
 
 // WindowsResponseToDeliveryStatus converts a response string from Windows MDM
@@ -2006,6 +2040,135 @@ func WrapSCEPProfileInAtomic(profileBytes []byte) []byte {
 		return fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", profileBytes)
 	}
 	return profileBytes
+}
+
+// WindowsMDMLoginStatus is the value of the com.microsoft/MDM/LoginStatus device alert (see syncml.AlertTypeLoginStatus).
+type WindowsMDMLoginStatus string
+
+const (
+	// WindowsMDMLoginStatusUser means a user with an MDM account is signed in, so the user channel is writable.
+	WindowsMDMLoginStatusUser WindowsMDMLoginStatus = "user"
+
+	// WindowsMDMLoginStatusOthers means someone is signed in but has no MDM account, so only device-wide configuration
+	// applies. This is the value Windows reports throughout OOBE, where the setup account (defaultuser0) holds the
+	// session; a gate that engaged only on "none" would never fire during Autopilot.
+	WindowsMDMLoginStatusOthers WindowsMDMLoginStatus = "others"
+
+	// WindowsMDMLoginStatusNone means no user is signed in.
+	WindowsMDMLoginStatusNone WindowsMDMLoginStatus = "none"
+)
+
+// IsValid reports whether s is one of the three documented values. Anything else is ignored rather than persisted, so an
+// unrecognized value cannot silently release the user-scoped profile gate.
+func (s WindowsMDMLoginStatus) IsValid() bool {
+	switch s {
+	case WindowsMDMLoginStatusUser, WindowsMDMLoginStatusOthers, WindowsMDMLoginStatusNone:
+		return true
+	default:
+		return false
+	}
+}
+
+const (
+	// WindowsUserScopeHoldDetail is shown while Fleet is waiting for a user context that can still arrive. The row stays
+	// pending (NULL status), so the reconciler re-evaluates it every tick and delivers as soon as the device reports a
+	// signed-in MDM user.
+	WindowsUserScopeHoldDetail = "Waiting for a user to sign in. Fleet delivers user profiles once the first user signs in."
+
+	// WindowsUserScopeNoUserIdentityDetail is shown when the enrollment has no user identity bound to it, so the user
+	// channel can never be written. Verified on hardware: the write fails even with an interactive local user signed in,
+	// because that user is not the enrolled user.
+	WindowsUserScopeNoUserIdentityDetail = "This profile configures settings for a user, but this host's MDM enrollment has no user. " +
+		"User settings can only be delivered to hosts enrolled by a user."
+)
+
+// WindowsEnrollmentUserContext is the slice of an enrollment the user-scoped profile gate reads: who the enrollment is bound
+// to, and the last user context the device reported.
+type WindowsEnrollmentUserContext struct {
+	HostUUID string `db:"host_uuid"`
+	// EnrollUserID is a UPN for user-driven (Entra) enrollments and the orbit node key for programmatic ones, which is
+	// what distinguishes an enrollment that can have a user context from one that never will.
+	EnrollUserID    string                 `db:"enroll_user_id"`
+	LastLoginStatus *WindowsMDMLoginStatus `db:"last_login_status"`
+}
+
+// WindowsUserContextState is whether an enrollment has, or could ever have, an MDM user context. It decides what happens to
+// user-scoped profiles: deliver, hold, or fail fast.
+type WindowsUserContextState string
+
+const (
+	// WindowsUserContextPresent means the enrollment reported LoginStatus "user": the user channel is writable.
+	WindowsUserContextPresent WindowsUserContextState = "present"
+
+	// WindowsUserContextCanArrive means the enrollment binds a user identity but has not reported "user" yet. This covers
+	// "others", "none", and never-observed alike: the hold releases on a positive report, not on the absence of a
+	// contrary one. This is the Autopilot / Entra-join-during-OOBE window that issue #50196 is about.
+	WindowsUserContextCanArrive WindowsUserContextState = "can_arrive"
+
+	// WindowsUserContextCannotArrive means no MDM user identity is bound to the enrollment, so the user channel can never
+	// be written. Measured on a programmatic fleetd enrollment: the root node Add returns 500 even with an interactive
+	// local user signed in, because that user is not the enrolled user.
+	WindowsUserContextCannotArrive WindowsUserContextState = "cannot_arrive"
+)
+
+// WindowsProfileScope is the OMA-DM channel a Windows profile writes to.
+type WindowsProfileScope string
+
+const (
+	// WindowsProfileScopeDevice targets the device channel ("./Device/..." or the equivalent scope-less spelling). It is
+	// deliverable whenever the device is enrolled.
+	WindowsProfileScopeDevice WindowsProfileScope = "device"
+
+	// WindowsProfileScopeUser targets the user channel ("./User/..."). Windows rejects these writes until the enrollment has
+	// an MDM user context, so delivery is gated on the enrollment's observed user context.
+	WindowsProfileScopeUser WindowsProfileScope = "user"
+)
+
+// WindowsProfileScopeFromBytes classifies a Windows profile by the channel its commands write to: user scope if ANY target
+// LocURI resolves under "./User/", device scope otherwise. A profile mixing both is user-scoped, because its user-channel
+// commands fail without a user context and the SCEP atomic wrapper makes delivery all-or-nothing anyway.
+//
+// This runs the same normalization and parse the delivery path uses (WrapSCEPProfileInAtomic +
+// UnmarshallMultiTopLevelXMLProfile + CanonicalLocURI), so classification cannot disagree with what actually ships. A raw
+// prefix match on the profile text would not: LocURI text can be split by CDATA sections, comments, or nested elements
+// (see the parser differential fixed in #49715), and the device scope has a scope-less spelling.
+//
+// Unlike ExtractLocURIsFromProfileBytes, Exec targets count here. An Exec on a "./User/" node (the SCEP Install/Enroll
+// trigger) is still a user-channel write that fails without a user context, even though it sets no persistent value.
+func WindowsProfileScopeFromBytes(profileBytes []byte) WindowsProfileScope {
+	normalized := WrapSCEPProfileInAtomic(profileBytes)
+
+	cmds, err := UnmarshallMultiTopLevelXMLProfile(normalized)
+	if err != nil || len(cmds) == 0 {
+		// Unparseable content cannot be shown to target the user channel. Delivery fails on its own terms elsewhere; do
+		// not let a parse failure route a profile into the user-context gate.
+		return WindowsProfileScopeDevice
+	}
+
+	targetsUser := func(locURI string) bool {
+		// CanonicalLocURI drops the "./" prefix and an explicit "Device/" segment but preserves user scope, so a
+		// user-channel node canonicalizes to "User/...".
+		canon := CanonicalLocURI(locURI)
+		return canon == "User" || strings.HasPrefix(canon, "User/")
+	}
+
+	for _, cmd := range cmds {
+		if cmd.XMLName.Local == CmdAtomic {
+			for _, nested := range slices.Concat(cmd.ReplaceCommands, cmd.AddCommands, cmd.ExecCommands) {
+				if targetsUser(nested.GetTargetURI()) {
+					return WindowsProfileScopeUser
+				}
+			}
+			continue
+		}
+		switch cmd.XMLName.Local {
+		case CmdReplace, CmdAdd, CmdExec:
+			if targetsUser(cmd.GetTargetURI()) {
+				return WindowsProfileScopeUser
+			}
+		}
+	}
+	return WindowsProfileScopeDevice
 }
 
 // ExtractLocURIsFromProfileBytes returns all Target LocURIs found in the

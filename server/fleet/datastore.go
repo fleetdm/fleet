@@ -2359,6 +2359,14 @@ type Datastore interface {
 	// enrollment.
 	MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *MDMWindowsCommand, relaxed bool) error
 
+	// SetMDMWindowsEnrollmentLoginStatus records the com.microsoft/MDM/LoginStatus value the device reported for this
+	// enrollment, which is what the user-scoped profile gate reads to decide whether the user channel is writable.
+	SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status WindowsMDMLoginStatus) error
+
+	// GetMDMWindowsUserContextByHostUUID returns the enrollment facts the user-scoped profile gate needs, keyed by host
+	// UUID. Hosts with no Windows MDM enrollment are absent from the result.
+	GetMDMWindowsUserContextByHostUUID(ctx context.Context, hostUUIDs []string) (map[string]WindowsEnrollmentUserContext, error)
+
 	// SetMDMWindowsEnrollmentFleetdSyncCapable persists the last-observed CapabilityWindowsMDMSync value for the host's most recent Windows MDM
 	// enrollment. Written on-change by the orbit-config endpoint so the OMA-DM management session (no capability header) can gate poll relaxation.
 	SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error

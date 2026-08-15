@@ -14,6 +14,7 @@ import (
 	"html"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -1642,6 +1643,45 @@ func (svc *Service) processGenericAlert(ctx context.Context, messageID string, d
 	return nil
 }
 
+// processClientEventAlert handles device event alerts ("1224"). Fleet consumes one of them:
+// com.microsoft/MDM/LoginStatus, which reports whether a user with an MDM account is signed in. That value is what gates
+// delivery of user-scoped ("./User/...") profiles, which Windows rejects until the enrollment has a user context.
+//
+// The device sends the alert in the first message of each session and repeats it in the authenticated message after Fleet's
+// auth challenge, so reading it here (on the trusted path, after processIncomingMDMCmds' challenge short-circuit) sees every
+// session's value without touching the challenge handling.
+//
+// Recording is best-effort: it is independent of everything else the session is doing, and a write failure must not fail the
+// device's response. A missed observation costs at most one more session before the value is recorded again.
+func (svc *Service) processClientEventAlert(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, cmd mdm_types.ProtoCmdOperation) {
+	for _, item := range cmd.Cmd.Items {
+		if item.Meta == nil || item.Meta.Type == nil || item.Meta.Type.Content == nil ||
+			*item.Meta.Type.Content != syncml.AlertTypeLoginStatus || item.Data == nil {
+			continue
+		}
+
+		status := fleet.WindowsMDMLoginStatus(strings.ToLower(strings.TrimSpace(item.Data.Content)))
+		if !status.IsValid() {
+			// An unrecognized value must not be persisted: only a positive "user" releases the user-scoped profile
+			// gate, and a future Windows build inventing a value should leave profiles held, not silently released.
+			svc.logger.WarnContext(ctx, "windows mdm: unrecognized LoginStatus alert value",
+				"value", item.Data.Content, "device_id", enrolledDevice.MDMDeviceID)
+			continue
+		}
+
+		if err := svc.ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, status); err != nil {
+			svc.logger.ErrorContext(ctx, "windows mdm: recording LoginStatus alert", "err", err,
+				"device_id", enrolledDevice.MDMDeviceID, "status", string(status))
+			ctxerr.Handle(ctx, err)
+			return
+		}
+		// Reflect the new value on the in-memory enrollment so anything later in this same request sees the current
+		// user context rather than the value loaded at session start.
+		enrolledDevice.LastLoginStatus = &status
+		return
+	}
+}
+
 // processIncomingAlertsCommands will process the incoming Alerts commands.
 // These commands don't require an status response.
 func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID string, enrolledDevice *fleet.MDMWindowsEnrolledDevice, cmd mdm_types.ProtoCmdOperation) error {
@@ -1659,6 +1699,9 @@ func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID
 		return svc.processNewSessionAlert(ctx, messageID, enrolledDevice, cmd)
 	case syncml.CmdAlertGeneric:
 		return svc.processGenericAlert(ctx, messageID, enrolledDevice.MDMDeviceID, cmd)
+	case syncml.CmdAlertClientEvent:
+		svc.processClientEventAlert(ctx, enrolledDevice, cmd)
+		return nil
 	}
 
 	return nil
@@ -3894,6 +3937,127 @@ type hostProfileKey struct {
 // produced by ComputeWindowsReconcileDeltas: content fetch, deleted-profile race guard, bulk command pre-build for non-variable
 // profiles, per-host variable expansion, LocURI-protected <Delete> generation, host-profile upserts, and managed-certificate
 // bookkeeping. This is the legacy reconciler body verbatim, now invoked once per (capped) window by the drain loop above.
+// cmdTarget is one MDM command and the hosts it is addressed to. The underlying MDM services send a single command to many
+// hosts, so install and remove targets are keyed by profile with the host list attached.
+type cmdTarget struct {
+	cmdUUID   string
+	profID    string
+	hostUUIDs []string
+}
+
+// applyWindowsUserScopeGate drops hosts from user-scoped install targets when their enrollment has no MDM user context, and
+// records why on the host's profile row.
+//
+// Scope is classified from the exact bytes the delivery path is about to send, so classification cannot disagree with what
+// ships. Hosts whose user context can still arrive keep a NULL status (which the rollup reports as pending) and carry a
+// detail explaining the wait; the reconciler revisits them every tick and delivers once the device reports a signed-in user.
+// Hosts whose enrollment binds no user identity fail immediately with an explanation instead of retrying a write that can
+// never succeed.
+//
+// Costs nothing on fleets without user-scoped profiles: the enrollment lookup only runs when at least one install target is
+// user-scoped.
+func applyWindowsUserScopeGate(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	installTargets map[string]*cmdTarget,
+	profileContents map[string]fleet.MDMWindowsProfileContents,
+	hostProfilesMap map[string]*fleet.MDMWindowsBulkUpsertHostProfilePayload,
+	batchProfileCmdsMap map[string][]*fleet.MDMWindowsBulkUpsertHostProfilePayload,
+) error {
+	userScopedTargets := make(map[string]*cmdTarget)
+	hostUUIDSet := make(map[string]struct{})
+	for profUUID, target := range installTargets {
+		contents, ok := profileContents[profUUID]
+		if !ok {
+			// Content not loaded (deleted, or replica lag). The install loop skips these on its own terms.
+			continue
+		}
+		if fleet.WindowsProfileScopeFromBytes(contents.SyncML) != fleet.WindowsProfileScopeUser {
+			continue
+		}
+		userScopedTargets[profUUID] = target
+		for _, hostUUID := range target.hostUUIDs {
+			hostUUIDSet[hostUUID] = struct{}{}
+		}
+	}
+	if len(userScopedTargets) == 0 {
+		return nil
+	}
+
+	userContexts, err := ds.GetMDMWindowsUserContextByHostUUID(ctx, slices.Collect(maps.Keys(hostUUIDSet)))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows user context for hosts")
+	}
+
+	var held, failed int
+	for profUUID, target := range userScopedTargets {
+		deliverable := target.hostUUIDs[:0:0] // fresh backing array; target.hostUUIDs is still being read below
+		for _, hostUUID := range target.hostUUIDs {
+			state := fleet.WindowsUserContextCanArrive
+			if uc, ok := userContexts[hostUUID]; ok {
+				state = microsoft_mdm.WindowsUserContextStateFor(uc.EnrollUserID, uc.LastLoginStatus)
+			}
+			// A host with no enrollment row holds rather than fails: it has no MDM at all, so the profile is not
+			// deliverable for reasons that have nothing to do with user context, and failing it here would be wrong.
+
+			if state == fleet.WindowsUserContextPresent {
+				deliverable = append(deliverable, hostUUID)
+				continue
+			}
+
+			payload := hostProfilesMap[hostUUID+"|"+profUUID]
+			if payload == nil {
+				continue
+			}
+			// No command is enqueued for this host, so the row must not point at one.
+			payload.CommandUUID = ""
+			if state == fleet.WindowsUserContextCannotArrive {
+				payload.Status = &fleet.MDMDeliveryFailed
+				payload.Detail = fleet.WindowsUserScopeNoUserIdentityDetail
+				failed++
+				continue
+			}
+			// NULL status is the "reconciler, look at me again next tick" shape, and the rollup reports it as
+			// pending. That is what makes the hold self-releasing without any extra bookkeeping.
+			payload.Status = nil
+			payload.Detail = fleet.WindowsUserScopeHoldDetail
+			payload.HeldForUserContext = true
+			held++
+		}
+
+		target.hostUUIDs = deliverable
+		if len(deliverable) == 0 {
+			// Nothing left to address: drop the command entirely so no empty command is built or inserted.
+			delete(installTargets, profUUID)
+			delete(batchProfileCmdsMap, target.cmdUUID)
+			continue
+		}
+		// Keep the command's payload list in step with the hosts it is actually addressed to, so the enqueue path does
+		// not advance a held host's row to "pending with a command". Membership goes through a set: a batch carries up
+		// to reconcileWindowsProfilesBatchSize hosts, and a linear scan per payload would be quadratic in that.
+		if payloads, ok := batchProfileCmdsMap[target.cmdUUID]; ok {
+			deliverableSet := make(map[string]struct{}, len(deliverable))
+			for _, hostUUID := range deliverable {
+				deliverableSet[hostUUID] = struct{}{}
+			}
+			kept := payloads[:0:0]
+			for _, payload := range payloads {
+				if _, ok := deliverableSet[payload.HostUUID]; ok {
+					kept = append(kept, payload)
+				}
+			}
+			batchProfileCmdsMap[target.cmdUUID] = kept
+		}
+	}
+
+	if held > 0 || failed > 0 {
+		logger.InfoContext(ctx, "windows user-scoped profiles gated on user context",
+			"held", held, "failed_no_user_identity", failed, "profiles", len(userScopedTargets))
+	}
+	return nil
+}
+
 func executeWindowsProfileReconcileBatch(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -3925,11 +4089,6 @@ func executeWindowsProfileReconcileBatch(
 	// UUIDs as the underlying MDM services are optimized to send one command to
 	// multiple hosts at the same time. Note that the same command uuid is used
 	// for all hosts in a given install/remove target operation.
-	type cmdTarget struct {
-		cmdUUID   string
-		profID    string
-		hostUUIDs []string
-	}
 	installTargets := make(map[string]*cmdTarget)
 	removeTargets := make(map[string]*cmdTarget)
 
@@ -4079,6 +4238,14 @@ func executeWindowsProfileReconcileBatch(
 	profileContents, err := ds.GetMDMWindowsProfilesContents(ctx, profileUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get profile contents")
+	}
+
+	// Gate user-scoped ("./User/...") profiles on the host's MDM user context. Windows rejects those writes until the
+	// enrollment has a user context, and the failure is not retryable in any useful window: the single retry fires within
+	// ~30s, long before a user could sign in during OOBE. Held hosts are dropped from their command target here, before any
+	// command is built or any row is advanced to "pending with a command".
+	if err := applyWindowsUserScopeGate(ctx, ds, logger, installTargets, profileContents, hostProfilesMap, batchProfileCmdsMap); err != nil {
+		return ctxerr.Wrap(ctx, err, "applying windows user scope gate")
 	}
 
 	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
@@ -4538,8 +4705,14 @@ func executeWindowsProfileReconcileBatch(
 	hostProfilesForFinalUpdate := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
 
 	for _, p := range hostProfilesToUpdate {
-		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
+		switch {
+		case p.Status != nil && *p.Status == fleet.MDMDeliveryFailed:
 			failedProfileHostUUIDs[p.HostUUID+"|"+p.ProfileUUID] = true
+			hostProfilesForFinalUpdate = append(hostProfilesForFinalUpdate, p)
+		case p.HeldForUserContext:
+			// Held by the user-scope gate: no command was enqueued for this host, so the pending-path upsert never
+			// ran for it. Write the row here instead, otherwise the hold is invisible: the host would show pending
+			// (correct) with no indication that Fleet is waiting on a user to sign in.
 			hostProfilesForFinalUpdate = append(hostProfilesForFinalUpdate, p)
 		}
 	}
