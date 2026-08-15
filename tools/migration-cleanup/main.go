@@ -58,11 +58,6 @@ type tableRow struct {
 	IsApplied bool  `db:"is_applied"`
 }
 
-type sqlStatements struct {
-	tableName           string
-	versionIDRemappings [][2]int64
-}
-
 type options struct {
 	checkout    string
 	branch      string
@@ -497,9 +492,11 @@ func getMergeBase(checkout, branch string) (string, error) {
 }
 
 // findRenameCommits returns commit SHAs in mergeBase..branch that contain
-// renames in the migration directories.
+// renames in the migration directories, oldest first. Commit order matters:
+// applying chained renames (A -> B in one commit, B -> C in a later one)
+// oldest-first moves rows through the chain to the terminal version ID.
 func findRenameCommits(checkout, branch, mergeBase string) ([]string, error) {
-	args := []string{"log", "-M", "--diff-filter=R", "--format=%H", mergeBase + ".." + branch, "--"}
+	args := []string{"log", "--reverse", "-M", "--diff-filter=R", "--format=%H", mergeBase + ".." + branch, "--"}
 	args = append(args, migrationDirs...)
 	out, err := git(checkout, args...)
 	if err != nil {
@@ -609,27 +606,21 @@ func generateStatementGroups(renames []migrationRename) map[string][]string {
 		if len(tableRenames) == 0 {
 			continue
 		}
-		stmts := computeSQLForTable(item.table, tableRenames)
-		groups[item.table] = buildSQL(item.table, stmts, tableRenames)
+		groups[item.table] = buildSQL(item.table, tableRenames)
 	}
 	return groups
 }
 
-// computeSQLForTable builds the version ID remapping statements for a table.
-func computeSQLForTable(tableName string, renames []migrationRename) sqlStatements {
-	stmts := sqlStatements{tableName: tableName}
-	for _, r := range renames {
-		stmts.versionIDRemappings = append(stmts.versionIDRemappings, [2]int64{r.oldVersionID, r.newVersionID})
-	}
-	return stmts
-}
-
-// buildSQL generates the full SQL for a table: version remaps, dedup cleanup,
-// and ID shifts to maintain ordering.
-func buildSQL(tableName string, stmts sqlStatements, renames []migrationRename) []string {
+// buildSQL generates the full SQL for a table: version remaps (in commit
+// order, so chained renames resolve to the terminal version ID), duplicate
+// cleanup, and a full rebuild of row ids into version order. Rebuilding the
+// total order instead of computing a minimal shift handles every renumber
+// shape identically: moves up, moves down, mixed batches in one scope, and
+// remapped rows stranded at the table tail.
+func buildSQL(tableName string, renames []migrationRename) []string {
 	lines := make([]string, 0)
-	for _, pair := range stmts.versionIDRemappings {
-		lines = append(lines, fmt.Sprintf("UPDATE `%s` SET version_id = %d WHERE version_id = %d;", tableName, pair[1], pair[0]))
+	for _, r := range renames {
+		lines = append(lines, fmt.Sprintf("UPDATE `%s` SET version_id = %d WHERE version_id = %d;", tableName, r.newVersionID, r.oldVersionID))
 	}
 	if len(renames) == 0 {
 		return lines
@@ -642,44 +633,18 @@ func buildSQL(tableName string, stmts sqlStatements, renames []migrationRename) 
 		fmt.Sprintf("DROP TEMPORARY TABLE `_fix_dups_%s`;", tableName),
 	)
 
-	minNewVID, maxNewVID := renames[0].newVersionID, renames[0].newVersionID
-	movesUp := false
-	for _, r := range renames {
-		if r.newVersionID < minNewVID {
-			minNewVID = r.newVersionID
-		}
-		if r.newVersionID > maxNewVID {
-			maxNewVID = r.newVersionID
-		}
-		if r.newVersionID > r.oldVersionID {
-			movesUp = true
-		}
-	}
-
-	varName := "increment_by_" + tableName
-	if !movesUp {
-		varName += "_shift"
-	}
-	maxMovedVar := "max_moved_down_" + tableName
-
-	lines = append(lines, fmt.Sprintf("SELECT (SELECT MAX(id) FROM `%s` WHERE id > (SELECT id FROM `%s` WHERE version_id = %d)) - (SELECT id FROM `%s` WHERE version_id = %d) + 1 INTO @%s;", tableName, tableName, maxNewVID, tableName, minNewVID, varName))
-
-	targetIDVar := "target_id_" + tableName
-	var whereClause string
-	if movesUp {
-		whereClause = fmt.Sprintf("WHERE version_id BETWEEN %d AND %d", minNewVID, maxNewVID)
-		lines = append(lines, fmt.Sprintf("SELECT %d INTO @%s;", maxNewVID, maxMovedVar))
-	} else {
-		// Extract the target row's id into a variable first so we don't reference
-		// the same table in a subquery inside an UPDATE (MySQL doesn't allow that).
-		lines = append(lines, fmt.Sprintf("SELECT id INTO @%s FROM `%s` WHERE version_id = %d;", targetIDVar, tableName, minNewVID))
-		whereClause = fmt.Sprintf("WHERE id < @%s AND version_id > %d", targetIDVar, maxNewVID)
-		lines = append(lines, fmt.Sprintf("SELECT MAX(version_id) INTO @%s FROM `%s` %s;", maxMovedVar, tableName, whereClause))
-	}
-
+	// Rebuild ids in two passes: rebase every row above the current MAX(id)
+	// (targets are all beyond existing ids, so no transient duplicate keys
+	// regardless of update order), then compact down to 1..N. Compacting keeps
+	// the final ids below the table's AUTO_INCREMENT counter, which UPDATEs do
+	// not advance, so future goose inserts cannot collide with shifted rows.
 	lines = append(lines,
-		fmt.Sprintf("UPDATE `%s` SET id = id + COALESCE(@%s, 0) WHERE version_id > @%s ORDER BY id DESC;", tableName, varName, maxMovedVar),
-		fmt.Sprintf("UPDATE `%s` SET id = id + COALESCE(@%s, 0) %s ORDER BY id DESC;", tableName, varName, whereClause),
+		fmt.Sprintf("SELECT MAX(id) INTO @rebase_%s FROM `%s`;", tableName, tableName),
+		fmt.Sprintf("CREATE TEMPORARY TABLE `_fix_order_%s` (id BIGINT UNSIGNED, rn BIGINT UNSIGNED);", tableName),
+		fmt.Sprintf("INSERT INTO `_fix_order_%s` (id, rn) SELECT id, ROW_NUMBER() OVER (ORDER BY version_id ASC, id ASC) FROM `%s`;", tableName, tableName),
+		fmt.Sprintf("UPDATE `%s` t JOIN `_fix_order_%s` o ON t.id = o.id SET t.id = @rebase_%s + o.rn;", tableName, tableName, tableName),
+		fmt.Sprintf("UPDATE `%s` t JOIN `_fix_order_%s` o ON t.id = @rebase_%s + o.rn SET t.id = o.rn;", tableName, tableName, tableName),
+		fmt.Sprintf("DROP TEMPORARY TABLE `_fix_order_%s`;", tableName),
 	)
 	return lines
 }
@@ -748,32 +713,30 @@ func verifyDryRun(renames []migrationRename, tableRows, dataRows []tableRow) (bo
 	return len(issues) == 0, append(messages, issues...)
 }
 
-// simulateTableSQL applies version remaps, dedup removal, and ID shifts to a
-// copy of the table rows, returning the simulated result plus messages and issues.
+// simulateTableSQL applies version remaps (sequentially, in the same order as
+// the generated SQL so chained renames resolve identically), duplicate
+// removal, and the version-order id rebuild to a copy of the table rows,
+// returning the simulated result plus messages and issues.
 func simulateTableSQL(tableName string, rows []tableRow, renames []migrationRename) ([]tableRow, []string, []string) {
 	var messages []string
 	var issues []string
-	renameMap := map[int64]int64{}
-	existing := map[int64]struct{}{}
-	for _, row := range rows {
-		existing[row.VersionID] = struct{}{}
-	}
+
+	simulated := make([]tableRow, len(rows))
+	copy(simulated, rows)
+
 	for _, r := range renames {
-		renameMap[r.oldVersionID] = r.newVersionID
-		if _, ok := existing[r.oldVersionID]; ok {
+		found := false
+		for i := range simulated {
+			if simulated[i].VersionID == r.oldVersionID {
+				simulated[i].VersionID = r.newVersionID
+				found = true
+			}
+		}
+		if found {
 			messages = append(messages, fmt.Sprintf("  %s: will remap %d -> %d", tableName, r.oldVersionID, r.newVersionID))
 		} else {
 			messages = append(messages, fmt.Sprintf("  %s: %d not present (UPDATE will be no-op)", tableName, r.oldVersionID))
 		}
-	}
-
-	simulated := make([]tableRow, 0, len(rows))
-	for _, row := range rows {
-		newVID := row.VersionID
-		if mapped, ok := renameMap[row.VersionID]; ok {
-			newVID = mapped
-		}
-		simulated = append(simulated, tableRow{ID: row.ID, VersionID: newVID, IsApplied: row.IsApplied})
 	}
 
 	byVID := map[int64][]tableRow{}
@@ -794,129 +757,37 @@ func simulateTableSQL(tableName string, rows []tableRow, renames []migrationRena
 		}
 	}
 
-	minNewVID, maxNewVID := renames[0].newVersionID, renames[0].newVersionID
-	movesUp := false
-	for _, r := range renames {
-		if r.newVersionID < minNewVID {
-			minNewVID = r.newVersionID
+	violations := countOrderingViolations(simulated)
+	sort.Slice(simulated, func(i, j int) bool {
+		if simulated[i].VersionID != simulated[j].VersionID {
+			return simulated[i].VersionID < simulated[j].VersionID
 		}
-		if r.newVersionID > maxNewVID {
-			maxNewVID = r.newVersionID
-		}
-		if r.newVersionID > r.oldVersionID {
-			movesUp = true
-		}
+		return simulated[i].ID < simulated[j].ID
+	})
+	for i := range simulated {
+		simulated[i].ID = int64(i + 1)
 	}
-
-	minRows := rowsForVID(simulated, minNewVID)
-	maxRows := rowsForVID(simulated, maxNewVID)
-	var targetRows []tableRow
-	if movesUp {
-		for _, row := range simulated {
-			if row.VersionID >= minNewVID && row.VersionID <= maxNewVID {
-				targetRows = append(targetRows, row)
-			}
-		}
-	} else {
-		if len(minRows) == 0 {
-			messages = append(messages, fmt.Sprintf("  %s: no row for min_new_vid=%d; id shift would affect 0 row(s)", tableName, minNewVID))
-			return simulated, messages, issues
-		}
-		for _, row := range simulated {
-			if row.ID < minRows[0].ID && row.VersionID > maxNewVID {
-				targetRows = append(targetRows, row)
-			}
-		}
-	}
-	if len(targetRows) == 0 {
-		messages = append(messages, fmt.Sprintf("  %s: id shift would affect 0 row(s)", tableName))
-		return simulated, messages, issues
-	}
-	if len(minRows) != 1 {
-		issues = append(issues, fmt.Sprintf("  %s: expected one row for min_new_vid=%d, found %d", tableName, minNewVID, len(minRows)))
-		return simulated, messages, issues
-	}
-	if len(maxRows) != 1 {
-		issues = append(issues, fmt.Sprintf("  %s: expected one row for max_new_vid=%d, found %d", tableName, maxNewVID, len(maxRows)))
-		return simulated, messages, issues
-	}
-
-	var idsAfterMax []int64
-	for _, row := range simulated {
-		if row.ID > maxRows[0].ID {
-			idsAfterMax = append(idsAfterMax, row.ID)
-		}
-	}
-	var offset int64
-	if len(idsAfterMax) == 0 {
-		messages = append(messages, fmt.Sprintf("  %s: generated offset would be NULL; COALESCE will shift by +0", tableName))
-		offset = 0
-	} else {
-		offset = maxInt64(idsAfterMax) - minRows[0].ID + 1
-		if offset <= 0 {
-			issues = append(issues, fmt.Sprintf("  %s: generated offset would be %d, expected a positive value", tableName, offset))
-			return simulated, messages, issues
-		}
-	}
-
-	maxMovedDownVID := targetRows[0].VersionID
-	for _, row := range targetRows {
-		if row.VersionID > maxMovedDownVID {
-			maxMovedDownVID = row.VersionID
-		}
-	}
-	spaceIDs := map[int64]struct{}{}
-	for _, row := range simulated {
-		if row.VersionID > maxMovedDownVID {
-			spaceIDs[row.ID] = struct{}{}
-		}
-	}
-	withSpace := shiftRows(simulated, spaceIDs, offset)
-	messages = append(messages, fmt.Sprintf("  %s: would make space by shifting %d row(s) after version_id=%d by +%d", tableName, len(spaceIDs), maxMovedDownVID, offset))
-
-	targetIDs := map[int64]struct{}{}
-	for _, row := range targetRows {
-		targetIDs[row.ID] = struct{}{}
-	}
-	shifted := shiftRows(withSpace, targetIDs, offset)
-	messages = append(messages, fmt.Sprintf("  %s: would shift %d row(s) by +%d", tableName, len(targetRows), offset))
-	return shifted, messages, issues
+	messages = append(messages, fmt.Sprintf("  %s: would renumber %d row id(s) into version order, fixing %d ordering violation(s)", tableName, len(simulated), violations))
+	return simulated, messages, issues
 }
 
-// rowsForVID returns all rows matching the given version ID.
-func rowsForVID(rows []tableRow, vid int64) []tableRow {
-	var out []tableRow
+// countOrderingViolations returns the number of adjacent applied-row pairs
+// (ordered by id) whose version_ids are out of order.
+func countOrderingViolations(rows []tableRow) int {
+	var applied []tableRow
 	for _, row := range rows {
-		if row.VersionID == vid {
-			out = append(out, row)
+		if row.IsApplied && row.VersionID > 0 {
+			applied = append(applied, row)
 		}
 	}
-	return out
-}
-
-// maxInt64 returns the maximum value from a slice of int64.
-func maxInt64(values []int64) int64 {
-	maxVal := values[0]
-	for _, val := range values[1:] {
-		if val > maxVal {
-			maxVal = val
+	sort.Slice(applied, func(i, j int) bool { return applied[i].ID < applied[j].ID })
+	violations := 0
+	for i := 0; i < len(applied)-1; i++ {
+		if applied[i].VersionID > applied[i+1].VersionID {
+			violations++
 		}
 	}
-	return maxVal
-}
-
-// shiftRows returns a copy of rows with IDs shifted by offset for rows whose
-// ID is in the given set.
-func shiftRows(rows []tableRow, ids map[int64]struct{}, offset int64) []tableRow {
-	shifted := make([]tableRow, 0, len(rows))
-	for _, row := range rows {
-		newID := row.ID
-		if _, ok := ids[row.ID]; ok {
-			newID += offset
-		}
-		shifted = append(shifted, tableRow{ID: newID, VersionID: row.VersionID, IsApplied: row.IsApplied})
-	}
-	return shifted
+	return violations
 }
 
 // validateFinalTableState checks the simulated table for duplicate IDs,
