@@ -3948,14 +3948,19 @@ type cmdTarget struct {
 	hostUUIDs []string
 }
 
-// applyWindowsUserScopeGate drops hosts from user-scoped install targets when their enrollment has no MDM user context, and
-// records why on the host's profile row.
+// applyWindowsUserScopeGate holds user-scoped install targets for hosts that are still waiting on an MDM user context, and
+// records the wait on the host's profile row.
 //
 // Scope is classified from the exact bytes the delivery path is about to send, so classification cannot disagree with what
-// ships. Hosts whose user context can still arrive keep a NULL status (which the rollup reports as pending) and carry a
-// detail explaining the wait; the reconciler revisits them every tick and delivers once the device reports a signed-in user.
-// Hosts whose enrollment binds no user identity fail immediately with an explanation instead of retrying a write that can
-// never succeed.
+// ships. A held host keeps a NULL status (which the rollup reports as pending) and carries a detail explaining the wait; the
+// reconciler revisits it every tick and delivers once the device reports a signed-in user.
+//
+// The hold applies only where a user context is known to be pending: an enrollment that binds a user identity (a UPN) and has
+// not yet reported a signed-in user, which is the Autopilot and Entra-join-during-OOBE window. Enrollments that bind no user
+// identity are NOT gated and deliver exactly as they did before. Whether their user channel is writable depends on the
+// device's own identity (an Entra-joined host managed by fleetd can have a perfectly resolvable user channel even though its
+// enrollment stores an orbit node key), and that is not something the enrollment row can tell us. Blocking them here would
+// fail configurations that work today, including the user-scoped SCEP profiles Fleet ships as a solution.
 //
 // Costs nothing on fleets without user-scoped profiles: the enrollment lookup only runs when at least one install target is
 // user-scoped.
@@ -3993,18 +3998,14 @@ func applyWindowsUserScopeGate(
 		return ctxerr.Wrap(ctx, err, "get windows user context for hosts")
 	}
 
-	var held, failed int
+	var held int
 	for profUUID, target := range userScopedTargets {
 		deliverable := target.hostUUIDs[:0:0] // fresh backing array; target.hostUUIDs is still being read below
 		for _, hostUUID := range target.hostUUIDs {
-			state := fleet.WindowsUserContextCanArrive
-			if uc, ok := userContexts[hostUUID]; ok {
-				state = microsoft_mdm.WindowsUserContextStateFor(uc.EnrollUserID, uc.LastLoginStatus)
-			}
-			// A host with no enrollment row holds rather than fails: it has no MDM at all, so the profile is not
-			// deliverable for reasons that have nothing to do with user context, and failing it here would be wrong.
-
-			if state == fleet.WindowsUserContextPresent {
+			uc, ok := userContexts[hostUUID]
+			// A host with no enrollment row is not gated: it has no MDM at all, so whether the profile ships is
+			// decided by the rest of the pipeline, not here.
+			if !ok || microsoft_mdm.WindowsUserContextStateFor(uc.EnrollUserID, uc.LastLoginStatus) != fleet.WindowsUserContextCanArrive {
 				deliverable = append(deliverable, hostUUID)
 				continue
 			}
@@ -4013,16 +4014,10 @@ func applyWindowsUserScopeGate(
 			if payload == nil {
 				continue
 			}
-			// No command is enqueued for this host, so the row must not point at one.
+			// No command is enqueued for this host, so the row must not point at one. NULL status is the
+			// "reconciler, look at me again next tick" shape, and the rollup reports it as pending. That is what
+			// makes the hold self-releasing without any extra bookkeeping.
 			payload.CommandUUID = ""
-			if state == fleet.WindowsUserContextCannotArrive {
-				payload.Status = &fleet.MDMDeliveryFailed
-				payload.Detail = fleet.WindowsUserScopeNoUserIdentityDetail
-				failed++
-				continue
-			}
-			// NULL status is the "reconciler, look at me again next tick" shape, and the rollup reports it as
-			// pending. That is what makes the hold self-releasing without any extra bookkeeping.
 			payload.Status = nil
 			payload.Detail = fleet.WindowsUserScopeHoldDetail
 			payload.HeldForUserContext = true
@@ -4054,9 +4049,9 @@ func applyWindowsUserScopeGate(
 		}
 	}
 
-	if held > 0 || failed > 0 {
-		logger.InfoContext(ctx, "windows user-scoped profiles gated on user context",
-			"held", held, "failed_no_user_identity", failed, "profiles", len(userScopedTargets))
+	if held > 0 {
+		logger.InfoContext(ctx, "windows user-scoped profiles held for user context",
+			"held", held, "profiles", len(userScopedTargets))
 	}
 	return nil
 }

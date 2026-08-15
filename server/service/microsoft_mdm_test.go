@@ -1063,42 +1063,38 @@ func TestReconcileWindowsProfilesDeliversUserScopedProfilesOnceUserPresent(t *te
 	require.Nil(t, result.upsertFor("host-a"), "a delivered profile is written by the enqueue path, not the final pass")
 }
 
-func TestReconcileWindowsProfilesFailsUserScopedProfilesWithoutUserIdentity(t *testing.T) {
+func TestReconcileWindowsProfilesDeliversUserScopedProfilesOnEnrollmentsWithoutUserIdentity(t *testing.T) {
+	// A fleetd enrollment stores an orbit node key rather than a UPN, which says nothing about whether the device's user
+	// channel is writable: an Entra-joined host managed by fleetd has a perfectly resolvable one. Fleet must not predict
+	// failure from the enrollment type, or it would break the user-scoped SCEP profiles it ships as a solution.
 	result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
 		"host-a": programmaticContext("host-a"),
 	})
 
-	require.Empty(t, result.enqueuedHosts, "the user channel can never be written on this enrollment")
-
-	row := result.upsertFor("host-a")
-	require.NotNil(t, row)
-	require.NotNil(t, row.Status)
-	require.Equal(t, fleet.MDMDeliveryFailed, *row.Status, "fail fast rather than retrying a write that cannot succeed")
-	require.Equal(t, fleet.WindowsUserScopeNoUserIdentityDetail, row.Detail)
+	require.Equal(t, []string{"host-a"}, result.enqueuedHosts, "enrollments without a bound user identity are not gated")
+	require.Nil(t, result.upsertFor("host-a"), "no hold row: the profile went out through the normal enqueue path")
 }
 
 func TestReconcileWindowsProfilesPartitionsHostsByUserContext(t *testing.T) {
 	signedIn := fleet.WindowsMDMLoginStatusUser
 	others := fleet.WindowsMDMLoginStatusOthers
 
-	// One command is addressed to many hosts, so the gate has to split the target rather than decide per profile.
+	// One command is addressed to many hosts, so the gate has to split the target rather than decide per profile. Only the
+	// host still waiting on first sign-in is held; the fleetd enrollment is not gated at all.
 	result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
 		"host-ready":  entraContext("host-ready", &signedIn),
 		"host-oobe":   entraContext("host-oobe", &others),
 		"host-fleetd": programmaticContext("host-fleetd"),
 	})
 
-	require.Equal(t, []string{"host-ready"}, result.enqueuedHosts, "only the host with a user context gets the command")
+	require.ElementsMatch(t, []string{"host-ready", "host-fleetd"}, result.enqueuedHosts,
+		"only the host awaiting first sign-in is withheld")
 
 	held := result.upsertFor("host-oobe")
 	require.NotNil(t, held)
 	require.Nil(t, held.Status)
 	require.Equal(t, fleet.WindowsUserScopeHoldDetail, held.Detail)
-
-	failed := result.upsertFor("host-fleetd")
-	require.NotNil(t, failed)
-	require.NotNil(t, failed.Status)
-	require.Equal(t, fleet.MDMDeliveryFailed, *failed.Status)
+	require.Nil(t, result.upsertFor("host-fleetd"), "an ungated host has no hold row")
 }
 
 func TestReconcileWindowsProfilesDeviceScopedUnaffectedByUserContext(t *testing.T) {

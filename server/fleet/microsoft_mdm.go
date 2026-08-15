@@ -2071,18 +2071,9 @@ func (s WindowsMDMLoginStatus) IsValid() bool {
 	}
 }
 
-const (
-	// WindowsUserScopeHoldDetail is shown while Fleet is waiting for a user context that can still arrive. The row stays
-	// pending (NULL status), so the reconciler re-evaluates it every tick and delivers as soon as the device reports a
-	// signed-in MDM user.
-	WindowsUserScopeHoldDetail = "Waiting for a user to sign in. Fleet delivers user profiles once the first user signs in."
-
-	// WindowsUserScopeNoUserIdentityDetail is shown when the enrollment has no user identity bound to it, so the user
-	// channel can never be written. Verified on hardware: the write fails even with an interactive local user signed in,
-	// because that user is not the enrolled user.
-	WindowsUserScopeNoUserIdentityDetail = "This profile configures settings for a user, but this host's MDM enrollment has no user. " +
-		"User settings can only be delivered to hosts enrolled by a user."
-)
+// WindowsUserScopeHoldDetail is shown while Fleet is waiting for a user context that can still arrive. The row stays pending
+// (NULL status), so the reconciler re-evaluates it every tick and delivers as soon as the device reports a signed-in MDM user.
+const WindowsUserScopeHoldDetail = "Waiting for a user to sign in. Fleet delivers user profiles once the first user signs in."
 
 // WindowsEnrollmentUserContext is the slice of an enrollment the user-scoped profile gate reads: who the enrollment is bound
 // to, and the last user context the device reported.
@@ -2107,10 +2098,14 @@ const (
 	// contrary one. This is the Autopilot / Entra-join-during-OOBE window that issue #50196 is about.
 	WindowsUserContextCanArrive WindowsUserContextState = "can_arrive"
 
-	// WindowsUserContextCannotArrive means no MDM user identity is bound to the enrollment, so the user channel can never
-	// be written. Measured on a programmatic fleetd enrollment: the root node Add returns 500 even with an interactive
-	// local user signed in, because that user is not the enrolled user.
-	WindowsUserContextCannotArrive WindowsUserContextState = "cannot_arrive"
+	// WindowsUserContextUnknown means the enrollment binds no user identity, so Fleet cannot tell from the enrollment row
+	// whether the user channel is writable. It often is: a fleetd-enrolled host that is Entra-joined has a resolvable
+	// user channel even though its enrollment stores an orbit node key rather than a UPN. A workgroup host with no
+	// identity anywhere does not, and its user-scoped writes fail with 500.
+	//
+	// Fleet does not gate these enrollments. Delivery proceeds as it always has, and a genuine rejection surfaces through
+	// the normal failure path rather than being predicted from the enrollment type.
+	WindowsUserContextUnknown WindowsUserContextState = "unknown"
 )
 
 // WindowsProfileScope is the OMA-DM channel a Windows profile writes to.

@@ -101,20 +101,19 @@ func IsValidUPN(userID string) bool {
 	return upnRegex.MatchString(userID)
 }
 
-// WindowsUserContextState reports whether the enrollment has, or could ever have, an MDM user context, which decides what
-// happens to its user-scoped profiles (deliver, hold, or fail fast).
+// WindowsUserContextState reports what Fleet knows about the enrollment's MDM user context, which decides whether its
+// user-scoped profiles are held or delivered.
 //
-// The discriminator for "could ever have" is UPN-ness of enroll_user_id, which is the same signal
-// isFleetdPresentOnDevice and the EUA token path already use to tell a user-driven enrollment from a programmatic one.
-// Measured on both paths: an Entra-join Autopilot enrollment stores a real UPN (and its user channel becomes writable once
-// the user signs in), while a programmatic fleetd enrollment stores the orbit node key, has an empty UPN in the device's
-// enrollment registry key, and rejects every user-channel write permanently.
+// A UPN in enroll_user_id means the enrollment is user-driven (Autopilot / Entra join), the same signal
+// isFleetdPresentOnDevice and the EUA token path already use. Those enrollments have a knowable user context: the device
+// reports LoginStatus every session, so "signed in" and "not signed in yet" are distinguishable, and the pre-sign-in window
+// is the one issue #50196 is about.
 //
-// enroll_type agrees on both paths ("Device" for Entra join, "Full" for fleetd) and is available as a cross-check, but it
-// describes the enrollment flavor rather than the user context, so it is not what this keys on.
+// A non-UPN enroll_user_id (a programmatic fleetd enrollment) says nothing about whether the user channel is writable, so
+// this reports Unknown and the caller does not gate. The device's own identity decides that, not the enrollment row.
 func WindowsUserContextState(device *fleet.MDMWindowsEnrolledDevice) fleet.WindowsUserContextState {
 	if device == nil {
-		return fleet.WindowsUserContextCannotArrive
+		return fleet.WindowsUserContextUnknown
 	}
 	return WindowsUserContextStateFor(device.MDMEnrollUserID, device.LastLoginStatus)
 }
@@ -123,7 +122,7 @@ func WindowsUserContextState(device *fleet.MDMWindowsEnrolledDevice) fleet.Windo
 // those (the profile reconciler resolves them in bulk rather than loading whole enrollments).
 func WindowsUserContextStateFor(enrollUserID string, lastLoginStatus *fleet.WindowsMDMLoginStatus) fleet.WindowsUserContextState {
 	if !IsValidUPN(enrollUserID) {
-		return fleet.WindowsUserContextCannotArrive
+		return fleet.WindowsUserContextUnknown
 	}
 	if lastLoginStatus != nil && *lastLoginStatus == fleet.WindowsMDMLoginStatusUser {
 		return fleet.WindowsUserContextPresent
