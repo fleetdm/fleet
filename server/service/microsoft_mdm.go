@@ -1660,24 +1660,27 @@ func (svc *Service) processClientEventAlert(ctx context.Context, enrolledDevice 
 			continue
 		}
 
-		status := fleet.WindowsMDMLoginStatus(strings.ToLower(strings.TrimSpace(item.Data.Content)))
-		if !status.IsValid() {
-			// An unrecognized value must not be persisted: only a positive "user" releases the user-scoped profile
-			// gate, and a future Windows build inventing a value should leave profiles held, not silently released.
-			svc.logger.WarnContext(ctx, "windows mdm: unrecognized LoginStatus alert value",
+		// An unrecognized value clears the observation rather than being ignored. Ignoring it would leave a previously
+		// stored "user" in place, and the gate would keep delivering user-scoped profiles on the strength of an
+		// observation the device has since superseded. Clearing reads as "not known to be signed in", so profiles hold
+		// until the device reports a value Fleet understands.
+		var status *fleet.WindowsMDMLoginStatus
+		if reported := fleet.WindowsMDMLoginStatus(strings.ToLower(strings.TrimSpace(item.Data.Content))); reported.IsValid() {
+			status = &reported
+		} else {
+			svc.logger.WarnContext(ctx, "windows mdm: unrecognized LoginStatus alert value, clearing user context",
 				"value", item.Data.Content, "device_id", enrolledDevice.MDMDeviceID)
-			continue
 		}
 
 		if err := svc.ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, status); err != nil {
 			svc.logger.ErrorContext(ctx, "windows mdm: recording LoginStatus alert", "err", err,
-				"device_id", enrolledDevice.MDMDeviceID, "status", string(status))
+				"device_id", enrolledDevice.MDMDeviceID)
 			ctxerr.Handle(ctx, err)
 			return
 		}
 		// Reflect the new value on the in-memory enrollment so anything later in this same request sees the current
 		// user context rather than the value loaded at session start.
-		enrolledDevice.LastLoginStatus = &status
+		enrolledDevice.LastLoginStatus = status
 		return
 	}
 }

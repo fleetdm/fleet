@@ -1825,8 +1825,10 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 		}
 
 		if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
-			// atomic profile
-			for _, nested := range slices.Concat(cmds[0].ReplaceCommands, cmds[0].AddCommands, cmds[0].DeleteCommands) {
+			// atomic profile. Exec is included because a SCEP profile's user-channel write is an Exec on
+			// Install/Enroll: leaving it out both hides the command that actually failed from the detail and lets a
+			// user-context rejection go unnoticed, which would spend the retry budget during OOBE.
+			for _, nested := range slices.Concat(cmds[0].ReplaceCommands, cmds[0].AddCommands, cmds[0].DeleteCommands, cmds[0].ExecCommands) {
 				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
 					addDetail(nested, status)
 				}
@@ -2145,30 +2147,48 @@ func WindowsProfileScopeFromBytes(profileBytes []byte) WindowsProfileScope {
 		return WindowsProfileScopeDevice
 	}
 
-	targetsUser := func(locURI string) bool {
-		// CanonicalLocURI drops the "./" prefix and an explicit "Device/" segment but preserves user scope, so a
-		// user-channel node canonicalizes to "User/...".
-		canon := CanonicalLocURI(locURI)
-		return canon == "User" || strings.HasPrefix(canon, "User/")
-	}
-
 	for _, cmd := range cmds {
 		if cmd.XMLName.Local == CmdAtomic {
-			for _, nested := range slices.Concat(cmd.ReplaceCommands, cmd.AddCommands, cmd.ExecCommands) {
-				if targetsUser(nested.GetTargetURI()) {
+			for _, nested := range slices.Concat(cmd.ReplaceCommands, cmd.AddCommands, cmd.ExecCommands, cmd.DeleteCommands) {
+				if locURIMayTargetUserChannel(nested.GetTargetURI()) {
 					return WindowsProfileScopeUser
 				}
 			}
 			continue
 		}
 		switch cmd.XMLName.Local {
-		case CmdReplace, CmdAdd, CmdExec:
-			if targetsUser(cmd.GetTargetURI()) {
+		case CmdReplace, CmdAdd, CmdExec, CmdDelete:
+			if locURIMayTargetUserChannel(cmd.GetTargetURI()) {
 				return WindowsProfileScopeUser
 			}
 		}
 	}
 	return WindowsProfileScopeDevice
+}
+
+// locURIMayTargetUserChannel reports whether a LocURI targets the user channel, or could still become a user-channel target
+// by the time it is delivered.
+//
+// The second case exists because Fleet variables and custom host vitals are substituted per host, by plain string replacement
+// over the whole profile, after scope has been classified. A LocURI whose scope segment is a variable therefore has no
+// statically knowable scope: `./$FLEET_VAR_HOST_END_USER_IDP_USERNAME/Vendor/...` classifies as device-scoped but can expand
+// to `./User/Vendor/...` for a host whose substituted value happens to be "User", which would slip past the gate and
+// reproduce the early write this whole mechanism exists to prevent.
+//
+// Treating an unresolvable scope as user-scoped keeps the invariant that classification never under-reports user scope. The
+// cost is that a profile with a variable in its scope segment is gated, which is not a shape any real profile has: variables
+// belong in node names and values, not in the channel selector.
+func locURIMayTargetUserChannel(locURI string) bool {
+	// CanonicalLocURI drops the "./" prefix and an explicit "Device/" segment but preserves user scope, so a user-channel
+	// node canonicalizes to "User/...".
+	canon := CanonicalLocURI(locURI)
+	if canon == "User" || strings.HasPrefix(canon, "User/") {
+		return true
+	}
+	// Every Fleet variable and custom host vital reference starts with "$", so checking the scope segment for one is
+	// forward-compatible with variables that do not exist yet.
+	scopeSegment, _, _ := strings.Cut(canon, "/")
+	return strings.Contains(scopeSegment, "$")
 }
 
 // ExtractLocURIsFromProfileBytes returns all Target LocURIs found in the

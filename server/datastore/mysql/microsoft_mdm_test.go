@@ -4494,7 +4494,7 @@ func TestCompressWindowsMDMResponse(t *testing.T) {
 // testUserChannelRetryAccounting covers the rule that a user-channel rejection must not spend the profile's retry budget
 // while Fleet is still waiting for a user context that can arrive, and must spend it once the user is actually signed in.
 func testUserChannelRetryAccounting(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// An Entra-style enrollment: a real UPN binds a user identity, so a user context can still arrive.
 	enrolledDevice := createEnrolledDevice(t, ds)
@@ -4565,8 +4565,8 @@ ON DUPLICATE KEY UPDATE status = 'pending', command_uuid = VALUES(command_uuid)`
 
 	t.Run("the exemption does not repeat once the user is signed in", func(t *testing.T) {
 		// The device now reports a signed-in MDM user, so the same rejection is a real failure.
-		require.NoError(t, ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, fleet.WindowsMDMLoginStatusUser))
 		signedIn := fleet.WindowsMDMLoginStatusUser
+		require.NoError(t, ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, &signedIn))
 		enrolledDevice.LastLoginStatus = &signedIn
 
 		sendUserChannelFailure(t)

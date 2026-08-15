@@ -102,11 +102,14 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 // held profile ("when did Fleet last hear about user context"), and the alert arrives at most a couple of times per session.
 // It is deliberately NOT part of the caller's transaction: recording user context is independent of whatever else the
 // management session is doing, and a failure here must not fail the device's response.
-func (ds *Datastore) SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status fleet.WindowsMDMLoginStatus) error {
-	if !status.IsValid() {
-		// Defense in depth: the caller filters unknown values, but an unrecognized value must never be persisted, or a
-		// future Windows build could silently release the user-scoped profile gate.
-		return ctxerr.Errorf(ctx, "invalid windows mdm login status %q", status)
+// A nil status clears the observation, which the gate reads as "not known to be signed in" and therefore holds on. That is
+// what an unrecognized value reports: leaving a previously stored "user" in place would keep delivering user-scoped profiles
+// on the strength of a stale observation the device has since superseded.
+func (ds *Datastore) SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
+	if status != nil && !status.IsValid() {
+		// Defense in depth: the caller maps unknown values to nil, but an unrecognized value must never be persisted,
+		// or a future Windows build could silently release the user-scoped profile gate.
+		return ctxerr.Errorf(ctx, "invalid windows mdm login status %q", *status)
 	}
 	if _, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET last_login_status = ?, last_login_status_at = NOW(6) WHERE id = ?`,

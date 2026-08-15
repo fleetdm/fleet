@@ -806,6 +806,27 @@ func TestBuildMDMWindowsProfilePayloadUserChannelRejected(t *testing.T) {
 		require.False(t, payload.UserChannelRejected, "418 is not a rejection of the user channel")
 	})
 
+	t.Run("user-channel Exec rejected inside an atomic", func(t *testing.T) {
+		// The SCEP shape: the user-channel write that matters is the Exec on Install/Enroll. Missing it would spend
+		// the retry budget on a write Fleet sent before the host had a user context.
+		cmd := MDMWindowsCommand{
+			CommandUUID: "cmd-1",
+			RawCommand: []byte(`<Atomic><CmdID>cmd-1</CmdID>` +
+				`<Add><CmdID>add-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x</LocURI></Target></Item></Add>` +
+				`<Exec><CmdID>exec-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/Enroll</LocURI></Target></Item></Exec>` +
+				`</Atomic>`),
+		}
+		statuses := map[string]SyncMLCmd{
+			"cmd-1":  {Data: new(syncml.CmdStatusAtomicFailed)},
+			"add-1":  {Data: new("216"), Cmd: addCmd},
+			"exec-1": {Data: new(syncml.CmdStatusCommandFailed), Cmd: new("Exec")},
+		}
+		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", false)
+		require.NoError(t, err)
+		require.True(t, payload.UserChannelRejected)
+		require.Contains(t, payload.Detail, "Install/Enroll", "the failing command must appear in the detail")
+	})
+
 	t.Run("scope-less spelling is not a user-channel rejection", func(t *testing.T) {
 		cmd := MDMWindowsCommand{
 			CommandUUID: "cmd-1",
@@ -971,6 +992,38 @@ func TestWindowsProfileScopeFromBytes(t *testing.T) {
 			name:    "whitespace around the loc uri",
 			profile: "<Replace><Item><Target><LocURI>\n\t ./User/Vendor/MSFT/Policy/Config/A \n</LocURI></Target></Item></Replace>",
 			want:    WindowsProfileScopeUser,
+		},
+		{
+			// Delete is a verb an authored profile can carry, and a Delete against a user node is still a
+			// user-channel write.
+			name:    "delete targeting the user channel",
+			profile: `<Delete><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Delete>`,
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			name: "atomic nested delete targeting the user channel",
+			profile: `<Atomic><Replace><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace>` +
+				`<Delete><Item><Target><LocURI>./User/B</LocURI></Target></Item></Delete></Atomic>`,
+			want: WindowsProfileScopeUser,
+		},
+		{
+			// Variables are substituted per host AFTER classification, so a variable in the scope segment has no
+			// statically knowable scope and must be treated as possibly user-scoped.
+			name:    "fleet variable in the scope segment",
+			profile: `<Replace><Item><Target><LocURI>./$FLEET_VAR_HOST_END_USER_IDP_USERNAME/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`,
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			name:    "custom host vital in the scope segment",
+			profile: `<Replace><Item><Target><LocURI>./$FLEET_VAR_FLEET_HOST_VITAL_3/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`,
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			// A variable in a node name or value cannot change the channel, so it must not force the gate on. This
+			// is the shape every real SCEP profile has.
+			name:    "fleet variable below the scope segment stays device scoped",
+			profile: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI></Target></Item></Add>`,
+			want:    WindowsProfileScopeDevice,
 		},
 		{
 			name:    "empty profile",

@@ -879,8 +879,8 @@ func TestProcessClientEventAlertLoginStatus(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds, svc := newSvc(t)
-			var recorded fleet.WindowsMDMLoginStatus
-			ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status fleet.WindowsMDMLoginStatus) error {
+			var recorded *fleet.WindowsMDMLoginStatus
+			ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
 				recorded = status
 				return nil
 			}
@@ -889,30 +889,36 @@ func TestProcessClientEventAlertLoginStatus(t *testing.T) {
 			svc.processClientEventAlert(t.Context(), device, alertWithLoginStatus(tc.value))
 
 			require.True(t, ds.SetMDMWindowsEnrollmentLoginStatusFuncInvoked)
-			require.Equal(t, tc.expected, recorded)
+			require.NotNil(t, recorded)
+			require.Equal(t, tc.expected, *recorded)
 			require.NotNil(t, device.LastLoginStatus, "the in-memory enrollment must reflect the new value")
 			require.Equal(t, tc.expected, *device.LastLoginStatus)
 		})
 	}
 
-	t.Run("unrecognized value is not persisted", func(t *testing.T) {
-		// Only a positive "user" releases the user-scoped profile gate, so a value Fleet does not understand must
-		// leave profiles held rather than silently released.
+	t.Run("unrecognized value clears the observation", func(t *testing.T) {
+		// Ignoring the value would leave a previously stored "user" in place and keep delivering user-scoped profiles
+		// on a stale observation. Clearing reads as "not known to be signed in", so profiles hold instead.
 		ds, svc := newSvc(t)
-		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status fleet.WindowsMDMLoginStatus) error {
+		var called bool
+		var recorded *fleet.WindowsMDMLoginStatus
+		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
+			called, recorded = true, status
 			return nil
 		}
 
-		device := &fleet.MDMWindowsEnrolledDevice{ID: 7, MDMDeviceID: "device-1"}
+		signedIn := fleet.WindowsMDMLoginStatusUser
+		device := &fleet.MDMWindowsEnrolledDevice{ID: 7, MDMDeviceID: "device-1", LastLoginStatus: &signedIn}
 		svc.processClientEventAlert(t.Context(), device, alertWithLoginStatus("superuser"))
 
-		require.False(t, ds.SetMDMWindowsEnrollmentLoginStatusFuncInvoked)
+		require.True(t, called, "the stale observation must be cleared, not left in place")
+		require.Nil(t, recorded)
 		require.Nil(t, device.LastLoginStatus)
 	})
 
 	t.Run("other 1224 alert types are ignored", func(t *testing.T) {
 		ds, svc := newSvc(t)
-		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status fleet.WindowsMDMLoginStatus) error {
+		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
 			return nil
 		}
 
@@ -934,7 +940,7 @@ func TestProcessClientEventAlertLoginStatus(t *testing.T) {
 
 	t.Run("a write failure does not fail the session", func(t *testing.T) {
 		ds, svc := newSvc(t)
-		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status fleet.WindowsMDMLoginStatus) error {
+		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
 			return errors.New("db is down")
 		}
 

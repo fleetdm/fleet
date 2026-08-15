@@ -1410,7 +1410,7 @@ type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDe
 
 type MDMWindowsEnqueuePollScheduleCommandFunc func(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool) error
 
-type SetMDMWindowsEnrollmentLoginStatusFunc func(ctx context.Context, enrollmentID uint, status fleet.WindowsMDMLoginStatus) error
+type SetMDMWindowsEnrollmentLoginStatusFunc func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error
 
 type GetMDMWindowsUserContextByHostUUIDFunc func(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error)
 
@@ -10659,7 +10659,7 @@ func (s *DataStore) MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, md
 	return s.MDMWindowsEnqueuePollScheduleCommandFunc(ctx, mdmDeviceID, enrollmentID, cmd, relaxed)
 }
 
-func (s *DataStore) SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status fleet.WindowsMDMLoginStatus) error {
+func (s *DataStore) SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
 	s.mu.Lock()
 	s.SetMDMWindowsEnrollmentLoginStatusFuncInvoked = true
 	s.mu.Unlock()

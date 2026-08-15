@@ -2360,8 +2360,9 @@ type Datastore interface {
 	MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *MDMWindowsCommand, relaxed bool) error
 
 	// SetMDMWindowsEnrollmentLoginStatus records the com.microsoft/MDM/LoginStatus value the device reported for this
-	// enrollment, which is what the user-scoped profile gate reads to decide whether the user channel is writable.
-	SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status WindowsMDMLoginStatus) error
+	// enrollment, which is what the user-scoped profile gate reads to decide whether the user channel is writable. A nil
+	// status clears the observation, which the gate treats as "not known to be signed in".
+	SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status *WindowsMDMLoginStatus) error
 
 	// GetMDMWindowsUserContextByHostUUID returns the enrollment facts the user-scoped profile gate needs, keyed by host
 	// UUID. Hosts with no Windows MDM enrollment are absent from the result.
