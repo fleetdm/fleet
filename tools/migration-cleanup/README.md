@@ -165,7 +165,7 @@ Found 11 migration renumber(s):
 ```
 
 The dry run for the broken local database reported the real duplicate row and
-the id rebuild the generated SQL would perform:
+the id rebuild that the generated SQL would perform:
 
 ```text
 migration_status_tables: duplicate version_id=20260522195224; would keep id=518, delete ids=[530]

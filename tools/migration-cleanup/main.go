@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -640,7 +642,7 @@ func buildSQL(tableName string, renames []migrationRename) []string {
 	// not advance, so future goose inserts cannot collide with shifted rows.
 	lines = append(lines,
 		fmt.Sprintf("SELECT MAX(id) INTO @rebase_%s FROM `%s`;", tableName, tableName),
-		fmt.Sprintf("CREATE TEMPORARY TABLE `_fix_order_%s` (id BIGINT UNSIGNED, rn BIGINT UNSIGNED);", tableName),
+		fmt.Sprintf("CREATE TEMPORARY TABLE `_fix_order_%s` (id BIGINT UNSIGNED PRIMARY KEY, rn BIGINT UNSIGNED);", tableName),
 		fmt.Sprintf("INSERT INTO `_fix_order_%s` (id, rn) SELECT id, ROW_NUMBER() OVER (ORDER BY version_id ASC, id ASC) FROM `%s`;", tableName, tableName),
 		fmt.Sprintf("UPDATE `%s` t JOIN `_fix_order_%s` o ON t.id = o.id SET t.id = @rebase_%s + o.rn;", tableName, tableName, tableName),
 		fmt.Sprintf("UPDATE `%s` t JOIN `_fix_order_%s` o ON t.id = @rebase_%s + o.rn SET t.id = o.rn;", tableName, tableName, tableName),
@@ -744,7 +746,8 @@ func simulateTableSQL(tableName string, rows []tableRow, renames []migrationRena
 		byVID[row.VersionID] = append(byVID[row.VersionID], row)
 	}
 	simulated = simulated[:0]
-	for vid, vidRows := range byVID {
+	for _, vid := range slices.Sorted(maps.Keys(byVID)) {
+		vidRows := byVID[vid]
 		sort.Slice(vidRows, func(i, j int) bool { return vidRows[i].ID < vidRows[j].ID })
 		keep := vidRows[0]
 		simulated = append(simulated, keep)
@@ -764,10 +767,14 @@ func simulateTableSQL(tableName string, rows []tableRow, renames []migrationRena
 		}
 		return simulated[i].ID < simulated[j].ID
 	})
+	renumbered := 0
 	for i := range simulated {
-		simulated[i].ID = int64(i + 1)
+		if simulated[i].ID != int64(i+1) {
+			renumbered++
+			simulated[i].ID = int64(i + 1)
+		}
 	}
-	messages = append(messages, fmt.Sprintf("  %s: would renumber %d row id(s) into version order, fixing %d ordering violation(s)", tableName, len(simulated), violations))
+	messages = append(messages, fmt.Sprintf("  %s: would renumber %d row id(s) into version order, fixing %d ordering violation(s)", tableName, renumbered, violations))
 	return simulated, messages, issues
 }
 
