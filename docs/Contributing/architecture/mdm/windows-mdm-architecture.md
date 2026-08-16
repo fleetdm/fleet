@@ -69,6 +69,16 @@ Immediately after a device boots or resumes, fleetd-initiated sessions can take 
 
 Fleet wakes devices through fleetd rather than through WNS (Windows Push Notification Service), the push channel Windows MDM traditionally uses for server-initiated sessions. WNS requires additional setup and credential management, is sometimes unreliable, and is a larger engineering lift, so the existing fleetd channel is used instead. WNS-based wake remains an option to add in the future.
 
+## User-scoped profile delivery
+
+A Windows profile whose `<LocURI>` targets resolve under `./User/` writes to the OMA-DM user channel. Windows rejects those writes until the enrollment has a user context, and during Windows Autopilot and Entra-join-during-OOBE that context does not exist for the first minute or so of the host's life. Fleet holds those profiles until the device reports a signed-in user, then delivers them.
+
+- **Signal**: Windows reports whether an MDM user is signed in through a device event alert (`1224`, type `com.microsoft/MDM/LoginStatus`) at the start of every management session. Fleet persists the reported value per enrollment, because the message carrying it is not otherwise stored.
+- **Hold**: enrollments that bind a user identity, which is the Entra ID and Autopilot path, hold their user-scoped profiles until the device reports a signed-in user. The host profile row stays pending with a detail naming what Fleet is waiting on, and no command is enqueued.
+- **No gate**: enrollments with no bound user identity, which is the fleetd path, are not gated. Fleet cannot tell from the enrollment whether the host's user channel is writable, so it delivers and lets any rejection surface through the normal failure path. In practice these hosts reject user-scoped writes, but Fleet does not predict that from the enrollment type.
+
+Fleet decides whether a profile is user scoped by reading the LocURIs in the command it sends. It uses the same parser that builds that command, so what Fleet classifies always matches what the host receives. Fleet treats a profile that mixes device-scoped and user-scoped targets as user scoped, and holds it as a unit.
+
 ## Related resources
 
 - [MDM Product Group Documentation](../../product-groups/mdm/) - Documentation for the MDM product group
