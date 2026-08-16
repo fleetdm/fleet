@@ -109,7 +109,7 @@ fi`)
 func TestShellDoubleQuoteEscape(t *testing.T) {
 	// Values without shell metacharacters (the common case) must pass through
 	// unchanged so the generated scripts stay byte-identical to before.
-	require.Equal(t, ``, shellDoubleQuoteEscape(""))
+	require.Empty(t, shellDoubleQuoteEscape(""))
 	require.Equal(t, `plain`, shellDoubleQuoteEscape("plain"))
 	require.Equal(t, `Foo-1.0.pkg`, shellDoubleQuoteEscape("Foo-1.0.pkg"))
 	require.Equal(t, `Adobe Photoshop (2024).app`, shellDoubleQuoteEscape("Adobe Photoshop (2024).app"))
