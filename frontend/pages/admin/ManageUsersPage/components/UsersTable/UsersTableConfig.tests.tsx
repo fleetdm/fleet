@@ -20,86 +20,39 @@ const createMockInvite = (overrides?: Partial<IInvite>): IInvite => ({
 });
 
 describe("UsersTableConfig - combineDataSets", () => {
-  it("returns 'Active' for a user who logged in recently", () => {
-    const users = [createMockUser({ last_login_at: daysAgo(1) })];
+  it("maps the server-computed 'active' status to 'Active'", () => {
+    const users = [createMockUser({ status: "active" })];
     const [row] = combineDataSets(users, [], 99);
     expect(row.status).toBe("Active");
   });
 
-  it("returns 'Inactive' for a user who hasn't logged in for 30+ days", () => {
-    const users = [createMockUser({ last_login_at: daysAgo(31) })];
+  it("maps the server-computed 'inactive' status to 'Inactive'", () => {
+    const users = [createMockUser({ status: "inactive" })];
     const [row] = combineDataSets(users, [], 99);
     expect(row.status).toBe("Inactive");
   });
 
-  it("falls back to created_at for users who have never logged in", () => {
-    const stale = createMockUser({
-      last_login_at: null,
-      created_at: daysAgo(31),
-    });
-    const fresh = createMockUser({
-      id: 2,
-      last_login_at: null,
-      created_at: daysAgo(1),
-    });
-    const [staleRow, freshRow] = combineDataSets([stale, fresh], [], 99);
-    expect(staleRow.status).toBe("Inactive");
-    expect(freshRow.status).toBe("Active");
-  });
-
-  it("returns 'Active' for an API-only user with recent API activity, even when its token was created long ago", () => {
-    const users = [
-      createMockUser({
-        api_only: true,
-        last_login_at: daysAgo(100),
-        last_activity_at: daysAgo(1),
-        created_at: daysAgo(100),
-      }),
-    ];
-    const [row] = combineDataSets(users, [], 99);
-    expect(row.status).toBe("Active");
-  });
-
-  it("returns 'Inactive' for an API-only user with no recent API activity", () => {
-    const users = [
-      createMockUser({
-        api_only: true,
-        last_login_at: daysAgo(100),
-        last_activity_at: daysAgo(45),
-        created_at: daysAgo(100),
-      }),
-    ];
-    const [row] = combineDataSets(users, [], 99);
-    expect(row.status).toBe("Inactive");
-  });
-
-  it("prefers the most recent of last activity and last login for regular users", () => {
-    // stale login but a session kept alive by recent activity
-    const users = [
-      createMockUser({
-        last_login_at: daysAgo(40),
-        last_activity_at: daysAgo(2),
-      }),
-    ];
-    const [row] = combineDataSets(users, [], 99);
-    expect(row.status).toBe("Active");
-  });
-
-  it("returns 'No access' for a user without a role, regardless of last login", () => {
-    const users = [
-      createMockUser({
-        global_role: null,
-        teams: [],
-        last_login_at: daysAgo(31),
-      }),
-    ];
+  it("maps the server-computed 'no_access' status to 'No access'", () => {
+    const users = [createMockUser({ status: "no_access" })];
     const [row] = combineDataSets(users, [], 99);
     expect(row.status).toBe("No access");
+  });
+
+  it("defaults to 'Active' when the server did not compute a status", () => {
+    const users = [createMockUser({ status: undefined })];
+    const [row] = combineDataSets(users, [], 99);
+    expect(row.status).toBe("Active");
   });
 
   it("returns 'Invite pending' for invites", () => {
     const invites = [createMockInvite()];
     const [row] = combineDataSets([], invites, 99);
     expect(row.status).toBe("Invite pending");
+  });
+
+  it("returns 'No access' for invites without a role", () => {
+    const invites = [createMockInvite({ global_role: null, teams: [] })];
+    const [row] = combineDataSets([], invites, 99);
+    expect(row.status).toBe("No access");
   });
 });

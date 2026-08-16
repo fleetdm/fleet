@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260729180520, Down_20260729180520)
+	MigrationClient.AddMigration(Up_20260816032039, Down_20260816032039)
 }
 
-func Up_20260729180520(tx *sql.Tx) error {
+func Up_20260816032039(tx *sql.Tx) error {
 	if _, err := tx.Exec(`ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP NULL DEFAULT NULL`); err != nil {
 		return errors.Wrap(err, "add last_login_at to users")
 	}
@@ -43,6 +43,6 @@ func Up_20260729180520(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260729180520(tx *sql.Tx) error {
+func Down_20260816032039(tx *sql.Tx) error {
 	return nil
 }

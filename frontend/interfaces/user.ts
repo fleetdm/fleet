@@ -44,6 +44,9 @@ export type UserRole =
   | ""
   | "Various";
 
+/** Activity status of a user account, computed server-side at read time. */
+export type UserStatus = "active" | "inactive" | "no_access";
+
 export interface IUser {
   created_at?: string;
   updated_at?: string;
@@ -64,6 +67,9 @@ export interface IUser {
    * This is the inactivity signal for API-only users. `null` if the user has
    * no live session. */
   last_activity_at: string | null;
+  /** Activity status computed by the server at read time. Only present on
+   * responses that compute it (list users, get user). */
+  status?: UserStatus;
   teams: ITeam[];
   fleets: ITeam[]; // This will eventually replace `teams`, but for now we need both to avoid breaking changes.
   api_endpoints?: IApiEndpointRef[];

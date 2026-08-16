@@ -7,7 +7,7 @@ import TooltipTruncatedTextCell from "components/TableContainer/DataTable/Toolti
 import TooltipWrapper from "components/TooltipWrapper";
 import Tag from "components/Tag";
 import { IInvite } from "interfaces/invite";
-import { IUser, UserRole } from "interfaces/user";
+import { IUser, UserRole, UserStatus } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   generateRole,
@@ -83,44 +83,28 @@ export interface IUserTableData {
   api_only: boolean;
 }
 
-/** Number of days without a login/activity after which a user is considered
- * inactive. */
-const INACTIVE_AFTER_DAYS = 30;
+// The inactivity window is enforced server-side (see UserInactiveAfter in
+// server/fleet/users.go); these tooltips just describe it.
+const USER_INACTIVE_TOOLTIP = "Hasn't logged in for 30+ days";
+const API_ONLY_INACTIVE_TOOLTIP = "No API activity for 30+ days";
 
-const USER_INACTIVE_TOOLTIP = `Hasn't logged in for ${INACTIVE_AFTER_DAYS}+ days`;
-const API_ONLY_INACTIVE_TOOLTIP = `No API activity for ${INACTIVE_AFTER_DAYS}+ days`;
-
-const isInactive = (user: IUser): boolean => {
-  // A user was last seen at the most recent of its last session activity
-  // (the signal for API-only users, whose long-lived token session is
-  // accessed on every request) and its last login. Fall back to created_at
-  // for users who have never logged in (including accounts that predate
-  // last login tracking). Server timestamps share the same ISO format, so
-  // they sort lexicographically.
-  const lastSeen =
-    [user.last_activity_at, user.last_login_at]
-      .filter((date): date is string => !!date)
-      .sort()
-      .pop() ?? user.created_at;
-  if (!lastSeen) {
-    return false;
-  }
-  const msSinceSeen = Date.now() - new Date(lastSeen).getTime();
-  return msSinceSeen >= INACTIVE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+const USER_STATUS_DISPLAY_TEXT: Record<UserStatus, string> = {
+  active: "Active",
+  inactive: "Inactive",
+  no_access: "No access",
 };
 
-const hasNoAccess = (data: IUser | IInvite): boolean =>
-  data.global_role === null && data.teams.length === 0;
+/** The user's status is computed server-side ("active" | "inactive" |
+ * "no_access") and only mapped to display text here. */
+const generateUserStatus = (user: IUser): string =>
+  USER_STATUS_DISPLAY_TEXT[user.status ?? "active"];
 
-const generateUserStatus = (user: IUser): string => {
-  if (hasNoAccess(user)) {
-    return "No access";
-  }
-  return isInactive(user) ? "Inactive" : "Active";
-};
-
+// Invites come from a separate endpoint and have no server-computed status,
+// so their status stays derived client-side.
 const generateInviteStatus = (invite: IInvite): string =>
-  hasNoAccess(invite) ? "No access" : "Invite pending";
+  invite.global_role === null && invite.teams.length === 0
+    ? "No access"
+    : "Invite pending";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
