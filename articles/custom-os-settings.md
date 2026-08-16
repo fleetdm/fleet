@@ -153,9 +153,17 @@ Here's an example DDM (`com.apple.configuration.*`) snippet:
 
 #### Windows
 
+Windows applies user-scoped settings to the user attached to the host's MDM enrollment. This means user-scoped profiles only work on hosts that enrolled through Microsoft Entra ID, including hosts set up with Windows Autopilot. Hosts that enroll by installing fleetd have no user attached to their enrollment, so Windows rejects user-scoped settings on them. Use device-scoped settings on those hosts.
+
+To learn about both ways to enroll Windows hosts, see [Windows MDM setup](https://fleetdm.com/guides/windows-mdm-setup).
+
 1. Head to the [Windows configuration profiles (CSPs) documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) to verify that all the settings in your Windows profile support the user scope. For example, the [SCEP setting](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescep) supports both the device and user scope.
 
 2. To make your Windows configuration profiles user scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
+
+Fleet waits for a user to sign in before it delivers user-scoped profiles. Until someone signs in, Windows has no user to apply the settings to. During setup, these profiles show **Pending**. Hover over the status to see "Waiting for a user to sign in." Fleet delivers them when the first user signs in, and you don't need to take any action. Device-scoped profiles deliver right away.
+
+If a profile includes both `./Device` and `./User` settings, Fleet delivers the whole profile at once, after a user signs in. To deliver the device-scoped settings sooner, put them in a separate profile.
 
 #### Upgrading from below 4.71.0
 
