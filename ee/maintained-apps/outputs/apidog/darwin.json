@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.8.42",
+      "version": "2.8.43",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apidog.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apidog.app' AND version_compare(bundle_short_version, '2.8.42') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apidog.app' AND version_compare(bundle_short_version, '2.8.43') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.apidog.app');"
       },
-      "installer_url": "https://file-assets.apidog.com/download/2.8.42/legacy-Apidog-macOS-arm64-2.8.42.dmg",
+      "installer_url": "https://file-assets.apidog.com/download/2.8.43/legacy-Apidog-macOS-arm64-2.8.43.dmg",
       "install_script_ref": "b5f530c0",
       "uninstall_script_ref": "b51190cf",
-      "sha256": "4b4efb3a7964ae08c1b5efde00ac87075852a79a07d09ec82b5a7d1b4ca2f3c4",
+      "sha256": "23cfdff973635c02f4fb71946da67d0f7ab1e181f7e6e70d7dbc28d648bbcf07",
       "default_categories": [
         "Productivity"
       ]
