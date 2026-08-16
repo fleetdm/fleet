@@ -184,6 +184,30 @@ func TestSoftwareInstallerPlatformFromExtension(t *testing.T) {
 	}
 }
 
+func TestAllowedSetupExperiencePlatformsForExtension(t *testing.T) {
+	testCases := []struct {
+		ext      string
+		expected []string
+	}{
+		{".py", []string{"darwin", "linux"}},
+		{"py", []string{"darwin", "linux"}},
+		{".sh", []string{"darwin", "linux"}},
+		{"sh", []string{"darwin", "linux"}},
+		{".ps1", nil},
+		{"ps1", nil},
+		{".exe", nil},
+		{"exe", nil},
+		{"", nil},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.ext, func(t *testing.T) {
+			result := AllowedSetupExperiencePlatformsForExtension(tc.ext)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
 func TestSofwareInstallerSourceFromExtensionAndName(t *testing.T) {
 	testCases := []struct {
 		ext      string

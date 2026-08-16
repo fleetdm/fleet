@@ -14,13 +14,13 @@
 			<key>PayloadUUID</key>
 			<string>7A3B69E3-9E7D-4797-88A7-1043AE70E7DC</string>
 			<key>idleTime</key>
-			<integer>1200</integer>
+			<integer>900</integer>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
 	<string>test</string>
 	<key>PayloadDisplayName</key>
-	<string>Ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled</string>
+	<string>Ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver Is Enabled</string>
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.cis-2.10.1</string>
 	<key>PayloadRemovalDisallowed</key>

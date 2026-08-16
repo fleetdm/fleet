@@ -25,7 +25,10 @@ $max-width: 2560px;
   }
 }
 
-// Used to normalize styling of team header wrapper on various pages
+// Apply to the outer header row that contains TeamsHeader + action buttons,
+// NOT to .fleet-dropdown-wrapper itself — the wrapper needs its own
+// `display: inline-block` so FleetsDropdown's absolutely-positioned menu
+// anchors under the button.
 @mixin normalize-team-header {
   display: flex;
   align-items: center;
@@ -147,6 +150,12 @@ $max-width: 2560px;
   }
 }
 
+@mixin form-label {
+  font-size: $x-small;
+  font-weight: $bold;
+  color: $core-fleet-black;
+}
+
 @mixin link {
   color: $ui-fleet-black-75;
   font-weight: $bold;
@@ -196,7 +205,7 @@ $max-width: 2560px;
 
 @mixin tooltip-text {
   width: max-content;
-  max-width: 360px;
+  max-width: 280px;
   padding: 6px;
   color: $static-white;
   background-color: $tooltip-bg;
@@ -268,6 +277,16 @@ $max-width: 2560px;
 
 @mixin vertical-data-set-layout {
   @include flex-column-16px-gap;
+}
+
+// Row above a list/table body carrying a left-aligned description or heading
+// and an optional right-aligned action button (e.g. "Add profile"). Used by
+// every ManageControlsPage tab-panel that renders a list under a tab.
+@mixin tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: $pad-medium;
 }
 
 @mixin button-dropdown {

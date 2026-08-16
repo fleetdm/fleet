@@ -31,13 +31,24 @@ MOUNT_POINT="$(hdiutil attach -nobrowse -readonly "$INSTALLER_PATH" | awk '/\/Vo
 for app in p4v.app p4merge.app p4admin.app; do
   if [[ -d "$MOUNT_POINT/$app" ]]; then
     rm -rf "$APPDIR/$app" >/dev/null 2>&1 || true
-    ditto "$MOUNT_POINT/$app" "$APPDIR/$app" >/dev/null 2>&1
+    if ! ditto "$MOUNT_POINT/$app" "$APPDIR/$app"; then
+      # remove the partial copy so a failed install isn't inventoried as installed
+      rm -rf "$APPDIR/$app" >/dev/null 2>&1 || true
+      hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+      echo "failed to install $app"
+      exit 1
+    fi
   fi
 done
 
 # Install p4vc command line binary to /usr/local/bin
 if [[ -f "$MOUNT_POINT/p4vc" ]]; then
-  cp "$MOUNT_POINT/p4vc" /usr/local/bin/p4vc
+  mkdir -p /usr/local/bin
+  if ! cp "$MOUNT_POINT/p4vc" /usr/local/bin/p4vc; then
+    hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+    echo "failed to install p4vc"
+    exit 1
+  fi
   chmod +x /usr/local/bin/p4vc
   chown root:wheel /usr/local/bin/p4vc
 fi

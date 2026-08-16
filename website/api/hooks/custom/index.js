@@ -139,6 +139,58 @@ will be disabled and/or hidden in the UI.
       // ... Any other app-specific setup code that needs to run on lift,
       // even in production, goes here ...
 
+      // Initialize an Android Management API request counter. Each android-proxy
+      // endpoint (api/controllers/android-proxy/*) increments this every time it makes a request to
+      // Google, and the repeating timer below logs the count and resets it once a minute so we can monitor the number of requests the proxy is making.
+      sails.androidProxyApiRequestCount = 0;
+      if (sails.config.custom.androidEnterpriseServiceAccountEmailAddress && sails.config.custom.androidEnterpriseServiceAccountPrivateKey) {
+        let logAndResetAndroidProxyApiRequestCount = ()=>{
+          let requestCountInLastMinute = sails.androidProxyApiRequestCount;
+          sails.androidProxyApiRequestCount = 0;// Reset for the next minute.
+          if (requestCountInLastMinute === 0) {
+            return;// Stay quiet on idle minutes so the metric lines are easy to grep.
+          }
+
+          // Send the number of requests to Datadog.
+          if (sails.config.environment === 'production' && sails.config.custom.datadogApiKey) {
+            let timestampInSeconds = Math.floor(Date.now() / 1000);
+            let thisDyno = process.env.DYNO;
+            sails.helpers.http.post.with({
+              url: 'https://api.us5.datadoghq.com/api/v2/series',
+              data: {
+                series: [{
+                  metric: 'android_proxy.amapi_request_count',
+                  type: 1,// count
+                  interval: 60,
+                  points: [{ timestamp: timestampInSeconds, value: requestCountInLastMinute }],
+                  tags: [`dyno:${thisDyno}`],
+                }],
+              },
+              headers: {
+                'DD-API-KEY': sails.config.custom.datadogApiKey,
+                'Content-Type': 'application/json',
+              },
+            }).exec((err)=>{
+              if (err) {
+                sails.log.warn(`Background task failed: failed to send AMAPI request-count metric to Datadog. Full error: ${require('util').inspect(err)}`);
+              }
+            });//_∏_
+          }//ﬁ
+
+          sails.log.info(`Android proxy: ${requestCountInLastMinute} Android Management API request(s) in the last minute.`);
+        };
+        // Align the first tick to the top of the next minute so every web dyno logs on the same
+        // wall-clock cadence (e.g. all dynos log at :00) rather than at a random offset determined by
+        // when each dyno happened to boot.
+        let millisecondsUntilNextMinute = 60000 - (Date.now() % 60000);
+        let androidProxyMetricsStartTimeout = setTimeout(()=>{
+          logAndResetAndroidProxyApiRequestCount();
+          let androidProxyMetricsInterval = setInterval(logAndResetAndroidProxyApiRequestCount, 60 * 1000);
+          androidProxyMetricsInterval.unref();// Don't let this timer keep the process alive.
+        }, millisecondsUntilNextMinute);
+        androidProxyMetricsStartTimeout.unref();
+      }//ﬁ
+
       // In non-production environments, make `builtStaticContent.testimonials` optional so pages that use the <scrollable-tweets> component still render before the build-static-content script has been run.
       // To prevent the component from being empty whitespace on pages where it is used, we'll inject a single placeholder testimonial directing the user to run the build-static-content script.
       if (sails.config.environment !== 'production') {
@@ -402,6 +454,7 @@ will be disabled and/or hidden in the UI.
                       eventType: 'Website page view',
                       websiteVisitReason: websiteVisitReason,
                       relatedCampaign: recordDetails.mostRecentCampaign,
+                      eventSource: 'Website - Sign up',
                     }).intercept((err)=>{
                       return new Error(`Could not create new Fleet website page view record. Error: ${err}`);
                     });

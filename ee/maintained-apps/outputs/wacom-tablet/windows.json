@@ -4,7 +4,8 @@
       "version": "6.4.13-4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Wacom Tablet %' AND publisher = 'Wacom Technology Corp.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Wacom Tablet %' AND publisher = 'Wacom Technology Corp.' AND version_compare(version, '6.4.13-4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Wacom Tablet %' AND publisher = 'Wacom Technology Corp.' AND version_compare(version, '6.4.13-4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('wacomdesktopcenter.exe','wacom_tablet.exe'));"
       },
       "installer_url": "https://cdn.wacom.com/u/productsupport/drivers/win/professional/WacomTablet_6.4.13-4.exe",
       "install_script_ref": "d1d4a55c",

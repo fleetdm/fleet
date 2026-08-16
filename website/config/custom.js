@@ -88,7 +88,6 @@ module.exports.custom = {
 
   // Other integrations:
   // anthropicSecret: undefined,
-  // openAiSecret: undefined,
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
   // salesforceIntegrationUsername: undefined,
   // salesforceIntegrationPasskey: undefined,
@@ -137,6 +136,7 @@ module.exports.custom = {
 
     // 🫧 Articles and release notes
     'articles': 'mike-j-thomas',
+    'articles/fleet-usage-statistics.md': 'rachaelshaw', //« Usage stats guide (more specific than the 'articles' catch-all above)
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)

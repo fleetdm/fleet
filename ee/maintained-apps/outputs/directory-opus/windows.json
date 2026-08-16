@@ -4,7 +4,8 @@
       "version": "13.24",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Directory Opus' AND publisher = 'GPSoftware';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Directory Opus' AND publisher = 'GPSoftware' AND version_compare(version, '13.24') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Directory Opus' AND publisher = 'GPSoftware' AND version_compare(version, '13.24') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'directory opus.exe');"
       },
       "installer_url": "https://cdn2.gpsoft.com.au/files/Opus13/DOpusInstall-13.24.exe",
       "install_script_ref": "37fe3170",

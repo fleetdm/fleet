@@ -4,7 +4,8 @@
       "version": "3.16.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Proxyman' AND publisher = 'Proxyman LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Proxyman' AND publisher = 'Proxyman LLC' AND version_compare(version, '3.16.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Proxyman' AND publisher = 'Proxyman LLC' AND version_compare(version, '3.16.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'proxyman.exe');"
       },
       "installer_url": "https://assets.proxyman.com/windows/3.16.1/build/Proxyman%20Setup%203.16.1.exe",
       "install_script_ref": "46c673e8",

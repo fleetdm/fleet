@@ -57,13 +57,14 @@ func TestFailedAutomationTicketActivities(t *testing.T) {
 }
 
 func TestRanAutomationTicketActivities(t *testing.T) {
-	// assertNoHostIDsOrPolicyName fails if the marshaled details leak the
-	// host ID list or a policy name (both are intentionally omitted; hosts
-	// live one-per-row in activity_host_past).
-	assertNoHostIDsOrPolicyName := func(t *testing.T, got map[string]any) {
+	// assertNoHostIDsAndNoPolicyName checks that the marshaled (stored)
+	// details omit the host_ids list — it is injected into webhook payloads
+	// only at fire time (see #50218), keeping API/feed responses lean — and
+	// still omit the policy name.
+	assertNoHostIDsAndNoPolicyName := func(t *testing.T, got map[string]any) {
 		t.Helper()
 		_, hasHostIDs := got["host_ids"]
-		assert.False(t, hasHostIDs)
+		assert.False(t, hasHostIDs, "host_ids must not be stored in details")
 		_, hasPolicyName := got["policy_name"]
 		assert.False(t, hasPolicyName)
 	}
@@ -90,7 +91,7 @@ func TestRanAutomationTicketActivities(t *testing.T) {
 		// ticket_id omitted for jira
 		_, hasTicketID := got["ticket_id"]
 		assert.False(t, hasTicketID)
-		assertNoHostIDsOrPolicyName(t, got)
+		assertNoHostIDsAndNoPolicyName(t, got)
 	})
 
 	t.Run("ticket (zendesk)", func(t *testing.T) {
@@ -115,7 +116,7 @@ func TestRanAutomationTicketActivities(t *testing.T) {
 		// ticket_key omitted for zendesk
 		_, hasTicketKey := got["ticket_key"]
 		assert.False(t, hasTicketKey)
-		assertNoHostIDsOrPolicyName(t, got)
+		assertNoHostIDsAndNoPolicyName(t, got)
 	})
 }
 
@@ -185,13 +186,10 @@ func TestFailedPolicyAutomationActivities(t *testing.T) {
 }
 
 func TestSuccessPolicyAutomationActivities(t *testing.T) {
-	// assertNoHostIDsOrPolicyName fails if the marshaled details leak the
-	// host ID list or a policy name (both are intentionally omitted; hosts
-	// live one-per-row in activity_host_past).
-	assertNoHostIDsOrPolicyName := func(t *testing.T, got map[string]any) {
+	assertNoHostIDsAndNoPolicyName := func(t *testing.T, got map[string]any) {
 		t.Helper()
 		_, hasHostIDs := got["host_ids"]
-		assert.False(t, hasHostIDs)
+		assert.False(t, hasHostIDs, "host_ids must not be stored in details")
 		_, hasPolicyName := got["policy_name"]
 		assert.False(t, hasPolicyName)
 	}
@@ -211,7 +209,7 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		var got map[string]any
 		require.NoError(t, json.Unmarshal(b, &got))
 		assert.EqualValues(t, 14, got["policy_id"])
-		assertNoHostIDsOrPolicyName(t, got)
+		assertNoHostIDsAndNoPolicyName(t, got)
 	})
 
 	t.Run("webhook sent", func(t *testing.T) {
@@ -231,7 +229,7 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		require.NoError(t, json.Unmarshal(b, &got))
 		assert.EqualValues(t, 7, got["policy_id"])
 		assert.EqualValues(t, 200, got["status_code"])
-		assertNoHostIDsOrPolicyName(t, got)
+		assertNoHostIDsAndNoPolicyName(t, got)
 	})
 
 	t.Run("webhook sent omits zero status code", func(t *testing.T) {
@@ -257,7 +255,7 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		var got map[string]any
 		require.NoError(t, json.Unmarshal(b, &got))
 		assert.EqualValues(t, 15, got["policy_id"])
-		assertNoHostIDsOrPolicyName(t, got)
+		assertNoHostIDsAndNoPolicyName(t, got)
 	})
 }
 
@@ -334,4 +332,45 @@ func TestVPPInstallFailureEmptyCommandUUIDDoesNotActivateNext(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMDMEnrolledActivityHostIDOmission(t *testing.T) {
+	t.Run("zero host ID is omitted from details and does not link the host", func(t *testing.T) {
+		// The Windows Azure automatic enrollment case: the host is not yet
+		// known when the activity is recorded, so host_id must be absent from
+		// the payload (backward compatible with pre-#47874 consumers) and the
+		// activity must not be linked to any host (no feed entry, no per-fleet
+		// webhook).
+		act := ActivityTypeMDMEnrolled{
+			HostDisplayName: "DESKTOP-0C89RC0",
+			MDMPlatform:     "microsoft",
+			Platform:        "windows",
+		}
+
+		assert.Nil(t, act.HostIDs())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		_, hasHostID := got["host_id"]
+		assert.False(t, hasHostID, "host_id must be omitted when zero")
+	})
+
+	t.Run("set host ID is serialized and links the host", func(t *testing.T) {
+		act := ActivityTypeMDMEnrolled{
+			HostID:          42,
+			HostDisplayName: "DESKTOP-0C89RC0",
+			MDMPlatform:     "microsoft",
+			Platform:        "windows",
+		}
+
+		assert.Equal(t, []uint{42}, act.HostIDs())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 42, got["host_id"])
+	})
 }

@@ -28,6 +28,7 @@ var (
 	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
+	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
@@ -38,7 +39,13 @@ var (
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
 	// Args: the two conflicting app names (order not significant).
-	CantAddConflictingFMAMessage                 = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
+	CantAddConflictingFMAMessage = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
+	// AddMaintainedAppTimeoutErrMsg is returned when Fleet's own 15-minute installer
+	// download timeout is exceeded (context.DeadlineExceeded).
+	AddMaintainedAppTimeoutErrMsg = "Couldn't add. Downloading the installer took longer than Fleet's 15-minute limit. This can happen with very large installers or a slow connection to the vendor's content delivery network (CDN). Try again, and make sure any proxy, gateway, or load balancer in front of Fleet allows the request to run at least that long."
+	// AddMaintainedAppCanceledErrMsg is returned when an upstream proxy, gateway, or
+	// load balancer cancels the request before the download finishes (context.Canceled).
+	AddMaintainedAppCanceledErrMsg               = "Couldn't add. The request was canceled before the installer finished downloading. This usually means a proxy, gateway, or load balancer in front of Fleet (for example, Envoy, or an AWS/GCP load balancer) closed the connection first. Increase its request and idle timeout above the time it takes to download large installers."
 	SoftwarePackageHashConflictMessage           = "%s package is already added (same SHA-256 hash)."
 	SoftwarePackageTitleMismatchMessage          = "Couldn't add. %s doesn't match the software title. To add it, go to Software and add it as new software."
 	SoftwareAlreadyHasVPPAppMessage              = "%s already has an Apple App Store (VPP) on the %s fleet."
@@ -50,6 +57,7 @@ var (
 	SoftwareLabelsPackageLevelOnlyMessage        = "Couldn't add software (%q). Labels can be specified only in the package-level file when adding multiple packages of the same software."
 	SoftwareLabelsConflictMessage                = "Couldn't add software (%q). Labels can be specified either in the fleet-level file or in the package YAML file."
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
+	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP

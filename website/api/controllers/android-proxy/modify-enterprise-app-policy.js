@@ -79,6 +79,7 @@ module.exports = {
       let { google } = require('googleapis');
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
 
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
       switch (googleAction) {
         case 'removePolicyApplications': {
           let response = await androidManagementConnection.enterprises.policies.removePolicyApplications({

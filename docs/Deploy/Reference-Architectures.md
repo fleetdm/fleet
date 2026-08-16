@@ -125,6 +125,8 @@ Environment="HTTPS_PROXY=http(s)://PROXY_URL:PORT/"
 Environment="NO_PROXY=localhost,127.0.0.1,::1"
 ```
 
+> Note: If HTTP_PROXY/HTTPS_PROXY points at a loopback or private address, Fleet's private network blocking may block it. See [server_allow_private_network_integrations](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-private-network-integrations).
+
 ## Public IPs of devices
 
 Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by Fleet's agent (fleetd).
@@ -562,7 +564,7 @@ Individual checks can be run by providing the `check` URL parameter (e.x., `/hea
 
 ### Metrics
 
-Fleet exposes server metrics in a format compatible with [Prometheus](https://prometheus.io/). A simple example Prometheus configuration is available in [tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml).
+Fleet exposes server metrics in a format compatible with [Prometheus](https://prometheus.io/).
 
 Prometheus can be configured to use a wide range of service discovery mechanisms within AWS, GCP, Azure, Kubernetes, and more. See the Prometheus [configuration documentation](https://prometheus.io/docs/prometheus/latest/configuration/configuration/) for more information.
 

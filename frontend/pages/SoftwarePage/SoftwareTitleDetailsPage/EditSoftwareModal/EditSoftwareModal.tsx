@@ -62,6 +62,7 @@ interface IEditSoftwareModalProps {
    * software" — we're editing one specific installer on a title that has
    * several, not the title's only package. */
   canActivateMultiplePackages?: boolean;
+  patchWhenClosed?: boolean;
 }
 
 const EditSoftwareModal = ({
@@ -79,6 +80,7 @@ const EditSoftwareModal = ({
   source,
   iconUrl = undefined,
   canActivateMultiplePackages = false,
+  patchWhenClosed = false,
 }: IEditSoftwareModalProps) => {
   const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
@@ -88,6 +90,17 @@ const EditSoftwareModal = ({
   // the repo.
   const isGitOpsCompatible =
     gitOpsModeEnabled && (isFleetMaintainedApp || canActivateMultiplePackages);
+
+  // Patch-when-closed makes the pre-install query Fleet-managed: the backend
+  // rejects any pre_install_query on save (even unchanged) while it's on, so the
+  // field must be read-only and omitted from the request. Derive it from the
+  // installer's own patch policy so a caller can't forget to pass it (which
+  // otherwise blocks unrelated edits like toggling self-service); an explicit
+  // prop can still force it on.
+  const effectivePatchWhenClosed =
+    patchWhenClosed ||
+    ("patch_policy" in softwareInstaller &&
+      !!softwareInstaller.patch_policy?.patch_when_closed);
 
   const formClassNames = classnames(`${baseClass}__package-form`, {
     [`${baseClass}__package-form--disabled`]: isGitOpsCompatible,
@@ -219,6 +232,7 @@ const EditSoftwareModal = ({
           // progress bar at 97% until the server response is received
           setUploadProgress(Math.max(progress - 0.03, 0.01));
         },
+        omitPreInstallQuery: effectivePatchWhenClosed,
       });
 
       notify.success(
@@ -367,6 +381,7 @@ const EditSoftwareModal = ({
           defaultCategories={softwarePackage.categories}
           gitopsCompatible={isGitOpsCompatible}
           teamId={teamId}
+          patchWhenClosed={effectivePatchWhenClosed}
         />
       );
     }

@@ -746,7 +746,89 @@ func TestValidateIdentifier(t *testing.T) {
 		ds.ResendHostCertificateProfileFuncInvoked = false
 	})
 
-	t.Run("Custom SCEP Windows profile skips challenge check", func(t *testing.T) {
+	// Windows custom SCEP profiles carry the same one-time Fleet challenge as Apple ones, so PKIOperation must consume and validate it
+	// rather than forwarding to the CA on the strength of the identifier alone.
+	t.Run("Custom SCEP Windows profile enforces challenge check", func(t *testing.T) {
+		newDS := func() *mock.DataStore {
+			ds := new(mock.DataStore)
+			ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+				return &fleet.GroupedCertificateAuthorities{
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{
+						{Name: "my-custom-ca", URL: "https://custom-scep.example.com/scep"},
+					},
+				}, nil
+			}
+			verifyingStatus := fleet.MDMDeliveryVerifying
+			ds.GetWindowsHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+				return &fleet.HostMDMCertificateProfile{
+					HostUUID:    hostUUID,
+					ProfileUUID: profileUUID,
+					Status:      &verifyingStatus,
+					Type:        fleet.CAConfigCustomSCEPProxy,
+					CAName:      "my-custom-ca",
+				}, nil
+			}
+			return ds
+		}
+
+		t.Run("valid challenge is accepted and consumed", func(t *testing.T) {
+			ds := newDS()
+			ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+				assert.Equal(t, "valid-challenge", challenge)
+				return nil
+			}
+			svc := newTestService(ds)
+
+			identifier := makeIdentifier("host-uuid", "w-profile-uuid", "my-custom-ca", "valid-challenge")
+			scepURL, err := svc.validateIdentifier(ctx, identifier, true)
+			require.NoError(t, err)
+			assert.Equal(t, "https://custom-scep.example.com/scep", scepURL)
+			assert.True(t, ds.ConsumeChallengeFuncInvoked)
+		})
+
+		for _, tc := range []struct {
+			name       string
+			identifier string
+		}{
+			{name: "missing challenge", identifier: makeIdentifier("host-uuid", "w-profile-uuid", "my-custom-ca", "")},
+			{name: "arbitrary challenge", identifier: makeIdentifier("host-uuid", "w-profile-uuid", "my-custom-ca", "wrong123")},
+		} {
+			t.Run(tc.name+" is rejected", func(t *testing.T) {
+				ds := newDS()
+				ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+					return sql.ErrNoRows // challenge not found
+				}
+				// Windows profiles must be resent through the platform-aware path, not the Apple-only one.
+				ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+					assert.Equal(t, "host-uuid", hostUUID)
+					assert.Equal(t, "w-profile-uuid", profileUUID)
+					return nil
+				}
+				svc := newTestService(ds)
+
+				_, err := svc.validateIdentifier(ctx, tc.identifier, true)
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "custom scep challenge failed")
+				assert.True(t, ds.ResendHostMDMProfileFuncInvoked)
+				assert.False(t, ds.ResendHostCertificateProfileFuncInvoked, "Windows profiles must not use the Apple-only resend")
+			})
+		}
+
+		// GetCACaps/GetCACert legitimately precede the challenge, so they must keep working.
+		t.Run("non-PKIOperation requests do not require a challenge", func(t *testing.T) {
+			ds := newDS()
+			svc := newTestService(ds)
+
+			identifier := makeIdentifier("host-uuid", "w-profile-uuid", "my-custom-ca", "")
+			scepURL, err := svc.validateIdentifier(ctx, identifier, false)
+			require.NoError(t, err)
+			assert.Equal(t, "https://custom-scep.example.com/scep", scepURL)
+			assert.False(t, ds.ConsumeChallengeFuncInvoked)
+		})
+	})
+
+	// A profile in "remove" no longer resolves in the datastore, so the proxy rejects the identifier without contacting the CA.
+	t.Run("Custom SCEP Windows removed profile is rejected", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
@@ -755,27 +837,16 @@ func TestValidateIdentifier(t *testing.T) {
 				},
 			}, nil
 		}
-		verifiedStatus := fleet.MDMDeliveryVerified
 		ds.GetWindowsHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
-			return &fleet.HostMDMCertificateProfile{
-				HostUUID:    hostUUID,
-				ProfileUUID: profileUUID,
-				Status:      &verifiedStatus,
-				Type:        fleet.CAConfigCustomSCEPProxy,
-				CAName:      "my-custom-ca",
-			}, nil
-		}
-		// ConsumeChallenge should NOT be called for Windows profiles
-		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
-			return nil
+			return nil, nil
 		}
 		svc := newTestService(ds)
 
-		identifier := makeIdentifier("host-uuid", "w-profile-uuid", "my-custom-ca", "test-challenge")
-		scepURL, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge=true but should be skipped
-		require.NoError(t, err)
-		assert.Equal(t, "https://custom-scep.example.com/scep", scepURL)
-		assert.False(t, ds.ConsumeChallengeFuncInvoked, "ConsumeChallenge should not be called for Windows profiles")
+		identifier := makeIdentifier("host-uuid", "w-profile-uuid", "my-custom-ca", "")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown identifier in URL path")
+		assert.NotContains(t, err.Error(), "custom-scep.example.com", "rejection must not leak the upstream CA URL")
 	})
 
 	t.Run("datastore error getting CAs", func(t *testing.T) {
@@ -1261,11 +1332,11 @@ func TestNDESChallengeErrorToDetail(t *testing.T) {
 		wantNotContains []string
 	}{
 		{
-			name:         "invalid credentials points to Certificate enrollment",
+			name:         "invalid credentials points to Certificate authorities",
 			err:          NewNDESInvalidError("invalid admin URL or credentials"),
-			wantContains: []string{"Invalid NDES admin credentials", varName, "Settings > Integrations > Certificate enrollment."},
-			// Regression guard: must not point to the renamed/removed UI location (#46380).
-			wantNotContains: []string{"Mobile Device Management", "Simple Certificate Enrollment Protocol", "Certificate authorities"},
+			wantContains: []string{"Invalid NDES admin credentials", varName, "Settings > Integrations > Certificate authorities."},
+			// Regression guard: must not point to the renamed/removed UI location.
+			wantNotContains: []string{"Mobile Device Management", "Simple Certificate Enrollment Protocol", "Certificate enrollment"},
 		},
 		{
 			name:         "password cache full",

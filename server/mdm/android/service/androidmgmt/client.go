@@ -46,6 +46,13 @@ type Client interface {
 	// https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand
 	EnterprisesDevicesIssueCommand(ctx context.Context, deviceName string, command *androidmanagement.Command) (*androidmanagement.Operation, error)
 
+	// EnterprisesDevicesOperationsGet fetches the current state of an Operation returned by
+	// EnterprisesDevicesIssueCommand. It is the authoritative source for a command's outcome and lets
+	// Fleet reconcile commands whose Pub/Sub COMMAND notification never arrived. operationName is the
+	// full AMAPI resource name (enterprises/X/devices/Y/operations/Z). See:
+	// https://developers.google.com/android/management/reference/rest/v1/enterprises.devices.operations/get
+	EnterprisesDevicesOperationsGet(ctx context.Context, operationName string) (*androidmanagement.Operation, error)
+
 	// EnterprisesDevicesListPartial lists devices for the given enterprise with partial fields.
 	// Page size of 100 devices
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/list
@@ -116,9 +123,36 @@ func IsNotModifiedError(err error) bool {
 // IsBadRequestError reports whether the AMAPI error indicates that the
 // request was invalid due to a client error.
 func IsBadRequestError(err error) bool {
-	var ae *googleapi.Error
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
 		return ae.Code == http.StatusBadRequest
+	}
+	return false
+}
+
+// IsNotFoundError reports whether the AMAPI error indicates that the requested
+// resource does not exist.
+func IsNotFoundError(err error) bool {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		return ae.Code == http.StatusNotFound
+	}
+	return false
+}
+
+// IsAuthenticationError reports whether the AMAPI error indicates that the
+// request was rejected over credentials or access, rather than anything about
+// the resource that was requested.
+func IsAuthenticationError(err error) bool {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		return ae.Code == http.StatusUnauthorized || ae.Code == http.StatusForbidden
+	}
+	return false
+}
+
+// IsTooManyRequestsError reports whether the AMAPI error indicates that we
+// exceeded the project's request quota.
+func IsTooManyRequestsError(err error) bool {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		return ae.Code == http.StatusTooManyRequests
 	}
 	return false
 }

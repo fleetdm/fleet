@@ -4,7 +4,8 @@
       "version": "7.3.7.1155",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Earth Pro' AND publisher = 'Google';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Earth Pro' AND publisher = 'Google' AND version_compare(version, '7.3.7.1155') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Earth Pro' AND publisher = 'Google' AND version_compare(version, '7.3.7.1155') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'google earth pro.exe');"
       },
       "installer_url": "https://dl.google.com/release2/Earth/duhweelqjwtdslrbgzm7ehfkc4_7.3.7.1155/googleearth-win-pro-7.3.7.1155-x64.exe",
       "install_script_ref": "8916df19",
