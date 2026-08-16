@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -37,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/softwaredb"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/apnsmock"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -363,7 +365,6 @@ func (n *nodeKeyManager) Add(nodekey string) {
 
 type mdmAgent struct {
 	agentIndex                 int
-	MDMCheckInInterval         time.Duration
 	model                      string
 	serverAddress              string
 	softwareCount              softwareEntityCount
@@ -374,6 +375,7 @@ type mdmAgent struct {
 	osVersion                  string
 	supplementalOSVersionExtra string
 	isPersonalEnrollment       bool
+	apnsPushURL                string
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -483,6 +485,8 @@ type agent struct {
 
 	mdmUserProb float64
 
+	mdmAPNSPushURL string
+
 	// winMDMWake signals the Windows MDM loop to start an OMA-DM session on demand (in response to the server's
 	// WindowsMDMSyncRequest notification), mirroring real fleetd waking the device. Buffered with capacity 1, sent
 	// non-blocking, so coalesced wakes never block the orbit config loop. Non-nil only for Windows MDM agents.
@@ -525,7 +529,10 @@ type agent struct {
 
 	// notNowProfiles tracks the profile identifiers (per channel) this agent has
 	// already responded NotNow to, so the redelivered command is acknowledged.
-	notNowProfiles map[string]bool
+	// The device and user check-in loops run concurrently and both record into
+	// it, hence the mutex.
+	notNowProfilesMu sync.Mutex
+	notNowProfiles   map[string]bool
 
 	// installedProfiles tracks the configuration profiles this agent has
 	// acknowledged installing, keyed by channel ("device" or "user") + "/" +
@@ -715,6 +722,7 @@ func newAgent(
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
 	psso pssoParams,
+	mdmAPNSPushURL string,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -805,10 +813,11 @@ func newAgent(
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
 		linuxUniqueSoftwareTitle:   linuxUniqueSoftwareTitle,
 
-		macMDMClient:  macMDMClient,
-		winMDMClient:  winMDMClient,
-		mdmUserProb:   mdmUserProb,
-		ddmDeclTokens: make(map[string]string),
+		macMDMClient:   macMDMClient,
+		winMDMClient:   winMDMClient,
+		mdmUserProb:    mdmUserProb,
+		mdmAPNSPushURL: mdmAPNSPushURL,
+		ddmDeclTokens:  make(map[string]string),
 
 		disableScriptExec:        disableScriptExec,
 		disableFleetDesktop:      disableFleetDesktop,
@@ -1435,8 +1444,8 @@ func (a *agent) seedEnrollmentProfile() {
 // carries a profile whose decoded content contains the marker string "NotNow"
 // and this agent has not yet responded NotNow to that profile identifier on
 // the given channel. When it returns true it records the identifier, so the
-// redelivered command is acknowledged. Only called from the MDM loop
-// goroutine, so notNowProfiles needs no locking.
+// redelivered command is acknowledged. The device and user check-in loops call
+// it concurrently, so notNowProfiles is mutex-guarded.
 func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
 	profile := installProfilePayload(cmd)
 	if profile == nil || !bytes.Contains(profile, []byte("NotNow")) {
@@ -1449,6 +1458,10 @@ func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
 		return false
 	}
 	key := channel + "/" + parsed.PayloadIdentifier
+
+	a.notNowProfilesMu.Lock()
+	defer a.notNowProfilesMu.Unlock()
+
 	if a.notNowProfiles[key] {
 		return false
 	}
@@ -1460,9 +1473,17 @@ func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
 }
 
 func (a *agent) runMacosMDMLoop() {
-	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
+	// The user channel needs its own goroutine: the device loop below blocks on
+	// its APNS subscription forever, so anything sequenced after it never runs.
+	if a.mdmUserEnrolled() {
+		go a.runMacosMDMUserLoop()
+	}
 
-	for range mdmCheckInTicker {
+	hexToken := hex.EncodeToString([]byte(a.macMDMClient.GetToken()))
+	deviceAPNSClient := apnsmock.NewClient(a.mdmAPNSPushURL, hexToken, apnsmock.WithInitialJitter(time.Minute), apnsmock.WithLogf(log.Printf))
+	deviceAPNSClient.Start(context.Background())
+
+	for range deviceAPNSClient.Pings() {
 		mdmCommandPayload, err := a.macMDMClient.Idle()
 		if err != nil {
 			log.Printf("MDM Idle request failed: %s", err)
@@ -1672,119 +1693,128 @@ func (a *agent) runMacosMDMLoop() {
 				}
 			}
 		}
+	}
+}
 
-		// MDM User checkin
-		if a.mdmUserEnrolled() {
-			mdmCommandPayload, err = a.macMDMClient.UserIdle()
-			if err != nil {
-				log.Printf("MDM Idle request failed: %s", err)
-				a.stats.IncrementMDMUserErrors()
-				continue
-			}
-			a.stats.IncrementMDMUserSessions()
+// runMacosMDMUserLoop runs the user-channel check-in loop. It is a separate
+// goroutine from the device loop because a real device is woken independently
+// on each channel, and because the device loop never returns (its APNS
+// subscription is only closed when the process exits).
+func (a *agent) runMacosMDMUserLoop() {
+	hexToken := hex.EncodeToString([]byte(a.macMDMClient.GetUserToken()))
+	userAPNSClient := apnsmock.NewClient(a.mdmAPNSPushURL, hexToken, apnsmock.WithInitialJitter(time.Minute), apnsmock.WithLogf(log.Printf))
+	userAPNSClient.Start(context.Background())
 
-		INNER_FOR_LOOP_USER:
-			for mdmCommandPayload != nil {
-				a.stats.IncrementMDMUserCommandsReceived()
+	for range userAPNSClient.Pings() {
+		mdmCommandPayload, err := a.macMDMClient.UserIdle()
+		if err != nil {
+			log.Printf("MDM Idle request failed: %s", err)
+			a.stats.IncrementMDMUserErrors()
+			continue
+		}
+		a.stats.IncrementMDMUserSessions()
 
-				switch mdmCommandPayload.Command.RequestType {
-				case "InstallProfile":
-					if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
-						errChain := []mdm.ErrorChain{
-							{
-								ErrorCode:            89,
-								ErrorDomain:          "ErrorDomain",
-								LocalizedDescription: "The profile did not install",
-							},
-						}
-						mdmCommandPayload, err = a.macMDMClient.UserChannelErr(mdmCommandPayload.CommandUUID, errChain)
-						if err != nil {
-							log.Printf("MDM Error request failed: %s", err)
-							a.stats.IncrementMDMUserErrors()
-							break INNER_FOR_LOOP_USER
-						}
-					} else {
-						if a.profileNotNowRequested(mdmCommandPayload, "user") {
-							mdmCommandPayload, err = a.macMDMClient.UserNotNow(mdmCommandPayload.CommandUUID)
-							if err != nil {
-								log.Printf("MDM NotNow request failed: %s", err)
-								a.stats.IncrementMDMUserErrors()
-								break INNER_FOR_LOOP_USER
-							}
-							continue
-						}
+	INNER_FOR_LOOP_USER:
+		for mdmCommandPayload != nil {
+			a.stats.IncrementMDMUserCommandsReceived()
 
-						a.recordInstalledProfile("user", mdmCommandPayload)
-
-						mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
-						if err != nil {
-							log.Printf("MDM Acknowledge request failed: %s", err)
-							a.stats.IncrementMDMUserErrors()
-							break INNER_FOR_LOOP_USER
-						}
+			switch mdmCommandPayload.Command.RequestType {
+			case "InstallProfile":
+				if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+					errChain := []mdm.ErrorChain{
+						{
+							ErrorCode:            89,
+							ErrorDomain:          "ErrorDomain",
+							LocalizedDescription: "The profile did not install",
+						},
 					}
-
-				case "RemoveProfile":
-					identifier := removeProfileIdentifier(mdmCommandPayload)
-					if identifier != "" && a.removeInstalledProfile("user", identifier) {
-						mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
-					} else {
-						mdmCommandPayload, err = a.macMDMClient.UserChannelErr(mdmCommandPayload.CommandUUID, profileNotFoundErrChain(identifier))
-					}
+					mdmCommandPayload, err = a.macMDMClient.UserChannelErr(mdmCommandPayload.CommandUUID, errChain)
 					if err != nil {
-						log.Printf("MDM RemoveProfile response failed: %s", err)
+						log.Printf("MDM Error request failed: %s", err)
 						a.stats.IncrementMDMUserErrors()
 						break INNER_FOR_LOOP_USER
 					}
-
-				case "DeclarativeManagement":
-					// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
-					nextMdmCommandPayload, err := a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
-					if err != nil {
-						log.Printf("MDM Acknowledge request failed: %s", err)
-						a.stats.IncrementMDMUserErrors()
-						break INNER_FOR_LOOP_USER
+				} else {
+					if a.profileNotNowRequested(mdmCommandPayload, "user") {
+						mdmCommandPayload, err = a.macMDMClient.UserNotNow(mdmCommandPayload.CommandUUID)
+						if err != nil {
+							log.Printf("MDM NotNow request failed: %s", err)
+							a.stats.IncrementMDMUserErrors()
+							break INNER_FOR_LOOP_USER
+						}
+						continue
 					}
-					// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
-					// (iff a real device does process DDM in parallel with traditional MDM commands).
-					a.doDeclarativeManagement(mdmCommandPayload, ddmMethods{
-						getGlobalToken: func() string {
-							return a.ddmUserGlobalToken
-						},
-						setGlobalToken: func(token string) {
-							a.ddmUserGlobalToken = token
-						},
-						getDeclTokens: func() map[string]string {
-							return a.ddmUserDeclTokens
-						},
-						setDeclTokens: func(tokens map[string]string) {
-							a.ddmUserDeclTokens = tokens
-						},
-						DeclarativeManagement:            a.macMDMClient.UserDeclarativeManagement,
-						IncrementTokensErrors:            a.stats.IncrementUserDDMTokensErrors,
-						IncrementTokensSuccess:           a.stats.IncrementUserDDMTokensSuccess,
-						IncrementDeclarationItemsErrors:  a.stats.IncrementUserDDMDeclarationItemsErrors,
-						IncrementDeclarationItemsSuccess: a.stats.IncrementUserDDMDeclarationItemsSuccess,
-						IncrementConfigurationErrors:     a.stats.IncrementUserDDMConfigurationErrors,
-						IncrementConfigurationSuccess:    a.stats.IncrementUserDDMConfigurationSuccess,
-						IncrementManagementErrors:        a.stats.IncrementDDMManagementErrors,
-						IncrementManagementSuccess:       a.stats.IncrementDDMManagementSuccess,
-						IncrementActivationErrors:        a.stats.IncrementUserDDMActivationErrors,
-						IncrementActivationSuccess:       a.stats.IncrementUserDDMActivationSuccess,
-						IncrementStatusErrors:            a.stats.IncrementUserDDMStatusErrors,
-						IncrementStatusSuccess:           a.stats.IncrementUserDDMStatusSuccess,
-						IncrementAssetErrors:             a.stats.IncrementUserDDMAssetErrors,
-						IncrementAssetSuccess:            a.stats.IncrementUserDDMAssetSuccess,
-					})
-					mdmCommandPayload = nextMdmCommandPayload
 
-				default:
+					a.recordInstalledProfile("user", mdmCommandPayload)
+
 					mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
 					if err != nil {
 						log.Printf("MDM Acknowledge request failed: %s", err)
 						a.stats.IncrementMDMUserErrors()
 						break INNER_FOR_LOOP_USER
 					}
+				}
+
+			case "RemoveProfile":
+				identifier := removeProfileIdentifier(mdmCommandPayload)
+				if identifier != "" && a.removeInstalledProfile("user", identifier) {
+					mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+				} else {
+					mdmCommandPayload, err = a.macMDMClient.UserChannelErr(mdmCommandPayload.CommandUUID, profileNotFoundErrChain(identifier))
+				}
+				if err != nil {
+					log.Printf("MDM RemoveProfile response failed: %s", err)
+					a.stats.IncrementMDMUserErrors()
+					break INNER_FOR_LOOP_USER
+				}
+
+			case "DeclarativeManagement":
+				// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
+				nextMdmCommandPayload, err := a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMUserErrors()
+					break INNER_FOR_LOOP_USER
+				}
+				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
+				// (iff a real device does process DDM in parallel with traditional MDM commands).
+				a.doDeclarativeManagement(mdmCommandPayload, ddmMethods{
+					getGlobalToken: func() string {
+						return a.ddmUserGlobalToken
+					},
+					setGlobalToken: func(token string) {
+						a.ddmUserGlobalToken = token
+					},
+					getDeclTokens: func() map[string]string {
+						return a.ddmUserDeclTokens
+					},
+					setDeclTokens: func(tokens map[string]string) {
+						a.ddmUserDeclTokens = tokens
+					},
+					DeclarativeManagement:            a.macMDMClient.UserDeclarativeManagement,
+					IncrementTokensErrors:            a.stats.IncrementUserDDMTokensErrors,
+					IncrementTokensSuccess:           a.stats.IncrementUserDDMTokensSuccess,
+					IncrementDeclarationItemsErrors:  a.stats.IncrementUserDDMDeclarationItemsErrors,
+					IncrementDeclarationItemsSuccess: a.stats.IncrementUserDDMDeclarationItemsSuccess,
+					IncrementConfigurationErrors:     a.stats.IncrementUserDDMConfigurationErrors,
+					IncrementConfigurationSuccess:    a.stats.IncrementUserDDMConfigurationSuccess,
+					IncrementManagementErrors:        a.stats.IncrementDDMManagementErrors,
+					IncrementManagementSuccess:       a.stats.IncrementDDMManagementSuccess,
+					IncrementActivationErrors:        a.stats.IncrementUserDDMActivationErrors,
+					IncrementActivationSuccess:       a.stats.IncrementUserDDMActivationSuccess,
+					IncrementStatusErrors:            a.stats.IncrementUserDDMStatusErrors,
+					IncrementStatusSuccess:           a.stats.IncrementUserDDMStatusSuccess,
+					IncrementAssetErrors:             a.stats.IncrementUserDDMAssetErrors,
+					IncrementAssetSuccess:            a.stats.IncrementUserDDMAssetSuccess,
+				})
+				mdmCommandPayload = nextMdmCommandPayload
+
+			default:
+				mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMUserErrors()
+					break INNER_FOR_LOOP_USER
 				}
 			}
 		}
@@ -4050,9 +4080,11 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 	// goroutine touches it, so it needs no locking.
 	installedProfiles := map[string]struct{}{apple_mdm.FleetPayloadIdentifier: {}}
 
-	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
+	hexToken := hex.EncodeToString([]byte(mdmClient.GetToken()))
+	deviceAPNSClient := apnsmock.NewClient(a.apnsPushURL, hexToken, apnsmock.WithInitialJitter(time.Minute), apnsmock.WithLogf(log.Printf))
+	deviceAPNSClient.Start(context.Background())
 
-	for range mdmCheckInTicker {
+	for range deviceAPNSClient.Pings() {
 		mdmCommandPayload, err := mdmClient.Idle()
 		if err != nil {
 			log.Printf("MDM Idle request failed: %s: %s", a.model, err)
@@ -4187,13 +4219,9 @@ func main() {
 		configInterval  = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
-		logInterval   = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
-		queryInterval = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
-		// NOTE: at least for macOS (not sure for Windows), this is a significant difference vs a real
-		// device, as APNS push notifications will be used to wake-up the device for check-ins instead of
-		// the device having to check-in at a regular interval. I believe macOS will check-in from time to time
-		// without push notifications, but definitely not every minute.
-		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
+		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
+		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
+		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies only to Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
@@ -4270,6 +4298,7 @@ func main() {
 
 		mdmProb               = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
 		mdmUserProb           = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
+		mdmAPNSURL            = flag.String("mdm_apns_url", "", "APNS URL to check for MDM push notifications (e.g., http://localhost:8378) - required for Apple (macOS/iOS/iPadOS) MDM enrollments.")
 		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
 		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
 		mdmIOSBYODProb        = flag.Float64("mdm_ios_byod_prob", 0.0, "Probability of a simulated iOS/iPadOS device (os_templates iphone_14.6/ipad_13.18/iphone_17) reporting as a personal (BYOD) enrollment, which omits the newer device vitals fields from its DeviceInformation ack [0, 1]")
@@ -4365,6 +4394,13 @@ func main() {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
 	}
 
+	// only fail if mdm is turned on for macOS devices and the mdm_apns_url is not specified.
+	if *mdmProb > 0 &&
+		strings.Contains(*osTemplates, "macos") &&
+		*mdmAPNSURL == "" {
+		log.Fatalf("Argument mdm_apns_url must be specified when mdm_prob is greater than 0")
+	}
+
 	tmplsm := make(map[*template.Template]int)
 	requestedTemplates := strings.Split(*osTemplates, ",")
 	tmplsTotalHostCount := 0
@@ -4435,6 +4471,9 @@ func main() {
 		}
 
 		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" || tmpl.Name() == "iphone_17.tmpl" {
+			if *mdmAPNSURL == "" {
+				log.Fatalf("Argument mdm_apns_url must be specified when iOS/iPadOS templates are used.")
+			}
 			model := "iPhone 14,6"
 			var osVersion, supplementalOSVersionExtra string
 			// iphone_17 simulates a device with a Rapid Security Response (RSR) installed,
@@ -4449,7 +4488,6 @@ func main() {
 			}
 			mobileDevice := mdmAgent{
 				agentIndex:                 i + 1,
-				MDMCheckInInterval:         *mdmCheckInInterval,
 				model:                      model,
 				serverAddress:              *serverURL,
 				osVersion:                  osVersion,
@@ -4470,6 +4508,7 @@ func main() {
 				strings:               make(map[string]string),
 				softwareVersionMap:    make(map[rune]int),
 				mdmProfileFailureProb: *mdmProfileFailureProb,
+				apnsPushURL:           *mdmAPNSURL,
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
 			time.Sleep(sleepTime)
@@ -4586,6 +4625,7 @@ func main() {
 				loginProb: *mdmPSSOLoginProb,
 				keyProb:   *mdmPSSOKeyProb,
 			},
+			*mdmAPNSURL,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
