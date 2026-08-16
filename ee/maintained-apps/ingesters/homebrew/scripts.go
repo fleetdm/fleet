@@ -44,7 +44,10 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 				if appItem.String == "" {
 					continue
 				}
-				appPath := appItem.String
+				// appPath is cask-controlled and interpolated inside double-quoted
+				// strings alongside "$APPDIR"/"$TMPDIR"; escape it so a payload like
+				// $(...) can't reach the root-privileged mv/cp/rm below.
+				appPath := shellDoubleQuoteEscape(appItem.String)
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
 	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp" || exit $?
 fi`, appPath)
@@ -120,9 +123,11 @@ func uninstallScriptForApp(cask *brewCask) string {
 					}
 				}
 			}
-			// Remove all collected app paths
+			// Remove all collected app paths. appPath is cask-controlled and lands
+			// inside a double-quoted `sudo rm -rf` argument, so escape it to stop
+			// $(...)/backtick command substitution.
 			for _, appPath := range appPathsToRemove {
-				sb.RemoveFile(fmt.Sprintf(`"$APPDIR/%s"`, appPath))
+				sb.RemoveFile(fmt.Sprintf(`"$APPDIR/%s"`, shellDoubleQuoteEscape(appPath)))
 			}
 		case len(artifact.Binary) > 0:
 			if len(artifact.Binary) == 2 {
@@ -212,6 +217,31 @@ func sortUninstall(artifacts []*brewUninstall) {
 // prematurely close the quote and produce a syntax error.
 func shellSingleQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// dqEscaper backslash-escapes the only four characters that keep a special
+// meaning inside a double-quoted shell string: backslash, dollar, backtick, and
+// double quote. Backslash is listed first so an escape we introduce isn't
+// re-escaped (strings.Replacer scans left to right in a single pass and never
+// reconsiders inserted text).
+var dqEscaper = strings.NewReplacer(
+	`\`, `\\`,
+	`$`, `\$`,
+	"`", "\\`",
+	`"`, `\"`,
+)
+
+// shellDoubleQuoteEscape escapes s for safe interpolation inside an existing
+// double-quoted shell string. Cask metadata is attacker-influenced (it flows
+// verbatim from formulae.brew.sh into root-privileged generated scripts), so a
+// value like `$(...)` or a backtick must not be treated as command
+// substitution. Unlike shellSingleQuote this preserves a surrounding "$VAR"
+// (e.g. "$APPDIR"/"$TMPDIR") that legitimately needs to expand, and it leaves
+// values without shell metacharacters — the common case — byte-for-byte
+// unchanged, so the generated scripts (and their downstream comparisons in the
+// auto-update path) don't churn.
+func shellDoubleQuoteEscape(s string) string {
+	return dqEscaper.Replace(s)
 }
 
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
@@ -312,7 +342,10 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 		}
 	} else if len(u.Script.String) > 0 {
 		addUserVar()
-		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, u.Script.String)
+		// Quote via shellSingleQuote rather than a bare '%s': the cask-controlled
+		// value could otherwise close the quote with an embedded apostrophe and
+		// inject commands.
+		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" %s)`, shellSingleQuote(u.Script.String))
 	}
 
 	process(u.PkgUtil, func(pkgID string) {
@@ -411,6 +444,9 @@ func (s *scriptBuilder) RemoveFile(file string) {
 //
 // Returns an error if generating the XML for choices fails.
 func (s *scriptBuilder) InstallPkg(pkg string, choices ...[]brewPkgConfig) error {
+	// pkg is cask-controlled and interpolated inside a double-quoted "$TMPDIR/..."
+	// argument; escape it so command substitution can't survive.
+	pkg = shellDoubleQuoteEscape(pkg)
 	if len(choices) == 0 {
 		s.Writef(`sudo installer -pkg "$TMPDIR/%s" -target / || exit $?`, pkg)
 		return nil
@@ -421,27 +457,34 @@ func (s *scriptBuilder) InstallPkg(pkg string, choices ...[]brewPkgConfig) error
 		return err
 	}
 
+	// The choice XML embeds cask-controlled strings (choiceIdentifier /
+	// choiceAttribute). Write it with a single-quoted printf argument rather than a
+	// heredoc: an unquoted heredoc shell-expands $(...) in the body, and even a
+	// quoted delimiter ('EOF') would still let a newline in the metadata smuggle in
+	// a line equal to the delimiter and end the heredoc early, running the rest as
+	// commands. Single-quoting the whole payload neutralizes both.
 	s.Writef(`
 CHOICE_XML=$(mktemp /tmp/choice_xml_XXX)
 
-cat << EOF > "$CHOICE_XML"
-%s
-EOF
+printf '%%s\n' %s > "$CHOICE_XML"
 
 sudo installer -pkg "$TMPDIR/%s" -target / -applyChoiceChangesXML "$CHOICE_XML" || exit $?
-`, choiceXML, pkg)
+`, shellSingleQuote(string(choiceXML)), pkg)
 
 	return nil
 }
 
 // Symlink writes a command to create a symbolic link from 'source' to 'target'.
 func (s *scriptBuilder) Symlink(source, target string) {
+	// source/target are cask-controlled. Quote and escape them: the previous
+	// `mkdir -p %s` was unquoted (also broken for paths with spaces) and the ln
+	// arguments, though double-quoted, still allowed $(...) command substitution.
 	pathname := filepath.Dir(target)
 	if _, ok := s.pathsCreated[pathname]; !ok {
-		s.Writef("mkdir -p %s", pathname)
+		s.Writef(`mkdir -p "%s"`, shellDoubleQuoteEscape(pathname))
 		s.pathsCreated[pathname] = struct{}{}
 	}
-	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, source, target)
+	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, shellDoubleQuoteEscape(source), shellDoubleQuoteEscape(target))
 }
 
 // String generates the final script as a string.

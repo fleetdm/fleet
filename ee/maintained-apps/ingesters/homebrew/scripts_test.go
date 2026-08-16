@@ -106,6 +106,166 @@ func TestInstallScriptAppCopyPropagatesAndRestores(t *testing.T) {
 fi`)
 }
 
+func TestShellDoubleQuoteEscape(t *testing.T) {
+	// Values without shell metacharacters (the common case) must pass through
+	// unchanged so the generated scripts stay byte-identical to before.
+	require.Equal(t, ``, shellDoubleQuoteEscape(""))
+	require.Equal(t, `plain`, shellDoubleQuoteEscape("plain"))
+	require.Equal(t, `Foo-1.0.pkg`, shellDoubleQuoteEscape("Foo-1.0.pkg"))
+	require.Equal(t, `Adobe Photoshop (2024).app`, shellDoubleQuoteEscape("Adobe Photoshop (2024).app"))
+	// Apostrophes are literal inside double quotes and must NOT be escaped.
+	require.Equal(t, `Cycling '74`, shellDoubleQuoteEscape("Cycling '74"))
+	// The four characters special inside double quotes are backslash-escaped.
+	require.Equal(t, `\$(id)`, shellDoubleQuoteEscape("$(id)"))
+	require.Equal(t, `\$HOME`, shellDoubleQuoteEscape("$HOME"))
+	require.Equal(t, `a\"b`, shellDoubleQuoteEscape(`a"b`))
+	require.Equal(t, `a\\b`, shellDoubleQuoteEscape(`a\b`))
+	require.Equal(t, "a\\`id\\`b", shellDoubleQuoteEscape("a`id`b"))
+	// Backslash is escaped first, so an already-escaped dollar isn't doubled.
+	require.Equal(t, `\$`, shellDoubleQuoteEscape("$"))
+}
+
+// TestInstallScriptNeutralizesCommandSubstitutionInAppPath guards against the
+// homebrew-ingester instance of the "cask metadata -> generated script -> root
+// RCE" class (GHSA-fv3p-h7wv-2jgm): a cask-controlled app path reaching the
+// double-quoted mv/cp/rm sinks must appear as literal text, not command
+// substitution.
+func TestInstallScriptNeutralizesCommandSubstitutionInAppPath(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{App: []optjson.StringOr[*brewAppTarget]{{String: `Foo$(touch /tmp/pwned).app`}}},
+		},
+	}
+
+	script, err := installScriptForApp(inputApp{
+		Token:            "foo",
+		UniqueIdentifier: "com.example.Foo",
+		InstallerFormat:  "dmg",
+	}, cask)
+	require.NoError(t, err)
+	// The payload survives verbatim but backslash-escaped, so the shell treats it
+	// as a filename rather than running `touch`.
+	require.Contains(t, script, `sudo mv "$APPDIR/Foo\$(touch /tmp/pwned).app" "$TMPDIR/Foo\$(touch /tmp/pwned).app.bkp" || exit $?`)
+	require.Contains(t, script, `sudo rm -rf "$APPDIR/Foo\$(touch /tmp/pwned).app"`)
+	// The unescaped (executable) form must not appear anywhere.
+	require.NotContains(t, script, `"$APPDIR/Foo$(touch /tmp/pwned).app"`)
+}
+
+// TestInstallScriptNeutralizesCommandSubstitutionInPkg is the pkg-filename
+// variant of the above.
+func TestInstallScriptNeutralizesCommandSubstitutionInPkg(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{Pkg: []optjson.StringOr[*brewPkgChoices]{{String: `Foo$(id).pkg`}}},
+		},
+	}
+
+	script, err := installScriptForApp(inputApp{
+		Token:            "foo",
+		UniqueIdentifier: "com.example.Foo",
+		InstallerFormat:  "pkg",
+	}, cask)
+	require.NoError(t, err)
+	require.Contains(t, script, `sudo installer -pkg "$TMPDIR/Foo\$(id).pkg" -target / || exit $?`)
+	require.NotContains(t, script, `"$TMPDIR/Foo$(id).pkg"`)
+}
+
+// TestInstallScriptChoiceXMLIsNotShellExpanded guards against command
+// substitution and heredoc-terminator smuggling through cask-controlled pkg
+// choice metadata. The XML is written with a single-quoted printf argument, not
+// a heredoc, so neither $(...) in the body nor a newline-injected delimiter can
+// execute.
+func TestInstallScriptChoiceXMLIsNotShellExpanded(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{Pkg: []optjson.StringOr[*brewPkgChoices]{
+				{String: "Foo-1.0.pkg"},
+				{IsOther: true, Other: &brewPkgChoices{Choices: []brewPkgConfig{
+					{ChoiceIdentifier: "$(touch /tmp/pwned)", ChoiceAttribute: "selected", AttributeSetting: 1},
+				}}},
+			}},
+		},
+	}
+
+	script, err := installScriptForApp(inputApp{
+		Token:            "foo",
+		UniqueIdentifier: "com.example.Foo",
+		InstallerFormat:  "pkg",
+	}, cask)
+	require.NoError(t, err)
+	// Written via printf with a single-quoted argument, never a heredoc whose body
+	// or delimiter the shell could interpret.
+	require.Contains(t, script, `printf '%s\n' '`)
+	require.NotContains(t, script, "cat << EOF")
+	require.NotContains(t, script, "\nEOF\n")
+	// The payload lands in the choices file as data, single-quoted.
+	require.Contains(t, script, "$(touch /tmp/pwned)")
+	// Install still runs after the file is written.
+	require.Contains(t, script, `-applyChoiceChangesXML "$CHOICE_XML" || exit $?`)
+}
+
+// TestInstallScriptNeutralizesCommandSubstitutionInBinaryTarget covers the
+// symlink (binary artifact) sinks: both the mkdir and ln arguments are
+// cask-controlled.
+func TestInstallScriptNeutralizesCommandSubstitutionInBinaryTarget(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{Binary: []optjson.StringOr[*brewBinaryTarget]{
+				{String: "bin/foo"},
+				{IsOther: true, Other: &brewBinaryTarget{Target: "/usr/local/bin/foo$(id)"}},
+			}},
+		},
+	}
+
+	script, err := installScriptForApp(inputApp{
+		Token:            "foo",
+		UniqueIdentifier: "com.example.Foo",
+		InstallerFormat:  "zip",
+	}, cask)
+	require.NoError(t, err)
+	require.Contains(t, script, `mkdir -p "/usr/local/bin"`)
+	require.Contains(t, script, `/bin/ln -h -f -s -- "bin/foo" "/usr/local/bin/foo\$(id)"`)
+	require.NotContains(t, script, `"/usr/local/bin/foo$(id)"`)
+}
+
+// TestUninstallScriptNeutralizesCommandSubstitutionInAppPath is the uninstall
+// counterpart: the cask-controlled app path reaches a double-quoted `sudo rm
+// -rf`.
+func TestUninstallScriptNeutralizesCommandSubstitutionInAppPath(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{App: []optjson.StringOr[*brewAppTarget]{{String: `Foo$(touch /tmp/pwned).app`}}},
+		},
+	}
+
+	script := uninstallScriptForApp(cask)
+	require.Contains(t, script, `sudo rm -rf "$APPDIR/Foo\$(touch /tmp/pwned).app"`)
+	require.NotContains(t, script, `"$APPDIR/Foo$(touch /tmp/pwned).app"`)
+}
+
+// TestUninstallScriptScriptDirectiveEscapesApostrophe guards the uninstall
+// `script` directive against an apostrophe breaking out of the single-quoted
+// command.
+func TestUninstallScriptScriptDirectiveEscapesApostrophe(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{
+				Uninstall: []*brewUninstall{
+					{
+						Script: optjson.StringOr[map[string]any]{
+							String: `/opt/x'; touch /tmp/pwned; '`,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	script := uninstallScriptForApp(cask)
+	require.Contains(t, script, `'\''`)
+	require.NotContains(t, script, `/opt/x'; touch /tmp/pwned; '`)
+}
+
 func TestShellSingleQuote(t *testing.T) {
 	for in, want := range map[string]string{
 		"":                      `''`,
