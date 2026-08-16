@@ -94,7 +94,8 @@ type User struct {
 
 	// Status is the account's activity status, computed at read time by
 	// ComputeStatus (see UserStatus). It is not stored in the database and is
-	// omitted from JSON when it hasn't been computed.
+	// only populated by the list users and get user service methods; other
+	// responses carrying a user (create, modify, me, ...) omit it from JSON.
 	Status UserStatus `json:"status,omitempty" db:"-"`
 }
 
