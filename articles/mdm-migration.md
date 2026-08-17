@@ -104,13 +104,11 @@ Then, scroll down to the **Mobile device management (MDM)** section of the Dashb
 
 _Available in Fleet Premium_
 
-When migrating hosts via manual enrollment profile, end users must log out of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions on how to reset their key.
+When migrating hosts, end users must log out of their device (or restart) to escrow new FileVault keys to Fleet. So, prior to migration, the best practice is to export all FileVault keys from your old MDM solution into a spreadsheet. This way, if you need to use a key before the end user has logged out, you can refer to your spreadsheet for the working key.
 
-To start, [enforce FileVault disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) in Fleet.
+During migration, after you [turn on disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
 
-After turning on disk encryption in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
-
-For hosts that enroll via Apple Business, end users don't need to take action. Fleet automatically escrows the FileVault key on the next host vitals refetch.
+For new hosts that enroll via Apple Business, end users don't need to take action. Fleet automatically escrows the FileVault key on the next host vitals refetch.
 
 ### How to turn on disk encryption
 
