@@ -5931,7 +5931,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 > To verify the host was successfully wiped, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
-### Send APNs ping to host {#send-apns-ping-to-host}
+### Send APNs ping to host
 
 _Available in Fleet Free and Fleet Premium_
 
