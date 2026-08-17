@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -758,4 +759,335 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	} else {
 		require.NoError(t, err)
 	}
+}
+
+func TestTeamPolicyResendConfigProfile(t *testing.T) {
+	const (
+		teamID     = uint(1)
+		policyID   = uint(42)
+		appleUUID  = fleet.MDMAppleProfileUUIDPrefix + "1111"
+		winUUID    = fleet.MDMWindowsProfileUUIDPrefix + "2222"
+		otherApple = fleet.MDMAppleProfileUUIDPrefix + "3333"
+		appleName  = "Apple Profile"
+		winName    = "Windows Profile"
+	)
+
+	adminCtx := func(ctx context.Context) context.Context {
+		return viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+	}
+
+	// policy returns a fresh team policy whose resend columns are set as given, so
+	// each subtest gets its own copy and cannot mutate another's.
+	policy := func(apple, windows *string) *fleet.Policy {
+		tID := teamID
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				ID:                       policyID,
+				TeamID:                   &tID,
+				Name:                     "resend-policy",
+				Query:                    "SELECT 1;",
+				ResendAppleProfileUUID:   apple,
+				ResendWindowsProfileUUID: windows,
+			},
+		}
+	}
+
+	setupDS := func(existing *fleet.Policy) *mock.Store {
+		ds := new(mock.Store)
+		ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) { return true, nil }
+		ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) { return existing, nil }
+		ds.TeamPolicyFunc = func(ctx context.Context, tID uint, id uint) (*fleet.Policy, error) { return existing, nil }
+		ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{ID: id}, nil
+		}
+		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: id, Name: "team1"}, nil
+		}
+		ds.GetMDMAppleConfigProfileFunc = func(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error) {
+			return &fleet.MDMAppleConfigProfile{ProfileUUID: profileUUID, Name: appleName}, nil
+		}
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
+			return &fleet.MDMWindowsConfigProfile{ProfileUUID: profileUUID, Name: winName}, nil
+		}
+		return ds
+	}
+
+	newPremiumSvc := func(t *testing.T, ds *mock.Store) (fleet.Service, context.Context) {
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+		return svc, adminCtx(baseCtx)
+	}
+
+	// Create passes profile_uuid straight through to the datastore payload. This is
+	// the plumbing the datastore tests cannot see, since they call the store directly.
+	t.Run("create plumbs profile_uuid to the payload", func(t *testing.T) {
+		for _, uuid := range []string{appleUUID, winUUID} {
+			t.Run(uuid, func(t *testing.T) {
+				ds := setupDS(nil)
+				var captured fleet.PolicyPayload
+				ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+					captured = args
+					return policy(nil, nil), nil
+				}
+				svc, ctx := newPremiumSvc(t, ds)
+
+				_, err := svc.NewTeamPolicy(ctx, teamID, fleet.NewTeamPolicyPayload{
+					Name:        "resend-policy",
+					Query:       "SELECT 1;",
+					ProfileUUID: new(uuid),
+				})
+				require.NoError(t, err)
+				require.True(t, ds.NewTeamPolicyFuncInvoked)
+				require.NotNil(t, captured.ProfileUUID)
+				require.Equal(t, uuid, *captured.ProfileUUID)
+			})
+		}
+	})
+
+	t.Run("create with no profile_uuid leaves the payload nil", func(t *testing.T) {
+		ds := setupDS(nil)
+		var captured fleet.PolicyPayload
+		ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+			captured = args
+			return policy(nil, nil), nil
+		}
+		svc, ctx := newPremiumSvc(t, ds)
+
+		_, err := svc.NewTeamPolicy(ctx, teamID, fleet.NewTeamPolicyPayload{Name: "p", Query: "SELECT 1;"})
+		require.NoError(t, err)
+		require.Nil(t, captured.ProfileUUID)
+	})
+
+	// modifyPolicy routes the single profile_uuid onto the right column, clears the
+	// other, and mirrors the script_id reset asymmetry: setting or changing a profile
+	// resets memberships and stats, unsetting does not.
+	t.Run("modify routes columns and resets stats", func(t *testing.T) {
+		cases := []struct {
+			name        string
+			prevApple   *string
+			prevWindows *string
+			newValue    string
+			wantApple   *string
+			wantWindows *string
+			wantReset   bool
+		}{
+			{
+				name:      "set where there was none",
+				newValue:  appleUUID,
+				wantApple: new(appleUUID),
+				wantReset: true,
+			},
+			{
+				name:        "set windows where there was none",
+				newValue:    winUUID,
+				wantWindows: new(winUUID),
+				wantReset:   true,
+			},
+			{
+				name:      "same apple profile re-applied",
+				prevApple: new(appleUUID),
+				newValue:  appleUUID,
+				wantApple: new(appleUUID),
+				wantReset: false,
+			},
+			{
+				name:      "different apple profile",
+				prevApple: new(appleUUID),
+				newValue:  otherApple,
+				wantApple: new(otherApple),
+				wantReset: true,
+			},
+			{
+				name:        "apple switched to windows clears the apple column",
+				prevApple:   new(appleUUID),
+				newValue:    winUUID,
+				wantWindows: new(winUUID),
+				wantReset:   true,
+			},
+			{
+				name:        "windows switched to apple clears the windows column",
+				prevWindows: new(winUUID),
+				newValue:    appleUUID,
+				wantApple:   new(appleUUID),
+				wantReset:   true,
+			},
+			{
+				name:        "same windows profile re-applied",
+				prevWindows: new(winUUID),
+				newValue:    winUUID,
+				wantWindows: new(winUUID),
+				wantReset:   false,
+			},
+			{
+				name:      "unsetting clears both without resetting",
+				prevApple: new(appleUUID),
+				newValue:  "",
+				wantReset: false,
+			},
+			{
+				name:        "unsetting a windows profile clears both without resetting",
+				prevWindows: new(winUUID),
+				newValue:    "",
+				wantReset:   false,
+			},
+		}
+
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				ds := setupDS(policy(c.prevApple, c.prevWindows))
+				var (
+					saved                *fleet.Policy
+					gotRemoveMemberships bool
+					gotRemoveStats       bool
+				)
+				ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, removeAllMemberships bool, removeStats bool) error {
+					saved, gotRemoveMemberships, gotRemoveStats = p, removeAllMemberships, removeStats
+					return nil
+				}
+				svc, ctx := newPremiumSvc(t, ds)
+
+				tID := teamID
+				_, err := svc.ModifyTeamPolicy(ctx, tID, policyID, fleet.ModifyPolicyPayload{
+					ProfileUUID: optjson.SetString(c.newValue),
+				})
+				require.NoError(t, err)
+				require.True(t, ds.SavePolicyFuncInvoked)
+
+				require.Equal(t, c.wantApple, saved.ResendAppleProfileUUID)
+				require.Equal(t, c.wantWindows, saved.ResendWindowsProfileUUID)
+				// At most one column may ever be set.
+				require.False(t, saved.ResendAppleProfileUUID != nil && saved.ResendWindowsProfileUUID != nil)
+
+				assert.Equal(t, c.wantReset, gotRemoveMemberships, "removeAllMemberships")
+				assert.Equal(t, c.wantReset, gotRemoveStats, "removeStats")
+			})
+		}
+	})
+
+	// An absent profile_uuid must leave the existing association untouched, since
+	// savePolicy writes both columns unconditionally.
+	t.Run("absent profile_uuid keeps the existing profile", func(t *testing.T) {
+		ds := setupDS(policy(new(appleUUID), nil))
+		var saved *fleet.Policy
+		var gotRemoveMemberships, gotRemoveStats bool
+		ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, removeAllMemberships bool, removeStats bool) error {
+			saved, gotRemoveMemberships, gotRemoveStats = p, removeAllMemberships, removeStats
+			return nil
+		}
+		svc, ctx := newPremiumSvc(t, ds)
+
+		_, err := svc.ModifyTeamPolicy(ctx, teamID, policyID, fleet.ModifyPolicyPayload{
+			Name: new("renamed"),
+		})
+		require.NoError(t, err)
+		require.Equal(t, new(appleUUID), saved.ResendAppleProfileUUID)
+		require.Nil(t, saved.ResendWindowsProfileUUID)
+		assert.False(t, gotRemoveMemberships)
+		assert.False(t, gotRemoveStats)
+	})
+
+	// Prefix validation happens before the save.
+	t.Run("rejected prefixes", func(t *testing.T) {
+		cases := []struct {
+			name       string
+			uuid       string
+			wantErrMsg string
+		}{
+			{
+				name:       "apple declaration",
+				uuid:       fleet.MDMAppleDeclarationUUIDPrefix + "4444",
+				wantErrMsg: fleet.CantResendAppleDeclarationProfilesMessage,
+			},
+			{
+				name:       "android profile",
+				uuid:       fleet.MDMAndroidProfileUUIDPrefix + "5555",
+				wantErrMsg: "has an invalid prefix",
+			},
+			{
+				name:       "unknown prefix",
+				uuid:       "z5555",
+				wantErrMsg: "has an invalid prefix",
+			},
+		}
+
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				ds := setupDS(policy(nil, nil))
+				ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
+					return nil
+				}
+				svc, ctx := newPremiumSvc(t, ds)
+
+				_, err := svc.ModifyTeamPolicy(ctx, teamID, policyID, fleet.ModifyPolicyPayload{
+					ProfileUUID: optjson.SetString(c.uuid),
+				})
+				require.Error(t, err)
+				var bre *fleet.BadRequestError
+				require.ErrorAs(t, err, &bre)
+				require.Contains(t, bre.Message, c.wantErrMsg)
+				// Nothing must reach the datastore.
+				require.False(t, ds.SavePolicyFuncInvoked)
+			})
+		}
+	})
+
+	// "All fleets" (global) policies cannot carry a resend profile.
+	t.Run("global policy rejects profile_uuid", func(t *testing.T) {
+		globalPolicy := &fleet.Policy{
+			PolicyData: fleet.PolicyData{ID: policyID, Name: "global", Query: "SELECT 1;"},
+		}
+		ds := setupDS(globalPolicy)
+		ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error { return nil }
+		svc, ctx := newPremiumSvc(t, ds)
+
+		_, err := svc.ModifyGlobalPolicy(ctx, policyID, fleet.ModifyPolicyPayload{
+			ProfileUUID: optjson.SetString(appleUUID),
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, errPolicyAllFleetsForProfiles)
+		require.False(t, ds.SavePolicyFuncInvoked)
+	})
+
+	// The response object is populated from whichever column is set.
+	t.Run("response object is populated", func(t *testing.T) {
+		t.Run("apple", func(t *testing.T) {
+			ds := setupDS(policy(new(appleUUID), nil))
+			svc, ctx := newPremiumSvc(t, ds)
+
+			got, err := svc.GetTeamPolicyByID(ctx, teamID, policyID)
+			require.NoError(t, err)
+			require.True(t, ds.GetMDMAppleConfigProfileFuncInvoked)
+			require.False(t, ds.GetMDMWindowsConfigProfileFuncInvoked)
+			require.NotNil(t, got.ResendConfigurationProfile)
+			assert.Equal(t, appleUUID, got.ResendConfigurationProfile.UUID)
+			assert.Equal(t, appleName, got.ResendConfigurationProfile.Name)
+		})
+
+		t.Run("windows", func(t *testing.T) {
+			ds := setupDS(policy(nil, new(winUUID)))
+			svc, ctx := newPremiumSvc(t, ds)
+
+			got, err := svc.GetTeamPolicyByID(ctx, teamID, policyID)
+			require.NoError(t, err)
+			require.True(t, ds.GetMDMWindowsConfigProfileFuncInvoked)
+			require.False(t, ds.GetMDMAppleConfigProfileFuncInvoked)
+			require.NotNil(t, got.ResendConfigurationProfile)
+			assert.Equal(t, winUUID, got.ResendConfigurationProfile.UUID)
+			assert.Equal(t, winName, got.ResendConfigurationProfile.Name)
+		})
+
+		t.Run("neither column set", func(t *testing.T) {
+			ds := setupDS(policy(nil, nil))
+			svc, ctx := newPremiumSvc(t, ds)
+
+			got, err := svc.GetTeamPolicyByID(ctx, teamID, policyID)
+			require.NoError(t, err)
+			require.Nil(t, got.ResendConfigurationProfile)
+			require.False(t, ds.GetMDMAppleConfigProfileFuncInvoked)
+			require.False(t, ds.GetMDMWindowsConfigProfileFuncInvoked)
+		})
+	})
 }

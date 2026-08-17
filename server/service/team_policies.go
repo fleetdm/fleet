@@ -45,6 +45,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Type:                         req.Type,
 		PatchSoftwareTitleID:         req.PatchSoftwareTitleID,
 		PatchWhenClosed:              req.PatchWhenClosed,
+		ProfileUUID:                  req.ProfileUUID,
 	})
 	if err != nil {
 		return fleet.TeamPolicyResponse{Err: err}, nil
@@ -168,6 +169,9 @@ func (svc *Service) populateAutomationsForTeamPolicy(ctx context.Context, policy
 	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
 		return ctxerr.Wrap(ctx, err, "populate run_script")
 	}
+	if err := svc.populatePolicyResendConfigProfile(ctx, policy); err != nil {
+		return ctxerr.Wrap(ctx, err, "populate resend_config_profile")
+	}
 	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
 		return ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
@@ -207,6 +211,35 @@ func (svc *Service) populatePolicyRunScript(ctx context.Context, p *fleet.Policy
 		return ctxerr.Wrap(ctx, err, "get script metadata by id")
 	}
 	p.RunScript = &fleet.PolicyScript{ID: *p.ScriptID, Name: scriptMetadata.Name}
+	return nil
+}
+
+func (svc *Service) populatePolicyResendConfigProfile(ctx context.Context, p *fleet.Policy) error {
+	if p.ResendAppleProfileUUID == nil && p.ResendWindowsProfileUUID == nil {
+		return nil
+	}
+
+	if p.ResendAppleProfileUUID != nil {
+		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, *p.ResendAppleProfileUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get apple config profile by uuid")
+		}
+		p.ResendConfigurationProfile = &fleet.PolicyProfile{
+			UUID: prof.ProfileUUID,
+			Name: prof.Name,
+		}
+		return nil
+	}
+
+	prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, *p.ResendWindowsProfileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows config profile by uuid")
+	}
+	p.ResendConfigurationProfile = &fleet.PolicyProfile{
+		UUID: prof.ProfileUUID,
+		Name: prof.Name,
+	}
+
 	return nil
 }
 
@@ -336,6 +369,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		PatchWhenClosed:              p.PatchWhenClosed,
 		Type:                         policyType,
 		PatchSoftwareTitleID:         p.PatchSoftwareTitleID,
+		ProfileUUID:                  p.ProfileUUID,
 	}, nil
 }
 
@@ -664,6 +698,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	if p.ProfileUUID.Set && teamID == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", errPolicyAllFleetsForProfiles),
+		})
+	}
+
 	p.Type = policy.Type
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -771,6 +811,21 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			policy.ScriptID = nil
 		} else {
 			policy.ScriptID = &p.ScriptID.Value
+		}
+	}
+	if p.ProfileUUID.Set {
+		// If the associated profile is changed (or it's set and the policy didn't have an
+		// associated profile) then we clear the results of the policy so that automation can
+		// be triggered upon failure.
+		if p.ProfileUUID.Value != "" &&
+			!ptr.Equal(policy.ResendAppleProfileUUID, &p.ProfileUUID.Value) &&
+			!ptr.Equal(policy.ResendWindowsProfileUUID, &p.ProfileUUID.Value) {
+			removeAllMemberships = true
+			removeStats = true
+		}
+
+		if err := policy.SetResendProfileUUID(p.ProfileUUID.Value); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "set resend configuration profile")
 		}
 	}
 	// If the client sent any of the label scope fields, treat all of them as authoritative

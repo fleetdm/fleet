@@ -597,9 +597,9 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 // assertProfileTeamMatches verifies that the configuration profile exists and
 // belongs to the given team (0 for "No team").
 func assertProfileTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, profileUUID string) error {
-	prof, err := fleet.ResolvePolicyResendProfile(ctx, &profileUUID)
+	prof, err := fleet.ResolvePolicyResendProfile(&profileUUID)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "resolving resend configuration profile")
 	}
 
 	var profileTeamID uint
@@ -1461,7 +1461,7 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
-	resendProf, err := fleet.ResolvePolicyResendProfile(ctx, args.ProfileUUID)
+	resendProf, err := fleet.ResolvePolicyResendProfile(args.ProfileUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
@@ -1841,7 +1841,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					scriptID = nil
 				}
 
-				resendProf, err := fleet.ResolvePolicyResendProfile(ctx, spec.ProfileUUID)
+				resendProf, err := fleet.ResolvePolicyResendProfile(spec.ProfileUUID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "apply policy specs")
 				}

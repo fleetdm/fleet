@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -9,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 // PolicyPayload holds data for policy creation.
@@ -498,6 +496,31 @@ func (p PolicyData) VerifyLabelScopes() error {
 	)
 }
 
+func (p *PolicyData) SetResendProfileUUID(profileUUID string) error {
+	if profileUUID == "" {
+		p.ResendAppleProfileUUID = nil
+		p.ResendWindowsProfileUUID = nil
+		return nil
+	}
+
+	resolvedProfile, err := ResolvePolicyResendProfile(&profileUUID)
+	if err != nil {
+		return err
+	}
+
+	if resolvedProfile.AppleUUID != nil {
+		p.ResendAppleProfileUUID = resolvedProfile.AppleUUID
+		p.ResendWindowsProfileUUID = nil
+	}
+
+	if resolvedProfile.WindowsUUID != nil {
+		p.ResendWindowsProfileUUID = resolvedProfile.WindowsUUID
+		p.ResendAppleProfileUUID = nil
+	}
+
+	return nil
+}
+
 // Policy is a fleet's policy query.
 type Policy struct {
 	PolicyData
@@ -851,7 +874,7 @@ type resendProfile struct {
 
 // ResolvePolicyResendProfile maps a configuration profile UUID onto the resend columns
 // based on its UUID prefix. A nil or empty UUID clears both columns.
-func ResolvePolicyResendProfile(ctx context.Context, profileUUID *string) (resendProfile, error) {
+func ResolvePolicyResendProfile(profileUUID *string) (resendProfile, error) {
 	if profileUUID == nil || *profileUUID == "" {
 		return resendProfile{}, nil
 	}
@@ -862,12 +885,12 @@ func ResolvePolicyResendProfile(ctx context.Context, profileUUID *string) (resen
 	case strings.HasPrefix(*profileUUID, MDMWindowsProfileUUIDPrefix):
 		return resendProfile{WindowsUUID: profileUUID, Table: "mdm_windows_configuration_profiles"}, nil
 	case strings.HasPrefix(*profileUUID, MDMAppleDeclarationUUIDPrefix):
-		return resendProfile{}, ctxerr.Wrap(ctx, &BadRequestError{
+		return resendProfile{}, &BadRequestError{
 			Message: CantResendAppleDeclarationProfilesMessage,
-		})
+		}
 	default:
-		return resendProfile{}, ctxerr.Wrap(ctx, &BadRequestError{
+		return resendProfile{}, &BadRequestError{
 			Message: fmt.Sprintf("Configuration profile with UUID %s has an invalid prefix", *profileUUID),
-		})
+		}
 	}
 }

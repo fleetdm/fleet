@@ -166,7 +166,7 @@ func TestResolvePolicyResendProfile(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := ResolvePolicyResendProfile(t.Context(), tc.profileUUID)
+			got, err := ResolvePolicyResendProfile(tc.profileUUID)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
