@@ -3754,7 +3754,7 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 	}
 
 	desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, currentByHost, profilesByTeam)
-	return executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost)
+	return executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost, currentByHost)
 }
 
 // windowsProfileNeedsPerHostProcessing reports whether a Windows profile must be
@@ -3858,7 +3858,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 
 		if len(toInstall) > 0 || len(toRemove) > 0 {
-			if eerr := executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost); eerr != nil {
+			if eerr := executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost, currentByHost); eerr != nil {
 				err = eerr
 				return err
 			}
@@ -3957,6 +3957,7 @@ func applyWindowsUserScopeGate(
 	profileContents map[string]fleet.MDMWindowsProfileContents,
 	hostProfilesMap map[string]*fleet.MDMWindowsBulkUpsertHostProfilePayload,
 	batchProfileCmdsMap map[string][]*fleet.MDMWindowsBulkUpsertHostProfilePayload,
+	currentByHost map[string][]*fleet.MDMWindowsProfilePayload,
 ) error {
 	userScopedTargets := make(map[string]*cmdTarget)
 	hostUUIDSet := make(map[string]struct{})
@@ -3983,7 +3984,7 @@ func applyWindowsUserScopeGate(
 		return ctxerr.Wrap(ctx, err, "get windows user context for hosts")
 	}
 
-	var held int
+	var held, unchanged int
 	for profUUID, target := range userScopedTargets {
 		deliverable := target.hostUUIDs[:0:0] // fresh backing array; target.hostUUIDs is still being read below
 		for _, hostUUID := range target.hostUUIDs {
@@ -4003,6 +4004,12 @@ func applyWindowsUserScopeGate(
 			payload.CommandUUID = ""
 			payload.Status = nil
 			payload.Detail = fleet.WindowsUserScopeHoldDetail
+
+			// A hold lasts until the user signs in, which can be days, and the row keeps a NULL status the whole time.
+			if heldRowUpToDate(currentProfileRow(currentByHost, hostUUID, profUUID), payload) {
+				unchanged++
+				continue
+			}
 			payload.HeldForUserContext = true
 			held++
 		}
@@ -4030,11 +4037,35 @@ func applyWindowsUserScopeGate(
 		}
 	}
 
-	if held > 0 {
+	if held > 0 || unchanged > 0 {
 		logger.DebugContext(ctx, "windows user-scoped profiles held for user context",
-			"held", held, "profiles", len(userScopedTargets))
+			"written", held, "already_held", unchanged, "profiles", len(userScopedTargets))
 	}
 	return nil
+}
+
+// currentProfileRow returns the host's existing row for the profile as of the reconcile snapshot, or nil when the host has no
+// row for it yet.
+func currentProfileRow(currentByHost map[string][]*fleet.MDMWindowsProfilePayload, hostUUID, profileUUID string,
+) *fleet.MDMWindowsProfilePayload {
+	for _, row := range currentByHost[hostUUID] {
+		if row.ProfileUUID == profileUUID {
+			return row
+		}
+	}
+	return nil
+}
+
+// heldRowUpToDate reports whether current already holds exactly what the gate is about to write for a held profile, making the
+// upsert a no-op.
+func heldRowUpToDate(current *fleet.MDMWindowsProfilePayload, held *fleet.MDMWindowsBulkUpsertHostProfilePayload) bool {
+	return current != nil &&
+		current.Status == nil &&
+		current.OperationType == held.OperationType &&
+		current.Detail == held.Detail &&
+		current.ProfileName == held.ProfileName &&
+		current.CommandUUID == held.CommandUUID &&
+		bytes.Equal(current.Checksum, held.Checksum)
 }
 
 // executeWindowsProfileReconcileBatch runs the post-compute reconcile pipeline against the in-memory toInstall / toRemove sets
@@ -4048,6 +4079,8 @@ func executeWindowsProfileReconcileBatch(
 	appConfig *fleet.AppConfig,
 	toInstall, toRemove []*fleet.MDMWindowsProfilePayload,
 	desiredByHost map[string][]string,
+	// currentByHost is the host_mdm_windows_profiles rows as of the reconcile snapshot.
+	currentByHost map[string][]*fleet.MDMWindowsProfilePayload,
 ) error {
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
@@ -4225,7 +4258,8 @@ func executeWindowsProfileReconcileBatch(
 
 	// Gate user-scoped ("./User/...") profiles on the host's MDM user context. Windows rejects those writes until the
 	// enrollment has a user context.
-	if err := applyWindowsUserScopeGate(ctx, ds, logger, installTargets, profileContents, hostProfilesMap, batchProfileCmdsMap); err != nil {
+	if err := applyWindowsUserScopeGate(ctx, ds, logger, installTargets, profileContents, hostProfilesMap, batchProfileCmdsMap,
+		currentByHost); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying windows user scope gate")
 	}
 

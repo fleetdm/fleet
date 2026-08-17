@@ -986,8 +986,11 @@ func (r windowsUserScopeTickResult) upsertFor(hostUUID string) *fleet.MDMWindows
 }
 
 // runWindowsUserScopeTick drives one ReconcileWindowsProfiles tick over a single profile applied to every host in contexts.
+// currentRows is optional: pass the host_mdm_windows_profiles rows the snapshot should report as already present, to exercise
+// what the gate does on a pass after the first.
 func runWindowsUserScopeTick(
 	t *testing.T, syncML string, contexts map[string]fleet.WindowsEnrollmentUserContext,
+	currentRows ...map[string][]*fleet.MDMWindowsProfilePayload,
 ) (windowsUserScopeTickResult, *mock.Store) {
 	t.Helper()
 	ctx := t.Context()
@@ -1003,6 +1006,24 @@ func runWindowsUserScopeTick(
 		hostToProfile[hostUUID] = profile
 	}
 	finalUpserts, _ := setupReconcilerTest(ds, hostToProfile)
+
+	if len(currentRows) > 0 {
+		// Reuse the harness's hosts, profiles, and labels; only swap in the current rows.
+		snapshot := ds.GetWindowsProfileReconcileSnapshotFunc
+		ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+			[]*fleet.WindowsHostReconcileInfo,
+			[]*fleet.WindowsProfileForReconcile,
+			map[uint]map[uint]struct{},
+			map[string][]*fleet.MDMWindowsProfilePayload,
+			error,
+		) {
+			hosts, profiles, labels, _, err := snapshot(ctx, after, batch)
+			if hosts == nil {
+				return nil, nil, nil, nil, err
+			}
+			return hosts, profiles, labels, currentRows[0], err
+		}
+	}
 
 	ds.GetMDMWindowsUserContextByHostUUIDFunc = func(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error) {
 		out := make(map[string]fleet.WindowsEnrollmentUserContext, len(hostUUIDs))
@@ -1090,6 +1111,46 @@ func TestReconcileWindowsProfilesDeliversUserScopedProfilesOnEnrollmentsWithoutU
 
 	require.Equal(t, []string{"host-a"}, result.enqueuedHosts, "enrollments without a bound user identity are not gated")
 	require.Nil(t, result.upsertFor("host-a"), "no hold row: the profile went out through the normal enqueue path")
+}
+
+func TestReconcileWindowsProfilesDoesNotRewriteAnUnchangedHold(t *testing.T) {
+	others := fleet.WindowsMDMLoginStatusOthers
+
+	// heldRow is what the gate wrote on an earlier pass. A held row keeps a NULL status, so it recomputes as work on
+	// every reconcile pass for as long as the hold lasts, which can be days.
+	heldRow := func(detail string) map[string][]*fleet.MDMWindowsProfilePayload {
+		return map[string][]*fleet.MDMWindowsProfilePayload{
+			"host-a": {{
+				ProfileUUID:   "wuser-scope-profile",
+				ProfileName:   "User Scope Profile",
+				HostUUID:      "host-a",
+				OperationType: fleet.MDMOperationTypeInstall,
+				Detail:        detail,
+			}},
+		}
+	}
+
+	t.Run("row already says what the gate would write", func(t *testing.T) {
+		result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+			"host-a": entraContext("host-a", &others),
+		}, heldRow(fleet.WindowsUserScopeHoldDetail))
+
+		require.Empty(t, result.enqueuedHosts, "the profile is still held")
+		require.Nil(t, result.upsertFor("host-a"), "an unchanged hold must not be rewritten every pass")
+	})
+
+	t.Run("row is stale so the hold is written", func(t *testing.T) {
+		// A row reset elsewhere (the SCIM and custom-host-vitals paths both clear status, detail, and command_uuid to
+		// force redelivery) looks held apart from the detail. Skipping that write would leave the hold invisible.
+		result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+			"host-a": entraContext("host-a", &others),
+		}, heldRow(""))
+
+		require.Empty(t, result.enqueuedHosts)
+		row := result.upsertFor("host-a")
+		require.NotNil(t, row, "a row that does not already carry the hold detail must be written")
+		require.Equal(t, fleet.WindowsUserScopeHoldDetail, row.Detail)
+	})
 }
 
 func TestReconcileWindowsProfilesPartitionsHostsByUserContext(t *testing.T) {
