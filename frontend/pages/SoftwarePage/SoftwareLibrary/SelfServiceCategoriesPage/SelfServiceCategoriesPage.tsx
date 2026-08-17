@@ -195,7 +195,7 @@ const SelfServiceCategoriesPage = ({
           header="No self-service categories"
           info={
             canManage
-              ? "Add category to group your software and scripts in self-service."
+              ? "Add category to group your software and scripts in self service."
               : "No self-service categories are available."
           }
           primaryButton={

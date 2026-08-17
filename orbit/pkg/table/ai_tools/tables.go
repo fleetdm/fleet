@@ -48,7 +48,7 @@ var allTypes = []string{"mcp_server", "ide_plugins", "agents", "apps", "sockets"
 var columns = []string{
 	"type",       // mcp_server | ide_plugins | agents | apps | sockets | agent_instruction | browser_extension
 	"name",       // server/plugin/agent/app/process/instruction-file name
-	"identifier", // plugin_id | bundle_id | mcp server name | agent binary | socket service
+	"identifier", // plugin_id | known-app key | mcp server name | agent binary | socket service
 	"category",   // classification bucket (coding-assistant, agent-runtime, ai-api-egress, ...)
 	"location",   // local | remote
 	"source",     // provenance: client | editor | install_method | platform_source | direction | tool
@@ -301,8 +301,8 @@ func agentRow(a agents.Agent) map[string]string {
 func appRow(a apps.App) map[string]string {
 	return row(map[string]string{
 		"type":       "apps",
-		"name":       a.Name,
-		"identifier": a.BundleID,
+		"name":       a.DisplayName,
+		"identifier": a.Name,
 		"location":   "local",
 		"source":     a.PlatformSource,
 		"version":    a.Version,

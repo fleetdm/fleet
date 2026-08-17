@@ -11,10 +11,10 @@ import (
 var backfillAppleBuiltinLabelMembershipsBatchSize = 1000
 
 func init() {
-	MigrationClient.AddMigration(Up_20260731100711, Down_20260731100711)
+	MigrationClient.AddMigration(Up_20260723181412, Down_20260723181412)
 }
 
-func Up_20260731100711(tx *sql.Tx) error {
+func Up_20260723181412(tx *sql.Tx) error {
 	step := incrementalMigrationStep(countHostsMissingAppleBuiltinLabelMemberships, backfillHostsMissingAppleBuiltinLabelMemberships)
 	if err := step(tx); err != nil {
 		return fmt.Errorf("backfilling Apple built-in label memberships: %w", err)
@@ -113,6 +113,6 @@ func backfillHostsMissingAppleBuiltinLabelMemberships(tx *sql.Tx, increment incr
 	}
 }
 
-func Down_20260731100711(tx *sql.Tx) error {
+func Down_20260723181412(tx *sql.Tx) error {
 	return nil
 }

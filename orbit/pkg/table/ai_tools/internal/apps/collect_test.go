@@ -53,6 +53,43 @@ func TestAppCollectorSharedAcrossSources(t *testing.T) {
 	}
 }
 
+// TestAppCollectorImpostorDoesNotMaskRealInstall covers the masking hazard of
+// first-match-wins dedup: an unrelated system-wide program whose name merely
+// contains a known-app token must not match at all, so it can never claim the
+// slot of a genuine per-user install of that app scanned later.
+func TestAppCollectorImpostorDoesNotMaskRealInstall(t *testing.T) {
+	c := newAppCollector()
+	if c.add(appCandidate{
+		MatchTokens: []string{"NVIDIA Control Panel"},
+		Vendor:      "NVIDIA Corporation",
+		Version:     "8.1.969.0",
+		Path:        `C:\Program Files\NVIDIA Corporation\Control Panel Client`,
+		Scope:       "system",
+		Source:      "registry",
+	}) {
+		t.Error("NVIDIA Control Panel was collected as an AI app")
+	}
+	if !c.add(appCandidate{
+		MatchTokens: []string{"Dia"},
+		DisplayName: "Dia",
+		Vendor:      "The Browser Company",
+		Version:     "1.0.0",
+		Path:        `C:\Users\alice\AppData\Local\Programs\Dia`,
+		Scope:       "user",
+		Source:      "registry",
+	}) {
+		t.Error("genuine per-user Dia install was not collected")
+	}
+
+	got := c.apps()
+	if len(got) != 1 {
+		t.Fatalf("got %d apps, want 1: %+v", len(got), got)
+	}
+	if got[0].Name != "dia" || got[0].DisplayName != "Dia" || got[0].Scope != "user" || got[0].Vendor != "The Browser Company" {
+		t.Errorf("got %+v, want the genuine user-scoped Dia install", got[0])
+	}
+}
+
 func TestAppCollectorSkipsUnknown(t *testing.T) {
 	c := newAppCollector()
 	for _, tokens := range [][]string{
@@ -96,6 +133,7 @@ func TestAppCollectorPreservesOrderAndFields(t *testing.T) {
 	c := newAppCollector()
 	c.add(appCandidate{
 		MatchTokens: []string{"Ollama"},
+		DisplayName: "Ollama",
 		Vendor:      "Ollama Inc.",
 		Version:     "0.5.7",
 		Path:        `C:\Users\alice\AppData\Local\Programs\Ollama`,
@@ -112,7 +150,7 @@ func TestAppCollectorPreservesOrderAndFields(t *testing.T) {
 		t.Errorf("got order [%q %q], want [\"ollama\" \"cursor\"]", got[0].Name, got[1].Name)
 	}
 	want := App{
-		Name: "ollama", Vendor: "Ollama Inc.", Version: "0.5.7",
+		Name: "ollama", DisplayName: "Ollama", Vendor: "Ollama Inc.", Version: "0.5.7",
 		Path: `C:\Users\alice\AppData\Local\Programs\Ollama`, Scope: "user", PlatformSource: "registry",
 	}
 	if got[0] != want {

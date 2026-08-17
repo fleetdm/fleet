@@ -864,6 +864,8 @@ func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 	switch ext {
 	case "sh", "py":
 		return []string{"darwin", "linux"}
+	case "ipa":
+		return []string{"ios", "ipados"}
 	default:
 		return nil
 	}
@@ -1009,8 +1011,9 @@ type SoftwarePackageSpec struct {
 	// consistent with the query/policy `platform` field. Additive with
 	// InstallDuringSetup: the native platform is controlled by that bool, the
 	// non-native entries feed the setup_experience_software_installers
-	// cross-table. Only meaningful for packages whose file can run on more than
-	// one platform (today: .sh).
+	// cross-table. Only meaningful for packages that produce more than one
+	// setup experience target: cross-platform scripts (.sh, .py) and .ipa
+	// packages, whose single entry stands for both the iOS and iPadOS titles.
 	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
 	Icon                    TeamSpecSoftwareAsset `json:"icon"`
 	// Configuration is the managed app configuration file path; only meaningful for .ipa packages.
@@ -1076,6 +1079,7 @@ type MaintainedAppSpec struct {
 	LabelsExcludeAny        []string              `json:"labels_exclude_any"`
 	LabelsIncludeAll        []string              `json:"labels_include_all"`
 	Categories              optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName             string                `json:"display_name,omitempty"`
 	InstallDuringSetup      optjson.Bool          `json:"setup_experience"`
 	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
 	Icon                    TeamSpecSoftwareAsset `json:"icon"`
@@ -1097,6 +1101,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		InstallDuringSetup:      spec.InstallDuringSetup,
 		Icon:                    spec.Icon,
 		Categories:              spec.Categories,
+		DisplayName:             spec.DisplayName,
 	}
 }
 

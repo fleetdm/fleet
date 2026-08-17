@@ -39,6 +39,35 @@ describe("AddCertAuthorityModal helpers", () => {
       expect(getDisplayErrMessage(apiError(reason))).toBe(expected);
     });
 
+    it.each([
+      [
+        "Couldn't add certificate authority. Invalid Hydrant URL. Please correct and try again.",
+        "Invalid Hydrant URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't add certificate authority. Invalid DigiCert URL. Please correct and try again.",
+        "Invalid DigiCert URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't add certificate authority. Invalid EST URL. Please correct and try again.",
+        "Invalid EST URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't add certificate authority. Invalid NDES SCEP URL. Please correct and try again.",
+        "Invalid NDES SCEP URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't add certificate authority. Invalid Smallstep SCEP URL. Please correct and try again.",
+        "Invalid Smallstep SCEP URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't edit certificate authority. Invalid Hydrant URL. Please correct and try again.",
+        "Invalid Hydrant URL. Please correct and try again.",
+      ],
+    ])("names the CA type in the URL error for: %s", (reason, expected) => {
+      expect(getDisplayErrMessage(apiError(reason))).toBe(expected);
+    });
+
     it("returns the SCEP URL error", () => {
       expect(
         getDisplayErrMessage(
@@ -47,6 +76,16 @@ describe("AddCertAuthorityModal helpers", () => {
           )
         )
       ).toBe("Invalid SCEP URL. Please correct and try again.");
+    });
+
+    it("returns the generic URL error when the CA type isn't named", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            'Couldn\'t add certificate authority. Post "https://example.com": dial tcp: lookup example.com: no such host'
+          )
+        )
+      ).toBe("Invalid URL. Please correct and try again.");
     });
 
     it("returns the password cache error", () => {
@@ -61,14 +100,12 @@ describe("AddCertAuthorityModal helpers", () => {
       );
     });
 
-    it("returns the challenge URL error for Smallstep", () => {
-      expect(
-        getDisplayErrMessage(
-          apiError(
-            "Couldn't edit certificate authority. Invalid challenge URL or credentials. Please correct and try again."
-          )
-        )
-      ).toBe(
+    // These name a URL too, so they'd be captured by the CA-type URL match if it ran first.
+    it.each([
+      "Couldn't edit certificate authority. Invalid challenge URL or credentials. Please correct and try again.",
+      "Couldn't edit certificate authority. Invalid Challenge URL. Please correct and try again.",
+    ])("returns the challenge URL error for Smallstep: %s", (reason) => {
+      expect(getDisplayErrMessage(apiError(reason))).toBe(
         "Invalid challenge URL or credentials. Please correct and try again."
       );
     });

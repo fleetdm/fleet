@@ -299,7 +299,7 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 
 func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1&fleet_id=1":
+	case "available_for_install=1&fleet_id=1&order_key=name":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         1,
@@ -326,7 +326,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
@@ -373,7 +373,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 			},
 		}, nil
-	case "available_for_install=1&fleet_id=0":
+	case "available_for_install=1&fleet_id=0&order_key=name":
 		return []fleet.SoftwareTitleListResult{}, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -816,7 +816,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 					Name:               "my-software.pkg",
 					Platform:           "darwin",
 					Version:            "13.37",
@@ -828,7 +828,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
@@ -836,7 +836,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				ID:   8,
 				Name: "My FMA",
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 					Name:               "my-fma.pkg",
 					Platform:           "darwin",
 				},
@@ -850,7 +850,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					InstallDuringSetup: ptr.Bool(false),
+					InstallDuringSetup: new(false),
 					Name:               "my-software.pkg",
 					Platform:           "darwin",
 					Version:            "13.37",
@@ -2018,19 +2018,19 @@ func TestGenerateSoftware(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedSoftware, software)
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-install"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-install.sh"]; ok {
 		require.Equal(t, "foo", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-postinstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-postinstall.sh"]; ok {
 		require.Equal(t, "bar", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-uninstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-uninstall.sh"]; ok {
 		require.Equal(t, "baz", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
@@ -2044,7 +2044,7 @@ func TestGenerateSoftware(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-fma-darwin-postinstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-fma-darwin-postinstall.sh"]; ok {
 		require.Equal(t, "postinstall", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
@@ -2219,7 +2219,7 @@ type MockClientWithScriptPackage struct {
 
 func (c *MockClientWithScriptPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1&fleet_id=2":
+	case "available_for_install=1&fleet_id=2&order_key=name":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         3,
@@ -2355,17 +2355,216 @@ func (c *MockClientWithScriptPackage) GetSetupExperienceSoftware(platform string
 	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
 }
 
+type MockClientPlatformPackages struct {
+	MockClient
+}
+
+func (c *MockClientPlatformPackages) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	if query == "available_for_install=1&fleet_id=2&order_key=name" {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:         8,
+				Name:       "Linux Package",
+				HashSHA256: new("linux-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:     "linux-package.deb",
+					Platform: "linux",
+					Version:  "1.0",
+				},
+			},
+			{
+				ID:         9,
+				Name:       "Windows Package",
+				HashSHA256: new("windows-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:     "windows-package.msi",
+					Platform: "windows",
+					Version:  "2.0",
+				},
+			},
+		}, nil
+	}
+	return c.MockClient.ListSoftwareTitles(query)
+}
+
+func (c *MockClientPlatformPackages) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	switch id {
+	case 8:
+		return &fleet.SoftwareTitle{
+			ID: 8,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:     "linux install",
+				PostInstallScript: "linux post-install",
+				UninstallScript:   "linux uninstall",
+				Platform:          "linux",
+				Name:              "linux-package.deb",
+			},
+		}, nil
+	case 9:
+		return &fleet.SoftwareTitle{
+			ID: 9,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:     "windows install",
+				PostInstallScript: "windows post-install",
+				UninstallScript:   "windows uninstall",
+				Platform:          "windows",
+				Name:              "windows-package.msi",
+			},
+		}, nil
+	default:
+		return c.MockClient.GetSoftwareTitleByID(id, teamID)
+	}
+}
+
+func (c *MockClientPlatformPackages) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID == 2 {
+		return []fleet.SoftwareTitleListResult{}, nil
+	}
+	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+}
+
+func TestGenerateSoftwareScriptFileExtensions(t *testing.T) {
+	fleetClient := &MockClientPlatformPackages{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: make(map[uint]Software),
+	}
+
+	_, err = cmd.generateSoftware("fleets/some-team.yml", 2, "some-team", false)
+	require.NoError(t, err)
+
+	// Linux packages get shell scripts.
+	require.Equal(t, "linux install", cmd.FilesToWrite["lib/some-team/scripts/linux-package-linux-install.sh"])
+	require.Equal(t, "linux post-install", cmd.FilesToWrite["lib/some-team/scripts/linux-package-linux-postinstall.sh"])
+	require.Equal(t, "linux uninstall", cmd.FilesToWrite["lib/some-team/scripts/linux-package-linux-uninstall.sh"])
+
+	// Windows packages get PowerShell scripts.
+	require.Equal(t, "windows install", cmd.FilesToWrite["lib/some-team/scripts/windows-package-windows-install.ps1"])
+	require.Equal(t, "windows post-install", cmd.FilesToWrite["lib/some-team/scripts/windows-package-windows-postinstall.ps1"])
+	require.Equal(t, "windows uninstall", cmd.FilesToWrite["lib/some-team/scripts/windows-package-windows-uninstall.ps1"])
+}
+
 const (
 	santaHashA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	santaHashB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 )
+
+type MockClientInHouseApp struct {
+	MockClient
+}
+
+func (c *MockClientInHouseApp) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	if query == "available_for_install=1&fleet_id=9&order_key=name" {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:              20,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ios", Version: "1.0"},
+			},
+			{
+				ID:              21,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ipados", Version: "1.0"},
+			},
+		}, nil
+	}
+	return c.MockClient.ListSoftwareTitles(query)
+}
+
+func (c *MockClientInHouseApp) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	switch id {
+	case 20:
+		return &fleet.SoftwareTitle{
+			ID:              20,
+			Name:            "Acme",
+			SoftwarePackage: &fleet.SoftwareInstaller{Name: "acme.ipa", Platform: "ios", URL: "https://example.com/acme.ipa"},
+		}, nil
+	case 21:
+		return &fleet.SoftwareTitle{
+			ID:              21,
+			Name:            "Acme",
+			SoftwarePackage: &fleet.SoftwareInstaller{Name: "acme.ipa", Platform: "ipados", URL: "https://example.com/acme.ipa"},
+		}, nil
+	default:
+		return c.MockClient.GetSoftwareTitleByID(id, teamID)
+	}
+}
+
+func (c *MockClientInHouseApp) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID != 9 {
+		return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+	}
+	// In-house apps surface whenever the platform list includes a mobile
+	// platform, so the generator's combined query returns them; the "macos"
+	// cross-selection query does not.
+	if strings.Contains(platform, "ios") {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:              20,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ios", Version: "1.0", InstallDuringSetup: new(false)},
+			},
+			{
+				ID:              21,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ipados", Version: "1.0", InstallDuringSetup: new(true)},
+			},
+		}, nil
+	}
+	return []fleet.SoftwareTitleListResult{}, nil
+}
+
+// TestGenerateSoftwareInHouseAppSetupExperience covers the .ipa dedup in
+// generate: the iOS title is seen first and unflagged, only the iPadOS sibling
+// is selected for setup experience, and the single emitted entry must still
+// carry the selection as setup_experience_platform.
+func TestGenerateSoftwareInHouseAppSetupExperience(t *testing.T) {
+	fleetClient := &MockClientInHouseApp{}
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		SoftwareList: make(map[uint]Software),
+		ScriptList:   make(map[uint]string),
+	}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd.AppConfig = appConfig
+
+	cmd.FilesToWrite["fleets/test.yml"] = map[string]any{}
+
+	res, err := cmd.generateSoftware("fleets/test.yml", 9, "team-a", false)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	packages, ok := res["packages"].([]map[string]any)
+	require.True(t, ok, "expected packages in result")
+	require.Len(t, packages, 1, "the two .ipa titles must dedupe to one entry")
+
+	pkg := packages[0]
+	assert.Equal(t, "ipados", pkg["setup_experience_platform"])
+	_, hasBoolean := pkg["setup_experience"]
+	assert.False(t, hasBoolean, "per-platform selection must not emit the setup_experience boolean")
+}
 
 type MockClientMultiPackage struct {
 	MockClient
 }
 
 func (c *MockClientMultiPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
-	if query == "available_for_install=1&fleet_id=2" {
+	if query == "available_for_install=1&fleet_id=2&order_key=name" {
 		return []fleet.SoftwareTitleListResult{{
 			ID:              7,
 			Name:            "Santa",

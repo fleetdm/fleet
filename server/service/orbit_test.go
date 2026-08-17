@@ -1362,7 +1362,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		act, ok := installedActivities[installUUID]
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
-		require.True(t, act.InstallSkippedWhenAppOpen, "activity should be flagged as an app-open skip")
+		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
 	})
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
@@ -1387,7 +1387,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		act, ok := installedActivities[installUUID]
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
-		require.False(t, act.InstallSkippedWhenAppOpen, "non-managed failure must not be flagged as a skip")
+		require.False(t, act.SkippedInstall, "non-managed failure must not be flagged as a skip")
 	})
 
 	t.Run("many consecutive app-open runs never hit the retry cap", func(t *testing.T) {
