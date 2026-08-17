@@ -113,7 +113,9 @@ const ControlDetailsModal = ({
             </Textarea>
           )}
         </div>
+        {/* .modal-cta-wrap is row-reverse, so the primary action comes first. */}
         <div className="modal-cta-wrap">
+          <Button onClick={onExit}>Close</Button>
           <OSSettingsResendCell
             {...getRowActionProps(
               control,
@@ -128,7 +130,6 @@ const ControlDetailsModal = ({
             resendHostNameTemplate={resendHostNameTemplate}
             onProfileResent={onProfileResent}
           />
-          <Button onClick={onExit}>Close</Button>
         </div>
       </>
     </Modal>

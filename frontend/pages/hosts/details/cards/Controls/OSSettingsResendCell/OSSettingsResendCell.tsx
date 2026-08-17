@@ -41,9 +41,8 @@ const ActionButton = ({
         evt.stopPropagation();
         onClick();
       }}
-      variant="secondary"
+      variant="subdued"
       className={className}
-      size="small"
       icon="refresh"
     >
       {isPending ? pendingText : text}

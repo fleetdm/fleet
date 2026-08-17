@@ -1,13 +1,4 @@
 .control-details-modal {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-large;
-
-  .modal__content-wrapper,
-  .modal-cta-wrap {
-    margin-top: 0;
-  }
-
   &__modal-content {
     display: flex;
     flex-direction: column;
@@ -25,9 +16,11 @@
     .icon {
       width: 16px;
       height: 16px;
-      // Keep the status icon on the first line of a message that wraps.
       flex-shrink: 0;
-      margin-top: 2px;
+      // Icon's own styles center it against the whole block; align it to the
+      // first line so it doesn't float when the message wraps.
+      align-self: flex-start;
+      margin-top: 3px;
     }
   }
 
@@ -37,11 +30,5 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-  }
-
-  .modal-cta-wrap {
-    display: flex;
-    align-items: center;
-    gap: $pad-medium;
   }
 }
