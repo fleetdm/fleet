@@ -2272,6 +2272,7 @@ const (
 //
 // NOTE: orbit and osquery running as part of fleetd on a device are identified
 // with the same entry in the hosts table.
+
 // teamIDsMatch returns true if the two team IDs refer to the same team.
 // nil means "No team" (global); a global enroll secret (nil) is allowed to
 // match any host because global admins are trusted. Two non-nil values must
@@ -2443,20 +2444,20 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 
 		// Prevent cross-team re-enrollment: if the matched host already has a
 		// node key (i.e. it is actively enrolled) and belongs to a different
-		// team than the enroll secret, reject the match and create a new host
-		// row instead. This stops an attacker who holds a low-privilege
-		// team's enroll secret from hijacking hosts in other teams.
+		// team than the enroll secret, return a generic error. This stops an
+		// attacker who holds a low-privilege team's enroll secret from hijacking
+		// hosts in other teams. The error is intentionally generic to avoid
+		// leaking whether a host with this identifier exists.
 		// DEP pre-created hosts (NodeKeySet=false) are exempt because they
 		// have not been claimed by an agent yet.
 		if err == nil && enrolledHostInfo.NodeKeySet && !teamIDsMatch(enrolledHostInfo.TeamID, teamID) {
 			ds.logger.WarnContext(ctx, "orbit enrollment rejected: cross-team re-enrollment attempted",
 				"identifier", hostInfo.HardwareUUID,
 				"host_id", enrolledHostInfo.ID,
-				"host_team_id", enrolledHostInfo.TeamID,
-				"secret_team_id", teamID,
+				"host_team_id", ptr.ValOrZero(enrolledHostInfo.TeamID),
+				"secret_team_id", ptr.ValOrZero(teamID),
 			)
-			enrolledHostInfo = nil
-			err = sql.ErrNoRows
+			return ctxerr.New(ctx, "enroll host failed")
 		}
 
 		switch {
@@ -2680,15 +2681,16 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isAppleMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, "")
 
 		// Prevent cross-team re-enrollment (same logic as EnrollOrbit above).
+		// Return a generic error to avoid leaking whether a host with this
+		// identifier exists.
 		if err == nil && enrolledHostInfo.NodeKeySet && !teamIDsMatch(enrolledHostInfo.TeamID, teamID) {
 			ds.logger.WarnContext(ctx, "osquery enrollment rejected: cross-team re-enrollment attempted",
 				"identifier", hardwareUUID,
 				"host_id", enrolledHostInfo.ID,
-				"host_team_id", enrolledHostInfo.TeamID,
-				"secret_team_id", teamID,
+				"host_team_id", ptr.ValOrZero(enrolledHostInfo.TeamID),
+				"secret_team_id", ptr.ValOrZero(teamID),
 			)
-			enrolledHostInfo = nil
-			err = sql.ErrNoRows
+			return ctxerr.New(ctx, "enroll host failed")
 		}
 
 		switch {
