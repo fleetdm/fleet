@@ -94,6 +94,127 @@ The goal of the Supply Chain group is to help customers secure the software and 
 - CIS benchmarks 
 
 
+### Apple @ Work group
+
+The goal of the Apple @ Work group is to increase the number of Apple devices managed by Fleet.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
+| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
+| Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
+| Quality Assurance                 | [Christopher Noel](https://www.linkedin.com/in/chrstphr/) _([@chrstphr84](https://github.com/chrstphr84))_
+| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) _([@MagnusHJensen](https://github.com/magnushjensen))_, [Rajendra Kadam](https://www.linkedin.com/in/rajendra-kadam/) _([@raju249](https://github.com/raju249))_
+
+**Areas of expertise**:
+- Apple MDM protocol & configuration
+- Apple configuration profiles
+- Apple device onboarding (ADE/DEP)
+- Apple setup experience
+- macOS, iOS, and iPadOS configuration & updates
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
+
+
+### Auto Patching group
+
+The goal of the Auto Patching group is to reduce the amount of time before software is patched after vulnerabilities are discovered.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
+| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
+| Tech Lead                         | [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
+| Quality Assurance                 | [Brayan Jimenez](https://www.linkedin.com/in/brayan-jimenez-19742b286/) _([@Brajim20](https://github.com/Brajim20))_
+| Software Engineer                 | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Jonathan Katz](https://www.linkedin.com/in/jonathan-katz-494362237/) _([@jkatz01](https://github.com/jkatz01))_
+
+**Areas of expertise**:
+- Software install / uninstall / patch
+- Fleet-maintained apps (FMAs)
+- Apple Volume Purchasing Program (VPP) apps
+- Google Play apps
+- In-house apps (IPAs)
+- End user self-service
+- Scripts
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
+
+
+### Power to the PC group
+
+The goal of the Power to the PC group is to empower Windows users to fully leverage Fleet as an MDM.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
+| Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
+| Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
+| Quality Assurance                 | [Joe Grant](https://www.linkedin.com/in/thisisjoegrant/) _([@thisisjoegrant](https://github.com/thisisjoegrant))_
+| Software Engineer                 | [Matías Spinarolli](https://www.linkedin.com/in/matias-spinarolli/) _([@jbelbo](https://github.com/jbelbo))_
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this product group is `#g-power-to-pc`.
+
+
+### BYOD group
+
+The goal of the BYOD group is to enable Fleet to manage personally-owned Android devices used at work. This group also owns corporate-owned Android device management so that one team can ensure corporate-owned features are not applied to personal devices.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [LeAnn Gove](https://www.linkedin.com/in/leann-gove-61a750142/) _([@leanngove](https://github.com/leanngove))_
+| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
+| Tech Lead                         | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
+| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C0BK050C3BJ), [kanban board](https://github.com/orgs/fleetdm/projects/112), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-byod) for this product group is `#g-byod`.
+
+
+### Website group
+
+The goal of the website group is to increase and exceed Fleet's product maturity goals for fleetdm.com.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
+| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Quality Assurance                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+| Software Engineer                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
+
+
+<!--
+Paused as of the 4.89.0 release cycle.
+
+### First Impressions group
+
+The goal of the First Impressions product group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_, [Mike McNeil](https://www.linkedin.com/in/mikermcneil/) _([@mikermcneil](https://github.com/mikermcneil))_
+| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Software Engineer                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
+-->
+
+
+<!--
+Example product group section
+### Name
+
+Goal
+
+| Responsibility | Human(s)   |
+|:---------------|:-----------|
+|                |
+|                |
+|                |
+-->
+
 ### Product group capacity 
 
 Product group capacity is allocated based on our [bug open time KPI](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing). If the average bug open time is greater than 32 days, 50% of each product group's capacity is allocated to bugs and [engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story). Allocating less than 50% when above our bug open time KPI requires approval from the CEO.
@@ -234,128 +355,6 @@ On the last day of each three-week release cycle, product groups demo shipped ch
 ### Release retro (30 minutes, every 3 weeks)
 
 At the end of every three-week release cycle, the product group holds a 30-minute retro. Action items are created as [`~timebox`](https://github.com/fleetdm/fleet/labels/~timebox) issues, added to the board, and assigned to the EM for the next release cycle.
-
-
-### Website group
-
-The goal of the website group is to increase and exceed Fleet's product maturity goals for fleetdm.com.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Quality Assurance                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Software Engineer                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
-
-
-<!--
-Paused as of the 4.89.0 release cycle.
-
-### First Impressions group
-
-The goal of the First Impressions product group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_, [Mike McNeil](https://www.linkedin.com/in/mikermcneil/) _([@mikermcneil](https://github.com/mikermcneil))_
-| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
--->
-
-
-### Power to the PC group
-
-The goal of the Power to the PC group is to empower Windows users to fully leverage Fleet as an MDM.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
-| Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
-| Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
-| Quality Assurance                 | [Joe Grant](https://www.linkedin.com/in/thisisjoegrant/) _([@thisisjoegrant](https://github.com/thisisjoegrant))_
-| Software Engineer                 | [Matías Spinarolli](https://www.linkedin.com/in/matias-spinarolli/) _([@jbelbo](https://github.com/jbelbo))_
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this product group is `#g-power-to-pc`.
-
-
-### Apple @ Work group
-
-The goal of the Apple @ Work group is to increase the number of Apple devices managed by Fleet.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
-| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
-| Quality Assurance                 | [Christopher Noel](https://www.linkedin.com/in/chrstphr/) _([@chrstphr84](https://github.com/chrstphr84))_
-| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) _([@MagnusHJensen](https://github.com/magnushjensen))_, [Rajendra Kadam](https://www.linkedin.com/in/rajendra-kadam/) _([@raju249](https://github.com/raju249))_
-
-**Areas of expertise**:
-- Apple MDM protocol & configuration
-- Apple configuration profiles
-- Apple device onboarding (ADE/DEP)
-- Apple setup experience
-- macOS, iOS, and iPadOS configuration & updates
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
-
-
-### Auto Patching group
-
-The goal of the Auto Patching group is to reduce the amount of time before software is patched after vulnerabilities are discovered.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
-| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Tech Lead                         | [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
-| Quality Assurance                 | [Brayan Jimenez](https://www.linkedin.com/in/brayan-jimenez-19742b286/) _([@Brajim20](https://github.com/Brajim20))_
-| Software Engineer                 | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Jonathan Katz](https://www.linkedin.com/in/jonathan-katz-494362237/) _([@jkatz01](https://github.com/jkatz01))_
-
-**Areas of expertise**:
-- Software install / uninstall / patch
-- Fleet-maintained apps (FMAs)
-- Apple Volume Purchasing Program (VPP) apps
-- Google Play apps
-- In-house apps (IPAs)
-- End user self-service
-- Scripts
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
-
-
-### BYOD group
-
-The goal of the BYOD group is to enable Fleet to manage personally-owned Android devices used at work. This group also owns corporate-owned Android device management so that one team can ensure corporate-owned features are not applied to personal devices.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [LeAnn Gove](https://www.linkedin.com/in/leann-gove-61a750142/) _([@leanngove](https://github.com/leanngove))_
-| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Tech Lead                         | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
-| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C0BK050C3BJ), [kanban board](https://github.com/orgs/fleetdm/projects/112), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-byod) for this product group is `#g-byod`.
-
-
-<!--
-Example product group section
-### Name
-
-Goal
-
-| Responsibility | Human(s)   |
-|:---------------|:-----------|
-|                |
-|                |
-|                |
--->
 
 
 ## Making changes
