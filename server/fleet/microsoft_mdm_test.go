@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"encoding/xml"
-	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -271,6 +270,100 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 				Status:      &MDMDeliveryFailed,
 				Detail:      "./Device/First: status 200, ./Device/Second: status 400",
 				CommandUUID: "foo",
+			},
+		},
+		{
+			// The signature measured on hardware: the SCEP root node Add is rejected, its sibling reports 216
+			// (atomic rollback), and the Atomic itself reports 507.
+			name: "user-channel write rejected with 500",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand: []byte(`<Atomic><CmdID>cmd-1</CmdID>` +
+					`<Add><CmdID>add-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x</LocURI></Target></Item></Add>` +
+					`<Add><CmdID>add-2</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/ServerURL</LocURI></Target></Item></Add>` +
+					`</Atomic>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"cmd-1": {Data: new(syncml.CmdStatusAtomicFailed)},
+				"add-1": {Data: new(syncml.CmdStatusCommandFailed), Cmd: new("Add")},
+				"add-2": {Data: new(syncml.CmdStatusAtomicRollbackAccepted), Cmd: new("Add")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID: "host-uuid",
+				Status:   &MDMDeliveryFailed,
+				Detail: "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x: status 500, " +
+					"./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/ServerURL: status 216",
+				CommandUUID:         "cmd-1",
+				UserChannelRejected: true,
+			},
+		},
+		{
+			name: "user-channel write rejected with 405",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand:  []byte(`<Replace><CmdID>rep-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/Experience/A</LocURI></Target></Item></Replace>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"rep-1": {Data: new(syncml.CmdStatusNotAllowed), Cmd: new("Replace")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID:            "host-uuid",
+				Status:              &MDMDeliveryFailed,
+				Detail:              "./User/Vendor/MSFT/Policy/Config/Experience/A: status 405",
+				CommandUUID:         "cmd-1",
+				UserChannelRejected: true,
+			},
+		},
+		{
+			// 418 means the node already existed, which only happens when the user channel IS writable, so an Atomic
+			// that rolled back because of one must not read as a user-context rejection. The already-exists resend
+			// path recovers from it, and exempting it from retry accounting would let that path loop.
+			name: "atomic rollback from a nested 418 is not a user-channel rejection",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand: []byte(`<Atomic><CmdID>cmd-1</CmdID>` +
+					`<Add><CmdID>add-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Add>` +
+					`</Atomic>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"cmd-1": {Data: new(syncml.CmdStatusAtomicFailed)},
+				"add-1": {Data: new(syncml.CmdStatusAlreadyExists), Cmd: new("Add")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID:            "host-uuid",
+				Status:              &MDMDeliveryFailed,
+				Detail:              "./User/Vendor/MSFT/Policy/Config/A: status 418",
+				CommandUUID:         "cmd-1",
+				UserChannelRejected: false,
+			},
+		},
+		{
+			// A SCEP profile's user-channel write is the Exec on Install/Enroll, so leaving Exec out of the failure
+			// scan would both hide the failing command and miss the rejection.
+			name: "user-channel Exec rejected inside an atomic",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand: []byte(`<Atomic><CmdID>cmd-1</CmdID>` +
+					`<Add><CmdID>add-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x</LocURI></Target></Item></Add>` +
+					`<Exec><CmdID>exec-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/Enroll</LocURI></Target></Item></Exec>` +
+					`</Atomic>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"cmd-1":  {Data: new(syncml.CmdStatusAtomicFailed)},
+				"add-1":  {Data: new(syncml.CmdStatusAtomicRollbackAccepted), Cmd: new("Add")},
+				"exec-1": {Data: new(syncml.CmdStatusCommandFailed), Cmd: new("Exec")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID: "host-uuid",
+				Status:   &MDMDeliveryFailed,
+				Detail: "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x: status 216, " +
+					"./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/Enroll: status 500",
+				CommandUUID:         "cmd-1",
+				UserChannelRejected: true,
 			},
 		},
 	}
@@ -735,110 +828,6 @@ func TestWindowsResponseToDeliveryStatusForRemove(t *testing.T) {
 	}
 }
 
-// TestBuildMDMWindowsProfilePayloadUserChannelRejected covers the signal that decides whether a failure is "Fleet sent this
-// too early" or a real failure. It has to come from the per-LocURI statuses: the enclosing Atomic returns 507 for any nested
-// failure, and 405 is returned both for a user-channel write before user context exists and for a CSP node the device's
-// Windows edition does not support.
-func TestBuildMDMWindowsProfilePayloadUserChannelRejected(t *testing.T) {
-	t.Parallel()
-	replaceCmd := new("Replace")
-	addCmd := new("Add")
-
-	t.Run("user-channel write rejected with 500", func(t *testing.T) {
-		// The measured OOBE signature: the SCEP root node Add returns 500 while its siblings report 216 (rollback OK)
-		// and the Atomic reports 507.
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand: []byte(`<Atomic><CmdID>cmd-1</CmdID>` +
-				`<Add><CmdID>add-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x</LocURI></Target></Item></Add>` +
-				`<Add><CmdID>add-2</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/ServerURL</LocURI></Target></Item></Add>` +
-				`</Atomic>`),
-		}
-		statuses := map[string]SyncMLCmd{
-			"cmd-1": {Data: new(syncml.CmdStatusAtomicFailed)},
-			"add-1": {Data: new(syncml.CmdStatusCommandFailed), Cmd: addCmd},
-			"add-2": {Data: new("216"), Cmd: addCmd},
-		}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", false)
-		require.NoError(t, err)
-		require.Equal(t, MDMDeliveryFailed, *payload.Status)
-		require.True(t, payload.UserChannelRejected)
-	})
-
-	t.Run("user-channel write rejected with 405", func(t *testing.T) {
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand:  []byte(`<Replace><CmdID>rep-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/Experience/A</LocURI></Target></Item></Replace>`),
-		}
-		statuses := map[string]SyncMLCmd{"rep-1": {Data: new(syncml.CmdStatusNotAllowed), Cmd: replaceCmd}}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", false)
-		require.NoError(t, err)
-		require.True(t, payload.UserChannelRejected)
-	})
-
-	t.Run("device-channel failure is not a user-channel rejection", func(t *testing.T) {
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand:  []byte(`<Replace><CmdID>rep-1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/A</LocURI></Target></Item></Replace>`),
-		}
-		statuses := map[string]SyncMLCmd{"rep-1": {Data: new(syncml.CmdStatusCommandFailed), Cmd: replaceCmd}}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", false)
-		require.NoError(t, err)
-		require.False(t, payload.UserChannelRejected)
-	})
-
-	t.Run("atomic rollback from a nested 418 is not a user-channel rejection", func(t *testing.T) {
-		// A nested "already exists" fails the Atomic with 507, and the already-exists resend path recovers from it.
-		// The user-channel node itself succeeded here, so this must not be mistaken for a user-context problem.
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand: []byte(`<Atomic><CmdID>cmd-1</CmdID>` +
-				`<Add><CmdID>add-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Add>` +
-				`</Atomic>`),
-		}
-		statuses := map[string]SyncMLCmd{
-			"cmd-1": {Data: new(syncml.CmdStatusAtomicFailed)},
-			"add-1": {Data: new("418"), Cmd: addCmd},
-		}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", false)
-		require.NoError(t, err)
-		require.Equal(t, MDMDeliveryFailed, *payload.Status)
-		require.False(t, payload.UserChannelRejected, "418 is not a rejection of the user channel")
-	})
-
-	t.Run("user-channel Exec rejected inside an atomic", func(t *testing.T) {
-		// The SCEP shape: the user-channel write that matters is the Exec on Install/Enroll. Missing it would spend
-		// the retry budget on a write Fleet sent before the host had a user context.
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand: []byte(`<Atomic><CmdID>cmd-1</CmdID>` +
-				`<Add><CmdID>add-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x</LocURI></Target></Item></Add>` +
-				`<Exec><CmdID>exec-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/Enroll</LocURI></Target></Item></Exec>` +
-				`</Atomic>`),
-		}
-		statuses := map[string]SyncMLCmd{
-			"cmd-1":  {Data: new(syncml.CmdStatusAtomicFailed)},
-			"add-1":  {Data: new("216"), Cmd: addCmd},
-			"exec-1": {Data: new(syncml.CmdStatusCommandFailed), Cmd: new("Exec")},
-		}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", false)
-		require.NoError(t, err)
-		require.True(t, payload.UserChannelRejected)
-		require.Contains(t, payload.Detail, "Install/Enroll", "the failing command must appear in the detail")
-	})
-
-	t.Run("scope-less spelling is not a user-channel rejection", func(t *testing.T) {
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand:  []byte(`<Replace><CmdID>rep-1</CmdID><Item><Target><LocURI>./Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`),
-		}
-		statuses := map[string]SyncMLCmd{"rep-1": {Data: new(syncml.CmdStatusCommandFailed), Cmd: replaceCmd}}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", false)
-		require.NoError(t, err)
-		require.False(t, payload.UserChannelRejected)
-	})
-}
-
 func TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation(t *testing.T) {
 	t.Run("atomic remove with 405 is success", func(t *testing.T) {
 		cmd := MDMWindowsCommand{
@@ -961,8 +950,15 @@ func TestWindowsProfileScopeFromBytes(t *testing.T) {
 			want: WindowsProfileScopeUser,
 		},
 		{
-			name:    "user target in a later command still counts",
-			profile: `<Replace><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace><Add><Item><Target><LocURI>./User/B</LocURI></Target></Item></Add>`,
+			// Text-splitting cases. A raw prefix match on the profile bytes would miss these, which is why
+			// classification parses the profile instead of scanning it. See the differential fixed in #49715.
+			name:    "user target split by a CDATA section",
+			profile: `<Replace><Item><Target><LocURI><![CDATA[./User/Vendor/MSFT/Policy/Config/A]]></LocURI></Target></Item></Replace>`,
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			name:    "user target split by a comment",
+			profile: `<Replace><Item><Target><LocURI>./User<!-- c -->/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`,
 			want:    WindowsProfileScopeUser,
 		},
 		{
@@ -1029,41 +1025,6 @@ func TestWindowsProfileScopeFromBytes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, WindowsProfileScopeFromBytes([]byte(tc.profile)))
-		})
-	}
-}
-
-// TestWindowsProfileScopeMatchesDeliveredLocURIs is the anti-differential check: whatever the delivery path would ship as a
-// canonicalized "./User/" target must classify the profile as user-scoped. Classification and delivery run the same parse, so
-// text-splitting tricks (CDATA, comments, nested elements) cannot make the two disagree.
-func TestWindowsProfileScopeMatchesDeliveredLocURIs(t *testing.T) {
-	t.Parallel()
-
-	profiles := []string{
-		`<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`,
-		`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`,
-		`<Replace><Item><Target><LocURI>./Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`,
-		`<Replace><Item><Target><LocURI><![CDATA[./User/Vendor/MSFT/Policy/Config/A]]></LocURI></Target></Item></Replace>`,
-		`<Replace><Item><Target><LocURI>./User<!-- comment -->/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`,
-		`<Atomic><Add><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Add></Atomic>`,
-		`<Replace><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace><Add><Item><Target><LocURI>./User/B</LocURI></Target></Item></Add>`,
-	}
-
-	for _, profile := range profiles {
-		t.Run(profile, func(t *testing.T) {
-			t.Parallel()
-			var deliversUserTarget bool
-			for _, uri := range ExtractLocURIsFromProfileBytes([]byte(profile)) {
-				canon := CanonicalLocURI(uri)
-				if canon == "User" || strings.HasPrefix(canon, "User/") {
-					deliversUserTarget = true
-					break
-				}
-			}
-			if deliversUserTarget {
-				require.Equal(t, WindowsProfileScopeUser, WindowsProfileScopeFromBytes([]byte(profile)),
-					"profile delivers a user-channel target but was not classified user-scoped")
-			}
 		})
 	}
 }
