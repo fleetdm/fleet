@@ -173,15 +173,15 @@ will be disabled and/or hidden in the UI.
               metric: 'android_proxy.amapi_request_count_by_enterprise',
               type: 1,
               interval: 60,
-              points: [{ timestamp: timestampInSeconds, value: requestCountByEnterpriseId[enterpriseId] }],
+              points: [{ timestamp: timestampInSeconds, value: perEnterpriseMetrics[enterpriseId] }],
               tags: [`dyno:${thisDyno}`, `android_enterprise_id:${enterpriseId}`],
             }));
-            metricsToSendToDatadog = metricsToSendToDatadog.concat(perEnterpriseSeries);
+            metricsToSendToDatadog = metricsToSendToDatadog.concat(perEnterpriseMetrics);
 
             sails.helpers.http.post.with({
               url: 'https://api.us5.datadoghq.com/api/v2/series',
               data: {
-                series: metricsToSendToDatadoge
+                series: metricsToSendToDatadog
               },
               headers: {
                 'DD-API-KEY': sails.config.custom.datadogApiKey,
