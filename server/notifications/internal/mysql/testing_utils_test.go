@@ -79,16 +79,6 @@ func (env *testEnv) InsertNotification(t testing.TB, hostID uint, kind string, n
 	return notificationUUID
 }
 
-// InsertUpcomingActivity gives a host a queued script under executionID, since
-// SetEndUserNotificationsDispatched is only meaningful for one that exists.
-func (env *testEnv) InsertUpcomingActivity(t testing.TB, hostID uint, executionID string) {
-	t.Helper()
-	_, err := env.db.ExecContext(context.Background(), `
-		INSERT INTO upcoming_activities (host_id, activity_type, execution_id, payload)
-		VALUES (?, 'script', ?, '{}')`, hostID, executionID)
-	require.NoError(t, err)
-}
-
 func (env *testEnv) DeleteHost(t testing.TB, hostID uint) {
 	t.Helper()
 	_, err := env.db.ExecContext(context.Background(), `DELETE FROM hosts WHERE id = ?`, hostID)

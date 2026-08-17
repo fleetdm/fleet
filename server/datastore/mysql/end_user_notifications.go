@@ -3,23 +3,22 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
-// BatchNewInternalHostScriptExecutionRequests queues the same script on many
-// hosts as one internal (fleet-initiated) run each, and returns the execution ID
-// it queued for each host.
-//
 // The single-host NewInternalHostScriptExecutionRequest is a better fit for
-// anything user-facing. This exists for server-driven sweeps that would otherwise
-// do a round trip per host.
+// anything user-facing.
 func (ds *Datastore) BatchNewInternalHostScriptExecutionRequests(ctx context.Context, hostIDs []uint, contents string) (map[uint]string, error) {
 	if len(hostIDs) == 0 {
 		return nil, nil
 	}
+
+	slices.Sort(hostIDs)              // sorting can help avoid deadlocks
+	hostIDs = slices.Compact(hostIDs) // dedupe IDs (must be sorted first)
 
 	// the execution IDs are generated here rather than read back, so the caller
 	// gets its host to execution mapping without another query
@@ -97,14 +96,10 @@ WHERE
 	return executionIDByHost, nil
 }
 
-// activateNextScriptActivitiesForHosts activates the next upcoming activity for
-// each host, but only where that activity is a script, in a fixed number of
-// statements for the whole set rather than per host. It is not a general
-// replacement for activateNextUpcomingActivityForBatchOfHosts, only what the
-// batch queue above needs.
-//
-// A host whose turn belongs to another activity type, or that already has one
-// activated, is left for that other path to pick up.
+// Not a general replacement for activateNextUpcomingActivityForBatchOfHosts:
+// this only activates scripts, in a fixed number of statements for the whole
+// set. A host whose turn belongs to another activity type, or that already has
+// one activated, is left for that other path to pick up.
 func (ds *Datastore) activateNextScriptActivitiesForHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	// Ranks every activity type so a script can't activate ahead of an install
 	// queued earlier; only rank 1 matters since scripts never batch.

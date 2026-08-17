@@ -36,6 +36,8 @@ const (
 	EndUserNotificationReasonInternalError     = "internal_error"
 	EndUserNotificationReasonDesktopMissing    = "fleet_desktop_missing"
 	EndUserNotificationReasonDesktopTooOld     = "fleet_desktop_too_old"
+	EndUserNotificationReasonScriptsDisabled   = "scripts_disabled"
+	EndUserNotificationReasonURLUnresolved     = "url_unresolved"
 	EndUserNotificationReasonUnexpectedFailure = "unexpected_failure"
 )
 
@@ -72,8 +74,6 @@ type EndUserNotification struct {
 	UpdatedAt     time.Time       `db:"updated_at"`
 }
 
-// EndUserNotificationAction is what an end user did with one of their
-// notifications.
 type EndUserNotificationAction struct {
 	Action      *string    `json:"action"`
 	DisplayedAt *time.Time `json:"displayed_at"`

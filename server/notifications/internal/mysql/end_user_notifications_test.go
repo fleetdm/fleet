@@ -175,12 +175,10 @@ func testListEndUserNotificationsToDispatch(t *testing.T, env *testEnv) {
 	})
 }
 
-// withExecutionID gives a notification a queued execution to dispatch as, so
-// SetEndUserNotificationsDispatched's join to upcoming_activities has
-// something to match.
+// withExecutionID is the argument the dispatcher builds after queueing a script
+// for each notification.
 func withExecutionID(t *testing.T, env *testEnv, notificationUUID string, hostID uint) []*api.EndUserNotification {
 	executionID := notificationUUID + "-exec"
-	env.InsertUpcomingActivity(t, hostID, executionID)
 	return []*api.EndUserNotification{{UUID: notificationUUID, HostID: hostID, ExecutionID: &executionID}}
 }
 
@@ -212,21 +210,6 @@ func testSetEndUserNotificationsDispatched(t *testing.T, env *testEnv) {
 		assert.EqualValues(t, 1, got.AttemptCount)
 	})
 
-	t.Run("records the execution even if the queued script already completed", func(t *testing.T) {
-		// no upcoming_activities row, unlike withExecutionID: that's the state
-		// a script that already finished leaves behind
-		hostID := newDarwinHost(t, env, "dispatched-already-completed", true)
-		notificationUUID := env.InsertNotification(t, hostID, "k", nil, nil)
-		executionID := notificationUUID + "-exec"
-		notifications := []*api.EndUserNotification{{UUID: notificationUUID, ExecutionID: &executionID}}
-		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, notifications))
-
-		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
-		require.NoError(t, err)
-		assert.Equal(t, api.EndUserNotificationDispatched, got.Status)
-		require.NotNil(t, got.ExecutionID)
-		assert.Equal(t, executionID, *got.ExecutionID)
-	})
 }
 
 func testExpireEndUserNotifications(t *testing.T, env *testEnv) {
@@ -238,6 +221,7 @@ func testExpireEndUserNotifications(t *testing.T, env *testEnv) {
 	pastNoExpiryUUID := env.InsertNotification(t, hostID, "k", nil, nil)
 	pastExpiredUUID := env.InsertNotification(t, hostID, "k", nil, &past)
 	pastButDisplayedUUID := env.InsertNotification(t, hostID, "k", nil, &past)
+	require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, pastButDisplayedUUID, hostID)))
 	require.NoError(t, env.ds.VerifyEndUserNotification(ctx, pastButDisplayedUUID, time.Now()))
 	futureExpiryUUID := env.InsertNotification(t, hostID, "k", nil, &future)
 
@@ -263,7 +247,7 @@ func testExpireEndUserNotifications(t *testing.T, env *testEnv) {
 		assert.Equal(t, want, got.Status)
 	}
 	assertStatus(pastExpiredUUID, api.EndUserNotificationExpired)
-	assertStatus(pastButDisplayedUUID, api.EndUserNotificationPending)
+	assertStatus(pastButDisplayedUUID, api.EndUserNotificationDispatched)
 	assertStatus(futureExpiryUUID, api.EndUserNotificationPending)
 	assertStatus(pastNoExpiryUUID, api.EndUserNotificationPending)
 	assertStatus(stuckDispatchedUUID, api.EndUserNotificationExpired)
@@ -274,6 +258,7 @@ func testVerifyEndUserNotification(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	hostID := newDarwinHost(t, env, "verify", true)
 	notificationUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+	require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, notificationUUID, hostID)))
 
 	first := time.Now().Add(-time.Minute).UTC().Truncate(time.Second)
 	require.NoError(t, env.ds.VerifyEndUserNotification(ctx, notificationUUID, first))
@@ -289,6 +274,17 @@ func testVerifyEndUserNotification(t *testing.T, env *testEnv) {
 	got, err = env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 	require.NoError(t, err)
 	assert.WithinDuration(t, first, *got.DisplayedAt, time.Second)
+
+	// a result that lands after the end user delayed it belongs to a send that is
+	// over, so it can't mark the next one as displayed
+	delayedUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+	require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, delayedUUID, hostID)))
+	require.NoError(t, env.ds.DelayEndUserNotification(ctx, delayedUUID, time.Now().Add(time.Hour), nil))
+	require.NoError(t, env.ds.VerifyEndUserNotification(ctx, delayedUUID, time.Now()))
+
+	got, err = env.ds.GetEndUserNotificationByUUID(ctx, delayedUUID)
+	require.NoError(t, err)
+	assert.Nil(t, got.DisplayedAt)
 }
 
 func testDelayEndUserNotification(t *testing.T, env *testEnv) {
@@ -339,7 +335,6 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 		require.NoError(t, env.ds.DelayEndUserNotification(ctx, first, time.Now().Add(-time.Minute), nil))
 
 		redispatch := first + "-exec2"
-		env.InsertUpcomingActivity(t, hostID, redispatch)
 		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx,
 			[]*api.EndUserNotification{{UUID: first, HostID: hostID, ExecutionID: &redispatch}}))
 

@@ -17,6 +17,10 @@ func TestNotificationOutcomeForExitCode(t *testing.T) {
 		longRetry bool
 	}{
 		{0, "", false, false},
+		// Fleet's own side of the delivery, so both wait out the long retry rather
+		// than queueing another script every cron pass
+		{-2, api.EndUserNotificationReasonScriptsDisabled, true, true},
+		{-5, api.EndUserNotificationReasonURLUnresolved, true, true},
 		{2, api.EndUserNotificationReasonBadInvocation, false, false},
 		{20, api.EndUserNotificationReasonBadConfiguration, false, false},
 		{30, api.EndUserNotificationReasonPageLoadFailed, true, false},
