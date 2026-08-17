@@ -1,5 +1,3 @@
-// Package api provides the public API for the notifications bounded context.
-// External code should use this package to interact with notifications.
 package api
 
 import (
@@ -73,8 +71,8 @@ type EndUserNotification struct {
 	UpdatedAt     time.Time       `db:"updated_at"`
 }
 
-// EndUserNotificationAction is what an end user's device reported about one of
-// their notifications.
+// EndUserNotificationAction is what an end user did with one of their
+// notifications.
 type EndUserNotificationAction struct {
 	Action      *string    `json:"action"`
 	DisplayedAt *time.Time `json:"displayed_at"`

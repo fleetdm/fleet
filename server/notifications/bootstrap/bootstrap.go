@@ -1,6 +1,5 @@
-// Package bootstrap provides the public entry point for the notifications
-// bounded context. It wires together internal components and exposes them
-// for use in serve.go.
+// Package bootstrap is where serve.go builds the notifications bounded
+// context.
 package bootstrap
 
 import (
@@ -16,7 +15,9 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-// New creates a new notifications bounded context and returns its service and route handler.
+// New returns the context's service, and a function that takes the auth
+// middleware for its routes. server/service owns device authentication, so
+// the middleware can only be supplied from outside.
 func New(
 	dbConns *platform_mysql.DBConnections,
 	providers notifications.DataProviders,
@@ -32,7 +33,7 @@ func New(
 	return svc, routesFn
 }
 
-// RegisterTracingTiers classifies the notifications context's routes for trace sampling.
+// RegisterTracingTiers classifies this context's routes for trace sampling.
 func RegisterTracingTiers(registry *tracing.Registry) {
 	service.RegisterTracingTiers(registry)
 }

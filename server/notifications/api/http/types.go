@@ -1,6 +1,5 @@
-// Package http provides HTTP request and response types for the
-// notifications bounded context. These types are used exclusively by the
-// notifications endpoint handlers.
+// Package http provides the request and response types for the notifications
+// endpoints.
 package http
 
 import (
@@ -9,51 +8,40 @@ import (
 	"github.com/fleetdm/fleet/v4/server/notifications/api"
 )
 
-// GetNotificationRequest is the HTTP request type for a device fetching one
-// of its notifications.
 type GetNotificationRequest struct {
 	Token string `url:"token"`
 	UUID  string `url:"uuid"`
 }
 
-// DeviceAuthToken implements the interface the device auth middleware uses to
-// find the token before the request is authenticated.
+// DeviceAuthToken is where the device auth middleware reads the token from.
 func (r *GetNotificationRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
-// GetNotificationResponse is the HTTP response type for a device fetching one
-// of its notifications.
 type GetNotificationResponse struct {
 	Payload json.RawMessage `json:"payload"`
 	Err     error           `json:"error,omitempty"`
 }
 
-// Error implements the platform_http.Errorer interface.
 func (r GetNotificationResponse) Error() error { return r.Err }
 
-// NotificationActionRequest is the HTTP request type for a device reporting
-// what it did with one of its notifications.
 type NotificationActionRequest struct {
 	Token string `url:"token"`
 	UUID  string `url:"uuid"`
 	api.EndUserNotificationAction
 }
 
-// DeviceAuthToken implements the interface the device auth middleware uses to
-// find the token before the request is authenticated.
+// DeviceAuthToken is where the device auth middleware reads the token from.
 func (r *NotificationActionRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
-// NotificationActionResponse is the HTTP response type for a device reporting
-// what it did with one of its notifications.
 type NotificationActionResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-// Error implements the platform_http.Errorer interface.
 func (r NotificationActionResponse) Error() error { return r.Err }
 
-// Status implements the interface that overrides the default response status.
+// Status is read by the response encoder; acting on a notification returns
+// no body.
 func (r NotificationActionResponse) Status() int { return 204 }

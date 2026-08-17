@@ -21,7 +21,6 @@ import (
 // something a caller can trigger.
 var errMissingHost = errors.New("internal error: missing host from request context")
 
-// GetRoutes returns a function that registers notifications routes on the router.
 func GetRoutes(svc api.Service, authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
 	return func(r *mux.Router, opts []kithttp.ServerOption) {
 		attachFleetAPIRoutes(r, svc, authMiddleware, opts)
@@ -29,7 +28,6 @@ func GetRoutes(svc api.Service, authMiddleware endpoint.Middleware) eu.HandlerRo
 }
 
 func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
-	// Device-authenticated endpoints
 	de := newDeviceAuthenticatedEndpointer(svc, authMiddleware, opts, r, apiVersions()...)
 
 	de.GET("/api/_version_/fleet/device/{token}/notifications/{uuid}", getNotificationEndpoint, api_http.GetNotificationRequest{})
@@ -46,7 +44,6 @@ func apiVersions() []string {
 	return []string{"v1", "latest"}
 }
 
-// getNotificationEndpoint handles GET /api/_version_/fleet/device/{token}/notifications/{uuid}
 func getNotificationEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.GetNotificationRequest)
 
@@ -62,7 +59,6 @@ func getNotificationEndpoint(ctx context.Context, request any, svc api.Service) 
 	return api_http.GetNotificationResponse{Payload: notification.Payload}
 }
 
-// notificationActionEndpoint handles POST /api/_version_/fleet/device/{token}/notifications/{uuid}/actions
 func notificationActionEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.NotificationActionRequest)
 

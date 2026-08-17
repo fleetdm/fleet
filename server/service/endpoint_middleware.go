@@ -126,11 +126,17 @@ func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.E
 	return middleware_log.Logged(authDeviceFunc)
 }
 
-// DeviceAuthMiddleware wraps authenticatedDevice for a bounded context's
-// device-authenticated endpoints. onHost is called with the authenticated
-// host's ID once auth succeeds, so a bounded context that can't depend on
-// *fleet.Host gets just what it needs into its own context.
-func DeviceAuthMiddleware(svc fleet.Service, logger *slog.Logger, onHost func(ctx context.Context, hostID uint) context.Context) endpoint.Middleware {
+// DeviceAuthMiddleware authenticates a device token for endpoints owned by a
+// bounded context. Those contexts can't read the host that authenticatedDevice
+// leaves in hostctx, since it's a *fleet.Host, so the endpoint passed below
+// sits between the two: it takes the host's ID and hands it to onHost, which
+// stores it however the context wants. That keeps this signature free of any
+// bounded context's types, and their contexts free of fleet ones.
+func DeviceAuthMiddleware(
+	svc fleet.Service,
+	logger *slog.Logger,
+	onHost func(ctx context.Context, hostID uint) context.Context,
+) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedDevice(svc, logger, func(ctx context.Context, request any) (any, error) {
 			if host, ok := hostctx.FromContext(ctx); ok {
@@ -145,9 +151,10 @@ func getDeviceAuthToken(r interface{}) (string, error) {
 	if dat, ok := r.(interface{ deviceAuthToken() string }); ok {
 		return dat.deviceAuthToken(), nil
 	}
-	// Exported form, for request types defined outside this package (e.g. a
-	// bounded context), since an unexported method can only satisfy an
-	// interface declared in its own package.
+	// Go qualifies an unexported method name by the package declaring the
+	// interface, so a request type from another package can't satisfy the
+	// assertion above no matter how it spells the method. Bounded contexts
+	// define their own request types, so they implement the exported name.
 	if dat, ok := r.(interface{ DeviceAuthToken() string }); ok {
 		return dat.DeviceAuthToken(), nil
 	}

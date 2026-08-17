@@ -7,21 +7,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// RecordOutcomeFunc is the callback function type for MockNotificationsService.
 type RecordOutcomeFunc func(ctx context.Context, executionID string, exitCode int64, output string) error
 
-// NotificationUUIDForExecutionFunc is the callback function type for MockNotificationsService.
 type NotificationUUIDForExecutionFunc func(ctx context.Context, executionID string) (string, error)
 
-// NoopRecordOutcomeFunc is a no-op implementation of RecordOutcomeFunc for
-// tests that don't need to intercept notification outcome recording.
 var NoopRecordOutcomeFunc RecordOutcomeFunc = func(_ context.Context, _ string, _ int64, _ string) error {
 	return nil
 }
 
-// MockNotificationsService is a mock implementation of
-// fleet.NotificationsWriteService for unit tests that use mock.Store instead
-// of real MySQL connections.
+// MockNotificationsService stands in for the notifications bounded context in
+// tests that run on mock.Store rather than MySQL.
 type MockNotificationsService struct {
 	RecordOutcomeFunc        RecordOutcomeFunc // defaults to NoopRecordOutcomeFunc if nil
 	RecordOutcomeFuncInvoked bool
@@ -32,7 +27,6 @@ type MockNotificationsService struct {
 	mu sync.Mutex
 }
 
-// Ensure MockNotificationsService implements fleet.NotificationsWriteService.
 var _ fleet.NotificationsWriteService = (*MockNotificationsService)(nil)
 
 func (m *MockNotificationsService) RecordOutcome(ctx context.Context, executionID string, exitCode int64, output string) error {
