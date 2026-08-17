@@ -270,7 +270,7 @@ describe("DeviceNotificationPage", () => {
     await user.click(primary);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      /something went wrong/i
+      /please try again/i
     );
     // A failed POST must not silently send the outcome bridge messages.
     const primaryCalls = postMessage.mock.calls.filter(

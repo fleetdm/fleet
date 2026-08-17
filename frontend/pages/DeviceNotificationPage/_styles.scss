@@ -110,10 +110,18 @@
     gap: $pad-small;
   }
 
+  // The error slot lives inside the actions row, left of the buttons, so
+  // showing it doesn't shift the row vertically. `margin-right: auto` eats
+  // the free space to its right, keeping the buttons right-aligned even
+  // while the actions row uses `justify-content: flex-end`.
   &__action-error {
-    margin: 0;
-    font-size: $xx-small;
-    color: $ui-error;
-    text-align: right;
+    margin-right: auto;
+
+    // DataError's single-line variant ships with $pad-large vertical padding
+    // for stand-alone page use. Strip it here so the icon+text sits flush
+    // against the buttons and the actions row keeps a stable height.
+    .data-error__header--single-line {
+      padding: 0;
+    }
   }
 }

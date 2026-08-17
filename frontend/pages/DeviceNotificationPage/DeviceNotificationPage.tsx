@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 
 import Button from "components/buttons/Button";
+import DataError from "components/DataError";
 import List from "components/List";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
@@ -240,12 +241,16 @@ const DeviceNotificationPage = ({
           idKey="software_title_id"
           renderItemRow={renderNotificationItemRow}
         />
-        {isPostError && (
-          <p className={`${baseClass}__action-error`} role="alert">
-            Something went wrong. Please try again.
-          </p>
-        )}
         <div className={`${baseClass}__actions`}>
+          {isPostError && (
+            <div className={`${baseClass}__action-error`} role="alert">
+              <DataError
+                singleCustomLine
+                description="Please try again."
+                excludeIssueLink
+              />
+            </div>
+          )}
           {secondaryActions.map((action) => (
             <Button
               key={action.id}
