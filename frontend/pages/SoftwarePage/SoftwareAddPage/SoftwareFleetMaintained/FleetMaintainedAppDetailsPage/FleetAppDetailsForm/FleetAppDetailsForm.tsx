@@ -306,7 +306,7 @@ const FleetAppDetailsForm = ({
               (formData.patchOption === "closed" ||
                 (formData.patchOption === "force" &&
                   formData.endUserExperience === "notify" &&
-                  isMacOS(platform ?? "")))
+                  isMacOS(platform)))
             }
           />
         )}

@@ -5,10 +5,9 @@ import classnames from "classnames";
 import { ILabelSummary } from "interfaces/label";
 import {
   IAppStoreApp,
-  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
+  getInstallablePlatform,
   ISoftwarePackage,
   InstallerType,
-  SoftwareSource,
 } from "interfaces/software";
 import useBlockNavigation from "hooks/useBlockNavigation";
 import useGitOpsMode from "hooks/useGitOpsMode";
@@ -103,14 +102,11 @@ const EditSoftwareModal = ({
   // Fleet-managed app-open query, so it triggers the same read-only lock —
   // gated on the software's platform being Mac to mirror the wire boundary
   // in `getPatchPolicyFlags`.
-  const derivedPlatform = source
-    ? INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source as SoftwareSource] ??
-      undefined
-    : undefined;
+  const derivedPlatform = getInstallablePlatform(source);
   const notifyLocksPreInstallQuery =
     "patch_policy" in softwareInstaller &&
     !!softwareInstaller.patch_policy?.notify_before_patching &&
-    isMacOS(derivedPlatform ?? "");
+    isMacOS(derivedPlatform);
   const effectivePatchWhenClosed =
     patchWhenClosed ||
     ("patch_policy" in softwareInstaller &&

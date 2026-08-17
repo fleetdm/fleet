@@ -154,11 +154,12 @@ export const isAppleDevice = (platform = "") => {
 // Accept both the single-value host platform (`"windows"`, `"darwin"`,
 // `"macos"`) and the comma-joined `CommaSeparatedPlatformString` from
 // policies (`"darwin,linux"`) so the same predicate works at the wire
-// boundary for patch policies without a second helper.
-export const isWindows = (platform: string | HostPlatform) =>
+// boundary for patch policies without a second helper. `undefined` is
+// allowed so callers with `string | undefined` don't need to `?? ""`.
+export const isWindows = (platform: string | HostPlatform | undefined) =>
   !!platform && platform.split(",").includes("windows");
 
-export const isMacOS = (platform: string | HostPlatform) => {
+export const isMacOS = (platform: string | HostPlatform | undefined) => {
   if (!platform) return false;
   const parts = platform.split(",");
   return parts.includes("darwin") || parts.includes("macos");

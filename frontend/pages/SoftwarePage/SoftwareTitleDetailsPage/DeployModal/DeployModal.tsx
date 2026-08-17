@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { useQuery } from "react-query";
 
 import {
-  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
+  getInstallablePlatform,
   ISoftwareTitleDetails,
-  SoftwareSource,
 } from "interfaces/software";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
@@ -77,10 +76,7 @@ const DeployModal = ({
   );
   const [isSaving, setIsSaving] = useState(false);
 
-  const platform =
-    INSTALLABLE_SOURCE_PLATFORM_CONVERSION[
-      softwareTitle.source as SoftwareSource
-    ] ?? undefined;
+  const platform = getInstallablePlatform(softwareTitle.source);
 
   const fleetMaintainedAppId = softwarePackage?.fleet_maintained_app_id;
   const {

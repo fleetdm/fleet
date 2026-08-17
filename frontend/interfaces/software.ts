@@ -357,6 +357,20 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   adobe_plugins: null,
 } as const;
 
+/**
+ * Look up an installable source's platform, normalizing the mapping's `null`
+ * entries to `undefined` so callers can treat the return as an optional
+ * `string`. Centralizes the `SoftwareSource` cast so consumers don't repeat
+ * it (and don't drift on the null → undefined normalization).
+ */
+export const getInstallablePlatform = (source?: string): string | undefined => {
+  if (!source) return undefined;
+  return (
+    INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source as SoftwareSource] ??
+    undefined
+  );
+};
+
 export const SCRIPT_PACKAGE_SOURCES = [
   "sh_packages",
   "ps1_packages",

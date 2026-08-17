@@ -397,6 +397,13 @@ const PolicyAutomationsFields = forwardRef<
           return { isValid: false, isDirty: false };
         }
 
+        // `notifyBeforePatching !== initialNotifyBeforePatching` covers the
+        // legacy-Windows auto-heal on its own: the derived value flips to
+        // false for a non-Mac policy that stored `notify_before_patching:
+        // true`, so the payload writes the corrected value. The Mac gate on
+        // the state init (see `initialIsMacNotify`) is what keeps
+        // `effectiveContinuousEnabled` at its stored value in that same
+        // case, so continuous isn't silently downgraded alongside notify.
         const perPolicyDirty =
           !isGlobalPolicy &&
           (effectiveInstallSoftware !== initialInstallSoftware ||

@@ -18,7 +18,7 @@ export type EndUserExperience = "immediate" | "notify";
 
 /**
  * Returns the three policy flags derived from the deploy selector state.
- * `notify_before_patching` is gated on `platform === "darwin"` at the wire
+ * `notify_before_patching` is gated on `isMacOS(platform)` at the wire
  * boundary — Notify before patching is macOS-only today, and the UI hides
  * the dropdown for Windows, so the flag must not slip through if state
  * ever carries "notify" on a non-Mac software (legacy data, hydration
@@ -33,7 +33,7 @@ export const getPatchPolicyFlags = (
   const notifyActive =
     patchOption === "force" &&
     endUserExperience === "notify" &&
-    isMacOS(platform ?? "");
+    isMacOS(platform);
   return {
     patch_when_closed: patchOption === "closed",
     notify_before_patching: notifyActive,
@@ -139,23 +139,21 @@ export const PatchOptionSelector = ({
   };
 
   const showEndUserExperienceDropdown =
-    patchOption === "force" &&
-    isMacOS(platform ?? "") &&
-    !!onSelectEndUserExperience;
+    patchOption === "force" && isMacOS(platform) && !!onSelectEndUserExperience;
 
   const renderForceBanner = () => {
     // Mac wins if the platform names it — even a hypothetical `darwin,windows`
     // policy should get the dropdown-aware banner, not the "coming soon for
     // Windows" one. The widened isMacOS/isWindows both return true for such
     // strings, so precedence matters here.
-    if (isMacOS(platform ?? "")) {
+    if (isMacOS(platform)) {
       return endUserExperience === "notify" ? (
         <NotifyBanner />
       ) : (
         <ImmediateBanner showLink />
       );
     }
-    if (isWindows(platform ?? "")) {
+    if (isWindows(platform)) {
       return <WindowsBanner />;
     }
     return <ImmediateBanner showLink={false} />;
@@ -195,7 +193,7 @@ export const PatchOptionSelector = ({
           onChange={onChangePatchOption}
           disabled={disabled}
         />
-        {patchOption === "force" && showEndUserExperienceDropdown && (
+        {showEndUserExperienceDropdown && (
           <DropdownWrapper
             name="end-user-experience"
             label="End user experience"
