@@ -87,10 +87,7 @@ describe("DeviceNotificationPage", () => {
     expect(readyCalls).toHaveLength(1);
   });
 
-  // TEMP: while DeviceNotificationPage falls back to a mock during local
-  // preview, the error paths still post `error` but no longer render null.
-  // Restore this and the 500 test when the mock fallback is removed.
-  it.skip("posts `error` and renders nothing on a 404", async () => {
+  it("posts `error` and renders nothing on a 404", async () => {
     mockServer.use(notFoundDeviceNotificationHandler);
 
     const { container } = renderPage();
