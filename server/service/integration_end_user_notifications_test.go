@@ -393,6 +393,34 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		}
 	})
 
+	t.Run("a result the notification no longer points at still leaves no past activity", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-stale-exec")
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+
+		// a re-dispatch moves execution_id on, so nothing points at the script
+		// already on the host
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE notifications_end_user SET execution_id = ? WHERE uuid = ?`,
+				uuid.NewString(), notificationUUID)
+			return err
+		})
+
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+
+		var past listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &past)
+		for _, act := range past.Activities {
+			if act.Details != nil {
+				require.NotContains(t, string(*act.Details), *dispatched.ExecutionID,
+					"a notification's script is still a notification's script")
+			}
+		}
+	})
+
 	t.Run("an internal script that isn't a notification reports normally", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-other-internal")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
@@ -401,19 +429,28 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, dispatched.ExecutionID)
 
 		// Fleet queues internal scripts for other reasons too, and their results
-		// run through the same outcome recording. One that isn't a notification
-		// has to pass through it rather than failing the whole result.
+		// run through the same outcome recording. This one is on its own host so
+		// nothing is ahead of it in the queue.
+		otherHost := newNotifiableHost(t, "notif-other-internal-host")
 		other, err := s.ds.NewInternalHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
-			HostID:         host.ID,
+			HostID:         otherHost.ID,
 			ScriptContents: "echo not a notification",
 		})
 		require.NoError(t, err)
-		postScriptResult(host, other.ExecutionID, 0)
+		postScriptResult(otherHost, other.ExecutionID, 0)
 
 		got := getTestNotification(t, s.ds, notificationUUID)
 		require.Equal(t, notifications_api.EndUserNotificationDispatched, got.Status, "the notification is untouched")
 		require.Nil(t, got.DisplayedAt)
 		require.Nil(t, got.LastExitCode)
+
+		// and it keeps the past activity a notification doesn't get, so only
+		// notifications are held back from the feed
+		var pastResp listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", otherHost.ID), nil, http.StatusOK, &pastResp)
+		require.Len(t, pastResp.Activities, 1)
+		require.Equal(t, (fleet.ActivityTypeRanScript{}).ActivityName(), pastResp.Activities[0].Type)
+		require.Contains(t, string(*pastResp.Activities[0].Details), other.ExecutionID)
 	})
 
 	t.Run("a host with no fresh device auth token gets no notification URL", func(t *testing.T) {
