@@ -76,6 +76,10 @@ func ComputeReconcileDeltas(
 			currentByProfile[c.ProfileUUID] = c
 		}
 
+		// identifiers this host is (re)installing on this pass, used below to spot a
+		// stale removal that a new profile with the same identifier supersedes
+		installingIdentifiers := make(map[string]struct{})
+
 		for _, p := range teamProfiles {
 			onHost := false
 			if c, ok := currentByProfile[p.ProfileUUID]; ok {
@@ -116,6 +120,8 @@ func ComputeReconcileDeltas(
 				prevCommandUUID = c.CommandUUID
 			}
 
+			installingIdentifiers[p.ProfileIdentifier] = struct{}{}
+
 			toInstall = append(toInstall, &fleet.MDMAppleProfilePayload{
 				ProfileUUID:       p.ProfileUUID,
 				ProfileIdentifier: p.ProfileIdentifier,
@@ -134,8 +140,18 @@ func ComputeReconcileDeltas(
 			if _, stillDesired := desired[profUUID]; stillDesired {
 				continue
 			}
+			// A removal already sent to the device is left alone so the reconciler
+			// doesn't queue it a second time. The exception is when the same
+			// identifier is being installed again: deleting and re-adding a profile
+			// mints a new profile UUID, so this row is never revisited on its own and
+			// its queued RemoveProfile would strip the profile the admin just asked
+			// for. Carry it through marked cancel-only.
+			var cancelOnly bool
 			if c.OperationType == fleet.MDMOperationTypeRemove && c.Status != nil {
-				continue
+				if _, reinstalling := installingIdentifiers[c.ProfileIdentifier]; !reinstalling {
+					continue
+				}
+				cancelOnly = true
 			}
 			if IsBrokenProfile(profUUID, profilesWithBrokenLabels) {
 				continue
@@ -156,6 +172,7 @@ func ComputeReconcileDeltas(
 				IgnoreError:       c.IgnoreError,
 				Scope:             c.Scope,
 				DeviceEnrolledAt:  host.DeviceEnrolledAt,
+				CancelOnly:        cancelOnly,
 			})
 		}
 	}
@@ -447,7 +464,9 @@ func ExecuteReconcileBatch(
 
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok && pp != nil {
-			if (pp.Status != nil && *pp.Status != fleet.MDMDeliveryFailed) && bytes.Equal(pp.Checksum, p.Checksum) {
+			// Never preserve the state of a cancel-only removal: it would stamp this
+			// install as "removing" and point it at the command we are about to delete.
+			if !pp.CancelOnly && (pp.Status != nil && *pp.Status != fleet.MDMDeliveryFailed) && bytes.Equal(pp.Checksum, p.Checksum) {
 				hp := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
 					HostUUID:          p.HostUUID,
@@ -582,7 +601,22 @@ func ExecuteReconcileBatch(
 		}
 	}
 
+	// identifiers actually reaching an install here, after the callers' platform and
+	// scope filters have run. A cancel-only removal is honoured only if its install
+	// survived those filters; otherwise dropping the row is safer than stripping a
+	// profile the host is meant to keep.
+	installingByHost := make(map[string]struct{}, len(toInstall))
+	for _, p := range toInstall {
+		installingByHost[p.HostUUID+"\x00"+p.ProfileIdentifier] = struct{}{}
+	}
+
 	for _, p := range toRemove {
+		if p.CancelOnly {
+			if _, ok := installingByHost[p.HostUUID+"\x00"+p.ProfileIdentifier]; ok {
+				hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+			}
+			continue
+		}
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue

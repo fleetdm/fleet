@@ -2079,3 +2079,200 @@ func TestMDMAppleExecuteReconcileBatchSkipsHostBeingProcessed(t *testing.T) {
 	assert.Contains(t, pendingHosts, nonSetupHostUUID, "non setup host should still have profiles enqueued")
 	assert.Contains(t, pendingHosts, blockedHostUUID, "previously blocked host should now have profiles enqueued after key expiry")
 }
+
+// Deleting a profile and adding the same one back mints a new profile UUID, so the
+// host carries two rows for one identifier: the old one mid-removal and the new one
+// awaiting install. The queued RemoveProfile must be cancelled or it strips the
+// profile the admin just re-added. See issue #49573.
+func TestComputeReconcileDeltasCancelsSupersededRemoval(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	readded := &fleet.AppleProfileForReconcile{
+		ProfileUUID:       "aNewProfileUUID",
+		ProfileIdentifier: "com.example.wifi",
+		ProfileName:       "Wi-Fi",
+		TeamID:            0,
+		Checksum:          []byte("aaaa"),
+		IncludeMode:       fleet.AppleProfileIncludeNone,
+	}
+	// same identifier, different profile UUID, removal already sent to the device
+	staleRemoval := &fleet.MDMAppleProfilePayload{
+		ProfileUUID:       "aOldProfileUUID",
+		ProfileIdentifier: "com.example.wifi",
+		ProfileName:       "Wi-Fi",
+		HostUUID:          "uuid-A",
+		Checksum:          []byte("aaaa"),
+		OperationType:     fleet.MDMOperationTypeRemove,
+		Status:            &fleet.MDMDeliveryPending,
+		CommandUUID:       "remove-cmd",
+	}
+	current := map[string][]*fleet.MDMAppleProfilePayload{"uuid-A": {staleRemoval}}
+
+	t.Run("identifier re-added: removal carried through as cancel-only", func(t *testing.T) {
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil,
+			current,
+			map[uint][]*fleet.AppleProfileForReconcile{0: {readded}},
+			map[string]struct{}{},
+		)
+
+		require.Len(t, toInstall, 1)
+		require.Equal(t, "aNewProfileUUID", toInstall[0].ProfileUUID)
+
+		require.Len(t, toRemove, 1)
+		require.Equal(t, "aOldProfileUUID", toRemove[0].ProfileUUID)
+		require.True(t, toRemove[0].CancelOnly)
+		require.Equal(t, "remove-cmd", toRemove[0].CommandUUID)
+	})
+
+	t.Run("identifier not re-added: removal still left alone", func(t *testing.T) {
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil,
+			current,
+			map[uint][]*fleet.AppleProfileForReconcile{}, // nothing desired
+			map[string]struct{}{},
+		)
+
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove, "an in-flight removal must not be queued a second time")
+	})
+}
+
+// End of the same flow: the cancel-only removal must pull its queued command out
+// without ever sending a RemoveProfile, and must be dropped entirely when the
+// install that justified it did not survive the callers' filters.
+func TestMDMAppleExecuteReconcileBatchCancelOnlyRemoval(t *testing.T) {
+	const hostUUID = "uuid-A"
+	const identifier = "com.example.wifi"
+
+	newInstall := func() *fleet.MDMAppleProfilePayload {
+		return &fleet.MDMAppleProfilePayload{
+			ProfileUUID: "aNewProfileUUID", ProfileIdentifier: identifier, ProfileName: "Wi-Fi",
+			HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem, Checksum: []byte("aaaa"),
+		}
+	}
+	cancelOnly := func() *fleet.MDMAppleProfilePayload {
+		return &fleet.MDMAppleProfilePayload{
+			ProfileUUID: "aOldProfileUUID", ProfileIdentifier: identifier, ProfileName: "Wi-Fi",
+			HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem, Checksum: []byte("aaaa"),
+			OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending,
+			CommandUUID: "remove-cmd", CancelOnly: true,
+		}
+	}
+
+	type results struct {
+		deletedCmds map[string][]string
+		enqueued    []string
+		cleanedUp   []*fleet.MDMAppleProfilePayload
+		upserted    []*fleet.MDMAppleBulkUpsertHostProfilePayload
+	}
+
+	run := func(t *testing.T, toInstall, toRemove []*fleet.MDMAppleProfilePayload) *results {
+		t.Helper()
+		res := &results{deletedCmds: map[string][]string{}}
+
+		mdmStorage := &mdmmock.MDMAppleStore{}
+		ds := new(mock.Store)
+		kv := new(mock.AdvancedKVStore)
+		pushFactory, _ := newMockAPNSPushProviderFactory()
+		cmdr := NewMDMAppleCommander(mdmStorage, nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New()))
+
+		kv.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
+			return map[string]*string{}, nil
+		}
+		ds.GetNanoMDMUserEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+			return nil, nil
+		}
+		ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
+			return map[string]mobileconfig.Mobileconfig{"aNewProfileUUID": []byte("content")}, nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
+			res.cleanedUp = append(res.cleanedUp, payload...)
+			return nil
+		}
+		ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+			res.upserted = append(res.upserted, payload...)
+			return nil
+		}
+
+		var mu sync.Mutex
+		mdmStorage.BulkDeleteHostUserCommandsWithoutResultsFunc = func(ctx context.Context, commandToIDs map[string][]string) error {
+			mu.Lock()
+			defer mu.Unlock()
+			for cmd, ids := range commandToIDs {
+				res.deletedCmds[cmd] = append(res.deletedCmds[cmd], ids...)
+			}
+			return nil
+		}
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			res.enqueued = append(res.enqueued, cmd.Command.Command.RequestType)
+			return nil, nil
+		}
+		mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, tokens []string) (map[string]*mdm.Push, error) {
+			out := make(map[string]*mdm.Push, len(tokens))
+			for _, tok := range tokens {
+				out[tok] = &mdm.Push{Token: []byte(tok)}
+			}
+			return out, nil
+		}
+		mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+			cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+			return &cert, "", err
+		}
+		mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+			return false, nil
+		}
+		mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName,
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			certPEM, err := os.ReadFile("../../service/testdata/server.pem")
+			require.NoError(t, err)
+			keyPEM, err := os.ReadFile("../../service/testdata/server.key")
+			require.NoError(t, err)
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetCACert: {Value: certPEM},
+				fleet.MDMAssetCAKey:  {Value: keyPEM},
+			}, nil
+		}
+
+		appCfg := &fleet.AppConfig{}
+		appCfg.ServerSettings.ServerURL = "https://test.example.com"
+		appCfg.MDM.EnabledAndConfigured = true
+
+		_, err := ExecuteReconcileBatch(t.Context(), ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, toInstall, toRemove)
+		require.NoError(t, err)
+		return res
+	}
+
+	t.Run("install present: removal cancelled, no RemoveProfile sent", func(t *testing.T) {
+		res := run(t, []*fleet.MDMAppleProfilePayload{newInstall()}, []*fleet.MDMAppleProfilePayload{cancelOnly()})
+
+		require.Contains(t, res.deletedCmds, "remove-cmd")
+		require.Equal(t, []string{hostUUID}, res.deletedCmds["remove-cmd"])
+		require.Equal(t, []string{"InstallProfile"}, res.enqueued)
+
+		require.Len(t, res.cleanedUp, 1)
+		require.Equal(t, "aOldProfileUUID", res.cleanedUp[0].ProfileUUID)
+
+		// the re-added profile must be installed, not left carrying the removal's state
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, "aNewProfileUUID", res.upserted[0].ProfileUUID)
+		require.Equal(t, fleet.MDMOperationTypeInstall, res.upserted[0].OperationType)
+		require.NotEmpty(t, res.upserted[0].CommandUUID)
+	})
+
+	t.Run("install filtered out: removal left untouched", func(t *testing.T) {
+		res := run(t, nil, []*fleet.MDMAppleProfilePayload{cancelOnly()})
+
+		require.Empty(t, res.deletedCmds, "nothing to supersede, so the queued command must stand")
+		require.Empty(t, res.enqueued, "a cancel-only row must never send a RemoveProfile")
+		require.Empty(t, res.cleanedUp)
+	})
+}
