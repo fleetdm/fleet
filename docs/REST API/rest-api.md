@@ -8764,7 +8764,7 @@ _Available in Fleet Premium._
 
 Cancels a pending MDM command (lock, wipe, or clear passcode) for the specified Apple host. The command will not be delivered to the host if it hasn't been sent yet.
 
-Only `DeviceLock`, `EraseDevice`, and `ClearPasscode` command types are eligible for cancellation. Commands that have already been acknowledged or errored cannot be canceled.
+Only `DeviceLock`, `EraseDevice`, `ClearPasscode`, and `EnableLostMode` command types are eligible for cancellation. Commands that have already been acknowledged or errored cannot be canceled.
 
 `DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`
 
