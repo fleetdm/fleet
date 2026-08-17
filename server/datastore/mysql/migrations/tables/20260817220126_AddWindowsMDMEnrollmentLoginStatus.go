@@ -11,8 +11,9 @@ func init() {
 
 func Up_20260817220126(tx *sql.Tx) error {
 	// last_login_status records the value of the com.microsoft/MDM/LoginStatus device alert ("user", "others", or "none") the device
-	// last reported, and last_login_status_at when it was observed. Windows sends the alert in the first message of every management
-	// session; this is the only durable record of the enrollment's user context.
+	// last reported, and last_login_status_at when that value last changed. Windows sends the alert in the first message of every
+	// management session, but the row is only written when the value differs, so the timestamp is not a per-session heartbeat.
+	// This is the only durable record of the enrollment's user context.
 	//
 	// NULL means "never observed", which is distinct from "observed as no user": the user-scoped profile gate holds on both,
 	// but only a positive "user" observation releases it.
