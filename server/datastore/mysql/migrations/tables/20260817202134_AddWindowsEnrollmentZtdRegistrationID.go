@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260812223244, Down_20260812223244)
+	MigrationClient.AddMigration(Up_20260817202134, Down_20260817202134)
 }
 
-func Up_20260812223244(tx *sql.Tx) error {
+func Up_20260817202134(tx *sql.Tx) error {
 	// The Autopilot device ID a Windows device supplies at MDM enrollment, in the MS-MDE2 ZeroTouchProvisioning
 	// context item. It is the same GUID Microsoft Graph returns as windowsAutopilotDeviceIdentity.id, so it links an
 	// enrollment to a pending Autopilot host exactly, without depending on the hardware serial. Empty for devices that
@@ -46,6 +46,6 @@ func Up_20260812223244(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260812223244(tx *sql.Tx) error {
+func Down_20260817202134(tx *sql.Tx) error {
 	return nil
 }
