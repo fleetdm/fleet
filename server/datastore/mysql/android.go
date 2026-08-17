@@ -338,20 +338,18 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	return err
 }
 
-// androidHostRefsForReset are the host_id-keyed detail tables cleared when an
-// Android host re-enrolls. Unlike appleHostRefsForMDMReset this list is small:
-// Android only populates disk and OS vitals from the AMAPI status report
-// (host_batteries, host_munki_*, host_certificates, etc. are never written for
-// Android hosts).
-var androidHostRefsForReset = []string{
-	"host_disks",
-	"host_operating_system",
-}
-
 // AndroidResetOnReenrollment clears the state a re-enrolling Android host no longer
-// has: dynamic label membership, non-osquery vitals, pending MDM commands and their
-// host_mdm_actions refs, and pending software installs. Past host activities are only
-// cleared when preserveHostActivities is false.
+// has: dynamic label membership, pending MDM commands and their host_mdm_actions refs,
+// and pending software installs. Past host activities are only cleared when
+// preserveHostActivities is false.
+//
+// Note that it deliberately does not clear the host's vitals (host_disks,
+// host_operating_system) the way appleHostRefsForMDMReset does. The enrollment
+// overwrites both unconditionally, so deleting them buys nothing, and it is unsafe
+// with a read replica: SetOrUpdateHostDisksSpace and UpdateHostOperatingSystem both
+// read the current row from the replica and skip the write when the values are
+// unchanged, so a lagging replica makes the enrollment skip a write that the delete
+// was counting on and leaves the host with no vitals row at all.
 //
 // Pending installs are failed rather than deleted, so it returns the users and
 // activities the caller must emit, the same contract as
@@ -392,13 +390,6 @@ func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint
 			WHERE lm.host_id = ? AND l.label_membership_type = ? AND l.label_type != ?`,
 			hostID, fleet.LabelMembershipTypeDynamic, fleet.LabelTypeBuiltIn); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear dynamic label membership on android reenroll")
-		}
-
-		// Clear non-osquery vitals.
-		for _, table := range androidHostRefsForReset {
-			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE host_id = ?", table), hostID); err != nil {
-				return ctxerr.Wrap(ctx, err, fmt.Sprintf("clear %s on android reenroll", table))
-			}
 		}
 
 		// Cancel pending AMAPI commands. These are keyed by host_uuid, and the device that

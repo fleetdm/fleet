@@ -4347,9 +4347,12 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 		}, labelNamesFor(hostA.Host.ID))
 	})
 
-	t.Run("clears non-osquery vitals", func(t *testing.T) {
-		require.Zero(t, countFor(`SELECT COUNT(*) FROM host_disks WHERE host_id = ?`, hostA.Host.ID))
-		require.Zero(t, countFor(`SELECT COUNT(*) FROM host_operating_system WHERE host_id = ?`, hostA.Host.ID))
+	t.Run("leaves host vitals alone", func(t *testing.T) {
+		// The enrollment overwrites these itself, and both writers skip the write when
+		// the replica still reports the same values -- deleting here would make a
+		// lagging replica leave the host with no vitals row at all.
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_disks WHERE host_id = ?`, hostA.Host.ID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_operating_system WHERE host_id = ?`, hostA.Host.ID))
 	})
 
 	t.Run("deletes pending commands and their refs together", func(t *testing.T) {

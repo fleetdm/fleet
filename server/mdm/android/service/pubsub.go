@@ -912,11 +912,10 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	if fromEnroll {
-		// Clear the state the re-enrolled device no longer has (dynamic labels, vitals,
-		// pending commands and software installs) before anything below writes this
-		// enrollment's data, otherwise the reset would delete the vitals we just wrote
-		// (host_disks via UpdateAndroidHost, host_operating_system via
-		// updateHostOperatingSystem) and cancel installs after they were verified.
+		// Clear the state the re-enrolled device no longer has (dynamic labels, pending
+		// commands and software installs) before anything below writes this enrollment's
+		// data, so the reset cannot undo the writes below and cannot fail installs after
+		// verifyDeviceSoftware has just verified them.
 		appCfg, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get app config for android reenroll reset")
