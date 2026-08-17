@@ -64,7 +64,7 @@ module.exports = {
         let allEnterprises = [];
         let tokenForNextPageOfEnterprises;
         await sails.helpers.flow.until(async ()=>{
-          sails.androidProxyApiRequestCounts[thisAndroidEnterprise.fleetServerUrl] = (sails.androidProxyApiRequestCounts[thisAndroidEnterprise.fleetServerUrl] || 0) + 1;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+          sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
           let listEnterprisesResponse = await androidManagementConnection.enterprises.list({
             projectId: sails.config.custom.androidEnterpriseProjectId,
             pageSize: 100,

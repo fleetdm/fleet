@@ -12,10 +12,6 @@ module.exports = {
       type: 'string',
       required: true,
       description: 'The enterprise ID of the Android Enterprise '
-    },
-    fleetServerUrl: {
-      type: 'string',
-      description: 'The Fleet server URL to attribute AMAPI request counts to.'
     }
   },
 
@@ -29,7 +25,7 @@ module.exports = {
   },
 
 
-  fn: async function ({androidEnterpriseId, fleetServerUrl}) {
+  fn: async function ({androidEnterpriseId}) {
 
     require('assert')(sails.config.custom.androidEnterpriseServiceAccountEmailAddress);
     require('assert')(sails.config.custom.androidEnterpriseServiceAccountPrivateKey);
@@ -48,8 +44,7 @@ module.exports = {
     let enterprises = [];
     let tokenForNextPageOfEnterprises;
     await sails.helpers.flow.until(async ()=>{
-      let countKey = fleetServerUrl || 'unknown';
-      sails.androidProxyApiRequestCounts[countKey] = (sails.androidProxyApiRequestCounts[countKey] || 0) + 1;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
       let listEnterprisesResponse = await androidManagementConnection.enterprises.list({
         projectId: sails.config.custom.androidEnterpriseProjectId,
         pageSize: 100,

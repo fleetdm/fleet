@@ -142,17 +142,12 @@ will be disabled and/or hidden in the UI.
       // Initialize an Android Management API request counter. Each android-proxy
       // endpoint (api/controllers/android-proxy/*) increments this every time it makes a request to
       // Google, and the repeating timer below logs the count and resets it once a minute so we can monitor the number of requests the proxy is making.
-      // The counter is keyed by fleetServerUrl so we can break down usage by fleet instance.
-      sails.androidProxyApiRequestCounts = {};
+      sails.androidProxyApiRequestCount = 0;
       if (sails.config.custom.androidEnterpriseServiceAccountEmailAddress && sails.config.custom.androidEnterpriseServiceAccountPrivateKey) {
         let logAndResetAndroidProxyApiRequestCount = ()=>{
-          let countsInLastMinute = sails.androidProxyApiRequestCounts;
-          sails.androidProxyApiRequestCounts = {};// Reset for the next minute.
-          let totalRequestCount = 0;
-          for (let fleetServerUrl in countsInLastMinute) {
-            totalRequestCount += countsInLastMinute[fleetServerUrl];
-          }
-          if (totalRequestCount === 0) {
+          let requestCountInLastMinute = sails.androidProxyApiRequestCount;
+          sails.androidProxyApiRequestCount = 0;// Reset for the next minute.
+          if (requestCountInLastMinute === 0) {
             return;// Stay quiet on idle minutes so the metric lines are easy to grep.
           }
 
@@ -160,21 +155,16 @@ will be disabled and/or hidden in the UI.
           if (sails.config.environment === 'production' && sails.config.custom.datadogApiKey) {
             let timestampInSeconds = Math.floor(Date.now() / 1000);
             let thisDyno = process.env.DYNO;
-            let series = [];
-            for (let fleetServerUrl in countsInLastMinute) {
-              series.push({
-                metric: 'android_proxy.amapi_request_count',
-                type: 1,// count
-                interval: 60,
-                points: [{ timestamp: timestampInSeconds, value: countsInLastMinute[fleetServerUrl] }],
-                resources: [{ name: fleetServerUrl, type: 'fleet_instance' }],
-                tags: [`dyno:${thisDyno}`],
-              });
-            }
             sails.helpers.http.post.with({
               url: 'https://api.us5.datadoghq.com/api/v2/series',
               data: {
-                series: series,
+                series: [{
+                  metric: 'android_proxy.amapi_request_count',
+                  type: 1,// count
+                  interval: 60,
+                  points: [{ timestamp: timestampInSeconds, value: requestCountInLastMinute }],
+                  tags: [`dyno:${thisDyno}`],
+                }],
               },
               headers: {
                 'DD-API-KEY': sails.config.custom.datadogApiKey,
@@ -187,7 +177,7 @@ will be disabled and/or hidden in the UI.
             });//_∏_
           }//ﬁ
 
-          sails.log.info(`Android proxy: ${totalRequestCount} Android Management API request(s) in the last minute.`);
+          sails.log.info(`Android proxy: ${requestCountInLastMinute} Android Management API request(s) in the last minute.`);
         };
         // Align the first tick to the top of the next minute so every web dyno logs on the same
         // wall-clock cadence (e.g. all dynos log at :00) rather than at a random offset determined by

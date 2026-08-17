@@ -74,7 +74,7 @@ module.exports = {
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
 
       // Get the Android devices list from Google
-      sails.androidProxyApiRequestCounts[thisAndroidEnterprise.fleetServerUrl] = (sails.androidProxyApiRequestCounts[thisAndroidEnterprise.fleetServerUrl] || 0) + 1;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
       let devicesResponse = await androidManagementConnection.enterprises.devices.list({
         parent: `enterprises/${thisAndroidEnterprise.androidEnterpriseId}`,
         pageSize: pageSize,

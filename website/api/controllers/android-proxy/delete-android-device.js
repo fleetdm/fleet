@@ -67,7 +67,7 @@ module.exports = {
       let { google } = require('googleapis');
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Devices.html#delete
-      sails.androidProxyApiRequestCounts[thisAndroidEnterprise.fleetServerUrl] = (sails.androidProxyApiRequestCounts[thisAndroidEnterprise.fleetServerUrl] || 0) + 1;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
       await androidManagementConnection.enterprises.devices.delete({
         name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
       });
