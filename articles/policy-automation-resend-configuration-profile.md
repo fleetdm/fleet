@@ -26,7 +26,6 @@ If you need to retrigger the automation on hosts that had previously failed, des
 ## How does it work?
 - Online hosts report policy status on a configurable cadence, with hourly default.
 - Fleet will resend the configuration profile on the first policy failure or if a policy goes from "Pass" to "Fail". By default, policies that remain failing for a host in consecutive reports will not trigger a resend.
-- To resend the profile on every failing result, including consecutive failures, set `continuous_automations_enabled` to `true` on the policy (_Available in Fleet Premium_). Because this can retry a resend that doesn't resolve the policy, it may cause a retry loop.
 - If the profile is already pending or verifying delivery, Fleet will skip the resend to avoid interrupting an in-flight delivery.
 - If the profile is not assigned to the host, Fleet will skip the resend (no error is raised).
 
