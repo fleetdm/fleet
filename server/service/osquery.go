@@ -3069,7 +3069,10 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 //     `osqueryResults` item could not be unmarshaled.
 //   - queriesDBData has the corresponding DB query to each unmarshalled result in `osqueryResults`.
 //
-// If queryReportsDisabled is true then it returns only t he `unmarshaledResults` without querying the DB.
+// Results are resolved to their DB query regardless of queryReportsDisabled, because the caller
+// needs the query IDs to check them against the host's schedule either way. queryReportsDisabled
+// only suppresses injecting `query_id` into the raw logs, to keep the payload reaching the logging
+// destination unchanged for deployments that disable reports.
 func (svc *Service) preProcessOsqueryResults(
 	ctx context.Context,
 	osqueryResults []json.RawMessage,
@@ -3104,10 +3107,6 @@ func (svc *Service) preProcessOsqueryResults(
 		unmarshaledResults = append(unmarshaledResults, result)
 	}
 
-	if queryReportsDisabled {
-		return unmarshaledResults, nil
-	}
-
 	queriesDBData = make(map[string]*fleet.Query)
 	for i, queryResult := range unmarshaledResults {
 		if queryResult == nil {
@@ -3134,6 +3133,10 @@ func (svc *Service) preProcessOsqueryResults(
 			}
 			queriesDBData[queryResult.QueryName] = query
 			existingQuery = query
+		}
+
+		if queryReportsDisabled {
+			continue
 		}
 
 		updatedResult, err := addQueryIDToLogResult(ctx, osqueryResults[i], existingQuery.ID)
@@ -3192,25 +3195,24 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "getting app config", "err", err)
-		// If we fail to load the app config we assume the flag to be disabled
-		// to not perform extra processing in that scenario.
+		// If we fail to load the app config we assume the flag to be disabled so that
+		// results are not stored as reports in that scenario. The schedule check below
+		// still runs, since it does not depend on the app config.
 		queryReportsDisabled = true
 	} else {
 		queryReportsDisabled = appConfig.ServerSettings.QueryReportsDisabled
 	}
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
-	if !queryReportsDisabled {
-		// A host is the only source of its own results, so Fleet cannot tell truthful rows
-		// from forged ones. What it can require is that it asked this host for them, which
-		// happens here so that results for queries missing from the host's schedule reach
-		// neither a report nor a log destination.
-		//
-		// Skipped when query reports are disabled: that setting forwards results without
-		// resolving them against the DB, so there are no query IDs to check (and no stored
-		// reports to forge).
-		svc.dropResultsNotScheduledForHost(ctx, unmarshaledResults, queriesDBData)
 
+	// A host is the only source of its own results, so Fleet cannot tell truthful rows
+	// from forged ones. What it can require is that it asked this host for them, which
+	// happens here so that results for queries missing from the host's schedule reach
+	// neither a report nor a log destination. Query reports being disabled removes the
+	// report destination but not the log one, so the check applies either way.
+	svc.dropResultsNotScheduledForHost(ctx, unmarshaledResults, queriesDBData)
+
+	if !queryReportsDisabled {
 		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
 		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
 	}
@@ -3224,7 +3226,8 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		}
 
 		if queryReportsDisabled {
-			// If query_reports_disabled=true we write the logs to the logging destination without any extra processing.
+			// If query_reports_disabled=true we write the logs to the logging destination without
+			// any processing beyond the schedule check above.
 			//
 			// If a query was recently configured with automations_enabled = 0 we may still write
 			// the results for it here. Eventually the query will be removed from the host schedule

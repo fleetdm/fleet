@@ -55,11 +55,13 @@ const (
 	defaultQueryByNameExpiration       = 1 * time.Second
 	queryResultsCountKey               = "QueryResultsCount:%d"
 	defaultQueryResultsCountExpiration = 1 * time.Second
-	queriesPerHostKey                  = "QueriesPerHost:host:%d:team:%d"
-	defaultQueriesPerHostExpiration    = 1 * time.Minute
-	yaraRuleCachePrefix                = "YaraRuleByName:"
-	yaraRuleByNameKey                  = yaraRuleCachePrefix + "%s"
-	defaultYaraRuleByNameExpiration    = 1 * time.Minute
+	// The host's team is part of the key so that a transferred host never reads the
+	// schedule of its previous team.
+	queriesPerHostKey               = "QueriesPerHost:host:%d:team:%d"
+	defaultQueriesPerHostExpiration = 1 * time.Minute
+	yaraRuleCachePrefix             = "YaraRuleByName:"
+	yaraRuleByNameKey               = yaraRuleCachePrefix + "%s"
+	defaultYaraRuleByNameExpiration = 1 * time.Minute
 	// NOTE: MDM assets are cached using their checksum as well, as it's
 	// important for them to always be fresh if they changed (see cachedi
 	// mplementation below for details)
@@ -481,8 +483,6 @@ func (ds *cachedMysql) QueriesPerHost(ctx context.Context, hostID uint, teamID *
 	if teamID != nil {
 		teamID_ = *teamID
 	}
-	// The host's team is part of the key so that a transferred host never reads the
-	// schedule of its previous team.
 	key := fmt.Sprintf(queriesPerHostKey, hostID, teamID_)
 
 	if x, found := ds.c.Get(ctx, key); found {
