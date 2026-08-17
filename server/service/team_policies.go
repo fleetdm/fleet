@@ -725,7 +725,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		return nil, fleet.ErrMissingLicense
 	}
 
-	if p.ProfileUUID.Set && !license.IsPremium(ctx) {
+	if p.ProfileUUID.Valid && p.ProfileUUID.Value != "" && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 

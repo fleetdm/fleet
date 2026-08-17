@@ -486,7 +486,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
-		if policy.Team == "" && policy.ProfileUUID != nil {
+		if policy.Team == "" && policy.ProfileUUID != nil && *policy.ProfileUUID != "" {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForProfiles),
 			})
