@@ -150,6 +150,7 @@ module.exports = {
           metric: 'usage_statistics_v2.host_count_by_os_type',
           type: 3,
           points: [{ timestamp: timestampForTheseMetrics, value: hostCountByMajorOs[osType] }],
+          resources: [{ name: instanceStats.anonymousIdentifier, type: 'fleet_instance' }],
           tags: [`os_type:${osType}`, `license_tier:${instanceStats.licenseTier}`, `organization:${instanceStats.organization}`],
         });
       }
