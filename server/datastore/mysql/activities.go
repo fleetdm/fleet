@@ -961,6 +961,249 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
 }
 
+// mdmApplePushDeliveryGraceDays is how long an activated command has to reach its device before the
+// reaper gives up on it, matching the window in GetEnrollmentIDsWithPendingMDMAppleCommands past
+// which Fleet stops pushing it.
+//
+// Measured from activated_at, not from nano_enrollment_queue.created_at even though that is the
+// column the pusher compares. Both enqueue paths copy the queue row's created_at from the activity's
+// to preserve ordering, so a command that activates after a long wait is born already outside the
+// window, which is the state of every install behind a head the reaper has just freed.
+const mdmApplePushDeliveryGraceDays = 7
+
+// reapableActivatedInstallWhere matches an activated MDM-command-backed install that is old enough
+// to reap and can no longer make progress. An answered install is judged on the age of the answer,
+// taken from ncr.updated_at, the column Fleet measures the verification budget from. Only an
+// unanswered one is judged on delivery, having either lost its queue row or gone past the delivery
+// grace. Anything else is still in flight, including an unanswered command for a device that is
+// simply switched off. Arguments come from reapableActivatedInstallArgs.
+//
+// A device unreachable for days accumulates activation age the whole time, which is why neither
+// branch uses that age: judging it on activation, or on delivery once it has answered, would fail
+// the install seconds after the device came back and started running it.
+//
+// A NotNow answer does not count: nanomdm records one but keeps the command queued and re-serves it
+// (RetrieveNextCommand joins results with `status != 'NotNow'`), so the install has not run.
+//
+// Microseconds and not seconds: truncating to whole seconds turns any positive sub-second value into
+// INTERVAL 0, which matches every activated install on the fleet and walks past the callers' guards.
+//
+// The nano lookups key on command_uuid alone, its primary key in nano_commands, so there is nothing
+// for an enrollment id to disambiguate.
+const reapableActivatedInstallWhere = `
+	ua.activity_type IN ('vpp_app_install', 'in_house_app_install')
+	AND ua.activated_at IS NOT NULL
+	AND ua.activated_at < NOW(6) - INTERVAL ? MICROSECOND
+	AND (
+		EXISTS (
+			SELECT 1
+			FROM nano_command_results ncr
+			WHERE ncr.command_uuid = ua.execution_id
+				AND ncr.status != 'NotNow'
+				AND ncr.updated_at < NOW(6) - INTERVAL ? MICROSECOND
+		)
+		OR (
+			NOT EXISTS (
+				SELECT 1
+				FROM nano_command_results ncr
+				WHERE ncr.command_uuid = ua.execution_id
+					AND ncr.status != 'NotNow'
+			)
+			AND (
+				NOT EXISTS (
+					SELECT 1
+					FROM nano_enrollment_queue neq
+					WHERE neq.command_uuid = ua.execution_id
+						AND neq.active = 1
+				)
+				OR ua.activated_at < NOW(6) - INTERVAL ? DAY
+			)
+		)
+	)`
+
+// reapableActivatedInstallArgs returns the positional arguments
+// reapableActivatedInstallWhere expects, in order.
+func reapableActivatedInstallArgs(olderThan time.Duration) []any {
+	micros := olderThan.Microseconds()
+	return []any{micros, micros, mdmApplePushDeliveryGraceDays}
+}
+
+func (ds *Datastore) ReapStuckActivatedMDMInstalls(ctx context.Context, olderThan time.Duration, maxHosts int) ([]fleet.ReapedMDMInstall, error) {
+	findHostsStmt := `
+	SELECT DISTINCT
+		ua.host_id,
+		h.uuid AS host_uuid
+	FROM
+		upcoming_activities ua
+		JOIN hosts h ON h.id = ua.host_id
+	WHERE ` + reapableActivatedInstallWhere + `
+	LIMIT ?`
+
+	type reapableHost struct {
+		HostID   uint   `db:"host_id"`
+		HostUUID string `db:"host_uuid"`
+	}
+	var hosts []reapableHost
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, findHostsStmt,
+		append(reapableActivatedInstallArgs(olderThan), maxHosts)...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find hosts with a stuck activated MDM install")
+	}
+
+	var (
+		reaped []fleet.ReapedMDMInstall
+		errs   []error
+	)
+	for _, host := range hosts {
+		hostReaped, err := ds.reapStuckActivatedMDMInstallsForHost(ctx, host.HostID, host.HostUUID, olderThan)
+		if err != nil {
+			// one host must not stop the rest, as in activateNextUpcomingActivityForBatchOfHosts
+			errs = append(errs, err)
+			continue
+		}
+		reaped = append(reaped, hostReaped...)
+	}
+	return reaped, errors.Join(errs...)
+}
+
+// reapStuckActivatedMDMInstallsForHost fails every reapable install for one host and releases its
+// queue, in a single transaction. It is per host rather than per install because activation
+// batches up to maxMDMCommandActivations installs at once and stops at the first row that is still
+// activated, so failing one of a batch would advance nothing, and because the verify lock it
+// clears is one row for the whole host.
+func (ds *Datastore) reapStuckActivatedMDMInstallsForHost(ctx context.Context, hostID uint, hostUUID string,
+	olderThan time.Duration,
+) ([]fleet.ReapedMDMInstall, error) {
+	findInstallsStmt := `
+	SELECT
+		ua.execution_id,
+		ua.activity_type,
+		COALESCE(JSON_EXTRACT(ua.payload, '$.from_auto_update') = 1, 0) AS from_auto_update
+	FROM
+		upcoming_activities ua
+	WHERE
+		ua.host_id = ? AND ` + reapableActivatedInstallWhere + `
+	ORDER BY ua.id`
+
+	type reapableInstall struct {
+		ExecutionID    string `db:"execution_id"`
+		ActivityType   string `db:"activity_type"`
+		FromAutoUpdate bool   `db:"from_auto_update"`
+	}
+
+	var reaped []fleet.ReapedMDMInstall
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		reaped = nil // a retry re-runs the whole host
+
+		var installs []reapableInstall
+		if err := sqlx.SelectContext(ctx, tx, &installs, findInstallsStmt,
+			append([]any{hostID}, reapableActivatedInstallArgs(olderThan)...)...); err != nil {
+			return ctxerr.Wrap(ctx, err, "list stuck activated MDM installs for host")
+		}
+		// the host was found on the reader, so its rows may have resolved since
+		if len(installs) == 0 {
+			return nil
+		}
+
+		var failedAny bool
+		for _, inst := range installs {
+			swType := softwareTypeVPP
+			if inst.ActivityType == "in_house_app_install" {
+				swType = softwareTypeInHouseApp
+			}
+
+			// Eligibility is re-checked here, not trusted from the select above: that
+			// select took the transaction's snapshot while this update reads the latest
+			// committed rows, so a device that checked in between would otherwise be
+			// overruled mid-verification. No rows affected means it did check in, so
+			// nothing is recorded here, though the queue is still advanced past the row.
+			failStmt := fmt.Sprintf(`
+UPDATE %s
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
+WHERE command_uuid = ?
+	AND verification_at IS NULL
+	AND verification_failed_at IS NULL
+	AND canceled = 0
+	AND NOT EXISTS (
+		SELECT 1
+		FROM nano_command_results ncr
+		WHERE ncr.command_uuid = ?
+			AND ncr.status != 'NotNow'
+			AND ncr.updated_at >= NOW(6) - INTERVAL ? MICROSECOND
+	)`, swType.getInstallMappingTableName())
+			res, err := tx.ExecContext(ctx, failStmt,
+				inst.ExecutionID, inst.ExecutionID, olderThan.Microseconds())
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "set stuck activated MDM install as failed")
+			}
+			if affected, _ := res.RowsAffected(); affected == 0 {
+				continue
+			}
+			failedAny = true
+
+			// Stop the APNs retry cron pushing a command Fleet has now given up on, and
+			// stop a device that comes back from installing an app already reported as
+			// failed, which would leak the verify lock on the way through.
+			const deactivateNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
+			if _, err := tx.ExecContext(ctx, deactivateNanoStmt, hostUUID, inst.ExecutionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "deactivate nano queue row for reaped MDM install")
+			}
+
+			cmdResults := &mdm.CommandResults{CommandUUID: inst.ExecutionID, Status: fleet.MDMAppleStatusError}
+			entry := fleet.ReapedMDMInstall{HostID: hostID, HostUUID: hostUUID, CommandUUID: inst.ExecutionID}
+			switch swType {
+			case softwareTypeVPP:
+				user, act, err := ds.getPastActivityDataForVPPAppInstallDB(ctx, tx, cmdResults)
+				if err != nil {
+					if fleet.IsNotFound(err) {
+						continue // shouldn't happen, but the install is failed either way
+					}
+					return ctxerr.Wrap(ctx, err, "get past activity data for reaped app store app install")
+				}
+				act.FromAutoUpdate = inst.FromAutoUpdate
+				entry.User, entry.AppStoreActivity = user, act
+			case softwareTypeInHouseApp:
+				user, act, err := ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx, cmdResults)
+				if err != nil {
+					if fleet.IsNotFound(err) {
+						continue
+					}
+					return ctxerr.Wrap(ctx, err, "get past activity data for reaped in-house app install")
+				}
+				entry.User, entry.InHouseActivity = user, act
+			}
+			reaped = append(reaped, entry)
+		}
+
+		// The verify lock is one row per host, not per install, so it is cleared once and
+		// only if something was failed. Leaving it would suppress verification of the next
+		// install acknowledged on this host, turning one stuck install into two. The cost is
+		// that an unrelated install mid-verification loses its suppression and the next
+		// acknowledgement sends a redundant InstalledApplicationList; accepted, because every
+		// narrower condition instead risks retaining the lock when it does damage.
+		if failedAny {
+			const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
+			if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete verify vpp from host_mdm_commands")
+			}
+		}
+
+		// Advancing per install converges by itself: each call deletes only its own row and
+		// then stops at whatever is still activated, so only the last one activates the next
+		// batch. Any row left activated because it is not reapable yet keeps the queue
+		// blocked on purpose, since its command can still be delivered.
+		for _, inst := range installs {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, inst.ExecutionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity after reaping MDM install")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return reaped, nil
+}
+
 // ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
 // fromCompletedExecID is the execution ID of the activity that just completed (if any).
 //

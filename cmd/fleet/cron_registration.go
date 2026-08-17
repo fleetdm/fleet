@@ -149,7 +149,8 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 	})
 
 	deps.register("failed to register upcoming_activities_maintenance schedule", func() (fleet.CronSchedule, error) {
-		return newUpcomingActivitiesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+		return newUpcomingActivitiesSchedule(ctx, deps.instanceID, deps.ds, deps.logger,
+			deps.config.Server.VPPInstallReapTimeout, deps.config.Server.VPPVerifyTimeout, deps.svc.NewActivity)
 	})
 
 	deps.register("failed to register stats schedule", func() (fleet.CronSchedule, error) {
