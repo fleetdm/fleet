@@ -264,9 +264,10 @@ func HostUUIDForSetupExperience(host *Host) (string, error) {
 }
 
 type SetupExperienceCount struct {
-	Installers uint `db:"installers"`
-	Scripts    uint `db:"scripts"`
-	VPP        uint `db:"vpp"`
+	Installers  uint `db:"installers"`
+	Scripts     uint `db:"scripts"`
+	VPP         uint `db:"vpp"`
+	InHouseApps uint `db:"in_house_apps"`
 }
 
 var SetupExperienceSupportedPlatforms = []string{

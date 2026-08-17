@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.12.6",
+      "version": "1.12.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.Julia';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.Julia' AND version_compare(bundle_short_version, '1.12.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.Julia' AND version_compare(bundle_short_version, '1.12.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.github.Julia');"
       },
-      "installer_url": "https://julialang-s3.julialang.org/bin/mac/aarch64/1.12/julia-1.12.6-macaarch64.dmg",
+      "installer_url": "https://julialang-s3.julialang.org/bin/mac/aarch64/1.12/julia-1.12.7-macaarch64.dmg",
       "install_script_ref": "d9e3339c",
       "uninstall_script_ref": "d35fd82c",
-      "sha256": "d065db4f16d4a18b4f1ab682d0ff4299addd13b999e980100fd72db592b99242",
+      "sha256": "3c9c2978a4940c0c338f6b665d30c70da188e88bd03d739d5185187254967b8a",
       "default_categories": [
         "Productivity"
       ]

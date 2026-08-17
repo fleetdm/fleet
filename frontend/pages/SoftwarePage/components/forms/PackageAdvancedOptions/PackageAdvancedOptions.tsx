@@ -294,10 +294,7 @@ const PackageAdvancedOptions = ({
           requiresAdvancedOptions ? (
             <>Install and uninstall scripts are required for .{ext} packages.</>
           ) : (
-            <>
-              Choose a file to modify <br />
-              advanced options.
-            </>
+            <>Choose a file to modify advanced options.</>
           )
         }
       />
