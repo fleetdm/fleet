@@ -269,8 +269,6 @@ Autopilot deployment profiles are created in the Microsoft Intune admin center, 
 
 **Existing devices are unaffected.** Autopilot profile settings apply during OOBE. Changing the profile doesn't demote accounts on devices that are already enrolled. Microsoft applies the updated profile only after the device is reset and enrolled again.
 
-**Unregistered devices still create an administrator.** Manual enrollment doesn't run a deployment profile, so the first account is a local administrator. Register every device with Autopilot.
-
 **Autopilot device preparation isn't supported.** Windows Autopilot device preparation, sometimes called Autopilot v2, can only be configured through Intune and doesn't work with Fleet. Microsoft has said it will support non-Microsoft MDMs in future. Use classic Autopilot, described above.
 
 **Plan for elevation.** Standard users can't install software or change protected settings. Install software centrally with [software management](https://fleetdm.com/guides/deploy-software-packages), and use the [Windows setup experience](https://fleetdm.com/guides/windows-linux-setup-experience) to install what end users need at enrollment.
