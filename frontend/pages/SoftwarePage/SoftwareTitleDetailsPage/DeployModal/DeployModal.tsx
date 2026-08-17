@@ -138,11 +138,7 @@ const DeployModal = ({
             ...(patchOption !== "manual" && {
               software_title_id: softwareTitle.id,
             }),
-            ...getPatchPolicyFlags(
-              patchOption,
-              endUserExperience,
-              platform ?? undefined
-            ),
+            ...getPatchPolicyFlags(patchOption, endUserExperience, platform),
           });
         } else if (patchPolicy) {
           await teamPoliciesAPI.destroy(teamId, [patchPolicy.id]);
@@ -155,32 +151,19 @@ const DeployModal = ({
           endUserExperience !== initialEndUserExperience ||
           patchHasAutomation !== (patchOption !== "manual") ||
           patchPolicy.patch_when_closed !==
-            getPatchPolicyFlags(
-              patchOption,
-              endUserExperience,
-              platform ?? undefined
-            ).patch_when_closed ||
+            getPatchPolicyFlags(patchOption, endUserExperience, platform)
+              .patch_when_closed ||
           patchPolicy.notify_before_patching !==
-            getPatchPolicyFlags(
-              patchOption,
-              endUserExperience,
-              platform ?? undefined
-            ).notify_before_patching ||
+            getPatchPolicyFlags(patchOption, endUserExperience, platform)
+              .notify_before_patching ||
           patchPolicy.continuous_automations_enabled !==
-            getPatchPolicyFlags(
-              patchOption,
-              endUserExperience,
-              platform ?? undefined
-            ).continuous_automations_enabled)
+            getPatchPolicyFlags(patchOption, endUserExperience, platform)
+              .continuous_automations_enabled)
       ) {
         await teamPoliciesAPI.update(patchPolicy.id, {
           team_id: teamId,
           software_title_id: patchOption === "manual" ? null : softwareTitle.id,
-          ...getPatchPolicyFlags(
-            patchOption,
-            endUserExperience,
-            platform ?? undefined
-          ),
+          ...getPatchPolicyFlags(patchOption, endUserExperience, platform),
         });
         savedAnyChange = true;
       }
@@ -222,7 +205,7 @@ const DeployModal = ({
               forceInstall={forceInstall}
               patch={patch}
               patchOption={patchOption}
-              platform={platform ?? undefined}
+              platform={platform}
               endUserExperience={endUserExperience}
               onToggleForceInstall={setForceInstall}
               onTogglePatch={setPatch}
