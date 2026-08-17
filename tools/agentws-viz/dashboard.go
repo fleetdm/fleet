@@ -9,49 +9,73 @@ const dashboardHTML = `<!doctype html>
 <meta charset="utf-8">
 <title>agentws-viz</title>
 <style>
+  /* Fleet design tokens (frontend/styles/var/colors.scss, 2025 branding). */
   :root {
-    --bg: #101418; --panel: #181e24; --border: #2a323c;
-    --text: #d7dee6; --dim: #8494a6; --accent: #34d399;
-    --warn: #fbbf24; --err: #f87171; --info: #60a5fa;
+    --bg: #f9fafc;            /* ui-off-white */
+    --card: #ffffff;          /* core-fleet-white */
+    --border: #e2e4ea;        /* ui-fleet-black-10 */
+    --row-hover: #f9fafc;     /* ui-fleet-blue-10 */
+    --text: #192147;          /* core-fleet-black */
+    --text-secondary: #515774;/* ui-fleet-black-75 */
+    --dim: #8b8fa2;           /* ui-fleet-black-50 */
+    --green: #009a7d;         /* core-fleet-green */
+    --blue: #6a67fe;          /* core-vibrant-blue */
+    --blue-10: #f1f0ff;       /* ui-vibrant-blue-10 */
+    --success: #3db67b;       /* ui-success */
+    --warning: #a87b1f;       /* readable take on ui-warning for text */
+    --error: #d66c7b;         /* ui-error */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #181a1f; --card: #1e2128; --border: #474c58; --row-hover: #252830;
+      --text: #e2e4ea; --text-secondary: #bebebf; --dim: #87888b;
+      --green: #00c28b; --blue: #7b79ff; --blue-10: #2d2e4d;
+      --success: #4dc98b; --warning: #f0ca5e; --error: #e07888;
+    }
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 20px; background: var(--bg); color: var(--text);
-    font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    margin: 0; padding: 24px; background: var(--bg); color: var(--text);
+    font: 400 14px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
-  h1 { font-size: 16px; margin: 0; font-weight: 600; }
-  h1 .sub { color: var(--dim); font-weight: 400; }
-  header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  h1 .sub { color: var(--dim); font-weight: 400; font-size: 14px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
   #status { width: 10px; height: 10px; border-radius: 50%; background: var(--dim); flex: none; }
-  #status.ok { background: var(--accent); }
-  #status.err { background: var(--err); }
-  #banner { color: var(--err); margin-left: auto; }
+  #status.ok { background: var(--success); }
+  #status.err { background: var(--error); }
+  #banner { color: var(--error); margin-left: auto; font-size: 13px; }
   .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: stretch; }
-  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
-  .stats { display: flex; gap: 16px; margin-bottom: 16px; }
-  .stat .n { font-size: 28px; font-weight: 700; }
-  .stat .l { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; }
+  .stats { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .stat .n { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat .l { color: var(--dim); font-size: 12px; font-weight: 400; text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+  #online { color: var(--green); }
+  #count { color: var(--blue); }
+  #legacyreads { color: var(--warning); }
   #spark { display: block; }
-  .grow { flex: 1 1 480px; min-width: 0; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 6px 10px; white-space: nowrap; }
-  th { color: var(--dim); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); }
+  .grow { flex: 1 1 520px; min-width: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; white-space: nowrap; }
+  th { color: var(--text-secondary); font-weight: 600; font-size: 12px; border-bottom: 1px solid var(--border); }
   tbody tr { border-bottom: 1px solid var(--border); }
   tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--row-hover); }
   tr.flash td { animation: flash 1.2s ease-out; }
-  @keyframes flash { from { background: rgba(52, 211, 153, .25); } to { background: transparent; } }
+  @keyframes flash { from { background: var(--blue-10); } to { background: transparent; } }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  td .drop { color: var(--warn); }
-  .empty { color: var(--dim); padding: 18px 10px; }
-  #log { flex: 0 1 380px; max-height: 480px; overflow-y: auto; }
-  #log .e { padding: 2px 0; }
-  #log .t { color: var(--dim); margin-right: 8px; }
-  #log .connect { color: var(--accent); }
-  #log .disconnect { color: var(--err); }
-  #log .notify { color: var(--info); }
+  td .drop { color: var(--warning); font-weight: 600; }
+  .empty { color: var(--dim); padding: 20px 12px; }
+  #log { flex: 0 1 400px; max-height: 480px; overflow-y: auto; font-size: 13px; }
+  #log .e { padding: 3px 0; }
+  #log .t { color: var(--dim); margin-right: 8px; font-variant-numeric: tabular-nums; }
+  #log .connect { color: var(--success); }
+  #log .disconnect { color: var(--error); }
+  #log .notify { color: var(--blue); }
   .tablewrap { overflow-x: auto; }
-  td.os svg { width: 15px; height: 15px; vertical-align: -2px; fill: var(--dim); }
+  td.os svg { width: 15px; height: 15px; vertical-align: -2px; fill: var(--text-secondary); }
   td.os { width: 24px; }
+  td.mono { font-family: "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
   tr.offline td { color: var(--dim); font-style: italic; }
 </style>
 </head>
@@ -260,11 +284,12 @@ function render(conns, readStats, data) {
       c.host_id, c.remote_addr, ago(c.connected_at),
       c.last_notified_at ? ago(c.last_notified_at) + " ago" : "never",
     ];
-    for (const v of cells) {
+    cells.forEach((v, i) => {
       const td = document.createElement("td");
       td.textContent = v;
+      if (i === 1) td.className = "mono"; // remote address
       tr.appendChild(td);
-    }
+    });
     const tdN = document.createElement("td");
     tdN.className = "num";
     tdN.textContent = c.notified_count;
@@ -328,11 +353,12 @@ function sparkline() {
     const y = c.height - 4 - (v / max) * (c.height - 10);
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = "#34d399";
+  const styles = getComputedStyle(document.documentElement);
+  ctx.strokeStyle = styles.getPropertyValue("--blue").trim() || "#6a67fe";
   ctx.lineWidth = 1.5;
   ctx.stroke();
-  ctx.fillStyle = "#8494a6";
-  ctx.font = "10px ui-monospace, monospace";
+  ctx.fillStyle = styles.getPropertyValue("--dim").trim() || "#8b8fa2";
+  ctx.font = "10px Inter, sans-serif";
   ctx.fillText(String(max), 2, 10);
 }
 
