@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260815121243, Down_20260815121243)
+	MigrationClient.AddMigration(Up_20260817220126, Down_20260817220126)
 }
 
-func Up_20260815121243(tx *sql.Tx) error {
+func Up_20260817220126(tx *sql.Tx) error {
 	// last_login_status records the value of the com.microsoft/MDM/LoginStatus device alert ("user", "others", or "none") the device
 	// last reported, and last_login_status_at when it was observed. Windows sends the alert in the first message of every management
 	// session; this is the only durable record of the enrollment's user context.
@@ -26,6 +26,6 @@ func Up_20260815121243(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260815121243(tx *sql.Tx) error {
+func Down_20260817220126(tx *sql.Tx) error {
 	return nil
 }

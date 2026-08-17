@@ -944,11 +944,11 @@ func (c *TestAppleMDMClient) Authenticate() error {
 // TokenUpdate sends the TokenUpdate message to the MDM server (Check In protocol).
 func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 	pushMagic := "pushmagic" + c.SerialNumber
-	token := []byte("token" + c.SerialNumber)
+	token := []byte(c.GetToken())
 	unlockToken := []byte("unlocktoken" + c.SerialNumber)
 	if c.SerialNumber == "" {
 		pushMagic = "pushmagic" + c.Identifier()
-		token = []byte("token" + c.Identifier())
+		token = []byte(c.GetToken())
 		unlockToken = []byte("unlocktoken" + c.Identifier())
 	}
 	payload := map[string]any{
@@ -970,6 +970,20 @@ func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 	return err
 }
 
+func (c *TestAppleMDMClient) GetToken() string {
+	if c.SerialNumber == "" {
+		return "token" + c.Identifier()
+	}
+	return "token" + c.SerialNumber
+}
+
+func (c *TestAppleMDMClient) GetUserToken() string {
+	if c.SerialNumber == "" {
+		return "token.user." + c.Identifier()
+	}
+	return "token.user." + c.SerialNumber
+}
+
 // TokenUpdate sends the TokenUpdate message with a username to the MDM server (Check In protocol).
 // This creates a user channel pushtoken and an Enrollment with Type=User in nanomdm.
 func (c *TestAppleMDMClient) UserTokenUpdate() error {
@@ -977,10 +991,10 @@ func (c *TestAppleMDMClient) UserTokenUpdate() error {
 		return errors.New("user UUID and username must be set for user enrollment")
 	}
 	pushMagic := "pushmagic.user." + c.SerialNumber
-	token := []byte("token.user." + c.SerialNumber)
+	token := []byte(c.GetUserToken())
 	if c.SerialNumber == "" {
 		pushMagic = "pushmagic.user." + c.Identifier()
-		token = []byte("token.user." + c.Identifier())
+		token = []byte(c.GetUserToken())
 	}
 	payload := map[string]any{
 		"MessageType":   "TokenUpdate",

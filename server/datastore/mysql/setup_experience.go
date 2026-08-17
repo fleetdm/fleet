@@ -479,6 +479,23 @@ AND
 AND va.platform IN ('darwin', 'ios', 'ipados', 'android')
 `, titleIDQuestionMarks)
 
+	stmtSelectInHouseAppIDs := fmt.Sprintf(`
+SELECT
+	st.id AS title_id,
+	iha.id,
+	st.name,
+	iha.platform
+FROM
+	software_titles st
+INNER JOIN
+	in_house_apps iha
+	ON st.id = iha.title_id
+WHERE
+	iha.global_or_team_id = ?
+AND
+	st.id IN (%s)
+`, titleIDQuestionMarks)
+
 	stmtUnsetInstallers := `
 UPDATE software_installers
 SET install_during_setup = false
@@ -499,6 +516,16 @@ UPDATE vpp_apps_teams
 SET install_during_setup = true
 WHERE id IN (%s)`
 
+	stmtUnsetInHouseApps := `
+UPDATE in_house_apps
+SET install_during_setup = false
+WHERE platform = ? AND global_or_team_id = ?`
+
+	stmtSetInHouseApps := `
+UPDATE in_house_apps
+SET install_during_setup = true
+WHERE id IN (%s)`
+
 	// Cross-platform selections (e.g. linux .sh chosen for darwin) live in their own
 	// table so they don't share install_during_setup with the installer's native platform.
 	stmtUnsetCrossInstallers := `
@@ -516,6 +543,8 @@ VALUES %s`
 		var crossSoftwareIDs []any
 		var vppIDPlatforms []idPlatformTuple
 		var vppAppTeamIDs []any
+		var inHouseIDPlatforms []idPlatformTuple
+		var inHouseAppIDs []any
 		// List of title IDs that were sent but aren't in the
 		// database. We add everything and then remove them
 		// from the list when we validate them below
@@ -570,6 +599,26 @@ VALUES %s`
 					})
 				}
 				vppAppTeamIDs = append(vppAppTeamIDs, tuple.ID)
+			}
+		}
+
+		// Select requested in-house apps; setup experience only supports them on iOS/iPadOS.
+		if platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
+			if len(titleIDs) > 0 {
+				if err := sqlx.SelectContext(ctx, tx, &inHouseIDPlatforms, stmtSelectInHouseAppIDs, titleIDAndTeam...); err != nil {
+					return ctxerr.Wrap(ctx, err, "selecting in-house app IDs using title IDs")
+				}
+			}
+
+			// Validate in-house app platforms
+			for _, tuple := range inHouseIDPlatforms {
+				delete(missingTitleIDs, tuple.TitleID)
+				if tuple.Platform != platform {
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("invalid platform for requested in-house app title: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform),
+					})
+				}
+				inHouseAppIDs = append(inHouseAppIDs, tuple.ID)
 			}
 		}
 
@@ -630,6 +679,19 @@ VALUES %s`
 			}
 		}
 
+		if platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
+			if _, err := tx.ExecContext(ctx, stmtUnsetInHouseApps, platform, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "unsetting in-house apps")
+			}
+
+			if len(inHouseAppIDs) > 0 {
+				stmtSetInHouseAppsLoop := fmt.Sprintf(stmtSetInHouseApps, questionMarks(len(inHouseAppIDs)))
+				if _, err := tx.ExecContext(ctx, stmtSetInHouseAppsLoop, inHouseAppIDs...); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting in-house apps")
+				}
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting setup experience software")
@@ -664,7 +726,14 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 			SELECT COUNT(*)
 			FROM setup_experience_scripts
 			WHERE global_or_team_id = ?
-		) AS scripts`
+		) AS scripts,
+		(
+			SELECT COUNT(*)
+			FROM in_house_apps
+			WHERE global_or_team_id = ?
+			AND platform = ?
+			AND install_during_setup = 1
+		) AS in_house_apps`
 
 	var globalOrTeamID uint
 	if teamID != nil {
@@ -678,6 +747,7 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 		globalOrTeamID, platform,
 		globalOrTeamID, platform,
 		globalOrTeamID,
+		globalOrTeamID, platform,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting setup experience counts")
 	}
