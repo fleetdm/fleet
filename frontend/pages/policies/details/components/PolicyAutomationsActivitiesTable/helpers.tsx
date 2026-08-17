@@ -22,7 +22,7 @@ export const getAutomationRunDisplayName = (
       // A patch-when-closed skip is recorded as a failed_install, but it was
       // deferred because the app was open — not a failure. Label it distinctly,
       // matching the activity feed and install-details treatment.
-      if (details?.install_skipped_when_app_open) {
+      if (details?.skipped_install) {
         return withName("Patch skipped", details?.software_title);
       }
       return withName(
@@ -61,7 +61,7 @@ export const getAutomationRunDisplayName = (
 export const getAutomationStatusIcon = (
   activity: IPolicyAutomationActivity
 ): { name: "error-outline" | "success-outline"; color?: Colors } => {
-  if (activity.details?.install_skipped_when_app_open) {
+  if (activity.details?.skipped_install) {
     return { name: "error-outline", color: "ui-fleet-black-50" };
   }
   return activity.status === "error"

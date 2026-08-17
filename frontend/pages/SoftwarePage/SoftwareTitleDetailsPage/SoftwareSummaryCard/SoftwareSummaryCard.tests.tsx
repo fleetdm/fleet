@@ -529,7 +529,7 @@ describe("Software Summary Card", () => {
         />
       );
 
-      expect(screen.getByText("Self-service")).toBeInTheDocument();
+      expect(screen.getByText("Self service")).toBeInTheDocument();
     });
 
     it("hides the Self-service / Auto install / Patch chips for custom packages", () => {
@@ -560,7 +560,7 @@ describe("Software Summary Card", () => {
 
       // Per-row icons on the Library accordion replace these for multi-
       // package custom titles; the title-level chips would be misleading.
-      expect(screen.queryByText("Self-service")).not.toBeInTheDocument();
+      expect(screen.queryByText("Self service")).not.toBeInTheDocument();
       expect(screen.queryByText("Auto install")).not.toBeInTheDocument();
       expect(screen.queryByText("Patch policy")).not.toBeInTheDocument();
     });
@@ -581,7 +581,7 @@ describe("Software Summary Card", () => {
         />
       );
 
-      expect(screen.queryByText("Self-service")).not.toBeInTheDocument();
+      expect(screen.queryByText("Self service")).not.toBeInTheDocument();
     });
 
     it("renders the Auto install pill when the title has linked auto-install policies", () => {

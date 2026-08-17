@@ -151,17 +151,9 @@ const DiskEncryption = ({
     if (platform === "linux") {
       return (
         <>
-          For Ubuntu and Fedora Linux.
-          <br />
-          Currently, full disk encryption must be turned on{" "}
-          <b>
-            during OS
-            <br />
-            setup
-          </b>
-          . If disk encryption is off, the end user must re-install
-          <br />
-          their operating system.
+          For Ubuntu and Fedora Linux. Currently, full disk encryption must be
+          turned on <strong>during OS setup</strong>. If disk encryption is off,
+          the end user must re-install their operating system.
         </>
       );
     }
@@ -171,9 +163,11 @@ const DiskEncryption = ({
         : ["Apple", "FileVault"];
     return (
       <>
-        {AppleOrWindows} MDM must be turned on in <b>Settings</b> &gt;{" "}
-        <b>Integrations</b> &gt; <b>Mobile Device Management (MDM)</b> to
-        enforce disk encryption via {DEMethod}.
+        {AppleOrWindows} MDM must be turned on in{" "}
+        <strong>
+          Settings &gt; Integrations &gt; Mobile Device Management (MDM)
+        </strong>{" "}
+        to enforce disk encryption via {DEMethod}.
       </>
     );
   };
@@ -251,9 +245,7 @@ const DiskEncryption = ({
                     <>
                       If enabled, end users on Windows hosts will be required to
                       set a BitLocker PIN.
-                    </>
-                    <br />
-                    <>
+                      <br />
                       When the PIN is set, it&rsquo;s required to unlock Windows
                       hosts during startup.
                     </>

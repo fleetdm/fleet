@@ -3811,9 +3811,13 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
 		http.StatusOK, &listSetupSoftware, "platform", "ios", "team_id", "0", "order_key", "name")
 
-	// only 1 installer, the VPP app, the ipa is filtered out because unsupported
-	require.Len(t, listSetupSoftware.SoftwareTitles, 1)
+	// the VPP app and the .ipa in-house app, which is supported for iOS/iPadOS setup experience
+	require.Len(t, listSetupSoftware.SoftwareTitles, 2)
 	require.Equal(t, "App 2", listSetupSoftware.SoftwareTitles[0].Name)
+	require.Equal(t, "ipa_test", listSetupSoftware.SoftwareTitles[1].Name)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
+	require.False(t, *listSetupSoftware.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
 
 	// put software for setup experience macos with an unknown one
 	res := s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
@@ -3850,21 +3854,22 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
 
-	// put software for setup experience ios with an invalid one (ipa)
-	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
-		Platform: "ios",
-		TeamID:   0,
-		TitleIDs: []uint{ipaTitleID},
-	}, http.StatusBadRequest)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
-
-	// put software for setup experience ios with valid ones
+	// put software for setup experience ios with valid ones, including the ipa
 	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
 		Platform: "ios",
 		TeamID:   0,
-		TitleIDs: []uint{app2IOSTitleID},
+		TitleIDs: []uint{app2IOSTitleID, ipaTitleID},
 	}, http.StatusOK, &putSetupSoftware)
+
+	// the ipa selection round-trips on a re-GET
+	listSetupSoftware = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+		http.StatusOK, &listSetupSoftware, "platform", "ios", "team_id", "0", "order_key", "name")
+	require.Len(t, listSetupSoftware.SoftwareTitles, 2)
+	require.Equal(t, "ipa_test", listSetupSoftware.SoftwareTitles[1].Name)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *listSetupSoftware.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon() {

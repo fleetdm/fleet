@@ -101,6 +101,7 @@ func scanApps(homesList []homes.Home) []App {
 			}
 			c.add(appCandidate{
 				MatchTokens: []string{display},
+				DisplayName: display,
 				Vendor:      pub,
 				Version:     version,
 				Path:        loc,

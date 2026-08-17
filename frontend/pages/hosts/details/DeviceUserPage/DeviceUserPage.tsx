@@ -750,7 +750,7 @@ const DeviceUserPage = ({
               <TabList>
                 {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <Tab>
-                    <TabText>Self-service</TabText>
+                    <TabText>Self service</TabText>
                   </Tab>
                 )}
                 <Tab>
