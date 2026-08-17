@@ -155,7 +155,7 @@ About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fle
 
 <meta name="articleTitle" value="Detecting the ChainDrop npm worm before it reaches your devices">
 <meta name="authorFullName" value="Dhruv Majumdar">
-<meta name="authorGitHubUsername" value="drvcodenta">
+<meta name="authorGitHubUsername" value="karmine05">
 <meta name="category" value="security">
 <meta name="publishedOn" value="2026-08-17">
 <meta name="description" value="ChainDrop hides in npm packages and IDE hooks your developers trust. Use Fleet to see if it is on your devices before a stolen credential does.">
