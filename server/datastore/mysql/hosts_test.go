@@ -39,6 +39,30 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+func TestTeamIDsMatch(t *testing.T) {
+	team1 := uint(1)
+	team2 := uint(2)
+
+	cases := []struct {
+		name     string
+		hostTeam *uint
+		secret   *uint
+		want     bool
+	}{
+		{"global secret matches any host", &team1, nil, true},
+		{"global secret matches no-team host", nil, nil, true},
+		{"team secret matches no-team host", nil, &team1, true},
+		{"same team", &team1, &team1, true},
+		{"different teams", &team1, &team2, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := teamIDsMatch(tc.hostTeam, tc.secret)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
 var expLastExec = common_mysql.GetDefaultNonZeroTime()
 
 var enrollTests = []struct {
@@ -182,6 +206,8 @@ func TestHosts(t *testing.T) {
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
+		{"EnrollCrossTeamRejection", testEnrollCrossTeamRejection},
+		{"EnrollOrbitCooldown", testEnrollOrbitCooldown},
 		{"HostPreviouslyOrbitEnrolled", testHostPreviouslyOrbitEnrolled},
 		{"HostsEnrollOrbitWithPlatformLike", testHostsEnrollOrbitWithPlatformLike},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
@@ -11783,6 +11809,194 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			})
 		}
 	}
+}
+
+func testEnrollCrossTeamRejection(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create two teams.
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "Sensitive-Servers-" + t.Name()})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "Public-Kiosks-" + t.Name()})
+	require.NoError(t, err)
+
+	t.Run("osquery cross-team re-enrollment is rejected", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+
+		// Enroll a host into Team A via osquery.
+		h, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(hostUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(hostUUID),
+			fleet.WithEnrollOsqueryNodeKey("victim-key-osquery"),
+			fleet.WithEnrollOsqueryTeamID(&teamA.ID),
+		)
+		require.NoError(t, err)
+		require.Equal(t, teamA.ID, *h.TeamID)
+
+		// Attempt cross-team re-enrollment with Team B's secret.
+		// The match should be rejected and the INSERT should fail on the unique constraint.
+		_, err = ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(hostUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(hostUUID),
+			fleet.WithEnrollOsqueryNodeKey("attacker-key-osquery"),
+			fleet.WithEnrollOsqueryTeamID(&teamB.ID),
+		)
+		require.Error(t, err, "cross-team re-enrollment should fail")
+
+		// Verify original host is unaffected.
+		loaded, err := ds.LoadHostByNodeKey(ctx, "victim-key-osquery")
+		require.NoError(t, err)
+		require.Equal(t, h.ID, loaded.ID)
+		require.Equal(t, teamA.ID, *loaded.TeamID)
+	})
+
+	t.Run("osquery same-team re-enrollment works", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+
+		// Enroll a host into Team A.
+		h, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(hostUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(hostUUID),
+			fleet.WithEnrollOsqueryNodeKey("original-key"),
+			fleet.WithEnrollOsqueryTeamID(&teamA.ID),
+		)
+		require.NoError(t, err)
+
+		// Re-enroll with the same team's secret.
+		h2, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(hostUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(hostUUID),
+			fleet.WithEnrollOsqueryNodeKey("new-key-same-team"),
+			fleet.WithEnrollOsqueryTeamID(&teamA.ID),
+		)
+		require.NoError(t, err)
+		require.Equal(t, h.ID, h2.ID, "same-team re-enrollment should reuse the host row")
+
+		// Verify the new key works.
+		loaded, err := ds.LoadHostByNodeKey(ctx, "new-key-same-team")
+		require.NoError(t, err)
+		require.Equal(t, h.ID, loaded.ID)
+	})
+
+	t.Run("orbit cross-team re-enrollment is rejected", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+
+		// Enroll via orbit into Team A.
+		h, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID: hostUUID,
+				Platform:     "ubuntu",
+			}),
+			fleet.WithEnrollOrbitNodeKey("victim-orbit-key"),
+			fleet.WithEnrollOrbitTeamID(&teamA.ID),
+		)
+		require.NoError(t, err)
+
+		// Cross-team attempt with Team B's secret.
+		_, err = ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID: hostUUID,
+				Platform:     "ubuntu",
+			}),
+			fleet.WithEnrollOrbitNodeKey("attacker-orbit-key"),
+			fleet.WithEnrollOrbitTeamID(&teamB.ID),
+		)
+		require.Error(t, err, "orbit cross-team re-enrollment should fail")
+
+		// Victim key still works.
+		loaded, err := ds.LoadHostByOrbitNodeKey(ctx, "victim-orbit-key")
+		require.NoError(t, err)
+		require.Equal(t, h.ID, loaded.ID)
+	})
+
+	t.Run("global secret can re-enroll any team host", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+
+		// Enroll into Team A.
+		h, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(hostUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(hostUUID),
+			fleet.WithEnrollOsqueryNodeKey("team-a-key"),
+			fleet.WithEnrollOsqueryTeamID(&teamA.ID),
+		)
+		require.NoError(t, err)
+
+		// Re-enroll with global secret (team_id = nil).
+		h2, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(hostUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(hostUUID),
+			fleet.WithEnrollOsqueryNodeKey("global-key"),
+			fleet.WithEnrollOsqueryTeamID(nil),
+		)
+		require.NoError(t, err, "global secret should be allowed to re-enroll any host")
+		require.Equal(t, h.ID, h2.ID)
+	})
+
+	t.Run("DEP pre-created host without node key can be claimed cross-team", func(t *testing.T) {
+		// Simulate a DEP pre-created host (no node_key, just a serial).
+		serial := uuid.New().String()
+		dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+		depHost, err := ds.NewHost(ctx, &fleet.Host{
+			HardwareSerial:  serial,
+			Platform:        "darwin",
+			TeamID:          &teamA.ID,
+			LastEnrolledAt:  dbZeroTime,
+			DetailUpdatedAt: dbZeroTime,
+		})
+		require.NoError(t, err)
+
+		// Enroll via orbit with Team B's secret (different team, but host has no node key).
+		h, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   uuid.New().String(),
+				HardwareSerial: serial,
+				Platform:       "darwin",
+			}),
+			fleet.WithEnrollOrbitNodeKey("dep-orbit-key"),
+			fleet.WithEnrollOrbitTeamID(&teamB.ID),
+		)
+		require.NoError(t, err, "DEP pre-created host (no node key) should be claimable cross-team")
+		require.Equal(t, depHost.ID, h.ID)
+	})
+}
+
+func testEnrollOrbitCooldown(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	hostUUID := uuid.New().String()
+
+	// Enroll a new orbit host.
+	h, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: hostUUID,
+			Platform:     "ubuntu",
+		}),
+		fleet.WithEnrollOrbitNodeKey("orbit-cooldown-key-1"),
+	)
+	require.NoError(t, err)
+
+	// Re-enrollment without cooldown should succeed.
+	h2, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: hostUUID,
+			Platform:     "ubuntu",
+		}),
+		fleet.WithEnrollOrbitNodeKey("orbit-cooldown-key-2"),
+	)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, h2.ID)
+
+	// Re-enrollment with cooldown should fail (enrolled too recently).
+	_, err = ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: hostUUID,
+			Platform:     "ubuntu",
+		}),
+		fleet.WithEnrollOrbitNodeKey("orbit-cooldown-key-3"),
+		fleet.WithEnrollOrbitCooldown(10*time.Second),
+	)
+	require.Error(t, err, "orbit re-enrollment within cooldown should be rejected")
 }
 
 func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
