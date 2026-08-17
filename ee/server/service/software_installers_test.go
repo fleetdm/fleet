@@ -3007,6 +3007,10 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "py both platforms", input: []string{"darwin", "linux"}, extension: "py", want: []string{"darwin", "linux"}},
 		{name: "py unsupported windows", input: []string{"windows"}, extension: "py", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .py package`},
 		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
+		{name: "ipa ios", input: []string{"ios"}, extension: "ipa", want: []string{"ios"}},
+		{name: "ipa ipados", input: []string{"ipados"}, extension: "ipa", want: []string{"ipados"}},
+		{name: "ipa both platforms", input: []string{"ios", "ipados"}, extension: "ipa", want: []string{"ios", "ipados"}},
+		{name: "ipa darwin rejected", input: []string{"darwin"}, extension: "ipa", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .ipa package`},
 	}
 
 	for _, c := range cases {
@@ -3024,6 +3028,79 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 				return
 			}
 			assert.Equal(t, c.want, got)
+		})
+	}
+}
+
+// TestSetupExperiencePlatformsForBareIPABoolean is the regression test for the
+// bare setup_experience boolean landing on an arbitrary platform row: on a
+// hash-matched re-apply the base payload can be the iPadOS row, so the boolean
+// must be pinned to an explicit iOS platform list before any per-platform
+// derivation happens.
+func TestSetupExperiencePlatformsForBareIPABoolean(t *testing.T) {
+	t.Parallel()
+
+	explicit := &[]string{"ipados"}
+
+	cases := []struct {
+		name           string
+		extension      string
+		setupPlatforms *[]string
+		installFlag    *bool
+		want           *[]string
+	}{
+		{name: "bare true on ipa pins to ios", extension: "ipa", installFlag: new(true), want: &[]string{"ios"}},
+		{name: "explicit list wins over boolean", extension: "ipa", setupPlatforms: explicit, installFlag: new(true), want: explicit},
+		{name: "bare false passes through", extension: "ipa", installFlag: new(false), want: nil},
+		{name: "nothing set passes through", extension: "ipa", want: nil},
+		{name: "non-ipa passes through", extension: "pkg", installFlag: new(true), want: nil},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := setupExperiencePlatformsForBareIPABoolean(c.extension, c.setupPlatforms, c.installFlag)
+			if c.want == nil {
+				require.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			assert.Equal(t, *c.want, *got)
+		})
+	}
+}
+
+// TestInstallDuringSetupForFannedOutPlatform is the regression test for the
+// .ipa batch fan-out sharing the base payload's InstallDuringSetup pointer:
+// the fanned-out platform must get its own value derived from
+// setup_experience_platform, never the base platform's answer.
+func TestInstallDuringSetupForFannedOutPlatform(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name           string
+		setupPlatforms *[]string
+		baseFlag       *bool
+		platform       string
+		want           *bool
+	}{
+		{name: "platform list selects the fanned platform", setupPlatforms: &[]string{"ipados"}, baseFlag: new(false), platform: "ipados", want: new(true)},
+		{name: "platform list excludes the fanned platform", setupPlatforms: &[]string{"ios"}, baseFlag: new(true), platform: "ipados", want: new(false)},
+		{name: "platform list selects both", setupPlatforms: &[]string{"ios", "ipados"}, baseFlag: new(true), platform: "ipados", want: new(true)},
+		{name: "bare boolean only targets the base platform", setupPlatforms: nil, baseFlag: new(true), platform: "ipados", want: new(false)},
+		{name: "explicit false stays false on both", setupPlatforms: nil, baseFlag: new(false), platform: "ipados", want: new(false)},
+		{name: "nothing set preserves stored value", setupPlatforms: nil, baseFlag: nil, platform: "ipados", want: nil},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := installDuringSetupForFannedOutPlatform(c.setupPlatforms, c.baseFlag, c.platform)
+			if c.want == nil {
+				require.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			assert.Equal(t, *c.want, *got)
+			require.NotSame(t, c.baseFlag, got, "fanned-out payload must not share the base payload's pointer")
 		})
 	}
 }

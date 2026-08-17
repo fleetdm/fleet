@@ -449,9 +449,8 @@ const SoftwareTitleDetailsPage = ({
         <TooltipWrapper
           tipContent={
             <>
-              This title already has {MAX_PACKAGES_PER_TITLE} packages.
-              <br />
-              Delete one you no longer use before adding.
+              This title already has {MAX_PACKAGES_PER_TITLE} packages. Delete
+              one you no longer use before adding.
             </>
           }
           showArrow

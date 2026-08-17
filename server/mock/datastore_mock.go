@@ -340,6 +340,8 @@ type GetHostMDMCommandsFunc func(ctx context.Context, hostID uint) (commands []f
 
 type RemoveHostMDMCommandFunc func(ctx context.Context, command fleet.HostMDMCommand) error
 
+type RemoveHostMDMCommandByHostUUIDFunc func(ctx context.Context, hostUUID string, commandType string) error
+
 type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 
 type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
@@ -667,6 +669,8 @@ type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, script
 type GetHostUpcomingActivityMetaFunc func(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error)
 
 type UnblockHostsUpcomingActivityQueueFunc func(ctx context.Context, maxHosts int) (int, error)
+
+type ReapStuckActivatedMDMInstallsFunc func(ctx context.Context, olderThan time.Duration, maxHosts int) ([]fleet.ReapedMDMInstall, error)
 
 type ActivateNextUpcomingActivityForHostFunc func(ctx context.Context, hostID uint, fromCompletedExecID string) error
 
@@ -2010,7 +2014,7 @@ type GetMDMAndroidCommandByUUIDFunc func(ctx context.Context, commandUUID string
 
 type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
 
-type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error
+type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string, rawResult *string) error
 
 type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
 
@@ -2019,6 +2023,8 @@ type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *
 type WipeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
 type ClearPasscodeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
+
+type InsertMDMAndroidCommandFunc func(ctx context.Context, cmd *android.MDMAndroidCommand) error
 
 type ClearHostMDMActionsFunc func(ctx context.Context, hostID uint) error
 
@@ -2805,6 +2811,9 @@ type DataStore struct {
 	RemoveHostMDMCommandFunc        RemoveHostMDMCommandFunc
 	RemoveHostMDMCommandFuncInvoked bool
 
+	RemoveHostMDMCommandByHostUUIDFunc        RemoveHostMDMCommandByHostUUIDFunc
+	RemoveHostMDMCommandByHostUUIDFuncInvoked bool
+
 	CleanupHostMDMCommandsFunc        CleanupHostMDMCommandsFunc
 	CleanupHostMDMCommandsFuncInvoked bool
 
@@ -3296,6 +3305,9 @@ type DataStore struct {
 
 	UnblockHostsUpcomingActivityQueueFunc        UnblockHostsUpcomingActivityQueueFunc
 	UnblockHostsUpcomingActivityQueueFuncInvoked bool
+
+	ReapStuckActivatedMDMInstallsFunc        ReapStuckActivatedMDMInstallsFunc
+	ReapStuckActivatedMDMInstallsFuncInvoked bool
 
 	ActivateNextUpcomingActivityForHostFunc        ActivateNextUpcomingActivityForHostFunc
 	ActivateNextUpcomingActivityForHostFuncInvoked bool
@@ -5325,6 +5337,9 @@ type DataStore struct {
 	ClearPasscodeHostViaAndroidMDMFunc        ClearPasscodeHostViaAndroidMDMFunc
 	ClearPasscodeHostViaAndroidMDMFuncInvoked bool
 
+	InsertMDMAndroidCommandFunc        InsertMDMAndroidCommandFunc
+	InsertMDMAndroidCommandFuncInvoked bool
+
 	ClearHostMDMActionsFunc        ClearHostMDMActionsFunc
 	ClearHostMDMActionsFuncInvoked bool
 
@@ -6899,6 +6914,13 @@ func (s *DataStore) RemoveHostMDMCommand(ctx context.Context, command fleet.Host
 	return s.RemoveHostMDMCommandFunc(ctx, command)
 }
 
+func (s *DataStore) RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUID string, commandType string) error {
+	s.mu.Lock()
+	s.RemoveHostMDMCommandByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.RemoveHostMDMCommandByHostUUIDFunc(ctx, hostUUID, commandType)
+}
+
 func (s *DataStore) CleanupHostMDMCommands(ctx context.Context) error {
 	s.mu.Lock()
 	s.CleanupHostMDMCommandsFuncInvoked = true
@@ -8045,6 +8067,13 @@ func (s *DataStore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHo
 	s.UnblockHostsUpcomingActivityQueueFuncInvoked = true
 	s.mu.Unlock()
 	return s.UnblockHostsUpcomingActivityQueueFunc(ctx, maxHosts)
+}
+
+func (s *DataStore) ReapStuckActivatedMDMInstalls(ctx context.Context, olderThan time.Duration, maxHosts int) ([]fleet.ReapedMDMInstall, error) {
+	s.mu.Lock()
+	s.ReapStuckActivatedMDMInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReapStuckActivatedMDMInstallsFunc(ctx, olderThan, maxHosts)
 }
 
 func (s *DataStore) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
@@ -12744,11 +12773,11 @@ func (s *DataStore) GetMDMAndroidCommandByOperationName(ctx context.Context, ope
 	return s.GetMDMAndroidCommandByOperationNameFunc(ctx, operationName)
 }
 
-func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error {
+func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string, rawResult *string) error {
 	s.mu.Lock()
 	s.UpdateMDMAndroidCommandStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage)
+	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage, rawResult)
 }
 
 func (s *DataStore) ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
@@ -12777,6 +12806,13 @@ func (s *DataStore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *fl
 	s.ClearPasscodeHostViaAndroidMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClearPasscodeHostViaAndroidMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.InsertMDMAndroidCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMAndroidCommandFunc(ctx, cmd)
 }
 
 func (s *DataStore) ClearHostMDMActions(ctx context.Context, hostID uint) error {

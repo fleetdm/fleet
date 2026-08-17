@@ -2595,6 +2595,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
+	mockPolicyQueriesForHostFiltered(ds)
 	host := &fleet.Host{
 		ID:            1,
 		Platform:      "windows",
@@ -3455,6 +3456,31 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// filterPolicyQueries narrows a host's in-scope policy queries to the requested IDs, as the real
+// PolicyQueriesForHostFiltered does.
+func filterPolicyQueries(inScope map[string]string, policyIDs []uint) map[string]string {
+	filtered := make(map[string]string, len(policyIDs))
+	for _, policyID := range policyIDs {
+		if query, ok := inScope[fmt.Sprint(policyID)]; ok {
+			filtered[fmt.Sprint(policyID)] = query
+		}
+	}
+	return filtered
+}
+
+// mockPolicyQueriesForHostFiltered wires PolicyQueriesForHostFiltered to the store's already-configured
+// PolicyQueriesForHost mock -- the same relationship the real datastore has between the two. distributed/write
+// validates incoming policy results through the filtered variant, so tests that submit policy results need it.
+func mockPolicyQueriesForHostFiltered(ds *mock.Store) {
+	ds.PolicyQueriesForHostFilteredFunc = func(ctx context.Context, host *fleet.Host, policyIDs []uint) (map[string]string, error) {
+		inScope, err := ds.PolicyQueriesForHostFunc(ctx, host)
+		if err != nil {
+			return nil, err
+		}
+		return filterPolicyQueries(inScope, policyIDs), nil
+	}
+}
+
 func TestPolicyQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
@@ -3490,6 +3516,7 @@ func TestPolicyQueries(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
 	}
+	mockPolicyQueriesForHostFiltered(ds)
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
@@ -3674,6 +3701,10 @@ func TestPolicyMembershipOutOfScopeCleanup(t *testing.T) {
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: 0}, nil
 	}
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "select 1"}, nil
+	}
+	mockPolicyQueriesForHostFiltered(ds)
 	stalePolicyIDs := []uint{7, 9}
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
@@ -3739,6 +3770,198 @@ func TestPolicyMembershipOutOfScopeCleanup(t *testing.T) {
 	})
 	require.Equal(t, []uint{7}, clearedPolicyIDs)
 	require.True(t, ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked)
+}
+
+func TestOutOfScopePolicyResultsAreDiscarded(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestService(t, ds, nil, lq)
+
+	host := &fleet.Host{ID: 42, Platform: "darwin"}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 0}, nil
+	}
+	inSetupExperience := false
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return inSetupExperience, nil
+	}
+	var setupExperiencePolicyIDs []uint
+	ds.GetSetupExperiencePolicyIDsForHostFunc = func(ctx context.Context, hostUUID string) ([]uint, error) {
+		return setupExperiencePolicyIDs, nil
+	}
+	inScopePolicies := map[string]string{"1": "select 1", "2": "select 2"}
+	// Set directly rather than via mockPolicyQueriesForHostFiltered: that helper reads through
+	// PolicyQueriesForHostFunc, which this test asserts is never invoked. filteredForIDs records the IDs the scope
+	// lookup was asked about.
+	var filteredForIDs []uint
+	ds.PolicyQueriesForHostFilteredFunc = func(ctx context.Context, gotHost *fleet.Host, policyIDs []uint) (map[string]string, error) {
+		require.Equal(t, host.ID, gotHost.ID)
+		filteredForIDs = policyIDs
+		return filterPolicyQueries(inScopePolicies, policyIDs), nil
+	}
+	var flippingResults map[uint]*bool
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) ([]uint, []uint, error) {
+		flippingResults = incomingResults
+		return nil, nil, nil
+	}
+	var recordedResults map[uint]*bool
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
+		deferred bool, newlyPassingPolicyIDs []uint,
+	) ([]uint, error) {
+		recordedResults = results
+		return nil, nil
+	}
+
+	ctx = hostctx.NewContext(ctx, host)
+
+	submit := func(results map[string][]map[string]string, statuses map[string]fleet.OsqueryStatus) {
+		flippingResults, recordedResults, filteredForIDs = nil, nil, nil
+		ds.RecordPolicyQueryExecutionsFuncInvoked = false
+		ds.PolicyQueriesForHostFilteredFuncInvoked = false
+		ds.PolicyQueriesForHostFuncInvoked = false
+		ds.UpdateHostFuncInvoked = false
+		ds.SaveHostAdditionalFuncInvoked = false
+		ds.GetHostAwaitingConfigurationFuncInvoked = false
+		ds.GetSetupExperiencePolicyIDsForHostFuncInvoked = false
+		err := svc.SubmitDistributedQueryResults(ctx, results, statuses, map[string]string{}, map[string]*fleet.Stats{})
+		require.NoError(t, err)
+	}
+
+	t.Run("scope lookup is restricted to the reported policy IDs", func(t *testing.T) {
+		submit(map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1":  {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "99": {},
+		}, map[string]fleet.OsqueryStatus{})
+
+		// Never the host's whole policy set: this runs on every policy-reporting check-in.
+		require.True(t, ds.PolicyQueriesForHostFilteredFuncInvoked)
+		require.False(t, ds.PolicyQueriesForHostFuncInvoked)
+		require.ElementsMatch(t, []uint{1, 99}, filteredForIDs)
+	})
+
+	t.Run("forged policy IDs are dropped, in-scope results kept", func(t *testing.T) {
+		submit(map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1":  {{"col1": "val1"}}, // in scope, passes
+			hostPolicyQueryPrefix + "2":  {},                 // in scope, fails
+			hostPolicyQueryPrefix + "99": {},                 // not in scope: another fleet's policy
+		}, map[string]fleet.OsqueryStatus{})
+
+		require.True(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+		require.Equal(t, map[uint]*bool{1: new(true), 2: new(false)}, recordedResults)
+		require.Equal(t, map[uint]*bool{1: new(true), 2: new(false)}, flippingResults)
+	})
+
+	t.Run("failed results for forged policy IDs are dropped too", func(t *testing.T) {
+		submit(map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1":  {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "99": {},
+		}, map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "99": 1, // reported as errored, which records a nil (unknown) result
+		})
+
+		require.Equal(t, map[uint]*bool{1: new(true)}, recordedResults)
+	})
+
+	t.Run("payload of only forged policy IDs records nothing", func(t *testing.T) {
+		submit(map[string][]map[string]string{
+			hostPolicyQueryPrefix + "99": {},
+		}, map[string]fleet.OsqueryStatus{})
+
+		require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+	})
+
+	t.Run("policy that fell out of scope between read and write is dropped", func(t *testing.T) {
+		inScopePolicies = map[string]string{"1": "select 1"}
+		t.Cleanup(func() { inScopePolicies = map[string]string{"1": "select 1", "2": "select 2"} })
+
+		submit(map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "2": {{"col1": "val1"}},
+		}, map[string]fleet.OsqueryStatus{})
+
+		require.Equal(t, map[uint]*bool{1: new(true)}, recordedResults)
+	})
+
+	// A host in setup experience is sent only the policies gating its pending items, but results are checked against
+	// its full in-scope set: those policies are legitimately the host's, so a result for one is worth keeping even if
+	// setup experience had not asked for it yet. Setup experience is therefore not consulted on this path at all.
+	t.Run("setup experience does not narrow the accepted set", func(t *testing.T) {
+		inSetupExperience = true
+		setupExperiencePolicyIDs = []uint{1}
+		t.Cleanup(func() {
+			inSetupExperience = false
+			setupExperiencePolicyIDs = nil
+		})
+
+		submit(map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1":  {{"col1": "val1"}}, // gates a pending setup item
+			hostPolicyQueryPrefix + "2":  {{"col1": "val1"}}, // in scope, but not gating one
+			hostPolicyQueryPrefix + "99": {},                 // not in scope for this host at all
+		}, map[string]fleet.OsqueryStatus{})
+
+		require.Equal(t, map[uint]*bool{1: new(true), 2: new(true)}, recordedResults)
+		require.ElementsMatch(t, []uint{1, 2, 99}, filteredForIDs)
+		// No setup-experience lookup: a policy-reporting check-in pays for the scope query and nothing else.
+		require.False(t, ds.GetHostAwaitingConfigurationFuncInvoked)
+		require.False(t, ds.GetSetupExperiencePolicyIDsForHostFuncInvoked)
+	})
+
+	t.Run("scope lookup failure drops policy results without failing the write", func(t *testing.T) {
+		ds.PolicyQueriesForHostFilteredFunc = func(ctx context.Context, gotHost *fleet.Host, policyIDs []uint) (map[string]string, error) {
+			return nil, errors.New("database is on fire")
+		}
+		ds.LabelQueriesForHostFunc = func(ctx context.Context, gotHost *fleet.Host) (map[string]string, error) {
+			return map[string]string{"5": "select 5"}, nil
+		}
+		ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
+			return nil
+		}
+		t.Cleanup(func() {
+			ds.PolicyQueriesForHostFilteredFunc = func(ctx context.Context, gotHost *fleet.Host, policyIDs []uint) (map[string]string, error) {
+				filteredForIDs = policyIDs
+				return filterPolicyQueries(inScopePolicies, policyIDs), nil
+			}
+		})
+		var savedHost *fleet.Host
+		ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+			savedHost = gotHost
+			return nil
+		}
+		var savedAdditional *json.RawMessage
+		ds.SaveHostAdditionalFunc = func(ctx context.Context, hostID uint, additional *json.RawMessage) error {
+			savedAdditional = additional
+			return nil
+		}
+		ds.RecordLabelQueryExecutionsFuncInvoked = false
+
+		// One write carrying a label, a policy, a detail and an additional result. submit asserts it succeeds.
+		submit(map[string][]map[string]string{
+			hostLabelQueryPrefix + "5":               {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "1":              {{"col1": "val1"}},
+			hostDetailQueryPrefix + "osquery_info":   {{"version": "5.99.0"}},
+			hostAdditionalQueryPrefix + "extra_bits": {{"n": "1"}},
+		}, map[string]fleet.OsqueryStatus{})
+
+		// Policy results are dropped, so nothing unvalidated is persisted. RecordPolicyQueryExecutions is where
+		// hosts.policy_updated_at is advanced, so not calling it also leaves the host due to report again.
+		require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+
+		require.True(t, ds.RecordLabelQueryExecutionsFuncInvoked)
+
+		// The detail and additional results are still persisted.
+		require.True(t, ds.UpdateHostFuncInvoked)
+		require.NotNil(t, savedHost)
+		require.Equal(t, "5.99.0", savedHost.OsqueryVersion)
+
+		require.True(t, ds.SaveHostAdditionalFuncInvoked)
+		require.NotNil(t, savedAdditional)
+		require.JSONEq(t, `{"extra_bits":[{"n":"1"}]}`, string(*savedAdditional))
+	})
+
 }
 
 func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
@@ -3893,6 +4116,7 @@ func TestPolicyWebhooks(t *testing.T) {
 			"3": "select 1 where 1 = 0;",           // failing policy
 		}, nil
 	}
+	mockPolicyQueriesForHostFiltered(ds)
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
@@ -4194,6 +4418,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
+	mockPolicyQueriesForHostFiltered(ds)
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}

@@ -217,24 +217,25 @@ func (ds *Datastore) UpdateSoftwareTitleName(ctx context.Context, titleID uint, 
 // installer/VPP/in-house columns that get promoted in post-processing.
 type softwareTitleWithInstallerFields struct {
 	fleet.SoftwareTitleListResult
-	PackageSelfService        *bool   `db:"package_self_service"`
-	PackageName               *string `db:"package_name"`
-	PackageVersion            *string `db:"package_version"`
-	PackagePlatform           *string `db:"package_platform"`
-	PackageURL                *string `db:"package_url"`
-	PackageInstallDuringSetup *bool   `db:"package_install_during_setup"`
-	VPPAppSelfService         *bool   `db:"vpp_app_self_service"`
-	VPPAppAdamID              *string `db:"vpp_app_adam_id"`
-	VPPAppVersion             *string `db:"vpp_app_version"`
-	VPPAppPlatform            *string `db:"vpp_app_platform"`
-	VPPAppIconURL             *string `db:"vpp_app_icon_url"`
-	VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
-	FleetMaintainedAppID      *uint   `db:"fleet_maintained_app_id"`
-	InHouseAppName            *string `db:"in_house_app_name"`
-	InHouseAppVersion         *string `db:"in_house_app_version"`
-	InHouseAppPlatform        *string `db:"in_house_app_platform"`
-	InHouseAppStorageID       *string `db:"in_house_app_storage_id"`
-	InHouseAppSelfService     *bool   `db:"in_house_app_self_service"`
+	PackageSelfService           *bool   `db:"package_self_service"`
+	PackageName                  *string `db:"package_name"`
+	PackageVersion               *string `db:"package_version"`
+	PackagePlatform              *string `db:"package_platform"`
+	PackageURL                   *string `db:"package_url"`
+	PackageInstallDuringSetup    *bool   `db:"package_install_during_setup"`
+	VPPAppSelfService            *bool   `db:"vpp_app_self_service"`
+	VPPAppAdamID                 *string `db:"vpp_app_adam_id"`
+	VPPAppVersion                *string `db:"vpp_app_version"`
+	VPPAppPlatform               *string `db:"vpp_app_platform"`
+	VPPAppIconURL                *string `db:"vpp_app_icon_url"`
+	VPPInstallDuringSetup        *bool   `db:"vpp_install_during_setup"`
+	FleetMaintainedAppID         *uint   `db:"fleet_maintained_app_id"`
+	InHouseAppName               *string `db:"in_house_app_name"`
+	InHouseAppVersion            *string `db:"in_house_app_version"`
+	InHouseAppPlatform           *string `db:"in_house_app_platform"`
+	InHouseAppStorageID          *string `db:"in_house_app_storage_id"`
+	InHouseAppSelfService        *bool   `db:"in_house_app_self_service"`
+	InHouseAppInstallDuringSetup *bool   `db:"in_house_app_install_during_setup"`
 }
 
 // canUseOptimizedListTitlesQuery returns true when the common fast-path can be used:
@@ -436,10 +437,11 @@ func (ds *Datastore) processSoftwareTitleResults(
 				platform = *title.InHouseAppPlatform
 			}
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-				Name:        *title.InHouseAppName,
-				Version:     version,
-				Platform:    platform,
-				SelfService: title.InHouseAppSelfService,
+				Name:               *title.InHouseAppName,
+				Version:            version,
+				Platform:           platform,
+				SelfService:        title.InHouseAppSelfService,
+				InstallDuringSetup: title.InHouseAppInstallDuringSetup,
 			}
 			// This is set directly for software packages via db tag, but for in-house apps we need to set it here.
 			title.HashSHA256 = title.InHouseAppStorageID
@@ -758,6 +760,7 @@ SELECT
 		,iha.platform as in_house_app_platform
 		,iha.storage_id as in_house_app_storage_id
 		,iha.self_service as in_house_app_self_service
+		,iha.install_during_setup as in_house_app_install_during_setup
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
@@ -832,8 +835,12 @@ WHERE
 		{{end}}
 		AND ({{$defFilter}})
 	{{end}}
-	-- If for setup experience, exclude any installers that are not supported
-	{{if .ForSetupExperience}}
+	-- If for setup experience, exclude any installers that are not supported.
+	-- In-house apps are only supported for setup experience on iOS/iPadOS, so
+	-- they surface whenever the platform list includes a mobile platform (the
+	-- platform predicate above already restricts iha rows to the listed
+	-- platforms) and stay excluded for desktop-only queries.
+	{{if and .ForSetupExperience (not (containsAppleMobile $.Platform))}}
 		AND iha.id IS NULL
 	{{end}}
 GROUP BY
@@ -858,6 +865,7 @@ GROUP BY
 		,in_house_app_platform
 		,in_house_app_storage_id
 		,in_house_app_self_service
+		,in_house_app_install_during_setup
 	{{end}}
 `
 	var args []any
@@ -915,6 +923,14 @@ GROUP BY
 		},
 		"isDarwinOnly": func(platform string) bool {
 			return strings.TrimSpace(strings.ReplaceAll(platform, "macos", "darwin")) == "darwin"
+		},
+		"containsAppleMobile": func(platform string) bool {
+			for p := range strings.SplitSeq(platform, ",") {
+				if p = strings.TrimSpace(p); p == "ios" || p == "ipados" {
+					return true
+				}
+			}
+			return false
 		},
 		"hasTeamID": func(q fleet.SoftwareTitleListOptions) bool {
 			return q.TeamID != nil
@@ -1057,7 +1073,8 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			iha.version AS in_house_app_version,
 			iha.platform AS in_house_app_platform,
 			iha.storage_id AS in_house_app_storage_id,
-			iha.self_service AS in_house_app_self_service`
+			iha.self_service AS in_house_app_self_service,
+			iha.install_during_setup AS in_house_app_install_during_setup`
 	}
 
 	outerSQL += fmt.Sprintf(`

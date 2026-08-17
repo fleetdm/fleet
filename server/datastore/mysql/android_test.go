@@ -3,6 +3,7 @@ package mysql
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -2701,7 +2702,7 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("Update on missing row returns NotFound", func(t *testing.T) {
-		err := ds.UpdateMDMAndroidCommandStatus(ctx, "missing-uuid", string(android.MDMAndroidCommandStatusAcknowledged), nil, nil)
+		err := ds.UpdateMDMAndroidCommandStatus(ctx, "missing-uuid", string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil)
 		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-uuid").Error())
 	})
 
@@ -2730,7 +2731,7 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		require.Equal(t, cmd.CommandUUID, byOp.CommandUUID)
 
 		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID,
-			string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+			string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 
 		acked, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
 		require.NoError(t, err)
@@ -2752,7 +2753,7 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		errCode := "UNSUPPORTED"
 		errMsg := "device does not support WIPE"
 		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
-			string(android.MDMAndroidCommandStatusError), &errCode, &errMsg))
+			string(android.MDMAndroidCommandStatusError), &errCode, &errMsg, nil))
 
 		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
 		require.NoError(t, err)
@@ -2776,12 +2777,51 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		huge := strings.Repeat("x", 5000)
 		errCode := "13"
 		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
-			string(android.MDMAndroidCommandStatusError), &errCode, &huge))
+			string(android.MDMAndroidCommandStatusError), &errCode, &huge, nil))
 
 		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
 		require.NoError(t, err)
 		require.True(t, got.ErrorMessage.Valid)
 		require.Len(t, got.ErrorMessage.V, 1024, "error_message should be truncated to the column's VARCHAR(1024) limit")
+	})
+
+	t.Run("raw_command and raw_result round-trip", func(t *testing.T) {
+		rawCmd := `{"type":"REBOOT","duration":"315360000s"}`
+		rawResult := `{"done":true,"name":"enterprises/E1/devices/D1/operations/rt"}`
+
+		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      "host-uuid-rt",
+			OperationName: "enterprises/E1/devices/D1/operations/rt",
+			CommandType:   "REBOOT",
+			RawCommand:    sql.Null[string]{V: rawCmd, Valid: true},
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.InsertMDMAndroidCommand(ctx, cmd))
+
+		// Read back via UUID — raw_command should be populated, raw_result still NULL
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.True(t, got.RawCommand.Valid)
+		require.JSONEq(t, rawCmd, got.RawCommand.V)
+		require.False(t, got.RawResult.Valid)
+
+		// Read back via operation_name — same result
+		gotByOp, err := ds.GetMDMAndroidCommandByOperationName(ctx, cmd.OperationName)
+		require.NoError(t, err)
+		require.True(t, gotByOp.RawCommand.Valid)
+		require.JSONEq(t, rawCmd, gotByOp.RawCommand.V)
+
+		// Update with raw_result
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID,
+			string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, &rawResult))
+
+		got2, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.True(t, got2.RawCommand.Valid)
+		require.JSONEq(t, rawCmd, got2.RawCommand.V)
+		require.True(t, got2.RawResult.Valid)
+		require.JSONEq(t, rawResult, got2.RawResult.V)
 	})
 
 	t.Run("Duplicate operation_name fails", func(t *testing.T) {
