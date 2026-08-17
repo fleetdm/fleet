@@ -59,6 +59,12 @@ func (s *Service) ExpireAndQueueNotifications(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "marking end user notifications dispatched")
 		}
 
+		// A host takes one notification at a time, so the rest of its queue is
+		// now waiting on this one.
+		if err := s.ds.DeferEndUserNotificationsForHosts(ctx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "deferring end user notifications behind one in flight")
+		}
+
 		s.logger.InfoContext(ctx, "dispatched end user notifications", "count", len(notifications))
 
 		// a short batch is not the end of the queue: it means hosts in it had more

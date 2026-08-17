@@ -20,6 +20,7 @@ func TestEndUserNotifications(t *testing.T) {
 		{"NewAndGet", testNewAndGetEndUserNotification},
 		{"ListToDispatch", testListEndUserNotificationsToDispatch},
 		{"SetDispatched", testSetEndUserNotificationsDispatched},
+		{"DeferForHosts", testDeferEndUserNotificationsForHosts},
 		{"Expire", testExpireEndUserNotifications},
 		{"Verify", testVerifyEndUserNotification},
 		{"Delay", testDelayEndUserNotification},
@@ -175,7 +176,7 @@ func testListEndUserNotificationsToDispatch(t *testing.T, env *testEnv) {
 func withExecutionID(t *testing.T, env *testEnv, notificationUUID string, hostID uint) []*api.EndUserNotification {
 	executionID := notificationUUID + "-exec"
 	env.InsertUpcomingActivity(t, hostID, executionID)
-	return []*api.EndUserNotification{{UUID: notificationUUID, ExecutionID: &executionID}}
+	return []*api.EndUserNotification{{UUID: notificationUUID, HostID: hostID, ExecutionID: &executionID}}
 }
 
 func testSetEndUserNotificationsDispatched(t *testing.T, env *testEnv) {
@@ -188,7 +189,7 @@ func testSetEndUserNotificationsDispatched(t *testing.T, env *testEnv) {
 	t.Run("without an execution id is an error", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "dispatched-no-exec-id", true)
 		notificationUUID := env.InsertNotification(t, hostID, "k", nil, nil)
-		err := env.ds.SetEndUserNotificationsDispatched(ctx, []*api.EndUserNotification{{UUID: notificationUUID}})
+		err := env.ds.SetEndUserNotificationsDispatched(ctx, []*api.EndUserNotification{{UUID: notificationUUID, HostID: hostID}})
 		assert.Error(t, err)
 	})
 
@@ -295,17 +296,53 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, notifications))
 
 		nextAttempt := time.Now().Add(55 * time.Minute).UTC().Truncate(time.Second)
-		require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, nextAttempt))
+		require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, nextAttempt, nil))
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 		require.NoError(t, err)
 		assert.Equal(t, api.EndUserNotificationPending, got.Status)
 		require.NotNil(t, got.ExecutionID, "keeps its execution_id so a late result can still find it")
 		assert.Equal(t, *notifications[0].ExecutionID, *got.ExecutionID)
+		assert.Nil(t, got.DisplayedAt, "the next send records its own display")
 		require.NotNil(t, got.LastReason)
 		assert.Equal(t, api.EndUserNotificationReasonDelayed, *got.LastReason)
 		require.NotNil(t, got.NextAttemptAt)
 		assert.WithinDuration(t, nextAttempt, *got.NextAttemptAt, time.Second)
+	})
+
+	t.Run("new content replaces the payload under the same uuid", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "delay-reminder", true)
+		notificationUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, notificationUUID, hostID)))
+
+		require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, time.Now().Add(time.Minute),
+			[]byte(`{"title": "5 minutes left"}`)))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, notificationUUID, got.UUID, "a reminder stays the same notification")
+		assert.JSONEq(t, `{"title": "5 minutes left"}`, string(got.Payload))
+	})
+
+	t.Run("a re-dispatched notification still blocks the host", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "delay-inflight", true)
+		first := env.InsertNotification(t, hostID, "k", nil, nil)
+		second := env.InsertNotification(t, hostID, "k", nil, nil)
+
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, first, hostID)))
+		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, first, time.Now()))
+		require.NoError(t, env.ds.DelayEndUserNotification(ctx, first, time.Now().Add(-time.Minute), nil))
+
+		redispatch := first + "-exec2"
+		env.InsertUpcomingActivity(t, hostID, redispatch)
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx,
+			[]*api.EndUserNotification{{UUID: first, HostID: hostID, ExecutionID: &redispatch}}))
+
+		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
+		require.NoError(t, err)
+		for _, n := range due {
+			assert.NotEqual(t, second, n.UUID, "it went out while the re-dispatched one was still in flight")
+		}
 	})
 
 	t.Run("does not resurrect an already-expired notification", func(t *testing.T) {
@@ -320,7 +357,7 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 			api.EndUserNotificationExpired, notificationUUID)
 		require.NoError(t, err)
 
-		require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, time.Now().Add(time.Hour)))
+		require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, time.Now().Add(time.Hour), nil))
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 		require.NoError(t, err)
@@ -335,7 +372,7 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 			ExitCode: 2, Reason: api.EndUserNotificationReasonBadInvocation,
 		}, nil))
 
-		require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, time.Now().Add(time.Hour)))
+		require.NoError(t, env.ds.DelayEndUserNotification(ctx, notificationUUID, time.Now().Add(time.Hour), nil))
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 		require.NoError(t, err)
@@ -452,4 +489,31 @@ func testEndUserNotificationHostDeleteCascade(t *testing.T, env *testEnv) {
 
 	_, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 	assert.True(t, platform_errors.IsNotFound(err))
+}
+
+func testDeferEndUserNotificationsForHosts(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+
+	hostID := newDarwinHost(t, env, "defer", true)
+	sentUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+	waitingUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+	otherHostID := newDarwinHost(t, env, "defer-other-host", true)
+	untouchedUUID := env.InsertNotification(t, otherHostID, "k", nil, nil)
+
+	require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, sentUUID, hostID)))
+	require.NoError(t, env.ds.DeferEndUserNotificationsForHosts(ctx, []uint{hostID}))
+
+	waiting, err := env.ds.GetEndUserNotificationByUUID(ctx, waitingUUID)
+	require.NoError(t, err)
+	assert.Equal(t, api.EndUserNotificationPending, waiting.Status, "it waits its turn rather than failing")
+	require.NotNil(t, waiting.LastReason)
+	assert.Equal(t, api.EndUserNotificationReasonDeferred, *waiting.LastReason)
+
+	sent, err := env.ds.GetEndUserNotificationByUUID(ctx, sentUUID)
+	require.NoError(t, err)
+	assert.Nil(t, sent.LastReason, "the one that went out doesn't defer itself")
+
+	untouched, err := env.ds.GetEndUserNotificationByUUID(ctx, untouchedUUID)
+	require.NoError(t, err)
+	assert.Nil(t, untouched.LastReason, "another host's queue is unaffected")
 }

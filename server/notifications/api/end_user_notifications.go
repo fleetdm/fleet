@@ -25,6 +25,7 @@ const (
 // reads the script's exit code instead.
 const (
 	EndUserNotificationReasonDelayed           = "delayed"
+	EndUserNotificationReasonDeferred          = "deferred"
 	EndUserNotificationReasonBadInvocation     = "bad_invocation"
 	EndUserNotificationReasonBadConfiguration  = "bad_configuration"
 	EndUserNotificationReasonPageLoadFailed    = "page_load_failed"

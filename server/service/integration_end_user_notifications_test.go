@@ -254,7 +254,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
-			[]byte(`{"action": "dance"}`), http.StatusBadRequest)
+			[]byte(`{"action": "dance"}`), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("POST with a missing action is rejected", func(t *testing.T) {
@@ -266,7 +266,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
-			[]byte(`{}`), http.StatusBadRequest)
+			[]byte(`{}`), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("a second due notification on the same host waits its turn", func(t *testing.T) {

@@ -3,6 +3,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 )
 
@@ -47,7 +48,9 @@ type NotificationLookupService interface {
 
 // DelayNotificationService puts a notification back in the queue for a later
 // attempt. Kinds live outside this context and don't own the table, so their
-// OnDelay calls this instead of a datastore method.
+// OnDelay calls this instead of a datastore method. A non-nil payload replaces
+// the content, so a reminder stays the same notification rather than becoming
+// a second one; nil keeps what's there.
 type DelayNotificationService interface {
-	DelayNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time) error
+	DelayNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error
 }

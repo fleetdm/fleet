@@ -41,7 +41,9 @@ func (k *patchNotificationKind) OnDelay(ctx context.Context, notification *notif
 			nextAttemptAt = fromDisplay
 		}
 	}
-	return k.delaySvc.DelayNotification(ctx, notification.UUID, nextAttemptAt)
+	// nil payload: the patch kind doesn't change its wording yet, that comes
+	// with the rest of the kind in #50912.
+	return k.delaySvc.DelayNotification(ctx, notification.UUID, nextAttemptAt, nil)
 }
 
 func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *notifications_api.EndUserNotification, outcome notifications_api.NotificationOutcome) error {

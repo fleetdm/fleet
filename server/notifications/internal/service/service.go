@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -68,8 +69,8 @@ func (s *Service) NotificationUUIDForExecution(ctx context.Context, executionID 
 	return notification.UUID, nil
 }
 
-func (s *Service) DelayNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time) error {
-	if err := s.ds.DelayEndUserNotification(ctx, notificationUUID, nextAttemptAt); err != nil {
+func (s *Service) DelayNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error {
+	if err := s.ds.DelayEndUserNotification(ctx, notificationUUID, nextAttemptAt, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "delay end user notification")
 	}
 	return nil

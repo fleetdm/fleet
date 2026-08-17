@@ -6,7 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/notifications/api"
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/fleetdm/fleet/v4/server/notifications/internal/types"
 )
 
 // ApplyAction carries out what an end user chose to do with a notification on
@@ -18,7 +18,7 @@ func (s *Service) ApplyAction(ctx context.Context, hostID uint, notificationUUID
 	}
 
 	if action.Action == nil {
-		return ctxerr.Wrap(ctx, &platform_http.BadRequestError{Message: "action is required"})
+		return ctxerr.Wrap(ctx, &types.InvalidArgumentError{Name: "action", Reason: "is required"})
 	}
 
 	kind, kindRegistered := s.kinds[notification.Kind]
@@ -43,8 +43,9 @@ func (s *Service) ApplyAction(ctx context.Context, hostID uint, notificationUUID
 		}
 
 	default:
-		return ctxerr.Wrap(ctx, &platform_http.BadRequestError{
-			Message: fmt.Sprintf("%q is not something that can be done to a notification", *action.Action),
+		return ctxerr.Wrap(ctx, &types.InvalidArgumentError{
+			Name:   "action",
+			Reason: fmt.Sprintf("%q is not something that can be done to a notification", *action.Action),
 		})
 	}
 
