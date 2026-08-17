@@ -5,8 +5,10 @@ import classnames from "classnames";
 import { ILabelSummary } from "interfaces/label";
 import {
   IAppStoreApp,
+  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   ISoftwarePackage,
   InstallerType,
+  SoftwareSource,
 } from "interfaces/software";
 import useBlockNavigation from "hooks/useBlockNavigation";
 import useGitOpsMode from "hooks/useGitOpsMode";
@@ -22,6 +24,7 @@ import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
+import { isMacPlatform } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import SoftwareVppForm from "pages/SoftwarePage/components/forms/SoftwareVppForm";
@@ -97,12 +100,22 @@ const EditSoftwareModal = ({
   // installer's own patch policy so a caller can't forget to pass it (which
   // otherwise blocks unrelated edits like toggling self-service); an explicit
   // prop can still force it on. `notify_before_patching` reuses the same
-  // Fleet-managed app-open query, so it triggers the same read-only lock.
+  // Fleet-managed app-open query, so it triggers the same read-only lock —
+  // gated on the software's platform being Mac to mirror the wire boundary
+  // in `getPatchPolicyFlags`.
+  const derivedPlatform = source
+    ? INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source as SoftwareSource] ??
+      undefined
+    : undefined;
+  const notifyLocksPreInstallQuery =
+    "patch_policy" in softwareInstaller &&
+    !!softwareInstaller.patch_policy?.notify_before_patching &&
+    isMacPlatform(derivedPlatform);
   const effectivePatchWhenClosed =
     patchWhenClosed ||
     ("patch_policy" in softwareInstaller &&
-      (!!softwareInstaller.patch_policy?.patch_when_closed ||
-        !!softwareInstaller.patch_policy?.notify_before_patching));
+      !!softwareInstaller.patch_policy?.patch_when_closed) ||
+    notifyLocksPreInstallQuery;
 
   const formClassNames = classnames(`${baseClass}__package-form`, {
     [`${baseClass}__package-form--disabled`]: isGitOpsCompatible,

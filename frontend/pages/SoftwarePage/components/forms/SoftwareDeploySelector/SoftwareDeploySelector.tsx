@@ -15,6 +15,17 @@ export type PatchOption = "closed" | "force" | "manual";
 export type EndUserExperience = "immediate" | "notify";
 
 /**
+ * True when the given platform string names macOS. Handles both the single
+ * value from software titles (`"darwin"`) and the comma-joined
+ * `CommaSeparatedPlatformString` from policies (`"darwin,linux"`).
+ */
+export const isMacPlatform = (platform?: string): boolean =>
+  !!platform && platform.split(",").includes("darwin");
+
+const isWindowsPlatform = (platform?: string): boolean =>
+  !!platform && platform.split(",").includes("windows");
+
+/**
  * Returns the three policy flags derived from the deploy selector state.
  * `notify_before_patching` is gated on `platform === "darwin"` at the wire
  * boundary — Notify before patching is macOS-only today, and the UI hides
@@ -31,7 +42,7 @@ export const getPatchPolicyFlags = (
   const notifyActive =
     patchOption === "force" &&
     endUserExperience === "notify" &&
-    platform === "darwin";
+    isMacPlatform(platform);
   return {
     patch_when_closed: patchOption === "closed",
     notify_before_patching: notifyActive,
@@ -47,14 +58,25 @@ const END_USER_EXPERIENCE_OPTIONS: CustomOptionType[] = [
   { label: "Notify before patching", value: "notify" },
 ];
 
-const ImmediateBanner = () => (
+/**
+ * `showLink` is only true when the user could plausibly opt into Notify —
+ * i.e. macOS today. On Windows and unknown platforms, Notify is unavailable
+ * so the "End user experience" learn-more link would point at a feature the
+ * user has no way to reach and gets suppressed.
+ */
+const ImmediateBanner = ({ showLink }: { showLink: boolean }) => (
   <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
-    End user is not notified. Patch is forced as soon as policy fails.{" "}
-    <CustomLink
-      url={END_USER_EXPERIENCE_LINK}
-      text="End user experience"
-      newTab
-    />
+    End user is not notified. Patch is forced as soon as policy fails.
+    {showLink && (
+      <>
+        {" "}
+        <CustomLink
+          url={END_USER_EXPERIENCE_LINK}
+          text="End user experience"
+          newTab
+        />
+      </>
+    )}
   </InfoBanner>
 );
 
@@ -105,9 +127,6 @@ interface IPatchOptionSelectorProps {
   onSelectEndUserExperience?: (value: EndUserExperience) => void;
 }
 
-const isMacPlatform = (platform?: string) => platform === "darwin";
-const isWindowsPlatform = (platform?: string) => platform === "windows";
-
 export const PatchOptionSelector = ({
   patchOption,
   onSelectPatchOption,
@@ -140,7 +159,7 @@ export const PatchOptionSelector = ({
     if (showEndUserExperienceDropdown && endUserExperience === "notify") {
       return <NotifyBanner />;
     }
-    return <ImmediateBanner />;
+    return <ImmediateBanner showLink={isMacPlatform(platform)} />;
   };
 
   return (

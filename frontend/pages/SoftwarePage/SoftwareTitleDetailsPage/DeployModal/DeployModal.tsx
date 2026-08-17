@@ -103,6 +103,14 @@ const DeployModal = ({
   const onSave = async () => {
     setIsSaving(true);
     let savedAnyChange = false;
+    // Compute the flags once so the create / update / diff-comparison branches
+    // can't drift with different args (which is exactly the class of bug this
+    // file just fixed by adding `platform`).
+    const patchFlags = getPatchPolicyFlags(
+      patchOption,
+      endUserExperience,
+      platform
+    );
     try {
       if (forceInstall !== !!forceInstallPolicy) {
         if (forceInstall) {
@@ -138,7 +146,7 @@ const DeployModal = ({
             ...(patchOption !== "manual" && {
               software_title_id: softwareTitle.id,
             }),
-            ...getPatchPolicyFlags(patchOption, endUserExperience, platform),
+            ...patchFlags,
           });
         } else if (patchPolicy) {
           await teamPoliciesAPI.destroy(teamId, [patchPolicy.id]);
@@ -150,20 +158,16 @@ const DeployModal = ({
         (patchOption !== initialPatchOption ||
           endUserExperience !== initialEndUserExperience ||
           patchHasAutomation !== (patchOption !== "manual") ||
-          patchPolicy.patch_when_closed !==
-            getPatchPolicyFlags(patchOption, endUserExperience, platform)
-              .patch_when_closed ||
+          patchPolicy.patch_when_closed !== patchFlags.patch_when_closed ||
           patchPolicy.notify_before_patching !==
-            getPatchPolicyFlags(patchOption, endUserExperience, platform)
-              .notify_before_patching ||
+            patchFlags.notify_before_patching ||
           patchPolicy.continuous_automations_enabled !==
-            getPatchPolicyFlags(patchOption, endUserExperience, platform)
-              .continuous_automations_enabled)
+            patchFlags.continuous_automations_enabled)
       ) {
         await teamPoliciesAPI.update(patchPolicy.id, {
           team_id: teamId,
           software_title_id: patchOption === "manual" ? null : softwareTitle.id,
-          ...getPatchPolicyFlags(patchOption, endUserExperience, platform),
+          ...patchFlags,
         });
         savedAnyChange = true;
       }

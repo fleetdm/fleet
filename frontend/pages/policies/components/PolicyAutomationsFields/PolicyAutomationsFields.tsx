@@ -36,6 +36,7 @@ import {
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import {
   EndUserExperience,
+  isMacPlatform,
   PatchOption,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 
@@ -188,7 +189,9 @@ const PolicyAutomationsFields = forwardRef<
     // Notify before patching is macOS-only; gate at the derivation so the
     // continuous-automations lock and the wire payload stay in sync even if
     // a legacy Windows policy carries `notify_before_patching: true`.
-    const isMacPolicy = policy.platform === "darwin";
+    // Uses the same helper as the wire boundary so multi-platform policy
+    // strings (`"darwin,linux"`) are treated as Mac too.
+    const isMacPolicy = isMacPlatform(policy.platform);
     const notifyBeforePatching =
       patchOption !== undefined
         ? patchOption === "force" &&

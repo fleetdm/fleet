@@ -26,6 +26,7 @@ import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/Softwar
 import AdvancedOptionsFields from "pages/SoftwarePage/components/forms/AdvancedOptionsFields";
 import {
   EndUserExperience,
+  isMacPlatform,
   PatchOption,
   SoftwareDeploySelector,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
@@ -304,7 +305,8 @@ const FleetAppDetailsForm = ({
               formData.patch &&
               (formData.patchOption === "closed" ||
                 (formData.patchOption === "force" &&
-                  formData.endUserExperience === "notify"))
+                  formData.endUserExperience === "notify" &&
+                  isMacPlatform(platform)))
             }
           />
         )}

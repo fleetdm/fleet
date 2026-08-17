@@ -549,6 +549,32 @@ describe("PolicyAutomationsFields — payload", () => {
     ).toBeInTheDocument();
   });
 
+  it("auto-heals a legacy Windows policy carrying notify_before_patching:true by sending notify_before_patching:false on save", () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    renderWithHandle(
+      {
+        type: "patch",
+        platform: "windows",
+        patch_software: { name: "Notepad", software_title_id: 55 },
+        patch_when_closed: false,
+        // Legacy bad state — this shouldn't have shipped, but if it did, the
+        // Mac gate on the derivation flips it back to false and the dirty
+        // check writes the corrected value to the wire.
+        notify_before_patching: true,
+        continuous_automations_enabled: true,
+      },
+      handleRef,
+      { patchOption: "force", endUserExperience: "notify" }
+    );
+
+    const payload = handleRef.current?.getAutomationsPayload().policyUpdate;
+    expect(payload).toMatchObject({
+      notify_before_patching: false,
+    });
+  });
+
   it("never surfaces notify_before_patching for a Windows policy even when the endUserExperience state says notify", () => {
     const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
       current: null,
