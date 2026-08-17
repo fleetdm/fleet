@@ -1,1 +1,2 @@
 - Windows user-scoped configuration profiles (`./User/...`) are now held in "Pending" until a user signs in, instead of failing during setup. This applies to hosts enrolled by a user (Windows Autopilot, Entra ID).
+- Removing a Windows user-scoped configuration profile now waits for a signed-in user as well, instead of being reported as removed while the setting was still applied.

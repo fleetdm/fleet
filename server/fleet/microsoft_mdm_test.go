@@ -828,51 +828,136 @@ func TestWindowsResponseToDeliveryStatusForRemove(t *testing.T) {
 	}
 }
 
+// TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation covers how a removal's SyncML statuses become a delivery
+// status, a detail string, and the user-channel rejection signal.
 func TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation(t *testing.T) {
-	t.Run("atomic remove with 405 is success", func(t *testing.T) {
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand:  []byte(`<Atomic><CmdID>cmd-1</CmdID><Delete><CmdID>sub-1</CmdID><Item><Target><LocURI>./Device/Test</LocURI></Target></Item></Delete></Atomic>`),
-		}
-		statuses := map[string]SyncMLCmd{
-			"cmd-1": {Data: new(syncml.CmdStatusNotAllowed)},
-		}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
-		require.NoError(t, err)
-		require.Equal(t, MDMDeliveryVerified, *payload.Status)
-	})
+	t.Parallel()
 
-	t.Run("non-atomic remove with mixed 200 and 404", func(t *testing.T) {
-		cmdStr := new("Replace")
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand: []byte(`<Delete><CmdID>del-1</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Delete>` +
-				`<Delete><CmdID>del-2</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Delete>`),
-		}
-		statuses := map[string]SyncMLCmd{
-			"del-1": {Data: new(syncml.CmdStatusOK), Cmd: cmdStr},
-			"del-2": {Data: new(syncml.CmdStatusNotFound), Cmd: cmdStr},
-		}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
-		require.NoError(t, err)
-		require.Equal(t, MDMDeliveryVerified, *payload.Status)
-	})
+	const (
+		deviceNode  = "./Device/Vendor/MSFT/Policy/Config/A"
+		deviceNodeB = "./Device/Vendor/MSFT/Policy/Config/B"
+		userNode    = "./User/Vendor/MSFT/Policy/Config/C"
+	)
+	deleteCmd := func(cmdID, locURI string) string {
+		return `<Delete><CmdID>` + cmdID + `</CmdID><Item><Target><LocURI>` + locURI + `</LocURI></Target></Item></Delete>`
+	}
 
-	t.Run("non-atomic remove with 500 succeeds (best-effort)", func(t *testing.T) {
-		cmdStr := new("Replace")
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand: []byte(`<Delete><CmdID>del-1</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Delete>` +
-				`<Delete><CmdID>del-2</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Delete>`),
-		}
-		statuses := map[string]SyncMLCmd{
-			"del-1": {Data: new(syncml.CmdStatusOK), Cmd: cmdStr},
-			"del-2": {Data: new(syncml.CmdStatusCommandFailed), Cmd: cmdStr},
-		}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
-		require.NoError(t, err)
-		require.Equal(t, MDMDeliveryVerified, *payload.Status)
-	})
+	for _, tc := range []struct {
+		name         string
+		raw          string
+		statuses     map[string]SyncMLCmd
+		wantStatus   MDMDeliveryStatus
+		wantRejected bool
+		wantDetail   string
+	}{
+		{
+			name:       "device node is read-only",
+			raw:        deleteCmd("del-1", deviceNode),
+			statuses:   map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusNotAllowed)}},
+			wantStatus: MDMDeliveryVerified,
+		},
+		{
+			name: "device node deleted, second already gone",
+			raw:  deleteCmd("del-1", deviceNode) + deleteCmd("del-2", deviceNodeB),
+			statuses: map[string]SyncMLCmd{
+				"del-1": {Data: new(syncml.CmdStatusOK)},
+				"del-2": {Data: new(syncml.CmdStatusNotFound)},
+			},
+			wantStatus: MDMDeliveryVerified,
+		},
+		{
+			name: "device node does not support delete",
+			raw:  deleteCmd("del-1", deviceNode) + deleteCmd("del-2", deviceNodeB),
+			statuses: map[string]SyncMLCmd{
+				"del-1": {Data: new(syncml.CmdStatusOK)},
+				"del-2": {Data: new(syncml.CmdStatusCommandFailed)},
+			},
+			wantStatus: MDMDeliveryVerified,
+		},
+		{
+			name:         "user node not allowed",
+			raw:          deleteCmd("del-1", userNode),
+			statuses:     map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusNotAllowed)}},
+			wantStatus:   MDMDeliveryVerified,
+			wantRejected: true,
+		},
+		{
+			name:         "user node command failed",
+			raw:          deleteCmd("del-1", userNode),
+			statuses:     map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusCommandFailed)}},
+			wantStatus:   MDMDeliveryVerified,
+			wantRejected: true,
+		},
+		{
+			// 404 says the node is not there, so nothing is enforced and the removal is genuinely complete. Treating it as a
+			// rejection would strand every already-removed user-scoped profile on a host awaiting first sign-in.
+			name:       "user node not found is a real removal",
+			raw:        deleteCmd("del-1", userNode),
+			statuses:   map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusNotFound)}},
+			wantStatus: MDMDeliveryVerified,
+		},
+		{
+			name:       "user node deleted cleanly",
+			raw:        deleteCmd("del-1", userNode),
+			statuses:   map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusOK)}},
+			wantStatus: MDMDeliveryVerified,
+		},
+		{
+			// Deletes are never wrapped in <Atomic>, so a mixed removal partially succeeds: the device node goes, the user
+			// node does not, and the whole command still reads as verified.
+			name: "mixed removal with only the user node rejected",
+			raw:  deleteCmd("del-1", deviceNode) + deleteCmd("del-2", userNode),
+			statuses: map[string]SyncMLCmd{
+				"del-1": {Data: new(syncml.CmdStatusOK)},
+				"del-2": {Data: new(syncml.CmdStatusNotAllowed)},
+			},
+			wantStatus:   MDMDeliveryVerified,
+			wantRejected: true,
+		},
+		{
+			// Fleet does not build atomic removals, but the response parser handles them, so the nested walk is covered too.
+			name: "atomic removal with a rejected user node",
+			raw:  `<Atomic><CmdID>cmd-1</CmdID>` + deleteCmd("sub-1", userNode) + `</Atomic>`,
+			statuses: map[string]SyncMLCmd{
+				"cmd-1": {Data: new(syncml.CmdStatusNotAllowed)},
+				"sub-1": {Data: new(syncml.CmdStatusNotAllowed)},
+			},
+			wantStatus:   MDMDeliveryVerified,
+			wantRejected: true,
+		},
+		{
+			// A code outside the best-effort set is a real failure, and only then does the per-LocURI text reach the detail.
+			name:       "removal genuinely failed",
+			raw:        deleteCmd("del-1", userNode),
+			statuses:   map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusBadRequest)}},
+			wantStatus: MDMDeliveryFailed,
+			wantDetail: userNode + ": status " + syncml.CmdStatusBadRequest,
+		},
+		{
+			name: "failed removal also carrying a user-channel rejection",
+			raw:  deleteCmd("del-1", deviceNode) + deleteCmd("del-2", userNode),
+			statuses: map[string]SyncMLCmd{
+				"del-1": {Data: new(syncml.CmdStatusBadRequest)},
+				"del-2": {Data: new(syncml.CmdStatusNotAllowed)},
+			},
+			wantStatus:   MDMDeliveryFailed,
+			wantRejected: true,
+			wantDetail: deviceNode + ": status " + syncml.CmdStatusBadRequest + ", " +
+				userNode + ": status " + syncml.CmdStatusNotAllowed,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(
+				MDMWindowsCommand{CommandUUID: "cmd-1", RawCommand: []byte(tc.raw)}, tc.statuses, "host-1", true)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.wantStatus, *payload.Status)
+			require.Equal(t, tc.wantRejected, payload.UserChannelRejected)
+			// A removal that reads as success must not carry per-LocURI status text into the admin-visible detail.
+			require.Equal(t, tc.wantDetail, payload.Detail)
+		})
+	}
 }
 
 func TestExtractLocURIsFromProfileBytes(t *testing.T) {

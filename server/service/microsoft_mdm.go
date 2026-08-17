@@ -3941,12 +3941,24 @@ type cmdTarget struct {
 	hostUUIDs []string
 }
 
-// applyWindowsUserScopeGate holds user-scoped install targets for hosts that are still waiting on an MDM user context, and
-// records the wait on the host's profile row.
+// windowsUserScopeGateResult is the row bookkeeping the gate leaves for its caller to persist. The gate itself only rewrites
+// the in-memory command targets; rows are written and deleted by the passes that already own those calls.
+type windowsUserScopeGateResult struct {
+	// heldRemoveRows are the rows recording the wait for held removals. Nothing is sent for these hosts: they were dropped from
+	// their remove target, exactly as held installs are dropped from their install target.
+	heldRemoveRows []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+	// droppedRemoveRows are removals of profiles that were never applied to the device, resolved by deleting the row rather
+	// than by sending a <Delete> that cannot succeed.
+	droppedRemoveRows []*fleet.MDMWindowsProfilePayload
+}
+
+// applyWindowsUserScopeGate holds user-scoped profiles, both installs and removals, for hosts that are still waiting on an MDM
+// user context, and records the wait on the host's profile row. A <Delete> against a "./User/..." node needs the same user
+// context the install did, so both directions wait on the same signal.
 //
 // The hold applies only where a user context is known to be pending: an enrollment that binds a user identity (a UPN) and has not
 // yet reported a signed-in user, which is the Autopilot and Entra-join-during-OOBE window. Enrollments that bind no user identity
-// are NOT gated-. Whether their user channel is writable depends on the device's own identity (an Entra-joined host managed by
+// are NOT gated. Whether their user channel is writable depends on the device's own identity (an Entra-joined host managed by
 // fleetd can have a perfectly resolvable user channel even though its enrollment stores an orbit node key), and that is not
 // something the enrollment row can tell us.
 func applyWindowsUserScopeGate(
@@ -3954,11 +3966,16 @@ func applyWindowsUserScopeGate(
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	installTargets map[string]*cmdTarget,
+	removeTargets map[string]*cmdTarget,
+	removePayloadData map[string][]*fleet.MDMWindowsProfilePayload,
 	profileContents map[string]fleet.MDMWindowsProfileContents,
+	priorContentByKey map[modifyDeleteKey]fleet.MDMWindowsProfilePriorContent,
 	hostProfilesMap map[string]*fleet.MDMWindowsBulkUpsertHostProfilePayload,
 	batchProfileCmdsMap map[string][]*fleet.MDMWindowsBulkUpsertHostProfilePayload,
 	currentByHost map[string][]*fleet.MDMWindowsProfilePayload,
-) error {
+) (windowsUserScopeGateResult, error) {
+	var result windowsUserScopeGateResult
+
 	userScopedTargets := make(map[string]*cmdTarget)
 	hostUUIDSet := make(map[string]struct{})
 	for profUUID, target := range installTargets {
@@ -3975,23 +3992,43 @@ func applyWindowsUserScopeGate(
 			hostUUIDSet[hostUUID] = struct{}{}
 		}
 	}
-	if len(userScopedTargets) == 0 {
-		return nil
+
+	removeRowByHostProfile := make(map[hostProfileKey]*fleet.MDMWindowsProfilePayload)
+	for profUUID, payloads := range removePayloadData {
+		for _, p := range payloads {
+			removeRowByHostProfile[hostProfileKey{hostUUID: p.HostUUID, profileUUID: profUUID}] = p
+		}
+	}
+	userScopedRemoveHosts := windowsUserScopedRemoveHosts(removeTargets, removeRowByHostProfile, profileContents, priorContentByKey)
+	for _, hosts := range userScopedRemoveHosts {
+		for hostUUID := range hosts {
+			hostUUIDSet[hostUUID] = struct{}{}
+		}
+	}
+
+	if len(userScopedTargets) == 0 && len(userScopedRemoveHosts) == 0 {
+		return result, nil
 	}
 
 	userContexts, err := ds.GetMDMWindowsUserContextByHostUUID(ctx, slices.Collect(maps.Keys(hostUUIDSet)))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get windows user context for hosts")
+		return result, ctxerr.Wrap(ctx, err, "get windows user context for hosts")
+	}
+	awaitingUserContext := func(hostUUID string) bool {
+		uc, ok := userContexts[hostUUID]
+		// A host with no enrollment row is not gated: it has no MDM at all, so whether the profile ships is decided by the
+		// rest of the pipeline, not here.
+		if !ok {
+			return false
+		}
+		return microsoft_mdm.WindowsUserContextStateFor(uc.EnrollUserID, uc.LastLoginStatus) == fleet.WindowsUserContextCanArrive
 	}
 
 	var held, unchanged int
 	for profUUID, target := range userScopedTargets {
 		deliverable := target.hostUUIDs[:0:0] // fresh backing array; target.hostUUIDs is still being read below
 		for _, hostUUID := range target.hostUUIDs {
-			uc, ok := userContexts[hostUUID]
-			// A host with no enrollment row is not gated: it has no MDM at all, so whether the profile ships is
-			// decided by the rest of the pipeline, not here.
-			if !ok || microsoft_mdm.WindowsUserContextStateFor(uc.EnrollUserID, uc.LastLoginStatus) != fleet.WindowsUserContextCanArrive {
+			if !awaitingUserContext(hostUUID) {
 				deliverable = append(deliverable, hostUUID)
 				continue
 			}
@@ -4037,11 +4074,120 @@ func applyWindowsUserScopeGate(
 		}
 	}
 
-	if held > 0 || unchanged > 0 {
-		logger.DebugContext(ctx, "windows user-scoped profiles held for user context",
-			"written", held, "already_held", unchanged, "profiles", len(userScopedTargets))
+	var removesHeld, removesUnchanged int
+	for profUUID, userScopedHosts := range userScopedRemoveHosts {
+		target := removeTargets[profUUID]
+		deliverable := target.hostUUIDs[:0:0] // fresh backing array; target.hostUUIDs is still being read below
+		for _, hostUUID := range target.hostUUIDs {
+			row := removeRowByHostProfile[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}]
+			if _, userScoped := userScopedHosts[hostUUID]; !userScoped || row == nil || !awaitingUserContext(hostUUID) {
+				deliverable = append(deliverable, hostUUID)
+				continue
+			}
+
+			if windowsRemoveHasNothingOnDevice(row) {
+				// Nothing was ever written to the user's hive, so this removal is already true and needs no <Delete>.
+				result.droppedRemoveRows = append(result.droppedRemoveRows, &fleet.MDMWindowsProfilePayload{
+					ProfileUUID: profUUID,
+					HostUUID:    hostUUID,
+				})
+				continue
+			}
+
+			// The profile may be applied in a signed-out user's hive, so the removal has to wait for that user. The row
+			// stays at a NULL status, which is how the reconciler re-derives a pending removal, so the hold retries itself
+			// every tick with no further bookkeeping.
+			heldRow := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+				ProfileUUID:        profUUID,
+				HostUUID:           hostUUID,
+				ProfileName:        row.ProfileName,
+				OperationType:      fleet.MDMOperationTypeRemove,
+				Status:             nil,
+				Detail:             fleet.WindowsUserScopeRemoveHoldDetail,
+				Checksum:           row.Checksum,
+				CommandUUID:        "", // no command is enqueued for this host, so the row must not point at one
+				HeldForUserContext: true,
+			}
+			// Same no-churn discipline as a held install. Profile name and checksum are carried over from the row, so
+			// they compare equal by construction and the comparison turns on the status, operation type, and detail.
+			if heldRowUpToDate(row, heldRow) {
+				removesUnchanged++
+				continue
+			}
+			result.heldRemoveRows = append(result.heldRemoveRows, heldRow)
+			removesHeld++
+		}
+
+		target.hostUUIDs = deliverable
+		if len(deliverable) == 0 {
+			// Nothing left to address: drop the target entirely so the remove pass builds no <Delete> for this profile.
+			delete(removeTargets, profUUID)
+		}
 	}
-	return nil
+
+	if held > 0 || unchanged > 0 || removesHeld > 0 || removesUnchanged > 0 || len(result.droppedRemoveRows) > 0 {
+		logger.DebugContext(ctx, "windows user-scoped profiles held for user context",
+			"installs_written", held, "installs_already_held", unchanged, "install_profiles", len(userScopedTargets),
+			"removes_written", removesHeld, "removes_already_held", removesUnchanged,
+			"removes_resolved_without_device", len(result.droppedRemoveRows), "remove_profiles", len(userScopedRemoveHosts))
+	}
+	return result, nil
+}
+
+// windowsUserScopedRemoveHosts returns, per removed profile, the hosts whose <Delete> would target the user channel.
+func windowsUserScopedRemoveHosts(
+	removeTargets map[string]*cmdTarget,
+	removeRowByHostProfile map[hostProfileKey]*fleet.MDMWindowsProfilePayload,
+	profileContents map[string]fleet.MDMWindowsProfileContents,
+	priorContentByKey map[modifyDeleteKey]fleet.MDMWindowsProfilePriorContent,
+) map[string]map[string]struct{} {
+	userScopedHosts := make(map[string]map[string]struct{})
+	// Hosts on the same version share one classification; the common case is a single version across the whole batch.
+	scopeByVersion := make(map[modifyDeleteKey]fleet.WindowsProfileScope)
+
+	for profUUID, target := range removeTargets {
+		for _, hostUUID := range target.hostUUIDs {
+			row := removeRowByHostProfile[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}]
+			versionKey := modifyDeleteKey{profileUUID: profUUID}
+			var syncML []byte
+			if row != nil && len(row.Checksum) > 0 {
+				retainedKey := modifyDeleteKey{profileUUID: profUUID, fromChecksum: string(row.Checksum)}
+				if pc, ok := priorContentByKey[retainedKey]; ok {
+					versionKey, syncML = retainedKey, pc.SyncML
+				}
+			}
+			if syncML == nil {
+				contents, ok := profileContents[profUUID]
+				if !ok {
+					continue
+				}
+				syncML = contents.SyncML
+			}
+
+			scope, cached := scopeByVersion[versionKey]
+			if !cached {
+				scope = fleet.WindowsProfileScopeFromBytes(syncML)
+				scopeByVersion[versionKey] = scope
+			}
+			if scope != fleet.WindowsProfileScopeUser {
+				continue
+			}
+			if userScopedHosts[profUUID] == nil {
+				userScopedHosts[profUUID] = make(map[string]struct{})
+			}
+			userScopedHosts[profUUID][hostUUID] = struct{}{}
+		}
+	}
+	return userScopedHosts
+}
+
+// windowsRemoveHasNothingOnDevice reports whether a pending removal can be resolved without contacting the device, because the
+// profile was never applied there.
+func windowsRemoveHasNothingOnDevice(row *fleet.MDMWindowsProfilePayload) bool {
+	if row.OperationType != fleet.MDMOperationTypeInstall {
+		return false
+	}
+	return row.Status == nil || *row.Status == fleet.MDMDeliveryFailed
 }
 
 // currentProfileRow returns the host's existing row for the profile as of the reconcile snapshot, or nil when the host has no
@@ -4256,12 +4402,14 @@ func executeWindowsProfileReconcileBatch(
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
-	// Gate user-scoped ("./User/...") profiles on the host's MDM user context. Windows rejects those writes until the
-	// enrollment has a user context.
-	if err := applyWindowsUserScopeGate(ctx, ds, logger, installTargets, profileContents, hostProfilesMap, batchProfileCmdsMap,
-		currentByHost); err != nil {
+	// Gate user-scoped ("./User/...") profiles on the host's MDM user context. Windows rejects those writes, install and
+	// <Delete> alike, until the enrollment has a user context.
+	gateResult, err := applyWindowsUserScopeGate(ctx, ds, logger, installTargets, removeTargets, removePayloadData, profileContents,
+		priorContentByKey, hostProfilesMap, batchProfileCmdsMap, currentByHost)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "applying windows user scope gate")
 	}
+	hostProfilesToUpdate = append(hostProfilesToUpdate, gateResult.heldRemoveRows...)
 
 	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
 	if err != nil {
@@ -4479,9 +4627,10 @@ func executeWindowsProfileReconcileBatch(
 		return uris
 	}
 
-	// Host rows for removes whose <Delete> was fully suppressed by LocURI protection, accumulated across every removed profile in
-	// this batch and deleted in one call below.
-	var suppressedRemoveRows []*fleet.MDMWindowsProfilePayload
+	// Host rows for removes that resolve without a <Delete> ever being sent, accumulated across every removed profile in this
+	// batch and deleted in one call below. Two reasons put a row here: LocURI protection suppressed the whole command (below),
+	// or the user-scope gate found the profile was never applied to the device (above).
+	suppressedRemoveRows := gateResult.droppedRemoveRows
 
 	for profUUID, target := range removeTargets {
 		if _, ok := profileContents[profUUID]; !ok {

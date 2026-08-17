@@ -1528,20 +1528,21 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 				payload.Status = &verifying
 			}
 		}
+		// The device rejected a user-channel write while it has no MDM user context yet. That is not a failure of the profile, it is
+		// Fleet having acted too early. A NULL status returns the row to the reconciler, which holds it behind the same user-context gate
+		// instead of re-sending it. This is checked ahead of the failure handling below because it has to cover removals too, and a
+		// rejected removal does not look like a failure. Reaching here at all means the gate deliberately sent the command, so the
+		// rejection is the narrow race where the user signed out in between.
+		if payload.UserChannelRejected && userContextState == fleet.WindowsUserContextCanArrive {
+			payload.Status = nil
+			payload.Detail = fleet.WindowsUserScopeHoldDetailForOperation(hp.OperationType)
+		}
+
 		if payload.Status != nil && *payload.Status == fleet.MDMDeliveryFailed {
 			// Don't retry remove operations; removal is best-effort. Only retry install operations up to the max retry count.
 			switch {
 			case hp.OperationType == fleet.MDMOperationTypeRemove:
 				// best-effort, no retry
-
-			case payload.UserChannelRejected && userContextState == fleet.WindowsUserContextCanArrive:
-				// The device rejected a user-channel write while it has no MDM user context yet. That is not a
-				// failure of the profile, it is Fleet having sent it too early.
-				//
-				// A NULL status returns the row to the reconciler, which now holds it behind the same user-context
-				// gate instead of re-sending it.
-				payload.Status = nil
-				payload.Detail = fleet.WindowsUserScopeHoldDetail
 
 			case hp.Retries < mdm.MaxWindowsProfileRetries:
 				// if we haven't hit the max retries, we set

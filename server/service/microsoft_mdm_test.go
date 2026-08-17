@@ -1460,13 +1460,29 @@ type windowsReconcileSnapshot struct {
 	profiles []*fleet.WindowsProfileForReconcile
 	current  map[string][]*fleet.MDMWindowsProfilePayload
 	contents map[string][]byte
+	// userContexts overrides the harness default of every host having a live user context. Set it to exercise the user-scope gate.
+	userContexts map[string]fleet.WindowsEnrollmentUserContext
 }
 
-// windowsReconcileResult is what the reconciler did with that snapshot: the commands it enqueued and the host rows it deleted.
+// windowsReconcileResult is what the reconciler did with that snapshot: the commands it enqueued, the host rows it deleted, and
+// the rows written by the final (non-command) upsert pass.
 type windowsReconcileResult struct {
-	commands    []*fleet.MDMWindowsCommand
-	deletedRows []*fleet.MDMWindowsProfilePayload
-	deleteCalls int
+	commands     []*fleet.MDMWindowsCommand
+	deletedRows  []*fleet.MDMWindowsProfilePayload
+	deleteCalls  int
+	finalUpserts []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+	// deleteCommandHosts are the hosts every <Delete> this tick was addressed to, so a partially held removal can be checked.
+	deleteCommandHosts []string
+}
+
+// upsertFor returns the final-pass row written for a (host, profile) pair, or nil.
+func (r windowsReconcileResult) upsertFor(hostUUID, profileUUID string) *fleet.MDMWindowsBulkUpsertHostProfilePayload {
+	for _, p := range r.finalUpserts {
+		if p.HostUUID == hostUUID && p.ProfileUUID == profileUUID {
+			return p
+		}
+	}
+	return nil
 }
 
 // deletedPairs returns the deleted rows as a set of (host, profile) keys, which is how the tests below assert on them.
@@ -1486,6 +1502,16 @@ func (r windowsReconcileResult) requireNoDeleteCommands(t *testing.T, msg string
 	}
 }
 
+// hasDeleteCommand reports whether the tick sent any <Delete>.
+func (r windowsReconcileResult) hasDeleteCommand() bool {
+	for _, cmd := range r.commands {
+		if strings.Contains(string(cmd.RawCommand), "<Delete") {
+			return true
+		}
+	}
+	return false
+}
+
 const windowsReconcileTestChecksum = "test-checksum"
 
 // runWindowsReconcileOnce drives a single ReconcileWindowsProfiles tick over the given snapshot. The suppressed-remove tests below
@@ -1494,7 +1520,19 @@ func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) wi
 	t.Helper()
 	ctx := t.Context()
 	ds := new(mock.Store)
-	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{})
+	finalUpserts, _ := setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{})
+
+	if snapshot.userContexts != nil {
+		ds.GetMDMWindowsUserContextByHostUUIDFunc = func(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error) {
+			out := make(map[string]fleet.WindowsEnrollmentUserContext, len(hostUUIDs))
+			for _, hostUUID := range hostUUIDs {
+				if uc, ok := snapshot.userContexts[hostUUID]; ok {
+					out[hostUUID] = uc
+				}
+			}
+			return out, nil
+		}
+	}
 
 	ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
 		[]*fleet.WindowsHostReconcileInfo,
@@ -1523,6 +1561,9 @@ func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) wi
 	var result windowsReconcileResult
 	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 		result.commands = append(result.commands, cmd)
+		if strings.Contains(string(cmd.RawCommand), "<Delete") {
+			result.deleteCommandHosts = append(result.deleteCommandHosts, hostUUIDs...)
+		}
 		return nil
 	}
 	ds.MDMWindowsBulkInsertCommandsFunc = func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
@@ -1536,6 +1577,7 @@ func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) wi
 	}
 
 	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler)))
+	result.finalUpserts = *finalUpserts
 	return result
 }
 
@@ -1554,6 +1596,12 @@ func installedRow(profileUUID, profileName, hostUUID string) *fleet.MDMWindowsPr
 // windowsTestProfileSyncML returns a single-<Replace> profile targeting the named policy node.
 func windowsTestProfileSyncML(setting string) []byte {
 	return []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/` + setting +
+		`</LocURI></Target><Data>0</Data></Item></Replace>`)
+}
+
+// windowsTestUserProfileSyncML is windowsTestProfileSyncML on the user channel, the scope whose <Delete> needs a user context.
+func windowsTestUserProfileSyncML(setting string) []byte {
+	return []byte(`<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/` + setting +
 		`</LocURI></Target><Data>0</Data></Item></Replace>`)
 }
 
@@ -1683,6 +1731,183 @@ func TestReconcileWindowsProfilesDeletesRemoveRowsWithNoLocURIs(t *testing.T) {
 
 	require.Len(t, result.deletedRows, 1, "a profile with no LocURIs must not stay stuck on the host")
 	require.Contains(t, result.deletedPairs(), hostProfileKey{hostUUID: hostUUID, profileUUID: removedProfile})
+}
+
+// removeGateOutcome is what the user-scope gate does with one host's pending removal.
+type removeGateOutcome int
+
+const (
+	removeSent        removeGateOutcome = iota // the <Delete> goes out
+	removeHeld                                 // no <Delete>; the row is rewritten to record the wait
+	removeHeldQuietly                          // no <Delete>; the row already records the wait, so it is not rewritten
+	removeDropped                              // no <Delete>; the row is deleted because nothing was ever applied to the device
+)
+
+// TestReconcileWindowsProfilesGatesUserScopedRemovals covers the removal half of the user-scope gate. A <Delete> against a
+// "./User/..." node needs the same MDM user context the install needed, and Windows rejecting one is invisible in the ack path:
+// WindowsResponseToDeliveryStatusForRemove reads the codes a missing user context produces as success, which would drop the row
+// as a completed removal while the setting is still applied in a signed-out user's hive.
+func TestReconcileWindowsProfilesGatesUserScopedRemovals(t *testing.T) {
+	const (
+		hostUUID       = "host-a"
+		removedProfile = "removed-profile-uuid"
+		profileName    = "Removed"
+	)
+	teamID := uint(1)
+	signedIn := fleet.WindowsMDMLoginStatusUser
+	others := fleet.WindowsMDMLoginStatusOthers
+
+	// delivered is the row of a profile already on the host, which is what makes its removal need a user context.
+	delivered := func() *fleet.MDMWindowsProfilePayload {
+		return installedRow(removedProfile, profileName, hostUUID)
+	}
+	// sourceRow covers the other states a pending removal can start from, which installedRow cannot express.
+	sourceRow := func(op fleet.MDMOperationType, status *fleet.MDMDeliveryStatus, detail string) *fleet.MDMWindowsProfilePayload {
+		row := installedRow(removedProfile, profileName, hostUUID)
+		row.OperationType, row.Status, row.Detail = op, status, detail
+		return row
+	}
+
+	userScoped := windowsTestUserProfileSyncML("Experience/AllowTailoredExperiencesWithDiagnosticData")
+
+	for _, tc := range []struct {
+		name    string
+		syncML  []byte
+		row     *fleet.MDMWindowsProfilePayload
+		context *fleet.WindowsEnrollmentUserContext
+		want    removeGateOutcome
+	}{
+		{
+			name: "delivered user-scoped profile, host awaiting first sign-in", syncML: userScoped, row: delivered(),
+			context: new(entraContext(hostUUID, &others)), want: removeHeld,
+		},
+		{
+			name: "delivered user-scoped profile, user signed in", syncML: userScoped, row: delivered(),
+			context: new(entraContext(hostUUID, &signedIn)), want: removeSent,
+		},
+		{
+			// A fleetd enrollment binds no user identity, which says nothing about whether the user channel is writable.
+			name: "delivered user-scoped profile, enrollment with no bound user identity", syncML: userScoped, row: delivered(),
+			context: new(programmaticContext(hostUUID)), want: removeSent,
+		},
+		{
+			name: "delivered user-scoped profile, host with no enrollment row", syncML: userScoped, row: delivered(),
+			context: nil, want: removeSent,
+		},
+		{
+			name: "delivered device-scoped profile, host awaiting first sign-in", syncML: windowsTestProfileSyncML("Experience/AllowCortana"),
+			row: delivered(), context: new(entraContext(hostUUID, &others)), want: removeSent,
+		},
+		{
+			// Deletes are not wrapped in <Atomic>, so an ungated mixed removal would delete the device nodes, take a
+			// rejection on the user nodes, and still read as a completed removal. Holding keeps the removal whole.
+			name:   "delivered mixed-scope profile, host awaiting first sign-in",
+			syncML: append(windowsTestProfileSyncML("Experience/AllowCortana"), userScoped...),
+			row:    delivered(), context: new(entraContext(hostUUID, &others)), want: removeHeld,
+		},
+		{
+			// The install was held by this same gate and never sent, so there is nothing in any user's hive to delete.
+			name: "install never sent, host awaiting first sign-in", syncML: userScoped,
+			row:     sourceRow(fleet.MDMOperationTypeInstall, nil, fleet.WindowsUserScopeHoldDetail),
+			context: new(entraContext(hostUUID, &others)), want: removeDropped,
+		},
+		{
+			name: "install failed, host awaiting first sign-in", syncML: userScoped,
+			row:     sourceRow(fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, "some other failure"),
+			context: new(entraContext(hostUUID, &others)), want: removeDropped,
+		},
+		{
+			// A hold lasts until the user signs in, which can be days, and the row keeps a NULL status the whole time.
+			name: "removal already held, host awaiting first sign-in", syncML: userScoped,
+			row:     sourceRow(fleet.MDMOperationTypeRemove, nil, fleet.WindowsUserScopeRemoveHoldDetail),
+			context: new(entraContext(hostUUID, &others)), want: removeHeldQuietly,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			userContexts := map[string]fleet.WindowsEnrollmentUserContext{}
+			if tc.context != nil {
+				userContexts[hostUUID] = *tc.context
+			}
+
+			// No profile is desired for the team, so the host's one row is the pending removal under test.
+			result := runWindowsReconcileOnce(t, windowsReconcileSnapshot{
+				hosts:        []*fleet.WindowsHostReconcileInfo{{HostID: 1, UUID: hostUUID, TeamID: &teamID}},
+				current:      map[string][]*fleet.MDMWindowsProfilePayload{hostUUID: {tc.row}},
+				contents:     map[string][]byte{removedProfile: tc.syncML},
+				userContexts: userContexts,
+			})
+
+			row := result.upsertFor(hostUUID, removedProfile)
+			if tc.want == removeSent {
+				require.True(t, result.hasDeleteCommand(), "the removal must go out")
+				require.Empty(t, result.deletedRows, "a sent removal resolves on the command ack, not here")
+				require.Nil(t, row, "a sent removal is recorded by the enqueue path, not the final pass")
+				return
+			}
+
+			result.requireNoDeleteCommands(t, "no <Delete> may be sent while the host has no MDM user context")
+
+			if tc.want == removeDropped {
+				require.Nil(t, row, "a removal with nothing to delete is resolved, not held")
+				require.Len(t, result.deletedRows, 1,
+					"a profile that never reached the device must have its row dropped rather than wait for a user")
+				require.Contains(t, result.deletedPairs(), hostProfileKey{hostUUID: hostUUID, profileUUID: removedProfile})
+				return
+			}
+
+			require.Empty(t, result.deletedRows, "a held removal keeps its row: the setting may still be on the device")
+			if tc.want == removeHeldQuietly {
+				require.Nil(t, row, "an unchanged hold must not be rewritten every pass")
+				return
+			}
+
+			require.NotNil(t, row, "the hold must be recorded so it is visible rather than silent")
+			require.Nil(t, row.Status, "a held removal stays pending (NULL status) so the reconciler revisits it")
+			require.Equal(t, fleet.MDMOperationTypeRemove, row.OperationType)
+			require.Equal(t, fleet.WindowsUserScopeRemoveHoldDetail, row.Detail)
+			require.Empty(t, row.CommandUUID, "a held row must not point at a command that was never enqueued")
+		})
+	}
+}
+
+// TestReconcileWindowsProfilesPartitionsRemovalsByUserContext covers one removed profile across hosts in different user-context
+// states. A single <Delete> is addressed to many hosts, so the gate has to split the target rather than decide per profile.
+func TestReconcileWindowsProfilesPartitionsRemovalsByUserContext(t *testing.T) {
+	const (
+		removedProfile = "removed-profile-uuid"
+		hostReady      = "host-ready"
+		hostOOBE       = "host-oobe"
+		hostFleetd     = "host-fleetd"
+	)
+	teamID := uint(1)
+	signedIn := fleet.WindowsMDMLoginStatusUser
+	others := fleet.WindowsMDMLoginStatusOthers
+
+	snapshot := windowsReconcileSnapshot{
+		contents: map[string][]byte{removedProfile: windowsTestUserProfileSyncML("Experience/AllowWindowsSpotlight")},
+		current:  map[string][]*fleet.MDMWindowsProfilePayload{},
+		userContexts: map[string]fleet.WindowsEnrollmentUserContext{
+			hostReady:  entraContext(hostReady, &signedIn),
+			hostOOBE:   entraContext(hostOOBE, &others),
+			hostFleetd: programmaticContext(hostFleetd),
+		},
+	}
+	for i, hostUUID := range []string{hostReady, hostOOBE, hostFleetd} {
+		snapshot.hosts = append(snapshot.hosts, &fleet.WindowsHostReconcileInfo{HostID: uint(i + 1), UUID: hostUUID, TeamID: &teamID})
+		snapshot.current[hostUUID] = []*fleet.MDMWindowsProfilePayload{installedRow(removedProfile, "Removed", hostUUID)}
+	}
+
+	result := runWindowsReconcileOnce(t, snapshot)
+
+	require.ElementsMatch(t, []string{hostReady, hostFleetd}, result.deleteCommandHosts,
+		"only the host awaiting first sign-in is withheld from the removal")
+	require.Empty(t, result.deletedRows, "a held removal keeps its row; the hosts that were sent a <Delete> resolve on the ack")
+
+	held := result.upsertFor(hostOOBE, removedProfile)
+	require.NotNil(t, held, "the withheld host must have its wait recorded")
+	require.Equal(t, fleet.WindowsUserScopeRemoveHoldDetail, held.Detail)
+	require.Nil(t, result.upsertFor(hostReady, removedProfile), "a sent removal is recorded by the enqueue path")
+	require.Nil(t, result.upsertFor(hostFleetd, removedProfile), "a sent removal is recorded by the enqueue path")
 }
 
 // TestReconcileWindowsProfilesDeletesRowAfterTransferToMirroredTeam covers transferring a host between two teams whose profiles

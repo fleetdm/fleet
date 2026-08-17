@@ -1812,10 +1812,13 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	var details []string
 	// userChannelRejected records whether a user-channel LocURI is among the ones that failed. It is the per-LocURI signal.
 	var userChannelRejected bool
-	if commandStatus == MDMDeliveryFailed {
+	// Only failures contribute to the admin-facing detail string.
+	if commandStatus == MDMDeliveryFailed || isRemoveOperation {
 		addDetail := func(cmd SyncMLCmd, status SyncMLCmd) {
 			locURI := cmd.GetTargetURI()
-			details = append(details, fmt.Sprintf("%s: status %s", locURI, *status.Data))
+			if commandStatus == MDMDeliveryFailed {
+				details = append(details, fmt.Sprintf("%s: status %s", locURI, *status.Data))
+			}
 			if isUserChannelLocURI(locURI) && isWindowsUserContextRejection(*status.Data) {
 				userChannelRejected = true
 			}
@@ -2064,6 +2067,19 @@ func (s WindowsMDMLoginStatus) IsValid() bool {
 // (NULL status), so the reconciler re-evaluates it every tick and delivers as soon as the device reports a signed-in MDM user.
 const WindowsUserScopeHoldDetail = "Waiting for an end user to sign in with a Microsoft Entra ID account. " +
 	"Fleet will deliver this profile automatically."
+
+// WindowsUserScopeRemoveHoldDetail is the removal counterpart of WindowsUserScopeHoldDetail: a <Delete> on a user-channel node
+// needs the same user context an install does, so a removal waits on the same signal.
+const WindowsUserScopeRemoveHoldDetail = "Waiting for an end user to sign in with a Microsoft Entra ID account. " +
+	"Fleet will remove this profile automatically."
+
+// WindowsUserScopeHoldDetailForOperation returns the hold detail matching the operation being held.
+func WindowsUserScopeHoldDetailForOperation(op MDMOperationType) string {
+	if op == MDMOperationTypeRemove {
+		return WindowsUserScopeRemoveHoldDetail
+	}
+	return WindowsUserScopeHoldDetail
+}
 
 // WindowsEnrollmentUserContext is the slice of an enrollment the user-scoped profile gate reads: who the enrollment is bound
 // to, and the last user context the device reported.
