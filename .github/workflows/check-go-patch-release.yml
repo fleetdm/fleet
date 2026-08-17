@@ -11,9 +11,10 @@ on:
   schedule:
     - cron: '0 7 * * *' # Nightly 7AM UTC
 
-# This allows a subsequently queued workflow run to interrupt previous runs
+# This workflow only runs on schedule and workflow_dispatch, so use a stable
+# group to serialize runs (a newly queued run cancels an in-progress one).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -26,7 +27,9 @@ permissions:
 
 jobs:
   check-go-patch-release:
-    if: github.repository == 'fleetdm/fleet'
+    # Only run from main: a manual dispatch from a feature branch would check
+    # out that branch and open a PR against main from stale/unrelated content.
+    if: github.repository == 'fleetdm/fleet' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write # for peter-evans/create-pull-request to create branch
@@ -51,16 +54,23 @@ jobs:
           echo "Current Go version in go.mod: $current (release branch: $major_minor)"
 
           # go.dev/dl/?mode=json returns the currently supported stable releases.
-          # Only look at patch releases of the same major.minor we are already on.
-          latest=$(curl -fsS 'https://go.dev/dl/?mode=json' | \
+          # Only look at patch releases of the same major.minor we are already on,
+          # and sort them instead of relying on the API's response ordering.
+          latest=$(curl -fsS --retry 3 'https://go.dev/dl/?mode=json' | \
             jq -r --arg mm "go$major_minor." \
-            '[.[] | select(.stable == true) | .version | select(startswith($mm))] | first // empty')
+            '.[] | select(.stable == true) | .version | select(startswith($mm)) | ltrimstr("go")' | \
+            sort -V | tail -n1)
           if [[ -z "$latest" ]]; then
             echo "No stable release found for Go $major_minor, nothing to do."
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          latest=${latest#go}
+          # The version comes from an external HTTP response and gets interpolated
+          # into shell commands (make update-go, branch names): require x.y.z.
+          if [[ ! "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected Go version format from go.dev: $latest" >&2
+            exit 1
+          fi
           echo "Latest Go $major_minor patch release: $latest"
 
           if [[ "$latest" == "$current" ]]; then
@@ -87,7 +97,7 @@ jobs:
 
       - name: Update Go version
         if: steps.check.outputs.update_needed == 'true'
-        run: make update-go version=${{ steps.check.outputs.new_version }}
+        run: make update-go version="${{ steps.check.outputs.new_version }}"
 
       - name: PR changes
         if: steps.check.outputs.update_needed == 'true'
@@ -98,7 +108,7 @@ jobs:
           delete-branch: true
           title: Update Go to ${{ steps.check.outputs.new_version }} [automated]
           reviewers: lukeheath,georgekarrv,sharon-fdm
-          assignees: lucasmrod,getvictor,JordanMontgomery,cdcme 
+          assignees: lucasmrod,getvictor,JordanMontgomery,cdcme
           commit-message: |
             Update Go to ${{ steps.check.outputs.new_version }} [automated]
 
@@ -157,7 +167,7 @@ jobs:
             ];
 
             // Idempotency: the workflow runs daily and the PR may stay open for a
-            // few days, so skip issues that already exist for this version.
+            // few days, so don't re-create issues that already exist for this version.
             const existing = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -166,11 +176,16 @@ jobs:
               per_page: 100,
             });
 
-            const createdIssues = [];
+            const issuesToPlace = [];
             for (const spec of issuesToCreate) {
               const duplicate = existing.find(i => i.title === spec.title);
               if (duplicate) {
-                console.log(`Issue already exists: #${duplicate.number} (${spec.title}) — skipping.`);
+                console.log(`Issue already exists: #${duplicate.number} (${spec.title}) — not creating a new one.`);
+                // Still consider open duplicates for board placement below, so
+                // that a placement that failed on a previous run is retried.
+                if (duplicate.state === 'open') {
+                  issuesToPlace.push(duplicate);
+                }
                 continue;
               }
               const issue = await github.rest.issues.create({
@@ -181,10 +196,10 @@ jobs:
                 labels: ['#g-orchestration'],
               });
               console.log(`Created issue #${issue.data.number}: ${spec.title}`);
-              createdIssues.push(issue.data);
+              issuesToPlace.push(issue.data);
             }
 
-            if (createdIssues.length === 0) {
+            if (issuesToPlace.length === 0) {
               return;
             }
 
@@ -208,7 +223,29 @@ jobs:
             const STATUS_FIELD  = 'PVTSSF_lADOBDAnic4A4BExzgtDlHw';
             const INBOX         = 'f33a1ec5';
 
-            for (const issue of createdIssues) {
+            for (const issue of issuesToPlace) {
+              // Skip issues already on the board (e.g. placed by a previous
+              // run) so we don't reset a status someone has since changed.
+              const itemsResult = await projectOctokit.graphql(`
+                query($id: ID!) {
+                  node(id: $id) {
+                    ... on Issue {
+                      projectItems(first: 20) {
+                        nodes { id project { id } }
+                      }
+                    }
+                  }
+                }
+              `, {
+                id: issue.node_id,
+              });
+              const alreadyPlaced = (itemsResult.node?.projectItems?.nodes || [])
+                .some(n => n.project.id === PROJECT_ID);
+              if (alreadyPlaced) {
+                console.log(`Issue #${issue.number} is already on the #g-orchestration board — skipping.`);
+                continue;
+              }
+
               const addResult = await projectOctokit.graphql(`
                 mutation($projectId: ID!, $contentId: ID!) {
                   addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
