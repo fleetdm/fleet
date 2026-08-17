@@ -42,9 +42,6 @@ type Options struct {
 	// PollInterval is the fallback polling cadence (default 10s, matching
 	// osquery's distributed interval).
 	PollInterval time.Duration
-	// StableAfter is how long a connection must stay up before polling stops
-	// (default 1m).
-	StableAfter time.Duration
 	// ReconnectJitterMax is the random delay before reconnecting after a drop,
 	// so a server restart doesn't produce a thundering herd (default 30s).
 	ReconnectJitterMax time.Duration
@@ -61,9 +58,6 @@ type Options struct {
 func (o *Options) applyDefaults() {
 	if o.PollInterval == 0 {
 		o.PollInterval = 10 * time.Second
-	}
-	if o.StableAfter == 0 {
-		o.StableAfter = 1 * time.Minute
 	}
 	if o.ReconnectJitterMax == 0 {
 		o.ReconnectJitterMax = 30 * time.Second
@@ -83,23 +77,28 @@ func (o *Options) applyDefaults() {
 }
 
 // Manager holds the WebSocket connection to the Fleet server and falls back to
-// polling when the connection is not stable. It is an oklog/run-compatible
-// subsystem (Execute/Interrupt).
+// polling while it is disconnected. It is an oklog/run-compatible subsystem
+// (Execute/Interrupt).
 //
-// State machine: polling runs on PollInterval whenever the WebSocket is not
-// "stable" (up for at least StableAfter). A "check now" notification — or a
-// polling tick — triggers one HTTP distributed/read whose queries go into the
-// cache for osquery's next local poll. Polling is the guaranteed baseline: a
-// dropped notification or connection can delay work by at most one polling or
-// interval-check cycle, never lose it. When both the WebSocket and HTTP fail,
-// the server (or the path to it) is down and both paths simply keep retrying —
-// there is nothing to "downgrade" to.
+// State machine: polling runs on PollInterval whenever the WebSocket is down,
+// and stops the moment it is up. A "check now" notification — or a polling
+// tick — triggers one HTTP distributed/read whose queries go into the cache
+// for osquery's next local poll. There is deliberately no warm-up period and
+// no catch-up read on connect: a notification lost around a (re)connect
+// delays interval work by at most one interval-check re-notify, and missing a
+// live query on a host that was mid-reconnect is accepted (same outcome as
+// the host being offline). The remaining exposure is a half-open connection,
+// which is bounded by the keepalive read deadline for the connection's whole
+// lifetime — a warm-up window would only have narrowed its first minute.
+// When both the WebSocket and HTTP fail, the server (or the path to it) is
+// down and both paths simply keep retrying — there is nothing to "downgrade"
+// to.
 type Manager struct {
 	opts Options
 
-	// wsStable is true once the current connection has been up for
-	// StableAfter; polling ticks are skipped while it is set.
-	wsStable atomic.Bool
+	// connected is true while a WebSocket connection is up; polling ticks are
+	// skipped while it is set.
+	connected atomic.Bool
 	// checking singleflights checkNow: overlapping triggers (notification
 	// burst, poll tick during a fetch) collapse into one distributed/read.
 	checking atomic.Bool
@@ -157,21 +156,11 @@ func (m *Manager) connectionLoop() {
 			continue
 		}
 		tracker.RecordSuccess()
-		log.Info().Msg("websocket connected")
+		log.Info().Msg("websocket connected, polling paused")
 
-		// Catch up on anything that happened while disconnected (e.g. a live
-		// query created before the connection was up).
-		go m.checkNow()
-
-		// The connection is considered stable (and polling stops) only after
-		// it has stayed up for StableAfter.
-		stableTimer := time.AfterFunc(m.opts.StableAfter, func() {
-			m.wsStable.Store(true)
-			log.Debug().Msg("websocket transport stable, polling paused")
-		})
+		m.connected.Store(true)
 		m.readLoop(conn)
-		stableTimer.Stop()
-		m.wsStable.Store(false)
+		m.connected.Store(false)
 		_ = conn.Close()
 		if m.ctx.Err() != nil {
 			return
@@ -224,14 +213,14 @@ func (m *Manager) readLoop(conn *websocket.Conn) {
 }
 
 // pollLoop is the fallback: it performs a distributed read on every tick while
-// the WebSocket is not stable.
+// the WebSocket is down.
 func (m *Manager) pollLoop() {
 	ticker := time.NewTicker(m.opts.PollInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			if m.wsStable.Load() {
+			if m.connected.Load() {
 				continue
 			}
 			m.checkNow()

@@ -50,6 +50,9 @@ type wsTestServer struct {
 	mu       sync.Mutex
 	conns    []*websocket.Conn
 	rejected atomic.Int64
+	// reject makes the server refuse upgrades (simulates a down/unreachable
+	// WebSocket endpoint while HTTP keeps working).
+	reject atomic.Bool
 }
 
 func newWSTestServer(t *testing.T, nodeKey string) *wsTestServer {
@@ -57,6 +60,10 @@ func newWSTestServer(t *testing.T, nodeKey string) *wsTestServer {
 	ws := &wsTestServer{}
 	upgrader := websocket.Upgrader{}
 	ws.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ws.reject.Load() {
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		if r.Header.Get("Authorization") != "Node key "+nodeKey {
 			ws.rejected.Add(1)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -115,7 +122,6 @@ func newTestManager(t *testing.T, serverURL string, fc distributedClient, cache 
 		Client:             fc,
 		Cache:              cache,
 		PollInterval:       30 * time.Millisecond,
-		StableAfter:        50 * time.Millisecond,
 		ReconnectJitterMax: 10 * time.Millisecond,
 		BackoffBase:        10 * time.Millisecond,
 		BackoffCap:         50 * time.Millisecond,
@@ -142,13 +148,12 @@ func TestManagerConnectsAndReadsOnNotification(t *testing.T) {
 	ws := newWSTestServer(t, "orbit-key")
 	fc := &countingClient{resp: &client.DistributedReadResponse{Queries: map[string]string{"q1": "SELECT 1"}}}
 	cache := NewQueryCache()
-	newTestManager(t, ws.srv.URL, fc, cache)
+	m := newTestManager(t, ws.srv.URL, fc, cache)
 
-	// Connects and performs the immediate catch-up read.
 	require.Eventually(t, func() bool { return ws.connCount() == 1 }, 5*time.Second, 5*time.Millisecond)
-	require.Eventually(t, func() bool { return fc.readCount() >= 1 }, 5*time.Second, 5*time.Millisecond)
+	require.Eventually(t, func() bool { return m.connected.Load() }, 5*time.Second, 5*time.Millisecond)
 
-	// A notification triggers another read and the queries land in the cache.
+	// A notification triggers a read and the queries land in the cache.
 	before := fc.readCount()
 	ws.notify(t, fleet.AgentWSMessage{Type: fleet.AgentWSMessageTypeDistributedRead})
 	require.Eventually(t, func() bool { return fc.readCount() > before }, 5*time.Second, 5*time.Millisecond)
@@ -168,18 +173,22 @@ func TestManagerIgnoresUnknownNotificationTypes(t *testing.T) {
 
 	// The connection survives unknown types: a known one still works after.
 	ws.notify(t, fleet.AgentWSMessage{Type: fleet.AgentWSMessageTypeDistributedRead})
-	require.Eventually(t, func() bool { return fc.readCount() >= 2 }, 5*time.Second, 5*time.Millisecond)
+	require.Eventually(t, func() bool { return fc.readCount() >= 1 }, 5*time.Second, 5*time.Millisecond)
 	assert.Equal(t, 1, ws.connCount())
 }
 
-func TestManagerStableStopsPolling(t *testing.T) {
+func TestManagerConnectedStopsPolling(t *testing.T) {
 	ws := newWSTestServer(t, "orbit-key")
 	fc := &countingClient{}
 	m := newTestManager(t, ws.srv.URL, fc, NewQueryCache())
 
-	require.Eventually(t, func() bool { return m.wsStable.Load() }, 5*time.Second, 5*time.Millisecond)
+	require.Eventually(t, func() bool { return m.connected.Load() }, 5*time.Second, 5*time.Millisecond)
 
-	// Once stable, polling stops: the read count stays flat.
+	// While connected, polling is off: the read count stays flat. There is no
+	// catch-up read either, so with a prompt connect this stays at zero.
+	// (Small settle wait so an in-flight pre-connect poll can't race the
+	// snapshot below.)
+	time.Sleep(2 * m.opts.PollInterval)
 	count := fc.readCount()
 	time.Sleep(10 * m.opts.PollInterval)
 	assert.Equal(t, count, fc.readCount())
@@ -190,16 +199,21 @@ func TestManagerFallsBackToPollingAndReconnects(t *testing.T) {
 	fc := &countingClient{}
 	m := newTestManager(t, ws.srv.URL, fc, NewQueryCache())
 
-	require.Eventually(t, func() bool { return m.wsStable.Load() }, 5*time.Second, 5*time.Millisecond)
+	require.Eventually(t, func() bool { return m.connected.Load() }, 5*time.Second, 5*time.Millisecond)
 
-	// Server drops all connections: polling resumes and the manager reconnects.
+	// The WebSocket endpoint goes down and drops all connections: polling
+	// resumes while reconnection attempts fail.
+	ws.reject.Store(true)
 	ws.closeAll()
-	require.Eventually(t, func() bool { return !m.wsStable.Load() }, 5*time.Second, 5*time.Millisecond)
+	require.Eventually(t, func() bool { return !m.connected.Load() }, 5*time.Second, 5*time.Millisecond)
 
 	count := fc.readCount()
 	require.Eventually(t, func() bool { return fc.readCount() > count }, 5*time.Second, 5*time.Millisecond,
-		"polling should resume after disconnect")
-	require.Eventually(t, func() bool { return ws.connCount() >= 1 }, 5*time.Second, 5*time.Millisecond,
+		"polling should resume while disconnected")
+
+	// The endpoint comes back: the manager reconnects and polling stops again.
+	ws.reject.Store(false)
+	require.Eventually(t, func() bool { return m.connected.Load() }, 5*time.Second, 5*time.Millisecond,
 		"manager should reconnect")
 }
 
@@ -229,5 +243,5 @@ func TestManagerKeepsRetryingWhenEverythingIsDown(t *testing.T) {
 	srv.Close()
 
 	require.Eventually(t, func() bool { return fc.readCount() >= 2 }, 5*time.Second, 5*time.Millisecond)
-	assert.False(t, m.wsStable.Load())
+	assert.False(t, m.connected.Load())
 }
