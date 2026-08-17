@@ -356,6 +356,43 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-27 17:15:39
 
+### [CVE-2026-56862](https://nvd.nist.gov/vuln/detail/CVE-2026-56862)
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Products:** `fleetctl@v4.90.0`,`fleetctl@v4.89.2`,`fleetctl@v4.89.1`,`fleetctl@v4.89.0`,`pkg:golang/stdlib@1.26.5`
+- **Action statement:** `Low impact: denial-of-service (CPU exhaustion) on the host running fleetctl. crypto/tls did not limit the number of post-handshake messages (e.g., KeyUpdate) it accepts, so a hostile TLS peer (malicious/compromised Fleet server or MITM) can keep a fleetctl TLS connection busy indefinitely. fleetctl is a CLI client, so the impact is limited to hanging the operator's command, which can be interrupted; no code execution or data disclosure, and the Fleet server itself is unaffected. Upgrade to fleetctl 4.91.x (built with Go 1.26.6) when available.`
+- **Timestamp:** 2026-08-17 10:37:26
+
+### [CVE-2026-56860](https://nvd.nist.gov/vuln/detail/CVE-2026-56860)
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Products:** `fleetctl@v4.90.0`,`fleetctl@v4.89.2`,`fleetctl@v4.89.1`,`fleetctl@v4.89.0`,`pkg:golang/stdlib@1.26.5`
+- **Action statement:** `Low impact: denial-of-service (high CPU due to quadratic complexity in net/url path resolution) on the host running fleetctl. fleetctl resolves URLs from server responses (e.g., HTTP redirects), so a hostile or compromised server (or MITM) returning a URL with a pathological path can stall the fleetctl invocation. fleetctl is a CLI client, so the impact is limited to hanging the operator's command, which can be interrupted; no code execution or data disclosure, and the Fleet server itself is unaffected. Upgrade to fleetctl 4.91.x (built with Go 1.26.6) when available.`
+- **Timestamp:** 2026-08-17 10:37:22
+
+### [CVE-2026-56859](https://nvd.nist.gov/vuln/detail/CVE-2026-56859)
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Products:** `fleetctl@v4.90.0`,`fleetctl@v4.89.2`,`fleetctl@v4.89.1`,`fleetctl@v4.89.0`,`pkg:golang/stdlib@1.26.5`
+- **Action statement:** `Low impact: denial-of-service (panic via unbounded recursion in encoding/xml) on the host running fleetctl. fleetctl decodes XML from inputs that can be influenced by third parties: MDM command results returned by enrolled (possibly compromised) hosts (e.g. 'fleetctl get mdm-command-results'), Apple MDM command plists, and XML processed during fleetd package generation. A deeply nested XML document can crash the fleetctl invocation. fleetctl is a CLI client, so the impact is limited to aborting the operator's command; no code execution or data disclosure, and the Fleet server itself is unaffected. Upgrade to fleetctl 4.91.x (built with Go 1.26.6) when available.`
+- **Timestamp:** 2026-08-17 10:37:18
+
+### [CVE-2026-56858](https://nvd.nist.gov/vuln/detail/CVE-2026-56858)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56858 (GO-2026-6091) is an escaping bug in html/template's JavaScript regular-expression context tracking that can lead to cross-site scripting when untrusted data is interpolated into a JavaScript regexp context of an HTML template rendered to a browser. fleetctl's only html/template usage is a fixed plain-text template that renders script results to the operator's terminal (cmd/fleetctl/fleetctl/scripts.go renderScriptResult); the template contains no HTML, script, or JavaScript regexp contexts, so the vulnerable escaping code path is never exercised, and the output is written to a terminal, not rendered by a browser. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-17 10:36:56
+
+### [CVE-2026-56853](https://nvd.nist.gov/vuln/detail/CVE-2026-56853)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56853 (GO-2026-6089) is a denial-of-service in the Go net/http server: ReadHeaderTimeout was not applied while checking for unencrypted HTTP/2 (h2c) connections, allowing a client to hold server connections open indefinitely. fleetctl is a CLI client and does not run an HTTP server. govulncheck on cmd/fleetctl (GOOS=linux, Go 1.26.5) confirms the vulnerable server-side symbols are not reachable; net/http is only linked for client use. Trivy flags it solely because the binary embeds the go1.26.5 toolchain. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-17 10:36:47
+
 ### [CVE-2026-56852](https://nvd.nist.gov/vuln/detail/CVE-2026-56852)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -380,6 +417,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-01 13:33:33
 
+### [CVE-2026-54399](https://nvd.nist.gov/vuln/detail/CVE-2026-54399)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-54399 is a denial-of-service in Apache HttpComponents Core (httpcore5) when a Java HTTP server parses requests with excessive HTTP headers. The httpcore5 jar is present in the fleetdm/fleetctl image only as part of Apple Transporter (itms), which fleetctl invokes as a client tool to upload macOS packages to Apple. fleetctl is not a Java server and no Java HTTP server ever runs in the image, so the vulnerable server-side header-parsing code is never executed.
+- **Products:** `fleetctl`,`pkg:maven/org.apache.httpcomponents.core5/httpcore5`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-17 10:36:37
+
 ### [CVE-2026-46604](https://nvd.nist.gov/vuln/detail/CVE-2026-46604)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -395,6 +440,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:golang/golang.org/x/image`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-27 14:10:31
+
+### [CVE-2026-46600](https://nvd.nist.gov/vuln/detail/CVE-2026-46600)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-46600 (GO-2026-5942) is a panic in golang.org/x/net/dns/dnsmessage (vendored into the Go standard library net package) when parsing an invalid SVCB or HTTPS DNS resource record. govulncheck on cmd/fleetctl (GOOS=linux, Go 1.26.5) confirms the vulnerable symbols are never called: the Go resolver paths used by fleetctl's DNS lookups do not request or parse SVCB/HTTPS records. Trivy flags it solely because the binary embeds the go1.26.5 toolchain. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-17 10:36:51
 
 ### [CVE-2026-42504](https://nvd.nist.gov/vuln/detail/CVE-2026-42504)
 - **Author:** @lucasmrod
@@ -428,6 +481,13 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-04-27 17:38:09
 
+### [CVE-2026-39821](https://nvd.nist.gov/vuln/detail/CVE-2026-39821)
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Products:** `fleetctl@v4.90.0`,`fleetctl@v4.89.2`,`fleetctl@v4.89.1`,`fleetctl@v4.89.0`,`pkg:golang/stdlib@1.26.5`
+- **Action statement:** `Low probability of exploit: golang.org/x/net/idna (used by the net/http client fleetctl uses for all API requests) fails to reject ASCII-only Punycode-encoded labels, which can cause a hostname to be interpreted differently than validated. Exploitation requires an attacker able to influence a hostname fleetctl connects to (e.g., a crafted URL in GitOps configuration or a crafted server response) so the request resolves to an unexpected host. fleetctl is a CLI client and only sends its API token to the operator-configured server URL, limiting practical impact. Upgrade to fleetctl 4.91.x (built with Go 1.26.6) when available.`
+- **Timestamp:** 2026-08-17 10:37:13
+
 ### [CVE-2026-34875](https://nvd.nist.gov/vuln/detail/CVE-2026-34875)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -451,6 +511,13 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:deb/debian/libgnutls30t64`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-05-07 12:01:42
+
+### [CVE-2026-33818](https://nvd.nist.gov/vuln/detail/CVE-2026-33818)
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Products:** `fleetctl@v4.90.0`,`fleetctl@v4.89.2`,`fleetctl@v4.89.1`,`fleetctl@v4.89.0`,`pkg:golang/stdlib@1.26.5`
+- **Action statement:** `Low impact: denial-of-service (panic via stack exhaustion in encoding/asn1) on the host running fleetctl. fleetctl parses ASN.1 (X.509 certificates) from TLS handshakes, so a hostile TLS peer (malicious/compromised Fleet server or MITM) presenting a certificate with deeply nested ASN.1 structures can crash the fleetctl invocation. fleetctl is a CLI client, so the impact is limited to aborting the operator's command; no code execution or data disclosure, and the Fleet server itself is unaffected. Upgrade to fleetctl 4.91.x (built with Go 1.26.6) when available.`
+- **Timestamp:** 2026-08-17 10:37:08
 
 ### [CVE-2026-33810](https://nvd.nist.gov/vuln/detail/CVE-2026-33810)
 - **Author:** @lucasmrod

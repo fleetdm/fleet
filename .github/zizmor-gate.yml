@@ -54,7 +54,6 @@ rules:
       - build-fleetd-base-msi.yml
       - build-fleetd-base-pkg.yml
       - build-fleetdm-fleetctl-check-vulnerabilities.yml
-      - check-bomutils-vulnerabilities.yml
       - check-vulnerabilities-in-released-docker-images.yml
       - check-wix-vulnerabilities.yml
       - code-sign-windows.yml
