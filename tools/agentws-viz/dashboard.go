@@ -24,6 +24,8 @@ const dashboardHTML = `<!doctype html>
     --success: #3db67b;       /* ui-success */
     --warning: #a87b1f;       /* readable take on ui-warning for text */
     --error: #d66c7b;         /* ui-error */
+    --badge-bg: #fef7e0;      /* ui-yellow-banner */
+    --badge-border: #ece0bb;  /* ui-yellow-banner-outline */
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -31,6 +33,7 @@ const dashboardHTML = `<!doctype html>
       --text: #e2e4ea; --text-secondary: #bebebf; --dim: #87888b;
       --green: #00c28b; --blue: #7b79ff; --blue-10: #2d2e4d;
       --success: #4dc98b; --warning: #f0ca5e; --error: #e07888;
+      --badge-bg: #2e291d; --badge-border: #4e4125;
     }
   }
   * { box-sizing: border-box; }
@@ -77,6 +80,13 @@ const dashboardHTML = `<!doctype html>
   td.os { width: 24px; }
   td.mono { font-family: "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
   tr.offline td { color: var(--dim); font-style: italic; }
+  /* Fleet-style pill for legacy (non-WebSocket) agents; ui-yellow-banner tones. */
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 10px;
+    background: var(--badge-bg); border: 1px solid var(--badge-border);
+    color: var(--warning); font-size: 11px; font-weight: 600; font-style: normal;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
 </style>
 </head>
 <body>
@@ -314,16 +324,36 @@ function render(conns, readStats, data) {
     tbody.appendChild(tr);
   }
 
-  // Hosts that issued distributed reads but hold no WebSocket connection —
-  // typically legacy agents still polling. Show them so they're not invisible.
+  // Hosts that issued distributed reads but hold no WebSocket connection:
+  // legacy agents still polling (often stale enrollments whose host ID no
+  // longer maps to a host in Fleet, so the raw ID is not meaningful — it is
+  // kept in the tooltip for debugging).
   const connected = new Set(conns.map(c => c.host_id));
   for (const s of readStats) {
     if (connected.has(s.host_id)) continue;
     const tr = document.createElement("tr");
     tr.className = "offline";
-    for (const v of ["", s.host_id, "not connected", "–", "–"]) {
+    tr.title = "no WebSocket connection; raw host ID " + s.host_id;
+
+    const tdOS = document.createElement("td");
+    tdOS.className = "os";
+    tdOS.textContent = "–";
+    tr.appendChild(tdOS);
+
+    const tdHost = document.createElement("td");
+    tdHost.textContent = "–";
+    tr.appendChild(tdHost);
+
+    const tdRemote = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = "legacy";
+    tdRemote.appendChild(badge);
+    tr.appendChild(tdRemote);
+
+    for (let i = 0; i < 2; i++) {
       const td = document.createElement("td");
-      td.textContent = v;
+      td.textContent = "–";
       tr.appendChild(td);
     }
     for (let i = 0; i < 4; i++) {
