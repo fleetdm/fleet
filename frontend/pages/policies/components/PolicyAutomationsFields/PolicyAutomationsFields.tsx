@@ -34,9 +34,9 @@ import {
   getTicketOrWebhookLabel,
 } from "pages/policies/helpers";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { isMacOS } from "interfaces/platform";
 import {
   EndUserExperience,
-  isMacPlatform,
   PatchOption,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 
@@ -191,7 +191,7 @@ const PolicyAutomationsFields = forwardRef<
     // a legacy Windows policy carries `notify_before_patching: true`.
     // Uses the same helper as the wire boundary so multi-platform policy
     // strings (`"darwin,linux"`) are treated as Mac too.
-    const isMacPolicy = isMacPlatform(policy.platform);
+    const isMacPolicy = isMacOS(policy.platform);
     const notifyBeforePatching =
       patchOption !== undefined
         ? patchOption === "force" &&

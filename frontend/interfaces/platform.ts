@@ -151,11 +151,18 @@ export const isAppleDevice = (platform = "") => {
   );
 };
 
+// Accept both the single-value host platform (`"windows"`, `"darwin"`,
+// `"macos"`) and the comma-joined `CommaSeparatedPlatformString` from
+// policies (`"darwin,linux"`) so the same predicate works at the wire
+// boundary for patch policies without a second helper.
 export const isWindows = (platform: string | HostPlatform) =>
-  platform === "windows";
+  !!platform && platform.split(",").includes("windows");
 
-export const isMacOS = (platform: string | HostPlatform) =>
-  ["darwin", "macos"].includes(platform);
+export const isMacOS = (platform: string | HostPlatform) => {
+  if (!platform) return false;
+  const parts = platform.split(",");
+  return parts.includes("darwin") || parts.includes("macos");
+};
 
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);

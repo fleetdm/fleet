@@ -24,7 +24,7 @@ import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
-import { isMacPlatform } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
+import { isMacOS } from "interfaces/platform";
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import SoftwareVppForm from "pages/SoftwarePage/components/forms/SoftwareVppForm";
@@ -110,7 +110,7 @@ const EditSoftwareModal = ({
   const notifyLocksPreInstallQuery =
     "patch_policy" in softwareInstaller &&
     !!softwareInstaller.patch_policy?.notify_before_patching &&
-    isMacPlatform(derivedPlatform);
+    isMacOS(derivedPlatform ?? "");
   const effectivePatchWhenClosed =
     patchWhenClosed ||
     ("patch_policy" in softwareInstaller &&

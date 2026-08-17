@@ -1,6 +1,8 @@
 import React from "react";
 import { SingleValue } from "react-select-5";
 
+import { isMacOS, isWindows } from "interfaces/platform";
+
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
 import DropdownWrapper, {
@@ -13,17 +15,6 @@ const baseClass = "software-deploy-selector";
 
 export type PatchOption = "closed" | "force" | "manual";
 export type EndUserExperience = "immediate" | "notify";
-
-/**
- * True when the given platform string names macOS. Handles both the single
- * value from software titles (`"darwin"`) and the comma-joined
- * `CommaSeparatedPlatformString` from policies (`"darwin,linux"`).
- */
-export const isMacPlatform = (platform?: string): boolean =>
-  !!platform && platform.split(",").includes("darwin");
-
-const isWindowsPlatform = (platform?: string): boolean =>
-  !!platform && platform.split(",").includes("windows");
 
 /**
  * Returns the three policy flags derived from the deploy selector state.
@@ -42,7 +33,7 @@ export const getPatchPolicyFlags = (
   const notifyActive =
     patchOption === "force" &&
     endUserExperience === "notify" &&
-    isMacPlatform(platform);
+    isMacOS(platform ?? "");
   return {
     patch_when_closed: patchOption === "closed",
     notify_before_patching: notifyActive,
@@ -149,17 +140,17 @@ export const PatchOptionSelector = ({
 
   const showEndUserExperienceDropdown =
     patchOption === "force" &&
-    isMacPlatform(platform) &&
+    isMacOS(platform ?? "") &&
     !!onSelectEndUserExperience;
 
   const renderForceBanner = () => {
-    if (isWindowsPlatform(platform)) {
+    if (isWindows(platform ?? "")) {
       return <WindowsBanner />;
     }
     if (showEndUserExperienceDropdown && endUserExperience === "notify") {
       return <NotifyBanner />;
     }
-    return <ImmediateBanner showLink={isMacPlatform(platform)} />;
+    return <ImmediateBanner showLink={isMacOS(platform ?? "")} />;
   };
 
   return (
