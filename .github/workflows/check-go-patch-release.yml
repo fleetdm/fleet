@@ -97,7 +97,9 @@ jobs:
 
       - name: Update Go version
         if: steps.check.outputs.update_needed == 'true'
-        run: make update-go version="${{ steps.check.outputs.new_version }}"
+        env:
+          NEW_GO_VERSION: ${{ steps.check.outputs.new_version }}
+        run: make update-go version="$NEW_GO_VERSION"
 
       - name: PR changes
         if: steps.check.outputs.update_needed == 'true'
