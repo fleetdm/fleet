@@ -1643,56 +1643,6 @@ func (svc *Service) processGenericAlert(ctx context.Context, messageID string, d
 	return nil
 }
 
-// processClientEventAlert handles device event alerts ("1224"). Fleet consumes one of them:
-// com.microsoft/MDM/LoginStatus, which reports whether a user with an MDM account is signed in. That value is what gates
-// delivery of user-scoped ("./User/...") profiles, which Windows rejects until the enrollment has a user context.
-//
-// The device sends the alert in the first message of each session and repeats it in the authenticated message after Fleet's
-// auth challenge, so reading it here (on the trusted path, after processIncomingMDMCmds' challenge short-circuit) sees every
-// session's value without touching the challenge handling.
-//
-// Recording is best-effort: it is independent of everything else the session is doing, and a write failure must not fail the
-// device's response. A missed observation costs at most one more session before the value is recorded again.
-func (svc *Service) processClientEventAlert(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, cmd mdm_types.ProtoCmdOperation) {
-	for _, item := range cmd.Cmd.Items {
-		if item.Meta == nil || item.Meta.Type == nil || item.Meta.Type.Content == nil ||
-			*item.Meta.Type.Content != syncml.AlertTypeLoginStatus || item.Data == nil {
-			continue
-		}
-
-		// An unrecognized value clears the observation rather than being ignored. Ignoring it would leave a previously
-		// stored "user" in place, and the gate would keep delivering user-scoped profiles on the strength of an
-		// observation the device has since superseded. Clearing reads as "not known to be signed in", so profiles hold
-		// until the device reports a value Fleet understands.
-		var status *fleet.WindowsMDMLoginStatus
-		if reported := fleet.WindowsMDMLoginStatus(strings.ToLower(strings.TrimSpace(item.Data.Content))); reported.IsValid() {
-			status = &reported
-		} else {
-			svc.logger.WarnContext(ctx, "windows mdm: unrecognized LoginStatus alert value, clearing user context",
-				"value", item.Data.Content, "device_id", enrolledDevice.MDMDeviceID)
-		}
-
-		// Write only when the value changed. The device reports this on every session, and the aggressive poll interval
-		// is one minute, so writing unconditionally would be an UPDATE per host per minute for a value that changes
-		// about twice in a host's life. poll_schedule_relaxed and fleetd_sync_capable on this same table are maintained
-		// the same way. The comparison is free: the enrollment row was already loaded at session start.
-		if ptr.Equal(enrolledDevice.LastLoginStatus, status) {
-			return
-		}
-
-		if err := svc.ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, status); err != nil {
-			svc.logger.ErrorContext(ctx, "windows mdm: recording LoginStatus alert", "err", err,
-				"device_id", enrolledDevice.MDMDeviceID)
-			ctxerr.Handle(ctx, err)
-			return
-		}
-		// Reflect the new value on the in-memory enrollment so anything later in this same request sees the current
-		// user context rather than the value loaded at session start.
-		enrolledDevice.LastLoginStatus = status
-		return
-	}
-}
-
 // processIncomingAlertsCommands will process the incoming Alerts commands.
 // These commands don't require an status response.
 func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID string, enrolledDevice *fleet.MDMWindowsEnrolledDevice, cmd mdm_types.ProtoCmdOperation) error {
@@ -1716,6 +1666,45 @@ func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID
 	}
 
 	return nil
+}
+
+// processClientEventAlert handles device event alerts ("1224"). Fleet consumes one of them:
+// com.microsoft/MDM/LoginStatus, which reports whether a user with an MDM account is signed in. That value is what gates
+// delivery of user-scoped ("./User/...") profiles, which Windows rejects until the enrollment has a user context.
+//
+// Recording is best-effort: it is independent of everything else the session is doing, and a write failure must not fail the
+// device's response. A missed observation costs at most one more session before the value is recorded again.
+func (svc *Service) processClientEventAlert(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, cmd mdm_types.ProtoCmdOperation) {
+	for _, item := range cmd.Cmd.Items {
+		if item.Meta == nil || item.Meta.Type == nil || item.Meta.Type.Content == nil ||
+			*item.Meta.Type.Content != syncml.AlertTypeLoginStatus || item.Data == nil {
+			continue
+		}
+
+		// An unrecognized value clears the observation rather than being ignored.
+		var status *fleet.WindowsMDMLoginStatus
+		if reported := fleet.WindowsMDMLoginStatus(strings.ToLower(strings.TrimSpace(item.Data.Content))); reported.IsValid() {
+			status = &reported
+		} else {
+			svc.logger.WarnContext(ctx, "windows mdm: unrecognized LoginStatus alert value, clearing user context",
+				"value", item.Data.Content, "device_id", enrolledDevice.MDMDeviceID)
+		}
+
+		// Write only when the value changed.
+		if ptr.Equal(enrolledDevice.LastLoginStatus, status) {
+			return
+		}
+
+		if err := svc.ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, status); err != nil {
+			svc.logger.ErrorContext(ctx, "windows mdm: recording LoginStatus alert", "err", err,
+				"device_id", enrolledDevice.MDMDeviceID)
+			ctxerr.Handle(ctx, err)
+			return
+		}
+		// Reflect the new value on the in-memory enrollment
+		enrolledDevice.LastLoginStatus = status
+		return
+	}
 }
 
 // tryLinkUnlinkedEnrollmentFromDevDetail scans an incoming SyncML message for a Results command answering an earlier
@@ -3944,10 +3933,6 @@ type hostProfileKey struct {
 	profileUUID string
 }
 
-// executeWindowsProfileReconcileBatch runs the post-compute reconcile pipeline against the in-memory toInstall / toRemove sets
-// produced by ComputeWindowsReconcileDeltas: content fetch, deleted-profile race guard, bulk command pre-build for non-variable
-// profiles, per-host variable expansion, LocURI-protected <Delete> generation, host-profile upserts, and managed-certificate
-// bookkeeping. This is the legacy reconciler body verbatim, now invoked once per (capped) window by the drain loop above.
 // cmdTarget is one MDM command and the hosts it is addressed to. The underlying MDM services send a single command to many
 // hosts, so install and remove targets are keyed by profile with the host list attached.
 type cmdTarget struct {
@@ -3959,19 +3944,11 @@ type cmdTarget struct {
 // applyWindowsUserScopeGate holds user-scoped install targets for hosts that are still waiting on an MDM user context, and
 // records the wait on the host's profile row.
 //
-// Scope is classified from the exact bytes the delivery path is about to send, so classification cannot disagree with what
-// ships. A held host keeps a NULL status (which the rollup reports as pending) and carries a detail explaining the wait; the
-// reconciler revisits it every tick and delivers once the device reports a signed-in user.
-//
-// The hold applies only where a user context is known to be pending: an enrollment that binds a user identity (a UPN) and has
-// not yet reported a signed-in user, which is the Autopilot and Entra-join-during-OOBE window. Enrollments that bind no user
-// identity are NOT gated and deliver exactly as they did before. Whether their user channel is writable depends on the
-// device's own identity (an Entra-joined host managed by fleetd can have a perfectly resolvable user channel even though its
-// enrollment stores an orbit node key), and that is not something the enrollment row can tell us. Blocking them here would
-// fail configurations that work today, including the user-scoped SCEP profiles Fleet ships as a solution.
-//
-// Costs nothing on fleets without user-scoped profiles: the enrollment lookup only runs when at least one install target is
-// user-scoped.
+// The hold applies only where a user context is known to be pending: an enrollment that binds a user identity (a UPN) and has not
+// yet reported a signed-in user, which is the Autopilot and Entra-join-during-OOBE window. Enrollments that bind no user identity
+// are NOT gated-. Whether their user channel is writable depends on the device's own identity (an Entra-joined host managed by
+// fleetd can have a perfectly resolvable user channel even though its enrollment stores an orbit node key), and that is not
+// something the enrollment row can tell us.
 func applyWindowsUserScopeGate(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -4022,9 +3999,7 @@ func applyWindowsUserScopeGate(
 			if payload == nil {
 				continue
 			}
-			// No command is enqueued for this host, so the row must not point at one. NULL status is the
-			// "reconciler, look at me again next tick" shape, and the rollup reports it as pending. That is what
-			// makes the hold self-releasing without any extra bookkeeping.
+			// No command is enqueued for this host, so the row must not point at one.
 			payload.CommandUUID = ""
 			payload.Status = nil
 			payload.Detail = fleet.WindowsUserScopeHoldDetail
@@ -4039,9 +4014,7 @@ func applyWindowsUserScopeGate(
 			delete(batchProfileCmdsMap, target.cmdUUID)
 			continue
 		}
-		// Keep the command's payload list in step with the hosts it is actually addressed to, so the enqueue path does
-		// not advance a held host's row to "pending with a command". Membership goes through a set: a batch carries up
-		// to reconcileWindowsProfilesBatchSize hosts, and a linear scan per payload would be quadratic in that.
+		// Keep the command's payload list in step with the hosts it is actually addressed to.
 		if payloads, ok := batchProfileCmdsMap[target.cmdUUID]; ok {
 			deliverableSet := make(map[string]struct{}, len(deliverable))
 			for _, hostUUID := range deliverable {
@@ -4058,12 +4031,16 @@ func applyWindowsUserScopeGate(
 	}
 
 	if held > 0 {
-		logger.InfoContext(ctx, "windows user-scoped profiles held for user context",
+		logger.DebugContext(ctx, "windows user-scoped profiles held for user context",
 			"held", held, "profiles", len(userScopedTargets))
 	}
 	return nil
 }
 
+// executeWindowsProfileReconcileBatch runs the post-compute reconcile pipeline against the in-memory toInstall / toRemove sets
+// produced by ComputeWindowsReconcileDeltas: content fetch, deleted-profile race guard, bulk command pre-build for non-variable
+// profiles, per-host variable expansion, LocURI-protected <Delete> generation, host-profile upserts, and managed-certificate
+// bookkeeping. This is the legacy reconciler body verbatim, now invoked once per (capped) window by the drain loop above.
 func executeWindowsProfileReconcileBatch(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -4247,9 +4224,7 @@ func executeWindowsProfileReconcileBatch(
 	}
 
 	// Gate user-scoped ("./User/...") profiles on the host's MDM user context. Windows rejects those writes until the
-	// enrollment has a user context, and the failure is not retryable in any useful window: the single retry fires within
-	// ~30s, long before a user could sign in during OOBE. Held hosts are dropped from their command target here, before any
-	// command is built or any row is advanced to "pending with a command".
+	// enrollment has a user context.
 	if err := applyWindowsUserScopeGate(ctx, ds, logger, installTargets, profileContents, hostProfilesMap, batchProfileCmdsMap); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying windows user scope gate")
 	}
@@ -4717,8 +4692,7 @@ func executeWindowsProfileReconcileBatch(
 			hostProfilesForFinalUpdate = append(hostProfilesForFinalUpdate, p)
 		case p.HeldForUserContext:
 			// Held by the user-scope gate: no command was enqueued for this host, so the pending-path upsert never
-			// ran for it. Write the row here instead, otherwise the hold is invisible: the host would show pending
-			// (correct) with no indication that Fleet is waiting on a user to sign in.
+			// ran for it. Write the row here instead, otherwise the hold is invisible.
 			hostProfilesForFinalUpdate = append(hostProfilesForFinalUpdate, p)
 		}
 	}
