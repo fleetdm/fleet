@@ -19,61 +19,6 @@ import { postBridgeMessage } from "./fleetDesktopBridge";
 
 const baseClass = "device-notification-page";
 
-// TODO(#50916): Replace this mock with the real API response once the BE
-// endpoints in #50910 land. Right now the fetch 404s against `make serve`
-// because those endpoints don't exist yet, so the fallback below lets the
-// layout be previewed locally. Remove this block and the `?? TEMP_MOCK_VIEW`
-// fallback before merging.
-const TEMP_MOCK_VIEW: INotificationView = {
-  uuid: "temp-preview",
-  org_logo_url_light_mode: "/assets/images/fleet-mark-color-40x40@2x.png",
-  org_logo_url_dark_mode: "/assets/images/fleet-mark-color-40x40@2x.png",
-  title: "Save your work 💾",
-  description: "These apps will close and update in **1 hour**.",
-  items: [
-    {
-      software_title_id: 1,
-      name: "1Password 8",
-      display_name: "1Password",
-      icon_url: null,
-    },
-    {
-      software_title_id: 2,
-      name: "Slack",
-      display_name: "Slack",
-      icon_url: null,
-    },
-    {
-      software_title_id: 3,
-      name: "Docker Desktop",
-      display_name: "Docker Desktop",
-      icon_url: null,
-    },
-    {
-      software_title_id: 4,
-      name: "Google Chrome",
-      display_name: "Google Chrome",
-      icon_url: null,
-    },
-    {
-      software_title_id: 5,
-      name: "Zoom",
-      display_name: "Zoom",
-      icon_url: null,
-    },
-    {
-      software_title_id: 6,
-      name: "Microsoft Visual Studio Code — Insiders",
-      display_name: "Microsoft Visual Studio Code — Insiders",
-      icon_url: null,
-    },
-  ],
-  actions: [
-    { id: "remind", label: "Remind me in 1 hour" },
-    { id: "update_now", label: "Update now" },
-  ],
-};
-
 interface IDeviceNotificationPageParams {
   device_auth_token: string;
   notification_uuid: string;
@@ -207,11 +152,11 @@ const DeviceNotificationPage = ({
     return () => observer.disconnect();
   }, [data]);
 
-  // TODO(#50916): Replace with the real API response once #50910 lands.
-  // Remove `?? TEMP_MOCK_VIEW` and restore `if (isError || !data) return null;`
-  // above.
-  const view = data ?? TEMP_MOCK_VIEW;
+  if (isError || !data) {
+    return null;
+  }
 
+  const view = data;
   const actions = view.actions;
   const primaryAction = actions[actions.length - 1];
   const secondaryActions = actions.slice(0, -1);
