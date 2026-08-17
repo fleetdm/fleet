@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -103,6 +104,31 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotContains(t, scriptContents, "FLEET_VAR")
 	})
 
+	t.Run("orbit is told to run the notification even with scripts disabled", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-scripts-disabled")
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+
+		acr := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"server_settings": {"scripts_disabled": true}
+		}`), http.StatusOK, &acr)
+		require.True(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
+		defer func() {
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+				"server_settings": {"scripts_disabled": false}
+			}`), http.StatusOK, &appConfigResponse{})
+		}()
+
+		var orbitResp fleet.OrbitGetConfigResponse
+		s.DoJSON("POST", "/api/fleet/orbit/config",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+			http.StatusOK, &orbitResp)
+		require.Equal(t, []string{*dispatched.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
+	})
+
 	t.Run("exit 0 records displayed_at", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-exit0")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
@@ -167,7 +193,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.JSONEq(t, `{"title": "hello world"}`, string(resp.Payload))
 	})
 
-	t.Run("GET with another host's token 404s", func(t *testing.T) {
+	t.Run("another host's token 404s on both endpoints", func(t *testing.T) {
 		hostA := newNotifiableHost(t, "notif-cross-a")
 		hostB := newNotifiableHost(t, "notif-cross-b")
 		notificationUUID := newTestNotification(t, s.ds, hostA.ID, "patch", `{"title": "hello"}`)
@@ -181,6 +207,14 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 		s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", tokenB, notificationUUID),
 			nil, http.StatusNotFound)
+
+		// acting on it is scoped the same way, and leaves hostA's notification alone
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", tokenB, notificationUUID),
+			[]byte(`{"action": "delay"}`), http.StatusNotFound)
+
+		untouched := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationDispatched, untouched.Status)
+		require.Nil(t, untouched.NextAttemptAt)
 	})
 
 	t.Run("GET with an unknown uuid 404s", func(t *testing.T) {
@@ -217,6 +251,12 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, dispatched.ExecutionID)
 		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
+		// exit 0 is what marks it displayed, which is the point the patch kind
+		// counts its next attempt from
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+		displayed := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, displayed.DisplayedAt)
+
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
 			[]byte(`{"action": "delay"}`), http.StatusNoContent)
 
@@ -226,7 +266,27 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Equal(t, *dispatched.ExecutionID, *got.ExecutionID)
 		require.NotNil(t, got.LastReason)
 		require.Equal(t, notifications_api.EndUserNotificationReasonDelayed, *got.LastReason)
+		require.Nil(t, got.DisplayedAt, "the next send records its own display")
+
+		// the patch kind rejoins the hour-then-five-minutes schedule rather than
+		// starting a fresh wait
 		require.NotNil(t, got.NextAttemptAt)
+		require.WithinDuration(t, displayed.DisplayedAt.Add(55*time.Minute), *got.NextAttemptAt, time.Minute)
+
+		// one that was delayed without ever being displayed has no mark to count
+		// from, so it waits a full interval
+		neverShown := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		neverShownDispatched := getTestNotification(t, s.ds, neverShown)
+		require.NotNil(t, neverShownDispatched.ExecutionID)
+		_, neverShownToken := fetchScript(t, host, *neverShownDispatched.ExecutionID)
+
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", neverShownToken, neverShown),
+			[]byte(`{"action": "delay"}`), http.StatusNoContent)
+
+		got = getTestNotification(t, s.ds, neverShown)
+		require.NotNil(t, got.NextAttemptAt)
+		require.WithinDuration(t, time.Now().UTC().Add(notifications_api.EndUserNotificationDelayInterval), *got.NextAttemptAt, time.Minute)
 	})
 
 	t.Run("POST delay with no kind registered is a no-op", func(t *testing.T) {
@@ -285,6 +345,75 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		dispatch(t)
 		second = getTestNotification(t, s.ds, secondUUID)
 		require.NotNil(t, second.ExecutionID, "the second notification should dispatch once the first is no longer in flight")
+	})
+
+	t.Run("the queued script is in the host's upcoming queue but never its past activities", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-activities")
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+
+		// while it's queued, an admin can see it coming, attributed to Fleet
+		// rather than to a person
+		var upcoming listHostUpcomingActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &upcoming)
+		var found *fleet.UpcomingActivity
+		for _, act := range upcoming.Activities {
+			if act.Details != nil && strings.Contains(string(*act.Details), *dispatched.ExecutionID) {
+				found = act
+			}
+		}
+		require.NotNil(t, found, "the notification's script should be in the host's upcoming queue")
+		require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), found.Type)
+		require.True(t, found.FleetInitiated)
+		require.NotNil(t, found.ActorFullName)
+		require.Equal(t, "Fleet", *found.ActorFullName)
+
+		// once it runs, it leaves no trace in the past activity feed: Fleet ran
+		// this for itself, so there's no admin action to report
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+
+		var past listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &past)
+		for _, act := range past.Activities {
+			if act.Details != nil {
+				require.NotContains(t, string(*act.Details), *dispatched.ExecutionID,
+					"the notification's script should not appear in past activities")
+			}
+		}
+
+		// and it's out of the upcoming queue now that it's done
+		upcoming = listHostUpcomingActivitiesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &upcoming)
+		for _, act := range upcoming.Activities {
+			if act.Details != nil {
+				require.NotContains(t, string(*act.Details), *dispatched.ExecutionID)
+			}
+		}
+	})
+
+	t.Run("an internal script that isn't a notification reports normally", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-other-internal")
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+
+		// Fleet queues internal scripts for other reasons too, and their results
+		// run through the same outcome recording. One that isn't a notification
+		// has to pass through it rather than failing the whole result.
+		other, err := s.ds.NewInternalHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+			HostID:         host.ID,
+			ScriptContents: "echo not a notification",
+		})
+		require.NoError(t, err)
+		postScriptResult(host, other.ExecutionID, 0)
+
+		got := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationDispatched, got.Status, "the notification is untouched")
+		require.Nil(t, got.DisplayedAt)
+		require.Nil(t, got.LastExitCode)
 	})
 
 	t.Run("a host with no fresh device auth token gets no notification URL", func(t *testing.T) {

@@ -157,14 +157,19 @@ func testListEndUserNotificationsToDispatch(t *testing.T, env *testEnv) {
 		assert.Equal(t, nextUUID, due[0].UUID)
 	})
 
-	t.Run("limit bounds notifications read, dedup still applies", func(t *testing.T) {
+	t.Run("different hosts go out together, and limit caps rows read", func(t *testing.T) {
 		defer env.TruncateTables(t)
-		hostA := newDarwinHost(t, env, "dispatch-limit-a", true)
-		hostB := newDarwinHost(t, env, "dispatch-limit-b", true)
-		env.InsertNotification(t, hostA, "k", nil, nil)
-		env.InsertNotification(t, hostB, "k", nil, nil)
+		hostA := newDarwinHost(t, env, "dispatch-two-hosts-a", true)
+		hostB := newDarwinHost(t, env, "dispatch-two-hosts-b", true)
+		firstUUID := env.InsertNotification(t, hostA, "k", nil, nil)
+		secondUUID := env.InsertNotification(t, hostB, "k", nil, nil)
 
-		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 1)
+		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
+		require.NoError(t, err)
+		require.Len(t, due, 2, "one host in flight doesn't hold up another")
+		assert.ElementsMatch(t, []string{firstUUID, secondUUID}, []string{due[0].UUID, due[1].UUID})
+
+		due, err = env.ds.ListEndUserNotificationsToDispatch(ctx, 1)
 		require.NoError(t, err)
 		require.Len(t, due, 1)
 	})

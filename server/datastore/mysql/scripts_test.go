@@ -3410,4 +3410,32 @@ func testNewInternalHostScriptExecutionRequest(t *testing.T, ds *Datastore) {
 	readyUser, err := ds.ListReadyToExecuteScriptsForHost(ctx, 2, true)
 	require.NoError(t, err)
 	require.Empty(t, readyUser)
+
+	// the point of the batch path is many hosts in one call, each with its own
+	// execution ready to run
+	batchExecutionIDs, err := ds.BatchNewInternalHostScriptExecutionRequests(ctx, []uint{4, 5}, "echo batch of two")
+	require.NoError(t, err)
+	require.Len(t, batchExecutionIDs, 2)
+	require.NotEqual(t, batchExecutionIDs[4], batchExecutionIDs[5])
+	for hostID, executionID := range batchExecutionIDs {
+		ready, err := ds.ListReadyToExecuteScriptsForHost(ctx, hostID, true)
+		require.NoError(t, err)
+		require.Len(t, ready, 1)
+		require.Equal(t, executionID, ready[0].ExecutionID)
+	}
+
+	// host 3 already has one activated from above, so a second one queues behind
+	// it instead of being activated underneath it
+	secondForHost3, err := ds.BatchNewInternalHostScriptExecutionRequests(ctx, []uint{3}, "echo second for host 3")
+	require.NoError(t, err)
+	require.Len(t, secondForHost3, 1)
+
+	readyForHost3, err := ds.ListReadyToExecuteScriptsForHost(ctx, 3, true)
+	require.NoError(t, err)
+	require.Len(t, readyForHost3, 1)
+	require.NotEqual(t, secondForHost3[3], readyForHost3[0].ExecutionID)
+
+	upcomingForHost3, _, err := ds.ListHostUpcomingActivities(ctx, 3, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, upcomingForHost3, 2)
 }
