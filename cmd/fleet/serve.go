@@ -673,6 +673,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			BatchSize: config.WebSocket.CheckBatchSize,
 			Logger:    logger.With("component", "agentws-interval-checker"),
 		}).Run(ctx)
+		// Keep WebSocket-connected hosts "online": the transport removes
+		// osquery's 10s distributed/read poll, which is what used to keep
+		// seen_time fresh. 30s stays comfortably inside the smallest online
+		// window Fleet computes (min interval + 60s buffer). Uses the same
+		// batched last-seen path the polling auth used.
+		go agentws.RecordSeenLoop(ctx, agentWSHub, task, 30*time.Second,
+			logger.With("component", "agentws-seen"))
 	}
 
 	// Trace sampler runtime control. The poller re-reads trace_sampler_settings every 60s and atomically swaps the sampler's
