@@ -123,3 +123,56 @@ func TestPolicySpecVerifyFleetMaintainedAppSlug(t *testing.T) {
 		})
 	}
 }
+
+func TestResolvePolicyResendProfile(t *testing.T) {
+	testCases := []struct {
+		name        string
+		profileUUID *string
+		want        resendProfile
+		wantErr     bool
+	}{
+		{
+			name:        "nil UUID",
+			profileUUID: nil,
+			want:        resendProfile{},
+		},
+		{
+			name:        "empty UUID",
+			profileUUID: new(""),
+			want:        resendProfile{},
+		},
+		{
+			name:        "Apple profile UUID",
+			profileUUID: new(MDMAppleProfileUUIDPrefix + "1234"),
+			want: resendProfile{
+				AppleUUID: new(MDMAppleProfileUUIDPrefix + "1234"),
+				Table:     "mdm_apple_configuration_profiles",
+			},
+		},
+		{
+			name:        "Windows profile UUID",
+			profileUUID: new(MDMWindowsProfileUUIDPrefix + "5678"),
+			want: resendProfile{
+				WindowsUUID: new(MDMWindowsProfileUUIDPrefix + "5678"),
+				Table:       "mdm_windows_configuration_profiles",
+			},
+		},
+		{
+			name:        "Apple declaration UUID",
+			profileUUID: new(MDMAppleDeclarationUUIDPrefix + "abcd"),
+			wantErr:     true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ResolvePolicyResendProfile(t.Context(), tc.profileUUID)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

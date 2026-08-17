@@ -40,7 +40,8 @@ const policyCols = `
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
 	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type,
-	p.patch_software_title_id, p.continuous_automations_enabled, p.patch_when_closed
+	p.patch_software_title_id, p.continuous_automations_enabled, p.patch_when_closed,
+	p.resend_apple_profile_uuid, p.resend_windows_profile_uuid
 `
 
 const (
@@ -59,6 +60,7 @@ const (
 var (
 	errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be only be set on team policies")
 	errScriptIDOnGlobalPolicy        = errors.New("run script id can only be set on team or \"no team\" policies")
+	errProfileUUIDOnGlobalPolicy     = errors.New("resend configuration profile can only be set on team policies")
 )
 
 var policySearchColumns = []string{"p.name"}
@@ -101,6 +103,9 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	}
 	if args.ScriptID != nil {
 		return nil, ctxerr.Wrap(ctx, errScriptIDOnGlobalPolicy, "create policy")
+	}
+	if args.ProfileUUID != nil {
+		return nil, ctxerr.Wrap(ctx, errProfileUUIDOnGlobalPolicy, "create policy")
 	}
 	if args.QueryID != nil {
 		q, err := query(ctx, db, *args.QueryID)
@@ -317,7 +322,7 @@ func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error)
 
 func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint) (*fleet.Policy, error) {
 	teamWhere := "TRUE"
-	args := []interface{}{id}
+	args := []any{id}
 	if teamID != nil {
 		teamWhere = "team_id = ?"
 		args = append(args, *teamID)
@@ -404,9 +409,19 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 	if p.TeamID == nil && p.ScriptID != nil {
 		return ctxerr.Wrap(ctx, errScriptIDOnGlobalPolicy, "save policy")
 	}
+	if p.TeamID == nil && (p.ResendAppleProfileUUID != nil || p.ResendWindowsProfileUUID != nil) {
+		return ctxerr.Wrap(ctx, errProfileUUIDOnGlobalPolicy, "save policy")
+	}
 
 	if p.TeamID != nil {
-		if err := assertTeamMatches(ctx, db, *p.TeamID, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID); err != nil {
+		if p.ResendAppleProfileUUID != nil && p.ResendWindowsProfileUUID != nil {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "Can only set one of resend_apple_profile_uuid or resend_windows_profile_uuid"}, "save policy")
+		}
+		profileUUID := p.ResendAppleProfileUUID
+		if profileUUID == nil {
+			profileUUID = p.ResendWindowsProfileUUID
+		}
+		if err := assertTeamMatches(ctx, db, *p.TeamID, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, profileUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "save policy")
 		}
 	}
@@ -419,11 +434,16 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 			platforms = ?, critical = ?, calendar_events_enabled = ?,
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
 			conditional_access_enabled = ?, continuous_automations_enabled = ?, patch_when_closed = ?,
+			resend_apple_profile_uuid = ?, resend_windows_profile_uuid = ?,
 			checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ContinuousAutomationsEnabled, p.PatchWhenClosed, p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform,
+		p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID,
+		p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ContinuousAutomationsEnabled,
+		p.PatchWhenClosed, p.ResendAppleProfileUUID, p.ResendWindowsProfileUUID,
+		p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -501,7 +521,10 @@ func resetPolicyAutomationAttempts(ctx context.Context, db sqlx.ExecerContext, p
 	return nil
 }
 
-func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
+func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
+	softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint,
+	profileUUID *string,
+) error {
 	if softwareInstallerID != nil {
 		var softwareInstallerTeamID uint
 		// Use FOR UPDATE to acquire an exclusive lock on the software_installer row early in the transaction.
@@ -560,6 +583,40 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 				Message: fmt.Sprintf("Script with ID %d does not belong to team ID %d", *scriptID, teamID),
 			})
 		}
+	}
+
+	if profileUUID != nil {
+		if err := assertProfileTeamMatches(ctx, db, teamID, *profileUUID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// assertProfileTeamMatches verifies that the configuration profile exists and
+// belongs to the given team (0 for "No team").
+func assertProfileTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, profileUUID string) error {
+	prof, err := fleet.ResolvePolicyResendProfile(ctx, &profileUUID)
+	if err != nil {
+		return err
+	}
+
+	var profileTeamID uint
+	// Lock the configuration profile row as well, to maintain the consistent lock
+	// ordering described above.
+	stmt := fmt.Sprintf("SELECT team_id FROM %s WHERE profile_uuid = ? FOR UPDATE", prof.Table)
+	if err := sqlx.GetContext(ctx, db, &profileTeamID, stmt, profileUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Configuration profile with UUID %s does not exist", profileUUID),
+			})
+		}
+		return ctxerr.Wrap(ctx, err, "querying configuration profile for policy team matching")
+	} else if profileTeamID != teamID {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("Configuration profile with UUID %s does not belong to team ID %d", profileUUID, teamID),
+		})
 	}
 
 	return nil
@@ -1043,7 +1100,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
 
 // CountPolicies returns the total number of team policies.
 // If teamID is nil, it returns the total number of global policies.
-func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string, platform string) (int, error) {
+func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType fleet.PolicyAutomationType, platform string) (int, error) {
 	var (
 		query string
 		args  []interface{}
@@ -1086,7 +1143,7 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 	return count, nil
 }
 
-func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string, platform string) (int, error) {
+func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType fleet.PolicyAutomationType, platform string) (int, error) {
 	var args []interface{}
 
 	query := `SELECT count(*) FROM policies p WHERE (p.team_id = ? OR p.team_id IS NULL)`
@@ -1400,7 +1457,12 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
 
-	if err := assertTeamMatches(ctx, db, teamID, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID); err != nil {
+	if err := assertTeamMatches(ctx, db, teamID, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID, args.ProfileUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create team policy")
+	}
+
+	resendProf, err := fleet.ResolvePolicyResendProfile(ctx, args.ProfileUUID)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
@@ -1410,13 +1472,15 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
 				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum,
-				type, patch_software_title_id, continuous_automations_enabled, patch_when_closed
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?)`,
+				type, patch_software_title_id, continuous_automations_enabled, patch_when_closed,
+				resend_apple_profile_uuid, resend_windows_profile_uuid
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
 		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
 		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID, args.ContinuousAutomationsEnabled, args.PatchWhenClosed,
+		resendProf.AppleUUID, resendProf.WindowsUUID,
 	)
 	switch {
 	case err == nil:
@@ -1454,7 +1518,7 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	return policyDB(ctx, db, policyID, &teamID)
 }
 
-func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType string, platform string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType fleet.PolicyAutomationType, platform string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	filterClause, filterArgs, err := ds.createAutomationClause(ctx, automationType, teamID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build automation filter clause")
@@ -1477,7 +1541,7 @@ func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fle
 	return teamPolicies, inheritedPolicies, err
 }
 
-func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType string, platform string) ([]*fleet.Policy, error) {
+func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType fleet.PolicyAutomationType, platform string) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	automationFilter, filterArgs, err := ds.createAutomationClause(ctx, automationType, teamID)
@@ -1597,7 +1661,13 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	}
 
 	// Get software installer ids + VPP apps teams IDs from software title IDs.
+	// Validate profile not being set on global policies
 	for _, spec := range specs {
+
+		// Checked here rather than in assertTeamMatches, which this path never reaches.
+		if spec.ProfileUUID != nil && *spec.ProfileUUID != "" && spec.Team == "" {
+			return ctxerr.Wrap(ctx, errProfileUUIDOnGlobalPolicy, "create policy from spec")
+		}
 
 		if spec.FleetMaintainedAppSlug != "" {
 			var fmaTitleID *uint
@@ -1664,13 +1734,15 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 	// Get the query and platforms of the current policies so that we can check if the query or platform changed later, if needed
 	type policyLite struct {
-		Name                       string `db:"name"`
-		Query                      string `db:"query"`
-		Platforms                  string `db:"platforms"`
-		SoftwareInstallerID        *uint  `db:"software_installer_id"`
-		VPPAppsTeamsID             *uint  `db:"vpp_apps_teams_id"`
-		ScriptID                   *uint  `db:"script_id"`
-		NeedsFullMembershipCleanup bool   `db:"needs_full_membership_cleanup"`
+		Name                       string  `db:"name"`
+		Query                      string  `db:"query"`
+		Platforms                  string  `db:"platforms"`
+		SoftwareInstallerID        *uint   `db:"software_installer_id"`
+		VPPAppsTeamsID             *uint   `db:"vpp_apps_teams_id"`
+		ScriptID                   *uint   `db:"script_id"`
+		ResendAppleProfileUUID     *string `db:"resend_apple_profile_uuid"`
+		ResendWindowsProfileUUID   *string `db:"resend_windows_profile_uuid"`
+		NeedsFullMembershipCleanup bool    `db:"needs_full_membership_cleanup"`
 	}
 	teamIDToPoliciesByName := make(map[*uint]map[string]policyLite, len(teamIDToPolicies))
 	for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1681,13 +1753,13 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		}
 
 		var query string
-		var args []interface{}
+		var args []any
 		var err error
 		if teamID == nil {
-			query, args, err = sqlx.In("SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id, needs_full_membership_cleanup FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
+			query, args, err = sqlx.In("SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id, resend_apple_profile_uuid, resend_windows_profile_uuid, needs_full_membership_cleanup FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
 		} else {
 			query, args, err = sqlx.In(
-				"SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id, needs_full_membership_cleanup FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
+				"SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id, resend_apple_profile_uuid, resend_windows_profile_uuid, needs_full_membership_cleanup FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
 			)
 		}
 		if err != nil {
@@ -1728,8 +1800,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			type,
 			patch_software_title_id,
 			continuous_automations_enabled,
-			patch_when_closed
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?)
+			patch_when_closed,
+			resend_apple_profile_uuid,
+			resend_windows_profile_uuid
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1745,7 +1819,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			type = VALUES(type),
 			patch_software_title_id = VALUES(patch_software_title_id),
 			continuous_automations_enabled = VALUES(continuous_automations_enabled),
-			patch_when_closed = VALUES(patch_when_closed)
+			patch_when_closed = VALUES(patch_when_closed),
+			resend_apple_profile_uuid = VALUES(resend_apple_profile_uuid),
+			resend_windows_profile_uuid = VALUES(resend_windows_profile_uuid)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1763,6 +1839,19 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				scriptID := spec.ScriptID
 				if spec.ScriptID != nil && *spec.ScriptID == 0 {
 					scriptID = nil
+				}
+
+				resendProf, err := fleet.ResolvePolicyResendProfile(ctx, spec.ProfileUUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "apply policy specs")
+				}
+				if resendProf.AppleUUID != nil || resendProf.WindowsUUID != nil {
+					// This path never reaches assertTeamMatches, so check the profile's
+					// team here. teamID is non-nil: global specs carrying a profile UUID
+					// were rejected above.
+					if err := assertProfileTeamMatches(ctx, tx, *teamID, *spec.ProfileUUID); err != nil {
+						return ctxerr.Wrap(ctx, err, "apply policy specs")
+					}
 				}
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
@@ -1825,6 +1914,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
 					spec.Type, patchSoftwareTitleIDArg, spec.ContinuousAutomationsEnabled, spec.PatchWhenClosed,
+					resendProf.AppleUUID, resendProf.WindowsUUID,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -1841,13 +1931,19 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					shouldUpdatePatchPolicyName      bool
 				)
 				if insertOnDuplicateDidInsertOrUpdate(res) {
-					// Figure out if the query, platform, software installer, VPP app, or script changed.
+					// Figure out if the query, platform, software installer, VPP app, script or config profile changed.
 					if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
 						switch {
 						case prev.Query != spec.Query:
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
 						case teamID != nil && softwareInstallerID != nil && !ptr.Equal(prev.SoftwareInstallerID, softwareInstallerID):
+							shouldRemoveAllPolicyMemberships = true
+							removePolicyStats = true
+						case teamID != nil && resendProf.AppleUUID != nil && !ptr.Equal(prev.ResendAppleProfileUUID, resendProf.AppleUUID):
+							shouldRemoveAllPolicyMemberships = true
+							removePolicyStats = true
+						case teamID != nil && resendProf.WindowsUUID != nil && !ptr.Equal(prev.ResendWindowsProfileUUID, resendProf.WindowsUUID):
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
 						case teamID != nil && vppAppsTeamsID != nil && !ptr.Equal(prev.VPPAppsTeamsID, vppAppsTeamsID):
@@ -3008,9 +3104,9 @@ func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID u
 	return &policy, nil
 }
 
-func (ds *Datastore) createAutomationClause(ctx context.Context, automationType string, teamID uint) (string, []any, error) {
+func (ds *Datastore) createAutomationClause(ctx context.Context, automationType fleet.PolicyAutomationType, teamID uint) (string, []any, error) {
 	// TODO: improve filtering by "other"
-	if automationType == "other" {
+	if automationType == fleet.PolicyAutomationTypeOther {
 		team, err := ds.TeamLite(ctx, teamID)
 		if err != nil {
 			return "", nil, ctxerr.Wrap(ctx, err, "getting team config")
@@ -3029,14 +3125,16 @@ func (ds *Datastore) createAutomationClause(ctx context.Context, automationType 
 	}
 
 	switch automationType {
-	case "software":
+	case fleet.PolicyAutomationTypeSoftware:
 		return " AND (p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL OR p.type = 'patch')", nil, nil
-	case "scripts":
+	case fleet.PolicyAutomationTypeScripts:
 		return " AND p.script_id IS NOT NULL", nil, nil
-	case "calendar":
+	case fleet.PolicyAutomationTypeCalendar:
 		return " AND p.calendar_events_enabled = true", nil, nil
-	case "conditional_access":
+	case fleet.PolicyAutomationTypeConditionalAccess:
 		return " AND p.conditional_access_enabled = true", nil, nil
+	case fleet.PolicyAutomationTypeProfiles:
+		return " AND (p.resend_apple_profile_uuid IS NOT NULL OR p.resend_windows_profile_uuid IS NOT NULL)", nil, nil
 	}
 	return "", nil, nil
 }

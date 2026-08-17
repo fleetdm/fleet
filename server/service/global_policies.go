@@ -149,7 +149,7 @@ func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string, p
 		return 0, ctxerr.Wrap(ctx, err)
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, "", platform)
+	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, fleet.PolicyAutomationTypeNone, platform)
 	if err != nil {
 		return 0, err
 	}
@@ -293,7 +293,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		pIDs[id] = struct{}{}
 	}
 	for _, teamID := range teamIDs {
-		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, fleet.PolicyAutomationTypeNone, "")
 		if err != nil {
 			return err
 		}
