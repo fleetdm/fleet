@@ -92,6 +92,10 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, fleet.ErrMissingLicense
 	}
 
+	if tp.ProfileUUID != nil && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
 	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, slices.Concat(tp.LabelsIncludeAny, tp.LabelsIncludeAll, tp.LabelsExcludeAny, tp.LabelsExcludeAll), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
@@ -712,6 +716,10 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 
 	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0 || len(p.LabelsIncludeAny) > 0 || len(p.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	if p.ProfileUUID.Set && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 
