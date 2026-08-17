@@ -10352,7 +10352,7 @@ _Available in Fleet Premium_
       "id": 1337
     },
     "resend_configuration_profile": {
-      "profile_id": 5,
+      "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
       "name": "Passcode requirements"
     }
   }
@@ -10521,7 +10521,7 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
       "id": 1337
     },
     "resend_configuration_profile": {
-      "profile_id": 5,
+      "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
       "name": "Passcode requirements"
     }
   }
@@ -10757,7 +10757,7 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
       "id": 1337
     },
     "resend_configuration_profile": {
-      "profile_id": 5,
+      "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
       "name": "Passcode requirements"
     }
   }
