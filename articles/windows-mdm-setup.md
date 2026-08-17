@@ -114,7 +114,7 @@ In order to connect Fleet to Entra, the IT admin (you) needs a Microsoft Enterpr
 
 9. Select or create a test user and select **Licenses**.
 
-10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune license.
+10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3** license. Assign the test user a **Microsoft Entra ID P1** license. End users don't need an Intune license to enroll in Fleet.
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
@@ -199,7 +199,7 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 2. In the left-side bar, select **Devices > Windows** (under **By platform**). Then select **Enrollment** under **Device onboarding**. Under **Windows Autopilot** select **Deployment Profiles** to navigate to the **Windows Autopilot deployment profiles** page.
 
-3. Select **+ Create profile > Windows PC** and follow steps to create an Autopilot profile. On the **Assignments** step, select **+ Add all devices**.
+3. Select **+ Create profile > Windows PC** and follow steps to create an Autopilot profile. On the **Out-of-box experience (OOBE)** page, set **User account type** to **Standard** if you don't want the first end user to be a local administrator. See [Force a standard user account](#force-a-standard-user-account) below. On the **Assignments** step, select **+ Add all devices**.
 
 ### Step 2: Register a test workstation
 
@@ -228,6 +228,97 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 1. Wipe your test workstation.
 
 2. After it's been wiped, open your workstation and follow the setup steps. On the screen in which you're asked to sign in, you should see the title "Welcome to [your organization]!" next to the logo you uploaded in step 4.
+
+<!--
+MAINTENANCE: Force a standard user account
+
+Screenshots: take Fleet's own. Do not embed or hotlink images from learn.microsoft.com.
+Learn article text is CC BY, but the images generally are not, and Microsoft applies
+separate permissions rules to screenshots of their software. Learn image paths also
+change without notice.
+
+The three Microsoft pages this section depends on are linked in the visible copy, so
+readers can verify the licensing claims themselves. Keep them there. Note that the
+older /autopilot/licensing-requirements page was folded into
+/autopilot/requirements?tabs=licensing, so older references elsewhere may be stale.
+
+The Licensing subsection rests on three Microsoft statements. If any change, rewrite
+that subsection rather than patching it, and escalate, because customers use it to
+make purchasing decisions:
+1. "Microsoft Entra ID P1 or P2 and Microsoft Intune subscription or an alternative
+   MDM service" is a supported combination.
+2. The note about assigning Intune licenses to users is scoped to enrolling devices
+   in Intune. Microsoft narrowed this wording; it previously read as unconditional.
+3. Unlicensed admin access to the Intune admin center is on by default for tenants
+   created after July 2021.
+
+Related:
+- Request: https://github.com/fleetdm/fleet/issues/50713
+- Product story this does not close: https://github.com/fleetdm/fleet/issues/43490
+-->
+
+### Force a standard user account
+
+By default, Windows makes the first person who signs in to a new device a local administrator. A standard user account limits what someone can install, change, or disable, which reduces the blast radius of a compromised account.
+
+Fleet can't change this after the fact. Windows sets the first account's privilege level during the out-of-box experience (OOBE), before the device enrolls in any MDM. Autopilot runs at that point, so the Autopilot deployment profile is where you set it.
+
+Autopilot and MDM enrollment are separate steps. The device contacts the Windows Autopilot deployment service during OOBE and receives its deployment profile, which controls the account type. Only then does it join Microsoft Entra ID and enroll in the MDM you configured under **Mobility (MDM and MAM)**. Autopilot is a Microsoft Entra ID feature, not an Intune feature. Intune is the console where you author the profile. The account type is applied before Fleet is involved, so it works the same whether the device enrolls in Fleet or another MDM.
+
+#### Set the user account type
+
+1. Sign in to the [Microsoft Intune admin center](https://intune.microsoft.com/) and open the deployment profile you created in Step 1 above.
+2. On the **Out-of-box experience (OOBE)** page, set **User account type** to **Standard**. Leave **Deployment mode** set to **User-driven** and **Join to Microsoft Entra ID as** set to **Microsoft Entra joined**.
+3. Save the profile.
+
+<!--
+SCREENSHOT (required, pending)
+File: website/assets/images/articles/windows-mdm-setup-autopilot-user-account-type-1600x900@2x.png
+Capture: Autopilot deployment profile, Out-of-box experience (OOBE) page.
+Frame: Deployment mode, Join to Microsoft Entra ID as, and User account type in one shot.
+Highlight: User account type set to Standard.
+Redact: tenant name, admin UPN, profile name if it identifies a customer.
+-->
+
+Microsoft documents every setting on that page in [Configure Autopilot profiles](https://learn.microsoft.com/en-us/autopilot/profiles).
+
+Use user-driven mode. Self-deploying mode and pre-provisioning enroll the device without a user signing in, which Fleet doesn't support.
+
+Edit your existing profile rather than creating a second one. Where a device group is assigned more than one profile, Autopilot applies the oldest profile, which is difficult to troubleshoot.
+
+#### Verify
+
+Reset the device, boot it into OOBE, and sign in as an end user. After setup finishes, open a command prompt and run:
+
+```
+net localgroup administrators
+```
+
+The signed-in user should not appear in the output.
+
+<!--
+SCREENSHOT (required, pending)
+File: website/assets/images/articles/windows-mdm-setup-autopilot-standard-account-1600x900@2x.png
+Capture: Command prompt showing net localgroup administrators output.
+Frame: Include the command and full member list so the signed-in user is visibly absent.
+Redact: hostname and UPN if they identify a tenant.
+-->
+
+#### Licensing
+
+Each end user who signs in during Autopilot needs a Microsoft Entra ID P1 or P2 license, as described in Step 1 above. End users don't need a Microsoft Intune license. Microsoft's [Autopilot licensing requirements](https://learn.microsoft.com/en-us/autopilot/requirements?tabs=licensing) list Entra ID P1 or P2 plus an Intune subscription or an alternative MDM service as a supported combination. Fleet is the alternative MDM service.
+
+Autopilot deployment profiles are created in the Microsoft Intune admin center, so your organization needs an Intune subscription in the tenant. That subscription doesn't need to be assigned to anyone. Intune allows administrators to sign in and manage without an assigned license, and this is on by default for tenants created after July 2021. Tenants created before July 2021 turn it on under **Tenant administration > Roles > Administrator Licensing**. Microsoft covers the details and the limits in [Unlicensed administrator access](https://learn.microsoft.com/en-us/intune/fundamentals/licensing/unlicensed-admins). The setting can't be undone, so confirm with whoever owns your tenant before you change it.
+
+#### What this doesn't cover
+
+**Existing devices are unaffected.** Autopilot profile settings apply during OOBE. Changing the profile doesn't demote accounts on devices that are already enrolled. Microsoft applies the updated profile only after the device is reset and enrolled again.
+
+**Unregistered devices still create an administrator.** A device that isn't registered with Autopilot can still enroll in Fleet through **Settings > Access work or school**, as described in the manual enrollment instructions above. That path doesn't run a deployment profile, so the account is a local administrator. Register every device with Autopilot and confirm each reaches a **Profile status** of **Assigned**.
+
+**Autopilot device preparation isn't supported.** Windows Autopilot device preparation, sometimes called Autopilot v2, can only be configured through Intune and doesn't work with Fleet. Microsoft has said it will support non-Microsoft MDMs in future. Use classic Autopilot, described above.
+
+**Plan for elevation.** Standard users can't install software or change protected settings. Install software centrally with [software management](https://fleetdm.com/guides/deploy-software-packages), and use the [Windows setup experience](https://fleetdm.com/guides/windows-linux-setup-experience) to install what end users need at enrollment.
 
 
 ## Automatic Windows MDM migration
@@ -291,6 +382,6 @@ The Autopilot service may need a few minutes to sync after the device record cle
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2023-10-23">
+<meta name="publishedOn" value="2026-08-17">
 <meta name="articleImageUrl" value="../website/assets/images/articles/windows-mdm-fleet-1600x900@2x.png">
 <meta name="description" value="Configuring Windows MDM in Fleet.">
