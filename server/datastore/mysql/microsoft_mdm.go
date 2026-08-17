@@ -11,8 +11,8 @@ import (
 	"io"
 	"strings"
 	"time"
-	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -114,10 +114,7 @@ func (ds *Datastore) SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enr
 
 // GetMDMWindowsUserContextByHostUUID returns, for each of the given hosts, the enrollment facts the user-scoped profile gate
 // needs: the enrolled user identity and the last observed LoginStatus. Hosts with no Windows MDM enrollment are absent from
-// the result.
-//
-// A host can accumulate several enrollment rows (re-enrollment, hardware ID reuse), so this takes the newest per host, the
-// same row MDMWindowsGetEnrolledDeviceWithDeviceID would resolve to.
+// the result. A host can accumulate several enrollment rows. This takes the newest row per host.
 func (ds *Datastore) GetMDMWindowsUserContextByHostUUID(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error) {
 	if len(hostUUIDs) == 0 {
 		return map[string]fleet.WindowsEnrollmentUserContext{}, nil
@@ -753,32 +750,6 @@ func (ds *Datastore) MDMWindowsBulkInsertCommands(ctx context.Context, cmds []*f
 // entry insertion. It is done in batches for performance reasons and the command itself is inserted before the batches begin. It need not be one big tranasaction
 // as long as a given host's command queue entry and host profile entry are inserted in the same transaction. Note that unlike the insert command function below
 // this does not work with device IDs, only host UUIDs
-// maxMDMWindowsProfileDetailLen is the byte capacity of host_mdm_windows_profiles.detail, a TEXT column.
-const maxMDMWindowsProfileDetailLen = 65535
-
-// truncateMDMWindowsProfileDetail clips a profile detail to what the column can hold.
-//
-// A detail carries one "<LocURI>: status <code>" entry per command in the profile, and an Atomic reports every sibling
-// command even when only one of them failed, so the string grows with the size of the profile rather than with the number
-// of problems. At roughly 120 bytes per entry, a profile with a few hundred settings fills the column.
-//
-// That matters because MySQL runs in STRICT_TRANS_TABLES: an oversized write errors instead of truncating, which fails the
-// enclosing transaction, leaves the command result unrecorded, and gets the command redelivered to produce the same error
-// again. Clipping here keeps one large profile from wedging a host's session.
-//
-// The cut lands on a rune boundary so the stored value stays valid utf8mb4.
-func truncateMDMWindowsProfileDetail(detail string) string {
-	if len(detail) <= maxMDMWindowsProfileDetailLen {
-		return detail
-	}
-	const marker = "... (truncated)"
-	cut := maxMDMWindowsProfileDetailLen - len(marker)
-	for cut > 0 && !utf8.RuneStart(detail[cut]) {
-		cut--
-	}
-	return detail[:cut] + marker
-}
-
 func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 	if len(hostUUIDs) == 0 {
 		return nil
@@ -795,6 +766,14 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 	}
 
 	return ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, hostUUIDs, cmd, payload)
+}
+
+// maxMDMWindowsProfileDetailLen is the byte capacity of host_mdm_windows_profiles.detail, a TEXT column.
+const maxMDMWindowsProfileDetailLen = 65535
+
+// truncateMDMWindowsProfileDetail clips a profile detail to what the DB column can hold.
+func truncateMDMWindowsProfileDetail(detail string) string {
+	return str.TruncateBytes(detail, maxMDMWindowsProfileDetailLen, "... (truncated)")
 }
 
 // MDMWindowsEnqueueCommandAndUpsertHostProfiles enqueues a command for hosts
@@ -1557,13 +1536,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 
 			case payload.UserChannelRejected && userContextState == fleet.WindowsUserContextCanArrive:
 				// The device rejected a user-channel write while it has no MDM user context yet. That is not a
-				// failure of the profile, it is Fleet having sent it too early, so it must not spend the retry
-				// budget: the retry fires within ~30s, long before a user could sign in during OOBE.
-				//
-				// The exemption is keyed on the enrollment state rather than the status code, because no status
-				// code means "missing user context" on its own: 405 is also what an unsupported CSP node returns
-				// on a device that does have a user signed in. Once the enrollment reports a signed-in user, the
-				// state is no longer CanArrive and the normal accounting below applies.
+				// failure of the profile, it is Fleet having sent it too early.
 				//
 				// A NULL status returns the row to the reconciler, which now holds it behind the same user-context
 				// gate instead of re-sending it.

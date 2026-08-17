@@ -15,7 +15,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -4492,39 +4491,20 @@ func TestCompressWindowsMDMResponse(t *testing.T) {
 	})
 }
 
-// testUserChannelRetryAccounting covers the rule that a user-channel rejection must not spend the profile's retry budget
-// while Fleet is still waiting for a user context that can arrive, and must spend it once the user is actually signed in.
+// TestTruncateMDMWindowsProfileDetail covers the one thing specific to this wrapper: the cap is the TEXT column's budget in
+// bytes. str.TruncateBytes owns rune-boundary safety, the marker, and the edge cases, and pkg/str tests those.
+//
+// Multi-byte input is what makes this a real check. Capping the same number of multi-byte runes by character count would
+// return several times the byte budget and still overflow the column, so an ASCII-only case would not catch that mistake.
 func TestTruncateMDMWindowsProfileDetail(t *testing.T) {
 	t.Parallel()
 
-	t.Run("short detail is untouched", func(t *testing.T) {
-		detail := "./User/Vendor/MSFT/Policy/Config/A: status 500"
-		require.Equal(t, detail, truncateMDMWindowsProfileDetail(detail))
-	})
-
-	t.Run("detail at the column limit is untouched", func(t *testing.T) {
-		detail := strings.Repeat("a", maxMDMWindowsProfileDetailLen)
-		require.Equal(t, detail, truncateMDMWindowsProfileDetail(detail))
-	})
-
-	t.Run("oversized detail fits the column", func(t *testing.T) {
-		got := truncateMDMWindowsProfileDetail(strings.Repeat("a", maxMDMWindowsProfileDetailLen+1000))
-		require.LessOrEqual(t, len(got), maxMDMWindowsProfileDetailLen)
-		require.True(t, strings.HasSuffix(got, "(truncated)"))
-	})
-
-	t.Run("multi-byte runes are not split", func(t *testing.T) {
-		// A cut landing mid-rune would store invalid utf8mb4, which MySQL rejects with the same class of error the
-		// truncation exists to avoid.
-		for pad := 0; pad < 4; pad++ {
-			detail := strings.Repeat("x", pad) + strings.Repeat("é", maxMDMWindowsProfileDetailLen)
-			got := truncateMDMWindowsProfileDetail(detail)
-			require.LessOrEqual(t, len(got), maxMDMWindowsProfileDetailLen)
-			require.True(t, utf8.ValidString(got), "pad %d produced invalid utf8", pad)
-		}
-	})
+	got := truncateMDMWindowsProfileDetail(strings.Repeat("é", maxMDMWindowsProfileDetailLen))
+	require.LessOrEqual(t, len(got), maxMDMWindowsProfileDetailLen)
 }
 
+// testUserChannelRetryAccounting covers the rule that a user-channel rejection must not spend the profile's retry budget
+// while Fleet is still waiting for a user context that can arrive, and must spend it once the user is actually signed in.
 func testUserChannelRetryAccounting(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
