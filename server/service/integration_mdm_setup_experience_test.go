@@ -3001,6 +3001,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	// For verifying number of installs
 	installedApps := make(map[string]int, totalAppsToInstall)
 	var inHouseInstallCount int
+	// Index of the entry withheld from the first InstalledApplicationList to
+	// prove release waits for verification. Pinned to a VPP entry so the
+	// coverage doesn't depend on the order install commands arrive in a mixed
+	// VPP + in-house payload; -1 falls back to the last reported entry.
+	withheldAppIdx := -1
 
 	var installProfileCount, installAppCount, refetchVerifyCount, otherCount int
 	var profileCustomSeen, profileFleetCASeen, unexpectedProfileSeen bool
@@ -3049,6 +3054,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 					if app.AdamID == fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID) {
 						reportedInstalledApps = append(reportedInstalledApps, fleet.Software{BundleIdentifier: app.BundleIdentifier, Name: app.Name, Version: app.LatestVersion, Installed: true})
 						installedApps[app.AdamID]++
+						withheldAppIdx = len(reportedInstalledApps) - 1
 					}
 				}
 			} else {
@@ -3082,9 +3088,13 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 			// If we are polling to verify the install, we should get an
 			// InstalledApplicationList command instead of an InstallApplication command.
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			// Hold off on verifying the last install until later so we can ensure it waits for verification
+			// Hold off on verifying one install until later so we can ensure it waits for verification
+			holdIdx := withheldAppIdx
+			if holdIdx == -1 {
+				holdIdx = len(reportedInstalledApps) - 1
+			}
 			if len(reportedInstalledApps) == totalAppsToInstall {
-				reportedInstalledApps[len(reportedInstalledApps)-1].Installed = false
+				reportedInstalledApps[holdIdx].Installed = false
 			}
 			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(
 				mdmDevice.UUID,
@@ -3092,7 +3102,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 				reportedInstalledApps,
 			)
 			// flip the status back for later
-			reportedInstalledApps[len(reportedInstalledApps)-1].Installed = true
+			reportedInstalledApps[holdIdx].Installed = true
 			require.NoError(t, err)
 			// TODO: We don't actually normally get a command back from the acknowledgement of the InstalledAppList
 			// but we'll get additional install commands if we follow it up with an idle. Is this a bug? I think it
