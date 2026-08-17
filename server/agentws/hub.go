@@ -41,9 +41,9 @@ func NewHub(logger *slog.Logger, pingInterval, pongTimeout time.Duration) *Hub {
 // ServeConn registers ws as the connection for hostID and services it until
 // the peer disconnects or fails a keepalive check. It blocks (running the read
 // loop) and is meant to be called from the upgrade handler's goroutine.
-// platform is the host's platform (e.g. "darwin"), carried for observability.
-func (h *Hub) ServeConn(hostID uint, platform string, ws *websocket.Conn) {
-	c := newConn(hostID, platform, ws)
+// hostname and platform describe the host, carried for observability.
+func (h *Hub) ServeConn(hostID uint, hostname, platform string, ws *websocket.Conn) {
+	c := newConn(hostID, hostname, platform, ws)
 	h.register(hostID, c)
 	go c.writeLoop(h.pingInterval, h.pongTimeout)
 	c.readLoop(h, h.pingInterval, h.pongTimeout)
@@ -139,6 +139,7 @@ func (h *Hub) ConnCount() int {
 // /debug/agentws endpoint).
 type ConnectionInfo struct {
 	HostID         uint       `json:"host_id"`
+	Hostname       string     `json:"hostname"`
 	Platform       string     `json:"platform"`
 	RemoteAddr     string     `json:"remote_addr"`
 	ConnectedAt    time.Time  `json:"connected_at"`
@@ -159,6 +160,7 @@ func (h *Hub) Snapshot() []ConnectionInfo {
 	for _, c := range h.conns {
 		info := ConnectionInfo{
 			HostID:        c.hostID,
+			Hostname:      c.hostname,
 			Platform:      c.platform,
 			RemoteAddr:    c.remoteAddr,
 			ConnectedAt:   c.connectedAt,

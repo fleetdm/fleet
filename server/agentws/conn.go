@@ -21,6 +21,7 @@ const sendBufferSize = 8
 
 type conn struct {
 	hostID      uint
+	hostname    string
 	platform    string
 	ws          *websocket.Conn
 	send        chan fleet.AgentWSMessage
@@ -45,9 +46,10 @@ type conn struct {
 	counting *countingConn
 }
 
-func newConn(hostID uint, platform string, ws *websocket.Conn) *conn {
+func newConn(hostID uint, hostname, platform string, ws *websocket.Conn) *conn {
 	c := &conn{
 		hostID:      hostID,
+		hostname:    hostname,
 		platform:    platform,
 		ws:          ws,
 		send:        make(chan fleet.AgentWSMessage, sendBufferSize),

@@ -74,7 +74,7 @@ func NewHandler(hub *Hub, auth HostAuthenticator, logger *slog.Logger, countByte
 		}
 
 		logger.DebugContext(ctx, "agent websocket connected", "host_id", host.ID)
-		hub.ServeConn(host.ID, host.Platform, ws)
+		hub.ServeConn(host.ID, host.Hostname, host.Platform, ws)
 		logger.DebugContext(ctx, "agent websocket disconnected", "host_id", host.ID)
 	})
 }

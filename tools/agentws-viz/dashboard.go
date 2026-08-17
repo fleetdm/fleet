@@ -112,7 +112,7 @@ const dashboardHTML = `<!doctype html>
   <div class="panel grow tablewrap">
     <table>
       <thead><tr>
-        <th>os</th><th>host</th><th>remote</th><th>connected</th><th>last notified</th>
+        <th>os</th><th>host</th><th>hostname</th><th>remote</th><th>connected</th><th>last notified</th>
         <th style="text-align:right">notified</th><th style="text-align:right">dropped</th>
         <th style="text-align:right">in</th><th style="text-align:right">out</th>
         <th style="text-align:right" title="distributed/read via /api/osquery/ (orbit)">reads</th>
@@ -231,6 +231,7 @@ function readCells(tr, stats) {
 }
 
 function render(conns, readStats, data) {
+  const hostnames = data.hostnames || {};
   // Online is the global host count (WebSocket or not), from Fleet's host
   // status statistics; ws connected is what THIS server instance holds.
   $("online").textContent = data.online_hosts !== undefined ? data.online_hosts : "–";
@@ -291,13 +292,13 @@ function render(conns, readStats, data) {
     tr.appendChild(tdOS);
 
     const cells = [
-      c.host_id, c.remote_addr, ago(c.connected_at),
+      c.host_id, c.hostname || "–", c.remote_addr, ago(c.connected_at),
       c.last_notified_at ? ago(c.last_notified_at) + " ago" : "never",
     ];
     cells.forEach((v, i) => {
       const td = document.createElement("td");
       td.textContent = v;
-      if (i === 1) td.className = "mono"; // remote address
+      if (i === 2) td.className = "mono"; // remote address
       tr.appendChild(td);
     });
     const tdN = document.createElement("td");
@@ -343,6 +344,12 @@ function render(conns, readStats, data) {
     const tdHost = document.createElement("td");
     tdHost.textContent = "–";
     tr.appendChild(tdHost);
+
+    // Hostname resolves when the host still exists in Fleet (it just isn't
+    // WebSocket-connected); stale/deleted enrollments show a dash.
+    const tdName = document.createElement("td");
+    tdName.textContent = hostnames[s.host_id] || "–";
+    tr.appendChild(tdName);
 
     const tdRemote = document.createElement("td");
     const badge = document.createElement("span");

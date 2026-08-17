@@ -25,7 +25,7 @@ func (f *fakeAuthenticator) AuthenticateOrbitHost(ctx context.Context, nodeKey s
 	if !ok {
 		return nil, false, errors.New("invalid node key")
 	}
-	return &fleet.Host{ID: id, Platform: "darwin"}, false, nil
+	return &fleet.Host{ID: id, Hostname: "host-" + nodeKey, Platform: "darwin"}, false, nil
 }
 
 func discardLogger() *slog.Logger {
@@ -136,6 +136,7 @@ func TestHandlerNotifyDelivery(t *testing.T) {
 	snap := hub.Snapshot()
 	require.Len(t, snap, 1)
 	assert.Equal(t, uint(1), snap[0].HostID)
+	assert.Equal(t, "host-key-1", snap[0].Hostname)
 	assert.Equal(t, "darwin", snap[0].Platform)
 	assert.Equal(t, int64(1), snap[0].NotifiedCount)
 	assert.Equal(t, int64(0), snap[0].DroppedCount)
