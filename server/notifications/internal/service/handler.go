@@ -34,7 +34,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoin
 	de.POST("/api/_version_/fleet/device/{token}/notifications/{uuid}/actions", notificationActionEndpoint, api_http.NotificationActionRequest{})
 }
 
-// RegisterTracingTiers classifies this context's routes for trace sampling.
 func RegisterTracingTiers(registry *tracing.Registry) {
 	registry.Register(http.MethodGet, "/api/_version_/fleet/device/{token}/notifications/{uuid}", tracing.TierStandard)
 	registry.Register(http.MethodPost, "/api/_version_/fleet/device/{token}/notifications/{uuid}/actions", tracing.TierStandard)

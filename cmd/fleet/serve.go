@@ -645,7 +645,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Inject the activity bounded context into the main service
 	svc.SetActivityService(activitySvc)
 
-	// Bootstrap notifications bounded context (needed for cron schedules and HTTP routes)
+	// Bootstrap notifications bounded context
 	notificationsSvc, notificationsRoutes := createNotificationsBoundedContext(svc, ds, dbConns, redisPool, logger)
 	// Inject the notifications bounded context into the main service
 	svc.SetNotificationsService(notificationsSvc)

@@ -13,8 +13,6 @@ type patchNotificationKind struct {
 	delaySvc notifications_api.DelayNotificationService
 }
 
-// NewPatchNotificationKind creates the "patch" notification kind, for
-// registration with the notifications bounded context.
 func NewPatchNotificationKind(delaySvc notifications_api.DelayNotificationService) notifications_api.NotificationKind {
 	return &patchNotificationKind{delaySvc: delaySvc}
 }

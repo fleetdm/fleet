@@ -17,8 +17,6 @@ const endUserNotificationHostBatchSize = 500
 //go:embed embedded_scripts/end_user_notification.sh
 var endUserNotificationScript string
 
-// ExpireAndQueueNotifications gives up on notifications that are out of time,
-// then queues a script for each one that is due.
 func (s *Service) ExpireAndQueueNotifications(ctx context.Context) error {
 	expired, err := s.ds.ExpireEndUserNotifications(ctx)
 	if err != nil {
@@ -67,9 +65,7 @@ func (s *Service) ExpireAndQueueNotifications(ctx context.Context) error {
 
 		s.logger.InfoContext(ctx, "dispatched end user notifications", "count", len(notifications))
 
-		// a short batch is not the end of the queue: it means hosts in it had more
-		// than one notification due, so the pass keeps going until a batch comes
-		// back empty. Dispatching takes those hosts out of the next batch, so this
-		// always makes progress.
+		// a short batch is not the end of the queue: hosts in it can have more than
+		// one notification due, so this keeps going until a batch comes back empty
 	}
 }

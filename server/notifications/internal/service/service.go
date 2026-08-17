@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/notifications/internal/types"
 )
 
-// Service is the notifications bounded context service implementation.
 type Service struct {
 	ds          types.Datastore
 	scriptQueue notifications.ScriptQueueProvider
@@ -25,7 +24,6 @@ type Service struct {
 	kinds map[string]api.NotificationKind
 }
 
-// NewService creates a new notifications service.
 func NewService(
 	ds types.Datastore,
 	providers notifications.DataProviders,
@@ -39,7 +37,6 @@ func NewService(
 	}
 }
 
-// Ensure Service implements api.Service
 var _ api.Service = (*Service)(nil)
 
 func (s *Service) RegisterKind(kind api.NotificationKind) {

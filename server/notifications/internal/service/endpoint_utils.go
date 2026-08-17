@@ -50,9 +50,8 @@ func (e *endpointer) Service() any {
 	return e.svc
 }
 
-// newDeviceAuthenticatedEndpointer builds an endpointer for endpoints
-// authenticated by a device auth token. server/service owns device
-// authentication, so it builds authMiddleware and passes it in.
+// server/service owns device authentication, so it builds authMiddleware and
+// passes it in.
 func newDeviceAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {

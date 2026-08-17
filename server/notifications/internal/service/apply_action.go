@@ -9,8 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/notifications/internal/types"
 )
 
-// ApplyAction carries out what an end user chose to do with a notification on
-// their host. Delay only happens if a kind is registered to decide when.
+// Delay only happens if a kind is registered to decide when.
 func (s *Service) ApplyAction(ctx context.Context, hostID uint, notificationUUID string, action api.EndUserNotificationAction) error {
 	notification, err := s.GetNotificationForHost(ctx, hostID, notificationUUID)
 	if err != nil {

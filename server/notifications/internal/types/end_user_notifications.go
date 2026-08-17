@@ -24,8 +24,6 @@ type Datastore interface {
 	SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error
 }
 
-// NotFoundError is returned when a notification can't be found by its
-// identifier.
 type NotFoundError struct {
 	Identifier string
 }

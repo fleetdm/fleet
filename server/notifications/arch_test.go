@@ -33,8 +33,6 @@ var (
 	}
 )
 
-// TestNotificationsPackageDependencies runs architecture tests for all notifications packages.
-// Each package has specific rules about what dependencies are allowed.
 func TestNotificationsPackageDependencies(t *testing.T) {
 	t.Parallel()
 
