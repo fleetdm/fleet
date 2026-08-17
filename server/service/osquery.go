@@ -3283,18 +3283,20 @@ func (svc *Service) dropResultsNotScheduledForHost(
 		return
 	}
 
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
+	// Neither failure below stops the loop: they leave the schedule empty, which makes it
+	// drop every result that resolved to a Fleet query. With no host or no schedule, no
+	// result can be shown to have been asked for.
+	var hostID uint
+	var scheduledQueryIDs []uint
+	// ok is true for a nil host, so check both.
+	if host, ok := hostctx.FromContext(ctx); !ok || host == nil {
 		svc.logger.ErrorContext(ctx, "getting host from context")
-		return
-	}
-
-	scheduledQueryIDs, err := svc.ds.QueriesPerHost(ctx, host.ID, host.TeamID)
-	if err != nil {
-		// Fail closed and drop every result Fleet can attribute to a query: with the
-		// schedule unknown, none of them can be shown to have been asked for. In practice
-		// this means the DB is unreachable, in which case queriesDBData is empty anyway.
-		svc.logger.ErrorContext(ctx, "getting queries scheduled for host", "err", err, "host_id", host.ID)
+	} else {
+		hostID = host.ID
+		var err error
+		if scheduledQueryIDs, err = svc.ds.QueriesPerHost(ctx, host.ID, host.TeamID); err != nil {
+			svc.logger.ErrorContext(ctx, "getting queries scheduled for host", "err", err, "host_id", host.ID)
+		}
 	}
 
 	scheduled := make(map[uint]struct{}, len(scheduledQueryIDs))
@@ -3317,7 +3319,7 @@ func (svc *Service) dropResultsNotScheduledForHost(
 			// labels the host is not a member of), so the results are either forged or stale
 			// from before a scoping change.
 			svc.logger.DebugContext(ctx, "ignoring results for query not scheduled for host",
-				"query_id", dbQuery.ID, "host_id", host.ID)
+				"query_id", dbQuery.ID, "host_id", hostID)
 			unmarshaledResults[i] = nil
 		}
 	}

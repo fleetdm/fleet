@@ -1112,7 +1112,6 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 	setUp := func(t *testing.T, scheduledForHost bool) (*Service, context.Context, *mock.Store, *testJSONLogger) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil)
-		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID})
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
@@ -1143,6 +1142,7 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 
 	t.Run("query not scheduled for the host", func(t *testing.T) {
 		svc, ctx, ds, logDestination := setUp(t, false)
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID})
 
 		require.NoError(t, svc.SubmitResultLogs(ctx, results))
 
@@ -1154,6 +1154,7 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 
 	t.Run("query scheduled for the host", func(t *testing.T) {
 		svc, ctx, ds, logDestination := setUp(t, true)
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID})
 
 		require.NoError(t, svc.SubmitResultLogs(ctx, results))
 
@@ -1161,8 +1162,20 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 		assert.Equal(t, results, logDestination.logs)
 	})
 
+	t.Run("host missing from context fails closed", func(t *testing.T) {
+		// Not reachable in production: both callers authenticate the host before this point.
+		// ctx deliberately carries no host.
+		svc, ctx, ds, logDestination := setUp(t, true)
+
+		require.NoError(t, svc.SubmitResultLogs(ctx, results))
+
+		assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+		assert.Empty(t, logDestination.logs)
+	})
+
 	t.Run("query Fleet does not know is passed through", func(t *testing.T) {
 		svc, ctx, ds, logDestination := setUp(t, false)
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID})
 		ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 			return nil, newNotFoundError()
 		}
