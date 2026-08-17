@@ -5414,10 +5414,13 @@ func testApplyPolicySpecsWithResendProfile(t *testing.T, ds *Datastore) {
 	for _, p := range policies {
 		byName[p.Name] = p
 	}
+	require.NotNil(t, byName["apple resend"])
+	require.NotNil(t, byName["windows resend"])
 	require.Equal(t, &team1Prof.ProfileUUID, byName["apple resend"].ResendAppleProfileUUID)
 	require.Nil(t, byName["apple resend"].ResendWindowsProfileUUID)
 	require.Equal(t, &winProf.ProfileUUID, byName["windows resend"].ResendWindowsProfileUUID)
 	require.Nil(t, byName["windows resend"].ResendAppleProfileUUID)
+	require.NotNil(t, byName["no resend"])
 	require.Nil(t, byName["no resend"].ResendAppleProfileUUID)
 	require.Nil(t, byName["no resend"].ResendWindowsProfileUUID)
 

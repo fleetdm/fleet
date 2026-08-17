@@ -164,6 +164,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 }
 
 func (svc *Service) populateAutomationsForTeamPolicy(ctx context.Context, policy *fleet.Policy) error {
+	if policy == nil {
+		return nil
+	}
 	if policy.TeamID == nil {
 		return nil
 	}
