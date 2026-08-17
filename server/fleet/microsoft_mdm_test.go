@@ -319,7 +319,7 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 		{
 			// 418 means the node already existed, which only happens when the user channel IS writable, so an Atomic
 			// that rolled back because of one must not read as a user-context rejection. The already-exists resend
-			// path recovers from it, and exempting it from retry accounting would let that path loop.
+			// path recovers from it.
 			name: "atomic rollback from a nested 418 is not a user-channel rejection",
 			cmd: MDMWindowsCommand{
 				CommandUUID: "cmd-1",
