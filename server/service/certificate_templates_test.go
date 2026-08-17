@@ -1002,7 +1002,7 @@ func TestGetCertificateTemplate(t *testing.T) {
 			{name: "global admin reads a 'no team' template", user: globalAdmin, templateID: noTeamTemplateID, wantTeamID: 0},
 			{name: "team admin reads a template on their team", user: teamAdmin, templateID: teamTemplateID, wantTeamID: teamID},
 		} {
-			t.Run(tc.name, func(*testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
 				tt := setup(t, tc.user)
 
 				certificate, err := tt.svc.GetCertificateTemplate(tt.ctx, tc.templateID)
@@ -1026,7 +1026,7 @@ func TestGetCertificateTemplate(t *testing.T) {
 			{name: "global observer reading a team template", user: globalObserver, templateID: teamTemplateID},
 			{name: "global observer reading a missing template", user: globalObserver, templateID: missingTemplateID},
 		} {
-			t.Run(tc.name, func(*testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
 				tt := setup(t, tc.user)
 
 				certificate, err := tt.svc.GetCertificateTemplate(tt.ctx, tc.templateID)
@@ -1052,7 +1052,7 @@ func TestGetCertificateTemplate(t *testing.T) {
 			{name: "team admin reading a template on another team", user: otherTeamAdmin, templateID: teamTemplateID},
 			{name: "team admin on another team reading a missing template", user: otherTeamAdmin, templateID: missingTemplateID},
 		} {
-			t.Run(tc.name, func(*testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
 				tt := setup(t, tc.user)
 
 				certificate, err := tt.svc.GetCertificateTemplate(tt.ctx, tc.templateID)
@@ -1142,7 +1142,7 @@ func TestDeleteCertificateTemplate(t *testing.T) {
 			{name: "global admin deletes a 'no team' template", user: globalAdmin, templateID: noTeamTemplateID},
 			{name: "team admin deletes a template on their team", user: teamAdmin, templateID: teamTemplateID},
 		} {
-			t.Run(tc.name, func(*testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
 				tt := setup(t, tc.user)
 
 				var capturedActivity fleet.ActivityTypeDeletedCertificate
@@ -1183,7 +1183,7 @@ func TestDeleteCertificateTemplate(t *testing.T) {
 			{name: "global observer deleting a team template", user: globalObserver, templateID: teamTemplateID},
 			{name: "global observer deleting a missing template", user: globalObserver, templateID: missingTemplateID},
 		} {
-			t.Run(tc.name, func(*testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
 				tt := setup(t, tc.user)
 
 				err := tt.svc.DeleteCertificateTemplate(tt.ctx, tc.templateID)
@@ -1209,7 +1209,7 @@ func TestDeleteCertificateTemplate(t *testing.T) {
 			{name: "team admin deleting a template on another team", user: otherTeamAdmin, templateID: teamTemplateID},
 			{name: "team admin on another team deleting a missing template", user: otherTeamAdmin, templateID: missingTemplateID},
 		} {
-			t.Run(tc.name, func(*testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
 				tt := setup(t, tc.user)
 
 				err := tt.svc.DeleteCertificateTemplate(tt.ctx, tc.templateID)
