@@ -3158,6 +3158,16 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
 	if !queryReportsDisabled {
+		// A host is the only source of its own results, so Fleet cannot tell truthful rows
+		// from forged ones. What it can require is that it asked this host for them, which
+		// happens here so that results for queries missing from the host's schedule reach
+		// neither a report nor a log destination.
+		//
+		// Skipped when query reports are disabled: that setting forwards results without
+		// resolving them against the DB, so there are no query IDs to check (and no stored
+		// reports to forge).
+		svc.dropResultsNotScheduledForHost(ctx, unmarshaledResults, queriesDBData)
+
 		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
 		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
 	}
@@ -3165,7 +3175,8 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	var filteredLogs []json.RawMessage
 	for i, unmarshaledResult := range unmarshaledResults {
 		if unmarshaledResult == nil {
-			// Ignore results that could not be unmarshaled.
+			// Ignore results that could not be unmarshaled, and those dropped above for not
+			// being on the host's schedule.
 			continue
 		}
 
@@ -3215,6 +3226,58 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		return osqueryErr
 	}
 	return nil
+}
+
+// dropResultsNotScheduledForHost sets to nil the results whose query Fleet knows but did
+// not put on the submitting host's schedule. Entries are nilled in place rather than
+// removed because the caller pairs them positionally with the raw logs.
+func (svc *Service) dropResultsNotScheduledForHost(
+	ctx context.Context,
+	unmarshaledResults []*fleet.ScheduledQueryResult,
+	queriesDBData map[string]*fleet.Query,
+) {
+	if len(queriesDBData) == 0 {
+		return
+	}
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		svc.logger.ErrorContext(ctx, "getting host from context")
+		return
+	}
+
+	scheduledQueryIDs, err := svc.ds.QueriesPerHost(ctx, host.ID, host.TeamID)
+	if err != nil {
+		// Fail closed and drop every result Fleet can attribute to a query: with the
+		// schedule unknown, none of them can be shown to have been asked for. In practice
+		// this means the DB is unreachable, in which case queriesDBData is empty anyway.
+		svc.logger.ErrorContext(ctx, "getting queries scheduled for host", "err", err, "host_id", host.ID)
+	}
+
+	scheduled := make(map[uint]struct{}, len(scheduledQueryIDs))
+	for _, queryID := range scheduledQueryIDs {
+		scheduled[queryID] = struct{}{}
+	}
+
+	for i, result := range unmarshaledResults {
+		if result == nil {
+			continue
+		}
+		dbQuery, ok := queriesDBData[result.QueryName]
+		if !ok {
+			// Fleet doesn't know this query, so it has no schedule to check it against. Those
+			// results are passed through to support osquery nodes configured outside of Fleet.
+			continue
+		}
+		if _, ok := scheduled[dbQuery.ID]; !ok {
+			// The query is not on the host's schedule (no interval, another team, or scoped to
+			// labels the host is not a member of), so the results are either forged or stale
+			// from before a scoping change.
+			svc.logger.DebugContext(ctx, "ignoring results for query not scheduled for host",
+				"query_id", dbQuery.ID, "host_id", host.ID)
+			unmarshaledResults[i] = nil
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

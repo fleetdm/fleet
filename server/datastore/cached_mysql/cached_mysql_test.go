@@ -808,6 +808,55 @@ func TestCachedResultCountForQuery(t *testing.T) {
 	require.True(t, mockedDS.ResultCountForQueryFuncInvoked)
 }
 
+func TestCachedQueriesPerHost(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithQueriesPerHostExpiration(100*time.Millisecond))
+
+	scheduled := []uint{1, 2}
+	mockedDS.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return scheduled, nil
+	}
+
+	// first call gets the result from the DB
+	queryIDs, err := ds.QueriesPerHost(context.Background(), 1, nil)
+	require.NoError(t, err)
+	require.Equal(t, []uint{1, 2}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
+	mockedDS.QueriesPerHostFuncInvoked = false
+
+	scheduled = []uint{3}
+
+	// this call gets it from the cache
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 1, nil)
+	require.NoError(t, err)
+	require.Equal(t, []uint{1, 2}, queryIDs)
+	require.False(t, mockedDS.QueriesPerHostFuncInvoked)
+
+	// another host is cached separately
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 2, nil)
+	require.NoError(t, err)
+	require.Equal(t, []uint{3}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
+	mockedDS.QueriesPerHostFuncInvoked = false
+
+	// so is the same host on a team, so a transfer never reads the previous team's schedule
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 1, new(uint(1)))
+	require.NoError(t, err)
+	require.Equal(t, []uint{3}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
+	mockedDS.QueriesPerHostFuncInvoked = false
+
+	time.Sleep(200 * time.Millisecond)
+
+	// this call gets it from the DB again since the cache expired
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 1, nil)
+	require.NoError(t, err)
+	require.Equal(t, []uint{3}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
+}
+
 func TestGetAllMDMConfigAssetsByName(t *testing.T) {
 	t.Parallel()
 

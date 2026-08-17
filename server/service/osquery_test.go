@@ -726,6 +726,17 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return nil, newNotFoundError()
 		}
 	}
+	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		// Mirrors the IDs returned by QueryByNameFunc above. Team 1 queries are never
+		// scheduled here because no host in this test belongs to team 1.
+		if teamID != nil && *teamID == 2 {
+			return []uint{4343}, nil
+		}
+		return []uint{
+			uint('t'), uint('s'), uint('e'), uint('h'), // time, system_info, encrypted, hosts
+			123, 444, 555, 777, 1234,
+		}, nil
+	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
@@ -855,7 +866,17 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	}
 	err = serv.SubmitResultLogs(ctx, validAndInvalidResults)
 	require.NoError(t, err)
-	assert.Equal(t, validResults, testLogger.logs)
+
+	// Results naming a team 1 query are dropped before reaching the logging destination:
+	// this host is global, so Fleet never put that query on its schedule.
+	var expectedLogs []json.RawMessage
+	for _, result := range validResults {
+		if !strings.Contains(string(result), "team-1") {
+			expectedLogs = append(expectedLogs, result)
+		}
+	}
+	require.Len(t, expectedLogs, len(validResults)-2)
+	assert.Equal(t, expectedLogs, testLogger.logs)
 
 	//
 	// Run a similar test but now with a team host.
@@ -1000,6 +1021,10 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		}, nil
 	}
 
+	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return []uint{1}, nil
+	}
+
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
@@ -1051,6 +1076,10 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		}, nil
 	}
 
+	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return []uint{1}, nil
+	}
+
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
@@ -1066,6 +1095,84 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 	err = svc.SubmitResultLogs(ctx, results)
 	require.NoError(t, err)
 	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
+	const (
+		reportQueryID = 42
+		hostID        = 999
+	)
+
+	// A forged result log naming a real global report, submitted by a host that was
+	// never scheduled to run it.
+	results := []json.RawMessage{
+		json.RawMessage(`{"action":"snapshot","name":"pack/Global/report_query","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"snapshot":[{"forged":"true"}]}`),
+	}
+
+	setUp := func(t *testing.T, scheduledForHost bool) (*Service, context.Context, *mock.Store, *testJSONLogger) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+			return &fleet.Query{
+				ID:                 reportQueryID,
+				Name:               name,
+				Logging:            fleet.LoggingSnapshot,
+				AutomationsEnabled: true,
+			}, nil
+		}
+		ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+			if !scheduledForHost {
+				return nil, nil
+			}
+			return []uint{reportQueryID}, nil
+		}
+		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+			return len(rows), nil
+		}
+
+		logDestination := &testJSONLogger{}
+		serv := ((svc.(validationMiddleware)).Service).(*Service)
+		serv.osqueryLogWriter = &OsqueryLogger{Result: logDestination}
+		return serv, ctx, ds, logDestination
+	}
+
+	t.Run("query not scheduled for the host", func(t *testing.T) {
+		svc, ctx, ds, logDestination := setUp(t, false)
+
+		require.NoError(t, svc.SubmitResultLogs(ctx, results))
+
+		assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+		// Dropped before automations too, so the results never reach the log destination
+		// even though the query has automations enabled.
+		assert.Empty(t, logDestination.logs)
+	})
+
+	t.Run("query scheduled for the host", func(t *testing.T) {
+		svc, ctx, ds, logDestination := setUp(t, true)
+
+		require.NoError(t, svc.SubmitResultLogs(ctx, results))
+
+		assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+		assert.Equal(t, results, logDestination.logs)
+	})
+
+	t.Run("query Fleet does not know is passed through", func(t *testing.T) {
+		svc, ctx, ds, logDestination := setUp(t, false)
+		ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+			return nil, newNotFoundError()
+		}
+
+		require.NoError(t, svc.SubmitResultLogs(ctx, results))
+
+		assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+		// Supports osquery nodes that load their config from outside Fleet.
+		assert.Equal(t, results, logDestination.logs)
+	})
 }
 
 type failingLogger struct{}
@@ -1108,6 +1215,9 @@ func TestSubmitResultLogsFail(t *testing.T) {
 			AutomationsEnabled: true,
 			Name:               name,
 		}, nil
+	}
+	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return []uint{1}, nil
 	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil

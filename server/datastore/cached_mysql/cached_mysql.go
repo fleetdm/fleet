@@ -55,6 +55,8 @@ const (
 	defaultQueryByNameExpiration       = 1 * time.Second
 	queryResultsCountKey               = "QueryResultsCount:%d"
 	defaultQueryResultsCountExpiration = 1 * time.Second
+	queriesPerHostKey                  = "QueriesPerHost:host:%d:team:%d"
+	defaultQueriesPerHostExpiration    = 1 * time.Minute
 	yaraRuleCachePrefix                = "YaraRuleByName:"
 	yaraRuleByNameKey                  = yaraRuleCachePrefix + "%s"
 	defaultYaraRuleByNameExpiration    = 1 * time.Minute
@@ -130,6 +132,7 @@ type cachedMysql struct {
 	defaultTeamConfigExp    time.Duration
 	queryByNameExp          time.Duration
 	queryResultsCountExp    time.Duration
+	queriesPerHostExp       time.Duration
 	yaraRuleByNameExp       time.Duration
 	mdmConfigAssetExp       time.Duration
 	fmaNamesByIdentifierExp time.Duration
@@ -185,6 +188,12 @@ func WithQueryResultsCountExpiration(d time.Duration) Option {
 	}
 }
 
+func WithQueriesPerHostExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.queriesPerHostExp = d
+	}
+}
+
 func WithYaraRuleByNameExpiration(d time.Duration) Option {
 	return func(o *cachedMysql) {
 		o.yaraRuleByNameExp = d
@@ -222,6 +231,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		defaultTeamConfigExp:    defaultDefaultTeamConfigExpiration,
 		queryByNameExp:          defaultQueryByNameExpiration,
 		queryResultsCountExp:    defaultQueryResultsCountExpiration,
+		queriesPerHostExp:       defaultQueriesPerHostExpiration,
 		yaraRuleByNameExp:       defaultYaraRuleByNameExpiration,
 		mdmConfigAssetExp:       defaultMDMConfigAssetExpiration,
 		fmaNamesByIdentifierExp: defaultFMANamesByIdentifierExpiration,
@@ -464,6 +474,31 @@ func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (i
 	ds.c.Set(ctx, key, integer(count), ds.queryResultsCountExp)
 
 	return count, nil
+}
+
+func (ds *cachedMysql) QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+	teamID_ := uint(0) // global team is 0
+	if teamID != nil {
+		teamID_ = *teamID
+	}
+	// The host's team is part of the key so that a transferred host never reads the
+	// schedule of its previous team.
+	key := fmt.Sprintf(queriesPerHostKey, hostID, teamID_)
+
+	if x, found := ds.c.Get(ctx, key); found {
+		if queryIDs, ok := x.(queryIDList); ok {
+			return queryIDs, nil
+		}
+	}
+
+	queryIDs, err := ds.Datastore.QueriesPerHost(ctx, hostID, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, key, queryIDList(queryIDs), ds.queriesPerHostExp)
+
+	return queryIDs, nil
 }
 
 func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
