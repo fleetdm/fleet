@@ -138,7 +138,11 @@ const DeployModal = ({
             ...(patchOption !== "manual" && {
               software_title_id: softwareTitle.id,
             }),
-            ...getPatchPolicyFlags(patchOption, endUserExperience),
+            ...getPatchPolicyFlags(
+              patchOption,
+              endUserExperience,
+              platform ?? undefined
+            ),
           });
         } else if (patchPolicy) {
           await teamPoliciesAPI.destroy(teamId, [patchPolicy.id]);
@@ -151,19 +155,32 @@ const DeployModal = ({
           endUserExperience !== initialEndUserExperience ||
           patchHasAutomation !== (patchOption !== "manual") ||
           patchPolicy.patch_when_closed !==
-            getPatchPolicyFlags(patchOption, endUserExperience)
-              .patch_when_closed ||
+            getPatchPolicyFlags(
+              patchOption,
+              endUserExperience,
+              platform ?? undefined
+            ).patch_when_closed ||
           patchPolicy.notify_before_patching !==
-            getPatchPolicyFlags(patchOption, endUserExperience)
-              .notify_before_patching ||
+            getPatchPolicyFlags(
+              patchOption,
+              endUserExperience,
+              platform ?? undefined
+            ).notify_before_patching ||
           patchPolicy.continuous_automations_enabled !==
-            getPatchPolicyFlags(patchOption, endUserExperience)
-              .continuous_automations_enabled)
+            getPatchPolicyFlags(
+              patchOption,
+              endUserExperience,
+              platform ?? undefined
+            ).continuous_automations_enabled)
       ) {
         await teamPoliciesAPI.update(patchPolicy.id, {
           team_id: teamId,
           software_title_id: patchOption === "manual" ? null : softwareTitle.id,
-          ...getPatchPolicyFlags(patchOption, endUserExperience),
+          ...getPatchPolicyFlags(
+            patchOption,
+            endUserExperience,
+            platform ?? undefined
+          ),
         });
         savedAnyChange = true;
       }

@@ -185,10 +185,16 @@ const PolicyAutomationsFields = forwardRef<
     const patchWhenClosed = patchOption
       ? patchOption === "closed"
       : initialPatchWhenClosed;
+    // Notify before patching is macOS-only; gate at the derivation so the
+    // continuous-automations lock and the wire payload stay in sync even if
+    // a legacy Windows policy carries `notify_before_patching: true`.
+    const isMacPolicy = policy.platform === "darwin";
     const notifyBeforePatching =
       patchOption !== undefined
-        ? patchOption === "force" && endUserExperience === "notify"
-        : initialNotifyBeforePatching;
+        ? patchOption === "force" &&
+          endUserExperience === "notify" &&
+          isMacPolicy
+        : initialNotifyBeforePatching && isMacPolicy;
     // Continuous automations is locked on for both "Patch when app is closed"
     // and "Notify before patching" — the backend forces it on for both, so an
     // editable checkbox would lie.

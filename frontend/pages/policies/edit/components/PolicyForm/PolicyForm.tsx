@@ -452,7 +452,11 @@ const PolicyForm = ({
               patchOption === "manual"
                 ? null
                 : storedPolicy?.patch_software?.software_title_id ?? null,
-            ...getPatchPolicyFlags(patchOption, endUserExperience),
+            ...getPatchPolicyFlags(
+              patchOption,
+              endUserExperience,
+              storedPolicy?.platform
+            ),
           },
         };
       }

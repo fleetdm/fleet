@@ -16,20 +16,28 @@ export type EndUserExperience = "immediate" | "notify";
 
 /**
  * Returns the three policy flags derived from the deploy selector state.
- * `endUserExperience` has a defaulted value so pre-migration call sites keep
- * compiling until they are updated to pass it explicitly.
+ * `notify_before_patching` is gated on `platform === "darwin"` at the wire
+ * boundary — Notify before patching is macOS-only today, and the UI hides
+ * the dropdown for Windows, so the flag must not slip through if state
+ * ever carries "notify" on a non-Mac software (legacy data, hydration
+ * mismatch, or a future third platform). `endUserExperience` and
+ * `platform` are defaulted so pre-migration call sites keep compiling.
  */
 export const getPatchPolicyFlags = (
   patchOption: PatchOption,
-  endUserExperience: EndUserExperience = "immediate"
-) => ({
-  patch_when_closed: patchOption === "closed",
-  notify_before_patching:
-    patchOption === "force" && endUserExperience === "notify",
-  continuous_automations_enabled:
-    patchOption === "closed" ||
-    (patchOption === "force" && endUserExperience === "notify"),
-});
+  endUserExperience: EndUserExperience = "immediate",
+  platform?: string
+) => {
+  const notifyActive =
+    patchOption === "force" &&
+    endUserExperience === "notify" &&
+    platform === "darwin";
+  return {
+    patch_when_closed: patchOption === "closed",
+    notify_before_patching: notifyActive,
+    continuous_automations_enabled: patchOption === "closed" || notifyActive,
+  };
+};
 
 const END_USER_EXPERIENCE_LINK =
   "https://fleetdm.com/learn-more-about/patching-end-user-experience";

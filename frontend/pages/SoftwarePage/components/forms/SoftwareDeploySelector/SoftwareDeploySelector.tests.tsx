@@ -116,15 +116,19 @@ describe("SoftwareDeploySelector", () => {
   });
 
   describe("getPatchPolicyFlags", () => {
-    it("returns force+notify flags for Notify before patching", () => {
-      const flags = getPatchPolicyFlags("force", "notify" as EndUserExperience);
+    it("returns force+notify flags for Notify before patching on macOS", () => {
+      const flags = getPatchPolicyFlags(
+        "force",
+        "notify" as EndUserExperience,
+        "darwin"
+      );
       expect(flags.notify_before_patching).toBe(true);
       expect(flags.patch_when_closed).toBe(false);
       expect(flags.continuous_automations_enabled).toBe(true);
     });
 
     it("returns all false for Patch immediately", () => {
-      const flags = getPatchPolicyFlags("force", "immediate");
+      const flags = getPatchPolicyFlags("force", "immediate", "darwin");
       expect(flags.notify_before_patching).toBe(false);
       expect(flags.patch_when_closed).toBe(false);
       expect(flags.continuous_automations_enabled).toBe(false);
@@ -135,6 +139,26 @@ describe("SoftwareDeploySelector", () => {
       expect(flags.patch_when_closed).toBe(true);
       expect(flags.notify_before_patching).toBe(false);
       expect(flags.continuous_automations_enabled).toBe(true);
+    });
+
+    it("never sets notify_before_patching for Windows even when state says notify", () => {
+      const flags = getPatchPolicyFlags(
+        "force",
+        "notify" as EndUserExperience,
+        "windows"
+      );
+      expect(flags.notify_before_patching).toBe(false);
+      expect(flags.continuous_automations_enabled).toBe(false);
+    });
+
+    it("never sets notify_before_patching for an unknown platform", () => {
+      const flags = getPatchPolicyFlags(
+        "force",
+        "notify" as EndUserExperience,
+        undefined
+      );
+      expect(flags.notify_before_patching).toBe(false);
+      expect(flags.continuous_automations_enabled).toBe(false);
     });
   });
 

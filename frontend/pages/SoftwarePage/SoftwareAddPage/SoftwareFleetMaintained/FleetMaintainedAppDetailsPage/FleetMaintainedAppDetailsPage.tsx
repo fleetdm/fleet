@@ -220,7 +220,8 @@ const FleetMaintainedAppDetailsPage = ({
           }),
           ...getPatchPolicyFlags(
             formData.patchOption,
-            formData.endUserExperience
+            formData.endUserExperience,
+            fleetApp?.platform
           ),
         });
       }
