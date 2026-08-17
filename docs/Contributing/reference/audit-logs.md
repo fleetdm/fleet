@@ -1648,7 +1648,7 @@ This activity contains the following fields:
 - "install_uuid": ID of the software installation.
 - "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
-- "software_display_name": Custom display name for the software, if one is set. Falls back to "software_title" when not set.
+- "software_display_name": Custom name that's displayed in the UI. Falls back to the same name as the "software_title" when not set.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
 - "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
