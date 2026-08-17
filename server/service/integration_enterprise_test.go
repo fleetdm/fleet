@@ -33033,8 +33033,8 @@ func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTe
 		require.NotNil(t, hostLite.TeamID)
 		require.Equal(t, teamA.ID, *hostLite.TeamID)
 
-		// Re-enroll the same host using team B's secret. team_id must not change.
-		var reorbitResp enrollOrbitResponse
+		// Re-enroll the same host using team B's secret. Cross-team re-enrollment
+		// is now rejected to prevent enrollment hijacking.
 		s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 			EnrollSecret:   teamBSecret,
 			HardwareUUID:   hostUUID,
@@ -33042,9 +33042,9 @@ func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTe
 			Hostname:       hostName,
 			Platform:       "darwin",
 			HardwareModel:  "MacBookPro16,1",
-		}, http.StatusOK, &reorbitResp)
-		require.NotEmpty(t, reorbitResp.OrbitNodeKey)
+		}, http.StatusInternalServerError, &orbitResp)
 
+		// Host remains in team A, unaffected.
 		hostLite, err = s.ds.HostLiteByIdentifier(ctx, hostUUID)
 		require.NoError(t, err)
 		require.NotNil(t, hostLite.TeamID)
@@ -33087,7 +33087,8 @@ func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTe
 			return err
 		})
 
-		// Re-enroll the same host using team B's secret. team_id must not change.
+		// Re-enroll the same host using team B's secret. Cross-team re-enrollment
+		// is now rejected to prevent enrollment hijacking.
 		var reosqueryResp contract.EnrollOsqueryAgentResponse
 		s.DoJSON("POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
 			EnrollSecret:   teamBSecret,
@@ -33101,9 +33102,9 @@ func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTe
 					"uuid":            hostUUID,
 				},
 			},
-		}, http.StatusOK, &reosqueryResp)
-		require.NotEmpty(t, reosqueryResp.NodeKey)
+		}, http.StatusInternalServerError, &reosqueryResp)
 
+		// Host remains in team A, unaffected.
 		hostLite, err = s.ds.HostLiteByIdentifier(ctx, hostUUID)
 		require.NoError(t, err)
 		require.NotNil(t, hostLite.TeamID)

@@ -2979,7 +2979,8 @@ func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
 	require.NotNil(t, hostLite.TeamID)
 	require.Equal(t, automationTeam.ID, *hostLite.TeamID)
 
-	// Orbit-enroll using a different team's secret. The host must remain in the automation team.
+	// Orbit-enroll using a different team's secret. Cross-team re-enrollment
+	// is now rejected; the host must remain in the automation team.
 	var orbitResp enrollOrbitResponse
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 		EnrollSecret:   differentTeamSecret,
@@ -2989,14 +2990,15 @@ func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
 		Platform:       host.Platform,
 		PlatformLike:   host.PlatformLike,
 		HardwareModel:  host.HardwareModel,
-	}, http.StatusOK, &orbitResp)
+	}, http.StatusInternalServerError, &orbitResp)
 
 	hostLite, err = s.ds.HostLiteByIdentifier(ctx, host.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, hostLite.TeamID)
 	require.Equal(t, automationTeam.ID, *hostLite.TeamID)
 
-	// Osquery-enroll using a different team's secret. The host must remain in the automation team.
+	// Osquery-enroll using a different team's secret. Cross-team re-enrollment
+	// is now rejected; the host must remain in the automation team.
 	var osqueryResp contract.EnrollOsqueryAgentResponse
 	s.DoJSON("POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   differentTeamSecret,
@@ -3010,7 +3012,7 @@ func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
 				"uuid":            host.UUID,
 			},
 		},
-	}, http.StatusOK, &osqueryResp)
+	}, http.StatusInternalServerError, &osqueryResp)
 
 	hostLite, err = s.ds.HostLiteByIdentifier(ctx, host.UUID)
 	require.NoError(t, err)

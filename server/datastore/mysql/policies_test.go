@@ -1890,16 +1890,15 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 
-	// all host policies are removed on re-enroll even when the enroll secret
-	// belongs to a different team — but team_id stays put (orbit/osquery
-	// re-enrollment no longer changes a host's team).
+	// Cross-team re-enrollment is now rejected: enrolling host2 (team1) with
+	// team2's secret fails, and policy memberships are preserved.
 	_, err = ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryHostID("2"),
 		fleet.WithEnrollOsqueryNodeKey("2"),
 		fleet.WithEnrollOsqueryTeamID(&team2.ID),
 	)
-	require.NoError(t, err)
-	// host1 is in team2, host2 stays in team1 (sticky)
+	require.Error(t, err)
+	// Policy state unchanged because enrollment was rejected.
 	checkPassingCount(0, 0, 1, 1)
 
 	// Re-record policy executions for host2; host2 is still in team1.
