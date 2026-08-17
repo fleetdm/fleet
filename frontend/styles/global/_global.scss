@@ -240,9 +240,16 @@ textarea,
 button {
   font-family: "Inter", sans-serif;
 
-  &:-webkit-autofill {
-    -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  // Browsers paint their own background on autofilled fields, so cover it with
+  // an inset shadow in the themed surface color. Both selectors are needed:
+  // `:autofill` is the standard (Firefox), `:-webkit-autofill` the legacy
+  // prefix. The colors are theme tokens, so this follows light/dark mode
+  // instead of forcing white.
+  &:-webkit-autofill,
+  &:autofill {
+    box-shadow: 0 0 0 1000px $core-fleet-white inset;
     -webkit-text-fill-color: $core-fleet-black !important; //sass-lint:disable-line no-important
+    caret-color: $core-fleet-black;
   }
 }
 

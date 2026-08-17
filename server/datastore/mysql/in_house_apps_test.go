@@ -40,6 +40,7 @@ func TestInHouseApps(t *testing.T) {
 		{"InHouseAppConfigHasChanged", testHasInHouseAppConfigurationChanged},
 		{"InHouseAppInstallTokens", testInHouseAppInstallTokens},
 		{"SummaryUpcomingPerHostNoDropout", testInHouseSummaryUpcomingPerHostNoDropout},
+		{"BatchSetInHouseInstallersInstallDuringSetup", testBatchSetInHouseInstallersInstallDuringSetup},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2121,4 +2122,75 @@ VALUES (?, ?, ?)`, uaID, appID, titleID)
 	summary, err := ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, appID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Pending: 1}, *summary)
+}
+
+func testBatchSetInHouseInstallersInstallDuringSetup(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	payloadForPlatform := func(platform string, installDuringSetup *bool) *fleet.UploadSoftwareInstallerPayload {
+		source := "ios_apps"
+		if platform == "ipados" {
+			source = "ipados_apps"
+		}
+		return &fleet.UploadSoftwareInstallerPayload{
+			StorageID:          "ipa1",
+			Filename:           "ipa1.ipa",
+			Title:              "ipa1",
+			Source:             source,
+			Version:            "1.0.0",
+			UserID:             user1.ID,
+			Platform:           platform,
+			URL:                "https://example.com/1",
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+			BundleIdentifier:   "com.ipa1",
+			InstallDuringSetup: installDuringSetup,
+		}
+	}
+
+	flagsByPlatform := func() map[string]bool {
+		rows := map[string]bool{}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			var apps []struct {
+				Platform           string `db:"platform"`
+				InstallDuringSetup bool   `db:"install_during_setup"`
+			}
+			if err := sqlx.SelectContext(ctx, q, &apps,
+				`SELECT platform, install_during_setup FROM in_house_apps WHERE global_or_team_id = ?`, team.ID); err != nil {
+				return err
+			}
+			for _, app := range apps {
+				rows[app.Platform] = app.InstallDuringSetup
+			}
+			return nil
+		})
+		return rows
+	}
+
+	// setup_experience_platform: [ios] → only the iOS row is flagged
+	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		payloadForPlatform("ios", new(true)),
+		payloadForPlatform("ipados", new(false)),
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"ios": true, "ipados": false}, flagsByPlatform())
+
+	// omitting the field preserves stored state on re-apply
+	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		payloadForPlatform("ios", nil),
+		payloadForPlatform("ipados", nil),
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"ios": true, "ipados": false}, flagsByPlatform())
+
+	// an explicit value overwrites in both directions
+	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		payloadForPlatform("ios", new(false)),
+		payloadForPlatform("ipados", new(true)),
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"ios": false, "ipados": true}, flagsByPlatform())
 }
