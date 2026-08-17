@@ -1701,6 +1701,73 @@ VALUES (?, ?, ?, ?)`, h.UUID, "Acme", fleet.SetupExperienceStatusPending, iosApp
 		require.Empty(t, capturedActivities)
 	})
 
+	t.Run("emits an activity when the in-house enqueue fails outside pre-flight", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "ios")
+
+		iosAppID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID:           &tm.ID,
+			UserID:           user1.ID,
+			Title:            "Acme",
+			Filename:         "acme.ipa",
+			BundleIdentifier: "com.acme.app",
+			StorageID:        "acme-storage",
+			Platform:         "ios",
+			Extension:        "ipa",
+			Version:          "1.0",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err = q.ExecContext(ctx, `
+INSERT INTO setup_experience_status_results (host_uuid, name, status, in_house_app_id)
+VALUES (?, ?, ?, ?)`, h.UUID, "Acme", fleet.SetupExperienceStatusPending, iosAppID)
+			return err
+		})
+
+		// a non-preflight error was not recorded by the service layer, so the
+		// worker must emit the failed-install activity itself
+		installer := &mockInHouseAppInstaller{err: errors.New("insert in-house app install: boom")}
+		var capturedActivities []fleet.ActivityDetails
+		mdmWorker := &AppleMDM{
+			InHouseAppInstaller: installer,
+			Datastore:           ds,
+			Log:                 slogLog,
+			Commander:           apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			NewActivityFn: func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
+				capturedActivities = append(capturedActivities, activity)
+				return nil
+			},
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, &tm.ID, "", true, false)
+		require.NoError(t, err)
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID, tm.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.Equal(t, fleet.SetupExperienceStatusFailure, results[0].Status)
+
+		require.Len(t, capturedActivities, 1)
+		act, ok := capturedActivities[0].(fleet.ActivityTypeInstalledSoftware)
+		require.True(t, ok, "expected ActivityTypeInstalledSoftware, got %T", capturedActivities[0])
+		assert.Equal(t, h.ID, act.HostID)
+		assert.Equal(t, "Acme", act.SoftwareTitle)
+		assert.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
+		assert.True(t, act.FromSetupExperience)
+	})
+
 	t.Run("treats NotNow status as a finished command status that does not block device release", func(t *testing.T) {
 		mysqltest.SetTestABMAssets(t, ds, testOrgName)
 		defer mysqltest.TruncateTables(t, ds)

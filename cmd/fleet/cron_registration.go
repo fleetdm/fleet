@@ -215,8 +215,8 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register apple_mdm_worker schedule", func() (fleet.CronSchedule, error) {
 		vppInstaller := deps.svc.(fleet.AppleMDMVPPInstaller)
-		inHouseAppInstaller := deps.svc.(fleet.AppleMDMInHouseAppInstaller)
-		return newAppleMDMWorkerSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.commander, deps.bootstrapPackageStore, vppInstaller, inHouseAppInstaller, deps.svc.NewActivity)
+		// deps.svc satisfies the worker's consumer-side interface directly, no assertion needed
+		return newAppleMDMWorkerSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.commander, deps.bootstrapPackageStore, vppInstaller, deps.svc, deps.svc.NewActivity)
 	})
 
 	deps.register("failed to register apple_mdm_dep_profile_assigner schedule", func() (fleet.CronSchedule, error) {
