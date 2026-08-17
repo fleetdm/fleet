@@ -93,7 +93,11 @@ jobs:
         if: steps.check.outputs.update_needed == 'true'
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version-file: 'go.mod'
+          # Install the new Go version (not the one in go.mod): `make update-go`
+          # bumps the root go.mod first, and with setup-go's GOTOOLCHAIN=local the
+          # remaining `go run` invocations fail if the installed toolchain is older.
+          go-version: ${{ steps.check.outputs.new_version }}
+          check-latest: true
 
       - name: Update Go version
         if: steps.check.outputs.update_needed == 'true'
