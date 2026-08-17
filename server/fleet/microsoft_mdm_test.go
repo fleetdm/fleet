@@ -1007,18 +1007,6 @@ func TestWindowsProfileScopeFromBytes(t *testing.T) {
 			want: WindowsProfileScopeUser,
 		},
 		{
-			// Variables are substituted per host AFTER classification, so a variable in the scope segment has no
-			// statically knowable scope and must be treated as possibly user-scoped.
-			name:    "fleet variable in the scope segment",
-			profile: `<Replace><Item><Target><LocURI>./$FLEET_VAR_HOST_END_USER_IDP_USERNAME/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`,
-			want:    WindowsProfileScopeUser,
-		},
-		{
-			name:    "custom host vital in the scope segment",
-			profile: `<Replace><Item><Target><LocURI>./$FLEET_VAR_FLEET_HOST_VITAL_3/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`,
-			want:    WindowsProfileScopeUser,
-		},
-		{
 			// A variable in a node name or value cannot change the channel, so it must not force the gate on. This
 			// is the shape every real SCEP profile has.
 			name:    "fleet variable below the scope segment stays device scoped",

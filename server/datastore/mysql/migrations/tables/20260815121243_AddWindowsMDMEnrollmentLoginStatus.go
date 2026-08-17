@@ -10,10 +10,9 @@ func init() {
 }
 
 func Up_20260815121243(tx *sql.Tx) error {
-	// last_login_status records the value of the com.microsoft/MDM/LoginStatus device alert ("user", "others", or "none")
-	// the device last reported, and last_login_status_at when it was observed. Windows sends the alert in the first message
-	// of every management session; Fleet does not otherwise persist that message (a SyncHdr-only status is not tracked), so
-	// this is the only durable record of the enrollment's user context.
+	// last_login_status records the value of the com.microsoft/MDM/LoginStatus device alert ("user", "others", or "none") the device
+	// last reported, and last_login_status_at when it was observed. Windows sends the alert in the first message of every management
+	// session; this is the only durable record of the enrollment's user context.
 	//
 	// NULL means "never observed", which is distinct from "observed as no user": the user-scoped profile gate holds on both,
 	// but only a positive "user" observation releases it.
