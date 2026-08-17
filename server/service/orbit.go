@@ -314,6 +314,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		fleet.WithEnrollOrbitHostInfo(hostInfo),
 		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
 		fleet.WithEnrollOrbitTeamID(secret.TeamID),
+		fleet.WithEnrollOrbitCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
 	)
 	if err != nil {

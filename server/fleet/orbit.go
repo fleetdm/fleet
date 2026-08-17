@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 )
@@ -133,6 +134,7 @@ type DatastoreEnrollOrbitConfig struct {
 	HostInfo     OrbitHostInfo
 	OrbitNodeKey string
 	TeamID       *uint
+	Cooldown     time.Duration
 	IdentityCert *types.HostIdentityCertificate
 }
 
@@ -164,6 +166,14 @@ func WithEnrollOrbitNodeKey(nodeKey string) DatastoreEnrollOrbitOption {
 func WithEnrollOrbitTeamID(teamID *uint) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.TeamID = teamID
+	}
+}
+
+// WithEnrollOrbitCooldown sets the cooldown duration for datastore Orbit enrollment.
+// Prevents hosts from re-enrolling too frequently with the same identifier.
+func WithEnrollOrbitCooldown(cooldown time.Duration) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.Cooldown = cooldown
 	}
 }
 

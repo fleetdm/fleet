@@ -2272,6 +2272,23 @@ const (
 //
 // NOTE: orbit and osquery running as part of fleetd on a device are identified
 // with the same entry in the hosts table.
+// teamIDsMatch returns true if the two team IDs refer to the same team.
+// nil means "No team" (global); a global enroll secret (nil) is allowed to
+// match any host because global admins are trusted. Two non-nil values must
+// be equal.
+func teamIDsMatch(hostTeamID, secretTeamID *uint) bool {
+	// A global enroll secret (secretTeamID == nil) can re-enroll any host.
+	if secretTeamID == nil {
+		return true
+	}
+	// A team-scoped secret enrolling a host with no team is allowed (the host
+	// will be assigned to the secret's team on new enrollment).
+	if hostTeamID == nil {
+		return true
+	}
+	return *hostTeamID == *secretTeamID
+}
+
 type enrolledHostInfo struct {
 	// ID is the identifier of the host.
 	ID uint
@@ -2280,6 +2297,8 @@ type enrolledHostInfo struct {
 	// NodeKeySet indicates whether `node_key` is set (NOT NULL) for a osquery host
 	// or if `orbit_node_key` is set (NOT NULL) for a orbit host.
 	NodeKeySet bool
+	// TeamID is the team the host belongs to (NULL for "No team").
+	TeamID *uint `db:"team_id"`
 	// Platform is the OS of the host.
 	Platform string
 }
@@ -2311,6 +2330,7 @@ func matchHostDuringEnrollment(
 		ID             uint
 		LastEnrolledAt time.Time `db:"last_enrolled_at"`
 		NodeKeySet     bool      `db:"node_key_set"`
+		TeamID         *uint     `db:"team_id"`
 		Priority       int
 		Platform       string `db:"platform"`
 	}
@@ -2328,7 +2348,7 @@ func matchHostDuringEnrollment(
 	}
 
 	if osqueryID != "" || uuid != "" {
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 1 priority, platform FROM hosts WHERE osquery_host_id = ?)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, team_id, 1 priority, platform FROM hosts WHERE osquery_host_id = ?)`, nodeKeyColumn))
 		osqueryHostID := osqueryID
 		if osqueryID == "" {
 			// special-case, if there's no osquery identifier, use the uuid
@@ -2345,7 +2365,7 @@ func matchHostDuringEnrollment(
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, team_id, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, serial)
 	}
 
@@ -2354,7 +2374,7 @@ func matchHostDuringEnrollment(
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 3 priority, platform FROM hosts WHERE uuid = ? AND (platform = 'android') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, team_id, 3 priority, platform FROM hosts WHERE uuid = ? AND (platform = 'android') ORDER BY id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, uuid)
 	}
 
@@ -2372,6 +2392,7 @@ func matchHostDuringEnrollment(
 		ID:             rows[0].ID,
 		LastEnrolledAt: rows[0].LastEnrolledAt,
 		NodeKeySet:     rows[0].NodeKeySet,
+		TeamID:         rows[0].TeamID,
 		Platform:       rows[0].Platform,
 	}, nil
 }
@@ -2386,6 +2407,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 	hostInfo := enrollConfig.HostInfo
 	orbitNodeKey := enrollConfig.OrbitNodeKey
 	teamID := enrollConfig.TeamID
+	cooldown := enrollConfig.Cooldown
 
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
@@ -2419,10 +2441,34 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			osqueryIdentifier = hostInfo.HardwareUUID
 		}
 
+		// Prevent cross-team re-enrollment: if the matched host already has a
+		// node key (i.e. it is actively enrolled) and belongs to a different
+		// team than the enroll secret, reject the match and create a new host
+		// row instead. This stops an attacker who holds a low-privilege
+		// team's enroll secret from hijacking hosts in other teams.
+		// DEP pre-created hosts (NodeKeySet=false) are exempt because they
+		// have not been claimed by an agent yet.
+		if err == nil && enrolledHostInfo.NodeKeySet && !teamIDsMatch(enrolledHostInfo.TeamID, teamID) {
+			ds.logger.WarnContext(ctx, "orbit enrollment rejected: cross-team re-enrollment attempted",
+				"identifier", hostInfo.HardwareUUID,
+				"host_id", enrolledHostInfo.ID,
+				"host_team_id", enrolledHostInfo.TeamID,
+				"secret_team_id", teamID,
+			)
+			enrolledHostInfo = nil
+			err = sql.ErrNoRows
+		}
+
 		switch {
 		case err == nil:
+			// Prevent hosts from re-enrolling too often with the same identifier
+			// (mirrors the osquery cooldown logic).
+			if cooldown > 0 && time.Since(enrolledHostInfo.LastEnrolledAt) < cooldown {
+				return backoff.Permanent(ctxerr.Errorf(ctx, "orbit host identified by %s enrolling too often", hostInfo.HardwareUUID))
+			}
+
 			if enrolledHostInfo.NodeKeySet {
-				// This means a orbit host already enrolled at this hosts entry.
+				// This means an orbit host already enrolled at this host entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if orbit's node key file was deleted from the device (e.g. uninstall+install).
 				ds.logger.WarnContext(ctx, "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
@@ -2444,6 +2490,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
         hosts
       SET
         orbit_node_key = ?,
+        last_enrolled_at = NOW(),
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
@@ -2631,6 +2678,19 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 
 		var hostID uint
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isAppleMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, "")
+
+		// Prevent cross-team re-enrollment (same logic as EnrollOrbit above).
+		if err == nil && enrolledHostInfo.NodeKeySet && !teamIDsMatch(enrolledHostInfo.TeamID, teamID) {
+			ds.logger.WarnContext(ctx, "osquery enrollment rejected: cross-team re-enrollment attempted",
+				"identifier", hardwareUUID,
+				"host_id", enrolledHostInfo.ID,
+				"host_team_id", enrolledHostInfo.TeamID,
+				"secret_team_id", teamID,
+			)
+			enrolledHostInfo = nil
+			err = sql.ErrNoRows
+		}
+
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
@@ -2682,7 +2742,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			}
 
 			if enrolledHostInfo.NodeKeySet {
-				// This means a osquery host already enrolled at this hosts entry.
+				// This means an osquery host already enrolled at this host entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if osquery.db was deleted from the device (e.g. uninstall+install).
 				ds.logger.WarnContext(ctx, "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",

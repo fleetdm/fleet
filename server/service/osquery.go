@@ -225,6 +225,18 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		}
 	}
 
+	if err := svc.NewActivity(
+		ctx,
+		nil,
+		fleet.ActivityTypeFleetEnrolled{
+			HostID:          host.ID,
+			HostSerial:      hardwareSerial,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		svc.logger.ErrorContext(ctx, "record osquery enroll activity", "err", err)
+	}
+
 	return nodeKey, nil
 }
 
