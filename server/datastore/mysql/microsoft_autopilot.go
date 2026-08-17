@@ -131,18 +131,6 @@ ON DUPLICATE KEY UPDATE
 // SetMicrosoftGraphCredentialInvalid flips the per-tenant flag reporting that a credential needs an admin's attention.
 // It reports whether the flag actually changed, so the caller knows whether the app-config banner needs recomputing.
 func (ds *Datastore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (bool, error) {
-	var current bool
-	switch err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
-		`SELECT credential_invalid FROM mdm_microsoft_graph_credentials WHERE tenant_id = ?`, tenantID); {
-	case errors.Is(err, sql.ErrNoRows):
-		// The credential was deleted while this pass was running. Nothing to flag, and nothing to report as changed.
-		return false, nil
-	case err != nil:
-		return false, ctxerr.Wrap(ctx, err, "read mdm_microsoft_graph_credentials credential_invalid")
-	case current == invalid:
-		return false, nil
-	}
-
 	const stmt = `UPDATE mdm_microsoft_graph_credentials SET credential_invalid = ? WHERE tenant_id = ? AND credential_invalid != ?`
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, invalid, tenantID, invalid)
 	if err != nil {
