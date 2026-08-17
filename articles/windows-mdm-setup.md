@@ -92,7 +92,7 @@ During enrollment, end users are prompted to set up Windows Hello and add a PIN.
 
 After you connect Fleet to Entra, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
-In order to connect Fleet to Entra, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. Each end user who automatically enrolls or manually turns on MDM needs at least a [Microsoft Entra P1 license](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing). If they already have an [E3 or E5 license](https://www.microsoft.com/en-us/microsoft-365/enterprise/microsoft365-plans-and-pricing) then you're good to go.
+In order to connect Fleet to Entra, your organization needs a Microsoft Enterprise Mobility + Security E3 subscription. You don't need to assign this license to your own admin account: Intune supports unlicensed admin access, so you can configure automatic enrollment and Autopilot from an admin account with no license assigned. Each end user who automatically enrolls or manually turns on MDM needs at least a [Microsoft Entra P1 license](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing). If they already have an [E3 or E5 license](https://www.microsoft.com/en-us/microsoft-365/enterprise/microsoft365-plans-and-pricing) then you're good to go.
 
 ### Step 1: Buy Microsoft licenses
 
@@ -106,15 +106,13 @@ In order to connect Fleet to Entra, the IT admin (you) needs a Microsoft Enterpr
 
 5. On the **Enterprise Mobility + Security E3** page, select **Buy** and follow instructions to purchase the license. 
 
-6. Find and buy a license.
+6. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
 
-7. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
+7. At the top of the page, search "Users" and select **Users**.
 
-8. At the top of the page, search "Users" and select **Users**.
+8. Select or create a test user and select **Licenses**.
 
-9. Select or create a test user and select **Licenses**.
-
-10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3** license. Assign the test user a **Microsoft Entra ID P1** license. End users don't need an Intune license to enroll in Fleet.
+9. Select **+ Assignments** and assign the test user a **Microsoft Entra ID P1** license. End users don't need an Intune license to enroll in Fleet.
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
