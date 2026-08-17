@@ -204,8 +204,10 @@ describe("OS setting status cell", () => {
   // Android certificate templates Fleet is automatically retrying after a failure. These keep an
   // in-progress status while carrying the detail from the failed attempt.
   describe("retrying Android certificate", () => {
+    // What the Fleet Android app reports, and how the UI restates it.
     const SCEP_ERROR =
       "Network error during SCEP enrollment: Failed to communicate with SCEP server";
+    const SCEP_MESSAGE = "Fleet couldn't reach the certificate authority.";
 
     const createRetryingCertProfile = (
       overrides?: Partial<IHostMdmProfile>
@@ -251,7 +253,7 @@ describe("OS setting status cell", () => {
           // means this is attempt two of four.
           expect(
             screen.getByText(
-              `${SCEP_ERROR}. Retrying enrollment (attempt 2 of 4).`
+              `${SCEP_MESSAGE} Retrying enrollment (attempt 2 of 4).`
             )
           ).toBeInTheDocument();
         });
@@ -293,15 +295,15 @@ describe("OS setting status cell", () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            `${SCEP_ERROR}. Retrying enrollment (attempt 4 of 4).`
+            `${SCEP_MESSAGE} Retrying enrollment (attempt 4 of 4).`
           )
         ).toBeInTheDocument();
       });
     });
 
-    it("does not repeat the period when the detail already ends in one", async () => {
+    it("does not repeat the period when an unrecognized detail already ends in one", async () => {
       const profile = createRetryingCertProfile({
-        detail: "Failed to communicate with SCEP server.",
+        detail: "Something went wrong.",
       });
       const { user } = renderStatusCell(profile);
 
@@ -309,7 +311,7 @@ describe("OS setting status cell", () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            "Failed to communicate with SCEP server. Retrying enrollment (attempt 2 of 4)."
+            "Something went wrong. Retrying enrollment (attempt 2 of 4)."
           )
         ).toBeInTheDocument();
       });
@@ -380,6 +382,56 @@ describe("OS setting status cell", () => {
       });
     });
 
+    // Every reason the Fleet Android app reports gets restated without SCEP, CSR, or key pair
+    // jargon, since these tooltips also reach the end user's My Device page.
+    it.each([
+      [
+        "SCEP enrollment failed: challenge rejected",
+        "The certificate authority rejected the request.",
+      ],
+      [
+        "Certificate validation failed: bad chain",
+        "The host couldn't validate the certificate from the certificate authority.",
+      ],
+      [
+        "Failed to generate key pair: keystore error",
+        "The host couldn't generate a private key.",
+      ],
+      [
+        "Failed to create CSR: bad subject",
+        "The host couldn't create a certificate signing request.",
+      ],
+      [
+        "Invalid configuration: missing subject name",
+        "The certificate configuration isn't valid.",
+      ],
+      [
+        "Certificate installation failed for alias 'BeyondCorp': installKeyPair returned false",
+        "The host couldn't install the certificate.",
+      ],
+    ])("restates %j in plain language", async (detail, message) => {
+      const { user } = renderStatusCell(createRetryingCertProfile({ detail }));
+
+      await user.hover(screen.getByText("Retrying"));
+      await waitFor(() => {
+        expect(
+          screen.getByText(`${message} Retrying enrollment (attempt 2 of 4).`)
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("falls back to the reported text for an unrecognized failure", async () => {
+      const detail = "Unexpected error during enrollment: null";
+      const { user } = renderStatusCell(createRetryingCertProfile({ detail }));
+
+      await user.hover(screen.getByText("Retrying"));
+      await waitFor(() => {
+        expect(
+          screen.getByText(`${detail}. Retrying enrollment (attempt 2 of 4).`)
+        ).toBeInTheDocument();
+      });
+    });
+
     it("treats a blank detail the same as a missing one", async () => {
       const profile = createRetryingCertProfile({ detail: "   " });
       const { user } = renderStatusCell(profile);
@@ -408,7 +460,8 @@ describe("OS setting status cell", () => {
       expect(screen.queryByText("Retrying")).not.toBeInTheDocument();
     });
 
-    it("still displays 'Failed' with the raw detail once the retries are exhausted", async () => {
+    // The same wording as while retrying, so the failure is not reworded the moment Fleet gives up.
+    it("still displays 'Failed', with the same message, once the retries are exhausted", async () => {
       const profile = createRetryingCertProfile({
         retrying: false,
         status: "failed",
@@ -421,7 +474,7 @@ describe("OS setting status cell", () => {
 
       await user.hover(statusText);
       await waitFor(() => {
-        expect(screen.getByText(SCEP_ERROR)).toBeInTheDocument();
+        expect(screen.getByText(SCEP_MESSAGE)).toBeInTheDocument();
       });
     });
 
@@ -433,7 +486,7 @@ describe("OS setting status cell", () => {
       await user.hover(screen.getByText("Retrying"));
       await waitFor(() => {
         expect(
-          screen.getByText(`${SCEP_ERROR}. Retrying enrollment.`)
+          screen.getByText(`${SCEP_MESSAGE} Retrying enrollment.`)
         ).toBeInTheDocument();
       });
     });

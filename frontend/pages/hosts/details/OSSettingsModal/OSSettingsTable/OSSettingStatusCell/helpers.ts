@@ -17,6 +17,7 @@ import {
   OsSettingsTableStatusValue,
 } from "../OSSettingsTableConfig";
 import TooltipInnerContentActionRequired from "./components/Tooltip/ActionRequired";
+import { formatAndroidCertificateError } from "./errorTooltipHelpers";
 
 export const isDiskEncryptionProfile = (profileName: string) => {
   return profileName === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME;
@@ -56,11 +57,14 @@ export const getAndroidCertificateRetryTooltip = (
       : ` (attempt ${profile.retry_count + 1} of ${profile.max_retries + 1})`;
   const retrying = `Retrying enrollment${attempts}.`;
 
-  const detail = profile.detail?.trim();
-  if (!detail) {
+  const reported = profile.detail?.trim();
+  if (!reported) {
     return retrying;
   }
 
+  // Prefer plain language over the app's own wording, falling back to what it reported so an
+  // unrecognized failure still reaches the reader.
+  const detail = formatAndroidCertificateError(reported) ?? reported;
   const sentence = /[.!?]$/.test(detail) ? detail : `${detail}.`;
   return `${sentence} ${retrying}`;
 };
