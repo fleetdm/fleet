@@ -240,10 +240,11 @@ module.exports = {
       let lowerCaseMediumValue = marketingAttributionCookie.medium ? marketingAttributionCookie.medium.toLowerCase() : '';
       let sourceFriendlyNameByCodeName = {
         // "Organic" sources:
-        // os: 'Organic search',
-        // dt: 'Direct traffic',
-        // wr: 'Web referral',
-        // soc: 'Organic social',
+        // os: 'Search (ORGSRC)',
+        // dt: 'Direct traffic (DIRTRF)',
+        // wr: 'Web referral (WEBREF)',
+        // soc: 'Social (ORGSOC)',
+        // ai: '  AI (ORGAI)'
         // "Digital" sources:
         cpc: 'Paid search (PAYSRC)', //note: either cpc or ps both map to Paid Search
         ps: 'Paid search (PAYSRC)',
@@ -373,7 +374,8 @@ module.exports = {
             attributionDetails.sourceChannelDetails = 'Web referral (WEBREF)';
           }
         }
-        attributionDetails.campaign = `${attributionDetails.campaign} - ${attributionDetails.sourceChannelDetails}`;
+        // Build the campaign value using the sourceChannel and sourceChannelDetails values
+        attributionDetails.campaign = `${attributionDetails.sourceChannel} - ${attributionDetails.sourceChannelDetails}`;
       }
     }
 
