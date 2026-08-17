@@ -11,7 +11,7 @@ func init() {
 
 func Up_20260813171950(tx *sql.Tx) error {
 	_, err := tx.Exec(`
-CREATE TABLE IF NOT EXISTS end_user_notifications (
+CREATE TABLE IF NOT EXISTS notifications_end_user (
   id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
   uuid            VARCHAR(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   host_id         INT UNSIGNED NOT NULL,
@@ -28,18 +28,17 @@ CREATE TABLE IF NOT EXISTS end_user_notifications (
   created_at      DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at      DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (id),
-  UNIQUE KEY idx_end_user_notifications_uuid (uuid),
-  KEY idx_end_user_notifications_dispatch (status, next_attempt_at),
-  KEY idx_end_user_notifications_host (host_id, status),
-  KEY idx_end_user_notifications_execution_id (execution_id),
-  -- the expiry sweep runs every minute, and almost every row has no expiry, so
-  -- this is what keeps it from scanning the whole table to find nothing
-  KEY idx_end_user_notifications_expires_at (expires_at),
-  CONSTRAINT fk_end_user_notifications_host_id FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
+  UNIQUE KEY idx_notifications_end_user_uuid (uuid),
+  KEY idx_notifications_end_user_dispatch (status, next_attempt_at),
+  KEY idx_notifications_end_user_host (host_id, status),
+  KEY idx_notifications_end_user_execution_id (execution_id),
+  -- for the expiry sweep, which runs every minute
+  KEY idx_notifications_end_user_expires_at (expires_at),
+  CONSTRAINT fk_notifications_end_user_host_id FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
 `)
 	if err != nil {
-		return fmt.Errorf("creating end_user_notifications table: %w", err)
+		return fmt.Errorf("creating notifications_end_user table: %w", err)
 	}
 
 	return nil

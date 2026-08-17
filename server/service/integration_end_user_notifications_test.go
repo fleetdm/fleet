@@ -31,7 +31,7 @@ func newTestNotification(t *testing.T, ds *mysql.Datastore, hostID uint, kind st
 	notificationUUID := uuid.NewString()
 	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(),
-			`INSERT INTO end_user_notifications (uuid, host_id, status, kind, payload) VALUES (?, ?, ?, ?, ?)`,
+			`INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload) VALUES (?, ?, ?, ?, ?)`,
 			notificationUUID, hostID, notifications_api.EndUserNotificationPending, kind, json.RawMessage(payload))
 		return err
 	})
@@ -46,7 +46,7 @@ func getTestNotification(t *testing.T, ds *mysql.Datastore, notificationUUID str
 	var got notifications_api.EndUserNotification
 	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &got,
-			`SELECT `+endUserNotificationColumns+` FROM end_user_notifications WHERE uuid = ?`, notificationUUID)
+			`SELECT `+endUserNotificationColumns+` FROM notifications_end_user WHERE uuid = ?`, notificationUUID)
 	})
 	return &got
 }
@@ -56,11 +56,20 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	ctx := context.Background()
 
 	dispatch := func(t *testing.T) {
-		require.NoError(t, s.notificationsSvc.Dispatch(ctx))
+		require.NoError(t, s.notificationsSvc.ExpireAndQueueNotifications(ctx))
+	}
+
+	// createOrbitEnrolledHost leaves the host without a device auth token.
+	// Orbit sends one on check-in, and the notification URL can't be built
+	// without it, so stand in for orbit here.
+	newNotifiableHost := func(t *testing.T, suffix string) *fleet.Host {
+		host := createOrbitEnrolledHost(t, "darwin", suffix, s.ds)
+		require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, "token-"+suffix))
+		return host
 	}
 
 	// fetches the notification's script as orbit would, returning the substituted
-	// script contents and the device token minted along the way
+	// script contents and the host's device token
 	fetchScript := func(t *testing.T, host *fleet.Host, executionID string) (string, string) {
 		var resp fleet.OrbitGetScriptResponse
 		s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
@@ -80,7 +89,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	}
 
 	t.Run("dispatch queues a script and substitutes the notification URL", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-dispatch", s.ds)
+		host := newNotifiableHost(t, "notif-dispatch")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 
 		dispatch(t)
@@ -95,7 +104,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("exit 0 records displayed_at", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-exit0", s.ds)
+		host := newNotifiableHost(t, "notif-exit0")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -111,7 +120,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("exit 41 schedules a retry", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-exit41", s.ds)
+		host := newNotifiableHost(t, "notif-exit41")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -128,7 +137,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("exit 2 is a terminal failure", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-exit2", s.ds)
+		host := newNotifiableHost(t, "notif-exit2")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -142,7 +151,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("GET returns the notification's payload", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-get", s.ds)
+		host := newNotifiableHost(t, "notif-get")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello world"}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -159,11 +168,11 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("GET with another host's token 404s", func(t *testing.T) {
-		hostA := createOrbitEnrolledHost(t, "darwin", "notif-cross-a", s.ds)
-		hostB := createOrbitEnrolledHost(t, "darwin", "notif-cross-b", s.ds)
+		hostA := newNotifiableHost(t, "notif-cross-a")
+		hostB := newNotifiableHost(t, "notif-cross-b")
 		notificationUUID := newTestNotification(t, s.ds, hostA.ID, "patch", `{"title": "hello"}`)
 
-		// mint hostB its own token by fetching a script of its own
+		// dispatch to hostB too, so it has a script of its own to fetch
 		otherUUID := newTestNotification(t, s.ds, hostB.ID, "patch", `{"title": "other"}`)
 		dispatch(t)
 		dispatchedB := getTestNotification(t, s.ds, otherUUID)
@@ -175,7 +184,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("GET with an unknown uuid 404s", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-unknown-uuid", s.ds)
+		host := newNotifiableHost(t, "notif-unknown-uuid")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -189,7 +198,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	// TODO: verify is currently a stub (see apply_action.go), so this only
 	// confirms the action is accepted, not that it records anything.
 	t.Run("POST verify is accepted", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-verify", s.ds)
+		host := newNotifiableHost(t, "notif-verify")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -201,7 +210,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("POST delay with a registered kind delays it", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-delay-registered", s.ds)
+		host := newNotifiableHost(t, "notif-delay-registered")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -221,7 +230,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("POST delay with no kind registered is a no-op", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-delay-unregistered", s.ds)
+		host := newNotifiableHost(t, "notif-delay-unregistered")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "some_unregistered_kind", `{"title": "hello"}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -237,7 +246,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("POST with an unknown action is rejected", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-bad-action", s.ds)
+		host := newNotifiableHost(t, "notif-bad-action")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -249,7 +258,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("POST with a missing action is rejected", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-no-action", s.ds)
+		host := newNotifiableHost(t, "notif-no-action")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -261,7 +270,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("a second due notification on the same host waits its turn", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "darwin", "notif-in-flight", s.ds)
+		host := newNotifiableHost(t, "notif-in-flight")
 		firstUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "first"}`)
 		secondUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "second"}`)
 
@@ -276,5 +285,30 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		dispatch(t)
 		second = getTestNotification(t, s.ds, secondUUID)
 		require.NotNil(t, second.ExecutionID, "the second notification should dispatch once the first is no longer in flight")
+	})
+
+	t.Run("a host with no fresh device auth token gets no notification URL", func(t *testing.T) {
+		// no SetOrUpdateDeviceAuthToken, so this host never sent one
+		host := createOrbitEnrolledHost(t, "darwin", "notif-no-token", s.ds)
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+
+		// Fleet won't mint a token on the fetch path, so the script fails to
+		// resolve rather than going out with an unusable URL.
+		var resp fleet.OrbitGetScriptResponse
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, *dispatched.ExecutionID)),
+			http.StatusOK, &resp)
+		require.NotNil(t, resp.ExitCode)
+		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *resp.ExitCode)
+		require.NotContains(t, resp.ScriptContents, "/notifications/")
+
+		// the notification is queued up to try again rather than stuck
+		got := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationPending, got.Status)
+		require.NotNil(t, got.NextAttemptAt)
+		require.Nil(t, got.DisplayedAt)
 	})
 }

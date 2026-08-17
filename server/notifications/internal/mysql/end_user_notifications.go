@@ -58,7 +58,7 @@ const endUserNotificationColumns = `
 
 func (ds *Datastore) NewEndUserNotification(ctx context.Context, notification *api.EndUserNotification) (*api.EndUserNotification, error) {
 	const insertStmt = `
-INSERT INTO end_user_notifications (
+INSERT INTO notifications_end_user (
 	uuid, host_id, status, kind, payload, next_attempt_at, expires_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?)
 `
@@ -85,7 +85,7 @@ INSERT INTO end_user_notifications (
 		return nil, ctxerr.Wrap(ctx, err, "insert end user notification")
 	}
 
-	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM end_user_notifications eun WHERE eun.uuid = ?`
+	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.uuid = ?`
 
 	var created api.EndUserNotification
 	if err := sqlx.GetContext(ctx, ds.primary, &created, getStmt, notificationUUID); err != nil {
@@ -95,7 +95,7 @@ INSERT INTO end_user_notifications (
 }
 
 func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificationUUID string) (*api.EndUserNotification, error) {
-	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM end_user_notifications eun WHERE eun.uuid = ?`
+	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.uuid = ?`
 
 	var notification api.EndUserNotification
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, notificationUUID); err != nil {
@@ -110,7 +110,7 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 // GetEndUserNotificationByExecutionID reads from primary because callers look
 // up an execution the dispatcher may have written a moment ago.
 func (ds *Datastore) GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*api.EndUserNotification, error) {
-	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM end_user_notifications eun WHERE eun.execution_id = ?`
+	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.execution_id = ?`
 
 	var notification api.EndUserNotification
 	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt, executionID); err != nil {
@@ -135,7 +135,7 @@ func (ds *Datastore) GetEndUserNotificationByExecutionID(ctx context.Context, ex
 func (ds *Datastore) ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*api.EndUserNotification, error) {
 	const listStmt = `
 SELECT ` + endUserNotificationColumns + `
-FROM end_user_notifications eun
+FROM notifications_end_user eun
 	JOIN hosts h ON h.id = eun.host_id
 	JOIN host_orbit_info hoi ON hoi.host_id = eun.host_id
 WHERE eun.status = ?
@@ -143,7 +143,7 @@ WHERE eun.status = ?
 	AND (eun.expires_at IS NULL OR eun.expires_at > NOW(6))
 	AND h.platform = 'darwin'
 	AND NOT EXISTS (
-		SELECT 1 FROM end_user_notifications dispatched
+		SELECT 1 FROM notifications_end_user dispatched
 		WHERE dispatched.host_id = eun.host_id AND dispatched.status = ?
 			AND dispatched.displayed_at IS NULL
 	)
@@ -179,6 +179,8 @@ func (ds *Datastore) SetEndUserNotificationsDispatched(ctx context.Context, noti
 		return nil
 	}
 
+	// Only the number of SELECTs varies with the input: each one is the same
+	// literal, and every uuid and execution id is bound as an argument.
 	selectParts := make([]string, 0, len(notifications))
 	args := make([]any, 0, len(notifications)*2+1)
 	for _, notification := range notifications {
@@ -191,7 +193,7 @@ func (ds *Datastore) SetEndUserNotificationsDispatched(ctx context.Context, noti
 	args = append(args, api.EndUserNotificationDispatched)
 
 	updateStmt := fmt.Sprintf(`
-UPDATE end_user_notifications eun
+UPDATE notifications_end_user eun
 	JOIN (%s) queued ON queued.uuid = eun.uuid
 SET
 	eun.status = ?,
@@ -205,42 +207,63 @@ SET
 	return nil
 }
 
-// ExpireEndUserNotifications sets notifications past their expiry to expired,
-// along with any dispatched past EndUserNotificationStuckDispatchTimeout, and
-// returns how many. One already displayed is left alone regardless of expiry.
+// ExpireEndUserNotifications gives up on notifications past their expiry, and
+// on dispatched ones unanswered for EndUserNotificationStuckDispatchTimeout,
+// returning how many of both. One already displayed is left alone regardless
+// of expiry.
+//
+// The two are separate statements rather than one OR: an OR across expires_at
+// and updated_at can use neither index, which turns this once-a-minute sweep
+// into a full table scan. Expiry runs first, so a row that qualifies for both
+// is counted once.
 func (ds *Datastore) ExpireEndUserNotifications(ctx context.Context) (int64, error) {
-	const updateStmt = `
-UPDATE end_user_notifications
+	const expiryStmt = `
+UPDATE notifications_end_user
 SET status = ?
 WHERE displayed_at IS NULL
-	AND (
-		(status IN (?, ?) AND expires_at IS NOT NULL AND expires_at <= NOW(6))
-		OR (status = ? AND updated_at <= ?)
-	)
+	AND status IN (?, ?)
+	AND expires_at IS NOT NULL AND expires_at <= NOW(6)
 `
 
-	stuckBefore := time.Now().UTC().Add(-api.EndUserNotificationStuckDispatchTimeout)
-	res, err := ds.primary.ExecContext(ctx, updateStmt,
-		api.EndUserNotificationExpired,
-		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
-		api.EndUserNotificationDispatched, stuckBefore,
+	const stuckStmt = `
+UPDATE notifications_end_user
+SET status = ?
+WHERE displayed_at IS NULL
+	AND status = ?
+	AND updated_at <= ?
+`
+
+	res, err := ds.primary.ExecContext(ctx, expiryStmt,
+		api.EndUserNotificationExpired, api.EndUserNotificationPending, api.EndUserNotificationDispatched,
 	)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "expire end user notifications")
 	}
-
 	expired, err := res.RowsAffected()
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "count expired end user notifications")
 	}
-	return expired, nil
+
+	stuckBefore := time.Now().UTC().Add(-api.EndUserNotificationStuckDispatchTimeout)
+	res, err = ds.primary.ExecContext(ctx, stuckStmt,
+		api.EndUserNotificationExpired, api.EndUserNotificationDispatched, stuckBefore,
+	)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "expire stuck end user notifications")
+	}
+	stuck, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count stuck end user notifications")
+	}
+
+	return expired + stuck, nil
 }
 
 // VerifyEndUserNotification records the first time the notification reached the
 // end user; a later call doesn't move the timestamp.
 func (ds *Datastore) VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error {
 	const updateStmt = `
-UPDATE end_user_notifications
+UPDATE notifications_end_user
 SET displayed_at = IF(displayed_at IS NULL, ?, displayed_at)
 WHERE uuid = ?
 `
@@ -259,7 +282,7 @@ WHERE uuid = ?
 // notifications are left alone so a delay can't revive one.
 func (ds *Datastore) DelayEndUserNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time) error {
 	const updateStmt = `
-UPDATE end_user_notifications
+UPDATE notifications_end_user
 SET status = ?, next_attempt_at = ?, last_reason = ?
 WHERE uuid = ?
 	AND status NOT IN (?, ?)
@@ -282,7 +305,7 @@ WHERE uuid = ?
 // once past expires_at, so a late result can't revive an expired notification.
 func (ds *Datastore) SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error {
 	const recordStmt = `
-UPDATE end_user_notifications
+UPDATE notifications_end_user
 SET last_exit_code = ?, last_reason = ?
 WHERE uuid = ?
 `
@@ -306,7 +329,7 @@ WHERE uuid = ?
 	}
 
 	const transitionStmt = `
-UPDATE end_user_notifications
+UPDATE notifications_end_user
 SET status = ?, next_attempt_at = ?
 WHERE uuid = ? AND (expires_at IS NULL OR expires_at > NOW(6))
 `

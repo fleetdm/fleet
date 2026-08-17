@@ -17,9 +17,9 @@ const endUserNotificationHostBatchSize = 500
 //go:embed embedded_scripts/end_user_notification.sh
 var endUserNotificationScript string
 
-// Dispatch expires notifications past their expiry, then queues a script for
-// each notification that is due.
-func (s *Service) Dispatch(ctx context.Context) error {
+// ExpireAndQueueNotifications gives up on notifications that are out of time,
+// then queues a script for each one that is due.
+func (s *Service) ExpireAndQueueNotifications(ctx context.Context) error {
 	expired, err := s.ds.ExpireEndUserNotifications(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "expiring end user notifications")

@@ -2743,8 +2743,8 @@ func newEndUserNotificationsSchedule(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("dispatch_end_user_notifications", func(ctx context.Context) error {
-			return notificationsSvc.Dispatch(ctx)
+		schedule.WithJob("expire_and_queue_notifications", func(ctx context.Context) error {
+			return notificationsSvc.ExpireAndQueueNotifications(ctx)
 		}),
 	)
 

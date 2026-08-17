@@ -1178,10 +1178,7 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	// Skip executions that already have a result so a re-fetch can't record a
 	// second one.
 	if script.ExitCode == nil {
-		expanded, failureMessage, err := svc.expandAuthTokenForNotification(ctx, host, script)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand notification url for host %d and script %s", host.ID, execID))
-		}
+		expanded, failureMessage := svc.expandAuthTokenForNotification(ctx, host, script)
 		if failureMessage != "" {
 			return svc.recordScriptResolutionFailure(ctx, script, failureMessage)
 		}
@@ -1224,45 +1221,53 @@ func (svc *Service) recordScriptResolutionFailure(ctx context.Context, script *f
 
 // expandAuthTokenForNotification resolves $FLEET_VAR_PATCH_NOTIFICATION_URL to
 // the notification's device page URL. Resolved at fetch time rather than when
-// queued, so script_contents never holds a live credential. Anything that goes
-// wrong resolving it comes back as a failureMessage, not an error, so only this
-// execution fails rather than the host's whole queue.
-func (svc *Service) expandAuthTokenForNotification(ctx context.Context, host *fleet.Host, script *fleet.HostScriptResult) (expanded string, failureMessage string, err error) {
+// queued, so script_contents never holds a live credential. A failureMessage
+// means the notification can't be delivered in this attempt: the caller records
+// it against this one execution, leaving the rest of the host's queue alone,
+// and the dispatcher comes back to the notification later.
+func (svc *Service) expandAuthTokenForNotification(ctx context.Context, host *fleet.Host, script *fleet.HostScriptResult) (expanded string, failureMessage string) {
 	// admin-written scripts are never internal, so this skips them without a scan
 	if !script.IsInternal {
-		return script.ScriptContents, "", nil
+		return script.ScriptContents, ""
 	}
 	if !slices.Contains(variables.Find(script.ScriptContents), string(fleet.FleetVarPatchNotificationURL)) {
-		return script.ScriptContents, "", nil
+		return script.ScriptContents, ""
 	}
 
-	notificationUUID, lookupErr := svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
-	if lookupErr != nil {
-		return "", "Fleet couldn't find the notification for this script.", nil
+	notificationUUID, err := svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to find the end user notification a script belongs to",
+			"execution_id", script.ExecutionID, "err", err)
+		return "", "Fleet couldn't find the notification this script belongs to."
 	}
 
-	token, tokenErr := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)
+	// Orbit owns this token: it generates one and sends it on check-in,
+	// refreshing on the same hour it goes stale here. Fleet doesn't mint one,
+	// since every host polls this endpoint and the token orbit sends next is
+	// the one that counts anyway.
+	token, err := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)
 	switch {
-	case tokenErr == nil:
+	case err == nil:
 		// fresh token in hand
-	case fleet.IsNotFound(tokenErr):
-		token, tokenErr = svc.mintHostDeviceAuthToken(ctx, host.ID)
-		if tokenErr != nil {
-			return "", "Fleet couldn't mint a device auth token for this host.", nil
-		}
+	case fleet.IsNotFound(err):
+		svc.logger.InfoContext(ctx, "host has no fresh device auth token to notify against, waiting for it to send one",
+			"host_id", host.ID)
+		return "", "Fleet is waiting for this host to send a current authentication token."
 	default:
-		return "", "Fleet couldn't check this host's device auth token.", nil
+		svc.logger.ErrorContext(ctx, "failed to check a host's device auth token", "host_id", host.ID, "err", err)
+		return "", "Fleet couldn't check this host's authentication token."
 	}
 
-	appConfig, appConfigErr := svc.ds.AppConfig(ctx)
-	if appConfigErr != nil {
-		return "", "Fleet couldn't load its app config to build the notification URL.", nil
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to load app config to build a notification url", "err", err)
+		return "", "Fleet couldn't load its configuration to build the notification URL."
 	}
 
 	notificationURL := fmt.Sprintf("%s/device/%s/notifications/%s",
 		strings.TrimRight(appConfig.ServerSettings.ServerURL, "/"), token, notificationUUID)
 
-	return variables.Replace(script.ScriptContents, string(fleet.FleetVarPatchNotificationURL), notificationURL), "", nil
+	return variables.Replace(script.ScriptContents, string(fleet.FleetVarPatchNotificationURL), notificationURL), ""
 }
 
 /////////////////////////////////////////////////////////////////////////////////

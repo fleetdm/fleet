@@ -94,7 +94,7 @@ type NotificationOutcome struct {
 // are implemented in server/service and registered with RegisterKind, since a
 // kind may need features (e.g. software) this context doesn't have.
 type NotificationKind interface {
-	// Name is the value stored in end_user_notifications.kind.
+	// Name is the value stored in notifications_end_user.kind.
 	Name() string
 	// OnVerify sets when the notification was displayed on the host. Currently
 	// unused because Fleet uses the script endpoint to report when the

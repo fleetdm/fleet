@@ -5,22 +5,13 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/notifications/api"
-	"github.com/fleetdm/fleet/v4/server/notifications/internal/testutils"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// testEnv holds test dependencies.
-type testEnv struct {
-	*testutils.TestDB
-	ds *Datastore
-}
-
 func TestEndUserNotifications(t *testing.T) {
-	tdb := testutils.SetupTestDB(t, "notifications_mysql")
-	ds := NewDatastore(tdb.Conns(), tdb.Logger)
-	env := &testEnv{TestDB: tdb, ds: ds}
+	env := newTestEnv(t)
 
 	cases := []struct {
 		name string
@@ -249,7 +240,7 @@ func testExpireEndUserNotifications(t *testing.T, env *testEnv) {
 	stuckDispatchedUUID := env.InsertNotification(t, hostID, "k", nil, nil)
 	require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, stuckDispatchedUUID, hostID)))
 	longAgo := time.Now().Add(-api.EndUserNotificationStuckDispatchTimeout - time.Hour)
-	_, err := env.DB.ExecContext(ctx, "UPDATE end_user_notifications SET updated_at = ? WHERE uuid = ?", longAgo, stuckDispatchedUUID)
+	_, err := env.db.ExecContext(ctx, "UPDATE notifications_end_user SET updated_at = ? WHERE uuid = ?", longAgo, stuckDispatchedUUID)
 	require.NoError(t, err)
 
 	// dispatched just now, no expires_at: still in flight, must be left alone
@@ -325,7 +316,7 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 			ExitCode: 2, Reason: api.EndUserNotificationReasonBadInvocation,
 		}, nil))
 		// the outcome above leaves it failed, so set expired directly
-		_, err := env.DB.ExecContext(ctx, "UPDATE end_user_notifications SET status = ? WHERE uuid = ?",
+		_, err := env.db.ExecContext(ctx, "UPDATE notifications_end_user SET status = ? WHERE uuid = ?",
 			api.EndUserNotificationExpired, notificationUUID)
 		require.NoError(t, err)
 
@@ -417,7 +408,7 @@ func testSetEndUserNotificationOutcome(t *testing.T, env *testEnv) {
 		hostID := newDarwinHost(t, env, "outcome-expired", true)
 		notificationUUID := dispatch(t, hostID)
 		past := time.Now().Add(-time.Hour)
-		_, err := env.DB.ExecContext(ctx, "UPDATE end_user_notifications SET expires_at = ? WHERE uuid = ?", past, notificationUUID)
+		_, err := env.db.ExecContext(ctx, "UPDATE notifications_end_user SET expires_at = ? WHERE uuid = ?", past, notificationUUID)
 		require.NoError(t, err)
 
 		nextAttempt := time.Now().Add(30 * time.Second)
@@ -438,7 +429,7 @@ func testSetEndUserNotificationOutcome(t *testing.T, env *testEnv) {
 		hostID := newDarwinHost(t, env, "outcome-expired-displayed", true)
 		notificationUUID := dispatch(t, hostID)
 		past := time.Now().Add(-time.Hour)
-		_, err := env.DB.ExecContext(ctx, "UPDATE end_user_notifications SET expires_at = ? WHERE uuid = ?", past, notificationUUID)
+		_, err := env.db.ExecContext(ctx, "UPDATE notifications_end_user SET expires_at = ? WHERE uuid = ?", past, notificationUUID)
 		require.NoError(t, err)
 
 		err = env.ds.SetEndUserNotificationOutcome(ctx, notificationUUID, api.NotificationOutcome{

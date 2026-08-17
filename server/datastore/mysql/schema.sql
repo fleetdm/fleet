@@ -527,33 +527,6 @@ CREATE TABLE `email_changes` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `end_user_notifications` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `host_id` int unsigned NOT NULL,
-  `status` varchar(31) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `kind` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `payload` json NOT NULL,
-  `attempt_count` int unsigned NOT NULL DEFAULT '0',
-  `next_attempt_at` datetime(6) DEFAULT NULL,
-  `displayed_at` datetime(6) DEFAULT NULL,
-  `execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `last_exit_code` int DEFAULT NULL,
-  `last_reason` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `expires_at` datetime(6) DEFAULT NULL,
-  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_end_user_notifications_uuid` (`uuid`),
-  KEY `idx_end_user_notifications_dispatch` (`status`,`next_attempt_at`),
-  KEY `idx_end_user_notifications_host` (`host_id`,`status`),
-  KEY `idx_end_user_notifications_execution_id` (`execution_id`),
-  KEY `idx_end_user_notifications_expires_at` (`expires_at`),
-  CONSTRAINT `fk_end_user_notifications_host_id` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `enroll_secrets` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `secret` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
@@ -2643,6 +2616,33 @@ CREATE TABLE `network_interfaces` (
   FULLTEXT KEY `ip_address_search` (`ip_address`),
   CONSTRAINT `network_interfaces_ibfk_1` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `notifications_end_user` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `status` varchar(31) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kind` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` json NOT NULL,
+  `attempt_count` int unsigned NOT NULL DEFAULT '0',
+  `next_attempt_at` datetime(6) DEFAULT NULL,
+  `displayed_at` datetime(6) DEFAULT NULL,
+  `execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_exit_code` int DEFAULT NULL,
+  `last_reason` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `expires_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_notifications_end_user_uuid` (`uuid`),
+  KEY `idx_notifications_end_user_dispatch` (`status`,`next_attempt_at`),
+  KEY `idx_notifications_end_user_host` (`host_id`,`status`),
+  KEY `idx_notifications_end_user_execution_id` (`execution_id`),
+  KEY `idx_notifications_end_user_expires_at` (`expires_at`),
+  CONSTRAINT `fk_notifications_end_user_host_id` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

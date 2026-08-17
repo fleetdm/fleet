@@ -68,7 +68,6 @@ func TestNotificationsPackageDependencies(t *testing.T) {
 			ignoreDeps: []string{
 				m + "/server/notifications/api",
 				m + "/server/notifications/internal/types",
-				m + "/server/notifications/internal/testutils",
 				m + "/server/platform/mysql",
 				m + "/server/platform/mysql/testing_utils",
 				m + "/server/platform/errors",
@@ -94,7 +93,6 @@ func TestNotificationsPackageDependencies(t *testing.T) {
 			ignoreDeps: append(append([]string{
 				m + "/server/notifications/internal/mysql",
 				m + "/server/notifications/internal/service",
-				m + "/server/notifications/internal/testutils",
 			}, notificationsPkgs...), platformPkgs...),
 		},
 	}
