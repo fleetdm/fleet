@@ -204,7 +204,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	} else {
 		commandUUIDs, err := a.installSetupExperienceAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
+			return ctxerr.Wrap(ctx, err, "installing setup experience apps on iOS/iPadOS")
 		}
 		awaitCmdUUIDs = append(awaitCmdUUIDs, commandUUIDs...)
 	}

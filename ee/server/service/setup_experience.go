@@ -418,6 +418,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 			// poll-driven flow. Fail the item instead of letting it fall through
 			// the switch silently and stall the queue.
 			sw.Status = fleet.SetupExperienceStatusFailure
+			sw.Error = new("In-house apps can only be installed during setup experience on iOS and iPadOS.")
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience status result to failure")
 			}
