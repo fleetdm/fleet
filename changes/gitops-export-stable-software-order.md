@@ -1,1 +1,1 @@
-- Fixed `fleetctl generate-gitops` emitting software in an unstable order. Software titles were fetched without an `order_key`, so the API's default (`hosts_count`) applied and the generated `software:` list reordered whenever hosts installed or uninstalled software, producing diffs with no configuration change behind them. The paginated read is also now stable, so titles can no longer be duplicated or skipped across page boundaries.
+- Improved `fleetctl generate-gitops` to emit software titles in name order instead of the default `hosts_count` order.
