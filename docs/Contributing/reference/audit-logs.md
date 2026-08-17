@@ -3139,7 +3139,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
-- "software_display_name": Custom display name for the software, if one is set. Falls back to "software_title" when not set.
+- "software_display_name": Custom name that's displayed in the UI. Falls back to the same name as the "software_title" when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
