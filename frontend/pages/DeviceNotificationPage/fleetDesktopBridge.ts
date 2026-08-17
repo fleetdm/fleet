@@ -1,4 +1,8 @@
-import { BridgeAction, IBridgeMessage } from "interfaces/device_notification";
+import {
+  BRIDGE_VERSION,
+  BridgeAction,
+  IBridgeMessage,
+} from "interfaces/device_notification";
 
 // Fleet Desktop's WKWebView injects `window.webkit.messageHandlers.fleetDesktop`.
 // The same page opened in a normal browser during development does not have it,
@@ -24,6 +28,6 @@ export const postBridgeMessage = (
   if (!handler) {
     return;
   }
-  const message: IBridgeMessage = { v: 1, action, payload };
+  const message: IBridgeMessage = { v: BRIDGE_VERSION, action, payload };
   handler.postMessage(message);
 };

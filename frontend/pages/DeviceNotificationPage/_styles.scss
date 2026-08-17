@@ -53,31 +53,42 @@
     color: $ui-fleet-black-75;
   }
 
-  // Rounded bordered container with 1px dividers between rows. Shows four
-  // full rows and a half; the half is the affordance signaling more content
-  // below (Figma dev note 5546:42433).
-  &__item-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius-large;
-    overflow-y: auto;
+  // Item list is Fleet's <List> — it owns the rounded container, border, and
+  // per-row dividers. Toast-scoped overrides only: cap the height so 4.5 rows
+  // show (the half row is the "more below" affordance from Figma dev note
+  // 5546:42433), suppress the default row hover (toast rows aren't clickable),
+  // and bump SoftwareIcon to Figma's 32×32 (no preset for it).
+  .list__list {
     max-height: calc(4.5 * 48px);
+    overflow-y: auto;
   }
 
-  &__item {
-    background-color: $core-fleet-white;
+  .list__row {
+    height: 32px;
+
+    &:hover {
+      background: $core-fleet-white;
+    }
+
+    .software-icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+
+      > svg,
+      > img {
+        width: 32px;
+        height: 32px;
+      }
+    }
+  }
+
+  &__item-left {
     display: flex;
     align-items: center;
     gap: $pad-small;
-    padding: $pad-small;
-    height: 48px;
-    border-bottom: 1px solid $ui-fleet-black-10;
-
-    &:last-child {
-      border-bottom: none;
-    }
+    min-width: 0;
+    flex: 1;
   }
 
   &__item-name {
@@ -89,6 +100,7 @@
   &__item-status {
     font-size: $x-small;
     color: $ui-fleet-black-75;
+    flex-shrink: 0;
   }
 
   &__actions {
