@@ -131,41 +131,29 @@ jobs:
             const newVersion = process.env.NEW_GO_VERSION;
             const runURL = `https://github.com/fleetdm/fleet/actions/runs/${context.runId}`;
 
+            // component: short name used in the issue title and release mention;
+            // description: longer form used in the issue body.
+            const makeIssue = (component, description) => ({
+              title: `Update Go to ${newVersion} in ${component}`,
+              body: [
+                `A new Go patch release, \`${newVersion}\`, is available.`,
+                ``,
+                `Update the Go version used to build and release ${description}.`,
+                ``,
+                `An automated PR updating the Go version across the repo was opened by the`,
+                `[check-go-patch-release workflow](${runURL}) (branch \`update-go-${newVersion}\`).`,
+                `Review and merge it, then make sure the new Go version ships in the next ${component} release.`,
+                ``,
+                `Release notes: https://go.dev/doc/devel/release#go${newVersion}`,
+                ``,
+                `---`,
+                `*This issue was automatically created by the check-go-patch-release workflow.*`,
+              ].join('\n'),
+            });
+
             const issuesToCreate = [
-              {
-                title: `Update Go to ${newVersion} in Fleet server`,
-                body: [
-                  `A new Go patch release, \`${newVersion}\`, is available.`,
-                  ``,
-                  `Update the Go version used to build and release the **Fleet server**.`,
-                  ``,
-                  `An automated PR updating the Go version across the repo was opened by the`,
-                  `[check-go-patch-release workflow](${runURL}) (branch \`update-go-${newVersion}\`).`,
-                  `Review and merge it, then make sure the new Go version ships in the next Fleet server release.`,
-                  ``,
-                  `Release notes: https://go.dev/doc/devel/release#go${newVersion}`,
-                  ``,
-                  `---`,
-                  `*This issue was automatically created by the check-go-patch-release workflow.*`,
-                ].join('\n'),
-              },
-              {
-                title: `Update Go to ${newVersion} in fleetd`,
-                body: [
-                  `A new Go patch release, \`${newVersion}\`, is available.`,
-                  ``,
-                  `Update the Go version used to build and release **fleetd** (Orbit, Fleet Desktop, and osquery installers).`,
-                  ``,
-                  `An automated PR updating the Go version across the repo was opened by the`,
-                  `[check-go-patch-release workflow](${runURL}) (branch \`update-go-${newVersion}\`).`,
-                  `Review and merge it, then make sure the new Go version ships in the next fleetd release.`,
-                  ``,
-                  `Release notes: https://go.dev/doc/devel/release#go${newVersion}`,
-                  ``,
-                  `---`,
-                  `*This issue was automatically created by the check-go-patch-release workflow.*`,
-                ].join('\n'),
-              },
+              makeIssue('Fleet server', 'the **Fleet server**'),
+              makeIssue('fleetd', '**fleetd** (Orbit, Fleet Desktop, and osquery installers)'),
             ];
 
             // Idempotency: the workflow runs daily and the PR may stay open for a
