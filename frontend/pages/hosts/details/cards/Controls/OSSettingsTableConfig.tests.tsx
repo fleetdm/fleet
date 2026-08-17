@@ -1,7 +1,11 @@
 import { IHostMdmData, IHostMdmHostNameSetting } from "interfaces/host";
+import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import { HOST_NAME_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 
-import { generateTableData } from "./OSSettingsTableConfig";
+import {
+  countFailedControls,
+  generateTableData,
+} from "./OSSettingsTableConfig";
 
 const createMockHostMdmData = (
   overrides?: Partial<IHostMdmData>
@@ -127,5 +131,47 @@ describe("generateTableData - host name row", () => {
 
     expect(rows).toHaveLength(2);
     expect(rows.map((r) => r.name)).toEqual(["Wi-Fi", "Host name"]);
+  });
+});
+
+describe("countFailedControls", () => {
+  it("counts nothing when there are no rows", () => {
+    expect(countFailedControls(null)).toBe(0);
+    expect(countFailedControls([])).toBe(0);
+  });
+
+  it("counts synthesized rows, not just profiles from the API", () => {
+    const rows = generateTableData(
+      createMockHostMdmData({
+        profiles: [
+          createMockHostMdmProfile({ profile_uuid: "a", status: "failed" }),
+          createMockHostMdmProfile({ profile_uuid: "b", status: "verified" }),
+        ],
+        os_settings: {
+          disk_encryption: { status: "failed", detail: "encryption failed" },
+          certificates: [],
+        },
+      }),
+      "windows"
+    );
+
+    // The failed profile plus the synthesized failed disk encryption row.
+    expect(countFailedControls(rows)).toBe(2);
+  });
+
+  it("counts the synthesized host name row", () => {
+    const rows = generateTableData(
+      createMockHostMdmData({
+        profiles: [],
+        os_settings: {
+          disk_encryption: { status: null, detail: "" },
+          certificates: [],
+          host_name: { status: "failed", detail: "drifted" },
+        },
+      }),
+      "darwin"
+    );
+
+    expect(countFailedControls(rows)).toBe(1);
   });
 });

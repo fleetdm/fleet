@@ -1,0 +1,433 @@
+import React from "react";
+
+import {
+  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  HostNameSettingStatus,
+  LinuxDiskEncryptionStatus,
+  ProfileOperationType,
+  RecoveryLockPasswordStatus,
+} from "interfaces/mdm";
+
+import { IconNames } from "components/icons";
+
+import {
+  HOST_NAME_SYNTHETIC_PROFILE_UUID,
+  REC_LOCK_SYNTHETIC_PROFILE_UUID,
+} from "../../helpers";
+import {
+  IHostMdmProfileWithAddedStatus,
+  OsSettingsTableStatusValue,
+} from "./OSSettingsTableConfig";
+
+export const isDiskEncryptionProfile = (profileName: string) => {
+  return profileName === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME;
+};
+
+/** Values interpolated into a control's details message. */
+export interface IControlMessageProps {
+  /** Display name of the host the control targets. */
+  hostDisplayName: string;
+  /** Display name of the control, e.g. "Okta Verify settings". */
+  settingName: string;
+  isDiskEncryptionProfile: boolean;
+  /** True on the My device page, where the end user reads the message. */
+  isDeviceUser: boolean;
+}
+
+export type ControlMessage =
+  | string
+  | ((props: IControlMessageProps) => React.ReactNode);
+
+export type ProfileDisplayOption = {
+  statusText: string;
+  iconName: IconNames;
+  /** Body copy for the control's details modal. */
+  message: ControlMessage | null;
+} | null;
+
+const actionRequiredMessage: ControlMessage = ({
+  isDeviceUser,
+  settingName,
+}) => {
+  const instructions = settingName ? (
+    <>
+      <b>{settingName}</b> instructions
+    </>
+  ) : (
+    <>instructions</>
+  );
+
+  if (isDeviceUser) {
+    return (
+      <>
+        Follow the {instructions} on your <b>My device</b> page.
+      </>
+    );
+  }
+
+  return (
+    <>
+      Ask the end user to follow the {instructions} on their <b>My device</b>{" "}
+      page.
+    </>
+  );
+};
+
+type MacProfileSpecificStatus = "success" | "acknowledged";
+type AndroidCertSpecificStatus = "delivered" | "delivering";
+
+export type ProfileStatus = Exclude<
+  OsSettingsTableStatusValue,
+  AndroidCertSpecificStatus
+>;
+type OperationTypeOption = Record<ProfileStatus, ProfileDisplayOption>;
+
+type ProfileDisplayConfig = Record<ProfileOperationType, OperationTypeOption>;
+
+const diskEncryptionVerifiedMessage: ControlMessage = ({ hostDisplayName }) => (
+  <>
+    <b>{hostDisplayName}</b> turned disk encryption on and sent the key to
+    Fleet. Fleet verified.
+  </>
+);
+
+const diskEncryptionVerifyingMessage: ControlMessage = ({
+  hostDisplayName,
+}) => (
+  <>
+    <b>{hostDisplayName}</b> acknowledged the MDM command to turn on disk
+    encryption. Fleet is verifying with osquery and retrieving the disk
+    encryption key. This may take up to one hour.
+  </>
+);
+
+const diskEncryptionEnforcingMessage: ControlMessage = ({
+  hostDisplayName,
+}) => (
+  <>
+    <b>{hostDisplayName}</b> will receive the MDM command to turn on disk
+    encryption when the host comes online.
+  </>
+);
+
+const diskEncryptionFailedMessage: ControlMessage = ({ hostDisplayName }) => (
+  <>
+    <b>{hostDisplayName}</b> failed to turn on disk encryption.
+  </>
+);
+
+// Profiles for iOS and iPadOS skip the verifying step
+const APPLE_PROFILE_VERIFIED_DISPLAY_CONFIG: ProfileDisplayOption = {
+  statusText: "Verified",
+  iconName: "success",
+  message: (props) =>
+    props.isDiskEncryptionProfile ? (
+      diskEncryptionVerifiedMessage(props)
+    ) : (
+      <>
+        <b>{props.hostDisplayName}</b> applied <b>{props.settingName}</b>. Fleet
+        verified.
+      </>
+    ),
+};
+
+const MAC_PROFILE_VERIFYING_DISPLAY_CONFIG: ProfileDisplayOption = {
+  statusText: "Verifying",
+  iconName: "success-outline",
+  message: (props) =>
+    props.isDiskEncryptionProfile ? (
+      diskEncryptionVerifyingMessage(props)
+    ) : (
+      <>
+        <b>{props.hostDisplayName}</b> acknowledged the MDM command to apply{" "}
+        <b>{props.settingName}</b>. Fleet is verifying with osquery.
+      </>
+    ),
+};
+
+export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
+  install: {
+    verified: APPLE_PROFILE_VERIFIED_DISPLAY_CONFIG,
+    success: APPLE_PROFILE_VERIFIED_DISPLAY_CONFIG,
+    verifying: MAC_PROFILE_VERIFYING_DISPLAY_CONFIG,
+    acknowledged: MAC_PROFILE_VERIFYING_DISPLAY_CONFIG,
+    pending: {
+      statusText: "Enforcing",
+      iconName: "pending-outline",
+      message: (props) =>
+        props.isDiskEncryptionProfile ? (
+          diskEncryptionEnforcingMessage(props)
+        ) : (
+          <>
+            <b>{props.hostDisplayName}</b> is running the MDM command to apply{" "}
+            <b>{props.settingName}</b> or will run it when the host comes
+            online.
+          </>
+        ),
+    },
+    action_required: {
+      statusText: "Action required",
+      iconName: "pending-outline",
+      message: actionRequiredMessage,
+    },
+    failed: {
+      statusText: "Failed",
+      iconName: "error",
+      message: (props) =>
+        props.isDiskEncryptionProfile ? (
+          diskEncryptionFailedMessage(props)
+        ) : (
+          <>
+            <b>{props.hostDisplayName}</b> failed to apply{" "}
+            <b>{props.settingName}</b>.
+          </>
+        ),
+    },
+  },
+  remove: {
+    pending: {
+      statusText: "Removing enforcement",
+      iconName: "pending-outline",
+      message: (props) =>
+        props.isDiskEncryptionProfile ? (
+          <>
+            <b>{props.hostDisplayName}</b> will receive the MDM command to
+            remove the disk encryption profile when the host comes online.
+          </>
+        ) : (
+          <>
+            <b>{props.hostDisplayName}</b> is running the MDM command to remove{" "}
+            <b>{props.settingName}</b> or will run it when the host comes
+            online.
+          </>
+        ),
+    },
+    action_required: null, // should not be reached
+    verified: null, // should not be reached
+    verifying: null, // should not be reached
+    success: null, // should not be reached
+    acknowledged: null, // should not be reached
+    failed: {
+      statusText: "Failed",
+      iconName: "error",
+      message: (props) =>
+        props.isDiskEncryptionProfile ? (
+          <>
+            <b>{props.hostDisplayName}</b> failed to remove the disk encryption
+            profile.
+          </>
+        ) : (
+          <>
+            <b>{props.hostDisplayName}</b> failed to remove{" "}
+            <b>{props.settingName}</b>.
+          </>
+        ),
+    },
+  },
+};
+
+export type WindowsDiskEncryptionDisplayStatus = Exclude<
+  ProfileStatus,
+  MacProfileSpecificStatus | AndroidCertSpecificStatus
+>;
+
+type WindowsDiskEncryptionDisplayConfig = Pick<
+  OperationTypeOption,
+  WindowsDiskEncryptionDisplayStatus
+>;
+
+export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig = {
+  verified: {
+    statusText: "Verified",
+    iconName: "success",
+    message: diskEncryptionVerifiedMessage,
+  },
+  verifying: {
+    statusText: "Verifying",
+    iconName: "success-outline",
+    message: diskEncryptionVerifyingMessage,
+  },
+  pending: {
+    statusText: "Enforcing",
+    iconName: "pending-outline",
+    message: diskEncryptionEnforcingMessage,
+  },
+  action_required: {
+    statusText: "Action required",
+    iconName: "pending-outline",
+    message:
+      "Disk encryption is on, but the user has not set a BitLocker PIN yet.",
+  },
+  failed: {
+    statusText: "Failed",
+    iconName: "error",
+    message: diskEncryptionFailedMessage,
+  },
+};
+
+type LinuxDiskEncryptionDisplayConfig = Omit<
+  OperationTypeOption,
+  MacProfileSpecificStatus | AndroidCertSpecificStatus | "pending" | "verifying"
+>;
+
+export const LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG: LinuxDiskEncryptionDisplayConfig = {
+  verified: {
+    statusText: "Verified",
+    iconName: "success",
+    message: diskEncryptionVerifiedMessage,
+  },
+  failed: {
+    statusText: "Failed",
+    iconName: "error",
+    message: diskEncryptionFailedMessage,
+  },
+  action_required: {
+    statusText: "Action required",
+    iconName: "pending-outline",
+    message: actionRequiredMessage,
+  },
+};
+
+export const HOST_NAME_DISPLAY_CONFIG: Record<
+  HostNameSettingStatus,
+  ProfileDisplayOption
+> = {
+  pending: {
+    statusText: "Enforcing",
+    iconName: "pending-outline",
+    message:
+      "Fleet is enforcing this fleet's host name template. The host will be renamed when it comes online.",
+  },
+  verifying: {
+    statusText: "Verifying",
+    iconName: "success-outline",
+    message:
+      "The host acknowledged the MDM command to rename it. Fleet is verifying.",
+  },
+  verified: {
+    statusText: "Verified",
+    iconName: "success",
+    message:
+      "The host was renamed to match this fleet's host name template. Fleet verified.",
+  },
+  // failed has no static message so the modal falls back to the error detail
+  // (drift message or Apple error) via getDetailText.
+  failed: {
+    statusText: "Failed",
+    iconName: "error",
+    message: null,
+  },
+};
+
+export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
+  RecoveryLockPasswordStatus,
+  ProfileDisplayOption
+> = {
+  verified: {
+    statusText: "Verified",
+    iconName: "success",
+    message: "Fleet set a recovery lock password for the host.",
+  },
+  pending: {
+    statusText: "Enforcing",
+    iconName: "pending-outline",
+    message: "Fleet is setting a recovery lock password for the host.",
+  },
+  removing_enforcement: {
+    statusText: "Removing enforcement",
+    iconName: "pending-outline",
+    message: "Fleet is unsetting the recovery lock password for the host.",
+  },
+  failed: {
+    statusText: "Failed",
+    iconName: "error",
+    message: "Fleet failed to set a recovery lock password for the host.",
+  },
+};
+
+const getAndroidCertificateDisplayOption = (
+  status: OsSettingsTableStatusValue,
+  operationType: ProfileOperationType | null
+): ProfileDisplayOption => {
+  switch (status) {
+    case "pending":
+    case "delivering":
+    case "delivered":
+      return operationType === "install"
+        ? {
+            statusText: "Enforcing",
+            iconName: "pending-outline",
+            message:
+              "The host is running the command to apply settings or will run it when the host comes online.",
+          }
+        : {
+            statusText: "Removing enforcement",
+            iconName: "pending-outline",
+            message:
+              "The host is running the command to remove settings or will run it when the host comes online.",
+          };
+    case "verified":
+      return {
+        statusText: "Verified",
+        iconName: "success",
+        message: "The host applied the setting. Fleet verified",
+      };
+    case "failed":
+      return {
+        statusText: "Failed",
+        iconName: "error",
+        message: null,
+      };
+    default:
+      return null;
+  }
+};
+
+/**
+ * Resolves the icon, status text, and details message for a control row. Shared
+ * by the table's status cell and the details modal so the two can't drift.
+ */
+export const getControlDisplayOption = (
+  row: IHostMdmProfileWithAddedStatus
+): ProfileDisplayOption => {
+  const { status, operation_type: operationType, platform } = row;
+  const profileUUID = row.profile_uuid;
+
+  if (platform === "linux") {
+    return LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG[
+      status as LinuxDiskEncryptionStatus
+    ];
+  }
+
+  if (profileUUID === REC_LOCK_SYNTHETIC_PROFILE_UUID) {
+    return RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG[
+      status as RecoveryLockPasswordStatus
+    ];
+  }
+
+  if (profileUUID === HOST_NAME_SYNTHETIC_PROFILE_UUID) {
+    return HOST_NAME_DISPLAY_CONFIG[status as HostNameSettingStatus];
+  }
+
+  if (
+    platform === "android" &&
+    profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID
+  ) {
+    return getAndroidCertificateDisplayOption(status, operationType);
+  }
+
+  // The synthesized Windows disk encryption row carries no operation type, and
+  // its display options differ from a profile's.
+  if (!operationType && status !== "success" && status !== "acknowledged") {
+    return WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG[
+      status as WindowsDiskEncryptionDisplayStatus
+    ];
+  }
+
+  if (operationType) {
+    return PROFILE_DISPLAY_CONFIG[operationType]?.[status as ProfileStatus];
+  }
+
+  return null;
+};

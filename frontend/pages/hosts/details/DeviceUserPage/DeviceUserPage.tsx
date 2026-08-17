@@ -73,7 +73,12 @@ import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetail
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import BitLockerPinModal from "./BitLockerPinModal";
 import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
-import OSSettingsModal from "../OSSettingsModal";
+import ControlsCard from "../cards/Controls";
+import { shouldShowControlsTab } from "../cards/Controls/helpers";
+import {
+  countFailedControls,
+  generateTableData,
+} from "../cards/Controls/OSSettingsTableConfig";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
@@ -97,12 +102,14 @@ const fullWidthCardClass = `${baseClass}__card--full-width`;
 const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
   PATHS.DEVICE_USER_DETAILS,
+  PATHS.DEVICE_USER_DETAILS_CONTROLS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
   PATHS.DEVICE_USER_DETAILS_POLICIES,
 ] as const;
 
 const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
+  PATHS.DEVICE_USER_DETAILS_CONTROLS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
 
@@ -147,7 +154,6 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
-  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -495,10 +501,6 @@ const DeviceUserPage = ({
     name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
-  const toggleOSSettingsModal = useCallback(() => {
-    setShowOSSettingsModal(!showOSSettingsModal);
-  }, [showOSSettingsModal, setShowOSSettingsModal]);
-
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(false);
     setSelectedPolicy(null);
@@ -588,6 +590,19 @@ const DeviceUserPage = ({
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
+    const controls = host
+      ? generateTableData(host.mdm, host.platform) ?? []
+      : [];
+    const failedControlsCount = countFailedControls(controls);
+
+    const showControlsTab =
+      !!host &&
+      shouldShowControlsTab({
+        platform: host.platform,
+        enrollmentStatus: host.mdm?.enrollment_status ?? null,
+        hasControls: controls.length > 0,
+      });
+
     // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
     // a premium-only message in the case that a user tries direct navigation to a premium-only page
     // or silently redirect as below?
@@ -597,6 +612,9 @@ const DeviceUserPage = ({
     ).map((t) => t(deviceAuthToken));
     if (!hasSelfService) {
       tabPaths = tabPaths.filter((path) => !path.includes("self-service"));
+    }
+    if (!showControlsTab) {
+      tabPaths = tabPaths.filter((path) => !path.endsWith("/controls"));
     }
 
     const findSelectedTab = (pathname: string) => {
@@ -756,6 +774,13 @@ const DeviceUserPage = ({
                 <Tab>
                   <TabText>Details</TabText>
                 </Tab>
+                {showControlsTab && (
+                  <Tab>
+                    <TabText count={failedControlsCount} countVariant="alert">
+                      Controls
+                    </TabText>
+                  </Tab>
+                )}
                 {isSoftwareEnabled && (
                   <Tab>
                     <TabText>Software</TabText>
@@ -792,9 +817,6 @@ const DeviceUserPage = ({
                   summaryData={summaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
-                  toggleOSSettingsModal={toggleOSSettingsModal}
-                  hostSettings={host?.mdm.profiles ?? []}
-                  osSettings={host?.mdm.os_settings}
                 />
                 <VitalsCard
                   className={fullWidthCardClass}
@@ -826,6 +848,19 @@ const DeviceUserPage = ({
                   />
                 )}
               </TabPanel>
+              {showControlsTab && (
+                <TabPanel>
+                  <ControlsCard
+                    controls={controls}
+                    hostDisplayName={host.display_name}
+                    isDeviceUser
+                    canResendProfiles={isAppleHost || isWindows(host.platform)}
+                    resendRequest={resendProfile}
+                    onProfileResent={refetchDupDetails}
+                    router={router}
+                  />
+                </TabPanel>
+              )}
               {isSoftwareEnabled && (
                 <TabPanel>
                   <SoftwareCard
@@ -887,16 +922,6 @@ const DeviceUserPage = ({
                   }
                 : undefined
             }
-          />
-        )}
-        {!!host && showOSSettingsModal && (
-          <OSSettingsModal
-            canResendProfiles={isAppleHost || isWindows(host.platform)}
-            platform={host.platform}
-            hostMDMData={host.mdm}
-            resendRequest={resendProfile}
-            onProfileResent={refetchDupDetails}
-            onClose={toggleOSSettingsModal}
           />
         )}
         {showBootstrapPackageModal &&

@@ -129,7 +129,12 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
 import ManagedAccountModal from "./modals/ManagedAccountModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
-import OSSettingsModal from "../OSSettingsModal";
+import ControlsCard from "../cards/Controls";
+import { shouldShowControlsTab } from "../cards/Controls/helpers";
+import {
+  countFailedControls,
+  generateTableData,
+} from "../cards/Controls/OSSettingsTableConfig";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectReportModal from "./modals/SelectReportModal";
@@ -231,7 +236,6 @@ const HostDetailsPage = ({
   const [showSelectReportModal, setShowSelectReportModal] = useState(false);
   const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
-  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [
@@ -689,10 +693,6 @@ const HostDetailsPage = ({
     },
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
   );
-
-  const toggleOSSettingsModal = useCallback(() => {
-    setShowOSSettingsModal(!showOSSettingsModal);
-  }, [showOSSettingsModal, setShowOSSettingsModal]);
 
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
@@ -1198,12 +1198,35 @@ const HostDetailsPage = ({
     !isIosOrIpadosHost && !isAndroidHost && !isChromeOsHost;
   const showPoliciesTab = !isIosOrIpadosHost && !isAndroidHost;
 
+  const controls = generateTableData(host.mdm, host.platform) ?? [];
+  const failedControlsCount = countFailedControls(controls);
+
+  const showControlsTab = shouldShowControlsTab({
+    platform: host.platform,
+    enrollmentStatus: host.mdm?.enrollment_status ?? null,
+    hasControls: controls.length > 0,
+    isPlatformMdmEnabled:
+      (isAppleDeviceHost && !!config?.mdm.enabled_and_configured) ||
+      (isWindowsHost && !!config?.mdm.windows_enabled_and_configured) ||
+      (isAndroidHost && !!config?.mdm.android_enabled_and_configured),
+  });
+
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
       name: "Details",
       title: "details",
       pathname: PATHS.HOST_DETAILS(hostIdFromURL),
     },
+    ...(showControlsTab
+      ? [
+          {
+            name: "Controls",
+            title: "controls",
+            pathname: PATHS.HOST_CONTROLS(hostIdFromURL),
+            count: failedControlsCount,
+          },
+        ]
+      : []),
     {
       name: "Software",
       title: "software",
@@ -1306,6 +1329,11 @@ const HostDetailsPage = ({
     isGlobalMaintainer ||
     isHostTeamAdmin ||
     isHostTeamMaintainer;
+
+  // Mirrors the route guard on /controls, so the empty state doesn't offer a
+  // link that bounces the user straight back.
+  const canAddControls =
+    canManagePolicies || isGlobalTechnician || isHostTeamTechnician;
 
   const bootstrapPackageData = {
     status: host?.mdm.setup_experience?.bootstrap_package_status,
@@ -1517,10 +1545,7 @@ const HostDetailsPage = ({
                   summaryData={summaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
-                  toggleOSSettingsModal={toggleOSSettingsModal}
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-                  hostSettings={host?.mdm.profiles ?? []}
-                  osSettings={host?.mdm.os_settings}
                   className={fullWidthCardClass}
                 />
                 <VitalsCard
@@ -1664,6 +1689,30 @@ const HostDetailsPage = ({
                   />
                 )}
               </TabPanel>
+              {showControlsTab && (
+                <TabPanel>
+                  <ControlsCard
+                    controls={controls}
+                    hostDisplayName={host.display_name}
+                    canResendProfiles={canResendProfiles}
+                    canRotateRecoveryLockPassword={
+                      isGlobalAdmin ||
+                      isGlobalMaintainer ||
+                      isHostTeamAdmin ||
+                      isHostTeamMaintainer
+                    }
+                    canResendHostNameTemplate={canResendProfiles}
+                    canAddControls={canAddControls}
+                    teamId={host.team_id}
+                    resendRequest={resendProfile}
+                    resendCertificateRequest={resendCertificate}
+                    rotateRecoveryLockPassword={rotateRecoveryLockPassword}
+                    resendHostNameTemplate={resendHostNameTemplate}
+                    onProfileResent={refetchHostDetails}
+                    router={router}
+                  />
+                </TabPanel>
+              )}
               <TabPanel>
                 <TabNav className={`${baseClass}__software-tab-nav`} secondary>
                   <Tabs
@@ -1782,26 +1831,6 @@ const HostDetailsPage = ({
                 refetchHostDetails();
                 refetchPastActivities();
               }}
-            />
-          )}
-          {showOSSettingsModal && (
-            <OSSettingsModal
-              canResendProfiles={canResendProfiles}
-              canRotateRecoveryLockPassword={
-                isGlobalAdmin ||
-                isGlobalMaintainer ||
-                isHostTeamAdmin ||
-                isHostTeamMaintainer
-              }
-              canResendHostNameTemplate={canResendProfiles}
-              platform={host.platform}
-              hostMDMData={host.mdm}
-              onClose={toggleOSSettingsModal}
-              resendRequest={resendProfile}
-              resendCertificateRequest={resendCertificate}
-              rotateRecoveryLockPassword={rotateRecoveryLockPassword}
-              resendHostNameTemplate={resendHostNameTemplate}
-              onProfileResent={refetchHostDetails}
             />
           )}
           {showUnenrollMdmModal && !!host && host.mdm.enrollment_status && (

@@ -17,54 +17,36 @@ import { IHostMdmProfileWithAddedStatus } from "../OSSettingsTableConfig";
 
 const baseClass = "os-settings-resend-cell";
 
-interface IResendButtonProps {
-  isResending: boolean;
-  onClick: (evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
-}
-
-const ResendButton = ({ isResending, onClick }: IResendButtonProps) => {
-  const classNames = classnames(`${baseClass}__resend-button`, "resend-link", {
-    [`${baseClass}__resending`]: isResending,
-  });
-
-  const buttonText = isResending ? "Resending..." : "Resend";
-
-  return (
-    <Button
-      disabled={isResending}
-      onClick={onClick}
-      variant="secondary"
-      className={classNames}
-      size="small"
-      icon="refresh"
-    >
-      {buttonText}
-    </Button>
-  );
-};
-
-interface IRotateButtonProps {
-  isRotating: boolean;
+interface IActionButtonProps {
+  isPending: boolean;
+  className: string;
+  text: string;
+  pendingText: string;
   onClick: () => void;
 }
 
-const RotateButton = ({ isRotating, onClick }: IRotateButtonProps) => {
-  const classNames = classnames(`${baseClass}__rotate-button`, "rotate-link", {
-    [`${baseClass}__rotating`]: isRotating,
-  });
-
-  const buttonText = isRotating ? "Rotating..." : "Rotate";
-
+const ActionButton = ({
+  isPending,
+  className,
+  text,
+  pendingText,
+  onClick,
+}: IActionButtonProps) => {
   return (
     <Button
-      disabled={isRotating}
-      onClick={onClick}
+      disabled={isPending}
+      // The row itself opens the details modal, so an action click must not
+      // also trigger it.
+      onClick={(evt: React.MouseEvent) => {
+        evt.stopPropagation();
+        onClick();
+      }}
       variant="secondary"
-      className={classNames}
+      className={className}
       size="small"
       icon="refresh"
     >
-      {buttonText}
+      {isPending ? pendingText : text}
     </Button>
   );
 };
@@ -79,6 +61,9 @@ interface IOSSettingsResendCellProps {
   rotateRecoveryLockPassword?: () => Promise<void>;
   resendHostNameTemplate?: () => Promise<void>;
   onProfileResent?: () => void;
+  /** Fade the action in on row hover. Set for the table cell, not the details
+   * modal footer, where the action is always visible. */
+  revealOnRowHover?: boolean;
 }
 
 const OSSettingsResendCell = ({
@@ -91,6 +76,7 @@ const OSSettingsResendCell = ({
   rotateRecoveryLockPassword,
   resendHostNameTemplate,
   onProfileResent = noop,
+  revealOnRowHover = false,
 }: IOSSettingsResendCellProps) => {
   const [isResending, setIsResending] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
@@ -127,6 +113,7 @@ const OSSettingsResendCell = ({
       notify.success(
         "Successfully sent request to rotate Recovery Lock password."
       );
+      onProfileResent();
     } catch (e) {
       const msg = getErrorReason(e).includes("already in progress")
         ? "Recovery lock password rotation is already in progress for this host."
@@ -170,17 +157,44 @@ const OSSettingsResendCell = ({
   const showResendHostNameButton =
     canResendHostNameTemplate && (isFailed || isVerified);
 
+  const actionClass = (
+    modifier: string,
+    pendingModifier: string,
+    isPending: boolean
+  ) =>
+    classnames(`${baseClass}__${modifier}-button`, {
+      [`${baseClass}__${pendingModifier}`]: isPending,
+      // The shared row-hover fade lives in TableContainer's styles. Keep an
+      // in-flight action visible so the user can see it working.
+      "row-hover-button": revealOnRowHover && !isPending,
+    });
+
   return (
     <div className={baseClass}>
       {showResendButton && (
-        <ResendButton isResending={isResending} onClick={onResendProfile} />
+        <ActionButton
+          isPending={isResending}
+          className={actionClass("resend", "resending", isResending)}
+          text="Resend"
+          pendingText="Resending..."
+          onClick={onResendProfile}
+        />
       )}
       {showRotateButton && (
-        <RotateButton isRotating={isRotating} onClick={onRotatePassword} />
+        <ActionButton
+          isPending={isRotating}
+          className={actionClass("rotate", "rotating", isRotating)}
+          text="Rotate"
+          pendingText="Rotating..."
+          onClick={onRotatePassword}
+        />
       )}
       {showResendHostNameButton && (
-        <ResendButton
-          isResending={isResending}
+        <ActionButton
+          isPending={isResending}
+          className={actionClass("resend", "resending", isResending)}
+          text="Resend"
+          pendingText="Resending..."
           onClick={onResendHostNameTemplate}
         />
       )}

@@ -123,9 +123,7 @@ const HOST_NAME_TEMPLATE_PLATFORMS = ["darwin", "ios", "ipados"];
 
 /**
  * Returns the synthetic "Host name" row when the host is an Apple host enrolled
- * in MDM and enforcing a host name template, otherwise null. Centralizes the
- * eligibility rule shared by the OS settings modal table (generateTableData)
- * and the host summary OS-settings indicator so they can't drift apart.
+ * in MDM and enforcing a host name template, otherwise null.
  */
 export const generateHostNameSettingIfEligible = (
   platform: string,

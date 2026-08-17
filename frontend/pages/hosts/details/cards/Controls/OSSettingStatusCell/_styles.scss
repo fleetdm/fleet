@@ -12,11 +12,6 @@
     align-self: center;
   }
 
-  .__react_component_tooltip {
-    white-space: normal;
-    font-size: $xx-small;
-  }
-
   &__status-text {
     @include ellipse-text;
   }
