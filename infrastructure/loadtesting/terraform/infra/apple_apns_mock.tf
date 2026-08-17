@@ -178,7 +178,7 @@ resource "aws_ecs_service" "apple_apns_mock" {
 
 resource "aws_lb_target_group" "apple_apns_mock" {
   count                = var.enable_apple_mdm ? 1 : 0
-  name                 = "${local.customer}-apple-apns-mock"
+  name                 = "${local.customer}-apnsm"
   protocol             = "HTTP"
   port                 = local.apple_apns_mock_port
   target_type          = "ip"
