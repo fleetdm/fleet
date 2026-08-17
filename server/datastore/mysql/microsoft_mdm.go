@@ -98,8 +98,10 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 
 // SetMDMWindowsEnrollmentLoginStatus records the com.microsoft/MDM/LoginStatus value the device reported for this enrollment.
 //
-// The write is unconditional rather than write-on-change: the observation time is itself the useful signal when debugging a
-// held profile ("when did Fleet last hear about user context"), and the alert arrives at most a couple of times per session.
+// Callers only invoke this when the value changed, so last_login_status_at records when the user context last changed rather
+// than when it was last observed. That is the more useful timestamp anyway ("the user signed in at X"), and it keeps this off
+// the hot path: the device reports the value on every session, as often as once a minute on the aggressive poll.
+//
 // It is deliberately NOT part of the caller's transaction: recording user context is independent of whatever else the
 // management session is doing, and a failure here must not fail the device's response.
 // A nil status clears the observation, which the gate reads as "not known to be signed in" and therefore holds on. That is

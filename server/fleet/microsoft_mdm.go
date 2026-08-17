@@ -930,8 +930,9 @@ type MDMWindowsEnrolledDevice struct {
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`
 	CredentialsAcknowledged bool                            `db:"credentials_acknowledged"`
 	// LastLoginStatus is the value of the com.microsoft/MDM/LoginStatus device alert the device last reported, and
-	// LastLoginStatusAt when it was observed. NULL means never observed, which is distinct from an observed "none": the
-	// user-scoped profile gate holds on both, but only a positive "user" observation releases it.
+	// LastLoginStatusAt when that value last changed (it is written on change, not on every session). NULL means never
+	// observed, which is distinct from an observed "none": the user-scoped profile gate holds on both, but only a
+	// positive "user" observation releases it.
 	LastLoginStatus   *WindowsMDMLoginStatus `db:"last_login_status"`
 	LastLoginStatusAt *time.Time             `db:"last_login_status_at"`
 	// PollScheduleRelaxed is the INTENDED DMClient poll schedule for this enrollment: true once we have enqueued a Replace to relax its poll

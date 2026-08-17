@@ -1672,6 +1672,14 @@ func (svc *Service) processClientEventAlert(ctx context.Context, enrolledDevice 
 				"value", item.Data.Content, "device_id", enrolledDevice.MDMDeviceID)
 		}
 
+		// Write only when the value changed. The device reports this on every session, and the aggressive poll interval
+		// is one minute, so writing unconditionally would be an UPDATE per host per minute for a value that changes
+		// about twice in a host's life. poll_schedule_relaxed and fleetd_sync_capable on this same table are maintained
+		// the same way. The comparison is free: the enrollment row was already loaded at session start.
+		if ptr.Equal(enrolledDevice.LastLoginStatus, status) {
+			return
+		}
+
 		if err := svc.ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, status); err != nil {
 			svc.logger.ErrorContext(ctx, "windows mdm: recording LoginStatus alert", "err", err,
 				"device_id", enrolledDevice.MDMDeviceID)

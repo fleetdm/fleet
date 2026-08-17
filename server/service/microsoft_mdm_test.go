@@ -916,6 +916,23 @@ func TestProcessClientEventAlertLoginStatus(t *testing.T) {
 		require.Nil(t, device.LastLoginStatus)
 	})
 
+	t.Run("unchanged value is not rewritten", func(t *testing.T) {
+		// The device reports this on every session, as often as once a minute on the aggressive poll, so re-reporting
+		// the same value must not write.
+		ds, svc := newSvc(t)
+		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
+			return nil
+		}
+
+		signedIn := fleet.WindowsMDMLoginStatusUser
+		device := &fleet.MDMWindowsEnrolledDevice{ID: 7, MDMDeviceID: "device-1", LastLoginStatus: &signedIn}
+		svc.processClientEventAlert(t.Context(), device, alertWithLoginStatus("user"))
+
+		require.False(t, ds.SetMDMWindowsEnrollmentLoginStatusFuncInvoked, "re-reporting the same value must not write")
+		require.NotNil(t, device.LastLoginStatus)
+		require.Equal(t, fleet.WindowsMDMLoginStatusUser, *device.LastLoginStatus)
+	})
+
 	t.Run("other 1224 alert types are ignored", func(t *testing.T) {
 		ds, svc := newSvc(t)
 		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
