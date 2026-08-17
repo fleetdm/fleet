@@ -1,0 +1,1 @@
+- Improved host enrollment validation and added enrollment activity logging for osquery agents.
