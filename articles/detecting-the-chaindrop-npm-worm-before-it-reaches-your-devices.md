@@ -151,11 +151,11 @@ ChainDrop's advantage is speed and silence: it spreads through tooling your deve
 
 ---
 
-About the author: Allen Houchins works on security and platform engineering at Fleet. Talk to [Fleet](https://fleetdm.com/device-management) today to find out how to solve your trickiest device management, data orchestration, and security problems.
+About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fleet's VP of Security Solutions. Talk to [Fleet](https://fleetdm.com/device-management) today to find out how to solve your trickiest device management, data orchestration, and security problems.
 
 <meta name="articleTitle" value="Detecting the ChainDrop npm worm before it reaches your devices">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="authorFullName" value="Dhruv Majumdar">
+<meta name="authorGitHubUsername" value="drvcodenta">
 <meta name="category" value="security">
 <meta name="publishedOn" value="2026-08-17">
 <meta name="description" value="ChainDrop hides in npm packages and IDE hooks your developers trust. Use Fleet to see if it is on your devices before a stolen credential does.">
