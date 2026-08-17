@@ -174,7 +174,11 @@ export const PatchOptionSelector = ({
             name="end-user-experience"
             label="End user experience"
             options={END_USER_EXPERIENCE_OPTIONS}
-            value={endUserExperience}
+            value={
+              END_USER_EXPERIENCE_OPTIONS.find(
+                (o) => o.value === endUserExperience
+              ) ?? END_USER_EXPERIENCE_OPTIONS[0]
+            }
             onChange={onChangeEndUserExperience}
             isDisabled={disabled}
           />

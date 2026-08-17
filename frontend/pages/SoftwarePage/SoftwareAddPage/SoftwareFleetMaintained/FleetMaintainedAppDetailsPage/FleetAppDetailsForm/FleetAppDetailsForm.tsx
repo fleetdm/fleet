@@ -301,7 +301,10 @@ const FleetAppDetailsForm = ({
             gitopsCompatible
             gitOpsModeEnabled={gitOpsModeEnabled}
             patchWhenClosed={
-              formData.patch && formData.patchOption === "closed"
+              formData.patch &&
+              (formData.patchOption === "closed" ||
+                (formData.patchOption === "force" &&
+                  formData.endUserExperience === "notify"))
             }
           />
         )}
