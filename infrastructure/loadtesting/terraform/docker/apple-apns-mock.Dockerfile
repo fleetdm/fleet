@@ -4,7 +4,7 @@
 FROM golang:1.26.5-alpine3.23@sha256:622e56dbc11a8cfe87cafa2331e9a201877271cbff918af53d3be315f3da88cc
 ARG TAG
 RUN apk add git
-RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git
+RUN git clone -b "$TAG" --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git
 RUN cd /go/fleet && go build -o /go/bin/apple-apns-mock ./cmd/apple-apns-mock
 
 FROM alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
