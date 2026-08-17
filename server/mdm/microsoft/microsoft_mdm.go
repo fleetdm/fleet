@@ -103,14 +103,6 @@ func IsValidUPN(userID string) bool {
 
 // WindowsUserContextState reports what Fleet knows about the enrollment's MDM user context, which decides whether its
 // user-scoped profiles are held or delivered.
-//
-// A UPN in enroll_user_id means the enrollment is user-driven (Autopilot / Entra join), the same signal
-// isFleetdPresentOnDevice and the EUA token path already use. Those enrollments have a knowable user context: the device
-// reports LoginStatus every session, so "signed in" and "not signed in yet" are distinguishable, and the pre-sign-in window
-// is the one issue #50196 is about.
-//
-// A non-UPN enroll_user_id (a programmatic fleetd enrollment) says nothing about whether the user channel is writable, so
-// this reports Unknown and the caller does not gate. The device's own identity decides that, not the enrollment row.
 func WindowsUserContextState(device *fleet.MDMWindowsEnrolledDevice) fleet.WindowsUserContextState {
 	if device == nil {
 		return fleet.WindowsUserContextUnknown
@@ -118,8 +110,7 @@ func WindowsUserContextState(device *fleet.MDMWindowsEnrolledDevice) fleet.Windo
 	return WindowsUserContextStateFor(device.MDMEnrollUserID, device.LastLoginStatus)
 }
 
-// WindowsUserContextStateFor is WindowsUserContextState over the two fields it actually needs, for callers that load just
-// those (the profile reconciler resolves them in bulk rather than loading whole enrollments).
+// WindowsUserContextStateFor is WindowsUserContextState over the two fields it actually needs.
 func WindowsUserContextStateFor(enrollUserID string, lastLoginStatus *fleet.WindowsMDMLoginStatus) fleet.WindowsUserContextState {
 	if !IsValidUPN(enrollUserID) {
 		return fleet.WindowsUserContextUnknown

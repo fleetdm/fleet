@@ -98,16 +98,6 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 }
 
 // SetMDMWindowsEnrollmentLoginStatus records the com.microsoft/MDM/LoginStatus value the device reported for this enrollment.
-//
-// Callers only invoke this when the value changed, so last_login_status_at records when the user context last changed rather
-// than when it was last observed. That is the more useful timestamp anyway ("the user signed in at X"), and it keeps this off
-// the hot path: the device reports the value on every session, as often as once a minute on the aggressive poll.
-//
-// It is deliberately NOT part of the caller's transaction: recording user context is independent of whatever else the
-// management session is doing, and a failure here must not fail the device's response.
-// A nil status clears the observation, which the gate reads as "not known to be signed in" and therefore holds on. That is
-// what an unrecognized value reports: leaving a previously stored "user" in place would keep delivering user-scoped profiles
-// on the strength of a stale observation the device has since superseded.
 func (ds *Datastore) SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
 	if status != nil && !status.IsValid() {
 		// Defense in depth: the caller maps unknown values to nil, but an unrecognized value must never be persisted,
