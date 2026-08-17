@@ -234,7 +234,6 @@ module.exports = {
     let attributionDetails = undefined;// We'll do a simple falsy check of this value when we determine what variables we'll need to set (e.g., Source channel or Most recent channel)
 
     if(marketingAttributionCookie) {
-      // Note: this section is commented out while we make changes to the Salesforce picklist values
       attributionDetails = {};
       // Determine if this user is "Digital" or "Organic"
       let lowerCaseMediumValue = marketingAttributionCookie.medium ? marketingAttributionCookie.medium.toLowerCase() : '';
