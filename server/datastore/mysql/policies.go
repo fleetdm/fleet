@@ -585,7 +585,7 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 		}
 	}
 
-	if profileUUID != nil {
+	if profileUUID != nil && *profileUUID != "" {
 		if err := assertProfileTeamMatches(ctx, db, teamID, *profileUUID); err != nil {
 			return err
 		}

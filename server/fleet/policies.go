@@ -853,13 +853,13 @@ const (
 type PolicyAutomationType string
 
 const (
-	PolicyAutomationTypeSoftware          = "software"
-	PolicyAutomationTypeScripts           = "scripts"
-	PolicyAutomationTypeCalendar          = "calendar"
-	PolicyAutomationTypeConditionalAccess = "conditional_access"
-	PolicyAutomationTypeProfiles          = "profiles"
-	PolicyAutomationTypeOther             = "other"
-	PolicyAutomationTypeNone              = ""
+	PolicyAutomationTypeSoftware          PolicyAutomationType = "software"
+	PolicyAutomationTypeScripts           PolicyAutomationType = "scripts"
+	PolicyAutomationTypeCalendar          PolicyAutomationType = "calendar"
+	PolicyAutomationTypeConditionalAccess PolicyAutomationType = "conditional_access"
+	PolicyAutomationTypeProfiles          PolicyAutomationType = "profiles"
+	PolicyAutomationTypeOther             PolicyAutomationType = "other"
+	PolicyAutomationTypeNone              PolicyAutomationType = ""
 )
 
 // resendProfile holds the resolved values for a policy's
