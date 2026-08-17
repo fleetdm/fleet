@@ -54,6 +54,20 @@ func IsEligiblePlatform(platform string) bool {
 	return platform == "darwin" || platform == "ios" || platform == "ipados"
 }
 
+// profileChannelKey identifies where a profile is delivered on a host. The same
+// identifier on the system and user channels are independent installs delivered to
+// different enrollment IDs, so a removal on one channel must never be matched by an
+// install on the other.
+type profileChannelKey struct {
+	hostUUID   string
+	identifier string
+	scope      fleet.PayloadScope
+}
+
+func channelKey(p *fleet.MDMAppleProfilePayload) profileChannelKey {
+	return profileChannelKey{hostUUID: p.HostUUID, identifier: p.ProfileIdentifier, scope: p.Scope}
+}
+
 // ComputeReconcileDeltas evaluates desired profile state for each host in
 // the input set using the SHARED dispatcher, then diffs against current
 // host_mdm_apple_profiles rows to produce install and remove sets.
@@ -76,9 +90,7 @@ func ComputeReconcileDeltas(
 			currentByProfile[c.ProfileUUID] = c
 		}
 
-		// identifiers this host is (re)installing on this pass, used below to spot a
-		// stale removal that a new profile with the same identifier supersedes
-		installingIdentifiers := make(map[string]struct{})
+		installingChannels := make(map[profileChannelKey]struct{})
 
 		for _, p := range teamProfiles {
 			onHost := false
@@ -120,7 +132,7 @@ func ComputeReconcileDeltas(
 				prevCommandUUID = c.CommandUUID
 			}
 
-			installingIdentifiers[p.ProfileIdentifier] = struct{}{}
+			installingChannels[profileChannelKey{hostUUID: host.UUID, identifier: p.ProfileIdentifier, scope: p.Scope}] = struct{}{}
 
 			toInstall = append(toInstall, &fleet.MDMAppleProfilePayload{
 				ProfileUUID:       p.ProfileUUID,
@@ -141,14 +153,15 @@ func ComputeReconcileDeltas(
 				continue
 			}
 			// A removal already sent to the device is left alone so the reconciler
-			// doesn't queue it a second time. The exception is when the same
-			// identifier is being installed again: deleting and re-adding a profile
-			// mints a new profile UUID, so this row is never revisited on its own and
-			// its queued RemoveProfile would strip the profile the admin just asked
-			// for. Carry it through marked cancel-only.
+			// doesn't queue it a second time. The exception is when the same channel
+			// is being installed again: deleting and re-adding a profile mints a new
+			// profile UUID, so this row is never revisited on its own and its queued
+			// RemoveProfile would strip the profile the admin just asked for. Carry it
+			// through marked cancel-only.
 			var cancelOnly bool
 			if c.OperationType == fleet.MDMOperationTypeRemove && c.Status != nil {
-				if _, reinstalling := installingIdentifiers[c.ProfileIdentifier]; !reinstalling {
+				key := profileChannelKey{hostUUID: host.UUID, identifier: c.ProfileIdentifier, scope: c.Scope}
+				if _, reinstalling := installingChannels[key]; !reinstalling {
 					continue
 				}
 				cancelOnly = true
@@ -601,18 +614,21 @@ func ExecuteReconcileBatch(
 		}
 	}
 
-	// identifiers actually reaching an install here, after the callers' platform and
-	// scope filters have run. A cancel-only removal is honoured only if its install
-	// survived those filters; otherwise dropping the row is safer than stripping a
-	// profile the host is meant to keep.
-	installingByHost := make(map[string]struct{}, len(toInstall))
+	// built from toInstall as it arrives here, i.e. after the callers' platform and
+	// scope filters have already dropped whatever they drop
+	installingChannels := make(map[profileChannelKey]struct{}, len(toInstall))
 	for _, p := range toInstall {
-		installingByHost[p.HostUUID+"\x00"+p.ProfileIdentifier] = struct{}{}
+		installingChannels[channelKey(p)] = struct{}{}
 	}
 
 	for _, p := range toRemove {
 		if p.CancelOnly {
-			if _, ok := installingByHost[p.HostUUID+"\x00"+p.ProfileIdentifier]; ok {
+			// These rows exist only to retract a queued RemoveProfile, so honour that
+			// only while the install justifying it is still in this batch: the filters
+			// above can drop an install after the deltas were computed. Without it,
+			// leave the row untouched rather than queueing a removal for a profile the
+			// host is meant to keep.
+			if _, ok := installingChannels[channelKey(p)]; ok {
 				hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			}
 			continue

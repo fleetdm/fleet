@@ -2097,7 +2097,6 @@ func TestComputeReconcileDeltasCancelsSupersededRemoval(t *testing.T) {
 		Checksum:          []byte("aaaa"),
 		IncludeMode:       fleet.AppleProfileIncludeNone,
 	}
-	// same identifier, different profile UUID, removal already sent to the device
 	staleRemoval := &fleet.MDMAppleProfilePayload{
 		ProfileUUID:       "aOldProfileUUID",
 		ProfileIdentifier: "com.example.wifi",
@@ -2141,8 +2140,8 @@ func TestComputeReconcileDeltasCancelsSupersededRemoval(t *testing.T) {
 }
 
 // End of the same flow: the cancel-only removal must pull its queued command out
-// without ever sending a RemoveProfile, and must be dropped entirely when the
-// install that justified it did not survive the callers' filters.
+// without ever sending a RemoveProfile, and must be left untouched when the install
+// that justified it did not survive the callers' filters.
 func TestMDMAppleExecuteReconcileBatchCancelOnlyRemoval(t *testing.T) {
 	const hostUUID = "uuid-A"
 	const identifier = "com.example.wifi"
@@ -2275,4 +2274,45 @@ func TestMDMAppleExecuteReconcileBatchCancelOnlyRemoval(t *testing.T) {
 		require.Empty(t, res.enqueued, "a cancel-only row must never send a RemoveProfile")
 		require.Empty(t, res.cleanedUp)
 	})
+}
+
+// A profile re-added with a different PayloadScope lands on the other channel, so
+// the queued removal on the original channel still has to be delivered: the two are
+// separate installs with separate enrollment IDs.
+func TestComputeReconcileDeltasScopeChangeKeepsRemoval(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	readdedAsSystem := &fleet.AppleProfileForReconcile{
+		ProfileUUID:       "aNewProfileUUID",
+		ProfileIdentifier: "com.example.wifi",
+		ProfileName:       "Wi-Fi",
+		TeamID:            0,
+		Checksum:          []byte("aaaa"),
+		Scope:             fleet.PayloadScopeSystem,
+		IncludeMode:       fleet.AppleProfileIncludeNone,
+	}
+	staleUserRemoval := &fleet.MDMAppleProfilePayload{
+		ProfileUUID:       "aOldProfileUUID",
+		ProfileIdentifier: "com.example.wifi",
+		ProfileName:       "Wi-Fi",
+		HostUUID:          "uuid-A",
+		Checksum:          []byte("aaaa"),
+		Scope:             fleet.PayloadScopeUser,
+		OperationType:     fleet.MDMOperationTypeRemove,
+		Status:            &fleet.MDMDeliveryPending,
+		CommandUUID:       "remove-cmd",
+	}
+
+	toInstall, toRemove := ComputeReconcileDeltas(
+		[]*fleet.AppleHostReconcileInfo{host}, nil,
+		map[string][]*fleet.MDMAppleProfilePayload{"uuid-A": {staleUserRemoval}},
+		map[uint][]*fleet.AppleProfileForReconcile{0: {readdedAsSystem}},
+		map[string]struct{}{},
+	)
+
+	require.Len(t, toInstall, 1)
+	require.Equal(t, fleet.PayloadScopeSystem, toInstall[0].Scope)
+	require.Empty(t, toRemove, "a user-channel removal must not be cancelled by a system-channel install")
 }
