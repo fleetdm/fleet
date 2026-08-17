@@ -144,13 +144,21 @@ export const PatchOptionSelector = ({
     !!onSelectEndUserExperience;
 
   const renderForceBanner = () => {
+    // Mac wins if the platform names it — even a hypothetical `darwin,windows`
+    // policy should get the dropdown-aware banner, not the "coming soon for
+    // Windows" one. The widened isMacOS/isWindows both return true for such
+    // strings, so precedence matters here.
+    if (isMacOS(platform ?? "")) {
+      return endUserExperience === "notify" ? (
+        <NotifyBanner />
+      ) : (
+        <ImmediateBanner showLink />
+      );
+    }
     if (isWindows(platform ?? "")) {
       return <WindowsBanner />;
     }
-    if (showEndUserExperienceDropdown && endUserExperience === "notify") {
-      return <NotifyBanner />;
-    }
-    return <ImmediateBanner showLink={isMacOS(platform ?? "")} />;
+    return <ImmediateBanner showLink={false} />;
   };
 
   return (

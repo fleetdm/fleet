@@ -166,6 +166,13 @@ const PolicyAutomationsFields = forwardRef<
     const initialContinuous = policy.continuous_automations_enabled ?? false;
     const initialPatchWhenClosed = policy.patch_when_closed ?? false;
     const initialNotifyBeforePatching = policy.notify_before_patching ?? false;
+    // Gate the notify init on Mac so a legacy Windows policy with
+    // `notify_before_patching: true` doesn't silently downgrade its stored
+    // `continuous_automations_enabled` on the next unrelated save — the
+    // continuous state should stay at whatever the policy currently carries
+    // when the notify flag doesn't actually apply.
+    const initialIsMacNotify =
+      initialNotifyBeforePatching && isMacOS(policy.platform);
 
     const [webhookOrTicketEnabled, setWebhookOrTicketEnabled] = useState(
       initialWebhookOrTicket
@@ -179,9 +186,7 @@ const PolicyAutomationsFields = forwardRef<
       initialConditionalAccess
     );
     const [continuousEnabled, setContinuousEnabled] = useState(
-      initialPatchWhenClosed || initialNotifyBeforePatching
-        ? false
-        : initialContinuous
+      initialPatchWhenClosed || initialIsMacNotify ? false : initialContinuous
     );
     const patchWhenClosed = patchOption
       ? patchOption === "closed"

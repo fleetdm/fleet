@@ -161,7 +161,15 @@ const PolicyForm = ({
       nextPatchOption = "force";
     }
     setPatchOption(nextPatchOption);
-    setEndUserExperience(storedNotifyBeforePatching ? "notify" : "immediate");
+    // Only hydrate to "notify" when patch_when_closed is off — if a legacy
+    // policy has both flags set (server invariant violation), the radio
+    // shows Patch when app is closed and the dropdown is hidden; carrying
+    // "notify" in state would reveal it the moment the user picked Force.
+    setEndUserExperience(
+      storedNotifyBeforePatching && !storedPatchWhenClosed
+        ? "notify"
+        : "immediate"
+    );
   }, [
     isPatchPolicy,
     storedPatchPolicyId,

@@ -76,6 +76,52 @@ describe("EditSoftwareModal — multi-package title", () => {
     ).toBeInTheDocument();
   });
 
+  it("treats the pre-install query as Fleet-managed when the installer's patch policy is notify-before-patching on macOS", async () => {
+    const { user } = renderModal({
+      source: "apps", // maps to darwin
+      softwareInstaller: createMockSoftwarePackage({
+        patch_policy: {
+          id: 6,
+          name: "GlobalProtect up to date",
+          patch_when_closed: false,
+          notify_before_patching: true,
+          continuous_automations_enabled: true,
+        },
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Advanced options" }));
+
+    expect(
+      screen.getByText(
+        /Pre-install query won't run when install is triggered via self-service/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the pre-install query editable when notify-before-patching is set on a non-Mac source", async () => {
+    const { user } = renderModal({
+      source: "programs", // maps to windows
+      softwareInstaller: createMockSoftwarePackage({
+        patch_policy: {
+          id: 7,
+          name: "GlobalProtect up to date",
+          patch_when_closed: false,
+          notify_before_patching: true,
+          continuous_automations_enabled: true,
+        },
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Advanced options" }));
+
+    expect(
+      screen.queryByText(
+        /Pre-install query won't run when install is triggered via self-service/
+      )
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps the pre-install query editable when there is no patch-when-closed policy", async () => {
     const { user } = renderModal({
       softwareInstaller: createMockSoftwarePackage({ patch_policy: null }),

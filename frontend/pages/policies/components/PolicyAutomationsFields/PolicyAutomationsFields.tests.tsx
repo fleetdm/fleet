@@ -572,6 +572,9 @@ describe("PolicyAutomationsFields — payload", () => {
     const payload = handleRef.current?.getAutomationsPayload().policyUpdate;
     expect(payload).toMatchObject({
       notify_before_patching: false,
+      // continuous stays at the policy's stored value — the Mac gate on the
+      // state init keeps us from silently downgrading it alongside notify.
+      continuous_automations_enabled: true,
     });
   });
 
