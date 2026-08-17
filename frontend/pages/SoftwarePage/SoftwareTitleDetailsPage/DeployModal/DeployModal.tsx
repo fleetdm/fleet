@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 
-import { ISoftwareTitleDetails } from "interfaces/software";
+import {
+  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
+  ISoftwareTitleDetails,
+  SoftwareSource,
+} from "interfaces/software";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -12,6 +16,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import {
+  EndUserExperience,
   getPatchPolicyFlags,
   PatchOption,
   SoftwareDeploySelector,
@@ -58,12 +63,24 @@ const DeployModal = ({
     initialPatchOption = "force";
   }
 
+  const initialEndUserExperience: EndUserExperience = patchPolicy?.notify_before_patching
+    ? "notify"
+    : "immediate";
+
   const [forceInstall, setForceInstall] = useState(!!forceInstallPolicy);
   const [patch, setPatch] = useState(!!patchPolicy);
   const [patchOption, setPatchOption] = useState<PatchOption>(
     initialPatchOption
   );
+  const [endUserExperience, setEndUserExperience] = useState<EndUserExperience>(
+    initialEndUserExperience
+  );
   const [isSaving, setIsSaving] = useState(false);
+
+  const platform =
+    INSTALLABLE_SOURCE_PLATFORM_CONVERSION[
+      softwareTitle.source as SoftwareSource
+    ] ?? undefined;
 
   const fleetMaintainedAppId = softwarePackage?.fleet_maintained_app_id;
   const {
@@ -121,7 +138,7 @@ const DeployModal = ({
             ...(patchOption !== "manual" && {
               software_title_id: softwareTitle.id,
             }),
-            ...getPatchPolicyFlags(patchOption),
+            ...getPatchPolicyFlags(patchOption, endUserExperience),
           });
         } else if (patchPolicy) {
           await teamPoliciesAPI.destroy(teamId, [patchPolicy.id]);
@@ -131,16 +148,22 @@ const DeployModal = ({
         patch &&
         patchPolicy &&
         (patchOption !== initialPatchOption ||
+          endUserExperience !== initialEndUserExperience ||
           patchHasAutomation !== (patchOption !== "manual") ||
           patchPolicy.patch_when_closed !==
-            getPatchPolicyFlags(patchOption).patch_when_closed ||
+            getPatchPolicyFlags(patchOption, endUserExperience)
+              .patch_when_closed ||
+          patchPolicy.notify_before_patching !==
+            getPatchPolicyFlags(patchOption, endUserExperience)
+              .notify_before_patching ||
           patchPolicy.continuous_automations_enabled !==
-            getPatchPolicyFlags(patchOption).continuous_automations_enabled)
+            getPatchPolicyFlags(patchOption, endUserExperience)
+              .continuous_automations_enabled)
       ) {
         await teamPoliciesAPI.update(patchPolicy.id, {
           team_id: teamId,
           software_title_id: patchOption === "manual" ? null : softwareTitle.id,
-          ...getPatchPolicyFlags(patchOption),
+          ...getPatchPolicyFlags(patchOption, endUserExperience),
         });
         savedAnyChange = true;
       }
@@ -182,9 +205,12 @@ const DeployModal = ({
               forceInstall={forceInstall}
               patch={patch}
               patchOption={patchOption}
+              platform={platform ?? undefined}
+              endUserExperience={endUserExperience}
               onToggleForceInstall={setForceInstall}
               onTogglePatch={setPatch}
               onSelectPatchOption={setPatchOption}
+              onSelectEndUserExperience={setEndUserExperience}
               disabled={disableChildren || isLoadingFleetMaintainedApp}
               showPatchWhenClosedNotice
               hideLabel

@@ -96,11 +96,13 @@ const EditSoftwareModal = ({
   // field must be read-only and omitted from the request. Derive it from the
   // installer's own patch policy so a caller can't forget to pass it (which
   // otherwise blocks unrelated edits like toggling self-service); an explicit
-  // prop can still force it on.
+  // prop can still force it on. `notify_before_patching` reuses the same
+  // Fleet-managed app-open query, so it triggers the same read-only lock.
   const effectivePatchWhenClosed =
     patchWhenClosed ||
     ("patch_policy" in softwareInstaller &&
-      !!softwareInstaller.patch_policy?.patch_when_closed);
+      (!!softwareInstaller.patch_policy?.patch_when_closed ||
+        !!softwareInstaller.patch_policy?.notify_before_patching));
 
   const formClassNames = classnames(`${baseClass}__package-form`, {
     [`${baseClass}__package-form--disabled`]: isGitOpsCompatible,

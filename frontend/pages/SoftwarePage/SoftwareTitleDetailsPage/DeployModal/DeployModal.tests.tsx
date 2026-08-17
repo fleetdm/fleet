@@ -105,6 +105,7 @@ describe("DeployModal", () => {
         patch_software_title_id: 10,
         software_title_id: 10,
         patch_when_closed: false,
+        notify_before_patching: false,
         continuous_automations_enabled: false,
       })
     );
@@ -180,6 +181,7 @@ describe("DeployModal", () => {
         team_id: 1,
         software_title_id: 10,
         patch_when_closed: false,
+        notify_before_patching: false,
         continuous_automations_enabled: false,
       })
     );
@@ -211,6 +213,7 @@ describe("DeployModal", () => {
         team_id: 1,
         software_title_id: null,
         patch_when_closed: false,
+        notify_before_patching: false,
         continuous_automations_enabled: false,
       })
     );
@@ -240,6 +243,7 @@ describe("DeployModal", () => {
         team_id: 1,
         software_title_id: 10,
         patch_when_closed: false,
+        notify_before_patching: false,
         continuous_automations_enabled: false,
       })
     );

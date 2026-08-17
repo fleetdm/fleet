@@ -938,6 +938,7 @@ describe("PolicyForm - component", () => {
             team_id: 1,
             software_title_id: 42,
             patch_when_closed: false,
+            notify_before_patching: false,
             continuous_automations_enabled: false,
           })
         );

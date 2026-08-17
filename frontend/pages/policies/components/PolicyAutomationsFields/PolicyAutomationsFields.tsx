@@ -34,7 +34,10 @@ import {
   getTicketOrWebhookLabel,
 } from "pages/policies/helpers";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-import { PatchOption } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
+import {
+  EndUserExperience,
+  PatchOption,
+} from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 
 import { IPolicyAutomationUpdate } from "pages/policies/hooks";
 
@@ -88,6 +91,10 @@ interface IPolicyAutomationsFieldsProps {
   fleetName: string;
   /** Present only for patch policies on Premium. */
   patchOption?: PatchOption;
+  /** Present only for patch policies on Premium — the "Force patch" end-user
+   *  experience choice. Controls whether continuous automations is locked on
+   *  (same rule as `patchOption === "closed"`). */
+  endUserExperience?: EndUserExperience;
   /** Rendered between the automation types and the continuous-automation
    *  checkbox — the edit-policy Patch radios (owned by PolicyForm). */
   patchSlot?: React.ReactNode;
@@ -106,6 +113,7 @@ const PolicyAutomationsFields = forwardRef<
       globalConfig,
       fleetName,
       patchOption,
+      endUserExperience,
       patchSlot,
     },
     ref
@@ -156,6 +164,7 @@ const PolicyAutomationsFields = forwardRef<
     const initialConditionalAccess = policy.conditional_access_enabled;
     const initialContinuous = policy.continuous_automations_enabled ?? false;
     const initialPatchWhenClosed = policy.patch_when_closed ?? false;
+    const initialNotifyBeforePatching = policy.notify_before_patching ?? false;
 
     const [webhookOrTicketEnabled, setWebhookOrTicketEnabled] = useState(
       initialWebhookOrTicket
@@ -169,13 +178,31 @@ const PolicyAutomationsFields = forwardRef<
       initialConditionalAccess
     );
     const [continuousEnabled, setContinuousEnabled] = useState(
-      initialPatchWhenClosed ? false : initialContinuous
+      initialPatchWhenClosed || initialNotifyBeforePatching
+        ? false
+        : initialContinuous
     );
     const patchWhenClosed = patchOption
       ? patchOption === "closed"
       : initialPatchWhenClosed;
-    let effectiveContinuousEnabled = continuousEnabled;
+    const notifyBeforePatching =
+      patchOption !== undefined
+        ? patchOption === "force" && endUserExperience === "notify"
+        : initialNotifyBeforePatching;
+    // Continuous automations is locked on for both "Patch when app is closed"
+    // and "Notify before patching" — the backend forces it on for both, so an
+    // editable checkbox would lie.
+    const continuousLocked = patchWhenClosed || notifyBeforePatching;
+    let continuousLockedTooltip: string | undefined;
     if (patchWhenClosed) {
+      continuousLockedTooltip =
+        "Continuous automation can't be disabled when Patch when app is closed is selected.";
+    } else if (notifyBeforePatching) {
+      continuousLockedTooltip =
+        "Continuous automation can't be disabled when Notify before patching is selected.";
+    }
+    let effectiveContinuousEnabled = continuousEnabled;
+    if (continuousLocked) {
       effectiveContinuousEnabled = true;
     } else if (patchOption === "manual") {
       effectiveContinuousEnabled = false;
@@ -369,7 +396,8 @@ const PolicyAutomationsFields = forwardRef<
             conditionalAccess !== initialConditionalAccess ||
             effectiveContinuousEnabled !== initialContinuous ||
             (patchOption !== undefined &&
-              patchWhenClosed !== initialPatchWhenClosed));
+              (patchWhenClosed !== initialPatchWhenClosed ||
+                notifyBeforePatching !== initialNotifyBeforePatching)));
         const webhookDirty = webhookOrTicketEnabled !== initialWebhookOrTicket;
 
         return {
@@ -402,6 +430,10 @@ const PolicyAutomationsFields = forwardRef<
                 ...(patchOption !== undefined &&
                   patchWhenClosed !== initialPatchWhenClosed && {
                     patch_when_closed: patchWhenClosed,
+                  }),
+                ...(patchOption !== undefined &&
+                  notifyBeforePatching !== initialNotifyBeforePatching && {
+                    notify_before_patching: notifyBeforePatching,
                   }),
               }
             : undefined,
@@ -625,13 +657,9 @@ const PolicyAutomationsFields = forwardRef<
                 <Checkbox
                   name="continuous-automations-enabled"
                   value={effectiveContinuousEnabled}
-                  disabled={disableChildren || patchWhenClosed}
+                  disabled={disableChildren || continuousLocked}
                   onChange={handleToggleContinuous}
-                  iconTooltipContent={
-                    patchWhenClosed
-                      ? "Continuous automation can't be disabled when Patch when app is closed is selected."
-                      : undefined
-                  }
+                  iconTooltipContent={continuousLockedTooltip}
                   helpText="If the automations do not resolve the policy, this could cause a retry loop."
                 >
                   <TooltipWrapper

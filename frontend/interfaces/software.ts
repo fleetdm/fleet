@@ -71,6 +71,7 @@ export interface ISoftwarePatchPolicy {
   name: string;
   patch_when_closed: boolean;
   continuous_automations_enabled: boolean;
+  notify_before_patching?: boolean;
 }
 
 export type SoftwareInstallPolicyType = "dynamic" | "patch";
