@@ -7,9 +7,13 @@ import (
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
@@ -810,7 +814,8 @@ func TestCreateCertificateTemplateVariableTracking(t *testing.T) {
 		return nil
 	}
 
-	_, err := svc.CreateCertificateTemplate(ctx, "wifi-cert", 1, 1,
+	_, err := svc.CreateCertificateTemplate(
+		ctx, "wifi-cert", 1, 1,
 		"CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
 		"DNS=$FLEET_VAR_HOST_UUID, EMAIL=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT",
 	)
@@ -932,5 +937,288 @@ func TestResendHostCertificateTemplate(t *testing.T) {
 		require.Equal(t, 400, umErr.StatusCode())
 		require.False(t, ds.ResendHostCertificateTemplateFuncInvoked)
 		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+}
+
+func TestGetCertificateTemplate(t *testing.T) {
+	const (
+		noTeamTemplateID  = uint(1)
+		teamTemplateID    = uint(2)
+		missingTemplateID = uint(999)
+		teamID            = uint(10)
+		templateName      = "Certificate Template - Test"
+	)
+
+	globalAdmin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	globalObserver := &fleet.User{GlobalRole: new(fleet.RoleObserver)}
+	teamAdmin := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleAdmin}}}
+	otherTeamAdmin := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID + 1}, Role: fleet.RoleAdmin}}}
+
+	type getTestOpts struct {
+		svc     fleet.Service
+		ctx     context.Context
+		ds      *mock.Store
+		authCtx *authz_ctx.AuthorizationContext
+	}
+
+	setup := func(t *testing.T, user *fleet.User) *getTestOpts {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
+			switch id {
+			case noTeamTemplateID, teamTemplateID:
+				templateTeamID := uint(0)
+				if id == teamTemplateID {
+					templateTeamID = teamID
+				}
+				return &fleet.CertificateTemplateResponse{
+					CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+						ID:   id,
+						Name: templateName,
+					},
+					TeamID: templateTeamID,
+				}, nil
+			default:
+				return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(id))
+			}
+		}
+
+		authCtx := &authz_ctx.AuthorizationContext{}
+		ctx = authz_ctx.NewContext(ctx, authCtx)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+		return &getTestOpts{svc: svc, ctx: ctx, ds: ds, authCtx: authCtx}
+	}
+
+	t.Run("successful read", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			user       *fleet.User
+			templateID uint
+			wantTeamID uint
+		}{
+			{name: "global admin reads a team template", user: globalAdmin, templateID: teamTemplateID, wantTeamID: teamID},
+			{name: "global admin reads a 'no team' template", user: globalAdmin, templateID: noTeamTemplateID, wantTeamID: 0},
+			{name: "team admin reads a template on their team", user: teamAdmin, templateID: teamTemplateID, wantTeamID: teamID},
+		} {
+			t.Run(tc.name, func(*testing.T) {
+				tt := setup(t, tc.user)
+
+				certificate, err := tt.svc.GetCertificateTemplate(tt.ctx, tc.templateID)
+				require.NoError(t, err)
+				require.True(t, tt.authCtx.Checked())
+				require.NotNil(t, certificate)
+				require.Equal(t, tc.templateID, certificate.ID)
+				require.Equal(t, templateName, certificate.Name)
+				require.Equal(t, tc.wantTeamID, certificate.TeamID)
+			})
+		}
+	})
+
+	t.Run("forbidden error", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			user       *fleet.User
+			templateID uint
+		}{
+			{name: "global observer reading a 'no team' template", user: globalObserver, templateID: noTeamTemplateID},
+			{name: "global observer reading a team template", user: globalObserver, templateID: teamTemplateID},
+			{name: "global observer reading a missing template", user: globalObserver, templateID: missingTemplateID},
+		} {
+			t.Run(tc.name, func(*testing.T) {
+				tt := setup(t, tc.user)
+
+				certificate, err := tt.svc.GetCertificateTemplate(tt.ctx, tc.templateID)
+				require.Error(t, err)
+				require.Nil(t, certificate)
+				require.True(t, tt.authCtx.Checked())
+				require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+
+				if tc.templateID == missingTemplateID {
+					require.False(t, fleet.IsNotFound(err), "must not disclose that the template is missing")
+				}
+			})
+		}
+	})
+
+	t.Run("not found error", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			user       *fleet.User
+			templateID uint
+		}{
+			{name: "global admin reading a missing template", user: globalAdmin, templateID: missingTemplateID},
+			{name: "team admin reading a template on another team", user: otherTeamAdmin, templateID: teamTemplateID},
+			{name: "team admin on another team reading a missing template", user: otherTeamAdmin, templateID: missingTemplateID},
+		} {
+			t.Run(tc.name, func(*testing.T) {
+				tt := setup(t, tc.user)
+
+				certificate, err := tt.svc.GetCertificateTemplate(tt.ctx, tc.templateID)
+				require.Error(t, err)
+				require.Nil(t, certificate)
+				require.True(t, tt.authCtx.Checked(), "authorization must be checked even when the template is missing")
+				require.True(t, fleet.IsNotFound(err))
+				require.NotContains(t, err.Error(), authz.ForbiddenErrorMessage)
+			})
+		}
+	})
+}
+
+func TestDeleteCertificateTemplate(t *testing.T) {
+	const (
+		noTeamTemplateID  = uint(1)
+		teamTemplateID    = uint(2)
+		missingTemplateID = uint(999)
+		teamID            = uint(10)
+		templateName      = "Certificate Template - Test"
+		teamName          = "Fleet Team - Test"
+	)
+
+	globalAdmin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	globalObserver := &fleet.User{GlobalRole: new(fleet.RoleObserver)}
+	teamAdmin := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleAdmin}}}
+	otherTeamAdmin := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID + 1}, Role: fleet.RoleAdmin}}}
+
+	type deleteTestOpts struct {
+		svc     fleet.Service
+		ctx     context.Context
+		ds      *mock.Store
+		opts    *TestServerOpts
+		authCtx *authz_ctx.AuthorizationContext
+	}
+
+	setup := func(t *testing.T, user *fleet.User) *deleteTestOpts {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+		ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
+			switch id {
+			case noTeamTemplateID, teamTemplateID:
+				templateTeamID := uint(0)
+				if id == teamTemplateID {
+					templateTeamID = teamID
+				}
+				return &fleet.CertificateTemplateResponse{
+					CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+						ID:   id,
+						Name: templateName,
+					},
+					TeamID: templateTeamID,
+				}, nil
+			default:
+				return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(id))
+			}
+		}
+		ds.DeleteCertificateTemplateFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.SetHostCertificateTemplatesToPendingRemoveFunc = func(ctx context.Context, certificateTemplateID uint) error {
+			return nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{ID: tid, Name: teamName}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		authCtx := &authz_ctx.AuthorizationContext{}
+		ctx = authz_ctx.NewContext(ctx, authCtx)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+		return &deleteTestOpts{svc: svc, ctx: ctx, ds: ds, opts: opts, authCtx: authCtx}
+	}
+
+	t.Run("successful deletion", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			user       *fleet.User
+			templateID uint
+		}{
+			{name: "global admin deletes a team template", user: globalAdmin, templateID: teamTemplateID},
+			{name: "global admin deletes a 'no team' template", user: globalAdmin, templateID: noTeamTemplateID},
+			{name: "team admin deletes a template on their team", user: teamAdmin, templateID: teamTemplateID},
+		} {
+			t.Run(tc.name, func(*testing.T) {
+				tt := setup(t, tc.user)
+
+				var capturedActivity fleet.ActivityTypeDeletedCertificate
+				tt.opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+					act, ok := activity.(fleet.ActivityTypeDeletedCertificate)
+					require.True(t, ok, "expected ActivityTypeDeletedCertificate, got %T", activity)
+					capturedActivity = act
+					return nil
+				}
+
+				err := tt.svc.DeleteCertificateTemplate(tt.ctx, tc.templateID)
+				require.NoError(t, err)
+				require.True(t, tt.authCtx.Checked())
+				require.True(t, tt.ds.DeleteCertificateTemplateFuncInvoked)
+				require.True(t, tt.ds.SetHostCertificateTemplatesToPendingRemoveFuncInvoked)
+				require.True(t, tt.opts.ActivityMock.NewActivityFuncInvoked)
+				require.Equal(t, templateName, capturedActivity.Name)
+				if tc.templateID == teamTemplateID {
+					require.True(t, tt.ds.TeamLiteFuncInvoked)
+					require.Equal(t, new(teamID), capturedActivity.TeamID)
+					require.Equal(t, new(teamName), capturedActivity.TeamName)
+				} else {
+					require.False(t, tt.ds.TeamLiteFuncInvoked)
+					require.Nil(t, capturedActivity.TeamID)
+					require.Nil(t, capturedActivity.TeamName)
+				}
+			})
+		}
+	})
+
+	t.Run("forbidden error", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			user       *fleet.User
+			templateID uint
+		}{
+			{name: "global observer deleting a 'no team' template", user: globalObserver, templateID: noTeamTemplateID},
+			{name: "global observer deleting a team template", user: globalObserver, templateID: teamTemplateID},
+			{name: "global observer deleting a missing template", user: globalObserver, templateID: missingTemplateID},
+		} {
+			t.Run(tc.name, func(*testing.T) {
+				tt := setup(t, tc.user)
+
+				err := tt.svc.DeleteCertificateTemplate(tt.ctx, tc.templateID)
+				require.Error(t, err)
+				require.True(t, tt.authCtx.Checked())
+				require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+				require.False(t, tt.ds.DeleteCertificateTemplateFuncInvoked)
+
+				if tc.templateID == missingTemplateID {
+					require.False(t, fleet.IsNotFound(err), "must not disclose that the template is missing")
+				}
+			})
+		}
+	})
+
+	t.Run("not found error", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			user       *fleet.User
+			templateID uint
+		}{
+			{name: "global admin deleting a missing template", user: globalAdmin, templateID: missingTemplateID},
+			{name: "team admin deleting a template on another team", user: otherTeamAdmin, templateID: teamTemplateID},
+			{name: "team admin on another team deleting a missing template", user: otherTeamAdmin, templateID: missingTemplateID},
+		} {
+			t.Run(tc.name, func(*testing.T) {
+				tt := setup(t, tc.user)
+
+				err := tt.svc.DeleteCertificateTemplate(tt.ctx, tc.templateID)
+				require.Error(t, err)
+				require.True(t, tt.authCtx.Checked(), "authorization must be checked even when the template is missing")
+				require.True(t, fleet.IsNotFound(err))
+				require.NotContains(t, err.Error(), authz.ForbiddenErrorMessage)
+				require.False(t, tt.ds.DeleteCertificateTemplateFuncInvoked)
+			})
+		}
 	})
 }
