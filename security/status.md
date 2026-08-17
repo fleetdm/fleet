@@ -947,6 +947,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-01 13:31:34
 
+### [CVE-2026-53615](https://nvd.nist.gov/vuln/detail/CVE-2026-53615)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not probe block devices or parse partition tables (libblkid) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/bsdutils`,`pkg:deb/debian/libblkid1`,`pkg:deb/debian/liblastlog2-2`,`pkg:deb/debian/libmount1`,`pkg:deb/debian/libsmartcols1`,`pkg:deb/debian/libuuid1`,`pkg:deb/debian/login`,`pkg:deb/debian/mount`,`pkg:deb/debian/util-linux`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-17 10:52:17
+
 ### [CVE-2026-5201](https://nvd.nist.gov/vuln/detail/CVE-2026-5201)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
