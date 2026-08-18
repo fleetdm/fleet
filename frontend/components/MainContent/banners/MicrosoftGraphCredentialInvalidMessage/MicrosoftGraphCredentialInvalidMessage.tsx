@@ -25,9 +25,9 @@ const MicrosoftGraphCredentialInvalidMessage = () => {
         />
       }
     >
-      Your Microsoft Graph client secret is invalid. Windows Autopilot devices
+      Your Microsoft Graph credential is invalid. Windows Autopilot devices
       won’t sync to Fleet as pending hosts. Users with the admin role in Fleet
-      can update the client secret.
+      can update the credential.
     </InfoBanner>
   );
 };

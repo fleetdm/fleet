@@ -25,12 +25,12 @@ const DeleteMicrosoftGraphCredentialModal = ({
     try {
       await microsoftGraphCredentialsAPI.deleteCredentials();
       notify.success("Successfully deleted Microsoft Graph credential.");
+      // onDeleted unmounts this modal, so the in-flight flag is only reset on the paths that keep it mounted.
       onDeleted();
     } catch (err) {
       notify.error("Couldn't delete Microsoft Graph credential.", {
         response: err,
       });
-    } finally {
       setIsDeleting(false);
     }
   };

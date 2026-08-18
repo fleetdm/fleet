@@ -9,6 +9,7 @@ import microsoftGraphCredentialsAPI, {
   IGetMicrosoftGraphCredentialsResponse,
 } from "services/entities/microsoft_graph_credentials";
 import { getErrorReason } from "interfaces/errors";
+import configAPI from "services/entities/config";
 
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
@@ -37,7 +38,7 @@ interface IFormErrors {
 }
 
 const MicrosoftGraphPage = () => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, setConfig } = useContext(AppContext);
 
   const [tenantId, setTenantId] = useState("");
   const [clientId, setClientId] = useState("");
@@ -71,6 +72,35 @@ const MicrosoftGraphPage = () => {
     setFormErrors({});
   }, [storedCredential]);
 
+  // The stored secret belongs to a specific app registration, so changing either ID invalidates it. Clearing the mask
+  // forces re-entry, which is the same pattern AccountProvisioning and the certificate-authority edit flow use, and it
+  // surfaces inline what the API would otherwise reject with a 422.
+  const clearMaskedSecretOnIdChange = () => {
+    setClientSecret((prev) =>
+      prev === UNCHANGED_PASSWORD_API_RESPONSE ? "" : prev
+    );
+  };
+
+  const onChangeTenantId = (value: string) => {
+    setTenantId(value);
+    if (storedCredential && value.trim() !== storedCredential.tenant_id) {
+      clearMaskedSecretOnIdChange();
+    }
+  };
+
+  const onChangeClientId = (value: string) => {
+    setClientId(value);
+    if (storedCredential && value.trim() !== storedCredential.client_id) {
+      clearMaskedSecretOnIdChange();
+    }
+  };
+
+  // Re-entry is required whenever the app registration's identity changes, matching the API's own rule.
+  const identityChanged =
+    !!storedCredential &&
+    (tenantId.trim() !== storedCredential.tenant_id ||
+      clientId.trim() !== storedCredential.client_id);
+
   const secretChanged =
     clientSecret !== "" && clientSecret !== UNCHANGED_PASSWORD_API_RESPONSE;
 
@@ -84,10 +114,21 @@ const MicrosoftGraphPage = () => {
     if (clientId.trim() === "") {
       errs.clientId = "Enter a client ID";
     }
-    if (!storedCredential && !secretChanged) {
+    if ((!storedCredential || identityChanged) && !secretChanged) {
       errs.clientSecret = "Enter a client secret";
     }
     return errs;
+  };
+
+  // The app-wide banner reads config.mdm.microsoft_graph_credential_invalid from AppContext, and App only refreshes
+  // that on a pathname change. Saving or deleting recomputes the aggregate server-side, so pull the config again or a
+  // repaired credential leaves the banner up until the admin navigates away.
+  const refreshAppConfig = async () => {
+    try {
+      setConfig(await configAPI.loadAll());
+    } catch {
+      // Non-fatal: the banner clears on the next navigation.
+    }
   };
 
   const onSave = async (evt: React.FormEvent) => {
@@ -113,6 +154,7 @@ const MicrosoftGraphPage = () => {
       await microsoftGraphCredentialsAPI.applyCredentials([credential]);
       notify.success("Successfully saved Microsoft Graph credential.");
       refetch();
+      await refreshAppConfig();
     } catch (e) {
       notify.error(
         getErrorReason(e) || "Couldn't save Microsoft Graph credential."
@@ -125,6 +167,7 @@ const MicrosoftGraphPage = () => {
   const onDeleted = () => {
     setShowDeleteModal(false);
     refetch();
+    refreshAppConfig();
   };
 
   const renderSyncStatus = () => {
@@ -161,7 +204,7 @@ const MicrosoftGraphPage = () => {
               label="Tenant ID"
               name="tenantId"
               value={tenantId}
-              onChange={setTenantId}
+              onChange={onChangeTenantId}
               error={formErrors.tenantId}
               onFocus={() =>
                 setFormErrors((prev) => ({ ...prev, tenantId: undefined }))
@@ -174,7 +217,7 @@ const MicrosoftGraphPage = () => {
               label="Client ID"
               name="clientId"
               value={clientId}
-              onChange={setClientId}
+              onChange={onChangeClientId}
               error={formErrors.clientId}
               onFocus={() =>
                 setFormErrors((prev) => ({ ...prev, clientId: undefined }))
@@ -261,8 +304,10 @@ const MicrosoftGraphPage = () => {
               <>
                 Fleet uses a Microsoft Entra app registration to read your
                 tenant&apos;s Windows Autopilot devices and show them as pending
-                hosts. To create the app registration, follow the instructions
-                in the{" "}
+                hosts. The app registration needs the{" "}
+                <b>DeviceManagementServiceConfig.Read.All</b> application
+                permission, with admin consent granted. To create it, follow the
+                instructions in the{" "}
                 <CustomLink
                   newTab
                   text="guide"

@@ -30,10 +30,11 @@ const MicrosoftEntraSection = ({
 }: IMicrosoftEntraSectionProps) => {
   // The credential is not on the app config, so the card's state comes from its own endpoint. The endpoint is premium
   // only, so on Free the section renders the upsell instead and never asks.
-  const { data: credentialsResponse } = useQuery<
-    IGetMicrosoftGraphCredentialsResponse,
-    Error
-  >(
+  const {
+    data: credentialsResponse,
+    isLoading: isLoadingCredentials,
+    isError: isCredentialsError,
+  } = useQuery<IGetMicrosoftGraphCredentialsResponse, Error>(
     ["microsoft-graph-credentials"],
     () => microsoftGraphCredentialsAPI.getCredentials(),
     {
@@ -64,11 +65,16 @@ const MicrosoftEntraSection = ({
             tenantAdded={tenantAdded}
             viewDetails={navigateToWindowsEnrollment}
           />
-          <MicrosoftGraphCard
-            credentialAdded={!!credential}
-            credentialInvalid={!!credential?.credential_invalid}
-            viewDetails={navigateToMicrosoftGraph}
-          />
+          {/* Until the query settles, the card cannot tell "no credential" from "not loaded yet", and rendering the
+              Connect state would misreport a configured tenant as disconnected. */}
+          {!isLoadingCredentials && (
+            <MicrosoftGraphCard
+              credentialAdded={!!credential}
+              credentialInvalid={!!credential?.credential_invalid}
+              credentialStatusUnavailable={isCredentialsError}
+              viewDetails={navigateToMicrosoftGraph}
+            />
+          )}
         </div>
       )}
     </SettingsSection>

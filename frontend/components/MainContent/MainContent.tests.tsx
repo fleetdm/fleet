@@ -6,7 +6,7 @@ import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 
 import MainContent from "./MainContent";
 
-const GRAPH_BANNER_TEXT = /Microsoft Graph client secret is invalid/i;
+const GRAPH_BANNER_TEXT = /Your Microsoft Graph credential is invalid/i;
 
 const renderMainContent = ({
   credentialInvalid = false,

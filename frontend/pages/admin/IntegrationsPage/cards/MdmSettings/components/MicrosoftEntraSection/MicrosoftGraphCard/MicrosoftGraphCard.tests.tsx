@@ -48,12 +48,33 @@ describe("MicrosoftGraphCard", () => {
     );
 
     expect(
-      await screen.findByText(/client secret is invalid/i)
+      await screen.findByText(/Microsoft Graph credential is invalid/i)
     ).toBeInTheDocument();
     expect(
       screen.queryByText("Microsoft Graph connected.")
     ).not.toBeInTheDocument();
     // Still editable, so the admin can fix it from here.
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+  });
+
+  it("reports unknown status rather than Connect when the lookup failed", async () => {
+    render(
+      <MicrosoftGraphCard
+        credentialAdded={false}
+        credentialInvalid={false}
+        credentialStatusUnavailable
+        viewDetails={noop}
+      />
+    );
+
+    expect(
+      await screen.findByText(
+        /Couldn't load the Microsoft Graph connection status/i
+      )
+    ).toBeInTheDocument();
+    // Claiming "Connect" here would misreport a configured tenant as disconnected.
+    expect(
+      screen.queryByRole("button", { name: "Connect" })
+    ).not.toBeInTheDocument();
   });
 });

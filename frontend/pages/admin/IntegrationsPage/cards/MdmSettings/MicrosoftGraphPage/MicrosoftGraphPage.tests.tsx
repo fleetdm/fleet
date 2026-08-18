@@ -147,6 +147,26 @@ describe("MicrosoftGraphPage", () => {
     });
   });
 
+  it("requires a fresh secret when the client ID changes", async () => {
+    const { user } = renderPage([createMockCredential()]);
+
+    const clientIdField = await screen.findByLabelText("Client ID");
+    await user.clear(clientIdField);
+    await user.type(clientIdField, "different-client");
+
+    // The stored secret belongs to the old app registration, so the mask is cleared and re-entry is required. The API
+    // rejects a masked secret alongside a changed ID, so catching it here avoids a round trip.
+    await waitFor(() => {
+      expect(screen.getByLabelText("Client secret")).toHaveValue("");
+    });
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      await screen.findByText("Enter a client secret")
+    ).toBeInTheDocument();
+    expect(mockedAPI.applyCredentials).not.toHaveBeenCalled();
+  });
+
   it("validates on save rather than disabling the button", async () => {
     const { user } = renderPage([]);
 
