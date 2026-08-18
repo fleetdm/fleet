@@ -240,6 +240,13 @@ func WithTeamID(teamID uint) NewHostOption {
 	}
 }
 
+// WithHardwareSerial sets the HardwareSerial in NewHost.
+func WithHardwareSerial(s string) NewHostOption {
+	return func(h *fleet.Host) {
+		h.HardwareSerial = s
+	}
+}
+
 func NewHost(tb testing.TB, ds fleet.Datastore, name, ip, key, uuid string, now time.Time, options ...NewHostOption) *fleet.Host {
 	osqueryHostID, _ := server.GenerateRandomText(10)
 	h := &fleet.Host{
