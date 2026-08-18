@@ -165,12 +165,11 @@ Found 11 migration renumber(s):
 ```
 
 The dry run for the broken local database reported the real duplicate row and
-the id shifts the generated SQL would perform:
+the id rebuild that the generated SQL would perform:
 
 ```text
 migration_status_tables: duplicate version_id=20260522195224; would keep id=518, delete ids=[530]
-migration_status_tables: would make space by shifting 0 row(s) after version_id=20260522195235 by +12
-migration_status_tables: would shift 11 row(s) by +12
+migration_status_tables: would renumber 530 row id(s) into version order, fixing 11 ordering violation(s)
 Dry-run: SQL will apply cleanly.
 ```
 
@@ -194,11 +193,17 @@ Found 2 migration renumber(s):
   [tables] 20250918154557 -> 20250817154557
 ```
 
-For this shape, the generated SQL remaps those version IDs, removes duplicate
-status rows if present, computes the id increment from the current table state,
-and shifts affected rows with `ORDER BY id DESC`. The generated "make space"
-update may affect zero rows; that is expected when there are no later rows to
-move.
+For every shape, the generated SQL remaps the version IDs (in commit order, so
+chained renames resolve to the terminal ID), removes duplicate status rows if
+present, and then rebuilds every row id into version order: rows are first
+rebased above the current `MAX(id)` (collision-free in any update order) and
+then compacted down to ids `1..N`. Rebuilding the total order instead of
+computing a minimal shift handles moves up, moves down, mixed batches, and
+rows stranded at the table tail identically, and the SQL derives everything it
+needs (`MAX(id)`, `ROW_NUMBER()`) at execution time, so the same script is
+correct for any table state. Compaction keeps the final ids below the table's
+`AUTO_INCREMENT` counter, so future migration inserts cannot collide with
+moved rows.
 
 ## Notes
 
