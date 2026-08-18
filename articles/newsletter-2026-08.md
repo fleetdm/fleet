@@ -1,19 +1,14 @@
 # Fleet newsletter, August 2026
 
-July was a month about staying in control of what your hosts run. Fleet 4.89.0 lets you pin a Fleet-maintained app to a specific version, or roll it back when a new release causes trouble, so an automatic update never surprises you. Windows setup experience stopped being a dead end: when required software fails during enrollment, end users now see what failed and can keep going. Google Workspace joined Okta and Entra as a source of IdP host vitals, no custom integration required. August brings two releases, and the theme continues with custom host vitals you define yourself.
+An app updated itself and broke something. Now you can pin the version, or roll it back. That's Fleet 4.89.0, along with a fix for the stuck Windows setup screen and Google Workspace as a source of host vitals.
 
 ## What shipped last month
-
-Fleet 4.89.0 landed on July 15. [Read the full release notes](https://fleetdm.com/releases/fleet-4-89-0).
 
 - **Auto-update, pin, and roll back Fleet-maintained apps.** Pin an app to a specific version to stop it from auto-updating, or roll back to the previous version if a new release breaks something. Fleet checks for new versions hourly, so hosts you leave on auto-update stay current without you re-adding the app. Available in Fleet Premium.
 - **Windows setup experience: continue past a failed install.** When required setup software fails during Windows automatic enrollment, end users see exactly which app failed. If you haven't checked **Cancel setup if software fails**, they can continue and install it later from self-service. Either way they get a next step instead of a stuck screen. Available in Fleet Premium.
 - **IdP host vitals from Google Workspace.** Populate group, department, username, email, and full name straight from Google Workspace. Google Workspace doesn't support SCIM, so Fleet pulls directory data from Google's API on a schedule. Scope profiles, software, and policies with IdP labels the same way you would with Okta or Entra. Available in Fleet Premium.
-- **Android: host vital variables everywhere.** Use any host vital variable in Android configuration profiles, certificate templates, and managed app configuration. Pass a host's UUID to Duo as a trusted endpoint identifier, or a user's email as the identity for EAP-TLS Wi-Fi. When a variable's value changes, Fleet resends the certificate so it stays accurate.
-- **Policy status page.** See a historical view of policy automation runs: pass and fail status per host, next to the output of the software install or script the automation triggered. Troubleshooting a host that keeps failing a policy no longer means piecing together separate activity logs.
-- **Vulnerability exposure chart filters.** Filter the chart by software category, EPSS score, known active exploits (CISA KEV), and CVEs to exclude, then persist those defaults through GitOps. The chart reflects the risk registry you actually track. Available in Fleet Premium.
 
-Also shipped: Fleet 4.88.0 on July 2, with per-host enrollment permission tracking for personal (BYOD) Apple enrollments, so personal devices can't be remotely wiped or locked. Patch releases 4.89.1 and 4.89.2 followed.
+Three of eight highlights. For the rest, plus everything in 4.88.0, 4.89.1, and 4.89.2, see the [Fleet 4.89.0 release notes](https://fleetdm.com/releases/fleet-4-89-0).
 
 ## What we plan to ship this month
 
@@ -37,9 +32,8 @@ Fleet workshops are free, run about four hours, and cap at roughly seven people 
 - **GitOps, Melbourne.** August 24, 1pm to 5pm GMT+10. [Register](https://www.eventbrite.com/e/gitops-x-world-tickets-1992169896789)
 - **GitOps, Kansas City.** September 24, 8:30am to 10:30am EDT. [Register](https://www.eventbrite.com/e/speed-run-gitops-jnuc-tickets-1992170088362)
 - **GitOps, Gothenburg.** September 28, 1pm to 5pm GMT+2. [Register](https://www.eventbrite.com/e/gitops-macsysadmins-tickets-1993054810590)
-- **GitOps, Richmond.** October 13, 1pm to 5pm EDT. [Register](https://www.eventbrite.com/e/gitops-richmond-tickets-1993052268988)
 
-Nothing near you? You can [request a workshop](https://fleetdm.com/workshops).
+More dates are on the way, and nothing near you yet is worth telling us about. You can [request a workshop](https://fleetdm.com/workshops) in your city.
 
 ## Worth reading
 
