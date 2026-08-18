@@ -11,18 +11,36 @@ try {
         Exit 1
     }
 
-    # NSIS installers require /S flag for silent installation
-    $processOptions = @{
-        FilePath = "$exeFilePath"
-        ArgumentList = "/S"
-        PassThru = $true
-        Wait = $true
-        NoNewWindow = $true
+    # NSIS installers require /S flag for silent installation.
+    #
+    # The NSIS self-extractor intermittently dies with 0xc0000005 (access
+    # violation, exit code -1073741819) before extracting anything. The same
+    # installer succeeds on the next run, so retry on that specific exit code
+    # only; every other exit code is reported as-is.
+    $maxAttempts = 3
+    $exitCode = 1
+
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        $processOptions = @{
+            FilePath = "$exeFilePath"
+            ArgumentList = "/S"
+            PassThru = $true
+            Wait = $true
+            NoNewWindow = $true
+        }
+
+        $process = Start-Process @processOptions
+        $exitCode = $process.ExitCode
+
+        Write-Host "Install exit code: $exitCode (attempt $attempt of $maxAttempts)"
+
+        if ($exitCode -ne -1073741819) {
+            Exit $exitCode
+        }
+
+        Start-Sleep -Seconds 10
     }
 
-    $process = Start-Process @processOptions
-    $exitCode = $process.ExitCode
-    Write-Host "Install exit code: $exitCode"
     Exit $exitCode
 
 } catch {
