@@ -3304,6 +3304,17 @@ This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_display_name": The display name of the host.
 - "command_type": The type of MDM command.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "command_type": "lock"
+}
+```
+
 ## edited_apple_asset_declaration
 
 Generated when an Apple asset declaration is edited.
@@ -3317,12 +3328,9 @@ This activity contains the following fields:
 
 ```json
 {
-  "host_id": 123,
-  "host_display_name": "Anna's MacBook Pro",
-  "command_type": "lock"
-	"fleet_id": 1,
-	"fleet_name": "💻 Workstations",
-	"asset_name": "My Asset"
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations",
+  "asset_name": "My Asset"
 }
 ```
 
