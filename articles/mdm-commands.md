@@ -69,7 +69,7 @@ In Terminal, execute the following command:
 16F4301E-7A88-42AD-8523-A2F73F9D38FA
 ```
 
-> It's not necessary to add the `CommandUUID` to the MDM command payload, but having it available makes it easier and quicker to verify the MDM command result if a check is needed. 
+> When using `fleetctl mdm run-command`, the command UUID will be replaced by Fleet. If using the API endpoint [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command), it will retain your custom UUID. It's not necessary to add the `CommandUUID` to the MDM command payload, but having it available makes it easier and quicker to verify the MDM command result if a check is needed.
 
 A `.plist` with the `CommandUUID` key / value added will look something like this:
 
