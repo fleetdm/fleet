@@ -75,10 +75,14 @@ func Build(res *parser.Result) (*Document, error) {
 	doc := &Document{
 		OpenAPI: "3.1.0",
 		Info: Info{
-			Title: "Fleet REST API",
-			Description: "OpenAPI specification generated from Fleet's canonical " +
-				"REST API reference (docs/REST API/rest-api.md). The Markdown " +
-				"reference remains the source of truth.",
+			Title: "Fleet REST API (beta)",
+			Description: "Beta OpenAPI specification generated automatically from " +
+				"Fleet's canonical REST API reference (docs/REST API/rest-api.md). " +
+				"The Markdown reference remains the source of truth. This spec is " +
+				"not manually validated: it is only as accurate as the reference " +
+				"it's generated from, and generator errors are possible. If you " +
+				"find a discrepancy with actual API behavior, please file an " +
+				"issue at https://github.com/fleetdm/fleet/issues.",
 			Version: "main",
 		},
 		Servers: []Server{{

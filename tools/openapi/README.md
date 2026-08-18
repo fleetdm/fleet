@@ -6,6 +6,13 @@ from the canonical REST API reference at
 is the source of truth; `openapi.yml` is a generated artifact, not committed
 to the repo. Story: [#45279](https://github.com/fleetdm/fleet/issues/45279).
 
+> **Beta.** The generated spec is a best-effort artifact produced
+> automatically from the API reference. It is not manually validated
+> against the API: it's only as accurate as the reference docs, and
+> generator errors are possible. The Markdown reference is the official
+> API documentation. If the spec disagrees with actual API behavior,
+> [file an issue](https://github.com/fleetdm/fleet/issues).
+
 ## Usage
 
 Generate the spec locally after editing the REST API docs:
