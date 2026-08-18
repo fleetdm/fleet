@@ -18162,3 +18162,56 @@ func (s *integrationTestSuite) TestOsqueryConfigPackCacheLabelScopedQueries() {
 	require.Contains(t, queries, scopedB.Name,
 		"label member did not receive its label-scoped query")
 }
+
+func (s *integrationTestSuite) TestTeamPolicyResendConfigProfileRequiresPremium() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	profileUUID := fleet.MDMAppleProfileUUIDPrefix + uuid.NewString()
+
+	// Create: rejected at decode, before the profile is ever looked up.
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID),
+		&fleet.TeamPolicyRequest{
+			Name:        "premium resend",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			ProfileUUID: new(profileUUID),
+		}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	// Modify: same decode-time gate.
+	pol, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  "premium resend patch",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, pol.ID),
+		json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, profileUUID)), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	// GitOps spec apply: explicit license check, so this one is a 402.
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:        "premium resend spec",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			Team:        team.Name,
+			ProfileUUID: new(profileUUID),
+		}},
+	}, http.StatusPaymentRequired)
+	require.Contains(t, extractServerErrorText(res.Body), "Requires Fleet Premium license")
+
+	// Without profile_uuid the same spec applies cleanly on a free license.
+	s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:     "premium resend spec",
+			Query:    "SELECT 1;",
+			Platform: "darwin",
+			Team:     team.Name,
+		}},
+	}, http.StatusOK)
+}
