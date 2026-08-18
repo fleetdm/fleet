@@ -6615,6 +6615,15 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
 	require.NoError(t, err)
 
+	// labels.created_at is second-granular, and this test creates its labels and hosts inside one second. A tie reads as
+	// "the host has not evaluated this label yet", which correctly withholds every exclude-scoped policy -- not what this
+	// test is about. Backdate the labels so the hosts' label_updated_at is unambiguously later.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE labels SET created_at = ? WHERE id IN (?, ?)`,
+			time.Now().Add(-time.Minute), label1.ID, label2.ID)
+		return err
+	})
+
 	hostNoLabels := test.NewHost(t, ds, "host-no-labels", "10.0.0.1", "key1", "uuid1", time.Now())
 	hostLabel1 := test.NewHost(t, ds, "host-label1", "10.0.0.2", "key2", "uuid2", time.Now())
 	hostLabel2 := test.NewHost(t, ds, "host-label2", "10.0.0.3", "key3", "uuid3", time.Now())
@@ -6838,6 +6847,29 @@ func testPolicyLabelsUnknownMembership(t *testing.T, ds *Datastore) {
 			excludeDynamic.Name,
 			excludeAllDynamic.Name,
 		}, policyNames(t, host))
+	})
+
+	// GetHostHealth and the conditional-access IdP build a &fleet.Host{ID, Platform} with no LabelUpdatedAt; a zero timestamp
+	// would make every dynamic label look unevaluated and silently hide exclude-scoped policies from them.
+	t.Run("minimal host struct scopes off the stored timestamp", func(t *testing.T) {
+		minimal := &fleet.Host{ID: host.ID, Platform: host.Platform}
+		require.True(t, minimal.LabelUpdatedAt.IsZero())
+
+		full, err := ds.ListPoliciesForHost(ctx, host)
+		require.NoError(t, err)
+		lean, err := ds.ListPoliciesForHost(ctx, minimal)
+		require.NoError(t, err)
+
+		names := func(ps []*fleet.HostPolicy) []string {
+			var out []string
+			for _, p := range ps {
+				out = append(out, p.Name)
+			}
+			sort.Strings(out)
+			return out
+		}
+		require.Equal(t, names(full), names(lean))
+		require.Contains(t, names(lean), excludeDynamic.Name)
 	})
 
 	t.Run("confirmed membership still excludes", func(t *testing.T) {

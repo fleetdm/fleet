@@ -1196,7 +1196,11 @@ func deletePolicyDB(ctx context.Context, q sqlx.ExtContext, ids []uint, teamID *
 
 // policyLabelScopeSubquery aggregates a host's label scoping for every label-scoped policy in one pass, instead of correlated
 // EXISTS/NOT EXISTS subqueries re-evaluated per policy row. Join it as `LEFT JOIN (<subquery>) pl_agg ON pl_agg.policy_id = p.id`
-// and filter with policyLabelScopeWhere; pass policyLabelScopeArgs where its placeholders land.
+// and filter with policyLabelScopeWhere.
+//
+// Every placeholder is the host id: the host's label_updated_at is read from the row rather than taken from the caller's struct,
+// since callers reach here with a minimal &fleet.Host{ID, Platform} (GetHostHealth, conditional access) whose zero timestamp
+// would make every dynamic label look unevaluated.
 //
 // Scope encoding in policy_labels:
 //
@@ -1224,11 +1228,11 @@ const policyLabelScopeSubquery = `
 				-- count of include_all labels this host is a member of
 				SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_include_all_count,
 				-- 1 if this host is a member of at least one exclude_any label, or cannot be known not to be
-				MAX(CASE WHEN pl.exclude = 1 AND pl.require_all = 0 AND (lm.host_id IS NOT NULL OR (l.label_membership_type = 0 AND ? <= l.created_at)) THEN 1 ELSE 0 END) AS host_in_exclude_any,
+				MAX(CASE WHEN pl.exclude = 1 AND pl.require_all = 0 AND (lm.host_id IS NOT NULL OR (l.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = ?) <= l.created_at)) THEN 1 ELSE 0 END) AS host_in_exclude_any,
 				-- count of exclude_all labels on this policy
 				SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 THEN 1 ELSE 0 END) AS exclude_all_count,
 				-- count of exclude_all labels this host is a member of, or cannot be known not to be
-				SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 AND (lm.host_id IS NOT NULL OR (l.label_membership_type = 0 AND ? <= l.created_at)) THEN 1 ELSE 0 END) AS host_exclude_all_count
+				SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 AND (lm.host_id IS NOT NULL OR (l.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = ?) <= l.created_at)) THEN 1 ELSE 0 END) AS host_exclude_all_count
 			FROM policy_labels pl
 			LEFT JOIN labels l ON l.id = pl.label_id
 			LEFT JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = ?
@@ -1245,8 +1249,9 @@ const policyLabelScopeWhere = `
 			-- Policy has no exclude_all labels, or host is not in all of them
 			(COALESCE(pl_agg.exclude_all_count, 0) = 0 OR pl_agg.host_exclude_all_count < pl_agg.exclude_all_count)`
 
+// policyLabelScopeArgs supplies policyLabelScopeSubquery's placeholders: the host id, once per occurrence.
 func policyLabelScopeArgs(host *fleet.Host) []any {
-	return []any{host.LabelUpdatedAt, host.LabelUpdatedAt, host.ID}
+	return []any{host.ID, host.ID, host.ID}
 }
 
 // policyQueriesForHostStmt selects the in-scope policies (id, query) for a host: those matching the host's team and platform and
