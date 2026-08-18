@@ -28,6 +28,7 @@ var (
 	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
+	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
@@ -56,6 +57,7 @@ var (
 	SoftwareLabelsPackageLevelOnlyMessage        = "Couldn't add software (%q). Labels can be specified only in the package-level file when adding multiple packages of the same software."
 	SoftwareLabelsConflictMessage                = "Couldn't add software (%q). Labels can be specified either in the fleet-level file or in the package YAML file."
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
+	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP

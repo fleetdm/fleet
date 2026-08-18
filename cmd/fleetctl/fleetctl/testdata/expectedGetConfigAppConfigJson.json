@@ -135,16 +135,19 @@
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "ios_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "ipados_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "windows_updates": {
@@ -154,7 +157,7 @@
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
       "windows_entra_tenant_ids": null,
-      "windows_entra_client_ids": null,
+      "windows_entra_client_ids": null,"microsoft_graph_credential_invalid":false,
       "windows_require_bitlocker_pin": null,
       "apple_require_hardware_attestation": false,
       "macos_migration": {
@@ -196,6 +199,7 @@
         "require_all_software_windows": false,
         "software": null
       },
+      "windows_enrollment": null,
       "windows_settings": {
         "custom_settings": null,
         "configuration_profiles": null,

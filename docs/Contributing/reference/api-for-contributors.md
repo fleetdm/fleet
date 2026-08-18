@@ -713,6 +713,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
@@ -725,6 +726,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
@@ -815,6 +817,7 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-11-29T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": 1,
     "ios_fleet": 2,
     "ipados_fleet": 3,
@@ -827,6 +830,7 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-11-29T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": 1,
     "ios_fleet": 2,
     "ipados_fleet": 3,
@@ -884,6 +888,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2025-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
@@ -896,6 +901,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2025-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
@@ -1401,7 +1407,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium_
 
-Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business.
+Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business. If there is an error communicating with the DEP APIs, `dep_device` will be null and `dep_device_error` will contain human-readable error details.
 
 `GET /api/v1/fleet/hosts/:id/dep_assignment`
 
@@ -1446,7 +1452,8 @@ Returns the raw data about a DEP device's current state from the [Get Device Det
     "ab_token_id": 1,
     "mdm_migration_deadline": "2025-12-05T00:00:00Z",
     "mdm_migration_completed": "2025-12-05T00:00:00Z"
-  }
+  },
+  "dep_device_error": null
 }
 ```
 
@@ -2220,7 +2227,8 @@ If the `name` is not already associated with an existing fleet, this API route c
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.apple_settings                        | object | body  | The Apple-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to a .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.  |
+| mdm.apple_settings.assets                 | array   | body  | The list of objects consists of a `path` to a JSON asset declaration (`com.apple.asset`) file.   |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.windows_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this fleet so they can be executed at a later time.                                                                                                                                                 |
@@ -2299,12 +2307,17 @@ If the `name` is not already associated with an existing fleet, this API route c
         "apple_settings": {
           "configuration_profiles": [
             {
-              "path": "path/to/profile1.mobileconfig"
+              "path": "path/to/profile1.mobileconfig",
               "labels_include_all": ["Label 1", "Label 2"]
             },
             {
-              "path": "path/to/profile2.json"
+              "path": "path/to/profile2.json",
               "labels_exclude_any": ["Label 3", "Label 4"]
+            },
+          ],
+          "assets": [
+            {
+              "path": "path/to/assets/asset.json"
             },
           ],
           "enable_disk_encryption": true
@@ -2312,7 +2325,7 @@ If the `name` is not already associated with an existing fleet, this API route c
         "windows_settings": {
           "configuration_profiles": [
             {
-              "path": "path/to/profile3.xml"
+              "path": "path/to/profile3.xml",
               "labels_include_all": ["Label 1", "Label 2"]
             }
           ]
@@ -2457,7 +2470,7 @@ Gets all labels visible to the currently logged-in user.
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu' OR platform_like LIKE '%ubuntu%';",
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2495,9 +2508,9 @@ Gets all labels visible to the currently logged-in user.
       "id": 11,
       "name": "Ubuntu",
       "description": "Filters Ubuntu hosts",
-      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu' OR platform_like LIKE '%ubuntu%';",
       "label_type": "builtin",
-      "label_membership_type": "dynamic",,
+      "label_membership_type": "dynamic",
       "team_id": null,
       "team_name": null,
       "fleet_id": null,
@@ -3751,8 +3764,6 @@ For VPP `InstallApplication` command results, `results_metadata` may include:
 
 Queues an install for every self-service software title available to the device that isn't already installed.
 
-If `category_id` is provided, only titles assigned to that [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories) on the device's fleet are queued.
-
 `POST /api/v1/fleet/device/{token}/software/install_all`
 
 ##### Parameters
@@ -3760,11 +3771,12 @@ If `category_id` is provided, only titles assigned to that [self-service categor
 | Name        | Type    | In    | Description                                                                                                                                          |
 | ----------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | token       | string  | path  | **Required**. The device's authentication token.                                                                                                     |
-| category_id | integer | query | Restrict the install to a single self-service category. Must reference a category that exists on the device's fleet. If omitted, all categories are included. |
+| category_id | integer | query | Restrict to a single [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories). Must exist on the device's fleet. If omitted, all categories are included. |
+| query       | string  | query | Restrict to titles whose name matches (same semantics as the self-service list endpoint). If omitted, no name filter is applied. |
 
 ##### Example
 
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install_all?category_id=12`
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install_all?category_id=12&query=zoom`
 
 ##### Default response
 

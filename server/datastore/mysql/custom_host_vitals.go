@@ -382,10 +382,15 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 			JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
 			WHERE hmwp.host_uuid = ? AND hmwp.operation_type = ? AND hmwp.status IS NOT NULL AND INSTR(mwcp.syncml, ?) > 0`
 
-		customHostVitalResendAppleDeclarationsSelectStmt = `SELECT hmad.declaration_uuid AS uuid, mad.raw_json AS contents
+		// A custom activation is expanded at delivery like the declaration, so a
+		// vital referenced only there has to resend the owning declaration too.
+		customHostVitalResendAppleDeclarationsSelectStmt = `SELECT hmad.declaration_uuid AS uuid,
+				CONCAT(mad.raw_json, ' ', COALESCE(act.raw_json, '')) AS contents
 			FROM host_mdm_apple_declarations hmad
 			JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
-			WHERE hmad.host_uuid = ? AND hmad.operation_type = ? AND hmad.status IS NOT NULL AND INSTR(mad.raw_json, ?) > 0`
+			LEFT JOIN mdm_apple_ddm_activations act ON act.declaration_uuid = mad.declaration_uuid
+			WHERE hmad.host_uuid = ? AND hmad.operation_type = ? AND hmad.status IS NOT NULL
+				AND INSTR(CONCAT(mad.raw_json, ' ', COALESCE(act.raw_json, '')), ?) > 0`
 
 		customHostVitalResendAndroidProfilesSelectStmt = `SELECT hmap.profile_uuid AS uuid, macp.raw_json AS contents
 			FROM host_mdm_android_profiles hmap

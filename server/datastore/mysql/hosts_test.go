@@ -9536,6 +9536,18 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_apple_device_vitals (host_uuid)
+          VALUES (?)
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_apple_service_subscriptions (host_uuid, slot)
+          VALUES (?, 'slot-1')
+	`, host.UUID)
+	require.NoError(t, err)
+
 	var activity fleet.ActivityDetails = fleet.ActivityTypeRanScript{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
@@ -9750,6 +9762,15 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		`INSERT INTO host_custom_host_vitals (host_id, custom_host_vital_id, value) VALUES (?, ?, ?)`,
 		host.ID, vitalID, "engineering",
 	)
+	require.NoError(t, err)
+
+	err = ds.InsertAppleSoftwareUpdateDeviceID(ctx, host.UUID, "bogus-update-id")
+	require.NoError(t, err)
+
+	// Insert into host_autopilot_devices table (no host FK, cleaned up via hostRefs).
+	err = ds.BatchUpsertHostAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{{
+		HostID: host.ID, TenantID: "delete-host-tenant", HardwareSerial: "delete-host-serial",
+	}})
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

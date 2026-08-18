@@ -904,9 +904,11 @@ This activity contains the following fields:
 
 ## edited_macos_profile
 
-Generated when a user edits the macOS profiles of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the macOS profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single macOS profile via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
+- "profile_identifier": Identifier of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -914,6 +916,8 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -1356,9 +1360,10 @@ This activity contains the following fields:
 
 ## edited_windows_profile
 
-Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single Windows profile via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -1366,6 +1371,7 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Custom settings 1",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -1493,9 +1499,11 @@ This activity contains the following fields:
 
 ## edited_declaration_profile
 
-Generated when a user edits the macOS declarations of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the macOS declarations of a fleet (or no fleet) via the fleetctl CLI, or edits a single declaration via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited declaration. Only present when a single declaration was edited; omitted for fleetctl/GitOps batch edits.
+- "profile_identifier": Identifier of the edited declaration. Only present when a single declaration was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -1503,6 +1511,8 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -1554,9 +1564,10 @@ This activity contains the following fields:
 
 ## edited_android_profile
 
-Generated when a user edits the Android profiles of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the Android profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single Android profile via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -1564,6 +1575,7 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Custom settings 1",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -2902,6 +2914,25 @@ This activity contains the following fields:
 }
 ```
 
+## edited_host_name_template
+
+Generated when a user edits the host name template for a fleet (or no fleet).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the host name template applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the host name template applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "name_template": The host name template, `null` if the template was cleared.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
+  "name_template": "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+}
+```
+
 ## rotated_managed_local_account_password
 
 Generated when a managed local account password is rotated.
@@ -3138,8 +3169,33 @@ This activity contains the following fields:
 
 ```json
 {
-  "fleet_id": 1,
-  "fleet_name": "💻 Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## ran_custom_mdm_command
+
+Generated when a user runs a custom MDM command via API or the fleetctl CLI.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_uuid": UUID of the host.
+- "command_uuid": UUID of the MDM command used to install the app.
+- "request_type": the type of custom MDM command.
+- "platform": the platform of the host ("darwin" or "windows").
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_uuid": "1b3d5e7f-9a2c-4e6d-8b0a-1c3d5e7f9a2b",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+  "request_type": "EraseDevice",
+  "platform": "darwin"
 }
 ```
 
@@ -3202,6 +3258,25 @@ This activity contains the following fields:
 }
 ```
 
+## created_apple_asset_declaration
+
+Generated when creating an Apple asset declaration.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the asset belongs to.
+- "fleet_name": the name of the fleet the asset belongs to.
+- "asset_name": the name of the asset.
+
+#### Example
+
+```json
+{
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations",
+	"asset_name": "My Asset"
+}
+```
+
 ## edited_disk_encryption_settings
 
 Generated when a user edits disk encryption settings for hosts on a fleet (or unassigned hosts).
@@ -3229,6 +3304,14 @@ This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_display_name": The display name of the host.
 - "command_type": The type of MDM command.
+## edited_apple_asset_declaration
+
+Generated when an Apple asset declaration is edited.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the asset belongs to.
+- "fleet_name": the name of the fleet the asset belongs to.
+- "asset_name": the name of the asset.
 
 #### Example
 
@@ -3237,6 +3320,28 @@ This activity contains the following fields:
   "host_id": 123,
   "host_display_name": "Anna's MacBook Pro",
   "command_type": "lock"
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations",
+	"asset_name": "My Asset"
+}
+```
+
+## deleted_apple_asset_declaration
+
+Generated when an Apple asset declaration is deleted.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the asset belongs to.
+- "fleet_name": the name of the fleet the asset belongs to.
+- "asset_name": the name of the asset.
+
+#### Example
+
+```json
+{
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations",
+	"asset_name": "My Asset"
 }
 ```
 

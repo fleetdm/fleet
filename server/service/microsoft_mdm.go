@@ -1712,8 +1712,16 @@ scan:
 		if !fleet.IsNotFound(err) {
 			svc.logger.ErrorContext(ctx, "windows mdm: host lookup by serial failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
 			ctxerr.Handle(ctx, err)
+			return false
 		}
 		// NotFound means the host hasn't enrolled in osquery yet (hosts row not created yet); we'll retry next session.
+		// Persist the serial on the unlinked enrollment row so the orbit enrollment path can reverse-link it (and
+		// apply the Windows enrollment default fleet) the moment the host record is created, before orbit's one-shot
+		// setup-experience init reads the host's fleet. Best-effort: on failure the Get is reinjected next session.
+		if saveErr := svc.ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, enrolledDevice.MDMDeviceID, serial); saveErr != nil {
+			svc.logger.WarnContext(ctx, "windows mdm: failed to persist serial on unlinked enrollment",
+				"err", saveErr, "device_id", enrolledDevice.MDMDeviceID)
+		}
 		return false
 	}
 	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID)
@@ -3135,6 +3143,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	// osquery's directIngestMDMDeviceIDWindows remains as a backstop.
 	displayName := reqDeviceName
 	var serial string
+	var hostID uint
 	if hostUUID != "" {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
@@ -3164,6 +3173,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 			// then we found the host, so use the data from there for the activity
 			displayName = hosts[0].DisplayName()
 			serial = hosts[0].HardwareSerial
+			hostID = hosts[0].ID
 
 			// Flip host_mdm.enrolled = 1 immediately so the Windows profile reconciler selects this host. This covers
 			// fresh enrollment, ESP/OOBE, and the post-disable re-enable cycle. The values written here are the same
@@ -3210,6 +3220,10 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 	err = svc.NewActivity(
 		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
+			// HostID stays zero (omitted) for Azure automatic enrollments: the
+			// enrollment row is unlinked until the device reports its serial on
+			// the first management session, so there is no host to link yet.
+			HostID:          hostID,
 			HostDisplayName: displayName,
 			MDMPlatform:     fleet.MDMPlatformMicrosoft,
 			HostSerial:      &serial,
@@ -3696,7 +3710,7 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 		return nil
 	}
 
-	desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, profilesByTeam)
+	desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, currentByHost, profilesByTeam)
 	return executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost)
 }
 
@@ -3775,7 +3789,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		toInstall, toRemove := microsoft_mdm.ComputeWindowsReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
 		// Per-host desired (applicable) live profiles, used by the execute step to protect LocURIs a remove target shares with a
 		// profile still desired on the same host (label-aware, so a label-scoped profile only protects the hosts it applies to).
-		desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, profilesByTeam)
+		desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, currentByHost, profilesByTeam)
 
 		// Apply the per-tick delivery cap at host granularity. Hosts come back ascending by uuid, so capping keeps a contiguous prefix of
 		// the work-hosts and the cursor can resume at the last delivered host.
@@ -4283,6 +4297,10 @@ func executeWindowsProfileReconcileBatch(
 		return uris
 	}
 
+	// Host rows for removes whose <Delete> was fully suppressed by LocURI protection, accumulated across every removed profile in
+	// this batch and deleted in one call below.
+	var suppressedRemoveRows []*fleet.MDMWindowsProfilePayload
+
 	for profUUID, target := range removeTargets {
 		if _, ok := profileContents[profUUID]; !ok {
 			// No retained content for this removed profile, so we can't build its <Delete> this tick. This is normally a transient
@@ -4365,7 +4383,17 @@ func executeWindowsProfileReconcileBatch(
 				continue
 			}
 			if command == nil {
-				// Every LocURI of the removed profile is still enforced by another profile on these hosts; nothing to send.
+				// Every LocURI of the removed profile is still enforced by another profile on these hosts, so there is no
+				// <Delete> to send and no command ack will ever arrive to clean these rows up. Collect the rows and delete
+				// them after the loop.
+				for _, hostUUID := range g.hostUUIDs {
+					suppressedRemoveRows = append(suppressedRemoveRows, &fleet.MDMWindowsProfilePayload{
+						ProfileUUID: profUUID,
+						HostUUID:    hostUUID,
+					})
+				}
+				logger.DebugContext(ctx, "removed profile fully protected by other profiles, deleting host rows",
+					"profile_uuid", profUUID, "host_count", len(g.hostUUIDs))
 				continue
 			}
 
@@ -4394,6 +4422,12 @@ func executeWindowsProfileReconcileBatch(
 			if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, g.hostUUIDs, command, removePayloadsForCommand); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
 			}
+		}
+	}
+
+	if len(suppressedRemoveRows) > 0 {
+		if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, suppressedRemoveRows); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting host profiles whose remove command was fully suppressed")
 		}
 	}
 

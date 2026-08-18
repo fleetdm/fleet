@@ -4,7 +4,8 @@
       "version": "2.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'weektodo-app.netlify.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'weektodo-app.netlify.app' AND version_compare(bundle_short_version, '2.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'weektodo-app.netlify.app' AND version_compare(bundle_short_version, '2.2.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'weektodo-app.netlify.app');"
       },
       "installer_url": "https://github.com/Zuntek/WeekToDoWeb/releases/download/v2.2.0/WeekToDo-2.2.0.dmg",
       "install_script_ref": "df3300c5",

@@ -4,7 +4,8 @@
       "version": "2.5.926888",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Logi Options+' AND publisher = 'Logitech';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Logi Options+' AND publisher = 'Logitech' AND version_compare(version, '2.5.926888') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Logi Options+' AND publisher = 'Logitech' AND version_compare(version, '2.5.926888') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'logi options+.exe');"
       },
       "installer_url": "https://download01.logi.com/web/ftp/pub/techsupport/optionsplus/logioptionsplus_installer.exe",
       "install_script_ref": "ca441859",

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -1222,6 +1223,92 @@ func TestModifyManualLabel(t *testing.T) {
 	})
 }
 
+func TestModifyLabelRejectsHostsForComputedMembership(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	membershipType := fleet.LabelMembershipTypeDynamic
+	ds.LabelFunc = func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{
+			Label: fleet.Label{
+				ID:                  lid,
+				LabelMembershipType: membershipType,
+			},
+		}, nil, nil
+	}
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+	}
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+		return []uint{99}, nil
+	}
+	mockListHostsLiteByIDs(ds)
+
+	type labelTypeCase struct {
+		name           string
+		membershipType fleet.LabelMembershipType
+	}
+	computedTypes := []labelTypeCase{
+		{"dynamic", fleet.LabelMembershipTypeDynamic},
+		{"host vitals", fleet.LabelMembershipTypeHostVitals},
+	}
+	manualType := labelTypeCase{"manual", fleet.LabelMembershipTypeManual}
+	payloads := []struct {
+		name    string
+		payload fleet.ModifyLabelPayload
+	}{
+		{"empty host IDs", fleet.ModifyLabelPayload{HostIDs: []uint{}}},
+		{"host IDs", fleet.ModifyLabelPayload{HostIDs: []uint{1}}},
+		{"empty hostnames", fleet.ModifyLabelPayload{Hosts: []string{}}},
+		{"hostnames", fleet.ModifyLabelPayload{Hosts: []string{"host1"}}},
+	}
+
+	for _, lblType := range computedTypes {
+		for _, tc := range payloads {
+			t.Run(lblType.name+"/"+tc.name, func(t *testing.T) {
+				membershipType = lblType.membershipType
+				ds.SaveLabelFuncInvoked = false
+
+				_, _, err := svc.ModifyLabel(ctx, 1, tc.payload)
+				require.ErrorContains(t, err, `"hosts" or "host_ids" can only be provided for a manual label`)
+				require.False(t, ds.SaveLabelFuncInvoked)
+			})
+		}
+	}
+
+	// SaveLabel only replaces membership when it gets a non-nil list, so a request
+	// that omits both host fields must reach it as nil.
+	for _, lblType := range append(computedTypes, manualType) {
+		t.Run(lblType.name+"/rename without host fields", func(t *testing.T) {
+			membershipType = lblType.membershipType
+			ds.SaveLabelFuncInvoked = false
+			ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+				require.Nil(t, hostIDs)
+				return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+			}
+
+			_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{Name: new("renamed")})
+			require.NoError(t, err)
+			require.True(t, ds.SaveLabelFuncInvoked)
+		})
+	}
+
+	t.Run("manual label can still be cleared", func(t *testing.T) {
+		membershipType = fleet.LabelMembershipTypeManual
+		ds.SaveLabelFuncInvoked = false
+		ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+			require.NotNil(t, hostIDs)
+			require.Empty(t, hostIDs)
+			return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+		}
+
+		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{HostIDs: []uint{}})
+		require.NoError(t, err)
+		require.True(t, ds.SaveLabelFuncInvoked)
+	})
+}
+
 func TestNewHostVitalsLabel(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1248,7 +1335,11 @@ func TestNewHostVitalsLabel(t *testing.T) {
 		require.NoError(t, err)
 		queryValuesJson, err := json.Marshal(queryValues)
 		require.NoError(t, err)
-		assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+		// Compare whitespace-normalized SQL: the IdP join fragment is a multi-line
+		// raw string whose indentation is irrelevant to the query's meaning.
+		assert.Equal(t,
+			"SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN ( WITH RECURSIVE scim_user_group_expanded AS ( SELECT scim_user_id, group_id FROM scim_user_group WHERE scim_user_id IN (SELECT scim_user_id FROM host_scim_user) UNION SELECT e.scim_user_id, gg.parent_group_id AS group_id FROM scim_user_group_expanded e JOIN scim_group_group gg ON gg.child_group_id = e.group_id ) SELECT scim_user_id, group_id FROM scim_user_group_expanded ) scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id",
+			strings.Join(strings.Fields(query), " "))
 		assert.Equal(t, `["admin"]`, string(queryValuesJson))
 	})
 

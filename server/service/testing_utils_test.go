@@ -63,6 +63,7 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -105,6 +106,23 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if mockDS.ConditionalAccessMicrosoftGetFunc == nil {
 			mockDS.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 				return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+			}
+		}
+		// Config reads hydrate the Windows enrollment default fleet from its config row.
+		if mockDS.GetWindowsEnrollmentDefaultFleetFunc == nil {
+			mockDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return nil, "", nil
+			}
+		}
+		// Default to none configured so tests that don't care don't panic on a nil mock.
+		if mockDS.ListMicrosoftGraphCredentialsFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.ListMicrosoftGraphCredentialMetadataFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+				return nil, nil
 			}
 		}
 	}
@@ -256,6 +274,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	orgLogoStore, err := filesystem.NewOrgLogoStore(t.TempDir())
 	require.NoError(t, err)
 
+	// Config writes that carry a new credential verify it against Entra and Graph, so default to a no-op factory and
+	// let tests inject their own when they assert on verification.
+	msGraphClientFactory := msgraph.ClientFactory(noopGraphFactory)
+	if len(opts) > 0 && opts[0].MicrosoftGraphClientFactory != nil {
+		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -324,6 +349,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			androidModule,
 			estCAService,
 			pssoNonceStore,
+			msGraphClientFactory,
 		)
 		if err != nil {
 			panic(err)
@@ -1528,3 +1554,17 @@ func (rt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 // errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
 // for assertions that only care about the error.
 func errOnly(_ []uint, err error) error { return err }
+
+// noopGraphClient keeps credential verification off the network. Test servers built without an injected factory would
+// otherwise reach the real login.microsoftonline.com and graph.microsoft.com on any config write carrying a credential.
+type noopGraphClient struct{}
+
+func (noopGraphClient) VerifyCredential(context.Context) error { return nil }
+
+func (noopGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgraph.WindowsAutopilotDevice, error) {
+	return nil, nil
+}
+
+func noopGraphFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
+	return noopGraphClient{}, nil
+}

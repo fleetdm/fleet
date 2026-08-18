@@ -4,7 +4,8 @@
       "version": "1.22.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Stretchly %' AND publisher = 'Jan Hovancik';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Stretchly %' AND publisher = 'Jan Hovancik' AND version_compare(version, '1.22.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Stretchly %' AND publisher = 'Jan Hovancik' AND version_compare(version, '1.22.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'stretchly.exe');"
       },
       "installer_url": "https://github.com/hovancik/stretchly/releases/download/v1.22.0/Stretchly-Setup-1.22.0.exe",
       "install_script_ref": "45257f64",

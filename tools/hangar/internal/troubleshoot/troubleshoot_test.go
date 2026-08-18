@@ -20,10 +20,13 @@ func TestParsePIDs(t *testing.T) {
 	}
 }
 
+// allAlive is an alive-stub for tests that don't exercise the liveness filter.
+func allAlive(uint32) bool { return true }
+
 func TestDetectedDedup(t *testing.T) {
 	cmd := func(pid uint32) string { return "cmd-" + string(rune('0'+pid)) }
 	// Port-style: dedup on, no exclusion.
-	got := detected([]uint32{2, 2, 3, 2}, true, 0, cmd)
+	got := detected([]uint32{2, 2, 3, 2}, true, 0, allAlive, cmd)
 	if len(got) != 2 || got[0].PID != 2 || got[1].PID != 3 {
 		t.Errorf("dedup failed: %+v", got)
 	}
@@ -32,7 +35,7 @@ func TestDetectedDedup(t *testing.T) {
 func TestDetectedExcludeSelf(t *testing.T) {
 	cmd := func(pid uint32) string { return "x" }
 	// Pattern-style: no dedup, exclude self (pid 5). Duplicates are kept.
-	got := detected([]uint32{4, 5, 6, 6}, false, 5, cmd)
+	got := detected([]uint32{4, 5, 6, 6}, false, 5, allAlive, cmd)
 	if len(got) != 3 {
 		t.Fatalf("got %d, want 3 (self excluded, dups kept): %+v", len(got), got)
 	}
@@ -40,6 +43,21 @@ func TestDetectedExcludeSelf(t *testing.T) {
 		if d.PID == 5 {
 			t.Error("self pid 5 should be excluded")
 		}
+	}
+}
+
+func TestDetectedSkipsDeadOrExited(t *testing.T) {
+	cmd := func(pid uint32) string {
+		if pid == 3 {
+			return "(process exited)" // raced: died between liveness check and ps
+		}
+		return "live"
+	}
+	// pid 2 is dead (alive=false), pid 3 raced to exit, pid 4 is a real match.
+	alive := func(pid uint32) bool { return pid != 2 }
+	got := detected([]uint32{2, 3, 4}, false, 0, alive, cmd)
+	if len(got) != 1 || got[0].PID != 4 {
+		t.Errorf("expected only live pid 4, got %+v", got)
 	}
 }
 

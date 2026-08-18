@@ -1,0 +1,1 @@
+- Update DDM asset error message when providing `Authentication` key to inform Fleet defaults to `MDM` authentication.

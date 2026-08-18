@@ -1,4 +1,5 @@
 import {
+  formatFileSize,
   getExtensionFromFileName,
   getFileDetails,
   getPlatformDisplayName,
@@ -118,6 +119,32 @@ describe("fileUtils", () => {
     expect(getFileDetails(file)).toEqual({
       name: "my.file.name.pkg",
       description: "macOS",
+    });
+  });
+
+  describe("fileUtils - formatFileSize", () => {
+    // Expectations verified against the server's installersize.Human, which is
+    // what writes the same limit into its own too-large error
+    const testCases = [
+      { bytes: 0, expectedSize: "0B" },
+      { bytes: 999, expectedSize: "999B" },
+      { bytes: 1000, expectedSize: "1kB" },
+      { bytes: 1024, expectedSize: "1KiB" },
+      { bytes: 1000000, expectedSize: "1MB" },
+      { bytes: 1048576, expectedSize: "1MiB" },
+      { bytes: 536870912, expectedSize: "512MiB" },
+      { bytes: 1073741824, expectedSize: "1GiB" },
+      { bytes: 1500000000, expectedSize: "1.5GB" },
+      { bytes: 10737418240, expectedSize: "10GiB" },
+      { bytes: 5497558138880, expectedSize: "5TiB" },
+      { bytes: 1000000000000000, expectedSize: "1PB" },
+      { bytes: 1125899906842624, expectedSize: "1PiB" },
+    ];
+
+    testCases.forEach(({ bytes, expectedSize }) => {
+      it(`should return "${expectedSize}" for ${bytes} bytes`, () => {
+        expect(formatFileSize(bytes)).toEqual(expectedSize);
+      });
     });
   });
 });

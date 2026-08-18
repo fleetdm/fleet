@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.5.2",
+      "version": "9.5.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.sudo.cyberduck';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.sudo.cyberduck' AND version_compare(bundle_short_version, '9.5.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.sudo.cyberduck' AND version_compare(bundle_short_version, '9.5.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'ch.sudo.cyberduck');"
       },
-      "installer_url": "https://update.cyberduck.io/Cyberduck-9.5.2.45323.zip",
+      "installer_url": "https://update.cyberduck.io/Cyberduck-9.5.3.45464.zip",
       "install_script_ref": "809901d0",
       "uninstall_script_ref": "8d609003",
-      "sha256": "5664ed7c06be260e236128f5e14d5187b58dadf00e86876a98ca49f048407fc5",
+      "sha256": "b53092b7b7057d9782c093839bc47b19afd0987b23d7252bae435078f3e47e28",
       "default_categories": [
         "Productivity"
       ]

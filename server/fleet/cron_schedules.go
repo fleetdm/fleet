@@ -32,13 +32,11 @@ const (
 	CronGoogleWorkspaceSync          CronScheduleName = "google_workspace_sync"
 	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
 	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
+	CronSoftwareChecksumMigration    CronScheduleName = "software_checksum_migration"
 	CronMaintainedApps               CronScheduleName = "maintained_apps"
 	// CronWindowsMaintainedAppTitles merges Windows software titles whose reported
 	// name embeds the version onto the title owned by the Fleet-maintained app's
-	// installer. Separate from CronMaintainedApps because it reads only local
-	// installer and title state, so it must not be gated on the catalog fetch, and
-	// separate from CronCleanupsThenAggregation so it can run shortly after startup
-	// without changing the startup behaviour of that schedule's other jobs.
+	// installer.
 	CronWindowsMaintainedAppTitles CronScheduleName = "windows_maintained_app_titles"
 	// CronMaintainedAppsAutoUpdate advances each Fleet-maintained app's active
 	// installer to the newest cached version its pin state allows. Premium only;
@@ -71,6 +69,10 @@ const (
 	CronAppleMDMWorker                          CronScheduleName = "apple_mdm_worker"
 	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
 	CronCleanupExpiredADUEChallenges            CronScheduleName = "cleanup_expired_adue_challenges"
+	CronAppleMDMOSUpdatesSchedule               CronScheduleName = "apple_mdm_os_updates"
+	// CronMDMAndroidCommandReconciler polls AMAPI for the outcome of Android MDM commands whose Pub/Sub
+	// COMMAND notification never arrived, so they don't stay pending forever. Runs every 24h.
+	CronMDMAndroidCommandReconciler CronScheduleName = "mdm_android_command_reconciler"
 )
 
 type CronSchedulesService interface {

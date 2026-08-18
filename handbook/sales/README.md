@@ -28,7 +28,7 @@ To maintain an accurate picture of our performance and make sure our weekly fore
 
 ## Sales territory assignments
 
-For current sales territory assignments, see the [Sales Territory Assignments slide deck (confidential)](https://docs.google.com/presentation/d/1EMXbv-i6IcOIhjB9OIbXDC5QHLFm1e8lixo_4VaPsz4/edit?slide=id.p#slide=id.p).
+For current sales territory assignments, see the ["GTM territory assignments"](https://fleetdm.com/handbook/company/go-to-market-operations#gtm-territory assignments).
 
 
 ## Responsibilities
