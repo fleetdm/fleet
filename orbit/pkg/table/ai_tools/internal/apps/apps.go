@@ -15,6 +15,7 @@ import (
 // App is a detected AI desktop application.
 type App struct {
 	Name           string
+	DisplayName    string
 	Vendor         string
 	Path           string
 	BundleID       string
@@ -43,17 +44,17 @@ func knownApps() []knownApp {
 		{"chatgpt", []string{"chatgpt"}, []string{"chatgpt"}, 0},
 		{"ollama", []string{"ollama"}, []string{"ollama"}, 11434},
 		{"lm-studio", []string{"lm studio", "lmstudio", "lm-studio"}, []string{"lm studio", "lm-studio", "lmstudio"}, 1234},
-		{"jan", []string{"jan.app", "jan ", "/jan"}, []string{"jan"}, 1337},
+		{"jan", []string{"jan"}, []string{"jan"}, 1337},
 		{"gpt4all", []string{"gpt4all"}, []string{"gpt4all"}, 0},
 		{"msty", []string{"msty"}, []string{"msty"}, 0},
 		{"anythingllm", []string{"anythingllm", "anything llm"}, []string{"anythingllm"}, 0},
-		{"comet", []string{"comet.app", "comet "}, []string{"comet"}, 0}, // Perplexity Comet (AI browser)
-		{"dia", []string{"dia.app", "dia "}, []string{"dia"}, 0},         // Browser Company Dia (AI browser)
+		{"comet", []string{"comet"}, []string{"comet"}, 0}, // Perplexity Comet (AI browser)
+		{"dia", []string{"dia"}, []string{"dia"}, 0},       // Browser Company Dia (AI browser)
 		{"perplexity", []string{"perplexity"}, []string{"perplexity"}, 0},
 		{"cursor", []string{"cursor"}, []string{"cursor"}, 0},
 		{"windsurf", []string{"windsurf"}, []string{"windsurf"}, 0},
 		{"antigravity", []string{"antigravity"}, []string{"antigravity"}, 0},
-		{"trae", []string{"trae.app", "trae "}, []string{"trae"}, 0},
+		{"trae", []string{"trae"}, []string{"trae"}, 0},
 		{"lm-studio-cli", []string{"lms"}, []string{"lms"}, 0},
 	}
 }
@@ -62,6 +63,11 @@ func knownApps() []knownApp {
 func Scan(homesList []homes.Home, snap *proc.Snapshot) []App {
 	out := scanApps(homesList) // platform-specific (build-tagged)
 	for i := range out {
+		// Some discoveries carry no display name (e.g. a bare service binary);
+		// fall back to the known-app key rather than reporting a nameless row.
+		if out[i].DisplayName == "" {
+			out[i].DisplayName = out[i].Name
+		}
 		k, ok := knownByName(out[i].Name)
 		if !ok {
 			continue
@@ -83,11 +89,12 @@ func Scan(homesList []homes.Home, snap *proc.Snapshot) []App {
 }
 
 // containsWordBoundary reports whether want appears in pn delimited by
-// non-alphanumeric characters (or the string edges). Several processNames tokens
-// are short, common substrings (e.g. "dia", "jan"); a plain strings.Contains
-// would falsely match unrelated processes like "mediaanalysisd", marking an app
-// Running with an unrelated PID. It scans every occurrence so a bounded match
-// later in the string is still found.
+// non-alphanumeric characters (or the string edges). Several match and
+// processNames tokens are short, common substrings (e.g. "dia", "jan", "lms");
+// a plain strings.Contains would falsely match unrelated programs like "NVIDIA
+// Control Panel" or processes like "mediaanalysisd", reporting an AI app that
+// was never installed or marking one Running with an unrelated PID. It scans
+// every occurrence so a bounded match later in the string is still found.
 func containsWordBoundary(pn, want string) bool {
 	if want == "" {
 		return false
@@ -112,12 +119,15 @@ func isAlnum(b byte) bool {
 	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
 }
 
-// matchKnown finds the AI app a set of identifying strings belongs to.
+// matchKnown finds the AI app a set of identifying strings belongs to. Tokens
+// are matched at word boundaries, never mid-word: the joining NUL and the
+// non-alphanumeric characters of display names, bundle ids, and file names all
+// delimit words.
 func matchKnown(tokens ...string) (knownApp, bool) {
 	hay := strings.ToLower(strings.Join(tokens, "\x00"))
 	for _, k := range knownApps() {
 		for _, m := range k.match {
-			if strings.Contains(hay, m) {
+			if containsWordBoundary(hay, m) {
 				return k, true
 			}
 		}
@@ -125,10 +135,6 @@ func matchKnown(tokens ...string) (knownApp, bool) {
 	return knownApp{}, false
 }
 
-// firstNonEmpty is used by scanApps on darwin and linux; the windows build has
-// no caller, so it is exempt from the unused check there.
-//
-//nolint:unused
 func firstNonEmpty(vals ...string) string {
 	for _, v := range vals {
 		if v != "" {

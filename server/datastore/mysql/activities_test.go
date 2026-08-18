@@ -42,6 +42,7 @@ func TestActivity(t *testing.T) {
 		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
 		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
 		{"UnblockHostsUpcomingActivityQueue", testUnblockHostsUpcomingActivityQueue},
+		{"ReapStuckActivatedMDMInstalls", testReapStuckActivatedMDMInstalls},
 		{"ActivateScriptPackageInstallWithCorruptPayload", testActivateScriptPackageInstallWithCorruptPayload},
 		{"ActivateRegularPackageInstall", testActivateRegularPackageInstall},
 		{"ActivateDeletedInstallerShowsPlaceholder", testActivateDeletedInstallerShowsPlaceholder},
@@ -2081,6 +2082,468 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[2], host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
 	checkUpcomingActivities(t, ds, hosts[3], host3ScriptE.ExecutionID)
 	checkUpcomingActivities(t, ds, hosts[4], host4ScriptE.ExecutionID)
+}
+
+// TestReapableActivatedInstallArgs pins the conversion the reap predicate depends on. A duration
+// that reaches the query as 0 makes the cutoff NOW(), so every activated install on the fleet is
+// past it. The sub-second case in testReapStuckActivatedMDMInstalls says the same thing end to end,
+// but has to race a wall clock to do it.
+func TestReapableActivatedInstallArgs(t *testing.T) {
+	for _, tc := range []struct {
+		olderThan  time.Duration
+		wantMicros int64
+	}{
+		{time.Microsecond, 1},
+		{time.Millisecond, 1_000},
+		{500 * time.Millisecond, 500_000},
+		{999 * time.Millisecond, 999_000},
+		{24 * time.Hour, 86_400_000_000},
+	} {
+		t.Run(tc.olderThan.String(), func(t *testing.T) {
+			args := reapableActivatedInstallArgs(tc.olderThan)
+			require.Len(t, args, 3)
+			require.Equal(t, tc.wantMicros, args[0], "reap age must not truncate")
+			require.Equal(t, tc.wantMicros, args[1], "answer age must not truncate")
+			require.Equal(t, mdmApplePushDeliveryGraceDays, args[2])
+		})
+	}
+}
+
+func testReapStuckActivatedMDMInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	u := test.NewUser(t, ds, "reaper-user", "reaper-user@example.com", false)
+
+	const reapAfter = 24 * time.Hour
+	agedActivation := time.Now().Add(-48 * time.Hour)
+
+	var hostSeq int
+	newMDMHost := func(opts ...test.NewHostOption) *fleet.Host {
+		hostSeq++
+		h := test.NewHost(t, ds, fmt.Sprintf("reap%d.local", hostSeq), fmt.Sprintf("10.20.30.%d", hostSeq),
+			fmt.Sprintf("reap-key-%d", hostSeq), fmt.Sprintf("reap-uuid-%d", hostSeq), time.Now(), opts...)
+		nanoEnrollAndSetHostMDMData(t, ds, h, false)
+		return h
+	}
+
+	// advance covers the case where an insert onto a non-empty queue did not activate itself
+	advance := func(host *fleet.Host, fromCompletedExecID string) {
+		_, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, fromCompletedExecID)
+		require.NoError(t, err)
+	}
+
+	// ageActivations backdates the activation so the rows are older than the reap timeout
+	ageActivations := func(execIDs ...string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt, args, err := sqlx.In(
+				`UPDATE upcoming_activities SET activated_at = ? WHERE execution_id IN (?)`, agedActivation, execIDs)
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+
+	// answeredAt records a command result, which is what a device reply leaves behind. updated_at
+	// carries the answer time: GetUnverifiedVPPInstallsForHost selects it as ack_at and the verify
+	// handler times its own budget against it, so the reaper ages the answered branch from it too.
+	answeredAt := func(host *fleet.Host, execID, status string, at time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO nano_command_results (id, command_uuid, status, result, updated_at)
+				VALUES (?, ?, ?, '<?xml version="1.0" encoding="UTF-8"?>', ?)`, host.UUID, execID, status, at)
+			return err
+		})
+	}
+	// deliver is the reported shape: acknowledged back when the install activated, unverified since
+	deliver := func(host *fleet.Host, execID string) {
+		answeredAt(host, execID, "Acknowledged", agedActivation)
+	}
+
+	ageNanoQueue := func(execID string, at time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE nano_enrollment_queue SET created_at = ? WHERE command_uuid = ?`, at, execID)
+			return err
+		})
+	}
+
+	deactivateNanoQueue := func(execID string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE nano_enrollment_queue SET active = 0 WHERE command_uuid = ?`, execID)
+			return err
+		})
+	}
+
+	queuedExecIDs := func(host *fleet.Host) []string {
+		acts, _, err := ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		ids := make([]string, 0, len(acts))
+		for _, a := range acts {
+			ids = append(ids, a.UUID)
+		}
+		return ids
+	}
+
+	type verifyState struct {
+		VerificationAt       *time.Time `db:"verification_at"`
+		VerificationFailedAt *time.Time `db:"verification_failed_at"`
+	}
+	vppVerifyState := func(execID string) verifyState {
+		var vs verifyState
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &vs,
+				`SELECT verification_at, verification_failed_at FROM host_vpp_software_installs WHERE command_uuid = ?`, execID)
+		})
+		return vs
+	}
+	nanoQueueActive := func(execID string) bool {
+		var active bool
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &active,
+				`SELECT active FROM nano_enrollment_queue WHERE command_uuid = ?`, execID)
+		})
+		return active
+	}
+	hasVerifyLock := func(host *fleet.Host) bool {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				`SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`,
+				host.ID, fleet.VerifySoftwareInstallVPPPrefix)
+		})
+		return n > 0
+	}
+
+	// nothing to reap on a fleet with no activity at all
+	reaped, err := ds.ReapStuckActivatedMDMInstalls(ctx, reapAfter, 10)
+	require.NoError(t, err)
+	require.Empty(t, reaped)
+
+	// hAcked: delivered, never verified, aged. The reported case. A script is queued behind it to
+	// prove the whole queue is released, not just the install.
+	hAcked := newMDMHost()
+	ackedExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hAcked)
+	advance(hAcked, "")
+	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hAcked.ID, ScriptContents: "echo reaped",
+	})
+	require.NoError(t, err)
+	ackedScriptExec := hsr.ExecutionID
+	deliver(hAcked, ackedExec)
+	ageActivations(ackedExec)
+	// An automatic update, so the emitted activity has to say so. Written as 1 and not TRUE:
+	// raw SQL TRUE stores a JSON boolean, while a Go bool through the driver stores the number
+	// the reaper's `= 1` test matches, so only 1 reproduces what production writes.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE upcoming_activities SET payload = JSON_SET(payload, '$.from_auto_update', 1) WHERE execution_id = ?`,
+			ackedExec)
+		return err
+	})
+	// the acknowledgement that started verification also took the verify lock
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+		{HostID: hAcked.ID, CommandType: fleet.VerifySoftwareInstallVPPPrefix},
+	}))
+	require.Equal(t, []string{ackedExec, ackedScriptExec}, queuedExecIDs(hAcked))
+
+	// hOffline: aged, but the command has not been delivered and its queue row is still live and
+	// inside the push window, so the device may yet install it. This is the regression guard: a
+	// bare age test would fail every install to a host that is merely switched off.
+	hOffline := newMDMHost()
+	offlineExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hOffline)
+	advance(hOffline, "")
+	ageActivations(offlineExec)
+
+	// hNotNow: the device answered, but with NotNow, so nanomdm keeps the command queued and will
+	// re-serve it. The install has not run, so it must be treated as undelivered and spared.
+	hNotNow := newMDMHost()
+	notNowExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hNotNow)
+	advance(hNotNow, "")
+	answeredAt(hNotNow, notNowExec, "NotNow", agedActivation)
+	ageActivations(notNowExec)
+
+	// hBackdated: its queue row carries the activity's old created_at, because both enqueue paths
+	// copy it to preserve ordering. That says nothing about whether the device can still receive
+	// the command, and it is the shape of every install behind a head the reaper has just freed.
+	hBackdated := newMDMHost()
+	backdatedExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hBackdated)
+	advance(hBackdated, "")
+	ageActivations(backdatedExec) // 48h, past the reap floor
+	ageNanoQueue(backdatedExec, time.Now().Add(-30*24*time.Hour))
+
+	// hLateAck: away longer than the delivery grace, then came back and acknowledged. The delivery
+	// branches must not apply to an install that has been answered, or returning after a long
+	// absence would fail the install the device is at that moment running.
+	hLateAck := newMDMHost()
+	lateAckExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hLateAck)
+	advance(hLateAck, "")
+	answeredAt(hLateAck, lateAckExec, "Acknowledged", time.Now())
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE upcoming_activities SET activated_at = ? WHERE execution_id = ?`,
+			time.Now().Add(-9*24*time.Hour), lateAckExec)
+		return err
+	})
+
+	// hUndeliverable: activated longer ago than the delivery grace, still unanswered, so Fleet has
+	// stopped pushing it and it is never going to arrive
+	hExpired := newMDMHost()
+	expiredExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hExpired)
+	advance(hExpired, "")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE upcoming_activities SET activated_at = ? WHERE execution_id = ?`,
+			time.Now().Add(-8*24*time.Hour), expiredExec)
+		return err
+	})
+
+	// hPulled: undelivered, and its queue row was deactivated out from under it
+	hPulled := newMDMHost()
+	pulledExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hPulled)
+	advance(hPulled, "")
+	ageActivations(pulledExec)
+	deactivateNanoQueue(pulledExec)
+
+	// hFresh: answered but activated just now, so still inside the timeout
+	hFresh := newMDMHost()
+	freshExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hFresh)
+	advance(hFresh, "")
+	answeredAt(hFresh, freshExec, "Acknowledged", time.Now())
+
+	// hJustAcked: past the timeout by activation age, but the device only just came back and
+	// acknowledged, so verification is in flight and entitled to its own budget. Reaping on
+	// activation age alone would fail an app that is at that moment installing.
+	hJustAcked := newMDMHost()
+	justAckedExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hJustAcked)
+	advance(hJustAcked, "")
+	answeredAt(hJustAcked, justAckedExec, "Acknowledged", time.Now())
+	ageActivations(justAckedExec)
+
+	// hBatch: a full activation batch. A script goes first so that all the installs queue up
+	// behind it and then activate together when it completes.
+	hBatch := newMDMHost()
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hBatch.ID, ScriptContents: "echo batch",
+	})
+	require.NoError(t, err)
+	batchExecs := make([]string, 0, 6)
+	for range 6 {
+		execID, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hBatch)
+		batchExecs = append(batchExecs, execID)
+	}
+	advance(hBatch, hsr.ExecutionID)
+	// maxMDMCommandActivations caps a batch at 5, so the sixth is still waiting
+	activatedBatch := batchExecs[:5]
+	for _, execID := range activatedBatch {
+		deliver(hBatch, execID)
+	}
+	ageActivations(activatedBatch...)
+
+	// hVerified: already verified, but its row was left activated. Nothing to fail, only to
+	// advance past, and the verified outcome must survive.
+	hVerified := newMDMHost()
+	verifiedExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hVerified)
+	advance(hVerified, "")
+	deliver(hVerified, verifiedExec)
+	ageActivations(verifiedExec)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_vpp_software_installs SET verification_at = NOW(6) WHERE command_uuid = ?`, verifiedExec)
+		return err
+	})
+
+	// hInHouse: an in-house app install blocks the queue by the same rule, and on iOS, so this
+	// also covers the platform independence of the whole mechanism
+	hInHouse := newMDMHost(test.WithPlatform("ios"))
+	inHouseExec := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hInHouse, u)
+	advance(hInHouse, "")
+	deliver(hInHouse, inHouseExec)
+	ageActivations(inHouseExec)
+
+	// hMixed: a batch holding both reapable and not-yet-reapable installs. Only the reapable ones
+	// are failed, and the queue stays blocked by the one whose command can still be delivered.
+	hMixed := newMDMHost()
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hMixed.ID, ScriptContents: "echo mixed",
+	})
+	require.NoError(t, err)
+	mixedExecs := make([]string, 0, 3)
+	for range 3 {
+		execID, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hMixed)
+		mixedExecs = append(mixedExecs, execID)
+	}
+	advance(hMixed, hsr.ExecutionID)
+	deliver(hMixed, mixedExecs[0])
+	deliver(hMixed, mixedExecs[1])
+	ageActivations(mixedExecs...)
+
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, reapAfter, 10)
+	require.NoError(t, err)
+
+	byCommandUUID := make(map[string]fleet.ReapedMDMInstall, len(reaped))
+	for _, r := range reaped {
+		byCommandUUID[r.CommandUUID] = r
+	}
+	expectedReaped := append([]string{ackedExec, expiredExec, pulledExec, inHouseExec}, activatedBatch...)
+	expectedReaped = append(expectedReaped, mixedExecs[0], mixedExecs[1])
+	require.Len(t, reaped, len(expectedReaped))
+	for _, execID := range expectedReaped {
+		require.Contains(t, byCommandUUID, execID)
+	}
+
+	// the reported case: the install is failed and the script behind it runs
+	require.Equal(t, []string{ackedScriptExec}, queuedExecIDs(hAcked))
+	require.NotNil(t, vppVerifyState(ackedExec).VerificationFailedAt)
+	require.False(t, nanoQueueActive(ackedExec), "a reaped command must not stay pushable")
+	require.False(t, hasVerifyLock(hAcked), "the verify lock must not outlive the install it was taken for")
+
+	ackedEntry := byCommandUUID[ackedExec]
+	require.Equal(t, hAcked.ID, ackedEntry.HostID)
+	require.Equal(t, hAcked.UUID, ackedEntry.HostUUID)
+	require.NotNil(t, ackedEntry.AppStoreActivity)
+	require.Equal(t, string(fleet.SoftwareInstallFailed), ackedEntry.AppStoreActivity.Status)
+	require.True(t, ackedEntry.AppStoreActivity.FromAutoUpdate,
+		"the activity must carry over that the install came from an automatic update")
+	require.Nil(t, ackedEntry.InHouseActivity)
+
+	// a person-requested install reads as such, so the flag is not simply always set
+	require.NotNil(t, byCommandUUID[expiredExec].AppStoreActivity)
+	require.False(t, byCommandUUID[expiredExec].AppStoreActivity.FromAutoUpdate)
+
+	// an install that can still be delivered is left alone, queue and all
+	require.Equal(t, []string{offlineExec}, queuedExecIDs(hOffline))
+	require.Nil(t, vppVerifyState(offlineExec).VerificationFailedAt)
+	require.True(t, nanoQueueActive(offlineExec))
+	require.NotContains(t, byCommandUUID, offlineExec)
+
+	// a NotNow reply is not an answer: nanomdm re-serves the command, so the install is still
+	// pending and must be spared exactly like an undelivered one
+	require.Equal(t, []string{notNowExec}, queuedExecIDs(hNotNow))
+	require.Nil(t, vppVerifyState(notNowExec).VerificationFailedAt)
+	require.True(t, nanoQueueActive(notNowExec))
+	require.NotContains(t, byCommandUUID, notNowExec)
+
+	// a backdated queue row is not evidence the command is undeliverable. Reaping on it would fail
+	// every install sitting behind a head the reaper had only just freed.
+	require.Equal(t, []string{backdatedExec}, queuedExecIDs(hBackdated))
+	require.Nil(t, vppVerifyState(backdatedExec).VerificationFailedAt)
+	require.True(t, nanoQueueActive(backdatedExec))
+	require.NotContains(t, byCommandUUID, backdatedExec)
+
+	// an install that can no longer be delivered is reaped, however it got there
+	require.Empty(t, queuedExecIDs(hExpired))
+	require.NotNil(t, vppVerifyState(expiredExec).VerificationFailedAt)
+	require.Empty(t, queuedExecIDs(hPulled))
+	require.NotNil(t, vppVerifyState(pulledExec).VerificationFailedAt)
+
+	// still inside the timeout
+	require.Equal(t, []string{freshExec}, queuedExecIDs(hFresh))
+	require.Nil(t, vppVerifyState(freshExec).VerificationFailedAt)
+	require.NotContains(t, byCommandUUID, freshExec)
+
+	// a just-acknowledged install keeps its verification window even though it was activated long
+	// before the device came back to answer
+	require.Equal(t, []string{justAckedExec}, queuedExecIDs(hJustAcked))
+	require.Nil(t, vppVerifyState(justAckedExec).VerificationFailedAt)
+	require.NotContains(t, byCommandUUID, justAckedExec)
+
+	// and it keeps it even when the absence ran past the delivery grace, since the answer settles
+	// delivery and the grace no longer has anything to say
+	require.Equal(t, []string{lateAckExec}, queuedExecIDs(hLateAck))
+	require.Nil(t, vppVerifyState(lateAckExec).VerificationFailedAt)
+	require.NotContains(t, byCommandUUID, lateAckExec)
+
+	// the whole batch goes in one pass, and the install waiting behind it activates
+	require.Equal(t, []string{batchExecs[5]}, queuedExecIDs(hBatch))
+	for _, execID := range activatedBatch {
+		require.NotNil(t, vppVerifyState(execID).VerificationFailedAt, "batch member %s", execID)
+	}
+
+	// a verified install is advanced past, not re-failed
+	require.Empty(t, queuedExecIDs(hVerified))
+	verified := vppVerifyState(verifiedExec)
+	require.NotNil(t, verified.VerificationAt)
+	require.Nil(t, verified.VerificationFailedAt, "a verified install must not be overwritten as failed")
+	require.NotContains(t, byCommandUUID, verifiedExec)
+
+	// in-house apps reap the same way, and carry the other activity type
+	require.Empty(t, queuedExecIDs(hInHouse))
+	inHouseEntry := byCommandUUID[inHouseExec]
+	require.NotNil(t, inHouseEntry.InHouseActivity)
+	require.Nil(t, inHouseEntry.AppStoreActivity)
+
+	// only the reapable half of a mixed batch is failed, and the queue stays blocked on purpose
+	require.Equal(t, []string{mixedExecs[2]}, queuedExecIDs(hMixed))
+	require.NotNil(t, vppVerifyState(mixedExecs[0]).VerificationFailedAt)
+	require.NotNil(t, vppVerifyState(mixedExecs[1]).VerificationFailedAt)
+	require.Nil(t, vppVerifyState(mixedExecs[2]).VerificationFailedAt)
+	require.NotContains(t, byCommandUUID, mixedExecs[2])
+
+	// running again reaps nothing: everything reapable is already failed, and what is left is
+	// left for a reason
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, reapAfter, 10)
+	require.NoError(t, err)
+	require.Empty(t, reaped)
+
+	// A sub-second age clears the callers' non-positive guards, so it must not then truncate to an
+	// interval of zero and match everything. 999ms still truncates to 0 whole seconds, so it
+	// discriminates, and the install below sits 1ms inside it. That leaves just under a second
+	// before the assertion races the clock, which is as wide as a sub-second timeout allows.
+	const subSecondTimeout = 999 * time.Millisecond
+	hSubSecond := newMDMHost()
+	subSecondExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hSubSecond)
+	advance(hSubSecond, "")
+	deliver(hSubSecond, subSecondExec)
+	setActivatedAgo := func(execID string, micros int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE upcoming_activities SET activated_at = NOW(6) - INTERVAL ? MICROSECOND WHERE execution_id = ?`,
+				micros, execID)
+			return err
+		})
+	}
+	setActivatedAgo(subSecondExec, 1_000)
+
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, subSecondTimeout, 10)
+	require.NoError(t, err)
+	reapedUUIDs := make([]string, 0, len(reaped))
+	for _, r := range reaped {
+		reapedUUIDs = append(reapedUUIDs, r.CommandUUID)
+	}
+	require.NotContains(t, reapedUUIDs, subSecondExec,
+		"an install younger than a sub-second timeout must survive it")
+	require.Nil(t, vppVerifyState(subSecondExec).VerificationFailedAt)
+
+	// the same timeout does reap it once it is genuinely older
+	setActivatedAgo(subSecondExec, 5_000_000)
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, subSecondTimeout, 10)
+	require.NoError(t, err)
+	require.Len(t, reaped, 1)
+	require.Equal(t, subSecondExec, reaped[0].CommandUUID)
+
+	// maxHosts bounds hosts, not rows: two stuck hosts, one run each
+	hLimitA, hLimitB := newMDMHost(), newMDMHost()
+	limitExecs := make(map[uint]string, 2)
+	for _, h := range []*fleet.Host{hLimitA, hLimitB} {
+		execID, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, h)
+		advance(h, "")
+		deliver(h, execID)
+		ageActivations(execID)
+		limitExecs[h.ID] = execID
+	}
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, reapAfter, 1)
+	require.NoError(t, err)
+	require.Len(t, reaped, 1)
+	require.Equal(t, limitExecs[reaped[0].HostID], reaped[0].CommandUUID)
+
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, reapAfter, 1)
+	require.NoError(t, err)
+	require.Len(t, reaped, 1)
+	require.Empty(t, queuedExecIDs(hLimitA))
+	require.Empty(t, queuedExecIDs(hLimitB))
 }
 
 func testActivateScriptPackageInstallWithCorruptPayload(t *testing.T, ds *Datastore) {
