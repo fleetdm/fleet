@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "11.0.50",
+      "version": "11.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'QEMU';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'QEMU' AND version_compare(version, '11.0.50') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'QEMU' AND version_compare(version, '11.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'qemu.exe');"
       },
-      "installer_url": "https://qemu.weilnetz.de/w64/2026/qemu-w64-setup-20260501.exe",
+      "installer_url": "https://qemu.weilnetz.de/w64/2026/qemu-w64-setup-20260811.exe",
       "install_script_ref": "3e305bc7",
       "uninstall_script_ref": "3bfff486",
-      "sha256": "a8b29572afb4c6ad024b7de129c81033e9fd191b9e054e3a52ea0bed24ac19ef",
+      "sha256": "f98a8aeb5f7faea9765b6dee28316c266cd179d80354a2fed8e50176f9a2e59f",
       "default_categories": [
         "Developer tools"
       ]

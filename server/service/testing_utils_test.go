@@ -125,6 +125,15 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 				return nil, nil
 			}
 		}
+		// The pack config cache calls HasLabelScopedScheduledQueries on every
+		// GetClientConfig request to decide whether caching is safe. Default to
+		// "no label-scoped queries" so existing tests that don't care about
+		// label scoping don't panic on a nil mock.
+		if mockDS.HasLabelScopedScheduledQueriesFunc == nil {
+			mockDS.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
+				return false, nil
+			}
+		}
 	}
 
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
@@ -308,7 +317,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore,
 		androidService,
 		orgLogoStore,
-		msGraphClientFactory,
 	)
 	if err != nil {
 		panic(err)
@@ -350,6 +358,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			androidModule,
 			estCAService,
 			pssoNonceStore,
+			msGraphClientFactory,
 		)
 		if err != nil {
 			panic(err)
