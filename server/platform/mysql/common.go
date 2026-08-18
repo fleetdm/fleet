@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"os"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/XSAM/otelsql"
@@ -27,7 +30,26 @@ type ConnectorFactory func(dsn string, logger *slog.Logger) (driver.Connector, e
 // We add all MySQL 8.0 default strict modes to match production behavior
 // Note: The value needs to be wrapped in single quotes when passed to MySQL DSN due to comma separation
 // Reference: https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html
-const TestSQLMode = "'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'"
+var TestSQLMode = buildTestSQLMode()
+
+func buildTestSQLMode() string {
+	modes := []string{
+		"REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE", "ONLY_FULL_GROUP_BY",
+		"STRICT_TRANS_TABLES", "NO_ZERO_IN_DATE", "NO_ZERO_DATE", "ERROR_FOR_DIVISION_BY_ZERO",
+		"NO_ENGINE_SUBSTITUTION",
+	}
+	if os.Getenv("FLEET_DB_CLIENT") == "mariadb" {
+		// MySQL's ONLY_FULL_GROUP_BY recognises columns that are functionally
+		// dependent on the grouped columns (through a unique key) and allows
+		// selecting them. MariaDB's implementation does not, so queries that
+		// are valid on MySQL fail there with Error 1055
+		// ER_WRONG_FIELD_WITH_GROUP. Drop just this mode for MariaDB runs
+		// rather than rewrite every aggregate query; the strict modes that
+		// guard against silent data loss still apply.
+		modes = slices.DeleteFunc(modes, func(m string) bool { return m == "ONLY_FULL_GROUP_BY" })
+	}
+	return "'" + strings.Join(modes, ",") + "'"
+}
 
 type DBOptions struct {
 	// MaxAttempts configures the number of retries to connect to the DB

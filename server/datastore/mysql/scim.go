@@ -1842,7 +1842,7 @@ func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContex
 		WHERE h.id IN (?)
 			AND COALESCE(CASE WHEN h.team_id IS NULL
 				THEN ` + deviceNameNoTeamTemplateExpr + `
-				ELSE t.config->>'$.mdm.name_template' END, '') REGEXP ?`
+				ELSE JSON_UNQUOTE(JSON_EXTRACT(t.config, '$.mdm.name_template')) END, '') REGEXP ?`
 
 	// The trailing word boundary keeps a changed HOST_END_USER_IDP_USERNAME from
 	// matching a template that only uses HOST_END_USER_IDP_USERNAME_LOCAL_PART, the

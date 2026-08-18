@@ -201,10 +201,19 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 		args = append(args, *teamID)
 	}
 
-	// first, load the existing secrets and their created_at timestamp
+	// First, load the existing secrets and their created_at timestamp.
+	//
+	// This read is locking (FOR UPDATE) because the rows it returns are the very
+	// rows deleted and re-inserted below. Without the lock the SELECT is a
+	// consistent-snapshot read, so a concurrent writer can modify a row between
+	// the read and the DELETE. MariaDB reports that as
+	// Error 1020 (ER_CHECKREAD) "Record has changed since last read in table
+	// 'enroll_secrets'" and fails the transaction; MySQL silently proceeds and
+	// can carry over a stale created_at. Locking the rows up front makes the
+	// read-delete-insert sequence atomic on both engines.
 	const loadStmt = `SELECT secret, created_at FROM enroll_secrets WHERE `
 	var existingSecrets []*fleet.EnrollSecret
-	if err := sqlx.SelectContext(ctx, q, &existingSecrets, loadStmt+teamWhere, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, q, &existingSecrets, loadStmt+teamWhere+` FOR UPDATE`, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "load existing secrets")
 	}
 	secretsCreatedAt := make(map[string]*time.Time, len(existingSecrets))

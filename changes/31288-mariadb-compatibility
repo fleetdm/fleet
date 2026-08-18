@@ -1,0 +1,1 @@
+- Fixed several datastore queries that failed on MariaDB, by replacing correlated derived tables with correlated `EXISTS` subqueries and replacing MySQL-only JSON syntax (`->`, `->>`, `CAST(... AS JSON)`) with portable equivalents. MariaDB remains unsupported, but the Go test suites can now be run against it.

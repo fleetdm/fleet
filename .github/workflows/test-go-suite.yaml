@@ -104,6 +104,13 @@ jobs:
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
         fi
 
+    - name: Select MariaDB compose override
+      # docker-compose-mariadb.yml overrides the image and command of the same
+      # mysql_test/mysql_replica_test services, so nothing downstream changes.
+      if: ${{ startsWith(inputs.mysql, 'mariadb') }}
+      run: |
+        echo "DOCKER_COMMAND=${DOCKER_COMMAND/-f docker-compose.yml/-f docker-compose.yml -f docker-compose-mariadb.yml}" >> $GITHUB_ENV
+
     - name: Compute artifact prefix
       run: |
         PREFIX="${{ inputs.suite }}"
@@ -186,8 +193,9 @@ jobs:
               return 1
             fi
 
-            # Try to connect to MySQL
-            output=$(docker compose exec -T $container_name sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" 2>&1)
+            # Try to connect. MariaDB 11.x ships only the `mariadb` client, so
+            # pick whichever of the two the image provides.
+            output=$(docker compose exec -T $container_name sh -c "\$(command -v mysql || command -v mariadb) -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" 2>&1)
             exit_code=$?
 
             # Log the attempt

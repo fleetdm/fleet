@@ -72,7 +72,7 @@ func (ds *Datastore) newHostScriptExecutionRequest(ctx context.Context, tx sqlx.
 		getStmt = `
 SELECT
 	ua.id, ua.host_id, ua.execution_id, ua.created_at, sua.script_id, sua.policy_id, ua.user_id,
-	payload->'$.sync_request' AS sync_request,
+	JSON_EXTRACT(payload, '$.sync_request') AS sync_request,
 	sc.contents as script_contents, sua.setup_experience_script_id
 FROM
 	upcoming_activities ua
@@ -320,7 +320,7 @@ func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostI
 	extraWhere := ""
 	if onlyShowInternal {
 		// software_uninstalls are implicitly internal
-		extraWhere = " AND COALESCE(ua.payload->'$.is_internal', 1) = 1"
+		extraWhere = " AND COALESCE(JSON_EXTRACT(ua.payload, '$.is_internal'), 1) = 1"
 	}
 	if onlyReadyToExecute {
 		extraWhere += " AND ua.activated_at IS NOT NULL"
@@ -459,7 +459,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		NULL as timeout,
 		ua.created_at,
 		ua.user_id,
-		COALESCE(ua.payload->'$.sync_request', 0) as sync_request,
+		COALESCE(JSON_EXTRACT(ua.payload, '$.sync_request'), 0) as sync_request,
 		NULL as host_deleted_at,
 		sua.setup_experience_script_id,
 		0 as canceled,
@@ -838,7 +838,7 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 			WHERE sua.script_id = ? AND
 				ua.activity_type = 'script' AND
 				ua.activated_at IS NOT NULL AND
-				(ua.payload->'$.sync_request' = 0 OR
+				(JSON_EXTRACT(ua.payload, '$.sync_request') = 0 OR
 					ua.created_at >= NOW() - INTERVAL ? SECOND)`
 		var affectedHosts []uint
 		if err := sqlx.SelectContext(ctx, tx, &affectedHosts, loadAffectedHostsStmt,
@@ -853,7 +853,7 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 					ON upcoming_activities.id = sua.upcoming_activity_id
 			WHERE sua.script_id = ? AND
 				upcoming_activities.activity_type = 'script' AND
-				(upcoming_activities.payload->'$.sync_request' = 0 OR
+				(JSON_EXTRACT(upcoming_activities.payload, '$.sync_request') = 0 OR
 					upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
 			`,
 			id, int(constants.MaxServerWaitTime.Seconds()),
@@ -1205,7 +1205,7 @@ WHERE
 		WHERE
 			ua.activity_type = 'script'
 			AND ua.activated_at IS NOT NULL
-			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND (JSON_EXTRACT(ua.payload, '$.sync_request') = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
 
 	const clearAllPendingExecutionsUA = `DELETE FROM upcoming_activities
@@ -1215,7 +1215,7 @@ WHERE
 				ON upcoming_activities.id = sua.upcoming_activity_id
 		WHERE
 			upcoming_activities.activity_type = 'script'
-			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			AND (JSON_EXTRACT(upcoming_activities.payload, '$.sync_request') = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
 
 	const unsetScriptsNotInListFromPolicies = `
@@ -1245,7 +1245,7 @@ WHERE
 		WHERE
 			ua.activity_type = 'script'
 			AND ua.activated_at IS NOT NULL
-			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND (JSON_EXTRACT(ua.payload, '$.sync_request') = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
 
 	const clearPendingExecutionsNotInListUA = `DELETE FROM upcoming_activities
@@ -1255,7 +1255,7 @@ WHERE
 				ON upcoming_activities.id = sua.upcoming_activity_id
 		WHERE
 			upcoming_activities.activity_type = 'script'
-			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			AND (JSON_EXTRACT(upcoming_activities.payload, '$.sync_request') = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
 
 	const insertNewOrEditedScript = `
@@ -1283,7 +1283,7 @@ ON DUPLICATE KEY UPDATE
 		WHERE
 			ua.activity_type = 'script'
 			AND ua.activated_at IS NOT NULL
-			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND (JSON_EXTRACT(ua.payload, '$.sync_request') = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id = ? AND sua.script_content_id != ?`
 
 	const clearPendingExecutionsWithObsoleteScriptUA = `DELETE FROM upcoming_activities
@@ -1293,7 +1293,7 @@ ON DUPLICATE KEY UPDATE
 				ON upcoming_activities.id = sua.upcoming_activity_id
 		WHERE
 			upcoming_activities.activity_type = 'script'
-			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			AND (JSON_EXTRACT(upcoming_activities.payload, '$.sync_request') = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id = ? AND sua.script_content_id != ?`
 
 	const loadInsertedScripts = `SELECT id, team_id, name FROM scripts WHERE global_or_team_id = ?`

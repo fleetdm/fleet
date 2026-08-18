@@ -15,7 +15,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// skipIfMariaDB skips tests that replay the whole migration history.
+//
+// Migrations written before MariaDB was considered do not run on it. The first
+// failure is 20240905200000_UninstallPackages, which uses the MySQL-only
+// `GENERATED ALWAYS AS (...) STORED NULL` spelling, and there are more after
+// it. Rewriting migrations that have already been applied to production
+// databases is not an option, so MariaDB is brought up from the
+// schema-mariadb.sql baseline instead (see testing_utils.LoadDefaultSchema).
+// Only migrations added after that baseline have to stay MariaDB-compatible,
+// and those are covered by every other suite running against MariaDB.
+//
+// See https://github.com/fleetdm/fleet/issues/34952.
+func skipIfMariaDB(t *testing.T) {
+	t.Helper()
+	if testing_utils.IsMariaDB() {
+		t.Skip("replaying migration history is not supported on MariaDB; see fleetdm/fleet#34952")
+	}
+}
+
 func TestMigrationStatus(t *testing.T) {
+	skipIfMariaDB(t)
 	ds := createMySQLDSForMigrationTests(t, t.Name())
 	t.Cleanup(func() {
 		ds.Close()
@@ -59,6 +79,7 @@ func TestMigrationStatus(t *testing.T) {
 }
 
 func TestV4732MigrationFix(t *testing.T) {
+	skipIfMariaDB(t)
 	ds := createMySQLDSForMigrationTests(t, t.Name())
 	t.Cleanup(func() {
 		ds.Close()
@@ -148,6 +169,7 @@ func recreate4732BadState(t *testing.T, ds *Datastore) {
 }
 
 func TestMigrations(t *testing.T) {
+	skipIfMariaDB(t)
 	// Create the database (must use raw MySQL client to do this)
 	ds := createMySQLDSForMigrationTests(t, t.Name())
 	defer ds.Close()
@@ -167,7 +189,7 @@ func TestMigrations(t *testing.T) {
 	cmd := exec.Command( // nolint:gosec // Waive G204 since this is a test file
 		"docker", "compose", "exec", "-T", "mysql_test",
 		// Command run inside container
-		"mysqldump", "-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword, "TestMigrations", "--compact", "--skip-comments",
+		testing_utils.DBDumpClient(), "-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword, "TestMigrations", "--compact", "--skip-comments",
 	)
 
 	output, err := cmd.CombinedOutput()

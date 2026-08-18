@@ -22,6 +22,30 @@ const (
 	TestReplicaDatabaseSuffix = "_replica"
 )
 
+// IsMariaDB reports whether the test database container is running MariaDB
+// rather than MySQL. Set FLEET_DB_CLIENT=mariadb when bringing the containers
+// up with docker-compose-mariadb.yml.
+func IsMariaDB() bool {
+	return os.Getenv("FLEET_DB_CLIENT") == "mariadb"
+}
+
+// DBClient is the command line client to invoke inside the test database
+// container. MariaDB 11.x dropped the `mysql` symlink, shipping only `mariadb`.
+func DBClient() string {
+	if IsMariaDB() {
+		return "mariadb"
+	}
+	return "mysql"
+}
+
+// DBDumpClient is the schema dump client matching DBClient.
+func DBDumpClient() string {
+	if IsMariaDB() {
+		return "mariadb-dump"
+	}
+	return "mysqldump"
+}
+
 var TestReplicaAddress = getTestReplicaAddress()
 
 // getTestReplicaAddress returns the MySQL replica test server address from environment variable
@@ -121,7 +145,14 @@ type DatastoreTestOptions struct {
 // LoadDefaultSchema loads the default database schema for testing.
 func LoadDefaultSchema(t testing.TB, testName string, opts *DatastoreTestOptions) {
 	_, thisFile, _, _ := runtime.Caller(0)
-	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql/schema.sql")
+	// The migration history does not replay on MariaDB -- it fails partway
+	// through 2024 -- so MariaDB starts from a converted point-in-time dump of
+	// the same schema instead. Regenerate it with tools/mariadb/fix-mariadb-schema.sh.
+	schemaFile := "schema.sql"
+	if IsMariaDB() {
+		schemaFile = "schema-mariadb.sql"
+	}
+	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql/"+schemaFile)
 	LoadSchema(t, testName, opts, schemaPath)
 }
 
@@ -149,7 +180,7 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 		cmd := exec.Command(
 			"docker", "compose", "exec", "-T", "mysql_test",
 			// Command run inside container
-			"mysql",
+			DBClient(),
 			"--default-character-set=utf8mb4",
 			"-u"+TestUsername, "-p"+TestPassword,
 		)
@@ -171,7 +202,7 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 		cmd := exec.Command(
 			"docker", "compose", "exec", "-T", "mysql_replica_test",
 			// Command run inside container
-			"mysql",
+			DBClient(),
 			"--default-character-set=utf8mb4",
 			"-u"+TestUsername, "-p"+TestPassword,
 		)

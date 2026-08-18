@@ -309,6 +309,32 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 // That falls back to the legacy single-statement form (preserved verbatim
 // below) — performance is unchanged for that specific sort, but every
 // other sort key benefits from the two-stage refactor.
+// minCVECreatedAtExpr returns a SQL expression for the earliest created_at
+// recorded against alias.cve across software_cve and
+// operating_system_vulnerabilities.
+//
+// It deliberately avoids the more direct
+//
+//	(SELECT MIN(created_at) FROM (
+//	    SELECT created_at FROM software_cve WHERE cve = <alias>.cve
+//	    UNION ALL
+//	    SELECT created_at FROM operating_system_vulnerabilities WHERE cve = <alias>.cve
+//	) AS combined_dates)
+//
+// because that derived table is correlated on the enclosing query's alias. A
+// derived table is evaluated independently of its enclosing query, so it cannot
+// see that alias; MariaDB rejects it with `Unknown column '<alias>.cve' in
+// 'WHERE'`. Correlated scalar subqueries are accepted by both engines.
+//
+// The COALESCE pair keeps the result correct when the CVE is recorded in only
+// one of the two tables, since LEAST returns NULL if any argument is NULL. When
+// both sides are NULL the expression is NULL, matching MIN over an empty union.
+func minCVECreatedAtExpr(alias string) string {
+	sc := "(SELECT MIN(created_at) FROM software_cve WHERE cve = " + alias + ".cve)"
+	osv := "(SELECT MIN(created_at) FROM operating_system_vulnerabilities WHERE cve = " + alias + ".cve)"
+	return "LEAST(COALESCE(" + sc + ", " + osv + "), COALESCE(" + osv + ", " + sc + "))"
+}
+
 func buildListVulnerabilitiesSQL(opt *fleet.VulnListOptions) (string, []any, error) {
 	if opt.ListOptions.OrderKey == "created_at" {
 		return buildListVulnerabilitiesLegacySQL(opt)
@@ -377,11 +403,7 @@ func buildListVulnerabilitiesSQL(opt *fleet.VulnListOptions) (string, []any, err
 	outer.WriteString(`
 		SELECT
 			p.cve,
-			(SELECT MIN(created_at) FROM (
-				SELECT created_at FROM software_cve WHERE cve = p.cve
-				UNION ALL
-				SELECT created_at FROM operating_system_vulnerabilities WHERE cve = p.cve
-			) AS combined_dates) AS created_at,
+			` + minCVECreatedAtExpr("p") + ` AS created_at,
 			COALESCE(
 				(SELECT source FROM software_cve WHERE cve = p.cve LIMIT 1),
 				(SELECT source FROM operating_system_vulnerabilities WHERE cve = p.cve LIMIT 1)
@@ -432,11 +454,7 @@ func buildListVulnerabilitiesLegacySQL(opt *fleet.VulnListOptions) (string, []an
 	eeSelectStmt := `
 		SELECT
 			vhc.cve as cve,
-			(SELECT MIN(created_at) FROM (
-				SELECT created_at FROM software_cve WHERE cve = vhc.cve
-				UNION ALL
-				SELECT created_at FROM operating_system_vulnerabilities WHERE cve = vhc.cve
-			) AS combined_dates) as created_at,
+			` + minCVECreatedAtExpr("vhc") + ` as created_at,
 			COALESCE(
 				(SELECT source FROM software_cve WHERE cve = vhc.cve LIMIT 1),
 				(SELECT source FROM operating_system_vulnerabilities WHERE cve = vhc.cve LIMIT 1)
@@ -459,11 +477,7 @@ func buildListVulnerabilitiesLegacySQL(opt *fleet.VulnListOptions) (string, []an
 	freeSelectStmt := `
 		SELECT
 			vhc.cve as cve,
-			(SELECT MIN(created_at) FROM (
-				SELECT created_at FROM software_cve WHERE cve = vhc.cve
-				UNION ALL
-				SELECT created_at FROM operating_system_vulnerabilities WHERE cve = vhc.cve
-			) AS combined_dates) as created_at,
+			` + minCVECreatedAtExpr("vhc") + ` as created_at,
 			COALESCE(
 				(SELECT source FROM software_cve WHERE cve = vhc.cve LIMIT 1),
 				(SELECT source FROM operating_system_vulnerabilities WHERE cve = vhc.cve LIMIT 1)

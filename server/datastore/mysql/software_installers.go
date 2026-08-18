@@ -100,7 +100,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     ua.host_id AS host_id,
     ua.execution_id AS execution_id,
     siua.software_installer_id AS installer_id,
-		ua.payload->'$.self_service' AS self_service,
+		JSON_EXTRACT(ua.payload, '$.self_service') AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
     COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
@@ -2291,16 +2291,16 @@ SELECT
 	NULL AS post_install_script_output,
 	NULL AS install_script_output,
 	ua.host_id AS host_id,
-	COALESCE(st.name, ua.payload->>'$.software_title_name') AS software_title,
+	COALESCE(st.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.software_title_name'))) AS software_title,
 	siua.software_title_id,
 	siua.software_installer_id,
 	si.storage_id AS hash_sha256,
 	'pending_install' AS status,
-	ua.payload->>'$.installer_filename' AS software_package,
+	JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.installer_filename')) AS software_package,
 	ua.user_id AS user_id,
 	NULL AS post_install_script_exit_code,
 	NULL AS install_script_exit_code,
-	ua.payload->'$.self_service' AS self_service,
+	JSON_EXTRACT(ua.payload, '$.self_service') AS self_service,
 	NULL AS host_deleted_at,
 	siua.policy_id AS policy_id,
 	ua.created_at as created_at,
@@ -3988,7 +3988,7 @@ func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, 
 
 	UNION
 
-	SELECT st.name, COALESCE(ua.payload->'$.self_service', FALSE) self_service
+	SELECT st.name, COALESCE(JSON_EXTRACT(ua.payload, '$.self_service'), FALSE) self_service
 	FROM
 		software_titles st
 		INNER JOIN software_installers si ON si.title_id = st.id
@@ -4283,60 +4283,67 @@ func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, host
 	return res, nil
 }
 
-const labelScopedFilter = `
-SELECT
-	1
-FROM (
+// labelScopedFilter is a boolean SQL expression -- not a subquery -- reporting
+// whether the host aliased `h` in the enclosing query is in label scope for the
+// given %[1]s_id. Callers interpolate it directly into a WHERE clause, and must
+// supply the software id three times (once per branch, in order).
+//
+// It is written as a disjunction of correlated EXISTS subqueries rather than as
+// a single derived table over a UNION. A derived table is materialized
+// independently of the enclosing query, so it cannot see the outer `h` alias:
+// MariaDB rejects that with `Unknown column 'h.id' in 'ON'`. A correlated
+// EXISTS may reference the outer alias on both engines. The branches are
+// equivalent to the UNION arms they replace -- the derived table yielded a row
+// exactly when at least one arm did -- with each arm's HAVING conditions
+// restated over the aggregates directly, since `SELECT 1` exposes no aliases.
+const labelScopedFilter = `(
 		-- no labels
-		SELECT
-			0 AS count_installer_labels,
-			0 AS count_host_labels,
-			0 AS count_host_updated_after_labels
-		WHERE NOT EXISTS ( SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = ?)
+		NOT EXISTS ( SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = ?)
 
-		UNION
+		OR
 
 		-- include any
-		SELECT
-			COUNT(*) AS count_installer_labels,
-			COUNT(lm.label_id) AS count_host_labels,
-			0 AS count_host_updated_after_labels
-		FROM
-			%[1]s_labels sil
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
-		AND lm.host_id = h.id
-		WHERE
-			sil.%[1]s_id = ?
-			AND sil.exclude = 0
-		HAVING
-			count_installer_labels > 0
-			AND count_host_labels > 0
+		EXISTS (
+			SELECT
+				1
+			FROM
+				%[1]s_labels sil
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+			AND lm.host_id = h.id
+			WHERE
+				sil.%[1]s_id = ?
+				AND sil.exclude = 0
+			HAVING
+				COUNT(*) > 0
+				AND COUNT(lm.label_id) > 0
+		)
 
-		UNION
+		OR
 
 		-- exclude any, ignore software that depends on labels created
 		-- _after_ the label_updated_at timestamp of the host (because
 		-- we don't have results for that label yet, the host may or may
 		-- not be a member).
-		SELECT
-			COUNT(*) AS count_installer_labels,
-			COUNT(lm.label_id) AS count_host_labels,
-			SUM(
-				CASE
-				WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = h.id) >= lbl.created_at THEN 1
-				WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
-				ELSE 0 END) AS count_host_updated_after_labels
-		FROM
-			%[1]s_labels sil
-		LEFT OUTER JOIN labels lbl ON lbl.id = sil.label_id
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = h.id
-WHERE
-	sil.%[1]s_id = ?
-	AND sil.exclude = 1
-HAVING
-	count_installer_labels > 0
-	AND count_installer_labels = count_host_updated_after_labels
-	AND count_host_labels = 0) t`
+		EXISTS (
+			SELECT
+				1
+			FROM
+				%[1]s_labels sil
+			LEFT OUTER JOIN labels lbl ON lbl.id = sil.label_id
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = h.id
+			WHERE
+				sil.%[1]s_id = ?
+				AND sil.exclude = 1
+			HAVING
+				COUNT(*) > 0
+				AND COUNT(*) = SUM(
+					CASE
+					WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = h.id) >= lbl.created_at THEN 1
+					WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+					ELSE 0 END)
+				AND COUNT(lm.label_id) = 0
+		)
+	)`
 
 func (ds *Datastore) GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
 	return ds.getIncludedHostIDMapForSoftware(ctx, ds.writer(ctx), installerID, softwareTypeInstaller)
@@ -4349,7 +4356,7 @@ func (ds *Datastore) getIncludedHostIDMapForSoftware(ctx context.Context, tx sql
 FROM
 	hosts h
 WHERE
-	EXISTS (%s)
+	%s
 `, filter)
 
 	var hostIDs []uint
@@ -4379,7 +4386,7 @@ FROM
 		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
 		JOIN vpp_apps_teams vat ON vat.team_id <=> h.team_id AND vat.id = ?
 WHERE
-		EXISTS (%s)
+		%s
 		AND h.platform = 'android'
 `, filter)
 
@@ -4411,7 +4418,7 @@ func (ds *Datastore) getExcludedHostIDMapForSoftware(ctx context.Context, softwa
 FROM
 	hosts h
 WHERE
-	NOT EXISTS (%s)
+	NOT %s
 `, filter)
 
 	var hostIDs []uint

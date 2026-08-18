@@ -149,9 +149,9 @@ func (ds *Datastore) CleanupWorkerJobs(ctx context.Context, failedSince, complet
 // is handling thrash from rapid user action such as quickly disabling
 // and re-enabling a chart dataset multiple times.
 func (ds *Datastore) HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error) {
-	const query = `
+	query := `
 SELECT 1 FROM jobs
-WHERE name = ? AND state = ? AND args = CAST(? AS JSON)
+WHERE name = ? AND state = ? AND ` + ds.dialect.JSONEquals("args", "?") + `
 LIMIT 1`
 	var found int
 	ctx = ctxdb.RequirePrimary(ctx, true)
