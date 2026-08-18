@@ -667,7 +667,7 @@ software:
 - `display_name` is a custom name that will be displayed in the UI. If not set, the default depends on the software type:
   - `packages`: the name [extracted from the package](https://fleetdm.com/guides/deploy-software-packages#package-metadata-extraction) is used. For script-only packages, the filename is used.
   - `fleet_maintained_apps`: the Fleet-maintained app name is used.
-  - `app_store_apps`: the App Store app name is used.
+  - `app_store_apps`: the App Store or Google Play app name is used.
 
 In all cases, once Fleet collects software inventory, the inventory name is used instead.
 
