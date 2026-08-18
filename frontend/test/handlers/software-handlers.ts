@@ -122,7 +122,24 @@ export const getSoftwareInstallHandlerAppOpen = http.get(
         status: "failed_install",
         output: "",
         post_install_script_output: "",
-        pre_install_query_output: "The app was open\nInstall stopped",
+        pre_install_query_output:
+          "Query didn't return result\nThe app was open.",
+      }),
+    });
+  }
+);
+
+export const getSoftwareInstallHandlerNotifyBeforePatchingSkip = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  ({ params }) => {
+    return HttpResponse.json({
+      results: createMockSoftwareInstallResult({
+        install_uuid: params.install_uuid as string,
+        status: "failed_install",
+        output: "",
+        post_install_script_output: "",
+        pre_install_query_output:
+          "Query didn't return result\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.",
       }),
     });
   }

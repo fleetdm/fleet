@@ -19,6 +19,8 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
+import { pluralize } from "utilities/strings/stringUtils";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -2309,6 +2311,57 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  notifiedEndUserBeforePatching: (activity: IActivity) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+    const {
+      host_display_name: hostName,
+      software_titles: titles = [],
+      status,
+      time_before: timeBefore,
+    } = details;
+    const timeLabel = timeBefore === 300 ? "5 minutes" : "1 hour";
+    const failed = status === "failed";
+    const verb = failed ? "failed to notify" : "notified";
+
+    // Bolds each title, uses an Oxford comma, and truncates past three
+    // titles with a ", and N more app(s)" suffix (Figma dev note 5546:46306).
+    const bold = (name: string) => <b>{getDisplayedSoftwareName(name)}</b>;
+    const overflow = titles.length - 3;
+    let titleList: React.ReactNode = null;
+    if (titles.length === 1) {
+      titleList = bold(titles[0]);
+    } else if (titles.length === 2) {
+      titleList = (
+        <>
+          {bold(titles[0])} and {bold(titles[1])}
+        </>
+      );
+    } else if (titles.length === 3) {
+      titleList = (
+        <>
+          {bold(titles[0])}, {bold(titles[1])}, and {bold(titles[2])}
+        </>
+      );
+    } else if (titles.length > 3) {
+      titleList = (
+        <>
+          {bold(titles[0])}, {bold(titles[1])}, {bold(titles[2])}, and{" "}
+          {overflow} more {pluralize(overflow, "app")}
+        </>
+      );
+    }
+
+    return (
+      <>
+        {" "}
+        {verb} end user {timeLabel} before patching {titleList} on{" "}
+        <b>{hostName}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -2822,6 +2875,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ReleasedDeviceFromAB: {
       return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
+    }
+    case ActivityType.NotifiedEndUserBeforePatching: {
+      return TAGGED_TEMPLATES.notifiedEndUserBeforePatching(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

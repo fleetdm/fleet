@@ -317,9 +317,11 @@ export const SoftwareInstallDetailsModal = ({
     const outputs = [
       {
         label: "Pre-install query output:",
-        value: detailsFromProps.skipped_install
-          ? "Query didn't return result or failed\nThe app was open"
-          : swInstallResult?.pre_install_query_output,
+        value:
+          swInstallResult?.pre_install_query_output ||
+          (detailsFromProps.skipped_install
+            ? "Query didn't return result\nThe app was open."
+            : undefined),
       },
       {
         label: "Install script output:",

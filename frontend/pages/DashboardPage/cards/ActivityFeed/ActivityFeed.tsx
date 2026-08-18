@@ -36,6 +36,7 @@ import EmptyState from "components/EmptyState";
 
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
 import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
@@ -163,6 +164,10 @@ const ActivityFeed = ({
     host_display_name?: string;
     request_type?: string;
   } | null>(null);
+  const [
+    notifyBeforePatchingDetails,
+    setNotifyBeforePatchingDetails,
+  ] = useState<IActivityDetails | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
@@ -331,6 +336,9 @@ const ActivityFeed = ({
           },
         });
         break;
+      case ActivityType.NotifiedEndUserBeforePatching:
+        setNotifyBeforePatchingDetails({ ...details });
+        break;
       case ActivityType.RanCustomMdmCommand: {
         if (!details?.command_uuid) {
           break;
@@ -435,6 +443,12 @@ const ActivityFeed = ({
         <SoftwareInstallDetailsModal
           details={packageInstallDetails}
           onCancel={() => setPackageInstallDetails(null)}
+        />
+      )}
+      {notifyBeforePatchingDetails && (
+        <NotifyBeforePatchingDetailsModal
+          details={notifyBeforePatchingDetails}
+          onCancel={() => setNotifyBeforePatchingDetails(null)}
         />
       )}
       {scriptPackageDetails && (

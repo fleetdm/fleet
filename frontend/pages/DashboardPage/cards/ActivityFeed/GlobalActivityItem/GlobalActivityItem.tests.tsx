@@ -2571,4 +2571,139 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Asset tag")).toBeInTheDocument();
   });
+
+  describe("notified_end_user_before_patching activity", () => {
+    it("renders a single-app success sentence with 1 hour and a bold host + title", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password"],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "notified end user 1 hour before patching 1Password on John's MacBook Pro."
+      );
+      // Bold: software title + host name.
+      const bolds = Array.from(container.querySelectorAll("b")).map(
+        (el) => el.textContent
+      );
+      expect(bolds).toEqual(
+        expect.arrayContaining(["1Password", "John's MacBook Pro"])
+      );
+    });
+
+    it("renders three apps with Oxford comma", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password", "Slack", "Docker Desktop"],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "1Password, Slack, and Docker Desktop on John's MacBook Pro."
+      );
+    });
+
+    it("truncates past three apps with ', and N more apps'", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: [
+            "1Password",
+            "Slack",
+            "Docker Desktop",
+            "Zoom",
+            "Chrome",
+          ],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "1Password, Slack, Docker Desktop, and 2 more apps"
+      );
+    });
+
+    it("uses singular 'app' when exactly one title overflows", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password", "Slack", "Docker Desktop", "Zoom"],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "1Password, Slack, Docker Desktop, and 1 more app "
+      );
+    });
+
+    it("renders 5 minutes for the reminder (time_before: 300)", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password"],
+          status: "success",
+          time_before: 300,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "notified end user 5 minutes before patching"
+      );
+    });
+
+    it("renders the failed-to-notify sentence when status is failed", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "Josh's MacBook Pro",
+          software_titles: ["1Password"],
+          status: "failed",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "failed to notify end user 1 hour before patching 1Password on Josh's MacBook Pro."
+      );
+    });
+  });
 });

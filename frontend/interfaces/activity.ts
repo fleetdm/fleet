@@ -207,6 +207,7 @@ export enum ActivityType {
   EditedCustomHostVital = "edited_custom_host_vital",
   DeletedCustomHostVital = "deleted_custom_host_vital",
   ReleasedDeviceFromAB = "released_from_ab",
+  NotifiedEndUserBeforePatching = "notified_end_user_before_patching",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -250,6 +251,7 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationTicket
   | ActivityType.FailedAutomationCalendarEvent
   | ActivityType.FailedAutomationConditionalAccess
+  | ActivityType.NotifiedEndUserBeforePatching
   | ActivityType.ReleasedDeviceFromAB;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
@@ -311,6 +313,11 @@ export interface IActivityDetails {
   canceled_count?: number;
   host_platform?: string;
   host_serial?: string;
+  install_at?: string;
+  /** True on an `installed_software` activity whose install was skipped
+   * because the app was open. Distinct from `skipped_install`, which is
+   * the frontend display status derived from this + policy flags. */
+  install_skipped_when_app_open?: boolean;
   install_uuid?: string;
   installed_from_dep?: boolean;
   labels_exclude_any?: ILabelSoftwareTitle[];
@@ -322,9 +329,18 @@ export interface IActivityDetails {
   name?: string;
   pack_id?: number;
   pack_name?: string;
+  /** Uuid of the notify-before-patching notification an activity belongs
+   * to. One notification may cover several patch policies and appear in
+   * each of their automation-runs tables. */
+  patch_notification_uuid?: string;
   platform?: Platform; // OS platform
   policy_id?: number;
+  policy_ids?: number[];
   policy_name?: string;
+  /** Output text from the app-open pre-install query on a skipped install.
+   * Distinguishes a `patch_when_closed` skip from a `notify_before_patching`
+   * skip — the two carry different text per the payload contract. */
+  pre_install_query_output?: string;
   profile_identifier?: string;
   profile_name?: string;
   profile_uuid?: string;
@@ -346,6 +362,8 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  /** Software titles covered by a single notify-before-patching notification. */
+  software_titles?: string[];
   software_titles_count?: number;
   /** Custom name set per team by admin */
   software_display_name?: string;
@@ -357,6 +375,9 @@ export interface IActivityDetails {
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
+  /** Seconds before the patch install that the end user was notified.
+   * Drives the "1 hour" vs "5 minutes" copy in the notify activity. */
+  time_before?: number;
   triggered_by?: string;
   from_setup_experience?: boolean;
   from_auto_update?: boolean;
@@ -635,4 +656,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
   [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
   [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
+  [ActivityType.NotifiedEndUserBeforePatching]:
+    "Notified end user before patching",
 };

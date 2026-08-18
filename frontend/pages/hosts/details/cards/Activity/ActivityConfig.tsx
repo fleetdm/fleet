@@ -40,6 +40,7 @@ import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommand
 import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustomHostVitalValueActivityItem";
 import PolicyAutomationActivityItem from "./ActivityItems/PolicyAutomationActivityItem";
 import ReleasedFromABActivityItem from "./ActivityItems/ReleasedFromABActivityItem";
+import NotifiedEndUserBeforePatchingActivityItem from "./ActivityItems/NotifiedEndUserBeforePatchingActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -107,6 +108,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedAutomationCalendarEvent]: PolicyAutomationActivityItem,
   [ActivityType.FailedAutomationConditionalAccess]: PolicyAutomationActivityItem,
   [ActivityType.ReleasedDeviceFromAB]: ReleasedFromABActivityItem,
+  [ActivityType.NotifiedEndUserBeforePatching]: NotifiedEndUserBeforePatchingActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

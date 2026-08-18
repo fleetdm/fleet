@@ -5,6 +5,19 @@ import { Colors } from "styles/var/colors";
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
 
+const getNotifySoftwareName = (
+  details: IPolicyAutomationActivity["details"] | undefined
+): string | undefined => {
+  // BE joins per-policy so each row usually carries a singular software_title;
+  // fall back to the first entry of the plural payload field just in case.
+  return details?.software_title || details?.software_titles?.[0];
+};
+
+const getNotifiedSentence = (timeBefore?: number): string => {
+  const label = timeBefore === 300 ? "5 minutes" : "1 hour";
+  return `End user was notified. Patch will be forced in ${label}. If the host is offline when a patch should be forced, Fleet notifies the end user again when it comes back online and patches it after 1 hour.`;
+};
+
 /**
  * Human-readable label for the "Automation" column. Failure rows mirror the
  * success wording with "failed" — e.g. "Software installed (1Password)" vs
@@ -28,6 +41,11 @@ export const getAutomationRunDisplayName = (
       return withName(
         failed ? "Software failed" : "Software installed",
         details?.software_title
+      );
+    case ActivityType.NotifiedEndUserBeforePatching:
+      return withName(
+        failed ? "Failed to notify" : "End user notified",
+        getNotifySoftwareName(details)
       );
     case ActivityType.RanScript:
       return withName(
@@ -55,13 +73,20 @@ export const getAutomationRunDisplayName = (
   }
 };
 
-/** Status icon paired with an automation outcome: a patch-when-closed skip is
- *  the same "!" glyph as a failure but muted grey (deferred, not a failure),
- *  a red outline for other failures, and a green one for successes. */
+/** Status icon paired with an automation outcome: a patch-when-closed skip and
+ *  a successful "end user notified" both use the muted grey "!" glyph — the
+ *  policy didn't succeed at patching, but Fleet handled it deliberately.
+ *  Red outline for other failures, green for successes. */
 export const getAutomationStatusIcon = (
   activity: IPolicyAutomationActivity
 ): { name: "error-outline" | "success-outline"; color?: Colors } => {
   if (activity.details?.skipped_install) {
+    return { name: "error-outline", color: "ui-fleet-black-50" };
+  }
+  if (
+    activity.type === ActivityType.NotifiedEndUserBeforePatching &&
+    activity.status !== "error"
+  ) {
     return { name: "error-outline", color: "ui-fleet-black-50" };
   }
   return activity.status === "error"
@@ -77,6 +102,17 @@ export const getAutomationStatusIcon = (
 export const getDetailOutputText = (
   activity: IPolicyAutomationActivity
 ): string => {
+  // Success (or deferral) rows for the notify activity render a computed
+  // sentence keyed on time_before — the reminder swap 1hr→5min lands here.
+  // Failures fall through to activity.output so the notification script's raw
+  // output shows in the row preview; the modal fetches the script result and
+  // maps the exit code to a human sentence.
+  if (
+    activity.type === ActivityType.NotifiedEndUserBeforePatching &&
+    activity.status !== "error"
+  ) {
+    return getNotifiedSentence(activity.details?.time_before);
+  }
   if (activity.status === "error" && activity.details?.error_response) {
     return activity.details.error_response;
   }

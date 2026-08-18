@@ -11,6 +11,7 @@ import PolicyAutomationsActivitiesTable from "./PolicyAutomationsActivitiesTable
 import {
   getAutomationRunDisplayName,
   getAutomationStatusIcon,
+  getDetailOutputText,
 } from "./helpers";
 
 jest.mock("services/entities/policies");
@@ -83,6 +84,42 @@ describe("getAutomationRunDisplayName", () => {
         })
       )
     ).toBe("Patch skipped (1Password)");
+  });
+
+  it("labels a successful notify as 'End user notified' and a failure as 'Failed to notify'", () => {
+    expect(
+      getAutomationRunDisplayName(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "success",
+          details: { policy_id: 123, software_title: "1Password" },
+        })
+      )
+    ).toBe("End user notified (1Password)");
+    expect(
+      getAutomationRunDisplayName(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          details: { policy_id: 123, software_title: "1Password" },
+        })
+      )
+    ).toBe("Failed to notify (1Password)");
+  });
+
+  it("falls back to software_titles[0] on notify rows when software_title is absent", () => {
+    expect(
+      getAutomationRunDisplayName(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "success",
+          details: {
+            policy_id: 123,
+            software_titles: ["1Password", "Slack"],
+          },
+        })
+      )
+    ).toBe("End user notified (1Password)");
   });
 
   it("treats App Store (VPP) apps as software", () => {
@@ -167,6 +204,77 @@ describe("getAutomationStatusIcon", () => {
     expect(
       getAutomationStatusIcon(mockActivity({ status: "success" }))
     ).toEqual({ name: "success-outline" });
+  });
+
+  it("uses the grey error glyph for a successful 'end user notified' row and red for the failure row", () => {
+    expect(
+      getAutomationStatusIcon(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "success",
+        })
+      )
+    ).toEqual({ name: "error-outline", color: "ui-fleet-black-50" });
+    expect(
+      getAutomationStatusIcon(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+        })
+      )
+    ).toEqual({ name: "error-outline" });
+  });
+});
+
+describe("getDetailOutputText for notify rows", () => {
+  it("renders the 1-hour sentence when time_before is 3600", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "success",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+          },
+        })
+      )
+    ).toMatch(/Patch will be forced in 1 hour\./);
+  });
+
+  it("renders the 5-minute sentence when time_before is 300 (reminder)", () => {
+    const text = getDetailOutputText(
+      mockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        status: "success",
+        details: {
+          policy_id: 123,
+          software_title: "1Password",
+          time_before: 300,
+        },
+      })
+    );
+    expect(text).toMatch(/Patch will be forced in 5 minutes\./);
+    // The recovery-cadence tail is a system default and stays "1 hour".
+    expect(text).toMatch(/patches it after 1 hour/);
+  });
+
+  it("falls through to activity.output for a notify failure row", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          output: "screen was locked",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+          },
+        })
+      )
+    ).toBe("screen was locked");
   });
 });
 
