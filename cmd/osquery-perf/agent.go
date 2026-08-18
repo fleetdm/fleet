@@ -3512,6 +3512,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
 		hostDetailQueryPrefix = "fleet_detail_query_"
+		hostLabelQueryPrefix  = "fleet_label_query_"
 		liveQueryPrefix       = "fleet_distributed_query_"
 	)
 	statusOK := fleet.StatusOK
@@ -3524,6 +3525,12 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		return true, results, status, message, stats
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
 		return true, a.runPolicy(query), &statusOK, nil, nil
+	case strings.HasPrefix(name, hostLabelQueryPrefix) &&
+		strings.ToLower(strings.TrimRight(strings.TrimSpace(query), ";")) == "select 1":
+		// "select 1;" is the "All hosts" builtin label query. Its label ID varies
+		// across deployments, so the per-ID template lookup below can't be relied
+		// on to match it; always report membership.
+		return true, []map[string]string{{"1": "1"}}, &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
 		return true, a.randomQueryStats(), &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":

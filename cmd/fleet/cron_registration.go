@@ -20,6 +20,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 )
@@ -314,6 +315,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 	if !deps.license.IsPremium() {
 		return
 	}
+
+	deps.register("failed to register microsoft_autopilot_sync schedule", func() (fleet.CronSchedule, error) {
+		return cron.NewMicrosoftAutopilotSchedule(ctx, deps.instanceID, deps.ds, msgraph.NewClient, deps.logger)
+	})
 
 	deps.register("failed to register apple_mdm_iphone_ipad_refetcher schedule", func() (fleet.CronSchedule, error) {
 		return newIPhoneIPadRefetcher(ctx, deps.instanceID, 10*time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity)

@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	gocache "github.com/patrickmn/go-cache"
+
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -86,6 +88,10 @@ type Service struct {
 	// agentNotifier publishes check-in wake-ups for agents connected over the
 	// WebSocket transport (ADR-0011). Nil when the transport is disabled.
 	agentNotifier fleet.AgentCheckInNotifier
+
+	// packConfigCache caches marshaled pack config JSON per (teamID, queryReportsDisabled).
+	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
+	packConfigCache *gocache.Cache
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -201,6 +207,7 @@ func NewService(
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
+		packConfigCache:                 gocache.New(1*time.Minute, 30*time.Second),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.26.5",
+      "version": "1.26.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Go Programming Language%' AND publisher = 'https://go.dev';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Go Programming Language%' AND publisher = 'https://go.dev' AND version_compare(version, '1.26.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Go Programming Language%' AND publisher = 'https://go.dev' AND version_compare(version, '1.26.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'go.exe');"
       },
-      "installer_url": "https://go.dev/dl/go1.26.5.windows-amd64.msi",
+      "installer_url": "https://go.dev/dl/go1.26.6.windows-amd64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "0047620c",
-      "sha256": "d554dc209403b101225fc2b54647ef47df09bea23291b1246fe1b35198f55f50",
+      "sha256": "7c1390d3ab814753c3176bc0e0648ff70d3c2b4c3b22cced9c347f40dc920168",
       "default_categories": [
         "Developer tools"
       ],
