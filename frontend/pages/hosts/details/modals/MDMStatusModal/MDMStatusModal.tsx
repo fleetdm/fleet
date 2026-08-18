@@ -304,10 +304,7 @@ const MDMStatusModal = ({
   };
 
   const renderProfileAssignmentList = () => {
-    if (
-      isLoadingDepAssignment ||
-      (!depAssignmentData && !isDepAssignmentError)
-    ) {
+    if (isLoadingDepAssignment) {
       return <Spinner />;
     }
 
