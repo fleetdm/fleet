@@ -179,8 +179,8 @@ const SoftwareFilters = ({
                 tipContent={
                   <>
                     The probability that this vulnerability will be exploited in
-                    the next 30 days (EPSS probability). <br />
-                    This data is reported by FIRST.org.
+                    the next 30 days (EPSS probability). This data is reported
+                    by FIRST.org.
                   </>
                 }
               >

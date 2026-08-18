@@ -25,7 +25,9 @@ module.exports = {
 
   exits: {
     success: { description: 'A compliance status update result was returned to the Fleet instance.', outputType: {} },
-    tenantNotFound: {description: 'No existing Microsoft compliance tenant was found for the Fleet instance that sent the request.', responseType: 'unauthorized'}
+    unauthorized: { description: 'A request contained an invalid entraTenantId/fleetServerSecret combination.', responseType: 'unauthorized'},
+    microsoftApiRequestFailed: {description: 'An error occurred when sending a request to the Microsoft API.'},
+    microsoftApiError: {description: 'The Microsoft API returned an unexpected response.'},
   },
 
 
@@ -33,7 +35,7 @@ module.exports = {
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
     if(!informationAboutThisTenant) {
-      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
+      throw 'unauthorized';
     }
 
     let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
@@ -49,8 +51,15 @@ module.exports = {
       headers: {
         'Authorization': `Bearer ${accessToken}`
       }
-    }).intercept((err)=>{
-      return new Error(`An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+    })
+    .intercept('requestFailed', ()=>{
+      // If a request to the microsoft API fails with a requestFailed error, return a microsoftApiRequestFailed response to the Fleet server
+      return 'microsoftApiRequestFailed';
+    })
+    .intercept((err)=>{
+      // If the request to the Microsoft API returns a non-2xx response, log a warning and return a microsoftApiError response
+      sails.log.warn(`An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+      return 'microsoftApiError';
     });
 
     // Log responses from Micrsoft APIs for Fleet's integration

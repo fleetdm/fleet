@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "17.14.37",
+      "version": "17.14.38",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE (name = 'Visual Studio Community 2022' OR name LIKE 'Visual Studio Community 2022 (%') AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Visual Studio Community 2022' OR name LIKE 'Visual Studio Community 2022 (%') AND publisher = 'Microsoft Corporation') AND version_compare(version, '17.14.37') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Visual Studio Community 2022' OR name LIKE 'Visual Studio Community 2022 (%') AND publisher = 'Microsoft Corporation') AND version_compare(version, '17.14.38') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'visual studio community 2022.exe');"
       },
-      "installer_url": "https://download.visualstudio.microsoft.com/download/pr/f7f5ecbc-83ca-4cf0-bdb2-aaf70efb6d97/065e93abcaf6a7ea97fa9a43561fc55bd57845d97b0cbf58c9be8cb72ddc1934/vs_Community.exe",
+      "installer_url": "https://download.visualstudio.microsoft.com/download/pr/00d9d26c-2727-42c2-aa9e-eda63b03e1ee/a50df7cb27cf1be5359031a79c537e0f751e389da24ea7dbe3e9de812a1129a2/vs_Community.exe",
       "install_script_ref": "1662986f",
       "uninstall_script_ref": "e8264c65",
-      "sha256": "065e93abcaf6a7ea97fa9a43561fc55bd57845d97b0cbf58c9be8cb72ddc1934",
+      "sha256": "a50df7cb27cf1be5359031a79c537e0f751e389da24ea7dbe3e9de812a1129a2",
       "default_categories": [
         "Developer tools"
       ]

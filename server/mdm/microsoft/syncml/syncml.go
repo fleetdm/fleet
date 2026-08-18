@@ -291,6 +291,15 @@ const (
 	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
 	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
 
+	// ReqSecTokenContextItemZeroTouchProvisioning carries the Autopilot ZTDID, ZTD being Microsoft's codename for
+	// Windows Autopilot. It is present only when the enrolling device is registered with Autopilot.
+	ReqSecTokenContextItemZeroTouchProvisioning = "ZeroTouchProvisioning"
+
+	// ReqSecTokenContextItemOfflineAutopilotCorrelator is a second Autopilot identifier that can accompany the item
+	// above. Fleet does not consume it and nothing links on it; it is logged as a diagnostic so that a device supplying
+	// this instead of a ZTDID is distinguishable from one that supplied nothing.
+	ReqSecTokenContextItemOfflineAutopilotCorrelator = "OfflineAutoPilotEnrollmentCorrelator"
+
 	// redirect_uri query param expected by TOS endpoint
 	TOCRedirectURI = "redirect_uri"
 

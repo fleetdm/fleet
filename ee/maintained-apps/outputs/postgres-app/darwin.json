@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.9.5",
+      "version": "2.9.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.postgresapp.Postgres2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.postgresapp.Postgres2' AND version_compare(bundle_short_version, '2.9.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.postgresapp.Postgres2' AND version_compare(bundle_short_version, '2.9.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.postgresapp.Postgres2');"
       },
-      "installer_url": "https://github.com/PostgresApp/PostgresApp/releases/download/v2.9.5/Postgres-2.9.5-14-15-16-17-18.dmg",
+      "installer_url": "https://github.com/PostgresApp/PostgresApp/releases/download/v2.9.6/Postgres-2.9.6-14-15-16-17-18.dmg",
       "install_script_ref": "193869de",
       "uninstall_script_ref": "dee2dd45",
-      "sha256": "40c459d6e4a0af62545d52e7ad48a69b1b20aa0d9f2941590aa9a92cf7d1ffaa",
+      "sha256": "ee67776540fb0d29cbd119ea4db4cac3c182349ed53048fdf79766a588ac86b3",
       "default_categories": [
         "Productivity"
       ]

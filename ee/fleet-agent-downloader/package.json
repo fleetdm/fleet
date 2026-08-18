@@ -44,6 +44,12 @@
     "node": "^20.18"
   },
   "overrides": {
+    "grunt": {
+      "js-yaml": "3.15.1"
+    },
+    "@okta/okta-sdk-nodejs": {
+      "js-yaml": "4.3.1"
+    },
     "aws-sdk": {
       ".": "2.1692.0",
       "uuid": "11.1.1"

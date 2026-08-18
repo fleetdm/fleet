@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.1.1",
+      "version": "1.1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mace.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mace.app' AND version_compare(bundle_short_version, '1.1.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mace.app' AND version_compare(bundle_short_version, '1.1.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.mace.app');"
       },
-      "installer_url": "https://github.com/MACE-App/MACE/releases/download/v1.1.1/M.A.C.E.V1.1.1.dmg",
+      "installer_url": "https://github.com/MACE-App/MACE/releases/download/v1.1.2/M.A.C.E.V1.1.2.dmg",
       "install_script_ref": "6d62fdae",
       "uninstall_script_ref": "672b1fee",
-      "sha256": "767009421202d894276f32da4e6eefe2b548d7b62a0585af2a00f9f40ae699aa",
+      "sha256": "f38e7911e119a98a7260e8da0ca55487b249c66d248b4bcf5cbf85a412027d57",
       "default_categories": [
         "Productivity"
       ]

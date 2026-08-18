@@ -13,6 +13,7 @@ package apps
 // matched against the known-app list and deduplicated.
 type appCandidate struct {
 	MatchTokens []string // identifying strings matched against knownApps
+	DisplayName string
 	Vendor      string
 	Version     string
 	Path        string
@@ -66,6 +67,7 @@ func (c *appCollector) add(cand appCandidate) bool {
 	c.seen[k.name] = struct{}{}
 	c.out = append(c.out, App{
 		Name:           k.name,
+		DisplayName:    cand.DisplayName,
 		Vendor:         cand.Vendor,
 		Version:        cand.Version,
 		Path:           cand.Path,

@@ -32,6 +32,43 @@ func TestErrorUnwrapsUnderlyingCause(t *testing.T) {
 	assert.Equal(t, "invalid_client", gotRetrieve.ErrorCode)
 }
 
+func TestAsError(t *testing.T) {
+	t.Parallel()
+	_, ok := AsError(nil)
+	assert.False(t, ok, "a nil error is not a Graph error")
+
+	_, ok = AsError(errors.New("dial tcp: timeout"))
+	assert.False(t, ok, "a transport failure is not a Graph error")
+
+	graphErr, ok := AsError(fmt.Errorf("outer: %w", &Error{StatusCode: http.StatusForbidden, Code: "Forbidden"}))
+	require.True(t, ok, "a wrapped Graph error must still be reachable")
+	assert.Equal(t, http.StatusForbidden, graphErr.StatusCode)
+	assert.Equal(t, "Forbidden", graphErr.Code)
+}
+
+func TestCredentialRejected(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"no error", nil, false},
+		{"401 rejects the credential", &Error{StatusCode: http.StatusUnauthorized}, true},
+		{"403 rejects the credential", &Error{StatusCode: http.StatusForbidden}, true},
+		{"429 is transient", &Error{StatusCode: http.StatusTooManyRequests}, false},
+		{"500 is transient", &Error{StatusCode: http.StatusInternalServerError}, false},
+		{"404 is neither", &Error{StatusCode: http.StatusNotFound}, false},
+		{"a non-graph error", errors.New("dial tcp: timeout"), false},
+		{"a wrapped 401", fmt.Errorf("outer: %w", &Error{StatusCode: http.StatusUnauthorized}), true},
+		{"a wrapped non-graph error", fmt.Errorf("outer: %w", errors.New("dial tcp: timeout")), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, CredentialRejected(tc.err))
+		})
+	}
+}
+
 func TestParseRetryAfter(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

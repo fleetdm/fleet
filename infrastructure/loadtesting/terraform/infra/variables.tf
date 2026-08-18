@@ -109,3 +109,14 @@ variable "enable_otel" {
   type        = bool
   default     = false
 }
+
+variable "enable_apple_mdm" {
+  description = <<-EOT
+    Spin up the mock Apple APNs push server and point the Fleet server's
+    pushes at it. When false, pushes are disabled outright
+    (FLEET_DEV_MDM_APPLE_DISABLE_PUSH) so that a loadtest never sends traffic
+    to real Apple infrastructure.
+  EOT
+  type        = bool
+  default     = false
+}
