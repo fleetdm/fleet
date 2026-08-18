@@ -507,7 +507,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
 	s.lastActivityMatches(
 		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q, "profile_uuid": %q}`, host.ID, host.DisplayName(), "name-"+mcUUID, mcUUID),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q, "profile_uuid": %q, "policy_id": null, "policy_name": null}`, host.ID, host.DisplayName(), "name-"+mcUUID, mcUUID),
 		0)
 
 	// add a declaration to the team
