@@ -309,7 +309,7 @@ func verifyPatchPolicy(team string, typ string) error {
 
 // PolicyVerifyResendProfile checks that a policy resending a configuration profile targets a
 // platform that can receive configuration profiles at all: only macOS and Windows hosts can, so a
-// policy scoped exclusively to linux or chrome (or to no platform, meaning every platform) has
+// policy scoped exclusively to linux or chrome has
 // nothing to resend to.
 func PolicyVerifyResendProfile(profileUUID *string, platform string) error {
 	if profileUUID == nil || *profileUUID == "" {

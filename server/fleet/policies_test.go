@@ -199,12 +199,12 @@ func TestPolicyVerifyResendProfile(t *testing.T) {
 		{name: "profile on a list including darwin", profileUUID: &appleUUID, platform: "linux,darwin,chrome"},
 		{name: "profile on a list including windows", profileUUID: &winUUID, platform: "chrome,windows"},
 		{name: "platform list with spaces", profileUUID: &appleUUID, platform: "linux, darwin"},
+		// An empty platform means every platform, which the automation can be scoped to.
+		{name: "profile with no platform set", profileUUID: &appleUUID, platform: ""},
 		// Neither darwin nor windows: nothing the profile could be delivered to.
 		{name: "profile on a linux-only policy", profileUUID: &appleUUID, platform: "linux", wantErr: true},
 		{name: "profile on a chrome-only policy", profileUUID: &winUUID, platform: "chrome", wantErr: true},
 		{name: "profile on linux and chrome", profileUUID: &appleUUID, platform: "linux,chrome", wantErr: true},
-		// An empty platform means every platform, which the automation can't be scoped to.
-		{name: "profile with no platform set", profileUUID: &appleUUID, platform: ""},
 	}
 
 	for _, c := range cases {
