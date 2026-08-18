@@ -1,0 +1,1 @@
+Fixed "Hosts enrolled" chart on the dashboard page to exclude pending hosts from per-platform counts.
