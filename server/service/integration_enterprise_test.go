@@ -62,6 +62,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	fleetmock "github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
@@ -32283,6 +32284,78 @@ func (s *integrationEnterpriseTestSuite) TestPolicyResultsForOutOfScopePoliciesA
 	for _, p := range []*fleet.Policy{otherFleet, otherPlatform, otherLabel} {
 		require.Zero(t, countFailingHosts(p.ID), "policy %s", p.Name)
 	}
+}
+
+// Enrollment sets label_updated_at to the "never" sentinel and makes labels and policies come due on the same check-in, so an
+// exclude-label-scoped policy must not be handed to (or accepted from) a host that has not yet computed the label's membership --
+// otherwise its automations fire on a host the exclusion was meant to protect.
+func (s *integrationEnterpriseTestSuite) TestPolicyExcludeLabelHeldUntilLabelsReported() {
+	t := s.T()
+	ctx := t.Context()
+
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lbl := lblResp.Label
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  common_mysql.GetDefaultNonZeroTime(),
+		PolicyUpdatedAt: common_mysql.GetDefaultNonZeroTime(),
+		SeenTime:        time.Now(),
+		LastEnrolledAt:  time.Now(),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + ".local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	unscoped, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "unscoped-" + t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	excluded, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name: "excluded-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name},
+	})
+	require.NoError(t, err)
+
+	storedPolicyIDs := func() []uint {
+		var ids []uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `SELECT policy_id FROM policy_membership WHERE host_id = ?`, host.ID)
+		})
+		return ids
+	}
+
+	distributedQueries, err := s.ds.PolicyQueriesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Contains(t, distributedQueries, fmt.Sprint(unscoped.ID))
+	require.NotContains(t, distributedQueries, fmt.Sprint(excluded.ID),
+		"exclude-scoped policy sent before the host could evaluate the label")
+
+	// Even if the host reports a failing result for it anyway, ingestion must drop it: everything downstream of this
+	// (script, software, calendar and conditional-access automations) reads the surviving results.
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{
+		unscoped.ID: new(false),
+		excluded.ID: new(false),
+	}), http.StatusOK, &distributedResp)
+	require.Equal(t, []uint{unscoped.ID}, storedPolicyIDs())
+
+	// Once the host has reported its labels and is confirmed not to be a member, the policy applies as normal.
+	s.DoJSON("POST", "/api/osquery/distributed/write",
+		genDistributedReqWithLabelResults(host, map[uint]*bool{lbl.ID: new(false)}), http.StatusOK, &distributedResp)
+
+	host, err = s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	distributedQueries, err = s.ds.PolicyQueriesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Contains(t, distributedQueries, fmt.Sprint(excluded.ID))
+
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{
+		unscoped.ID: new(false),
+		excluded.ID: new(false),
+	}), http.StatusOK, &distributedResp)
+	require.ElementsMatch(t, []uint{unscoped.ID, excluded.ID}, storedPolicyIDs())
 }
 
 // TestQueryLabelsIncludeAll mirrors TestPolicyLabelsIncludeAll for queries (reports),

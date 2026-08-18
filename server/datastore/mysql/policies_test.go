@@ -83,6 +83,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesBySoftwareTitleID", testPoliciesBySoftwareTitleID},
 		{"TestClearAutoInstallPolicyStatusForHost", testClearAutoInstallPolicyStatusForHost},
 		{"PolicyLabels", testPolicyLabels},
+		{"PolicyLabelsUnknownMembership", testPolicyLabelsUnknownMembership},
 		{"PolicyLabelMembershipCleanup", testPolicyLabelMembershipCleanup},
 		{"DeletePolicyWithSoftwareActivatesNextActivity", testDeletePolicyWithSoftwareActivatesNextActivity},
 		{"DeletePolicyWithScriptActivatesNextActivity", testDeletePolicyWithScriptActivatesNextActivity},
@@ -6723,6 +6724,135 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assertQueries(t, queries, tc.Policies, tc.Host.Hostname)
 	}
+}
+
+func testPolicyLabelsUnknownMembership(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	setLabelUpdatedAt := func(t *testing.T, host *fleet.Host, ts time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id = ?`, ts, host.ID)
+			return err
+		})
+		host.LabelUpdatedAt = ts
+	}
+
+	policyNames := func(t *testing.T, host *fleet.Host) []string {
+		t.Helper()
+		queries, err := ds.PolicyQueriesForHost(ctx, host)
+		require.NoError(t, err)
+		policies, err := ds.ListPoliciesForHost(ctx, host)
+		require.NoError(t, err)
+
+		byID := make(map[uint]string, len(policies))
+		var listed []string
+		for _, p := range policies {
+			byID[p.ID] = p.Name
+			listed = append(listed, p.Name)
+		}
+		var sent []string
+		for idStr := range queries {
+			id, err := strconv.Atoi(idStr)
+			require.NoError(t, err)
+			name, ok := byID[uint(id)] //nolint:gosec // dismiss G115
+			require.True(t, ok, "policy %s sent to host but not listed for it", idStr)
+			sent = append(sent, name)
+		}
+		sort.Strings(listed)
+		sort.Strings(sent)
+		// The two paths share the label-scoping predicate, so they must never disagree.
+		require.Equal(t, listed, sent)
+		return sent
+	}
+
+	// The host enrolls before any of the labels below exist, so it cannot have evaluated them.
+	host := test.NewHost(t, ds, "unknown-membership-host", "10.0.0.1", "key1", "uuid1", time.Now())
+	setLabelUpdatedAt(t, host, common_mysql.GetDefaultNonZeroTime())
+
+	dynamicLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "dynamic-mdm-enrolled", Query: "select 1;"})
+	require.NoError(t, err)
+	require.Equal(t, fleet.LabelMembershipTypeDynamic, dynamicLabel.LabelMembershipType)
+	dynamicLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "dynamic-other", Query: "select 1;"})
+	require.NoError(t, err)
+	manualLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "manual-label",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+
+	unscoped := newTestPolicy(t, ds, user1, "unscoped", "", nil)
+
+	excludeDynamic := newTestPolicy(t, ds, user1, "exclude any dynamic", "", nil)
+	excludeDynamic.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: dynamicLabel.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, excludeDynamic, false, false))
+
+	excludeManual := newTestPolicy(t, ds, user1, "exclude any manual", "", nil)
+	excludeManual.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: manualLabel.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, excludeManual, false, false))
+
+	excludeAllDynamic := newTestPolicy(t, ds, user1, "exclude all dynamic", "", nil)
+	excludeAllDynamic.LabelsExcludeAll = []fleet.LabelIdent{
+		{LabelName: dynamicLabel.Name},
+		{LabelName: dynamicLabel2.Name},
+	}
+	require.NoError(t, ds.SavePolicy(ctx, excludeAllDynamic, false, false))
+
+	includeDynamic := newTestPolicy(t, ds, user1, "include any dynamic", "", nil)
+	includeDynamic.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: dynamicLabel.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, includeDynamic, false, false))
+
+	t.Run("host that has never reported labels is held out of exclude scope", func(t *testing.T) {
+		require.ElementsMatch(t, []string{
+			unscoped.Name,
+			// A manual label's membership is server-populated, so its absence is known, not unknown.
+			excludeManual.Name,
+		}, policyNames(t, host))
+	})
+
+	t.Run("labels reported after the labels were created resolves the scope", func(t *testing.T) {
+		setLabelUpdatedAt(t, host, time.Now())
+		require.ElementsMatch(t, []string{
+			unscoped.Name,
+			excludeManual.Name,
+			excludeDynamic.Name,
+			excludeAllDynamic.Name,
+		}, policyNames(t, host))
+	})
+
+	t.Run("confirmed membership still excludes", func(t *testing.T) {
+		require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{dynamicLabel.ID}))
+		t.Cleanup(func() {
+			require.NoError(t, ds.RemoveLabelsFromHost(ctx, host.ID, []uint{dynamicLabel.ID}))
+		})
+		require.ElementsMatch(t, []string{
+			unscoped.Name,
+			excludeManual.Name,
+			// exclude_all needs membership in every listed label; the host is only in one.
+			excludeAllDynamic.Name,
+			includeDynamic.Name,
+		}, policyNames(t, host))
+	})
+
+	t.Run("label created after the host's last report is unknown again", func(t *testing.T) {
+		newLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "dynamic-added-later", Query: "select 1;"})
+		require.NoError(t, err)
+		excludeNew := newTestPolicy(t, ds, user1, "exclude any newly created label", "", nil)
+		excludeNew.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: newLabel.Name}}
+		require.NoError(t, ds.SavePolicy(ctx, excludeNew, false, false))
+
+		// labels.created_at is second-granular, so pivot on the stored value rather than wall-clock now.
+		var createdAt time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &createdAt, `SELECT created_at FROM labels WHERE id = ?`, newLabel.ID)
+		})
+
+		setLabelUpdatedAt(t, host, createdAt.Add(-time.Second))
+		require.NotContains(t, policyNames(t, host), excludeNew.Name)
+
+		setLabelUpdatedAt(t, host, createdAt.Add(time.Second))
+		require.Contains(t, policyNames(t, host), excludeNew.Name)
+	})
 }
 
 func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
