@@ -76,6 +76,6 @@ Use Fleet's webhook integrations to trigger action when available space crosses 
 <meta name="articleTitle" value="Driving automations and reports based on available disk space on macOS">
 <meta name="authorFullName" value="Gray Williams">
 <meta name="authorGitHubUsername" value="GrayW">
-<meta name="publishedOn" value="2026-08-07">
+<meta name="publishedOn" value="2026-08-18">
 <meta name="category" value="guides">
-<meta name="description" value="Use the disk_space table to catch macOS hosts that are stuck on old updates because they're out of room, and to stop disk space tickets before they start.">
+<meta name="description" value="How to correctly measure available disk space on macOS in Fleet, and build policies and reports that catch real update blockers.">
