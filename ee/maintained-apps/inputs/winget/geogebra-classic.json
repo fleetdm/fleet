@@ -8,7 +8,5 @@
   "installer_scope": "machine",
   "default_categories": [
     "Productivity"
-  ],
-  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/geogebra-classic_install.ps1",
-  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/geogebra-classic_uninstall.ps1"
+  ]
 }
