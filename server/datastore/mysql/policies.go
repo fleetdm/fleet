@@ -2952,6 +2952,28 @@ func (ds *Datastore) GetPoliciesWithAssociatedVPP(ctx context.Context, teamID ui
 	return policies, nil
 }
 
+func (ds *Datastore) GetPoliciesWithAssociatedProfile(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyProfileData, error) {
+	if len(policyIDs) == 0 {
+		return nil, nil
+	}
+	query := `SELECT p.id AS policy_id, p.name AS policy_name,
+       COALESCE(p.resend_apple_profile_uuid, p.resend_windows_profile_uuid) AS profile_uuid,
+       COALESCE(macp.name, mwcp.name) AS profile_name
+FROM policies p
+LEFT JOIN mdm_apple_configuration_profiles macp ON macp.profile_uuid = p.resend_apple_profile_uuid
+LEFT JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = p.resend_windows_profile_uuid
+WHERE p.team_id = ? AND (p.resend_apple_profile_uuid IS NOT NULL OR p.resend_windows_profile_uuid IS NOT NULL) AND p.id IN (?)`
+	query, args, err := sqlx.In(query, teamID, policyIDs)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "build sqlx.In for get policies with associated profile")
+	}
+	var policies []fleet.PolicyProfileData
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies with associated profile")
+	}
+	return policies, nil
+}
+
 func (ds *Datastore) GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error) {
 	if len(policyIDs) == 0 {
 		return nil, nil

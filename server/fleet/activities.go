@@ -1211,6 +1211,16 @@ func (a ActivityTypeResentConfigurationProfile) WasFromAutomation() bool {
 	return a.PolicyID != nil
 }
 
+// HostIDs links the activity to the host whose profile was resent. Without it no
+// activity_host_past row is written, and the activity is invisible to every feed that joins
+// through that table — including the policy automation feed.
+func (a ActivityTypeResentConfigurationProfile) HostIDs() []uint {
+	if a.HostID == nil {
+		return nil
+	}
+	return []uint{*a.HostID}
+}
+
 type ActivityTypeResentConfigurationProfileBatch struct {
 	ProfileName string `json:"profile_name"`
 	ProfileUUID string `json:"profile_uuid"`
