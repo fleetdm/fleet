@@ -983,32 +983,53 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 	})
 
 	// Turning it off leaves continuous automations at whatever the caller asked for.
-	t.Run("modify off leaves continuous automations alone", func(t *testing.T) {
-		ds := setupDS("darwin")
-		ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
-			stored := freshPatchPolicy()
-			stored.NotifyBeforePatching = true
-			stored.ContinuousAutomationsEnabled = true
-			return stored, nil
-		}
-		var saved *fleet.Policy
-		ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
-			saved = p
-			return nil
-		}
-		opts := &TestServerOpts{}
-		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
-		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
-			return nil
+	// Turning the flag off stops forcing continuous automations on, without changing the value
+	// itself: omitted keeps whatever the policy carried, explicit false is honored.
+	t.Run("modify off stops forcing continuous automations on", func(t *testing.T) {
+		cases := []struct {
+			name           string
+			payload        fleet.ModifyPolicyPayload
+			wantContinuous bool
+		}{
+			{
+				name:           "continuous omitted keeps the stored value",
+				payload:        fleet.ModifyPolicyPayload{NotifyBeforePatching: new(false)},
+				wantContinuous: true,
+			},
+			{
+				name: "explicit false is honored once the flag is off",
+				payload: fleet.ModifyPolicyPayload{
+					NotifyBeforePatching:         new(false),
+					ContinuousAutomationsEnabled: new(false),
+				},
+				wantContinuous: false,
+			},
 		}
 
-		_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, fleet.ModifyPolicyPayload{
-			NotifyBeforePatching:         new(false),
-			ContinuousAutomationsEnabled: new(false),
-		})
-		require.NoError(t, err)
-		require.NotNil(t, saved)
-		assert.False(t, saved.NotifyBeforePatching)
-		assert.False(t, saved.ContinuousAutomationsEnabled)
+		for _, c := range cases {
+			ds := setupDS("darwin")
+			ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+				stored := freshPatchPolicy()
+				stored.NotifyBeforePatching = true
+				stored.ContinuousAutomationsEnabled = true
+				return stored, nil
+			}
+			var saved *fleet.Policy
+			ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
+				saved = p
+				return nil
+			}
+			opts := &TestServerOpts{}
+			svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+				return nil
+			}
+
+			_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, c.payload)
+			require.NoError(t, err, c.name)
+			require.NotNil(t, saved, c.name)
+			assert.False(t, saved.NotifyBeforePatching, c.name)
+			assert.Equal(t, c.wantContinuous, saved.ContinuousAutomationsEnabled, c.name)
+		}
 	})
 }
