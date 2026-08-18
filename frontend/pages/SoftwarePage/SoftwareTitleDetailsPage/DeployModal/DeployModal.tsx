@@ -62,9 +62,13 @@ const DeployModal = ({
     initialPatchOption = "force";
   }
 
-  const initialEndUserExperience: EndUserExperience = patchPolicy?.notify_before_patching
-    ? "notify"
-    : "immediate";
+  // If a legacy policy stored both flags (invariant violation), Patch when
+  // closed wins the radio and the dropdown stays hidden — carrying "notify"
+  // in state would reveal it the moment the user picked Force patch.
+  const initialEndUserExperience: EndUserExperience =
+    patchPolicy?.notify_before_patching && !patchPolicy?.patch_when_closed
+      ? "notify"
+      : "immediate";
 
   const [forceInstall, setForceInstall] = useState(!!forceInstallPolicy);
   const [patch, setPatch] = useState(!!patchPolicy);

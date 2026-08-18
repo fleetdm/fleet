@@ -206,9 +206,9 @@ const PolicyAutomationsFields = forwardRef<
     // Continuous automations is locked on for both "Patch when app is closed"
     // and "Notify before patching" — the backend forces it on for both, so an
     // editable checkbox would lie.
-    const isContinuousAutomationRequired =
+    const isContinuousAutomationsRequired =
       patchWhenClosed || notifyBeforePatching;
-    const getContinuousAutomationRequiredTooltip = (): string | undefined => {
+    const getContinuousAutomationsRequiredTooltip = (): string | undefined => {
       if (patchWhenClosed) {
         return "Continuous automation can't be disabled when Patch when app is closed is selected.";
       }
@@ -218,11 +218,11 @@ const PolicyAutomationsFields = forwardRef<
       return undefined;
     };
     const getEffectiveContinuousEnabled = (): boolean => {
-      if (isContinuousAutomationRequired) return true;
+      if (isContinuousAutomationsRequired) return true;
       if (patchOption === "manual") return false;
       return continuousEnabled;
     };
-    const continuousAutomationRequiredTooltip = getContinuousAutomationRequiredTooltip();
+    const continuousAutomationsRequiredTooltip = getContinuousAutomationsRequiredTooltip();
     const effectiveContinuousEnabled = getEffectiveContinuousEnabled();
 
     const [softwareTitleId, setSoftwareTitleId] = useState<number | null>(
@@ -680,9 +680,9 @@ const PolicyAutomationsFields = forwardRef<
                 <Checkbox
                   name="continuous-automations-enabled"
                   value={effectiveContinuousEnabled}
-                  disabled={disableChildren || isContinuousAutomationRequired}
+                  disabled={disableChildren || isContinuousAutomationsRequired}
                   onChange={handleToggleContinuous}
-                  iconTooltipContent={continuousAutomationRequiredTooltip}
+                  iconTooltipContent={continuousAutomationsRequiredTooltip}
                   helpText="If the automations do not resolve the policy, this could cause a retry loop."
                 >
                   <TooltipWrapper
