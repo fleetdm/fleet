@@ -913,18 +913,20 @@ type MDMWindowsHostConfigState struct {
 }
 
 type MDMWindowsEnrolledDevice struct {
-	ID                      uint                            `db:"id"`
-	HostUUID                string                          `db:"host_uuid"`
-	MDMDeviceID             string                          `db:"mdm_device_id"`
-	MDMHardwareID           string                          `db:"mdm_hardware_id"`
-	MDMDeviceState          string                          `db:"device_state"`
-	MDMDeviceType           string                          `db:"device_type"`
-	MDMDeviceName           string                          `db:"device_name"`
-	MDMEnrollType           string                          `db:"enroll_type"`
-	MDMEnrollUserID         string                          `db:"enroll_user_id"`
-	MDMEnrollProtoVersion   string                          `db:"enroll_proto_version"`
-	MDMEnrollClientVersion  string                          `db:"enroll_client_version"`
-	MDMNotInOOBE            bool                            `db:"not_in_oobe"`
+	ID                     uint   `db:"id"`
+	HostUUID               string `db:"host_uuid"`
+	MDMDeviceID            string `db:"mdm_device_id"`
+	MDMHardwareID          string `db:"mdm_hardware_id"`
+	MDMDeviceState         string `db:"device_state"`
+	MDMDeviceType          string `db:"device_type"`
+	MDMDeviceName          string `db:"device_name"`
+	MDMEnrollType          string `db:"enroll_type"`
+	MDMEnrollUserID        string `db:"enroll_user_id"`
+	MDMEnrollProtoVersion  string `db:"enroll_proto_version"`
+	MDMEnrollClientVersion string `db:"enroll_client_version"`
+	MDMNotInOOBE           bool   `db:"not_in_oobe"`
+	// ZTDRegistrationID is the Autopilot ZTDID the device supplied at enrollment
+	ZTDRegistrationID       string                          `db:"ztd_registration_id"`
 	AwaitingConfiguration   WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`

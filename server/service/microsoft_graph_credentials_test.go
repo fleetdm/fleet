@@ -126,6 +126,21 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 		}
 		return out, nil
 	}
+	ds.UpdateMicrosoftGraphCredentialInvalidAggregateFunc = func(ctx context.Context) error {
+		var anyInvalid bool
+		for _, c := range env.stored {
+			if c.CredentialInvalid {
+				anyInvalid = true
+				break
+			}
+		}
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return err
+		}
+		ac.MDM.MicrosoftGraphCredentialInvalid = anyInvalid
+		return ds.SaveAppConfig(ctx, ac)
+	}
 	ds.ReplaceMicrosoftGraphCredentialsFunc = func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
 		for _, cred := range upsert {
 			copied := *cred

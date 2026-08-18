@@ -1460,6 +1460,20 @@ allow {
   action == [read, write][_]
 }
 
+# Global admins, maintainers and gitops can list certificate templates.
+allow {
+  object.type == "certificate_template"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == list
+}
+
+# Team admins, maintainers and gitops can list certificate templates.
+allow {
+  object.type == "certificate_template"
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  action == list
+}
+
 ##
 # Software categories (used as self-service categories in the UI)
 ##
