@@ -9,14 +9,14 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260818133507, Down_20260818133507)
+	MigrationClient.AddMigration(Up_20260818171921, Down_20260818171921)
 }
 
 // osquery reports a distribution's own ID in os_version.platform and lists only
 // its ancestors in platform_like. The Red Hat family is the exception: Fedora,
 // RHEL, Rocky Linux, AlmaLinux and CentOS Stream all report "rhel" for both, so
 // labels singling out one of them have to match on os_version.name.
-func Up_20260818133507(tx *sql.Tx) error {
+func Up_20260818171921(tx *sql.Tx) error {
 	updatedAt := time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)
 
 	updates := []struct {
@@ -46,6 +46,6 @@ func Up_20260818133507(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260818133507(tx *sql.Tx) error {
+func Down_20260818171921(tx *sql.Tx) error {
 	return nil
 }
