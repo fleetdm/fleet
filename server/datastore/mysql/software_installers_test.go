@@ -7349,49 +7349,59 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		return installerID, titleID
 	}
 
-	patchPolicy := func(t *testing.T, titleID uint, patchWhenClosed bool) *fleet.Policy {
+	// option is "closed", "notify", or "" for neither.
+	patchPolicy := func(t *testing.T, titleID uint, option string) *fleet.Policy {
 		p, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
 			Type:                 fleet.PolicyTypePatch,
 			PatchSoftwareTitleID: &titleID,
-			PatchWhenClosed:      patchWhenClosed,
+			PatchWhenClosed:      option == "closed",
+			NotifyBeforePatching: option == "notify",
 		})
 		require.NoError(t, err)
-		require.Equal(t, patchWhenClosed, p.PatchWhenClosed)
-		if patchWhenClosed {
+		require.Equal(t, option == "closed", p.PatchWhenClosed)
+		require.Equal(t, option == "notify", p.NotifyBeforePatching)
+		if option != "" {
 			// The service does this after writing the policy; call it here to exercise the same effect.
 			require.NoError(t, ds.ClearPreInstallQueryForTitle(ctx, team.ID, titleID))
 		}
 		return p
 	}
 
-	// Patch policy with patch_when_closed: the policy-triggered install gets the managed query.
-	closedInstaller, closedTitle := newInstaller(t, "pwc-closed")
-	closedPol := patchPolicy(t, closedTitle, true)
-	closedExec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, closedInstaller, fleet.HostSoftwareInstallOptions{PolicyID: &closedPol.ID})
-	require.NoError(t, err)
-	closedDetails, err := ds.GetSoftwareInstallDetails(ctx, closedExec)
-	require.NoError(t, err)
-	require.Equal(t, managedQuery, closedDetails.PreInstallCondition)
+	// Both patch options swap the managed app-open query in as the install's pre-install condition,
+	// on both UNION branches of the details query. A host each, so activation order is unambiguous.
+	for _, option := range []string{"closed", "notify"} {
+		optHost := test.NewHost(t, ds, "pwc-host-"+option, "pwc-ip-"+option, "pwc-key-"+option, "pwc-uuid-"+option, time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{optHost.ID})))
 
-	// Activating the install moves it into host_software_installs, exercising the other UNION
-	// branch of the query, which must resolve the managed query the same way.
-	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
-	require.NoError(t, err)
-	activatedDetails, err := ds.GetSoftwareInstallDetails(ctx, closedExec)
-	require.NoError(t, err)
-	require.Equal(t, managedQuery, activatedDetails.PreInstallCondition)
+		optInstaller, optTitle := newInstaller(t, "pwc-"+option)
+		optPol := patchPolicy(t, optTitle, option)
 
-	// Same installer via a manual (non-policy) install: no pre-install condition, because enabling
-	// patch_when_closed cleared the installer's user query.
-	manualExec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, closedInstaller, fleet.HostSoftwareInstallOptions{})
-	require.NoError(t, err)
-	manualDetails, err := ds.GetSoftwareInstallDetails(ctx, manualExec)
-	require.NoError(t, err)
-	require.Empty(t, manualDetails.PreInstallCondition)
+		optExec, err := ds.InsertSoftwareInstallRequest(ctx, optHost.ID, optInstaller, fleet.HostSoftwareInstallOptions{PolicyID: &optPol.ID})
+		require.NoError(t, err)
+		optDetails, err := ds.GetSoftwareInstallDetails(ctx, optExec)
+		require.NoError(t, err)
+		require.Equal(t, managedQuery, optDetails.PreInstallCondition, option)
 
-	// A patch policy without patch_when_closed keeps the user query on the policy path.
+		// Activating the install moves it into host_software_installs, exercising the other UNION
+		// branch of the query, which must resolve the managed query the same way.
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), optHost.ID, "")
+		require.NoError(t, err)
+		activatedDetails, err := ds.GetSoftwareInstallDetails(ctx, optExec)
+		require.NoError(t, err)
+		require.Equal(t, managedQuery, activatedDetails.PreInstallCondition, option)
+
+		// Same installer via a manual (non-policy) install: no pre-install condition, because
+		// enabling either option cleared the installer's user query.
+		manualExec, err := ds.InsertSoftwareInstallRequest(ctx, optHost.ID, optInstaller, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+		manualDetails, err := ds.GetSoftwareInstallDetails(ctx, manualExec)
+		require.NoError(t, err)
+		require.Empty(t, manualDetails.PreInstallCondition, option)
+	}
+
+	// A patch policy with neither option keeps the user query on the policy path.
 	forceInstaller, forceTitle := newInstaller(t, "pwc-force")
-	forcePol := patchPolicy(t, forceTitle, false)
+	forcePol := patchPolicy(t, forceTitle, "")
 	forceExec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, forceInstaller, fleet.HostSoftwareInstallOptions{PolicyID: &forcePol.ID})
 	require.NoError(t, err)
 	forceDetails, err := ds.GetSoftwareInstallDetails(ctx, forceExec)

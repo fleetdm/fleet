@@ -872,6 +872,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 	t.Run("modify rejections", func(t *testing.T) {
 		cases := []struct {
 			name           string
+			storedType     string
 			storedPWC      bool
 			storedPlatform string
 			payload        fleet.ModifyPolicyPayload
@@ -881,6 +882,12 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				name:    "continuous automations off",
 				payload: fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true), ContinuousAutomationsEnabled: new(false)},
 				wantErr: `If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`,
+			},
+			{
+				name:       "non-patch policy",
+				storedType: fleet.PolicyTypeDynamic,
+				payload:    fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true)},
+				wantErr:    `"notify_before_patching" is only supported for patch policies`,
 			},
 			{
 				// The payload carries only the delta, so the stored flag has to count.
@@ -898,11 +905,17 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 		}
 
 		for _, c := range cases {
-			storedPWC, storedPlatform := c.storedPWC, c.storedPlatform
+			storedType, storedPWC, storedPlatform := c.storedType, c.storedPWC, c.storedPlatform
 			ds := setupDS("darwin")
 			ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
 				stored := freshPatchPolicy()
 				stored.PatchWhenClosed = storedPWC
+				if storedType != "" {
+					stored.Type = storedType
+				}
+				if stored.Type != fleet.PolicyTypePatch {
+					stored.PatchSoftwareTitleID = nil
+				}
 				if storedPlatform != "" {
 					stored.Platform = storedPlatform
 				}

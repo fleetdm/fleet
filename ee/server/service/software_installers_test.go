@@ -3193,6 +3193,17 @@ func TestPlanPatchPolicy(t *testing.T) {
 		assert.True(t, notifyFlag)
 	})
 
+	// Either patch option needs patch enabled, even when clearing it.
+	t.Run("rejects notify_before_patching without patch", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.NotifyBeforePatching = new(true)
+		_, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, `"patch" must be true`)
+		p.NotifyBeforePatching = new(false)
+		_, _, _, err = planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, `"patch" must be true`)
+	})
+
 	// Asking for both at once is rejected.
 	t.Run("rejects both patch options", func(t *testing.T) {
 		p := payload(new(true), new(true))
