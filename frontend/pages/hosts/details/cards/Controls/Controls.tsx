@@ -29,6 +29,10 @@ interface IControlsProps {
   canResendHostNameTemplate?: boolean;
   /** Whether the user can reach the Controls page the empty state links to. */
   canAddControls?: boolean;
+  /** Whether the host has an active MDM connection with *this* Fleet. A host
+   * managed by a third-party MDM reads as enrolled but still can't receive
+   * Fleet controls, so the empty state keys off this, not enrollment status. */
+  isConnectedToFleetMdm?: boolean;
   /** Fleet the host belongs to, preserved on the "Add controls" link. */
   teamId?: number | null;
   resendRequest: (profileUUID: string) => Promise<void>;
@@ -48,6 +52,7 @@ const Controls = ({
   canRotateRecoveryLockPassword = false,
   canResendHostNameTemplate = false,
   canAddControls = false,
+  isConnectedToFleetMdm = false,
   teamId,
   resendRequest,
   resendCertificateRequest,
@@ -91,8 +96,24 @@ const Controls = ({
     onProfileResent();
   }, [onProfileResent]);
 
+  const emptyStateInfo = () => {
+    if (!isConnectedToFleetMdm) {
+      return isDeviceUser
+        ? "No controls available. Your device isn't enrolled in MDM."
+        : "No controls available. This host isn't enrolled in MDM.";
+    }
+    return isDeviceUser
+      ? "No controls have been added for your device."
+      : "No controls have been added for this host.";
+  };
+
   const onAddControls = useCallback(() => {
-    router.push(getPathWithQueryParams(PATHS.CONTROLS, { fleet_id: teamId }));
+    // A no-team host reports `team_id: null`, but the Controls page reads "No
+    // team" as fleet_id=0 — an absent param means "keep whatever fleet you were
+    // on", which lands the user somewhere else entirely.
+    router.push(
+      getPathWithQueryParams(PATHS.CONTROLS, { fleet_id: teamId ?? 0 })
+    );
   }, [router, teamId]);
 
   return (
@@ -110,11 +131,10 @@ const Controls = ({
         emptyComponent={() => (
           <EmptyState
             header="No controls"
-            info={`No controls have been added for ${
-              isDeviceUser ? "your device" : "this host"
-            }.`}
+            info={emptyStateInfo()}
             primaryButton={
-              !isDeviceUser && canAddControls ? (
+              // Adding controls doesn't help a host that can't receive them.
+              !isDeviceUser && canAddControls && isConnectedToFleetMdm ? (
                 <Button onClick={onAddControls} type="button">
                   Add controls
                 </Button>

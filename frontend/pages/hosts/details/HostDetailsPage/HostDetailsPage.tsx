@@ -1719,6 +1719,7 @@ const HostDetailsPage = ({
                     }
                     canResendHostNameTemplate={canResendProfiles}
                     canAddControls={canAddControls}
+                    isConnectedToFleetMdm={!!host.mdm?.connected_to_fleet}
                     teamId={host.team_id}
                     resendRequest={resendProfile}
                     resendCertificateRequest={resendCertificate}

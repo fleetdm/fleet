@@ -4,8 +4,10 @@
     flex-direction: column;
     gap: $pad-large;
 
+    // Textarea's own default is $pad-medium; the design calls for 8px between
+    // the label row and the output box.
     .textarea-wrapper {
-      gap: 0;
+      gap: $pad-small;
     }
   }
 

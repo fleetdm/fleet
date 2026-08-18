@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 
@@ -175,7 +175,7 @@ describe("Controls card", () => {
 
   describe("empty state", () => {
     it("offers a link to the Controls page when the user can reach it", () => {
-      renderControls({ canAddControls: true });
+      renderControls({ canAddControls: true, isConnectedToFleetMdm: true });
 
       expect(screen.getByText("No controls")).toBeInTheDocument();
       expect(
@@ -187,7 +187,7 @@ describe("Controls card", () => {
     });
 
     it("hides the link for a user who can't reach the Controls page", () => {
-      renderControls({ canAddControls: false });
+      renderControls({ canAddControls: false, isConnectedToFleetMdm: true });
 
       expect(screen.getByText("No controls")).toBeInTheDocument();
       expect(
@@ -195,9 +195,71 @@ describe("Controls card", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("hides the link on My device, which has no Controls page", () => {
-      renderControls({ isDeviceUser: true, canAddControls: true });
+    // A host Fleet has no MDM connection to can't receive controls at all, so
+    // "none have been added" would point at the wrong problem.
+    describe("a host not connected to Fleet MDM", () => {
+      it("says the host isn't enrolled", () => {
+        renderControls({ canAddControls: true, isConnectedToFleetMdm: false });
 
+        expect(
+          screen.getByText(
+            "No controls available. This host isn't enrolled in MDM."
+          )
+        ).toBeInTheDocument();
+      });
+
+      it("says the device isn't enrolled on My device", () => {
+        renderControls({ isDeviceUser: true, isConnectedToFleetMdm: false });
+
+        expect(
+          screen.getByText(
+            "No controls available. Your device isn't enrolled in MDM."
+          )
+        ).toBeInTheDocument();
+      });
+
+      it("hides the Add controls link, which wouldn't fix anything", () => {
+        renderControls({ canAddControls: true, isConnectedToFleetMdm: false });
+
+        expect(
+          screen.queryByRole("button", { name: "Add controls" })
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it.each([
+      ["a fleet", 3, "fleet_id=3"],
+      // A no-team host reports team_id: null. Dropping the param entirely
+      // would land the user on whatever fleet they were last viewing.
+      ["no team", null, "fleet_id=0"],
+    ])("links to the Controls page for %s", (_label, teamId, expected) => {
+      const router = createMockRouter();
+      const { user } = renderControls({
+        canAddControls: true,
+        isConnectedToFleetMdm: true,
+        teamId,
+        router,
+      });
+
+      user.click(screen.getByRole("button", { name: "Add controls" }));
+
+      return waitFor(() => {
+        expect(router.push).toHaveBeenCalledWith(
+          expect.stringContaining(expected)
+        );
+      });
+    });
+
+    it("hides the link on My device, which has no Controls page", () => {
+      renderControls({
+        isDeviceUser: true,
+        canAddControls: true,
+        isConnectedToFleetMdm: true,
+      });
+
+      expect(
+        screen.getByText("No controls have been added for your device.")
+      ).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Add controls" })
       ).not.toBeInTheDocument();

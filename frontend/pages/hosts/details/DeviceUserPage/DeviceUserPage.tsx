@@ -858,6 +858,7 @@ const DeviceUserPage = ({
                     controls={controls}
                     hostDisplayName={host.display_name}
                     isDeviceUser
+                    isConnectedToFleetMdm={!!host.mdm.connected_to_fleet}
                     canResendProfiles={isAppleHost || isWindows(host.platform)}
                     resendRequest={resendProfile}
                     onProfileResent={refetchDupDetails}

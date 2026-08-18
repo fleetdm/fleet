@@ -28,48 +28,60 @@ describe("shouldShowControlsTab", () => {
     ).toBe(false);
   });
 
-  describe("a host with nothing to show", () => {
-    it("hides the tab when the platform's MDM is off globally", () => {
-      expect(
-        shouldShowControlsTab({ ...args, isPlatformMdmEnabled: false })
-      ).toBe(false);
-    });
-
-    it.each(["Off", null] as const)(
-      "hides the tab when the host's enrollment status is %s",
+  // Hiding the tab would leave these hosts with no explanation at all: the
+  // "Turn on MDM" banner on both Host details and My device is macOS-only.
+  describe("an unenrolled host whose platform MDM is on", () => {
+    it.each(["Off", null, "Pending"] as const)(
+      "shows the tab when enrollment is %s",
       (enrollmentStatus) => {
-        expect(shouldShowControlsTab({ ...args, enrollmentStatus })).toBe(
-          false
-        );
+        expect(
+          shouldShowControlsTab({
+            ...args,
+            platform: "windows" as const,
+            osVersion: "Windows 11",
+            enrollmentStatus,
+          })
+        ).toBe(true);
       }
     );
+  });
 
-    // Pending hosts (ABM-synced, not yet enrolled) have no controls applied yet.
-    it("hides the tab for a pending MDM host", () => {
+  describe("a host with nothing to show", () => {
+    const nothingToShow = {
+      ...args,
+      enrollmentStatus: null,
+      isPlatformMdmEnabled: false,
+    };
+
+    it("hides the tab when the platform's MDM is off and the host isn't enrolled", () => {
+      expect(shouldShowControlsTab(nothingToShow)).toBe(false);
+    });
+
+    // Turning MDM off globally can leave a host still reading as enrolled.
+    it("shows the tab when the host still reads as enrolled", () => {
       expect(
-        shouldShowControlsTab({ ...args, enrollmentStatus: "Pending" })
-      ).toBe(false);
+        shouldShowControlsTab({
+          ...nothingToShow,
+          enrollmentStatus: "On (manual)",
+        })
+      ).toBe(true);
     });
   });
 
   // Rows are the bar the OS settings indicator used before this tab existed, so
   // the tab must show everywhere that did — otherwise unenrolling a host would
   // hide settings it still carries, like Windows disk encryption.
-  describe("a host that still carries rows", () => {
-    it.each(["Off", null] as const)(
-      "shows the tab when enrollment is %s but rows exist",
-      (enrollmentStatus) => {
-        expect(
-          shouldShowControlsTab({
-            ...args,
-            platform: "windows" as const,
-            enrollmentStatus,
-            hasControls: true,
-            isPlatformMdmEnabled: false,
-          })
-        ).toBe(true);
-      }
-    );
+  it("shows the tab whenever rows exist, whatever the MDM state", () => {
+    expect(
+      shouldShowControlsTab({
+        ...args,
+        platform: "windows" as const,
+        osVersion: "Windows 11",
+        enrollmentStatus: null,
+        isPlatformMdmEnabled: false,
+        hasControls: true,
+      })
+    ).toBe(true);
   });
 
   // Fleet only supports disk encryption on Fedora among rhel-likes, so the
@@ -119,19 +131,18 @@ describe("shouldShowControlsTab", () => {
     });
   });
 
-  describe("my device (no per-platform MDM flags available)", () => {
+  // My device can't read per-platform MDM flags, so the tab shows on any
+  // OS-settings platform there.
+  describe("my device", () => {
     const deviceArgs = {
       platform: args.platform,
       osVersion: args.osVersion,
-      enrollmentStatus: args.enrollmentStatus,
+      enrollmentStatus: null,
       hasControls: false,
     };
 
-    it("falls back to host enrollment alone", () => {
+    it("shows the tab without a global MDM flag to check", () => {
       expect(shouldShowControlsTab(deviceArgs)).toBe(true);
-      expect(
-        shouldShowControlsTab({ ...deviceArgs, enrollmentStatus: "Off" })
-      ).toBe(false);
     });
   });
 });

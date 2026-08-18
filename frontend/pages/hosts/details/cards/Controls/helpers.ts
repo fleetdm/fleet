@@ -13,13 +13,14 @@ interface IShowControlsTabArgs {
   /** Whether `generateTableData` derived any rows for this host. */
   hasControls: boolean;
   /** Whether the platform's MDM is on globally. Omitted on My device, whose
-   * config has no per-platform flags — enrollment implies it. */
+   * config carries no per-platform flags; treated as on there. */
   isPlatformMdmEnabled?: boolean;
 }
 
 /**
  * Whether to render the Controls tab for a host: whenever Fleet derived any
- * rows, plus on an enrolled host with none, where the tab earns its empty state.
+ * rows, plus wherever the platform can receive controls at all, where the tab
+ * earns its empty state.
  */
 export const shouldShowControlsTab = ({
   platform,
@@ -39,9 +40,11 @@ export const shouldShowControlsTab = ({
     return true;
   }
 
-  // With nothing to show, only a host that could receive controls earns the
-  // empty state. An unenrolled one gets the Details tab's yellow banner.
-  return isPlatformMdmEnabled && isEnrolledInMdm(enrollmentStatus);
+  // With nothing to show, the tab still earns its empty state wherever the
+  // platform's MDM is on — hiding it would leave an unenrolled host with no
+  // explanation, since the "Turn on MDM" banner is macOS-only. The enrollment
+  // check covers a host still reading as enrolled after MDM was turned off.
+  return isPlatformMdmEnabled || isEnrolledInMdm(enrollmentStatus);
 };
 
 export default shouldShowControlsTab;
