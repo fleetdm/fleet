@@ -28,6 +28,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserCreateValidation", testScimUserCreateValidation},
 		{"ScimUserByID", testScimUserByID},
 		{"ScimUserByUserName", testScimUserByUserName},
+		{"ScimUserFleetUserIDLink", testScimUserFleetUserIDLink},
 		{"ScimUserByUserNameOrEmail", testScimUserByUserNameOrEmail},
 		{"ScimUserByHostID", testScimUserByHostID},
 		{"ScimUserCreateAssociatesAllMatchingHosts", testScimUserCreateAssociatesAllMatchingHosts},
@@ -201,6 +202,55 @@ func testScimNestedGroups(t *testing.T, ds *Datastore) {
 		groupIDs = append(groupIDs, g.ID)
 	}
 	require.ElementsMatch(t, []uint{childID}, groupIDs)
+}
+
+func testScimUserFleetUserIDLink(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	role := fleet.RoleObserver
+	fleetUser, err := ds.NewUser(ctx, &fleet.User{
+		Password:   []byte("p4ssw0rd.123"),
+		Salt:       "salt",
+		Name:       "SCIM Linked",
+		Email:      "linked@example.com",
+		GlobalRole: &role,
+		SSOEnabled: true,
+	})
+	require.NoError(t, err)
+
+	scimID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "linked@example.com"})
+	require.NoError(t, err)
+
+	// Newly created SCIM user is unlinked.
+	got, err := ds.ScimUserByID(ctx, scimID)
+	require.NoError(t, err)
+	require.Nil(t, got.FleetUserID)
+
+	// Set the link; both accessors load it.
+	require.NoError(t, ds.SetScimUserFleetUserID(ctx, scimID, &fleetUser.ID))
+
+	got, err = ds.ScimUserByID(ctx, scimID)
+	require.NoError(t, err)
+	require.NotNil(t, got.FleetUserID)
+	require.Equal(t, fleetUser.ID, *got.FleetUserID)
+
+	byName, err := ds.ScimUserByUserName(ctx, "linked@example.com")
+	require.NoError(t, err)
+	require.NotNil(t, byName.FleetUserID)
+	require.Equal(t, fleetUser.ID, *byName.FleetUserID)
+
+	// Clearing sets it back to NULL.
+	require.NoError(t, ds.SetScimUserFleetUserID(ctx, scimID, nil))
+	got, err = ds.ScimUserByID(ctx, scimID)
+	require.NoError(t, err)
+	require.Nil(t, got.FleetUserID)
+
+	// FK ON DELETE SET NULL: deleting the Fleet user clears the link.
+	require.NoError(t, ds.SetScimUserFleetUserID(ctx, scimID, &fleetUser.ID))
+	require.NoError(t, ds.DeleteUser(ctx, fleetUser.ID))
+	got, err = ds.ScimUserByID(ctx, scimID)
+	require.NoError(t, err)
+	require.Nil(t, got.FleetUserID, "FK ON DELETE SET NULL should clear the link")
 }
 
 func testScimUserByID(t *testing.T, ds *Datastore) {

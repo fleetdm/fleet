@@ -16,7 +16,6 @@ import (
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/scim2/filter-parser/v2"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,10 +33,20 @@ type testMocks struct {
 }
 
 func newTestMocks() *testMocks {
-	return &testMocks{
+	m := &testMocks{
 		ds:  new(mock.Store),
 		svc: new(mockservice.Service),
 	}
+	// Create/replace/patch now attempt to link a matching Fleet user. Provide
+	// no-op defaults so tests that don't exercise linking don't panic on the new
+	// datastore calls; tests that care override these.
+	m.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, platform_mysql.NotFound("User")
+	}
+	m.ds.SetScimUserFleetUserIDFunc = func(ctx context.Context, scimUserID uint, fleetUserID *uint) error {
+		return nil
+	}
+	return m
 }
 
 func (m *testMocks) newTestHandler() *UserHandler {
@@ -86,12 +95,13 @@ func newTestFleetUser(opts *fleetUserOpts) *fleet.User {
 }
 
 type scimUserOpts struct {
-	id         uint
-	userName   string
-	active     *bool
-	givenName  string
-	familyName string
-	emails     []fleet.ScimUserEmail
+	id          uint
+	userName    string
+	fleetUserID uint
+	active      *bool
+	givenName   string
+	familyName  string
+	emails      []fleet.ScimUserEmail
 }
 
 func newTestScimUser(opts *scimUserOpts) *fleet.ScimUser {
@@ -106,6 +116,9 @@ func newTestScimUser(opts *scimUserOpts) *fleet.ScimUser {
 		}
 		if opts.userName != "" {
 			user.UserName = opts.userName
+		}
+		if opts.fleetUserID != 0 {
+			user.FleetUserID = new(opts.fleetUserID)
 		}
 		if opts.active != nil {
 			user.Active = opts.active
@@ -138,14 +151,57 @@ func newTestAttrs(userName string, active *bool, givenName, familyName string) m
 }
 
 func TestDeleteMatchingFleetUser(t *testing.T) {
-	t.Run("no emails in SCIM user", func(t *testing.T) {
+	t.Run("no link and no emails: nothing to resolve", func(t *testing.T) {
 		mocks := newTestMocks()
 		handler := mocks.newTestHandler()
-		scimUser := newTestScimUser(&scimUserOpts{userName: "johndoe"})
+		scimUser := newTestScimUser(&scimUserOpts{id: 7, userName: "johndoe"})
 
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.NoError(t, err)
-		assert.False(t, mocks.ds.UserByEmailFuncInvoked)
+		require.False(t, mocks.ds.UserByEmailFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
+	})
+
+	t.Run("resolves via durable fleet_user_id link, not email", func(t *testing.T) {
+		mocks := newTestMocks()
+		fleetUser := newTestFleetUser(&fleetUserOpts{id: 100, email: "victim@example.com", ssoEnabled: true})
+
+		mocks.ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			require.Equal(t, uint(100), id)
+			return fleetUser, nil
+		}
+		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+			require.Equal(t, uint(100), id)
+			return nil
+		}
+		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		}
+
+		handler := mocks.newTestHandler()
+		// Identifiers are garbage (mutated), but the durable link points at the Fleet user.
+		scimUser := newTestScimUser(&scimUserOpts{id: 7, userName: "nondomain_user_bypass", fleetUserID: 100})
+
+		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
+		require.NoError(t, err)
+
+		require.True(t, mocks.ds.UserByIDFuncInvoked)
+		require.False(t, mocks.ds.UserByEmailFuncInvoked, "must resolve by link, not by email")
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
+	})
+
+	t.Run("linked Fleet user already deleted: no-op", func(t *testing.T) {
+		mocks := newTestMocks()
+		mocks.ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return nil, platform_mysql.NotFound("User")
+		}
+		handler := mocks.newTestHandler()
+		scimUser := newTestScimUser(&scimUserOpts{id: 7, userName: "x@example.com", fleetUserID: 100})
+
+		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
+		require.NoError(t, err)
+		require.True(t, mocks.ds.UserByIDFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("userName is email, matches Fleet user", func(t *testing.T) {
@@ -159,7 +215,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 			return nil, platform_mysql.NotFound("User")
 		}
 		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
-			assert.Equal(t, uint(100), id)
+			require.Equal(t, uint(100), id)
 			return nil
 		}
 
@@ -168,10 +224,10 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 			activityCreated = true
 			deleted, ok := activity.(fleet.ActivityTypeDeletedUser)
 			require.True(t, ok)
-			assert.Equal(t, uint(100), deleted.UserID)
-			assert.Equal(t, "John Doe", deleted.UserName)
-			assert.Equal(t, "john@example.com", deleted.UserEmail)
-			assert.True(t, deleted.FromScimUserDeletion)
+			require.Equal(t, uint(100), deleted.UserID)
+			require.Equal(t, "John Doe", deleted.UserName)
+			require.Equal(t, "john@example.com", deleted.UserEmail)
+			require.True(t, deleted.FromScimUserDeletion)
 			return nil
 		}
 
@@ -181,9 +237,9 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.UserByEmailFuncInvoked)
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
-		assert.True(t, activityCreated)
+		require.True(t, mocks.ds.UserByEmailFuncInvoked)
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
+		require.True(t, activityCreated)
 	})
 
 	t.Run("skips deletion of API-only user", func(t *testing.T) {
@@ -205,8 +261,8 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.UserByEmailFuncInvoked)
-		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
+		require.True(t, mocks.ds.UserByEmailFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("skips deletion of non-SSO user", func(t *testing.T) {
@@ -226,8 +282,8 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.UserByEmailFuncInvoked)
-		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
+		require.True(t, mocks.ds.UserByEmailFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("prevents deleting last global admin", func(t *testing.T) {
@@ -250,11 +306,11 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot delete last global admin")
+		require.Contains(t, err.Error(), "cannot delete last global admin")
 
-		assert.True(t, mocks.ds.UserByEmailFuncInvoked)
-		assert.True(t, mocks.ds.DeleteUserIfNotLastAdminFuncInvoked)
-		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
+		require.True(t, mocks.ds.UserByEmailFuncInvoked)
+		require.True(t, mocks.ds.DeleteUserIfNotLastAdminFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("allows deleting admin when multiple admins exist", func(t *testing.T) {
@@ -281,7 +337,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.DeleteUserIfNotLastAdminFuncInvoked)
+		require.True(t, mocks.ds.DeleteUserIfNotLastAdminFuncInvoked)
 	})
 
 	t.Run("matches on scim_user_emails when userName is not email", func(t *testing.T) {
@@ -317,7 +373,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("no matching Fleet user found", func(t *testing.T) {
@@ -332,8 +388,8 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.UserByEmailFuncInvoked)
-		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
+		require.True(t, mocks.ds.UserByEmailFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("email case insensitive matching", func(t *testing.T) {
@@ -361,8 +417,66 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.NoError(t, err)
 
-		assert.Equal(t, "user@example.com", emailQueried)
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
+		require.Equal(t, "user@example.com", emailQueried)
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
+	})
+}
+
+func TestLinkMatchingFleetUser(t *testing.T) {
+	t.Run("set-once: does not re-point or re-query an existing link", func(t *testing.T) {
+		mocks := newTestMocks()
+		handler := mocks.newTestHandler()
+		// Identifiers now point at a different (victim) address, but the record
+		// is already linked. Linking must be a no-op.
+		scimUser := newTestScimUser(&scimUserOpts{id: 7, userName: "victim@example.com", fleetUserID: 100})
+
+		handler.linkMatchingFleetUser(t.Context(), scimUser)
+
+		require.False(t, mocks.ds.UserByEmailFuncInvoked, "must not look up when already linked")
+		require.False(t, mocks.ds.SetScimUserFleetUserIDFuncInvoked, "must not re-point an existing link")
+		require.NotNil(t, scimUser.FleetUserID)
+		require.Equal(t, uint(100), *scimUser.FleetUserID)
+	})
+
+	t.Run("links when unlinked and an email matches", func(t *testing.T) {
+		mocks := newTestMocks()
+		fleetUser := newTestFleetUser(&fleetUserOpts{id: 100, email: "user@example.com"})
+		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+			if email == "user@example.com" {
+				return fleetUser, nil
+			}
+			return nil, platform_mysql.NotFound("User")
+		}
+		var setScimID uint
+		var setFleetID *uint
+		mocks.ds.SetScimUserFleetUserIDFunc = func(ctx context.Context, scimUserID uint, fleetUserID *uint) error {
+			setScimID = scimUserID
+			setFleetID = fleetUserID
+			return nil
+		}
+		handler := mocks.newTestHandler()
+		scimUser := newTestScimUser(&scimUserOpts{id: 7, userName: "user@example.com"})
+
+		handler.linkMatchingFleetUser(t.Context(), scimUser)
+
+		require.True(t, mocks.ds.SetScimUserFleetUserIDFuncInvoked)
+		require.Equal(t, uint(7), setScimID)
+		require.NotNil(t, setFleetID)
+		require.Equal(t, uint(100), *setFleetID)
+		require.NotNil(t, scimUser.FleetUserID)
+		require.Equal(t, uint(100), *scimUser.FleetUserID)
+	})
+
+	t.Run("no email match leaves the record unlinked", func(t *testing.T) {
+		mocks := newTestMocks() // default UserByEmail returns NotFound
+		handler := mocks.newTestHandler()
+		scimUser := newTestScimUser(&scimUserOpts{id: 7, userName: "user@example.com"})
+
+		handler.linkMatchingFleetUser(t.Context(), scimUser)
+
+		require.True(t, mocks.ds.UserByEmailFuncInvoked)
+		require.False(t, mocks.ds.SetScimUserFleetUserIDFuncInvoked)
+		require.Nil(t, scimUser.FleetUserID)
 	})
 }
 
@@ -394,9 +508,9 @@ func TestUserHandlerDelete(t *testing.T) {
 		err := handler.Delete(req, "1")
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.ScimUserByIDFuncInvoked)
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
-		assert.True(t, mocks.ds.DeleteScimUserFuncInvoked)
+		require.True(t, mocks.ds.ScimUserByIDFuncInvoked)
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
+		require.True(t, mocks.ds.DeleteScimUserFuncInvoked)
 	})
 
 	t.Run("SCIM deletion proceeds even if Fleet user deletion fails", func(t *testing.T) {
@@ -429,8 +543,8 @@ func TestUserHandlerDelete(t *testing.T) {
 		err := handler.Delete(req, "1")
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.DeleteScimUserFuncInvoked)
-		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
+		require.True(t, mocks.ds.DeleteScimUserFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("returns error when SCIM user not found", func(t *testing.T) {
@@ -448,7 +562,7 @@ func TestUserHandlerDelete(t *testing.T) {
 		req := httptest.NewRequest(http.MethodDelete, "/scim/v2/Users/999", nil)
 		err := handler.Delete(req, "999")
 		require.Error(t, err)
-		assert.True(t, mocks.ds.DeleteScimUserFuncInvoked, "DeleteScimUser should be called even when ScimUserByID returns not found")
+		require.True(t, mocks.ds.DeleteScimUserFuncInvoked, "DeleteScimUser should be called even when ScimUserByID returns not found")
 	})
 }
 
@@ -518,7 +632,7 @@ func TestWasDeactivated(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := wasDeactivated(tc.previous, tc.current)
-			assert.Equal(t, tc.expected, result)
+			require.Equal(t, tc.expected, result)
 		})
 	}
 }
@@ -546,7 +660,8 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 			return nil, nil
 		}
 		// Only the pre-replace identifier resolves the Fleet user; the incoming
-		// (mutated) userName/emails must not be used for lookup.
+		// (mutated) userName/emails must not be used for lookup. Linking happens
+		// off the pre-mutation email, after which deletion resolves by id.
 		var lookedUpEmails []string
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 			lookedUpEmails = append(lookedUpEmails, email)
@@ -555,14 +670,17 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 			}
 			return nil, platform_mysql.NotFound("User")
 		}
+		mocks.ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return fleetUser, nil
+		}
 		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
-			assert.Equal(t, uint(100), id)
+			require.Equal(t, uint(100), id)
 			return nil
 		}
 		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 			deleted, ok := activity.(fleet.ActivityTypeDeletedUser)
 			require.True(t, ok)
-			assert.True(t, deleted.FromScimUserDeletion)
+			require.True(t, deleted.FromScimUserDeletion)
 			return nil
 		}
 
@@ -575,8 +693,8 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 		_, err := handler.Replace(req, "1", attrs)
 		require.NoError(t, err)
 
-		assert.Contains(t, lookedUpEmails, "user@example.com", "expected the pre-replace identifier to be used for Fleet user resolution")
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
+		require.Contains(t, lookedUpEmails, "user@example.com", "expected the pre-replace identifier to be used for Fleet user resolution")
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("does not delete Fleet user when active state unchanged", func(t *testing.T) {
@@ -603,7 +721,7 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 		_, err := handler.Replace(httptest.NewRequest(http.MethodPut, "/scim/v2/Users/1", nil), "1", attrs)
 		require.NoError(t, err)
 
-		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("does not delete Fleet user when already inactive", func(t *testing.T) {
@@ -630,7 +748,7 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 		_, err := handler.Replace(httptest.NewRequest(http.MethodPut, "/scim/v2/Users/1", nil), "1", attrs)
 		require.NoError(t, err)
 
-		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("returns uniqueness error when ReplaceScimUser returns wrapped AlreadyExistsError", func(t *testing.T) {
@@ -661,8 +779,8 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 
 		scimErr, ok := err.(scimerrors.ScimError)
 		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
-		assert.Equal(t, http.StatusConflict, scimErr.Status)
-		assert.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
+		require.Equal(t, http.StatusConflict, scimErr.Status)
+		require.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
 	})
 
 	t.Run("returns bad params error when ReplaceScimUser returns SCIMValidationError", func(t *testing.T) {
@@ -692,8 +810,8 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 
 		scimErr, ok := err.(scimerrors.ScimError)
 		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
-		assert.Equal(t, http.StatusBadRequest, scimErr.Status)
-		assert.Contains(t, scimErr.Detail, "given_name")
+		require.Equal(t, http.StatusBadRequest, scimErr.Status)
+		require.Contains(t, scimErr.Detail, "given_name")
 	})
 
 	t.Run("deletes Fleet user when emails are dropped in a deactivating Replace with unchanged userName", func(t *testing.T) {
@@ -726,8 +844,11 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 			}
 			return nil, platform_mysql.NotFound("User")
 		}
+		mocks.ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return fleetUser, nil
+		}
 		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
-			assert.Equal(t, uint(100), id)
+			require.Equal(t, uint(100), id)
 			return nil
 		}
 		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -741,8 +862,8 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 		_, err := handler.Replace(httptest.NewRequest(http.MethodPut, "/scim/v2/Users/1", nil), "1", attrs)
 		require.NoError(t, err)
 
-		assert.Contains(t, lookedUpEmails, "victim@example.com", "expected the pre-replace email to be used for Fleet user resolution")
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
+		require.Contains(t, lookedUpEmails, "victim@example.com", "expected the pre-replace email to be used for Fleet user resolution")
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 }
 
@@ -774,8 +895,11 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 			}
 			return nil, platform_mysql.NotFound("User")
 		}
+		mocks.ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return fleetUser, nil
+		}
 		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
-			assert.Equal(t, uint(100), id)
+			require.Equal(t, uint(100), id)
 			return nil
 		}
 		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -792,9 +916,8 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		activePath, err := filter.ParsePath([]byte("active"))
 		require.NoError(t, err)
 
-		// Mirror the pen-test payload: rename to a non-email userName and drop
-		// emails before deactivating, all in the same PATCH. Deprovisioning must
-		// still resolve and delete the Fleet user via the pre-patch identifiers.
+		// Pen-test payload: rename to a non-email userName and drop emails while
+		// deactivating; deletion must still resolve via the pre-patch identifiers.
 		patchOps := []scim.PatchOperation{
 			{Op: scim.PatchOperationReplace, Path: &userNamePath, Value: "nondomain_user_bypass"},
 			{Op: scim.PatchOperationRemove, Path: &emailsPath},
@@ -804,8 +927,8 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		_, err = handler.Patch(req, "1", patchOps)
 		require.NoError(t, err)
 
-		assert.Contains(t, lookedUpEmails, "user@example.com", "expected the pre-patch identifier to be used for Fleet user resolution")
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
+		require.Contains(t, lookedUpEmails, "user@example.com", "expected the pre-patch identifier to be used for Fleet user resolution")
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("deletes Fleet user when SCIM user is deactivated via Patch without path", func(t *testing.T) {
@@ -826,8 +949,11 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 			return fleetUser, nil
 		}
+		mocks.ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return fleetUser, nil
+		}
 		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
-			assert.Equal(t, uint(100), id)
+			require.Equal(t, uint(100), id)
 			return nil
 		}
 		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -844,7 +970,7 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		_, err := handler.Patch(req, "1", patchOps)
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("does not delete Fleet user when active unchanged via Patch", func(t *testing.T) {
@@ -875,7 +1001,7 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		_, err = handler.Patch(req, "1", patchOps)
 		require.NoError(t, err)
 
-		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("does not delete Fleet user when already inactive", func(t *testing.T) {
@@ -906,7 +1032,7 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		_, err = handler.Patch(req, "1", patchOps)
 		require.NoError(t, err)
 
-		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
+		require.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("returns uniqueness error when ReplaceScimUser returns wrapped AlreadyExistsError via Patch", func(t *testing.T) {
@@ -940,15 +1066,14 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 
 		scimErr, ok := err.(scimerrors.ScimError)
 		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
-		assert.Equal(t, http.StatusConflict, scimErr.Status)
-		assert.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
+		require.Equal(t, http.StatusConflict, scimErr.Status)
+		require.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
 	})
 
 	t.Run("deletes Fleet user when an email is rewritten in place in the same deactivating Patch", func(t *testing.T) {
 		mocks := newTestMocks()
 		// userName is not an email, so the only lookup candidate is the email
-		// element that gets rewritten in place by the filtered-value patch. This
-		// exercises the pre-patch emails snapshot (slices.Clone).
+		// element rewritten in place below — exercising the emails clone.
 		existingScimUser := newTestScimUser(&scimUserOpts{
 			active:     new(true),
 			userName:   "someuser",
@@ -972,8 +1097,11 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 			}
 			return nil, platform_mysql.NotFound("User")
 		}
+		mocks.ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return fleetUser, nil
+		}
 		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
-			assert.Equal(t, uint(100), id)
+			require.Equal(t, uint(100), id)
 			return nil
 		}
 		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -997,8 +1125,60 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		_, err = handler.Patch(req, "1", patchOps)
 		require.NoError(t, err)
 
-		assert.Contains(t, lookedUpEmails, "victim@example.com", "expected the pre-patch email to be used for Fleet user resolution")
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
+		require.Contains(t, lookedUpEmails, "victim@example.com", "expected the pre-patch email to be used for Fleet user resolution")
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
+	})
+
+	t.Run("deletes via durable link when identifiers were already mutated by an earlier request", func(t *testing.T) {
+		mocks := newTestMocks()
+		// Two-step variant: identifiers were already mutated and persisted by an
+		// earlier request, but the durable fleet_user_id link survives, so this
+		// deactivation still deprovisions the Fleet user.
+		existingScimUser := newTestScimUser(&scimUserOpts{
+			id:          9,
+			active:      new(true),
+			userName:    "nondomain_user_bypass",
+			fleetUserID: 100,
+			givenName:   "John",
+			familyName:  "Doe",
+		})
+		fleetUser := newTestFleetUser(&fleetUserOpts{id: 100, ssoEnabled: true})
+
+		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+			return existingScimUser, nil
+		}
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
+		}
+		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+			return nil, platform_mysql.NotFound("User")
+		}
+		mocks.ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			require.Equal(t, uint(100), id)
+			return fleetUser, nil
+		}
+		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+			require.Equal(t, uint(100), id)
+			return nil
+		}
+		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		}
+
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/9", nil)
+
+		activePath, err := filter.ParsePath([]byte("active"))
+		require.NoError(t, err)
+		patchOps := []scim.PatchOperation{
+			{Op: scim.PatchOperationReplace, Path: &activePath, Value: false},
+		}
+
+		_, err = handler.Patch(req, "9", patchOps)
+		require.NoError(t, err)
+
+		require.True(t, mocks.ds.UserByIDFuncInvoked, "should resolve the Fleet user via the durable link")
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
 	t.Run("deletes Fleet user when identifiers are mutated via a pathless multi-op Patch", func(t *testing.T) {
@@ -1026,8 +1206,11 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 			}
 			return nil, platform_mysql.NotFound("User")
 		}
+		mocks.ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return fleetUser, nil
+		}
 		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
-			assert.Equal(t, uint(100), id)
+			require.Equal(t, uint(100), id)
 			return nil
 		}
 		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -1049,8 +1232,8 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		_, err := handler.Patch(req, "1", patchOps)
 		require.NoError(t, err)
 
-		assert.Contains(t, lookedUpEmails, "user@example.com", "expected the pre-patch identifier to be used for Fleet user resolution")
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
+		require.Contains(t, lookedUpEmails, "user@example.com", "expected the pre-patch identifier to be used for Fleet user resolution")
+		require.True(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 }
 
@@ -1081,16 +1264,16 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the user was reactivated (Replace was called, not Create)
-		assert.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
-		assert.False(t, mocks.ds.CreateScimUserFuncInvoked)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.False(t, mocks.ds.CreateScimUserFuncInvoked)
 
 		// Verify the active status is set to true
 		require.NotNil(t, replacedUser)
 		require.NotNil(t, replacedUser.Active)
-		assert.True(t, *replacedUser.Active)
+		require.True(t, *replacedUser.Active)
 
 		// Verify the returned resource has the correct ID
-		assert.Equal(t, "1", resource.ID)
+		require.Equal(t, "1", resource.ID)
 	})
 
 	t.Run("returns uniqueness error when active not explicitly true", func(t *testing.T) {
@@ -1114,8 +1297,8 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		require.Error(t, err)
 
 		// Should not have called Replace or Create
-		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
-		assert.False(t, mocks.ds.CreateScimUserFuncInvoked)
+		require.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.False(t, mocks.ds.CreateScimUserFuncInvoked)
 	})
 
 	t.Run("returns uniqueness error for active user", func(t *testing.T) {
@@ -1138,8 +1321,8 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		require.Error(t, err)
 
 		// Should not have called Replace or Create
-		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
-		assert.False(t, mocks.ds.CreateScimUserFuncInvoked)
+		require.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.False(t, mocks.ds.CreateScimUserFuncInvoked)
 	})
 
 	t.Run("returns uniqueness error when CreateScimUser returns wrapped AlreadyExistsError", func(t *testing.T) {
@@ -1165,8 +1348,8 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		// Should be a SCIM uniqueness error (409), not a 500
 		scimErr, ok := err.(scimerrors.ScimError)
 		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
-		assert.Equal(t, http.StatusConflict, scimErr.Status)
-		assert.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
+		require.Equal(t, http.StatusConflict, scimErr.Status)
+		require.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
 	})
 
 	t.Run("returns bad params error when CreateScimUser returns SCIMValidationError", func(t *testing.T) {
@@ -1192,8 +1375,8 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		// Should be a SCIM bad params error (400), not a 500
 		scimErr, ok := err.(scimerrors.ScimError)
 		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
-		assert.Equal(t, http.StatusBadRequest, scimErr.Status)
-		assert.Contains(t, scimErr.Detail, "user_name")
+		require.Equal(t, http.StatusBadRequest, scimErr.Status)
+		require.Contains(t, scimErr.Detail, "user_name")
 	})
 
 	t.Run("returns uniqueness error for user with nil active", func(t *testing.T) {
@@ -1215,8 +1398,8 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		require.Error(t, err)
 
 		// Should not have called Replace or Create
-		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
-		assert.False(t, mocks.ds.CreateScimUserFuncInvoked)
+		require.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.False(t, mocks.ds.CreateScimUserFuncInvoked)
 	})
 }
 
@@ -1256,7 +1439,7 @@ func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
 		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
 		require.NotNil(t, *saved)
 		require.NotNil(t, (*saved).Department)
-		assert.Equal(t, "Engineering", *(*saved).Department)
+		require.Equal(t, "Engineering", *(*saved).Department)
 	})
 
 	t.Run("no-path value with unrecognized field is ignored, department in same value is applied", func(t *testing.T) {
@@ -1278,7 +1461,7 @@ func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
 		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
 		require.NotNil(t, *saved)
 		require.NotNil(t, (*saved).Department)
-		assert.Equal(t, "Sales", *(*saved).Department)
+		require.Equal(t, "Sales", *(*saved).Department)
 	})
 
 	t.Run("patchName ignores unrecognized name subattributes", func(t *testing.T) {
@@ -1307,8 +1490,8 @@ func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
 		require.NotNil(t, *saved)
 		require.NotNil(t, (*saved).GivenName)
 		require.NotNil(t, (*saved).FamilyName)
-		assert.Equal(t, "WithPrefix", *(*saved).GivenName)
-		assert.Equal(t, "User", *(*saved).FamilyName)
+		require.Equal(t, "WithPrefix", *(*saved).GivenName)
+		require.Equal(t, "User", *(*saved).FamilyName)
 	})
 
 	t.Run("PATCH with only unrecognized explicit-path operations skips database write", func(t *testing.T) {
@@ -1324,7 +1507,7 @@ func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
 			{Op: scim.PatchOperationReplace, Path: &unknownPath, Value: "EMP-2"},
 		})
 		require.NoError(t, err)
-		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
 	})
 
 	t.Run("PATCH with only unrecognized no-path fields skips database write", func(t *testing.T) {
@@ -1343,7 +1526,7 @@ func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
 	})
 
 	t.Run("add op with unrecognized explicit path is silently skipped", func(t *testing.T) {
@@ -1360,7 +1543,7 @@ func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
 			{Op: scim.PatchOperationAdd, Path: &unknownPath, Value: "EMP-1"},
 		})
 		require.NoError(t, err)
-		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
 	})
 
 	t.Run("remove op with unrecognized explicit path is silently skipped", func(t *testing.T) {
@@ -1377,7 +1560,7 @@ func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
 			{Op: scim.PatchOperationRemove, Path: &unknownPath, Value: nil},
 		})
 		require.NoError(t, err)
-		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
 	})
 
 	t.Run("add op with unrecognized path mixed with recognized op applies the recognized one", func(t *testing.T) {
@@ -1398,6 +1581,6 @@ func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
 		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
 		require.NotNil(t, *saved)
 		require.NotNil(t, (*saved).Department)
-		assert.Equal(t, "Sales", *(*saved).Department)
+		require.Equal(t, "Sales", *(*saved).Department)
 	})
 }

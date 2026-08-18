@@ -1,0 +1,1 @@
+- Improved SCIM user deactivation to more reliably deprovision the matching Fleet user.

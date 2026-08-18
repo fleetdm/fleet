@@ -3622,6 +3622,9 @@ type Datastore interface {
 
 	// CreateScimUser creates a new SCIM user in the database
 	CreateScimUser(ctx context.Context, user *ScimUser) (uint, error)
+	// SetScimUserFleetUserID sets (or clears, when fleetUserID is nil) the
+	// durable link from a SCIM user to its matching Fleet user.
+	SetScimUserFleetUserID(ctx context.Context, scimUserID uint, fleetUserID *uint) error
 	// ScimUserByID retrieves a SCIM user by ID
 	ScimUserByID(ctx context.Context, id uint) (*ScimUser, error)
 	// ScimUserByUserName retrieves a SCIM user by username

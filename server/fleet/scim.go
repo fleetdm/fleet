@@ -28,8 +28,12 @@ type ScimUser struct {
 	Department *string   `db:"department"`
 	Active     *bool     `db:"active"`
 	UpdatedAt  time.Time `db:"updated_at"`
-	Emails     []ScimUserEmail
-	Groups     []ScimUserGroup
+	// FleetUserID is the durable link to the matching Fleet user, used to
+	// deprovision that user on deactivation regardless of later changes to
+	// userName/emails. Nil when no matching Fleet user has been resolved.
+	FleetUserID *uint `db:"fleet_user_id"`
+	Emails      []ScimUserEmail
+	Groups      []ScimUserGroup
 }
 
 type ScimUserGroup struct {

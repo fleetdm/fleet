@@ -71,11 +71,21 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 	return userID, err
 }
 
+// SetScimUserFleetUserID sets (or clears) the durable link from a SCIM user to
+// its matching Fleet user.
+func (ds *Datastore) SetScimUserFleetUserID(ctx context.Context, scimUserID uint, fleetUserID *uint) error {
+	const query = `UPDATE scim_users SET fleet_user_id = ? WHERE id = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, fleetUserID, scimUserID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set scim user fleet_user_id")
+	}
+	return nil
+}
+
 // ScimUserByID retrieves a SCIM user by ID
 func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, department, active, updated_at
+			id, external_id, user_name, given_name, family_name, department, active, updated_at, fleet_user_id
 		FROM scim_users
 		WHERE id = ?
 	`
@@ -113,7 +123,7 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 func scimUserByUserName(ctx context.Context, q sqlx.QueryerContext, userName string) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, department, active, updated_at
+			id, external_id, user_name, given_name, family_name, department, active, updated_at, fleet_user_id
 		FROM scim_users
 		WHERE user_name = ?
 	`
