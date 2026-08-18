@@ -71,13 +71,15 @@ Fleet wakes devices through fleetd rather than through WNS (Windows Push Notific
 
 ## User-scoped profile delivery
 
-A Windows profile whose `<LocURI>` targets resolve under `./User/` writes to the OMA-DM user channel. Windows rejects those writes until the enrollment has a user context, and during Windows Autopilot and Entra-join-during-OOBE that context does not exist for the first minute or so of the host's life. Fleet holds those profiles until the device reports a signed-in user, then delivers them.
+A Windows profile whose `<LocURI>` targets resolve under `./User/` writes to the OMA-DM user channel. Windows applies those writes to a signed-in user and rejects them when nobody usable is signed in, which is always the case during Windows Autopilot and Entra-join-during-OOBE. Fleet therefore holds user-scoped profiles until the device reports a signed-in user, then delivers them automatically.
 
-- **Signal**: Windows reports whether an MDM user is signed in through a device event alert (`1224`, type `com.microsoft/MDM/LoginStatus`) at the start of every management session. Fleet persists the reported value per enrollment, because the message carrying it is not otherwise stored.
-- **Hold**: enrollments that bind a user identity, which is the Entra ID and Autopilot path, hold their user-scoped profiles until the device reports a signed-in user. The host profile row stays pending with a detail naming what Fleet is waiting on, and no command is enqueued.
-- **No gate**: enrollments with no bound user identity, which is the fleetd path, are not gated. Fleet cannot tell from the enrollment whether the host's user channel is writable, so it delivers and lets any rejection surface through the normal failure path. In practice these hosts reject user-scoped writes, but Fleet does not predict that from the enrollment type.
+- **Signal**: Windows reports its sign-in state through the `com.microsoft/MDM/LoginStatus` device alert at the start of every management session. Fleet persists the last reported value per enrollment and gates delivery on it.
+- **Hold**: while the host is waiting for a user, the profile stays pending with a detail explaining the wait, and nothing is sent to the device. Removals of user-scoped profiles wait for a signed-in user the same way, so Fleet does not report a profile as removed while the setting may still be applied.
+- **Enrollment kinds**: an enrollment created by a user (Entra ID, Autopilot) waits for a signed-in Microsoft Entra user. A fleetd-enrolled host waits for any signed-in user, and Windows applies the settings to whoever that is.
 
-Fleet decides whether a profile is user scoped by reading the LocURIs in the command it sends. It uses the same parser that builds that command, so what Fleet classifies always matches what the host receives. Fleet treats a profile that mixes device-scoped and user-scoped targets as user scoped, and holds it as a unit.
+A rejection caused by the missing user context is not counted against the profile's retry budget, and a held profile does not block the Autopilot setup experience (ESP) from completing, since the user cannot sign in until setup finishes.
+
+Fleet decides whether a profile is user scoped by reading the LocURIs in the command it sends, using the same parser that builds that command, so classification always matches what the host receives. A profile that mixes device-scoped and user-scoped targets is treated as user scoped and held as a unit.
 
 ## Related resources
 
