@@ -118,6 +118,13 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 			"connections":     connections,
 			"read_stats":      readStats,
 		}
+		// Interval check job timing, for the dashboard's "next sync" countdown.
+		// Remaining time is computed server-side so client clock skew doesn't
+		// matter; zero until the job records its first tick.
+		if next := agentWSHub.NextCheck(); !next.IsZero() {
+			payload["check_interval_seconds"] = config.WebSocket.CheckInterval.Seconds()
+			payload["next_check_in_ms"] = max(0, time.Until(next).Milliseconds())
+		}
 
 		// Resolve hostnames for read-stats hosts with no connection (their
 		// snapshot carries no host info). Stale enrollments whose host was

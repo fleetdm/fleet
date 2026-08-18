@@ -721,7 +721,13 @@ func TestListHostIDsDueForDistributedRead(t *testing.T) {
 	due, err := svc.ListHostIDsDueForDistributedRead(ctx, []uint{1, 2, 3, 4, 5, 6, 7})
 	require.NoError(t, err)
 	assert.Equal(t, []uint{1, 2, 3, 4, 5, 6, 7}, gotIDs)
-	assert.Equal(t, []uint{2, 3, 4, 5, 6}, due)
+	assert.Equal(t, map[uint]string{
+		2: fleet.AgentWSReasonDetail,
+		3: fleet.AgentWSReasonLabel,
+		4: fleet.AgentWSReasonPolicy,
+		5: fleet.AgentWSReasonRefetch,
+		6: fleet.AgentWSReasonRefetch,
+	}, due)
 }
 
 func TestAuthenticateHostContextCanceled(t *testing.T) {

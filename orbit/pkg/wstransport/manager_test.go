@@ -44,6 +44,65 @@ func (c *countingClient) readCount() int {
 	return c.reads
 }
 
+// gatedClient blocks each DistributedRead until released, so tests can hold
+// an iteration in the reading state deterministically.
+type gatedClient struct {
+	mu      sync.Mutex
+	reads   int
+	resp    *client.DistributedReadResponse
+	err     error
+	started chan struct{} // receives one value when a read starts
+	release chan struct{} // each read waits for one value before returning
+}
+
+func newGatedClient() *gatedClient {
+	return &gatedClient{
+		started: make(chan struct{}, 8),
+		release: make(chan struct{}, 8),
+	}
+}
+
+func (g *gatedClient) DistributedRead() (*client.DistributedReadResponse, error) {
+	g.mu.Lock()
+	g.reads++
+	g.mu.Unlock()
+	g.started <- struct{}{}
+	<-g.release
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.err != nil {
+		return nil, g.err
+	}
+	if g.resp != nil {
+		return g.resp, nil
+	}
+	return &client.DistributedReadResponse{}, nil
+}
+
+func (g *gatedClient) DistributedWrite(*client.DistributedWriteRequest) error { return nil }
+
+func (g *gatedClient) readCount() int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.reads
+}
+
+// stateSnapshot returns the manager's iteration state and pending bit.
+func (m *Manager) stateSnapshot() (iterState, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.state, m.pending
+}
+
+// newStateManager returns a Manager for driving the iteration state machine
+// directly, without the connection and polling loops.
+func newStateManager(t *testing.T, fc distributedClient) *Manager {
+	t.Helper()
+	m := NewManager(Options{Client: fc, Cache: NewQueryCache()})
+	t.Cleanup(func() { m.Interrupt(nil) })
+	return m
+}
+
 // wsTestServer upgrades authenticated requests and tracks connections.
 type wsTestServer struct {
 	srv      *httptest.Server
@@ -142,6 +201,104 @@ func newTestManager(t *testing.T, serverURL string, fc distributedClient, cache 
 		}
 	})
 	return m
+}
+
+func TestManagerTriggerCoalescesUntilWriteDone(t *testing.T) {
+	fc := &countingClient{resp: &client.DistributedReadResponse{Queries: map[string]string{"q1": "SELECT 1"}}}
+	m := newStateManager(t, fc)
+
+	m.trigger()
+	require.Eventually(t, func() bool { s, _ := m.stateSnapshot(); return s == iterDelivered },
+		2*time.Second, time.Millisecond)
+	require.Equal(t, 1, fc.readCount())
+
+	// Triggers during the iteration — notifications or poll ticks alike —
+	// coalesce into a single pending bit, no extra reads.
+	m.trigger()
+	m.trigger()
+	s, pending := m.stateSnapshot()
+	assert.Equal(t, iterDelivered, s)
+	assert.True(t, pending)
+	assert.Equal(t, 1, fc.readCount())
+
+	// osquery picks up the queries: awaiting the write, still no new read.
+	queries, _, _ := m.takeQueries()
+	assert.Equal(t, "SELECT 1", queries["q1"])
+	s, _ = m.stateSnapshot()
+	assert.Equal(t, iterAwaitingWrite, s)
+	assert.Equal(t, 1, fc.readCount())
+	m.trigger()
+
+	// The write completes: exactly one queued follow-up read runs.
+	m.writeDone()
+	require.Eventually(t, func() bool { return fc.readCount() == 2 }, 2*time.Second, time.Millisecond)
+	require.Eventually(t, func() bool { s, p := m.stateSnapshot(); return s == iterDelivered && !p },
+		2*time.Second, time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
+	assert.Equal(t, 2, fc.readCount())
+}
+
+func TestManagerEmptyReadEndsIterationAndFiresPending(t *testing.T) {
+	gc := newGatedClient()
+	m := newStateManager(t, gc)
+
+	m.trigger()
+	<-gc.started // read 1 in flight
+	m.trigger()  // queued while reading
+	gc.release <- struct{}{}
+
+	// The empty response ends the iteration at the read (no write will
+	// follow), so the queued trigger fires a second read immediately.
+	<-gc.started
+	gc.release <- struct{}{}
+	require.Eventually(t, func() bool { s, p := m.stateSnapshot(); return s == iterIdle && !p },
+		2*time.Second, time.Millisecond)
+	assert.Equal(t, 2, gc.readCount())
+}
+
+func TestManagerDeadPassRecoveredByNextPoll(t *testing.T) {
+	fc := &countingClient{resp: &client.DistributedReadResponse{Queries: map[string]string{"q1": "SELECT 1"}}}
+	m := newStateManager(t, fc)
+
+	m.trigger()
+	require.Eventually(t, func() bool { s, _ := m.stateSnapshot(); return s == iterDelivered },
+		2*time.Second, time.Millisecond)
+
+	// osquery picks up the queries, then dies before writing results.
+	queries, _, _ := m.takeQueries()
+	require.NotEmpty(t, queries)
+
+	// The server's next interval re-notify parks in the pending bit.
+	m.trigger()
+	s, pending := m.stateSnapshot()
+	assert.Equal(t, iterAwaitingWrite, s)
+	assert.True(t, pending)
+	assert.Equal(t, 1, fc.readCount())
+
+	// The restarted osquery's next poll finds an empty cache while a write
+	// was still expected: the dead iteration closes and the queued read runs.
+	queries, _, _ = m.takeQueries()
+	assert.Empty(t, queries)
+	require.Eventually(t, func() bool { return fc.readCount() == 2 }, 2*time.Second, time.Millisecond)
+}
+
+func TestManagerReadErrorDropsPending(t *testing.T) {
+	gc := newGatedClient()
+	gc.err = assert.AnError
+	m := newStateManager(t, gc)
+
+	m.trigger()
+	<-gc.started
+	m.trigger() // queued while reading
+	gc.release <- struct{}{}
+
+	// A failed read ends the iteration AND drops the queued trigger: retrying
+	// immediately would tight-loop against a failing server; the server's
+	// re-notify or the polling fallback re-triggers instead.
+	require.Eventually(t, func() bool { s, p := m.stateSnapshot(); return s == iterIdle && !p },
+		2*time.Second, time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
+	assert.Equal(t, 1, gc.readCount())
 }
 
 func TestManagerConnectsAndReadsOnNotification(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"net/url"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -76,32 +77,60 @@ func (o *Options) applyDefaults() {
 	}
 }
 
+// iterState tracks one distributed read iteration: the HTTP distributed/read,
+// osquery picking up the cached queries on its local poll, and the resulting
+// distributed/write. Exactly one iteration runs at a time; triggers arriving
+// while one is in flight coalesce into a single queued follow-up (see
+// Manager.trigger).
+type iterState int
+
+const (
+	// iterIdle: no iteration in flight; a trigger starts one.
+	iterIdle iterState = iota
+	// iterReading: the HTTP distributed/read is in flight.
+	iterReading
+	// iterDelivered: queries are cached, waiting for osquery's next local
+	// distributed poll to pick them up.
+	iterDelivered
+	// iterAwaitingWrite: osquery took the queries and is running them; the
+	// iteration ends when their distributed/write completes — or, for a pass
+	// that never writes (osquery crashed mid-run, or every query was
+	// discovery-filtered), when osquery's next local poll arrives (see
+	// Manager.takeQueries).
+	iterAwaitingWrite
+)
+
 // Manager holds the WebSocket connection to the Fleet server and falls back to
 // polling while it is disconnected. It is an oklog/run-compatible subsystem
 // (Execute/Interrupt).
 //
-// State machine: polling runs on PollInterval whenever the WebSocket is down,
-// and stops the moment it is up. A "check now" notification — or a polling
-// tick — triggers one HTTP distributed/read whose queries go into the cache
-// for osquery's next local poll. There is deliberately no warm-up period and
-// no catch-up read on connect: a notification lost around a (re)connect
-// delays interval work by at most one interval-check re-notify, and missing a
-// live query on a host that was mid-reconnect is accepted (same outcome as
-// the host being offline). The remaining exposure is a half-open connection,
-// which is bounded by the keepalive read deadline for the connection's whole
-// lifetime — a warm-up window would only have narrowed its first minute.
-// When both the WebSocket and HTTP fail, the server (or the path to it) is
-// down and both paths simply keep retrying — there is nothing to "downgrade"
-// to.
+// Polling runs on PollInterval whenever the WebSocket is down, and stops the
+// moment it is up. A "check now" notification — or a polling tick — triggers
+// one distributed read iteration (see iterState) whose queries go into the
+// cache for osquery's next local poll. There is deliberately no warm-up
+// period and no catch-up read on connect: a notification lost around a
+// (re)connect delays interval work by at most one interval-check re-notify,
+// and missing a live query on a host that was mid-reconnect is accepted (same
+// outcome as the host being offline). The remaining exposure is a half-open
+// connection, which is bounded by the keepalive read deadline for the
+// connection's whole lifetime — a warm-up window would only have narrowed its
+// first minute. When both the WebSocket and HTTP fail, the server (or the
+// path to it) is down and both paths simply keep retrying — there is nothing
+// to "downgrade" to.
 type Manager struct {
 	opts Options
 
 	// connected is true while a WebSocket connection is up; polling ticks are
 	// skipped while it is set.
 	connected atomic.Bool
-	// checking singleflights checkNow: overlapping triggers (notification
-	// burst, poll tick during a fetch) collapse into one distributed/read.
-	checking atomic.Bool
+
+	// mu guards the iteration state machine. All triggers (notifications and
+	// poll ticks) and all osquery pass boundaries (query pickup, write
+	// completion) funnel through it, so at most one iteration is in flight
+	// and at most one follow-up is queued.
+	mu      sync.Mutex
+	state   iterState
+	pending bool
 
 	cancel context.CancelFunc
 	ctx    context.Context
@@ -203,7 +232,8 @@ func (m *Manager) readLoop(conn *websocket.Conn) {
 		}
 		switch msg.Type {
 		case fleet.AgentWSMessageTypeDistributedRead:
-			go m.checkNow()
+			log.Debug().Str("reason", msg.Reason).Msg("check-now notification received")
+			m.trigger()
 		default:
 			// Unknown notification types are ignored for forward
 			// compatibility with future channels.
@@ -212,8 +242,8 @@ func (m *Manager) readLoop(conn *websocket.Conn) {
 	}
 }
 
-// pollLoop is the fallback: it performs a distributed read on every tick while
-// the WebSocket is down.
+// pollLoop is the fallback: it triggers a distributed read iteration on every
+// tick while the WebSocket is down.
 func (m *Manager) pollLoop() {
 	ticker := time.NewTicker(m.opts.PollInterval)
 	defer ticker.Stop()
@@ -223,27 +253,99 @@ func (m *Manager) pollLoop() {
 			if m.connected.Load() {
 				continue
 			}
-			m.checkNow()
+			m.trigger()
 		case <-m.ctx.Done():
 			return
 		}
 	}
 }
 
-// checkNow performs one HTTP distributed/read and caches the result for
-// osquery's next local poll. Overlapping calls collapse into one.
-func (m *Manager) checkNow() {
-	if !m.checking.CompareAndSwap(false, true) {
+// trigger starts a distributed read iteration, or queues one if an iteration
+// is already in flight. It is the single entry point for both WebSocket
+// notifications and poll ticks, so both coalesce under the same rule: at most
+// one iteration in flight, at most one follow-up queued. Non-blocking.
+func (m *Manager) trigger() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.state != iterIdle {
+		m.pending = true
 		return
 	}
-	defer m.checking.Store(false)
+	m.state = iterReading
+	go m.runRead()
+}
 
+// runRead performs the iteration's HTTP distributed/read and caches the
+// queries for osquery's next local poll. Called with state == iterReading.
+func (m *Manager) runRead() {
 	resp, err := m.opts.Client.DistributedRead()
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if err != nil {
 		log.Debug().Err(err).Msg("distributed read failed")
+		// Drop any queued trigger too: firing it now would tight-loop against
+		// a failing server. The server's per-tick re-notify (or the polling
+		// fallback) re-triggers as long as the host has due work.
+		m.state = iterIdle
+		m.pending = false
 		return
 	}
 	m.opts.Cache.Set(resp)
+	if len(resp.Queries) == 0 {
+		// No work handed out, so no write will follow: the iteration ends
+		// here and a queued trigger can run immediately.
+		m.state = iterIdle
+		m.firePendingLocked()
+		return
+	}
+	m.state = iterDelivered
+}
+
+// firePendingLocked starts the queued iteration, if any. Callers must hold
+// m.mu, with state just returned to iterIdle.
+func (m *Manager) firePendingLocked() {
+	if !m.pending || m.ctx.Err() != nil {
+		return
+	}
+	m.pending = false
+	m.state = iterReading
+	go m.runRead()
+}
+
+// takeQueries hands the cached queries to osquery's local distributed poll
+// and advances the iteration state. The poll doubles as the recovery signal
+// for a pass that will never write: osquery's distributed passes are
+// sequential within one process (get → run → write), so an empty poll
+// arriving while a write is still expected proves the pass that took the
+// queries died (osquery crashed mid-run and was restarted by osquery.Runner)
+// or finished without writing (every query discovery-filtered). Either way
+// the iteration is over and a queued trigger can run.
+func (m *Manager) takeQueries() (queries, discovery map[string]string, accelerate uint) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	queries, discovery, accelerate = m.opts.Cache.Take()
+	switch {
+	case len(queries) > 0:
+		m.state = iterAwaitingWrite
+	case m.state == iterAwaitingWrite:
+		m.state = iterIdle
+		m.firePendingLocked()
+	}
+	return queries, discovery, accelerate
+}
+
+// writeDone marks the end of a pass whose distributed/write completed. This
+// closes the iteration even when the write failed: the pass is over either
+// way, and on failure the host simply stays due in the server's view, which
+// re-notifies on its next interval check.
+func (m *Manager) writeDone() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.state == iterAwaitingWrite || m.state == iterDelivered {
+		m.state = iterIdle
+		m.firePendingLocked()
+	}
 }
 
 // dial performs the authenticated WebSocket upgrade.

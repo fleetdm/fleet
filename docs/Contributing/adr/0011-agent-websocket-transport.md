@@ -104,7 +104,7 @@ sequenceDiagram
 
 The WebSocket does **not** replace any existing functionality. It acts purely as a notification channel: the server sends a short "check now" signal, and the agent then performs the same HTTP calls it always has. No query data, no config payloads, no results travel over the WebSocket. Everything that works today continues to work exactly the same way. The only difference is that the agent no longer asks on a blind timer; it asks when told to.
 
-Each "check now" signal carries a `type` field indicating which channel the agent should check. In Phase 1 the only value is `type=distributed/read`; future phases add values such as `type=orbit/config` on the same connection.
+Each "check now" signal carries a `type` field indicating which channel the agent should check. In Phase 1 the only value is `type=distributed/read`; future phases add values such as `type=orbit/config` on the same connection. It also carries a `reason` field saying what triggered it — `live-<campaign ID>`, `label`, `policy`, `detail`, or `refetch` — which is informational only, for debugging/troubleshooting (when several kinds of work are due at once, the server picks one).
 
 Because live queries, policies, labels, and host vitals (e.g. software) ingestion all share `distributed/read`, a single WebSocket nudge type covers all four. The agent does not need to know which feature triggered the nudge; it just calls `distributed/read` and the server returns whatever is due.
 
@@ -235,7 +235,7 @@ In a future phase, orbit could also register as osquery's logger and config plug
 
 ### The interval check job
 
-Each server instance runs a lightweight periodic job (e.g. every minute, configurable) that determines which of **its own open WebSocket connections** need a "check now" signal:
+Each server instance runs a lightweight periodic job (every 30 seconds by default, configurable) that determines which of **its own open WebSocket connections** need a "check now" signal:
 
 1. Collect the host IDs of the connections the instance currently holds.
 2. Query MySQL for those hosts' last-updated timestamps: `policy_updated_at`, `label_updated_at`, and `detail_updated_at` (detail queries cover host vitals, including software).
@@ -247,7 +247,7 @@ Design notes:
 - **Batch scan, not per-connection checks.** The job checks all held connections in one pass with a single chunked MySQL query, rather than querying per connection (10k+ queries per tick) or keeping a per-host next-due schedule (state that goes stale when intervals change or timestamps advance via another instance). Steady state is self-staggering: hosts' timestamps are naturally spread out, so each tick finds only a small slice due (~170 hosts/minute at 10k connections and a 1-hour interval). The one case where everything looks due at once — after downtime — is handled by the progressive pacing step.
 - **Not a cluster-wide cron.** The job intentionally does not use Fleet's cron/schedule infrastructure (where a single instance takes a lock and runs the job): only the instance holding a WebSocket can deliver the nudge, so each instance checks exactly the agents it holds. The work is naturally sharded across instances and no Redis coordination is needed.
 - **Staleness comes from MySQL, not instance memory.** The agent's `distributed/read`/`distributed/write` HTTP calls go through the load balancer and may be served by any instance, so the connection-holding instance cannot know locally when the host last reported. The timestamps in the `hosts` table are the source of truth.
-- **Avoid re-nudging.** A due host stays due until its results are ingested and the timestamp advances. The instance should remember the last nudge sent per connection (in memory is fine — the connection lives on this instance) and wait a grace period (e.g. a few minutes) before nudging the same host again, covering agents that are slow to respond without hammering them.
+- **Re-nudge every tick; the agent coalesces.** A due host stays due until its results are ingested and the timestamp advances, so the job nudges it on every tick until then — the MySQL timestamps are the single source of truth, with no server-side grace period suppressing nudges (an earlier design used one, but it delayed *new* work — e.g. a manual refetch requested right after a live query — by the full grace window). The agent bounds the cost instead: orbit runs at most one read → osquery pickup → write iteration at a time and coalesces any nudges (or poll ticks) arriving mid-iteration into a single queued follow-up read. Because ingestion happens synchronously within `distributed/write`, that follow-up read observes the freshly advanced timestamps and returns no work unless something new is genuinely due — expensive queries never run twice for one due-cycle. A pass that dies between query pickup and write (osquery crash; the osquery runner restarts it) is closed by osquery's next local distributed poll, which doubles as the recovery signal, and the per-tick re-nudge re-delivers the work itself.
 
 ## 3. Security analysis
 

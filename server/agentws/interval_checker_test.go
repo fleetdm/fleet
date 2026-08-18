@@ -15,21 +15,21 @@ import (
 type fakeDueLister struct {
 	mu      sync.Mutex
 	batches [][]uint
-	due     map[uint]bool
+	due     map[uint]string // host ID → reason
 	err     error
 }
 
-func (f *fakeDueLister) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) ([]uint, error) {
+func (f *fakeDueLister) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.batches = append(f.batches, slices.Clone(hostIDs))
 	if f.err != nil {
 		return nil, f.err
 	}
-	var due []uint
+	due := make(map[uint]string)
 	for _, id := range hostIDs {
-		if f.due[id] {
-			due = append(due, id)
+		if reason, ok := f.due[id]; ok {
+			due[id] = reason
 		}
 	}
 	return due, nil
@@ -53,38 +53,44 @@ func TestIntervalCheckerNotifiesDueHosts(t *testing.T) {
 	ws2 := dial(t, srv, "key-2")
 	waitForConnCount(t, hub, 2)
 
-	lister := &fakeDueLister{due: map[uint]bool{1: true}}
+	lister := &fakeDueLister{due: map[uint]string{1: fleet.AgentWSReasonLabel}}
 	checker := &IntervalChecker{
 		Hub:       hub,
 		Svc:       lister,
 		Interval:  time.Minute,
-		Grace:     5 * time.Minute,
 		BatchSize: 10,
 		Logger:    discardLogger(),
 	}
 	checker.checkOnce(t.Context())
 
-	// Host 1 is due and gets the notification.
+	// Host 1 is due and gets the notification, carrying the due reason.
 	require.NoError(t, ws1.SetReadDeadline(time.Now().Add(2*time.Second)))
 	var msg fleet.AgentWSMessage
 	require.NoError(t, ws1.ReadJSON(&msg))
 	assert.Equal(t, fleet.AgentWSMessageTypeDistributedRead, msg.Type)
+	assert.Equal(t, fleet.AgentWSReasonLabel, msg.Reason)
 
 	// Host 2 is not due: nothing arrives.
 	require.NoError(t, ws2.SetReadDeadline(time.Now().Add(300*time.Millisecond)))
 	_, _, err := ws2.ReadMessage()
 	require.Error(t, err)
 
-	// Within the grace period the due host is not re-notified.
+	// While the host stays due in the database it is re-notified on every
+	// tick: the database is the source of truth, and the agent coalesces
+	// repeated triggers into one read+write iteration at a time.
+	checker.checkOnce(t.Context())
+	require.NoError(t, ws1.SetReadDeadline(time.Now().Add(2*time.Second)))
+	require.NoError(t, ws1.ReadJSON(&msg))
+	assert.Equal(t, fleet.AgentWSReasonLabel, msg.Reason)
+
+	// Once ingestion clears the due state, notifications stop.
 	lister.mu.Lock()
-	lister.batches = nil
+	lister.due = nil
 	lister.mu.Unlock()
 	checker.checkOnce(t.Context())
-	lister.mu.Lock()
-	for _, batch := range lister.batches {
-		assert.NotContains(t, batch, uint(1))
-	}
-	lister.mu.Unlock()
+	require.NoError(t, ws1.SetReadDeadline(time.Now().Add(300*time.Millisecond)))
+	_, _, err = ws1.ReadMessage()
+	require.Error(t, err)
 }
 
 func TestIntervalCheckerBatching(t *testing.T) {
@@ -100,7 +106,6 @@ func TestIntervalCheckerBatching(t *testing.T) {
 		Hub:       hub,
 		Svc:       lister,
 		Interval:  time.Minute,
-		Grace:     5 * time.Minute,
 		BatchSize: 1,
 		Logger:    discardLogger(),
 	}
@@ -122,7 +127,6 @@ func TestIntervalCheckerListError(t *testing.T) {
 		Hub:       hub,
 		Svc:       lister,
 		Interval:  time.Minute,
-		Grace:     5 * time.Minute,
 		BatchSize: 10,
 		Logger:    discardLogger(),
 	}
@@ -136,7 +140,6 @@ func TestIntervalCheckerRunStopsOnContextDone(t *testing.T) {
 		Hub:       hub,
 		Svc:       &fakeDueLister{},
 		Interval:  10 * time.Millisecond,
-		Grace:     time.Minute,
 		BatchSize: 10,
 		Logger:    discardLogger(),
 	}

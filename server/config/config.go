@@ -916,12 +916,11 @@ func (c ConditionalAccessConfig) Validate(initFatal func(err error, msg string))
 // notification transport (ADR-0011). When TransportEnabled is false (the
 // default), the WebSocket endpoint is not registered and agents poll as usual.
 type WebSocketConfig struct {
-	TransportEnabled    bool          `yaml:"transport_enabled"`
-	PingInterval        time.Duration `yaml:"ping_interval"`
-	PongTimeout         time.Duration `yaml:"pong_timeout"`
-	CheckInterval       time.Duration `yaml:"check_interval"`
-	CheckBatchSize      int           `yaml:"check_batch_size"`
-	RenotifyGracePeriod time.Duration `yaml:"renotify_grace_period"`
+	TransportEnabled bool          `yaml:"transport_enabled"`
+	PingInterval     time.Duration `yaml:"ping_interval"`
+	PongTimeout      time.Duration `yaml:"pong_timeout"`
+	CheckInterval    time.Duration `yaml:"check_interval"`
+	CheckBatchSize   int           `yaml:"check_batch_size"`
 }
 
 // MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
@@ -1977,12 +1976,10 @@ func (man Manager) addConfigs() {
 		"Interval between WebSocket keepalive pings sent to connected agents")
 	man.addConfigDuration("websocket.pong_timeout", 30*time.Second,
 		"Time to wait for a pong before considering an agent WebSocket connection dead")
-	man.addConfigDuration("websocket.check_interval", 1*time.Minute,
+	man.addConfigDuration("websocket.check_interval", 30*time.Second,
 		"Interval of the per-instance job that notifies connected agents with due interval work")
 	man.addConfigInt("websocket.check_batch_size", 500,
 		"Number of connected agents checked per batch by the interval notification job")
-	man.addConfigDuration("websocket.renotify_grace_period", 5*time.Minute,
-		"Minimum time before re-notifying an agent that has not reported results yet")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -2334,12 +2331,11 @@ func (man Manager) LoadConfig() FleetConfig {
 			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
 		},
 		WebSocket: WebSocketConfig{
-			TransportEnabled:    man.getConfigBool("websocket.transport_enabled"),
-			PingInterval:        man.getConfigDuration("websocket.ping_interval"),
-			PongTimeout:         man.getConfigDuration("websocket.pong_timeout"),
-			CheckInterval:       man.getConfigDuration("websocket.check_interval"),
-			CheckBatchSize:      man.getConfigInt("websocket.check_batch_size"),
-			RenotifyGracePeriod: man.getConfigDuration("websocket.renotify_grace_period"),
+			TransportEnabled: man.getConfigBool("websocket.transport_enabled"),
+			PingInterval:     man.getConfigDuration("websocket.ping_interval"),
+			PongTimeout:      man.getConfigDuration("websocket.pong_timeout"),
+			CheckInterval:    man.getConfigDuration("websocket.check_interval"),
+			CheckBatchSize:   man.getConfigInt("websocket.check_batch_size"),
 		},
 	}
 
@@ -2744,12 +2740,11 @@ func TestConfig() FleetConfig {
 			AllowOrbitEndUserAuthBypass: true,
 		},
 		WebSocket: WebSocketConfig{
-			TransportEnabled:    false,
-			PingInterval:        5 * time.Minute,
-			PongTimeout:         30 * time.Second,
-			CheckInterval:       1 * time.Minute,
-			CheckBatchSize:      500,
-			RenotifyGracePeriod: 5 * time.Minute,
+			TransportEnabled: false,
+			PingInterval:     5 * time.Minute,
+			PongTimeout:      30 * time.Second,
+			CheckInterval:    30 * time.Second,
+			CheckBatchSize:   500,
 		},
 	}
 }

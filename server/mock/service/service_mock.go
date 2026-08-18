@@ -37,7 +37,7 @@ type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err
 
 type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule, error)
 
-type ListHostIDsDueForDistributedReadFunc func(ctx context.Context, hostIDs []uint) ([]uint, error)
+type ListHostIDsDueForDistributedReadFunc func(ctx context.Context, hostIDs []uint) (map[uint]string, error)
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error)
 
@@ -2536,7 +2536,7 @@ func (s *Service) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraR
 	return s.YaraRuleByNameFunc(ctx, name)
 }
 
-func (s *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) ([]uint, error) {
+func (s *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error) {
 	s.mu.Lock()
 	s.ListHostIDsDueForDistributedReadFuncInvoked = true
 	s.mu.Unlock()

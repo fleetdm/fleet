@@ -8,10 +8,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// DueLister lists which of the given hosts are due for a distributed read.
-// It is satisfied by fleet.Service.
+// DueLister lists which of the given hosts are due for a distributed read,
+// keyed by host ID with the reason it is due (see the fleet.AgentWSReason
+// constants). It is satisfied by fleet.Service.
 type DueLister interface {
-	ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) ([]uint, error)
+	ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error)
 }
 
 // chunkPacingDelay is the pause between notification batches so a large
@@ -32,7 +33,6 @@ type IntervalChecker struct {
 	Hub       *Hub
 	Svc       DueLister
 	Interval  time.Duration // how often to check (websocket.check_interval)
-	Grace     time.Duration // re-notify grace period (websocket.renotify_grace_period)
 	BatchSize int           // hosts per due-check batch (websocket.check_batch_size)
 	Logger    *slog.Logger
 }
@@ -41,9 +41,11 @@ type IntervalChecker struct {
 func (c *IntervalChecker) Run(ctx context.Context) {
 	ticker := time.NewTicker(c.Interval)
 	defer ticker.Stop()
+	c.Hub.RecordNextCheck(time.Now().Add(c.Interval))
 	for {
 		select {
 		case <-ticker.C:
+			c.Hub.RecordNextCheck(time.Now().Add(c.Interval))
 			c.checkOnce(ctx)
 		case <-ctx.Done():
 			return
@@ -52,10 +54,13 @@ func (c *IntervalChecker) Run(ctx context.Context) {
 }
 
 func (c *IntervalChecker) checkOnce(ctx context.Context) {
-	// Skip hosts notified within the grace period: a due host stays due until
-	// its results are ingested, and we don't want to hammer slow responders on
-	// every tick. Live query notifications share the same timestamps.
-	hostIDs := c.Hub.FilterDueForRenotify(c.Hub.HeldHostIDs(), c.Grace)
+	// Every held connection is checked against the database on every tick: the
+	// hosts table is the single source of truth for due-ness. A due host stays
+	// due until its results are ingested, so it is re-notified each tick until
+	// then — the agent coalesces triggers into one read+write iteration at a
+	// time (see orbit/pkg/wstransport), which bounds the cost of re-notifying
+	// to one cheap follow-up read per iteration.
+	hostIDs := c.Hub.HeldHostIDs()
 
 	notified := 0
 	for start := 0; start < len(hostIDs); start += c.BatchSize {
@@ -77,7 +82,14 @@ func (c *IntervalChecker) checkOnce(ctx context.Context) {
 			c.Logger.ErrorContext(ctx, "list hosts due for distributed read", "err", err)
 			continue
 		}
-		notified += c.Hub.Notify(fleet.AgentWSMessageTypeDistributedRead, due)
+		// Group by reason so each notification carries what made its host due.
+		byReason := make(map[string][]uint)
+		for id, reason := range due {
+			byReason[reason] = append(byReason[reason], id)
+		}
+		for reason, ids := range byReason {
+			notified += c.Hub.Notify(fleet.AgentWSMessageTypeDistributedRead, reason, ids)
+		}
 	}
 
 	if notified > 0 {

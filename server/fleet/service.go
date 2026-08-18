@@ -82,11 +82,13 @@ type OsqueryService interface {
 
 	// ListHostIDsDueForDistributedRead returns the subset of hostIDs whose next
 	// distributed/read would include interval work (label, policy or detail
-	// queries due per their update intervals, or a pending refetch). It is used
+	// queries due per their update intervals, or a pending refetch), keyed by
+	// host ID with the reason it is due (one of the AgentWSReason constants;
+	// when several kinds of work are due, the first due gate wins). It is used
 	// by the WebSocket transport's per-instance interval check job (ADR-0011)
 	// to decide which connected agents to notify, and applies the same
 	// staleness gates (including per-host jitter) as GetDistributedQueries.
-	ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) ([]uint, error)
+	ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error)
 }
 
 // UserLookupService provides methods for looking up users.

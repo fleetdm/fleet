@@ -89,6 +89,7 @@ const dashboardHTML = `<!doctype html>
 <div class="stats">
   <div class="panel stat"><div class="n" id="online">–</div><div class="l">online (all hosts)</div></div>
   <div class="panel stat"><div class="n" id="count">–</div><div class="l">ws connected</div></div>
+  <div class="panel stat"><div class="n" id="nextsync">–</div><div class="l">next sync</div></div>
   <div class="panel stat"><div class="n" id="notified">–</div><div class="l">notifications</div></div>
   <div class="panel stat"><div class="n" id="dropped">–</div><div class="l">dropped</div></div>
   <div class="panel stat"><div class="n" id="bytesin">–</div><div class="l">bytes in</div></div>
@@ -142,6 +143,20 @@ function osIcon(platform) {
   return null;
 }
 
+// nextSyncAt is the local-clock time of the server's next interval-check
+// tick, derived from the server-computed remaining time (next_check_in_ms) so
+// clock skew between server and browser doesn't matter.
+let nextSyncAt = null;
+
+function updateNextSync() {
+  const el = $("nextsync");
+  if (nextSyncAt == null) {
+    el.textContent = "–";
+    return;
+  }
+  el.textContent = Math.max(0, Math.ceil((nextSyncAt - Date.now()) / 1000)) + "s";
+}
+
 function fmtBytes(n) {
   if (n < 1024) return n + " B";
   if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
@@ -182,7 +197,8 @@ function diff(conns) {
     } else {
       const delta = c.notified_count - p.notified_count;
       if (delta > 0) {
-        logEvent("notify", "host " + id + " notified" + (delta > 1 ? " (×" + delta + ")" : ""));
+        const reason = c.last_notify_reason ? " [" + c.last_notify_reason + "]" : "";
+        logEvent("notify", "host " + id + " notified" + reason + (delta > 1 ? " (×" + delta + ")" : ""));
         flashHosts.add(id);
       }
       if (c.dropped_count > p.dropped_count) {
@@ -283,7 +299,9 @@ function render(conns, readStats, data) {
 
     const cells = [
       c.host_id, c.hostname || "–", c.remote_addr, ago(c.connected_at),
-      c.last_notified_at ? ago(c.last_notified_at) + " ago" : "never",
+      c.last_notified_at
+        ? ago(c.last_notified_at) + " ago" + (c.last_notify_reason ? " · " + c.last_notify_reason : "")
+        : "never",
     ];
     cells.forEach((v, i) => {
       const td = document.createElement("td");
@@ -397,6 +415,8 @@ async function poll() {
       return;
     }
     const conns = data.connections || [];
+    nextSyncAt = data.next_check_in_ms != null ? Date.now() + data.next_check_in_ms : null;
+    updateNextSync();
     diff(conns);
     render(conns, data.read_stats || [], data);
     history.push(conns.length);
@@ -412,6 +432,8 @@ async function poll() {
 
 poll();
 setInterval(poll, 1000);
+// Tick the countdown between polls so it never appears to stall.
+setInterval(updateNextSync, 250);
 </script>
 </body>
 </html>

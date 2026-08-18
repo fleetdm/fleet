@@ -33,9 +33,13 @@ type conn struct {
 
 	// lastNotifiedNano is the unix-nano timestamp of the last notification
 	// enqueued for this connection, shared by the live query and interval
-	// notification paths so agents are not re-notified within the grace
-	// period.
+	// notification paths. Kept for observability (see Hub.Snapshot).
 	lastNotifiedNano atomic.Int64
+	// lastNotifyReason is the reason of the last notification enqueued for
+	// this connection, kept for observability (see Hub.Snapshot). It is
+	// updated independently of lastNotifiedNano, so under concurrent enqueues
+	// a snapshot may pair a timestamp with the other enqueue's reason.
+	lastNotifyReason atomic.Pointer[string]
 	// notified/dropped count enqueued and buffer-overflow-dropped
 	// notifications, for observability (see Hub.Snapshot).
 	notified atomic.Int64
@@ -76,6 +80,7 @@ func (c *conn) bytesInOut() (in, out int64) {
 // buffer is full. Best-effort by design; see sendBufferSize.
 func (c *conn) enqueue(msg fleet.AgentWSMessage) {
 	c.lastNotifiedNano.Store(time.Now().UnixNano())
+	c.lastNotifyReason.Store(&msg.Reason)
 	select {
 	case c.send <- msg:
 		c.notified.Add(1)
@@ -94,6 +99,15 @@ func (c *conn) enqueue(msg fleet.AgentWSMessage) {
 	default:
 		c.dropped.Add(1)
 	}
+}
+
+// lastNotifyReasonLoad returns the reason of the last enqueued notification,
+// or "" when none was enqueued yet.
+func (c *conn) lastNotifyReasonLoad() string {
+	if reason := c.lastNotifyReason.Load(); reason != nil {
+		return *reason
+	}
+	return ""
 }
 
 func (c *conn) lastNotified() time.Time {

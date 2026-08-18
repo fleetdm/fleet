@@ -31,11 +31,13 @@ const (
 
 // AgentNotification is the payload published on the agent notifications
 // channel. It carries only the notification type, the targeted host IDs and
-// (for live queries) the campaign ID — never query content or results.
+// the reason that triggered it (e.g. "live-<campaign ID>") — never query
+// content or results. The reason is forwarded to the agents for
+// debugging/troubleshooting.
 type AgentNotification struct {
-	Type       string `json:"type"`
-	HostIDs    []uint `json:"host_ids"`
-	CampaignID uint   `json:"campaign_id,omitempty"`
+	Type    string `json:"type"`
+	HostIDs []uint `json:"host_ids"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // RedisAgentNotifier publishes and subscribes to agent check-in wake-ups over
@@ -65,9 +67,9 @@ func (n *RedisAgentNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hostI
 
 	for chunk := range slices.Chunk(hostIDs, publishHostIDsChunkSize) {
 		payload, err := json.Marshal(AgentNotification{
-			Type:       fleet.AgentWSMessageTypeDistributedRead,
-			HostIDs:    chunk,
-			CampaignID: campaignID,
+			Type:    fleet.AgentWSMessageTypeDistributedRead,
+			HostIDs: chunk,
+			Reason:  fleet.AgentWSReasonLiveQuery(campaignID),
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marshal agent notification")

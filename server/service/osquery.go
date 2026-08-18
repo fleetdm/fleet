@@ -930,22 +930,23 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 const dueHostsChunkSize = 1000
 
 // ListHostIDsDueForDistributedRead returns the subset of hostIDs whose next
-// distributed/read would include interval work. It reuses the same staleness
-// gates as the read path (shouldUpdate, including the per-host jitter tables),
-// so notification and read decisions agree by construction.
+// distributed/read would include interval work, keyed by host ID with the
+// reason it is due. It reuses the same staleness gates as the read path
+// (shouldUpdate, including the per-host jitter tables), so notification and
+// read decisions agree by construction.
 //
 // Known limitation (ADR-0011 POC): when async task processing is enabled, the
 // label/policy reported-at timestamps may be fresher in Redis (see
 // Task.GetHostLabelReportedAt / GetHostPolicyReportedAt) than the hosts table
 // columns used here. This can only over-notify (the resulting distributed/read
-// returns no work), never miss due work, and re-notification is bounded by the
-// interval check job's grace period.
-func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) ([]uint, error) {
+// returns no work), never miss due work, and costs at most one cheap empty
+// read per interval check tick until the async timestamps are flushed.
+func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error) {
 	// skipauth: internal caller (the per-instance interval check job), not a
 	// user-facing endpoint.
 	svc.authz.SkipAuthorization(ctx)
 
-	var due []uint
+	due := make(map[uint]string)
 	for start := 0; start < len(hostIDs); start += dueHostsChunkSize {
 		end := min(start+dueHostsChunkSize, len(hostIDs))
 		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs[start:end])
@@ -953,8 +954,8 @@ func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostID
 			return nil, ctxerr.Wrap(ctx, err, "list hosts due for distributed read")
 		}
 		for _, host := range hosts {
-			if svc.hostDueForDistributedRead(host) {
-				due = append(due, host.ID)
+			if reason := svc.hostDueForDistributedRead(host); reason != "" {
+				due[host.ID] = reason
 			}
 		}
 	}
@@ -963,17 +964,24 @@ func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostID
 
 // hostDueForDistributedRead mirrors the gates of detailQueriesForHost,
 // labelQueriesForHost and policyQueriesForHost: any single gate being due
-// means the host's next distributed/read carries work.
-func (svc *Service) hostDueForDistributedRead(host *fleet.Host) bool {
-	if host.RefetchRequested {
-		return true
+// means the host's next distributed/read carries work. It returns the reason
+// of the first due gate ("" when none is due); the reason is informational
+// only, so ties are not enumerated.
+func (svc *Service) hostDueForDistributedRead(host *fleet.Host) string {
+	switch {
+	case host.RefetchRequested:
+		return fleet.AgentWSReasonRefetch
+	case host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()):
+		return fleet.AgentWSReasonRefetch
+	case svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID):
+		return fleet.AgentWSReasonDetail
+	case svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval, host.ID):
+		return fleet.AgentWSReasonLabel
+	case svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID):
+		return fleet.AgentWSReasonPolicy
+	default:
+		return ""
 	}
-	if host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()) {
-		return true
-	}
-	return svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) ||
-		svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) ||
-		svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID)
 }
 
 func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {

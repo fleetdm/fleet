@@ -28,10 +28,16 @@ func (f *fakeDistributedClient) DistributedWrite(req *client.DistributedWriteReq
 	return nil
 }
 
+// newPluginManager returns a Manager suitable for exercising the distributed
+// plugin's state interactions without running the connection loops.
+func newPluginManager(fc distributedClient) *Manager {
+	return NewManager(Options{Client: fc, Cache: NewQueryCache()})
+}
+
 func TestDistributedPluginGetQueries(t *testing.T) {
-	cache := NewQueryCache()
 	fc := &fakeDistributedClient{}
-	plugin := NewDistributedPlugin(cache, fc)
+	m := newPluginManager(fc)
+	plugin := NewDistributedPlugin(m, fc)
 
 	assert.Equal(t, DistributedPluginName, plugin.Name())
 	assert.Equal(t, "distributed", plugin.RegistryName())
@@ -43,7 +49,7 @@ func TestDistributedPluginGetQueries(t *testing.T) {
 	assert.JSONEq(t, `{"queries":{}}`, resp.Response[0]["results"])
 	assert.Zero(t, fc.readCalls)
 
-	cache.Set(&client.DistributedReadResponse{
+	m.opts.Cache.Set(&client.DistributedReadResponse{
 		Queries:    map[string]string{"q1": "SELECT 1"},
 		Discovery:  map[string]string{"q1": "SELECT 1"},
 		Accelerate: 10,
@@ -56,13 +62,21 @@ func TestDistributedPluginGetQueries(t *testing.T) {
 }
 
 func TestDistributedPluginWriteResults(t *testing.T) {
-	cache := NewQueryCache()
 	fc := &fakeDistributedClient{}
-	plugin := NewDistributedPlugin(cache, fc)
+	m := newPluginManager(fc)
+	plugin := NewDistributedPlugin(m, fc)
+
+	// Walk an iteration into awaiting-write so the write closes it.
+	m.mu.Lock()
+	m.state = iterAwaitingWrite
+	m.mu.Unlock()
 
 	results := `{"queries":{"q1":[{"col":"val"}],"q2":[]},"statuses":{"q1":"0","q2":"1"},"messages":{"q2":"query failed"},"stats":{"q1":{"wall_time_ms":5,"user_time":2,"system_time":1,"memory":1024}}}`
 	resp := plugin.Call(context.Background(), map[string]string{"action": "writeResults", "results": results})
 	require.Equal(t, int32(0), resp.Status.Code, resp.Status.Message)
+
+	state, _ := m.stateSnapshot()
+	assert.Equal(t, iterIdle, state, "completed write must close the iteration")
 
 	require.Equal(t, 1, fc.writeCalls)
 	req := fc.writeReq
@@ -77,10 +91,20 @@ func TestDistributedPluginWriteResults(t *testing.T) {
 }
 
 func TestDistributedPluginWriteResultsEmpty(t *testing.T) {
-	// Results can legitimately be empty (nothing was cached); no write happens.
+	// Results can legitimately be empty (everything discovery-filtered); no
+	// HTTP write happens, but the pass — and its iteration — still ends.
 	fc := &fakeDistributedClient{}
-	plugin := NewDistributedPlugin(NewQueryCache(), fc)
+	m := newPluginManager(fc)
+	plugin := NewDistributedPlugin(m, fc)
+
+	m.mu.Lock()
+	m.state = iterAwaitingWrite
+	m.mu.Unlock()
+
 	resp := plugin.Call(context.Background(), map[string]string{"action": "writeResults", "results": `{"queries":{},"statuses":{}}`})
 	require.Equal(t, int32(0), resp.Status.Code, resp.Status.Message)
 	assert.Zero(t, fc.writeCalls)
+
+	state, _ := m.stateSnapshot()
+	assert.Equal(t, iterIdle, state, "zero-result write must still close the iteration")
 }

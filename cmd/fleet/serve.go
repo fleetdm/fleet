@@ -661,7 +661,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
 		svc.SetAgentCheckInNotifier(agentNotifier)
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
-			agentWSHub.Notify(n.Type, n.HostIDs)
+			agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
 		})
 		// Each instance checks only the connections it holds, so this is a
 		// plain per-instance goroutine, not a locked cron job.
@@ -669,7 +669,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			Hub:       agentWSHub,
 			Svc:       svc,
 			Interval:  config.WebSocket.CheckInterval,
-			Grace:     config.WebSocket.RenotifyGracePeriod,
 			BatchSize: config.WebSocket.CheckBatchSize,
 			Logger:    logger.With("component", "agentws-interval-checker"),
 		}).Run(ctx)

@@ -1545,26 +1545,24 @@ func orbitAction(c *cli.Context) error {
 	}
 
 	if wsTransportEnabled {
-		// The query cache links the two halves of the WebSocket transport: the
-		// manager fills it on "check now" notifications (or polling fallback),
-		// and osquery drains it through the distributed plugin on its local
-		// distributed poll.
-		wsQueryCache := wstransport.NewQueryCache()
-		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsQueryCache, orbitClient)))
-
 		parsedFleetURL, err := url.Parse(fleetURL)
 		if err != nil {
 			return fmt.Errorf("parse Fleet URL for websocket transport: %w", err)
 		}
-		addSubsystem(&g, "websocket transport", wstransport.NewManager(wstransport.Options{
+		wsManager := wstransport.NewManager(wstransport.Options{
 			ServerURL:          parsedFleetURL,
 			RootCA:             c.String("fleet-certificate"),
 			InsecureSkipVerify: c.Bool("insecure"),
 			ClientCertificate:  fleetClientCertificate,
 			NodeKeyFunc:        orbitClient.GetNodeKey,
 			Client:             orbitClient,
-			Cache:              wsQueryCache,
-		}))
+			Cache:              wstransport.NewQueryCache(),
+		})
+		addSubsystem(&g, "websocket transport", wsManager)
+		// The distributed plugin drains the manager's query cache on osquery's
+		// local distributed poll and reports the pass boundaries (query pickup,
+		// write completion) back to the manager's iteration state machine.
+		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsManager, orbitClient)))
 	}
 
 	registerExtensionRunner(

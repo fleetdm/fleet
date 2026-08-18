@@ -49,7 +49,7 @@ func TestHandlerByteCountingDisabled(t *testing.T) {
 	ws := dial(t, srv, "key-1")
 	waitForConnCount(t, hub, 1)
 
-	require.Equal(t, 1, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, []uint{1}))
+	require.Equal(t, 1, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, fleet.AgentWSReasonDetail, []uint{1}))
 	require.NoError(t, ws.SetReadDeadline(time.Now().Add(2*time.Second)))
 	var msg fleet.AgentWSMessage
 	require.NoError(t, ws.ReadJSON(&msg))
@@ -117,13 +117,14 @@ func TestHandlerNotifyDelivery(t *testing.T) {
 	waitForConnCount(t, hub, 1)
 
 	// Host 1 is connected, hosts 2 and 3 are not.
-	sent := hub.Notify(fleet.AgentWSMessageTypeDistributedRead, []uint{1, 2, 3})
+	sent := hub.Notify(fleet.AgentWSMessageTypeDistributedRead, fleet.AgentWSReasonDetail, []uint{1, 2, 3})
 	assert.Equal(t, 1, sent)
 
 	require.NoError(t, ws.SetReadDeadline(time.Now().Add(2*time.Second)))
 	var msg fleet.AgentWSMessage
 	require.NoError(t, ws.ReadJSON(&msg))
 	assert.Equal(t, fleet.AgentWSMessageTypeDistributedRead, msg.Type)
+	assert.Equal(t, fleet.AgentWSReasonDetail, msg.Reason)
 
 	// Byte counters: the delivered notification (and the 101 handshake
 	// response) count as bytes out; a client data frame counts as bytes in.
@@ -141,6 +142,7 @@ func TestHandlerNotifyDelivery(t *testing.T) {
 	assert.Equal(t, int64(1), snap[0].NotifiedCount)
 	assert.Equal(t, int64(0), snap[0].DroppedCount)
 	assert.NotNil(t, snap[0].LastNotifiedAt)
+	assert.Equal(t, fleet.AgentWSReasonDetail, snap[0].LastNotifyReason)
 	assert.False(t, snap[0].ConnectedAt.IsZero())
 }
 
@@ -160,7 +162,7 @@ func TestHandlerEvictsPreviousConnection(t *testing.T) {
 	require.Error(t, err)
 
 	// The second connection still receives notifications.
-	require.Equal(t, 1, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, []uint{1}))
+	require.Equal(t, 1, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, fleet.AgentWSReasonDetail, []uint{1}))
 	require.NoError(t, second.SetReadDeadline(time.Now().Add(2*time.Second)))
 	var msg fleet.AgentWSMessage
 	require.NoError(t, second.ReadJSON(&msg))
@@ -176,7 +178,7 @@ func TestHandlerDisconnectUnregisters(t *testing.T) {
 
 	ws.Close()
 	waitForConnCount(t, hub, 0)
-	assert.Equal(t, 0, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, []uint{1}))
+	assert.Equal(t, 0, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, fleet.AgentWSReasonDetail, []uint{1}))
 }
 
 func TestHandlerKeepaliveClosesDeadPeer(t *testing.T) {
@@ -188,27 +190,6 @@ func TestHandlerKeepaliveClosesDeadPeer(t *testing.T) {
 	dial(t, srv, "key-1")
 	waitForConnCount(t, hub, 1)
 	waitForConnCount(t, hub, 0)
-}
-
-func TestHubFilterDueForRenotify(t *testing.T) {
-	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
-	srv := newTestServer(t, hub)
-
-	ws1 := dial(t, srv, "key-1")
-	dial(t, srv, "key-2")
-	waitForConnCount(t, hub, 2)
-	_ = ws1
-
-	// Nothing notified yet: both are due; unheld host 3 is filtered out.
-	assert.ElementsMatch(t, []uint{1, 2}, hub.FilterDueForRenotify([]uint{1, 2, 3}, time.Minute))
-
-	// After notifying host 1, it is inside the grace period; host 2 is still due.
-	hub.Notify(fleet.AgentWSMessageTypeDistributedRead, []uint{1})
-	assert.ElementsMatch(t, []uint{2}, hub.FilterDueForRenotify([]uint{1, 2}, time.Minute))
-
-	// Once the grace period has passed, every connected host is due again.
-	time.Sleep(5 * time.Millisecond)
-	assert.ElementsMatch(t, []uint{1, 2}, hub.FilterDueForRenotify([]uint{1, 2}, time.Millisecond))
 }
 
 func TestHubReadStats(t *testing.T) {

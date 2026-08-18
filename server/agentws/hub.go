@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -27,6 +28,26 @@ type Hub struct {
 	// ReadStats). Kept on the hub so the debug endpoint can report them
 	// alongside the connections.
 	reads readStatsRegistry
+
+	// nextCheckNano is the unix-nano timestamp of the interval check job's
+	// next tick, recorded by the job for observability (the /debug/agentws
+	// endpoint's "next sync" countdown); zero until the job first runs.
+	nextCheckNano atomic.Int64
+}
+
+// RecordNextCheck stores when the interval check job runs next.
+func (h *Hub) RecordNextCheck(t time.Time) {
+	h.nextCheckNano.Store(t.UnixNano())
+}
+
+// NextCheck returns when the interval check job runs next, or the zero time
+// if it hasn't recorded a tick yet.
+func (h *Hub) NextCheck() time.Time {
+	nano := h.nextCheckNano.Load()
+	if nano == 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, nano)
 }
 
 func NewHub(logger *slog.Logger, pingInterval, pongTimeout time.Duration) *Hub {
@@ -73,13 +94,13 @@ func (h *Hub) unregister(hostID uint, c *conn) {
 	h.mu.Unlock()
 }
 
-// Notify enqueues a notification of the given type to each of hostIDs whose
-// connection this instance holds, and returns how many were notified. Hosts
-// connected to other instances (or not connected at all) are skipped:
-// delivery is best-effort by design, with the interval check job and the
-// agent's polling fallback as the safety nets.
-func (h *Hub) Notify(msgType string, hostIDs []uint) int {
-	msg := fleet.AgentWSMessage{Type: msgType}
+// Notify enqueues a notification of the given type and reason to each of
+// hostIDs whose connection this instance holds, and returns how many were
+// notified. Hosts connected to other instances (or not connected at all) are
+// skipped: delivery is best-effort by design, with the interval check job and
+// the agent's polling fallback as the safety nets.
+func (h *Hub) Notify(msgType, reason string, hostIDs []uint) int {
+	msg := fleet.AgentWSMessage{Type: msgType, Reason: reason}
 
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -105,27 +126,6 @@ func (h *Hub) HeldHostIDs() []uint {
 	return ids
 }
 
-// FilterDueForRenotify returns the subset of hostIDs that were not notified
-// within the last grace period (and are still connected). It keeps slow
-// responders from being re-notified on every interval check tick.
-func (h *Hub) FilterDueForRenotify(hostIDs []uint, grace time.Duration) []uint {
-	cutoff := time.Now().Add(-grace)
-
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	due := make([]uint, 0, len(hostIDs))
-	for _, id := range hostIDs {
-		c, ok := h.conns[id]
-		if !ok {
-			continue
-		}
-		if last := c.lastNotified(); last.IsZero() || last.Before(cutoff) {
-			due = append(due, id)
-		}
-	}
-	return due
-}
-
 // ConnCount returns the number of connections this instance holds. It is the
 // hook for future per-instance connection caps and rebalancing (deferred from
 // the ADR-0011 POC).
@@ -144,8 +144,11 @@ type ConnectionInfo struct {
 	RemoteAddr     string     `json:"remote_addr"`
 	ConnectedAt    time.Time  `json:"connected_at"`
 	LastNotifiedAt *time.Time `json:"last_notified_at,omitempty"`
-	NotifiedCount  int64      `json:"notified_count"`
-	DroppedCount   int64      `json:"dropped_count"`
+	// LastNotifyReason is the reason of the last notification enqueued for
+	// this connection (see the fleet.AgentWSReason constants).
+	LastNotifyReason string `json:"last_notify_reason,omitempty"`
+	NotifiedCount    int64  `json:"notified_count"`
+	DroppedCount     int64  `json:"dropped_count"`
 	// BytesIn/BytesOut are raw bytes on the underlying connection (post-TLS),
 	// including WebSocket framing and ping/pong control frames.
 	BytesIn  int64 `json:"bytes_in"`
@@ -167,6 +170,7 @@ func (h *Hub) Snapshot() []ConnectionInfo {
 			NotifiedCount: c.notified.Load(),
 			DroppedCount:  c.dropped.Load(),
 		}
+		info.LastNotifyReason = c.lastNotifyReasonLoad()
 		info.BytesIn, info.BytesOut = c.bytesInOut()
 		if last := c.lastNotified(); !last.IsZero() {
 			info.LastNotifiedAt = &last

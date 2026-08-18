@@ -28,7 +28,7 @@ type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err
 
 type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule, error)
 
-type ListHostIDsDueForDistributedReadFunc func(ctx context.Context, hostIDs []uint) ([]uint, error)
+type ListHostIDsDueForDistributedReadFunc func(ctx context.Context, hostIDs []uint) (map[uint]string, error)
 
 type TLSService struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -117,7 +117,7 @@ func (s *TLSService) YaraRuleByName(ctx context.Context, name string) (*fleet.Ya
 	return s.YaraRuleByNameFunc(ctx, name)
 }
 
-func (s *TLSService) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) ([]uint, error) {
+func (s *TLSService) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error) {
 	s.mu.Lock()
 	s.ListHostIDsDueForDistributedReadFuncInvoked = true
 	s.mu.Unlock()
