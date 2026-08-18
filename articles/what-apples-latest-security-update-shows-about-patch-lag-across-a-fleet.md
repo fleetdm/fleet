@@ -47,7 +47,7 @@ Fleet's [OS updates guide](https://fleetdm.com/guides/enforce-os-updates) walks 
 ---
 *See which of your devices are still exposed. [Talk to Fleet](https://fleetdm.com/contact), or read the [OS updates guide](https://fleetdm.com/guides/enforce-os-updates) to enforce the next deadline automatically.*
 
-About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fleet's VP of Security Solutions. Talk to [Fleet](https://fleetdm.com/device-management) today to find out how to solve your trickiest device management, data orchestration, and security problems.
+About the author: [Andrea Pepper](https://www.linkedin.com/in/lppepper/) is an IT Support Administrator at Fleet. Talk to [Fleet](https://fleetdm.com/device-management) today to find out how to solve your trickiest device management, data orchestration, and security problems.
 
 <meta name="articleTitle" value="What Apple's latest security update shows about patch lag across a fleet">
 <meta name="authorFullName" value="Andrea Pepper">
