@@ -112,7 +112,7 @@ In order to connect Fleet to Entra, your organization needs a Microsoft Enterpri
 
 8. Select or create a test user and select **Licenses**.
 
-9. Select **+ Assignments** and assign the test user a **Microsoft Entra ID P1** license. End users don't need an Intune license to enroll in Fleet.
+9. Select **+ Assignments** and assign the test user a **Microsoft Entra ID P1** license, so they can complete automatic enrollment testing in Step 3. End users don't need an Intune license to enroll in Fleet.
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
@@ -193,7 +193,7 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 ### Step 1: Create an Autopilot profile
 
-1. Sign in to [Microsoft Intune](https://intune.microsoft.com/) using the Intune admin user from step 1.
+1. Sign in to [Microsoft Intune](https://intune.microsoft.com/).
 
 2. In the left-side bar, select **Devices > Windows** (under **By platform**). Then select **Enrollment** under **Device onboarding**. Under **Windows Autopilot** select **Deployment Profiles** to navigate to the **Windows Autopilot deployment profiles** page.
 
