@@ -1,0 +1,1 @@
+- Increased the Fleet server's HTTP keep-alive idle timeout from 5 minutes to 930 seconds so it exceeds the load balancer idle timeout (905s in Fleet's reference terraform), eliminating intermittent 502s caused by the server closing idle connections the load balancer still considered live.

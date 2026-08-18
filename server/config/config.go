@@ -156,7 +156,10 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 		// requests could DDOS Fleet.
 		WriteTimeout:      40 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
-		IdleTimeout:       5 * time.Minute,
+		// Must exceed the load balancer's idle timeout (905s in Fleet's
+		// terraform) so the LB closes idle connections first; the reverse
+		// ordering causes intermittent 502s.
+		IdleTimeout: 930 * time.Second,
 		MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
 		BaseContext: func(l net.Listener) context.Context {
 			return ctx
