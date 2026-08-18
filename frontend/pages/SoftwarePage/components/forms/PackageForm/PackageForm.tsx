@@ -208,7 +208,14 @@ const PackageForm = ({
     postInstallScript: defaultPostInstallScript || "",
     uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
-    targetType: initialTargetType ?? getTargetType(defaultSoftware),
+    // GitOps mode hides the target selector, so a preselected "Custom" would
+    // demand labels the user has no way to pick and the form could never
+    // validate — leaving Save permanently disabled with nothing on screen to
+    // explain it. Targeting comes from YAML in that mode, so fall back to the
+    // normal default.
+    targetType:
+      (gitOpsModeEnabled ? undefined : initialTargetType) ??
+      getTargetType(defaultSoftware),
     customTarget: getCustomTarget(defaultSoftware),
     labelTargets: generateSelectedLabels(defaultSoftware),
     automaticInstall: false,

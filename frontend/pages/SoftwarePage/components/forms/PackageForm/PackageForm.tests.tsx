@@ -151,4 +151,43 @@ describe("PackageForm", () => {
       expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
     });
   });
+
+  describe("GitOps mode with a preselected Custom target", () => {
+    const gitOpsConfig = {
+      gitops: {
+        gitops_mode_enabled: true,
+        repository_url: "https://example.com/repo",
+        exceptions: { labels: false, software: false, secrets: false },
+      },
+    } as Partial<IConfig>;
+
+    it("enables Save even though the target selector is hidden", async () => {
+      const { container } = renderForm(
+        { multiPackageContext: true, initialTargetType: "Custom" },
+        gitOpsConfig
+      );
+
+      await selectFileOfSize(container, 1024);
+
+      // GitOps mode hides the selector, so the user can't pick labels. A
+      // preselected "Custom" would leave Save disabled with nothing on screen
+      // to explain why.
+      expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+    });
+
+    it("keeps requiring labels for a Custom target when GitOps mode is off", async () => {
+      const { container } = renderForm({
+        multiPackageContext: true,
+        initialTargetType: "Custom",
+      });
+
+      await selectFileOfSize(container, 1024);
+
+      // The selector is visible here, so the preselection stands and the
+      // existing "pick at least one label" rule still applies.
+      expect(screen.getByLabelText("Custom")).toBeChecked();
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    });
+  });
 });
