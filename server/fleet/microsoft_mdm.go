@@ -2073,6 +2073,12 @@ const WindowsUserScopeHoldDetail = "Waiting for an end user to sign in with a Mi
 const WindowsUserScopeRemoveHoldDetail = "Waiting for an end user to sign in with a Microsoft Entra ID account. " +
 	"Fleet will remove this profile automatically."
 
+// IsWindowsUserScopeHoldDetail reports whether a host profile row's detail is one the user-scope gate wrote while
+// waiting for a user context, which is what distinguishes a deliberately-held row from an ordinary pending one.
+func IsWindowsUserScopeHoldDetail(detail string) bool {
+	return detail == WindowsUserScopeHoldDetail || detail == WindowsUserScopeRemoveHoldDetail
+}
+
 // WindowsUserScopeHoldDetailForOperation returns the hold detail matching the operation being held.
 func WindowsUserScopeHoldDetailForOperation(op MDMOperationType) string {
 	if op == MDMOperationTypeRemove {

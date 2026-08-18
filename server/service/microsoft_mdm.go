@@ -2490,8 +2490,14 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host profiles for ESP release check")
 		}
+		// A user-scoped profile held for a missing user context is deliberately pending and cannot reach a terminal
+		// state until a user signs in, which cannot happen until the ESP releases the device.
+		heldForUserContext := microsoft_mdm.WindowsUserContextState(device) == fleet.WindowsUserContextCanArrive
 		for _, p := range profiles {
 			if p.OperationType != fleet.MDMOperationTypeInstall {
+				continue
+			}
+			if heldForUserContext && fleet.IsWindowsUserScopeHoldDetail(p.Detail) {
 				continue
 			}
 			// Wait for terminal state (verified or failed) before proceeding. Profile failures are NOT propagated to
@@ -4078,7 +4084,11 @@ func applyWindowsUserScopeGate(
 
 	var removesHeld, removesUnchanged int
 	for profUUID, userScopedHosts := range userScopedRemoveHosts {
-		target := removeTargets[profUUID]
+		target, ok := removeTargets[profUUID]
+		if !ok || target == nil {
+			// userScopedRemoveHosts is keyed off removeTargets, so this cannot happen; this is a nil guard
+			continue
+		}
 		deliverable := target.hostUUIDs[:0:0] // fresh backing array; target.hostUUIDs is still being read below
 		for _, hostUUID := range target.hostUUIDs {
 			row := removeRowByHostProfile[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}]
