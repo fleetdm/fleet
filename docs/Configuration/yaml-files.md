@@ -179,10 +179,13 @@ policies:
     critical: false
     calendar_events_enabled: false
     conditional_access_enabled: true
+    hidden: false
     labels_include_any:
       - Engineering
       - Customer Support
 ```
+
+> Only one of `hidden` (_available in Fleet Premium_) and `conditional_access_enabled` can be `true`.
 
 #### Separate file
 
@@ -197,6 +200,7 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
+  hidden: false
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
