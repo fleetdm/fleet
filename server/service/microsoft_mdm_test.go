@@ -988,8 +988,27 @@ func (r windowsUserScopeTickResult) upsertFor(hostUUID string) *fleet.MDMWindows
 // runWindowsUserScopeTick drives one ReconcileWindowsProfiles tick over a single profile applied to every host in contexts.
 // currentRows is optional: pass the host_mdm_windows_profiles rows the snapshot should report as already present, to exercise
 // what the gate does on a pass after the first.
+// runWindowsUserScopeTickWithExistence is runWindowsUserScopeTick with the profile-existence check overridden, for the
+// deletion-race cases.
+func runWindowsUserScopeTickWithExistence(
+	t *testing.T, syncML string, contexts map[string]fleet.WindowsEnrollmentUserContext,
+	existence func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error),
+) (windowsUserScopeTickResult, *mock.Store) {
+	t.Helper()
+	return runWindowsUserScopeTickOpts(t, syncML, contexts, existence)
+}
+
 func runWindowsUserScopeTick(
 	t *testing.T, syncML string, contexts map[string]fleet.WindowsEnrollmentUserContext,
+	currentRows ...map[string][]*fleet.MDMWindowsProfilePayload,
+) (windowsUserScopeTickResult, *mock.Store) {
+	t.Helper()
+	return runWindowsUserScopeTickOpts(t, syncML, contexts, nil, currentRows...)
+}
+
+func runWindowsUserScopeTickOpts(
+	t *testing.T, syncML string, contexts map[string]fleet.WindowsEnrollmentUserContext,
+	existence func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error),
 	currentRows ...map[string][]*fleet.MDMWindowsProfilePayload,
 ) (windowsUserScopeTickResult, *mock.Store) {
 	t.Helper()
@@ -1006,6 +1025,9 @@ func runWindowsUserScopeTick(
 		hostToProfile[hostUUID] = profile
 	}
 	finalUpserts, _ := setupReconcilerTest(ds, hostToProfile)
+	if existence != nil {
+		ds.GetExistingMDMWindowsProfileUUIDsFunc = existence
+	}
 
 	if len(currentRows) > 0 {
 		// Reuse the harness's hosts, profiles, and labels; only swap in the current rows.
@@ -1156,6 +1178,54 @@ func TestReconcileWindowsProfilesHoldsDeviceBoundEnrollmentsThatReportedNoUser(t
 			"a reported user releases the hold: the user channel resolves to whoever holds the console")
 		require.Nil(t, result.upsertFor("host-a"))
 	})
+}
+
+func TestReconcileWindowsProfilesHeldModifyKeepsInstalledChecksum(t *testing.T) {
+	others := fleet.WindowsMDMLoginStatusOthers
+
+	// The host has version "installed-checksum" of the profile applied and verified; the profile has since been edited,
+	// so the reconciler triggers a modify. The gate holds it, and the held row must keep recording the version the
+	// device actually has: the preserved checksum is what makes the eventual delivery a modify with its supplemental
+	// <Delete>s, and what keeps the retained prior version alive until then.
+	verified := fleet.MDMDeliveryVerified
+	currentRows := map[string][]*fleet.MDMWindowsProfilePayload{
+		"host-a": {{
+			ProfileUUID:   "wuser-scope-profile",
+			ProfileName:   "User Scope Profile",
+			HostUUID:      "host-a",
+			OperationType: fleet.MDMOperationTypeInstall,
+			Status:        &verified,
+			Checksum:      []byte("installed-checksum"),
+		}},
+	}
+
+	result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+		"host-a": entraContext("host-a", &others),
+	}, currentRows)
+
+	require.Empty(t, result.enqueuedHosts, "the modify is held: no command may go out")
+	row := result.upsertFor("host-a")
+	require.NotNil(t, row, "the hold must be recorded")
+	require.Nil(t, row.Status)
+	require.Equal(t, []byte("installed-checksum"), row.Checksum,
+		"a held modify keeps the installed version's checksum, not the never-sent edit's")
+}
+
+func TestReconcileWindowsProfilesDropsHeldInstallForDeletedProfile(t *testing.T) {
+	others := fleet.WindowsMDMLoginStatusOthers
+
+	result, ds := runWindowsUserScopeTickWithExistence(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+		"host-a": entraContext("host-a", &others),
+	}, func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+		// The admin deleted the profile between the reconcile snapshot and the upsert.
+		return map[string]struct{}{}, nil
+	})
+
+	require.Empty(t, result.enqueuedHosts)
+	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked,
+		"the deletion-race guard must still see the fully held profile")
+	require.Nil(t, result.upsertFor("host-a"),
+		"no held row may be written for a deleted profile: it would be orphaned with nothing to resolve it")
 }
 
 func TestReconcileWindowsProfilesDoesNotRewriteAnUnchangedHold(t *testing.T) {

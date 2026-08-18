@@ -4103,8 +4103,14 @@ func applyWindowsUserScopeGate(
 			payload.Detail = fleet.WindowsUserScopeHoldDetailFor(fleet.MDMOperationTypeInstall,
 				microsoft_mdm.IsValidUPN(userContexts[hostUUID].EnrollUserID))
 
+			// A held row must keep recording the version the device actually has, not the version that was never sent.
+			current := currentProfileRow(currentByHost, hostUUID, profUUID)
+			if current != nil && len(current.Checksum) > 0 {
+				payload.Checksum = current.Checksum
+			}
+
 			// A hold lasts until the user signs in, which can be days, and the row keeps a NULL status the whole time.
-			if heldRowUpToDate(currentProfileRow(currentByHost, hostUUID, profUUID), payload) {
+			if heldRowUpToDate(current, payload) {
 				unchanged++
 				continue
 			}
@@ -4508,10 +4514,18 @@ func executeWindowsProfileReconcileBatch(
 	// SyncML, which is gone — and the host would be stuck with an
 	// un-removable install. Re-query existence right before the upsert
 	// loops to shrink the race window to just the loop body.
-	installProfileUUIDs := make([]string, 0, len(installTargets))
+	installProfileUUIDSet := make(map[string]struct{}, len(installTargets))
 	for profUUID := range installTargets {
-		installProfileUUIDs = append(installProfileUUIDs, profUUID)
+		installProfileUUIDSet[profUUID] = struct{}{}
 	}
+	// The user-scope gate drops fully held profiles from installTargets, but their held rows are still written in the
+	// final pass below, so they need the same deleted-profile check.
+	for _, p := range hostProfilesToUpdate {
+		if p.HeldForUserContext && p.OperationType == fleet.MDMOperationTypeInstall {
+			installProfileUUIDSet[p.ProfileUUID] = struct{}{}
+		}
+	}
+	installProfileUUIDs := slices.Collect(maps.Keys(installProfileUUIDSet))
 	stillExistingInstallProfiles, err := ds.GetExistingMDMWindowsProfileUUIDs(ctx, installProfileUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking Windows profile existence before install upsert")
@@ -4942,7 +4956,13 @@ func executeWindowsProfileReconcileBatch(
 			hostProfilesForFinalUpdate = append(hostProfilesForFinalUpdate, p)
 		case p.HeldForUserContext:
 			// Held by the user-scope gate: no command was enqueued for this host, so the pending-path upsert never
-			// ran for it. Write the row here instead, otherwise the hold is invisible.
+			// ran for it. Write the row here instead, otherwise the hold is invisible. Skip a held install whose
+			// profile was deleted after the snapshot.
+			if p.OperationType == fleet.MDMOperationTypeInstall {
+				if _, stillExists := stillExistingInstallProfiles[p.ProfileUUID]; !stillExists {
+					continue
+				}
+			}
 			hostProfilesForFinalUpdate = append(hostProfilesForFinalUpdate, p)
 		}
 	}
