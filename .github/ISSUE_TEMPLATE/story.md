@@ -37,6 +37,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Specify "Fleet Free" and/or "Fleet Premium" if there are no changes to the pricing page necessary. -->
 - [ ] My device and fleetdm.com/better changes: TODO <!-- If there are changes to the personal information Fleet can see on end user workstations, make sure wireframes include changes to the My device page. Also, specify changes as a PR to the fleetdm.com/better (aka Transparency page). Put "No changes" if there are no changes necessary. -->
 - [ ] Usage statistics: TODO <!-- Specify changes in the Fleet usage statistics guide as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. -->
+- [ ] Compatibility: TODO <!-- If there are there are any breaking changes, outside of a major release, notify the Manager of Customer Support and Solutions Architecture. Put "No changes" if there are no changes necessary. -->
 - [ ] Other reference documentation changes: TODO <!-- Any other reference doc changes? Specify changes as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. -->
 - [ ] First draft of test plan added
 - [ ] Once shipped, requester has been notified
