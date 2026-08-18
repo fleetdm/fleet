@@ -343,7 +343,7 @@ func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet
 		return nil, ctxerr.Wrap(ctx, err, "get certificate template")
 	}
 
-	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(id).WithFleetID(certificate.TeamID), "get certificate template")
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(id), "get certificate template")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionRead, notFoundErr); err != nil {
 		return nil, err
 	}
@@ -379,7 +379,7 @@ func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTe
 		return ctxerr.Wrap(ctx, err, "get certificate template for delete")
 	}
 
-	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(certificateTemplateID).WithFleetID(certificate.TeamID), "get certificate template for delete")
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(certificateTemplateID), "get certificate template for delete")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
