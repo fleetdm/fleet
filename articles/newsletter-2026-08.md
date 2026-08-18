@@ -21,7 +21,7 @@ Two releases are scheduled for August: 4.90.0 and 4.91.0. These are planned, not
 - **Android software inventory.** Show Android OS versions and their vulnerabilities in **Software > OS**, alongside more Android host vitals.
 - **Python script-only packages.** Add Python to the script-only package options for software deployment.
 
-Want the wider view? The [July roadmap preview](https://fleetdm.com/announcements/roadmap-preview-july-2026) covers the next three months, including AI governance, patch policies, Windows local admin account rotation, and tvOS.
+Fleet plans releases in the open. The [release planning board](https://github.com/orgs/fleetdm/projects/87/views/10) shows what's queued for the releases after this one.
 
 ## Upcoming workshops
 
