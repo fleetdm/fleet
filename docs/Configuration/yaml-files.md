@@ -185,8 +185,6 @@ policies:
       - Customer Support
 ```
 
-> Only one of `hidden` (_available in Fleet Premium_) and `conditional_access_enabled` can be `true`.
-
 #### Separate file
 
 `lib/policies-name.policies.yml`
