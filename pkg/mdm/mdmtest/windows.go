@@ -57,8 +57,7 @@ type TestWindowsMDMClient struct {
 	password string
 	nonce    string
 
-	// loginStatus is the value reported in the com.microsoft/MDM/LoginStatus device alert at the start of every
-	// management session.
+	// loginStatus is the value reported in the com.microsoft/MDM/LoginStatus device alert at the start of every management session.
 	loginStatus string
 }
 

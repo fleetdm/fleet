@@ -1865,10 +1865,8 @@ func isUserChannelLocURI(locURI string) bool {
 //
 // The entries are the codes actually observed in testing: 500 on the SCEP root node of an enrollment with no bound user
 // identity, 405 on a user-scope write during OOBE, and 404 on a user-scope Replace on a device-bound enrollment with
-// nobody signed in. 404 is ambiguous: it also means the node is genuinely absent (a removal that already happened, or a
-// bad LocURI). The enrollment's user context state resolves the ambiguity, not this function: the caller holds only
-// while the enrollment is awaiting a user context, and once one is present the same 404 completes a removal as "already
-// gone" and fails an install through normal retry accounting.
+// nobody signed in. The caller holds only while the enrollment is awaiting a user context, and once one is present these
+// errors count as real failures.
 func isWindowsUserContextRejection(status string) bool {
 	switch status {
 	case syncml.CmdStatusCommandFailed, syncml.CmdStatusNotAllowed, syncml.CmdStatusNotFound:
