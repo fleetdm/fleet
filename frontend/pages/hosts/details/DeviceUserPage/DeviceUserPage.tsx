@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
@@ -399,6 +399,12 @@ const DeviceUserPage = ({
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
 
+  // Memoized so the table keeps a stable `data` reference across renders.
+  const controls = useMemo(
+    () => (host ? generateTableData(host.mdm, host.platform) ?? [] : []),
+    [host]
+  );
+
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
   const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
@@ -590,15 +596,13 @@ const DeviceUserPage = ({
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
-    const controls = host
-      ? generateTableData(host.mdm, host.platform) ?? []
-      : [];
     const failedControlsCount = countFailedControls(controls);
 
     const showControlsTab =
       !!host &&
       shouldShowControlsTab({
         platform: host.platform,
+        osVersion: host.os_version,
         enrollmentStatus: host.mdm?.enrollment_status ?? null,
         hasControls: controls.length > 0,
       });

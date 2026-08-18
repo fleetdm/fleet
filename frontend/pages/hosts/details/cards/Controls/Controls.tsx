@@ -22,8 +22,7 @@ interface IControlsProps {
   /** Rows derived from the host's MDM data by `generateTableData`. */
   controls: IHostMdmProfileWithAddedStatus[];
   hostDisplayName: string;
-  /** True on the My device page, which addresses the end user directly and has
-   * no Controls page to link to. */
+  /** My device: second person, and no Controls page to link to. */
   isDeviceUser?: boolean;
   canResendProfiles: boolean;
   canRotateRecoveryLockPassword?: boolean;
@@ -111,7 +110,9 @@ const Controls = ({
         emptyComponent={() => (
           <EmptyState
             header="No controls"
-            info="No controls have been added for this host."
+            info={`No controls have been added for ${
+              isDeviceUser ? "your device" : "this host"
+            }.`}
             primaryButton={
               !isDeviceUser && canAddControls ? (
                 <Button onClick={onAddControls} type="button">

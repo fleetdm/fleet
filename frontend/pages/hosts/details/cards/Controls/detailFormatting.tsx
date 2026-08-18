@@ -116,25 +116,14 @@ const formatDetailIdpEmailError = (detail: IHostMdmProfile["detail"]) => {
 
 export interface IDetailGuidance {
   message: React.ReactNode;
-  /**
-   * True when the message already says everything the raw detail says, so the
-   * copyable block below it would only repeat itself.
-   *
-   * Today this lines up exactly with the messages carrying a "Learn more" link:
-   * those quote the detail and append a doc link, while the certificate
-   * rewrites drop diagnostic text (status codes, profile IDs) that's still
-   * worth having.
-   */
+  /** True when the message already says everything the raw detail says, so the
+   * copyable block would repeat it. Lines up with the "Learn more" messages,
+   * which quote the detail; the certificate rewrites drop diagnostic text. */
   supersedesDetail: boolean;
 }
 
-/**
- * getDetailGuidance returns the rewritten, actionable version of an error the
- * raw detail can't convey on its own — a misconfigured certificate authority, a
- * missing IdP email, an Android setting Fleet can't apply. Returns null when the
- * detail doesn't match a known pattern, in which case the raw detail stands on
- * its own.
- */
+/** The rewritten, actionable version of a recognized error. Null when the
+ * detail matches no known pattern, leaving the raw detail to stand alone. */
 export const getDetailGuidance = (
   profile: IHostMdmProfileWithAddedStatus
 ): IDetailGuidance | null => {
@@ -158,11 +147,8 @@ export const getDetailGuidance = (
   return null;
 };
 
-/**
- * Windows details arrive as a single "key1: value1, key2: value2" line. A CSP
- * profile can carry hundreds of URI paths that way, so break it into one result
- * per line — the whole point of this view is finding the failures in that list.
- */
+/** Windows details arrive as one "key: value, key: value" line. A CSP profile
+ * can carry hundreds of URI paths, so split it one result per line. */
 const splitWindowsDetailLines = (detail: string) => {
   // BitLocker and certificate install errors are prose, not key/value pairs,
   // and splitting them on commas mangles the sentence.
@@ -181,10 +167,7 @@ const splitWindowsDetailLines = (detail: string) => {
   return lines.length ? lines.join("\n") : detail;
 };
 
-/**
- * getDetailText returns the control's raw detail as plain text, ready for both
- * the copyable output block and the clipboard.
- */
+/** The raw detail as plain text, for the output block and the clipboard. */
 export const getDetailText = (
   profile: IHostMdmProfileWithAddedStatus
 ): string => {

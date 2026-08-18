@@ -4,8 +4,7 @@
       width: initial;
     }
 
-    // Name and Status are sized to their content so Details gets the remaining
-    // width — it carries the failure output an admin is scanning for.
+    // Name and Status hug their content so Details gets the remaining width.
     &__table {
       table-layout: fixed;
     }

@@ -1,4 +1,10 @@
-import React, { useContext, useState, useCallback, useEffect } from "react";
+import React, {
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+} from "react";
 import { timeAgo } from "utilities/date_format";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
@@ -1009,6 +1015,12 @@ const HostDetailsPage = ({
     refetchUpcomingActivities();
   }, [refetchPastActivities, refetchUpcomingActivities]);
 
+  // Memoized so the table keeps a stable `data` reference across renders.
+  const controls = useMemo(
+    () => (host ? generateTableData(host.mdm, host.platform) ?? [] : []),
+    [host]
+  );
+
   const onSelectHostAction = (action: string) => {
     switch (action) {
       case "transfer":
@@ -1198,11 +1210,11 @@ const HostDetailsPage = ({
     !isIosOrIpadosHost && !isAndroidHost && !isChromeOsHost;
   const showPoliciesTab = !isIosOrIpadosHost && !isAndroidHost;
 
-  const controls = generateTableData(host.mdm, host.platform) ?? [];
   const failedControlsCount = countFailedControls(controls);
 
   const showControlsTab = shouldShowControlsTab({
     platform: host.platform,
+    osVersion: host.os_version,
     enrollmentStatus: host.mdm?.enrollment_status ?? null,
     hasControls: controls.length > 0,
     isPlatformMdmEnabled:

@@ -35,8 +35,7 @@ const ActionButton = ({
   return (
     <Button
       disabled={isPending}
-      // The row itself opens the details modal, so an action click must not
-      // also trigger it.
+      // The row opens the details modal; don't let an action click do that too.
       onClick={(evt: React.MouseEvent) => {
         evt.stopPropagation();
         onClick();
@@ -60,8 +59,7 @@ interface IOSSettingsResendCellProps {
   rotateRecoveryLockPassword?: () => Promise<void>;
   resendHostNameTemplate?: () => Promise<void>;
   onProfileResent?: () => void;
-  /** Fade the action in on row hover. Set for the table cell, not the details
-   * modal footer, where the action is always visible. */
+  /** Fade in on row hover. Set for the table cell, not the modal footer. */
   revealOnRowHover?: boolean;
 }
 
@@ -163,8 +161,7 @@ const OSSettingsResendCell = ({
   ) =>
     classnames(`${baseClass}__${modifier}-button`, {
       [`${baseClass}__${pendingModifier}`]: isPending,
-      // The shared row-hover fade lives in TableContainer's styles. Keep an
-      // in-flight action visible so the user can see it working.
+      // Keep an in-flight action visible so the user sees it working.
       "row-hover-button": revealOnRowHover && !isPending,
     });
 

@@ -53,12 +53,8 @@ export type OsSettingsTableStatusValue =
   | INonDDMProfileStatus
   | HostAndroidCertStatus;
 
-/**
- * Default table order: the controls an admin has to act on first, then the ones
- * still in flight, then the ones already settled. Ranked off the displayed
- * status so a row sorts where the reader sees it, not by the raw API value
- * (several of which share a display name).
- */
+/** Ranked off the displayed status, not the raw API value — several API
+ * statuses share a display name. */
 const STATUS_SORT_ORDER = [
   "Failed",
   "Action required",
@@ -75,9 +71,8 @@ const getStatusSortRank = (row: IHostMdmProfileWithAddedStatus) => {
   return rank === -1 ? STATUS_SORT_ORDER.length : rank;
 };
 
-/** Rows Fleet synthesizes from `os_settings` rather than reading out of
- * `mdm.profiles`. No configuration profile stands behind them, so the profile
- * resend endpoint rejects their placeholder UUIDs. */
+/** Synthesized from `os_settings`, not real profiles — the resend endpoint
+ * rejects their placeholder UUIDs. */
 const SYNTHETIC_PROFILE_UUIDS: string[] = [
   WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID,
   LINUX_DISK_ENC_SYNTHETIC_PROFILE_UUID,
@@ -85,9 +80,8 @@ const SYNTHETIC_PROFILE_UUIDS: string[] = [
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
 ];
 
-/** Which of the three resend/rotate actions a given row is eligible for, given
- * what the current page and user allow. Shared by the table's action cell and
- * the details modal footer. */
+/** Which resend/rotate action a row is eligible for. Shared by the table's
+ * action cell and the details modal footer. */
 export const getRowActionProps = (
   row: IHostMdmProfileWithAddedStatus,
   canResendProfiles: boolean,
@@ -158,8 +152,8 @@ const generateTableConfig = (
       id: "details",
       accessor: "detail",
       disableSortBy: true,
-      // Truncation lives on the cell in _styles.scss — the row itself opens the
-      // details modal, so there's no tooltip to reveal the rest.
+      // TextCell defaults to `w250`, which would cap the cell at 202px.
+      // Truncation lives on the cell in _styles.scss instead.
       Cell: (cellProps: ITableStringCellProps) => {
         return <TextCell value={cellProps.cell.value} className="" />;
       },
@@ -169,14 +163,20 @@ const generateTableConfig = (
       id: "actions",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => {
+        const rowActions = getRowActionProps(
+          cellProps.row.original,
+          canResendProfiles,
+          canRotateRecoveryLockPassword,
+          canResendHostNameTemplate
+        );
+
         return (
           <OSSettingsResendCell
-            {...getRowActionProps(
-              cellProps.row.original,
-              canResendProfiles,
-              canRotateRecoveryLockPassword,
-              canResendHostNameTemplate
-            )}
+            canResendProfiles={rowActions.canResendProfiles}
+            canRotateRecoveryLockPassword={
+              rowActions.canRotateRecoveryLockPassword
+            }
+            canResendHostNameTemplate={rowActions.canResendHostNameTemplate}
             profile={cellProps.row.original}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}
@@ -336,8 +336,7 @@ export const generateTableData = (
   }
 };
 
-/** Number of controls on the host that are in a failed state. Drives the
- * Controls tab's alert badge. */
+/** Drives the Controls tab's alert badge. */
 export const countFailedControls = (
   rows: IHostMdmProfileWithAddedStatus[] | null | undefined
 ) => rows?.filter((row) => row.status === "failed").length ?? 0;

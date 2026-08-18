@@ -54,12 +54,10 @@ const ControlDetailsModal = ({
   const detailText = getDetailText(control);
   const guidance = getDetailGuidance(control);
 
-  // On a verified control the detail contradicts the status copy rather than
-  // adding to it — a custom activation's predicate excluded this host, so
-  // "applied the setting" would be untrue — and it replaces the sentence. Every
-  // other status keeps its sentence, because the detail may describe a past
-  // attempt: resending only nulls the status, so a control reads Enforcing with
-  // the previous failure's output attached until the next cron run.
+  // A verified control's detail contradicts the status copy rather than adding
+  // to it (an activation predicate excluded the host), so it replaces the
+  // sentence. Other statuses keep theirs — the detail may describe a past
+  // attempt, since resending only nulls the status until the next cron run.
   const detailReplacesMessage =
     displayOption?.statusText === "Verified" && !!detailText;
 
@@ -85,8 +83,14 @@ const ControlDetailsModal = ({
 
   const message = renderMessage();
 
-  // Guidance that quotes the detail (the "Learn more" messages) makes the
-  // copyable block below it redundant.
+  const rowActions = getRowActionProps(
+    control,
+    canResendProfiles,
+    canRotateRecoveryLockPassword,
+    canResendHostNameTemplate
+  );
+
+  // Guidance that quotes the detail makes the block below it redundant.
   const showDetailBlock =
     !!detailText && !detailReplacesMessage && !guidance?.supersedesDetail;
 
@@ -112,7 +116,7 @@ const ControlDetailsModal = ({
                   <span>Details:</span>
                   <CopyButton
                     copyText={detailText}
-                    size="small"
+                    variant="compact"
                     ariaLabel="Copy details"
                   />
                 </div>
@@ -126,12 +130,11 @@ const ControlDetailsModal = ({
         <div className="modal-cta-wrap">
           <Button onClick={onExit}>Close</Button>
           <OSSettingsResendCell
-            {...getRowActionProps(
-              control,
-              canResendProfiles,
-              canRotateRecoveryLockPassword,
-              canResendHostNameTemplate
-            )}
+            canResendProfiles={rowActions.canResendProfiles}
+            canRotateRecoveryLockPassword={
+              rowActions.canRotateRecoveryLockPassword
+            }
+            canResendHostNameTemplate={rowActions.canResendHostNameTemplate}
             profile={control}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}

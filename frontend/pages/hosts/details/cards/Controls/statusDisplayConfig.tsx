@@ -256,8 +256,7 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
   action_required: {
     statusText: "Action required",
     iconName: "pending-outline",
-    // Windows-specific: the generic "follow the instructions on My device" copy
-    // doesn't apply, because the end user sets the PIN during encryption.
+    // Windows-specific: the end user sets the PIN during encryption.
     message: ({ hostDisplayName }) => (
       <>
         Disk encryption is on, but the end user hasn&apos;t set a BitLocker PIN
@@ -397,8 +396,7 @@ const getAndroidCertificateDisplayOption = (
         ? {
             statusText: "Enforcing",
             iconName: "pending-outline",
-            // Android certificates go out over the Android Management API, not
-            // an MDM command, so the copy stays on "the command".
+            // Android goes over the Management API, not an MDM command.
             message: ({ hostDisplayName, settingName }) => (
               <>
                 <b>{hostDisplayName}</b> is running the command to apply{" "}
@@ -442,10 +440,8 @@ const getAndroidCertificateDisplayOption = (
   }
 };
 
-/**
- * Resolves the icon, status text, and details message for a control row. Shared
- * by the table's status cell and the details modal so the two can't drift.
- */
+/** Icon, status text, and details message for a control row. Shared by the
+ * table's status cell and the details modal so the two can't drift. */
 export const getControlDisplayOption = (
   row: IHostMdmProfileWithAddedStatus
 ): ProfileDisplayOption => {
@@ -475,8 +471,7 @@ export const getControlDisplayOption = (
     return getAndroidCertificateDisplayOption(status, operationType);
   }
 
-  // The synthesized Windows disk encryption row carries no operation type, and
-  // its display options differ from a profile's.
+  // The synthesized Windows disk encryption row has no operation type.
   if (!operationType && status !== "success" && status !== "acknowledged") {
     return WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG[
       status as WindowsDiskEncryptionDisplayStatus

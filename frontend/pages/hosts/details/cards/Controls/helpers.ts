@@ -1,38 +1,46 @@
-import { isChrome, isLinuxLike } from "interfaces/platform";
 import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  HostPlatform,
+  isChrome,
+  isOsSettingsDisplayPlatform,
+} from "interfaces/platform";
 
 interface IShowControlsTabArgs {
-  platform: string;
+  platform: HostPlatform;
+  /** Needed to tell Fedora from other rhel-like platforms. */
+  osVersion: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
   /** Whether `generateTableData` derived any rows for this host. */
   hasControls: boolean;
-  /** Whether the host's platform has MDM turned on globally. Omitted on the My
-   * device page, whose config payload carries no per-platform MDM flags — a host
-   * can't be enrolled if its platform's MDM is off, so enrollment covers it. */
+  /** Whether the platform's MDM is on globally. Omitted on My device, whose
+   * config has no per-platform flags — enrollment implies it. */
   isPlatformMdmEnabled?: boolean;
 }
 
 /**
- * Whether to render the Controls tab for a host. An MDM host that is targeted by
- * no controls still gets the tab (and an empty state); an unenrolled one doesn't,
- * because the Details tab already explains why with a banner.
+ * Whether to render the Controls tab for a host: whenever Fleet derived any
+ * rows, plus on an enrolled host with none, where the tab earns its empty state.
  */
 export const shouldShowControlsTab = ({
   platform,
+  osVersion,
   enrollmentStatus,
   hasControls,
   isPlatformMdmEnabled = true,
 }: IShowControlsTabArgs) => {
-  if (isChrome(platform)) {
+  // ChromeOS is in the OS-settings platform list but the tab is hidden for it.
+  if (isChrome(platform) || !isOsSettingsDisplayPlatform(platform, osVersion)) {
     return false;
   }
 
-  // Linux has no MDM to enroll in, so the tab hinges on whether Fleet derived
-  // any controls — in practice, disk encryption enforcement.
-  if (isLinuxLike(platform)) {
-    return hasControls;
+  // Any derived row shows the tab — the bar the OS settings indicator used
+  // before this tab existed. Also covers Linux, which has no MDM to enroll in.
+  if (hasControls) {
+    return true;
   }
 
+  // With nothing to show, only a host that could receive controls earns the
+  // empty state. An unenrolled one gets the Details tab's yellow banner.
   return isPlatformMdmEnabled && isEnrolledInMdm(enrollmentStatus);
 };
 
