@@ -287,7 +287,7 @@ func generateGitopsCommand() *cli.Command {
 			"(policies, queries, labels, scripts, profiles, team settings, etc.) into GitOps-ready " +
 			"YAML files. Use this to migrate an existing Fleet to GitOps.\n\n" +
 			"If you're getting started with GitOps, use `fleetctl new` instead",
-		Action:      createGenerateGitopsAction(nil),
+		Action: createGenerateGitopsAction(nil),
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
