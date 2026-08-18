@@ -5,9 +5,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/micromdm/plist"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"howett.net/plist"
 )
 
 func TestMDMAppleEnrollURL(t *testing.T) {
@@ -261,7 +261,7 @@ func TestGenerateSaltedSHA512PBKDF2Hash(t *testing.T) {
 
 	// Parse the plist and verify the structure.
 	var result saltedSHA512PBKDF2
-	_, err = plist.Unmarshal(data, &result)
+	err = plist.Unmarshal(data, &result)
 	require.NoError(t, err)
 
 	assert.Len(t, result.PBKDF2.Salt, pbkdf2SaltLen, "salt should be %d bytes", pbkdf2SaltLen)

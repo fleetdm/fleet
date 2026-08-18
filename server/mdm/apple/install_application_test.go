@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/micromdm/plist"
 	"github.com/stretchr/testify/require"
-	"howett.net/plist"
 )
 
 func TestBuildInstallApplicationCommand_VPP(t *testing.T) {
@@ -96,9 +96,8 @@ func TestBuildInstallApplicationCommand_VPP(t *testing.T) {
 			// well-formed XML plist regardless of inputs. This is the same
 			// shape Apple MDM accepts; if this fails, devices will reject.
 			var anything any
-			format, err := plist.Unmarshal([]byte(out), &anything)
+			err := plist.Unmarshal([]byte(out), &anything)
 			require.NoError(t, err, "output must be a valid plist")
-			require.Equal(t, plist.XMLFormat, format, "output must be XML plist (not binary/OpenStep)")
 
 			for _, s := range c.wantHas {
 				require.Contains(t, out, s, "expected to contain %q", s)
@@ -140,7 +139,7 @@ func TestBuildInstallApplicationCommand_UserEnrollmentOmitsChangeManagementState
 			}
 			// In either case the output must still be a valid plist.
 			var parsed map[string]any
-			_, err := plist.Unmarshal([]byte(out), &parsed)
+			err := plist.Unmarshal([]byte(out), &parsed)
 			require.NoError(t, err)
 		})
 	}
@@ -164,7 +163,7 @@ func TestBuildInstallApplicationCommand_FullPlistDocumentNormalized(t *testing.T
 	}))
 
 	var parsed map[string]any
-	_, err := plist.Unmarshal([]byte(out), &parsed)
+	err := plist.Unmarshal([]byte(out), &parsed)
 	require.NoError(t, err, "output with full-doc config must be a valid plist")
 	require.Equal(t, 1, strings.Count(out, "<?xml"), "only one XML declaration allowed")
 	require.Equal(t, 1, strings.Count(out, "<plist"), "only one <plist> element allowed")
@@ -199,7 +198,7 @@ func TestBuildInstallApplicationCommand_ConfigurationOuterDictPreserved(t *testi
 
 	// Re-parse and verify Configuration is a nested dict, not a string.
 	var parsed map[string]any
-	_, err := plist.Unmarshal([]byte(out), &parsed)
+	err := plist.Unmarshal([]byte(out), &parsed)
 	require.NoError(t, err)
 	cmd, ok := parsed["Command"].(map[string]any)
 	require.True(t, ok, "Command should be a dict")
@@ -295,7 +294,7 @@ func TestSubstituteFleetVarsInAppConfig(t *testing.T) {
 		// Round-trip the resulting XML through the plist parser; if escaping
 		// is broken the parser will fail or decode incorrectly.
 		var parsed map[string]any
-		_, perr := plist.Unmarshal(got, &parsed)
+		perr := plist.Unmarshal(got, &parsed)
 		require.NoError(t, perr)
 		require.Equal(t, "a&b@example.com", parsed["K"])
 	})
@@ -333,9 +332,8 @@ func TestSubstituteThenBuildRoundTrip(t *testing.T) {
 	})
 
 	var parsed map[string]any
-	format, err := plist.Unmarshal(cmd, &parsed)
+	err = plist.Unmarshal(cmd, &parsed)
 	require.NoError(t, err)
-	require.Equal(t, plist.XMLFormat, format)
 	command, _ := parsed["Command"].(map[string]any)
 	configDict, ok := command["Configuration"].(map[string]any)
 	require.True(t, ok)

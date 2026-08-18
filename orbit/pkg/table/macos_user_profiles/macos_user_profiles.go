@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 

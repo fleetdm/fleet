@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"os/exec"
 
+	"github.com/micromdm/plist"
 	"github.com/osquery/osquery-go/plugin/table"
-	"howett.net/plist"
 )
 
 // Columns is the schema of the table.
@@ -61,7 +61,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 func parseAuthDBReadOutput(out []byte) (map[string]interface{}, error) {
 	var m map[string]interface{}
-	if _, err := plist.Unmarshal(out, &m); err != nil {
+	if err := plist.Unmarshal(out, &m); err != nil {
 		return nil, err
 	}
 	return m, nil

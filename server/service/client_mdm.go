@@ -21,7 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
-	"howett.net/plist"
+	"github.com/micromdm/plist"
 )
 
 // GetAppleMDM retrieves the Apple MDM APNs information.
@@ -386,7 +386,7 @@ func (c *Client) prepareWindowsMDMCommand(rawCmd []byte) ([]byte, error) {
 
 func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 	var commandPayload map[string]interface{}
-	if _, err := plist.Unmarshal(rawCmd, &commandPayload); err != nil {
+	if err := plist.Unmarshal(rawCmd, &commandPayload); err != nil {
 		return nil, fmt.Errorf("The payload isn't valid XML. Please provide a file with valid XML: %w", err)
 	}
 	if commandPayload == nil {
@@ -396,7 +396,7 @@ func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 	// generate a random command UUID
 	commandPayload["CommandUUID"] = uuid.New().String()
 
-	b, err := plist.Marshal(commandPayload, plist.XMLFormat)
+	b, err := plist.Marshal(commandPayload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal command plist: %w", err)
 	}

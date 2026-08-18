@@ -49,8 +49,6 @@ import (
 
 	"github.com/micromdm/plist"
 	"github.com/rs/zerolog"
-
-	howett "howett.net/plist"
 )
 
 // Flattener is an interface to flatten complex, nested, data
@@ -491,7 +489,7 @@ func stringify(data interface{}) (string, error) {
 		return strconv.FormatBool(v), nil
 	case time.Time:
 		return strconv.FormatInt(v.Unix(), 10), nil
-	case howett.UID:
+	case plist.UID:
 		return strconv.FormatUint(uint64(v), 10), nil
 	case fmt.Stringer:
 		return v.String(), nil
