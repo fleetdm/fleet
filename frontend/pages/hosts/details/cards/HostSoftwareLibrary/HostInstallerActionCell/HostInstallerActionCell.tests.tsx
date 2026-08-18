@@ -802,6 +802,121 @@ describe("HostInstallerActionCell component", () => {
       expect(uninstallBtn.closest("button")).toBeEnabled();
     }
   );
+
+  // .tgz and script-only installers may be uploaded without an uninstall
+  // script; gate the Uninstall action on has_uninstall_script (fleet#51238).
+  it("does not render Uninstall for a tgz package without an uninstall script", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "tgz_packages",
+          ui_status: "installed",
+          status: "installed",
+          software_package: createMockHostSoftwarePackage({
+            has_uninstall_script: false,
+          }),
+          installed_versions: [],
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    expect(
+      screen.queryByTestId(`${baseClass}__uninstall-button--test`)
+    ).toBeNull();
+  });
+
+  it.each([
+    ["sh_packages" as const],
+    ["ps1_packages" as const],
+    ["py_packages" as const],
+  ])(
+    "renders enabled Uninstall for a %s script package that has ran and has an uninstall script",
+    (source) => {
+      render(
+        <HostInstallerActionCell
+          software={{
+            ...defaultSoftware,
+            source,
+            status: "installed",
+            ui_status: "ran_script",
+            software_package: mockSoftwarePackage,
+            installed_versions: [],
+            app_store_app: null,
+          }}
+          onClickInstallAction={noop}
+          onClickUninstallAction={noop}
+          baseClass={baseClass}
+          hostScriptsEnabled
+          hostMDMEnrolled
+        />
+      );
+
+      const uninstallBtn = screen.getByTestId(
+        `${baseClass}__uninstall-button--test`
+      );
+      expect(uninstallBtn).toHaveTextContent("Uninstall");
+      expect(uninstallBtn.closest("button")).toBeEnabled();
+    }
+  );
+
+  it("does not render Uninstall for a script package with no uninstall script", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "ps1_packages",
+          status: "installed",
+          ui_status: "ran_script",
+          software_package: createMockHostSoftwarePackage({
+            has_uninstall_script: false,
+          }),
+          installed_versions: [],
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    expect(
+      screen.queryByTestId(`${baseClass}__uninstall-button--test`)
+    ).toBeNull();
+  });
+
+  it("does not render Uninstall for a script package that never ran, even with an uninstall script", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "sh_packages",
+          status: null,
+          ui_status: "never_ran_script",
+          software_package: mockSoftwarePackage,
+          installed_versions: [],
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    expect(
+      screen.queryByTestId(`${baseClass}__uninstall-button--test`)
+    ).toBeNull();
+  });
 });
 
 describe("HostInstallerActionCell dropdown on My Device page", () => {

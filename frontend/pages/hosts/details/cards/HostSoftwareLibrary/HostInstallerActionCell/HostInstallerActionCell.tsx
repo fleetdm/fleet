@@ -270,6 +270,20 @@ export const HostInstallerActionCell = ({
       "failed_uninstall",
     ].includes(ui_status);
 
+  const ranScriptPackageDetected =
+    SCRIPT_PACKAGE_SOURCES.includes(software.source) &&
+    ui_status === "ran_script";
+
+  // .tgz and script-only (.ps1/.sh/.py) installers may be uploaded without an
+  // uninstall script, so gate the Uninstall action on the flag for these
+  // sources. Other package types default an uninstall script from the
+  // extension.
+  const sourceMayLackUninstallScript =
+    software.source === "tgz_packages" ||
+    SCRIPT_PACKAGE_SOURCES.includes(software.source);
+  const uninstallScriptAvailable =
+    !sourceMayLackUninstallScript || !!software_package?.has_uninstall_script;
+
   const isIpaPackage =
     (software.source === "ios_apps" || software.source === "ipados_apps") &&
     !!software_package;
@@ -278,10 +292,12 @@ export const HostInstallerActionCell = ({
     !app_store_app &&
     !isIpaPackage &&
     !!software_package &&
+    uninstallScriptAvailable &&
     // Show uninstall button even when the status is installed but the host's
     // inventory has no matching title ID with the installer.
     (installedVersionsDetected ||
       installedTgzPackageDetected ||
+      ranScriptPackageDetected ||
       ui_status === "installed" ||
       ui_status === "recently_installed");
 

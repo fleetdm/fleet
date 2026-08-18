@@ -4140,29 +4140,30 @@ type hostSoftware struct {
 	LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
 	LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
 
-	ExitCode              *int       `db:"exit_code"`
-	LastOpenedAt          *time.Time `db:"last_opened_at"`
-	BundleIdentifier      *string    `db:"bundle_identifier"`
-	TitleBundleIdentifier *string    `db:"title_bundle_identifier"`
-	Version               *string    `db:"version"`
-	SoftwareID            *uint      `db:"software_id"`
-	SoftwareSource        *string    `db:"software_source"`
-	SoftwareExtensionFor  *string    `db:"software_extension_for"`
-	InstallerID           *uint      `db:"installer_id"`
-	PackageSelfService    *bool      `db:"package_self_service"`
-	PackageName           *string    `db:"package_name"`
-	PackagePlatform       *string    `db:"package_platform"`
-	PackageVersion        *string    `db:"package_version"`
-	VPPAppSelfService     *bool      `db:"vpp_app_self_service"`
-	VPPAppAdamID          *string    `db:"vpp_app_adam_id"`
-	VPPAppVersion         *string    `db:"vpp_app_version"`
-	VPPAppPlatform        *string    `db:"vpp_app_platform"`
-	VPPAppIconURL         *string    `db:"vpp_app_icon_url"`
-	InHouseAppID          *uint      `db:"in_house_app_id"`
-	InHouseAppName        *string    `db:"in_house_app_name"`
-	InHouseAppPlatform    *string    `db:"in_house_app_platform"`
-	InHouseAppVersion     *string    `db:"in_house_app_version"`
-	InHouseAppSelfService *bool      `db:"in_house_app_self_service"`
+	ExitCode                  *int       `db:"exit_code"`
+	LastOpenedAt              *time.Time `db:"last_opened_at"`
+	BundleIdentifier          *string    `db:"bundle_identifier"`
+	TitleBundleIdentifier     *string    `db:"title_bundle_identifier"`
+	Version                   *string    `db:"version"`
+	SoftwareID                *uint      `db:"software_id"`
+	SoftwareSource            *string    `db:"software_source"`
+	SoftwareExtensionFor      *string    `db:"software_extension_for"`
+	InstallerID               *uint      `db:"installer_id"`
+	PackageSelfService        *bool      `db:"package_self_service"`
+	PackageName               *string    `db:"package_name"`
+	PackagePlatform           *string    `db:"package_platform"`
+	PackageVersion            *string    `db:"package_version"`
+	PackageHasUninstallScript *bool      `db:"package_has_uninstall_script"`
+	VPPAppSelfService         *bool      `db:"vpp_app_self_service"`
+	VPPAppAdamID              *string    `db:"vpp_app_adam_id"`
+	VPPAppVersion             *string    `db:"vpp_app_version"`
+	VPPAppPlatform            *string    `db:"vpp_app_platform"`
+	VPPAppIconURL             *string    `db:"vpp_app_icon_url"`
+	InHouseAppID              *uint      `db:"in_house_app_id"`
+	InHouseAppName            *string    `db:"in_house_app_name"`
+	InHouseAppPlatform        *string    `db:"in_house_app_platform"`
+	InHouseAppVersion         *string    `db:"in_house_app_version"`
+	InHouseAppSelfService     *bool      `db:"in_house_app_self_service"`
 
 	VulnerabilitiesList       *string `db:"vulnerabilities_list"`
 	SoftwareIDList            *string `db:"software_id_list"`
@@ -5354,10 +5355,11 @@ func hydrateHostSoftwareRecordFromDb(hydrated *hostSoftware, softwareTitle *host
 		platform = *hydrated.PackagePlatform
 	}
 	hydrated.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-		Name:        *hydrated.PackageName,
-		Version:     version,
-		Platform:    platform,
-		SelfService: hydrated.PackageSelfService,
+		Name:               *hydrated.PackageName,
+		Version:            version,
+		Platform:           platform,
+		SelfService:        hydrated.PackageSelfService,
+		HasUninstallScript: hydrated.PackageHasUninstallScript,
 	}
 
 	// promote the last install info to the proper destination fields
@@ -6296,6 +6298,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				si.filename as package_name,
 				si.version as package_version,
 				si.platform as package_platform,
+				EXISTS(SELECT 1 FROM script_contents sc WHERE sc.id = si.uninstall_script_content_id AND sc.contents != '') as package_has_uninstall_script,
 				vat.self_service as vpp_app_self_service,
 				vat.adam_id as vpp_app_adam_id,
 				vap.latest_version as vpp_app_version,
@@ -7321,6 +7324,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_installers.filename AS package_name,
 					software_installers.version AS package_version,
 					software_installers.platform as package_platform,
+					EXISTS(SELECT 1 FROM script_contents sc WHERE sc.id = software_installers.uninstall_script_content_id AND sc.contents != '') AS package_has_uninstall_script,
 					GROUP_CONCAT(software.id) AS software_id_list,
 					GROUP_CONCAT(software.source) AS software_source_list,
 					GROUP_CONCAT(software.extension_for) AS software_extension_for_list,
@@ -7349,7 +7353,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_installers.self_service,
 					software_installers.filename,
 					software_installers.version,
-					software_installers.platform
+					software_installers.platform,
+					software_installers.uninstall_script_content_id
 			`)
 		}
 		if includeVPP {
@@ -7368,6 +7373,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS package_name,
 					NULL AS package_version,
 					NULL as package_platform,
+					NULL AS package_has_uninstall_script,
 					NULL AS software_id_list,
 					NULL AS software_source_list,
 					NULL AS software_extension_for_list,
@@ -7411,6 +7417,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS package_name,
 					NULL AS package_version,
 					NULL as package_platform,
+					NULL AS package_has_uninstall_script,
 					NULL AS software_id_list,
 					NULL AS software_source_list,
 					NULL AS software_extension_for_list,

@@ -625,6 +625,10 @@ export interface IHostSoftwarePackage {
   categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   platform?: Platform;
+  /** True when the installer has a non-empty uninstall script. Absent for VPP
+   * and in-house apps. Used to gate the Uninstall action for script-only
+   * (.ps1/.sh/.py) and .tgz packages, where the uninstall script is optional. */
+  has_uninstall_script?: boolean;
 }
 
 export interface IHostAppStoreApp {
