@@ -3754,7 +3754,9 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 	}
 
 	desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, currentByHost, profilesByTeam)
-	return executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost, currentByHost)
+	// Stay on the primary for the batch. This host enrolled moments ago, and the user-scope gate reads its enrollment row to
+	// decide whether a user context is still pending.
+	return executeWindowsProfileReconcileBatch(primaryCtx, ds, logger, appConfig, toInstall, toRemove, desiredByHost, currentByHost)
 }
 
 // windowsProfileNeedsPerHostProcessing reports whether a Windows profile must be
@@ -4085,7 +4087,7 @@ func applyWindowsUserScopeGate(
 				continue
 			}
 
-			if windowsRemoveHasNothingOnDevice(row) {
+			if windowsRemoveTargetsHeldInstall(row) {
 				// Nothing was ever written to the user's hive, so this removal is already true and needs no <Delete>.
 				result.droppedRemoveRows = append(result.droppedRemoveRows, &fleet.MDMWindowsProfilePayload{
 					ProfileUUID: profUUID,
@@ -4181,13 +4183,14 @@ func windowsUserScopedRemoveHosts(
 	return userScopedHosts
 }
 
-// windowsRemoveHasNothingOnDevice reports whether a pending removal can be resolved without contacting the device, because the
-// profile was never applied there.
-func windowsRemoveHasNothingOnDevice(row *fleet.MDMWindowsProfilePayload) bool {
-	if row.OperationType != fleet.MDMOperationTypeInstall {
-		return false
-	}
-	return row.Status == nil || *row.Status == fleet.MDMDeliveryFailed
+// windowsRemoveTargetsHeldInstall reports whether a pending removal is for an install this gate held, which is the one case
+// where a removal can be resolved without contacting the device: the profile never reached it.
+// and leave the setting enforced on the device with nothing left to remove it.
+func windowsRemoveTargetsHeldInstall(row *fleet.MDMWindowsProfilePayload) bool {
+	return row.OperationType == fleet.MDMOperationTypeInstall &&
+		row.Status == nil &&
+		row.CommandUUID == "" &&
+		row.Detail == fleet.WindowsUserScopeHoldDetail
 }
 
 // currentProfileRow returns the host's existing row for the profile as of the reconcile snapshot, or nil when the host has no

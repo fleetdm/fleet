@@ -6,12 +6,12 @@ import (
 	"unicode/utf8"
 )
 
-// TruncateBytes returns s capped at maxBytes bytes, with marker appended when it had to cut. The returned string including
-// the marker never exceeds maxBytes.
+// TruncateBytes returns s capped at maxBytes bytes, with marker appended when it had to cut. The returned string including the
+// marker never exceeds maxBytes.
 //
-// The cut lands on a rune boundary, so the result is always valid UTF-8 even when the limit falls in the middle of a
-// multi-byte character. If maxBytes cannot hold the marker, the marker is dropped rather than returning a string that is
-// nothing but marker.
+// The cut lands on a rune boundary, so a valid UTF-8 input stays valid instead of ending in half a character. It does not
+// sanitize: an input that is already invalid UTF-8 stays invalid. If maxBytes cannot hold the marker, the marker is dropped
+// rather than returning a string that is nothing but marker.
 func TruncateBytes(s string, maxBytes int, marker string) string {
 	if maxBytes <= 0 {
 		return ""

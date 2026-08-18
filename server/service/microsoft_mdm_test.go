@@ -1806,15 +1806,25 @@ func TestReconcileWindowsProfilesGatesUserScopedRemovals(t *testing.T) {
 			row:    delivered(), context: new(entraContext(hostUUID, &others)), want: removeHeld,
 		},
 		{
-			// The install was held by this same gate and never sent, so there is nothing in any user's hive to delete.
-			name: "install never sent, host awaiting first sign-in", syncML: userScoped,
+			// The install was held by this same gate and never sent, so there is nothing in any user's hive to delete. This
+			// row shape (NULL status, no command, the hold detail) is the only proof of never-delivered available here.
+			name: "install held by the gate and never sent, host awaiting first sign-in", syncML: userScoped,
 			row:     sourceRow(fleet.MDMOperationTypeInstall, nil, fleet.WindowsUserScopeHoldDetail),
 			context: new(entraContext(hostUUID, &others)), want: removeDropped,
 		},
 		{
+			// A failed install is NOT proof that nothing was applied: a non-atomic profile can apply earlier commands before a
+			// later one fails. Dropping the row would leave those settings enforced with nothing tracking them.
 			name: "install failed, host awaiting first sign-in", syncML: userScoped,
 			row:     sourceRow(fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, "some other failure"),
-			context: new(entraContext(hostUUID, &others)), want: removeDropped,
+			context: new(entraContext(hostUUID, &others)), want: removeHeld,
+		},
+		{
+			// The custom-host-vitals and SCIM resend paths set exactly `status = NULL, detail = NULL, command_uuid = ''` on
+			// profiles that ARE installed. That shape must never be mistaken for a profile that never shipped.
+			name: "install reset for resend, host awaiting first sign-in", syncML: userScoped,
+			row:     sourceRow(fleet.MDMOperationTypeInstall, nil, ""),
+			context: new(entraContext(hostUUID, &others)), want: removeHeld,
 		},
 		{
 			// A hold lasts until the user signs in, which can be days, and the row keeps a NULL status the whole time.

@@ -929,9 +929,9 @@ type MDMWindowsEnrolledDevice struct {
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`
 	CredentialsAcknowledged bool                            `db:"credentials_acknowledged"`
-	// LastLoginStatus is the value of the com.microsoft/MDM/LoginStatus device alert the device last reported, and
+	// LastLoginStatus is the value of the com.microsoft/MDM/LoginStatus device alert the device last reported.
 	LastLoginStatus *WindowsMDMLoginStatus `db:"last_login_status"`
-	// LastLoginStatusAt when that value last changed (it is written on change, not on every session). NULL means never observed.
+	// LastLoginStatusAt is when LastLoginStatus last changed. It is written on change, not on every session.
 	LastLoginStatusAt *time.Time `db:"last_login_status_at"`
 	// PollScheduleRelaxed is the INTENDED DMClient poll schedule for this enrollment: true once we have enqueued a Replace to relax its poll
 	// (because its fleetd can be woken on demand), false for the aggressive default. Delivery and acknowledgment of that Replace are tracked
