@@ -234,14 +234,18 @@ const PackageForm = ({
     if (!gitOpsModeEnabled) {
       return;
     }
-    setFormData((prev) => {
-      const hasLabelTargets = Object.values(prev.labelTargets).some(Boolean);
-      if (prev.targetType !== "Custom" || hasLabelTargets) {
-        return prev;
-      }
-      return { ...prev, targetType: "All hosts" };
-    });
-  }, [gitOpsModeEnabled]);
+    const hasLabelTargets = Object.values(formData.labelTargets).some(Boolean);
+    if (formData.targetType !== "Custom" || hasLabelTargets) {
+      return;
+    }
+    const normalized = { ...formData, targetType: "All hosts" };
+    setFormData(normalized);
+    // Validation is held in state and only recomputed on change handlers, so
+    // it has to be refreshed here too — otherwise a file chosen before config
+    // resolved leaves behind a failure for the target we just normalized away,
+    // and Save stays disabled.
+    setFormValidation(generateFormValidation(normalized));
+  }, [gitOpsModeEnabled, formData]);
 
   const notifyTooLarge = () => {
     const errorPrefix = isEditingSoftware

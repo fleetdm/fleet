@@ -162,6 +162,22 @@ describe("PackageForm", () => {
       },
     } as Partial<IConfig>;
 
+    // `config` is fetched asynchronously and App renders its children before it
+    // resolves, so GitOps mode is often unknown on the first render. Rendering
+    // through AppContext directly is what lets the config value change after
+    // mount, which `createCustomRenderer` fixes in place.
+    const renderWithConfig = (config: Partial<IConfig> | null) => (
+      <AppContext.Provider
+        value={({ config, isPremiumTier: true } as unknown) as IAppContext}
+      >
+        <PackageForm
+          {...BASE_PROPS}
+          multiPackageContext
+          initialTargetType="Custom"
+        />
+      </AppContext.Provider>
+    );
+
     it("enables Save even though the target selector is hidden", async () => {
       const { container } = renderForm(
         { multiPackageContext: true, initialTargetType: "Custom" },
@@ -178,28 +194,24 @@ describe("PackageForm", () => {
     });
 
     it("normalizes the target when config arrives after mount", async () => {
-      // `config` is fetched asynchronously and App renders its children before
-      // it resolves, so GitOps mode is often unknown on the first render and
-      // the form mounts holding the preselected "Custom". Rendering through
-      // AppContext directly is what lets the config value change afterwards.
-      const renderWithConfig = (config: Partial<IConfig> | null) => (
-        <AppContext.Provider
-          value={({ config, isPremiumTier: true } as unknown) as IAppContext}
-        >
-          <PackageForm
-            {...BASE_PROPS}
-            multiPackageContext
-            initialTargetType="Custom"
-          />
-        </AppContext.Provider>
-      );
-
       const { container, rerender } = renderComponent(renderWithConfig(null));
       rerender(renderWithConfig(gitOpsConfig));
 
       await selectFileOfSize(container, 1024);
 
       expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+    });
+
+    it("enables Save when the file is chosen before config arrives", async () => {
+      // The reverse ordering of the previous test: validation is computed on
+      // file select against the still-preselected "Custom", so normalizing the
+      // target afterwards has to refresh validation too.
+      const { container, rerender } = renderComponent(renderWithConfig(null));
+
+      await selectFileOfSize(container, 1024);
+      rerender(renderWithConfig(gitOpsConfig));
+
       expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
     });
 
