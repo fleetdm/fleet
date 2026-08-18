@@ -114,8 +114,8 @@ The following built-in host vitals are availlable to use in host vitals labels:
 | Hardware vendor | `hardware_vendor` | `hardware_vendor` | string | The manufacturer of the device (e.g. `"Apple Inc."`, `"Dell Inc."`, `"Lenovo"`). |
 | Hostname enforcement status | `mdm.os_settings.host_name.status` | `mdm_os_settings_host_name_status` | string | The enforcement status of Fleet's hostname template on this host. Can be one of: `pending`, `"verifying"`, `"verified"`, `"failed"`. |
 | iCloud backup enabled | `is_cloud_backup_enabled` | `is_cloud_backup_enabled` | boolean | Whether iCloud Backup is enabled on the device. |
-| IDP department | `end_user_idp_department` | `end_user_idp_department` | string | The SCIM department of the host's end user. Requires a connected IdP. |
-| IDP group | `end_user_idp_group` | `end_user_idp_group` | string | The SCIM group the host's end user belongs to. Requires a connected IdP. |
+| IdP department | `end_user_idp_department` | `end_user_idp_department` | string | The SCIM department of the host's end user. Requires a connected IdP. |
+| IdP group | `end_user_idp_group` | `end_user_idp_group` | string | The SCIM group the host's end user belongs to. Requires a connected IdP. |
 | iTunes Store account active | `itunes_store_account_is_active` | `itunes_store_account_is_active` | boolean | Whether an active iTunes Store account is signed in on the device. |
 | Lost Mode enabled | `is_mdm_lost_mode_enabled` | `is_mdm_lost_mode_enabled` | boolean | Whether the device currently has MDM Lost Mode activated. |
 | Managed local account status | `mdm.os_settings.managed_local_account.status` | `mdm_os_settings_managed_local_account_status` | string | The provisioning status of the managed local admin account. Can be one of: `pending`, `verified`, `failed`. |
@@ -125,7 +125,7 @@ The following built-in host vitals are availlable to use in host vitals labels:
 | Model number | `model_number` | `model_number` | string | The Apple-reported model number for the device (distinct from `hardware_model`), sourced via MDM device information. |
 | Network tethered | `is_network_tethered` | `is_network_tethered` | boolean | Whether the device is currently network-tethered to another device. |
 | OS build | `build` | `build` | string | The precise OS build number (e.g. `24C101`), more granular than `os_version` — useful for targeting or excluding a specific problematic build. |
-| Osquery version | `osquery_version` | `osquery_version` | string | The version of osquery running on the host. |
+| osquery version | `osquery_version` | `osquery_version` | string | The version of osquery running on the host. |
 | Pending device action | `mdm.pending_action` | `mdm_pending_action` | string | A queued device action awaiting execution. Can be one of: `"lock"`, `"unlock"`, `"wipe"`, `"clear_passcode"`, `"location"`, `""` (none pending). |
 | Personal hotspot enabled | `personal_hotspot_enabled` | `personal_hotspot_enabled` | boolean | Whether Personal Hotspot is enabled on the device (iOS/iPadOS). |
 | Platform | `platform` | `platform` | string | The host's OS platform, as reported by osquery. Can be one of: `darwin`, `windows`, `chrome`, `ios`, `ipados`, `android`, or a Linux distribution identifier (e.g. `ubuntu`, `rhel`, `debian`). If using this criteria, it's recommended not to specify a platform for your label. |
