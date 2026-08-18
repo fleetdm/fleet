@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.56.1",
+      "version": "0.56.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.anytype.anytype';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anytype.anytype' AND version_compare(bundle_short_version, '0.56.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anytype.anytype' AND version_compare(bundle_short_version, '0.56.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.anytype.anytype');"
       },
-      "installer_url": "https://anytype-release.fra1.cdn.digitaloceanspaces.com/Anytype-0.56.1-mac-arm64.dmg",
+      "installer_url": "https://anytype-release.fra1.cdn.digitaloceanspaces.com/Anytype-0.56.4-mac-arm64.dmg",
       "install_script_ref": "a0aaeeef",
       "uninstall_script_ref": "9bb6a998",
-      "sha256": "9f160b2ac424d13aa322b8c09619888b77fb68f7d0ecab2f0ba3f62831714f63",
+      "sha256": "10acf039ed3cfbb328a02b810606b3e2a9d4288ea16a937594b841a5e79658cf",
       "default_categories": [
         "Security"
       ]
