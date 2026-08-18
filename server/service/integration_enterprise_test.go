@@ -35510,3 +35510,120 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuil
 	require.Equal(t, rebuild.sha256, metaB.StorageID)
 	require.Equal(t, "install zoom-build-1.0-b.msi", metaB.InstallScript)
 }
+
+func (s *integrationEnterpriseTestSuite) TestSelfServiceHostVitalsExcludeAnyLabel() {
+	t := s.T()
+	ctx := context.Background()
+
+	excludedHost := createOrbitEnrolledHost(t, "ubuntu", "hv-excluded", s.ds)
+	excludedToken := "hv_excluded_token" // #nosec G101 -- device auth token for a test host, not a credential
+	createDeviceTokenForHost(t, s.ds, excludedHost.ID, excludedToken)
+
+	allowedHost := createOrbitEnrolledHost(t, "ubuntu", "hv-allowed", s.ds)
+	allowedToken := "hv_allowed_token" // #nosec G101 -- device auth token for a test host, not a credential
+	createDeviceTokenForHost(t, s.ds, allowedHost.ID, allowedToken)
+
+	// Seed IdP data: both hosts have an end user, but only excludedHost's user is in the group the
+	// software excludes. Ids are assigned by the database and names are scoped to this test so the
+	// fixture can't collide with the other SCIM fixtures in this suite.
+	groupName := "hv-excluded-group-" + t.Name()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		excludedUserRes, err := db.ExecContext(ctx,
+			"INSERT INTO scim_users (user_name, department) VALUES (?, ?)",
+			"hv-excluded-user-"+t.Name(), "dept")
+		if err != nil {
+			return err
+		}
+		excludedUserID, err := excludedUserRes.LastInsertId()
+		if err != nil {
+			return err
+		}
+		allowedUserRes, err := db.ExecContext(ctx,
+			"INSERT INTO scim_users (user_name, department) VALUES (?, ?)",
+			"hv-allowed-user-"+t.Name(), "dept")
+		if err != nil {
+			return err
+		}
+		allowedUserID, err := allowedUserRes.LastInsertId()
+		if err != nil {
+			return err
+		}
+		groupRes, err := db.ExecContext(ctx,
+			"INSERT INTO scim_groups (display_name) VALUES (?)", groupName)
+		if err != nil {
+			return err
+		}
+		groupID, err := groupRes.LastInsertId()
+		if err != nil {
+			return err
+		}
+		if _, err := db.ExecContext(ctx,
+			"INSERT INTO scim_user_group (scim_user_id, group_id) VALUES (?, ?)",
+			excludedUserID, groupID,
+		); err != nil {
+			return err
+		}
+		_, err = db.ExecContext(ctx,
+			"INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?), (?, ?)",
+			excludedHost.ID, excludedUserID, allowedHost.ID, allowedUserID,
+		)
+		return err
+	})
+
+	// Create the host vitals label through the API, exactly as the UI/GitOps would.
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+		Name: "hv-idp-group-" + t.Name(),
+		Criteria: &fleet.HostVitalCriteria{
+			Vital: new("end_user_idp_group"),
+			Value: new(groupName),
+		},
+	}}, http.StatusOK, &labelResp)
+	require.NotNil(t, labelResp.Label)
+	require.Equal(t, fleet.LabelMembershipTypeHostVitals, labelResp.Label.LabelMembershipType)
+
+	label, _, err := s.ds.Label(ctx, labelResp.Label.Label.ID, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	_, err = s.ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+	require.NoError(t, err)
+
+	hostsInLabel, err := s.ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hostsInLabel, 1)
+	require.Equal(t, excludedHost.ID, hostsInLabel[0].ID)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "install",
+		Filename:         "ruby.deb",
+		Title:            "ruby",
+		SelfService:      true,
+		LabelsExcludeAny: []string{label.Name},
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
+
+	selfServiceTitles := func(token string) []string {
+		var resp getDeviceSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software", token), nil, http.StatusOK,
+			&resp, "self_service", "true")
+		names := make([]string, 0, len(resp.Software))
+		for _, sw := range resp.Software {
+			names = append(names, sw.Name)
+		}
+		return names
+	}
+
+	// The host that is not in the IdP group sees the software in Self-service and can install it.
+	require.Contains(t, selfServiceTitles(allowedToken), payload.Title)
+	s.DoRawNoAuth("POST",
+		fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", allowedToken, titleID),
+		nil, http.StatusAccepted)
+
+	// The host that is in the group sees nothing and is refused the install.
+	require.NotContains(t, selfServiceTitles(excludedToken), payload.Title)
+	res := s.DoRawNoAuth("POST",
+		fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", excludedToken, titleID),
+		nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body),
+		"Couldn't install. Host isn't member of the labels defined for this software title.")
+}
