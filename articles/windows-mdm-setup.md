@@ -235,7 +235,7 @@ For Autopilot enrollments, Windows sets the first account's privilege level duri
 
 Autopilot and MDM enrollment are separate steps: the device contacts the Windows Autopilot deployment service during OOBE and gets its deployment profile (which sets account type), then joins Microsoft Entra ID and enrolls in whichever MDM you configured. Autopilot is an Entra ID feature. Intune is just the console for authoring the profile.
 
-#### Set the user account type
+#### How to force standard
 
 1. Sign in to the [Microsoft Intune admin center](https://intune.microsoft.com/) and open the deployment profile you created in Step 1 above.
 2. On the **Out-of-box experience (OOBE)** page, set **User account type** to **Standard**. Leave **Deployment mode** set to **User-driven** and **Join to Microsoft Entra ID as** set to **Microsoft Entra joined**.
@@ -247,14 +247,9 @@ Use user-driven mode. Self-deploying mode and pre-provisioning enroll the device
 
 Edit your existing profile rather than creating a second one. Where a device group is assigned more than one profile, Autopilot applies the oldest profile, which is difficult to troubleshoot.
 
-#### What this doesn't cover
+Standard users can't install software or change protected settings. Use the [Windows setup experience](https://fleetdm.com/guides/windows-linux-setup-experience) to install what end users need at enrollment and offer other apps as [self--service software](https://fleetdm.com/guides/software-self-service).
 
-**Existing devices are unaffected.** Autopilot profile settings apply during OOBE. Changing the profile doesn't demote accounts on devices that are already enrolled. Microsoft applies the updated profile only after the device is reset and enrolled again.
-
-**Autopilot device preparation isn't supported.** Windows Autopilot device preparation, sometimes called Autopilot v2, can only be configured through Intune and doesn't work with Fleet. Microsoft has said it will support non-Microsoft MDMs in future. Use classic Autopilot, described above.
-
-**Plan for elevation.** Standard users can't install software or change protected settings. Install software centrally with [software management](https://fleetdm.com/guides/deploy-software-packages), and use the [Windows setup experience](https://fleetdm.com/guides/windows-linux-setup-experience) to install what end users need at enrollment.
-
+Autopilot profile settings apply during OOBE, so changing the profile doesn't demote accounts on devices that are already enrolled. To demote accounts on already enrolled Windows hosts, [run this script](TODO) or reset and re-enroll the host.
 
 ## Automatic Windows MDM migration
 
