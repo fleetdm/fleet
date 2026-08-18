@@ -176,3 +176,63 @@ func TestResolvePolicyResendProfile(t *testing.T) {
 		})
 	}
 }
+
+func TestPolicyVerifyResendProfile(t *testing.T) {
+	appleUUID := MDMAppleProfileUUIDPrefix + "apple"
+	winUUID := MDMWindowsProfileUUIDPrefix + "windows"
+
+	cases := []struct {
+		name        string
+		profileUUID *string
+		platform    string
+		wantErr     bool
+	}{
+		{name: "no profile, any platform", profileUUID: nil, platform: "linux"},
+		{name: "empty profile string is treated as unset", profileUUID: new(""), platform: "linux"},
+		{name: "apple profile on darwin", profileUUID: &appleUUID, platform: "darwin"},
+		{name: "windows profile on windows", profileUUID: &winUUID, platform: "windows"},
+		// Cross-platform pairings are allowed on purpose: the automation skips hosts that can't
+		// receive the profile rather than the API rejecting the policy.
+		{name: "apple profile on a windows-only policy", profileUUID: &appleUUID, platform: "windows"},
+		{name: "windows profile on a darwin-only policy", profileUUID: &winUUID, platform: "darwin"},
+		{name: "apple profile on darwin and windows", profileUUID: &appleUUID, platform: "darwin,windows"},
+		{name: "profile on a list including darwin", profileUUID: &appleUUID, platform: "linux,darwin,chrome"},
+		{name: "profile on a list including windows", profileUUID: &winUUID, platform: "chrome,windows"},
+		{name: "platform list with spaces", profileUUID: &appleUUID, platform: "linux, darwin"},
+		// Neither darwin nor windows: nothing the profile could be delivered to.
+		{name: "profile on a linux-only policy", profileUUID: &appleUUID, platform: "linux", wantErr: true},
+		{name: "profile on a chrome-only policy", profileUUID: &winUUID, platform: "chrome", wantErr: true},
+		{name: "profile on linux and chrome", profileUUID: &appleUUID, platform: "linux,chrome", wantErr: true},
+		// An empty platform means every platform, which the automation can't be scoped to.
+		{name: "profile with no platform set", profileUUID: &appleUUID, platform: ""},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := PolicyVerifyResendProfile(c.profileUUID, c.platform)
+			if c.wantErr {
+				require.Error(t, err)
+				require.ErrorIs(t, err, errPolicyResendProfileInvalidPlatform)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+
+	// The same gate applies through both payload verifiers, which is what the API layer calls.
+	t.Run("PolicyPayload.Verify enforces it", func(t *testing.T) {
+		payload := PolicyPayload{Name: "p", Query: "SELECT 1;", Platform: "linux", ProfileUUID: &appleUUID}
+		require.ErrorIs(t, payload.Verify(), errPolicyResendProfileInvalidPlatform)
+
+		payload.Platform = "darwin"
+		require.NoError(t, payload.Verify())
+	})
+
+	t.Run("PolicySpec.Verify enforces it", func(t *testing.T) {
+		spec := PolicySpec{Name: "p", Query: "SELECT 1;", Team: "team1", Platform: "linux", ProfileUUID: &appleUUID}
+		require.ErrorIs(t, spec.Verify(), errPolicyResendProfileInvalidPlatform)
+
+		spec.Platform = "windows"
+		require.NoError(t, spec.Verify())
+	})
+}

@@ -155,6 +155,7 @@ var (
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyResendProfileInvalidPlatform            = errors.New("\"profile_uuid\" is only valid on \"darwin\" and \"windows\" policies")
 	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
 )
@@ -205,6 +206,9 @@ func (p PolicyPayload) Verify() error {
 		return err
 	}
 	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+	if err := PolicyVerifyResendProfile(p.ProfileUUID, p.Platform); err != nil {
 		return err
 	}
 
@@ -301,6 +305,28 @@ func verifyPatchPolicy(team string, typ string) error {
 		return errPatchPolicyRequiresTeam
 	}
 	return nil
+}
+
+// PolicyVerifyResendProfile checks that a policy resending a configuration profile targets a
+// platform that can receive configuration profiles at all: only macOS and Windows hosts can, so a
+// policy scoped exclusively to linux or chrome (or to no platform, meaning every platform) has
+// nothing to resend to.
+func PolicyVerifyResendProfile(profileUUID *string, platform string) error {
+	if profileUUID == nil || *profileUUID == "" {
+		return nil
+	}
+
+	if platform == "" {
+		return nil // empty = all platforms
+	}
+
+	for p := range strings.SplitSeq(platform, ",") {
+		switch strings.TrimSpace(p) {
+		case "darwin", "windows":
+			return nil
+		}
+	}
+	return errPolicyResendProfileInvalidPlatform
 }
 
 func PolicyVerifyConditionalAccess(conditionalAccessEnabled bool, platform string) error {
@@ -494,6 +520,15 @@ func (p PolicyData) VerifyLabelScopes() error {
 		LabelIdentsToNames(p.LabelsExcludeAny),
 		LabelIdentsToNames(p.LabelsExcludeAll),
 	)
+}
+
+// ResendProfileUUID returns the UUID of the configuration profile this policy resends, whichever
+// platform's column holds it, or nil when the policy has no associated profile.
+func (p *PolicyData) ResendProfileUUID() *string {
+	if p.ResendAppleProfileUUID != nil {
+		return p.ResendAppleProfileUUID
+	}
+	return p.ResendWindowsProfileUUID
 }
 
 func (p *PolicyData) SetResendProfileUUID(profileUUID string) error {
@@ -778,6 +813,9 @@ func (p PolicySpec) Verify() error {
 		return err
 	}
 	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+	if err := PolicyVerifyResendProfile(p.ProfileUUID, p.Platform); err != nil {
 		return err
 	}
 	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {

@@ -786,6 +786,7 @@ func TestTeamPolicyResendConfigProfile(t *testing.T) {
 				TeamID:                   &tID,
 				Name:                     "resend-policy",
 				Query:                    "SELECT 1;",
+				Platform:                 "darwin,windows",
 				ResendAppleProfileUUID:   apple,
 				ResendWindowsProfileUUID: windows,
 			},
@@ -837,6 +838,7 @@ func TestTeamPolicyResendConfigProfile(t *testing.T) {
 				_, err := svc.NewTeamPolicy(ctx, teamID, fleet.NewTeamPolicyPayload{
 					Name:        "resend-policy",
 					Query:       "SELECT 1;",
+					Platform:    "darwin,windows",
 					ProfileUUID: new(uuid),
 				})
 				require.NoError(t, err)
@@ -845,6 +847,104 @@ func TestTeamPolicyResendConfigProfile(t *testing.T) {
 				require.Equal(t, uuid, *captured.ProfileUUID)
 			})
 		}
+	})
+
+	t.Run("platform gate", func(t *testing.T) {
+		t.Run("create on a policy targeting neither darwin nor windows is rejected", func(t *testing.T) {
+			for _, platform := range []string{"linux", "chrome", "linux,chrome"} {
+				t.Run("platform="+platform, func(t *testing.T) {
+					ds := setupDS(nil)
+					ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+						return policy(nil, nil), nil
+					}
+					svc, ctx := newPremiumSvc(t, ds)
+
+					_, err := svc.NewTeamPolicy(ctx, teamID, fleet.NewTeamPolicyPayload{
+						Name:        "resend-policy",
+						Query:       "SELECT 1;",
+						Platform:    platform,
+						ProfileUUID: new(appleUUID),
+					})
+					require.Error(t, err)
+					require.Contains(t, err.Error(), `"profile_uuid" is only valid on "darwin" and "windows" policies`)
+					require.False(t, ds.NewTeamPolicyFuncInvoked)
+				})
+			}
+		})
+
+		t.Run("create is allowed whenever darwin or windows is targeted", func(t *testing.T) {
+			// Including the cross-platform pairings, which the automation handles per host.
+			for _, platform := range []string{"darwin", "windows", "darwin,windows", "linux,darwin", ""} {
+				t.Run("platform="+platform, func(t *testing.T) {
+					ds := setupDS(nil)
+					ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+						return policy(new(appleUUID), nil), nil
+					}
+					svc, ctx := newPremiumSvc(t, ds)
+
+					_, err := svc.NewTeamPolicy(ctx, teamID, fleet.NewTeamPolicyPayload{
+						Name:        "resend-policy",
+						Query:       "SELECT 1;",
+						Platform:    platform,
+						ProfileUUID: new(appleUUID),
+					})
+					require.NoError(t, err)
+					require.True(t, ds.NewTeamPolicyFuncInvoked)
+				})
+			}
+		})
+
+		t.Run("modify rejects adding a profile to a linux-only policy", func(t *testing.T) {
+			existing := policy(nil, nil)
+			existing.Platform = "linux"
+			ds := setupDS(existing)
+			ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, removeAllMemberships, removeStats bool) error {
+				return nil
+			}
+			svc, ctx := newPremiumSvc(t, ds)
+
+			_, err := svc.ModifyTeamPolicy(ctx, teamID, policyID, fleet.ModifyPolicyPayload{
+				ProfileUUID: optjson.SetString(appleUUID),
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), `"profile_uuid" is only valid on "darwin" and "windows" policies`)
+			require.False(t, ds.SavePolicyFuncInvoked)
+		})
+
+		t.Run("modify rejects narrowing the platform away from a policy that resends", func(t *testing.T) {
+			// The profile stays as it was; the platform change is what invalidates the pairing.
+			ds := setupDS(policy(new(appleUUID), nil))
+			ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, removeAllMemberships, removeStats bool) error {
+				return nil
+			}
+			svc, ctx := newPremiumSvc(t, ds)
+
+			_, err := svc.ModifyTeamPolicy(ctx, teamID, policyID, fleet.ModifyPolicyPayload{
+				Platform: new("linux"),
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), `"profile_uuid" is only valid on "darwin" and "windows" policies`)
+			require.False(t, ds.SavePolicyFuncInvoked)
+		})
+
+		t.Run("modify allows clearing the profile while narrowing the platform", func(t *testing.T) {
+			ds := setupDS(policy(new(appleUUID), nil))
+			var saved *fleet.Policy
+			ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, removeAllMemberships, removeStats bool) error {
+				saved = p
+				return nil
+			}
+			svc, ctx := newPremiumSvc(t, ds)
+
+			_, err := svc.ModifyTeamPolicy(ctx, teamID, policyID, fleet.ModifyPolicyPayload{
+				Platform:    new("linux"),
+				ProfileUUID: optjson.SetString(""),
+			})
+			require.NoError(t, err)
+			require.True(t, ds.SavePolicyFuncInvoked)
+			require.Nil(t, saved.ResendAppleProfileUUID)
+			require.Nil(t, saved.ResendWindowsProfileUUID)
+		})
 	})
 
 	t.Run("create with no profile_uuid leaves the payload nil", func(t *testing.T) {

@@ -859,6 +859,13 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
+	// Checked against the merged policy, not the payload: either the profile or the platform can
+	// be the field being changed, and both have to end up consistent.
+	if err := fleet.PolicyVerifyResendProfile(policy.ResendProfileUUID(), policy.Platform); err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", err),
+		})
+	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
