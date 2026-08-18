@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"mime/multipart"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -58,6 +59,7 @@ import (
 	svc_scep "github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -558,6 +560,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	// This is a bit of a code smell but I don't see a better way to initialize this for the tests. The
 	// initialization pattern works fine in our normal fleet server setup
 	appleMDMJob.VPPInstaller = svc
+	appleMDMJob.InHouseAppInstaller = svc
 
 	users, server := RunServerForTestsWithServiceWithDS(s.T(), ctx, s.ds, svc, &serverConfig)
 
@@ -6887,6 +6890,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.False(t, q.Has("profile_token"))
 	require.False(t, q.Has("enrollment_reference"))
 	require.True(t, q.Has("error"))
+	// No session cookie is sent, so the session lookup fails before the
+	// SAMLResponse is ever parsed.
+	require.Equal(t, "session_expired", q.Get("reason"))
 
 	// hitting the callback with an invalid session id redirects the user to the UI
 	rawSSOResp = `<?xml version="1.0" encoding="UTF-8"?>
@@ -6902,6 +6908,32 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.False(t, q.Has("profile_token"))
 	require.False(t, q.Has("enrollment_reference"))
 	require.True(t, q.Has("error"))
+	// No session cookie was sent, so the session lookup is what failed. The UI
+	// uses this to tell the end user their sign-in timed out.
+	require.Equal(t, "session_expired", q.Get("reason"))
+
+	// With a live session, a SAMLResponse that can't be verified is a different
+	// failure. The user hasn't run out of time, so the timeout message would be
+	// wrong -- this stays generic.
+	prevCookieSecure := cookieSecure
+	t.Cleanup(func() { cookieSecure = prevCookieSecure })
+	cookieSecure = false
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+	client := fleethttp.NewClient(fleethttp.WithFollowRedir(false), fleethttp.WithCookieJar(jar))
+
+	var resIni initiateSSOResponse
+	iniRes := s.doWithClient(client, "POST", "/api/v1/fleet/mdm/sso", []byte(`{}`), http.StatusOK, nil)
+	require.NoError(t, json.NewDecoder(iniRes.Body).Decode(&resIni))
+	require.NoError(t, resIni.Error())
+
+	res = s.doWithClient(client, "POST", "/api/v1/fleet/mdm/sso/callback", nil, http.StatusSeeOther, nil,
+		"SAMLResponse", base64.StdEncoding.EncodeToString([]byte(`InvalidXML`)))
+	u, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	q = u.Query()
+	require.True(t, q.Has("error"))
+	require.False(t, q.Has("reason"))
 }
 
 // TestMDMSSOReenrollWithDifferentIdPEmail is a regression test for

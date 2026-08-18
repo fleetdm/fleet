@@ -503,6 +503,8 @@ type GetVPPTokenIfCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bo
 
 type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error)
 
+type InstallInHouseAppForSetupExperienceFunc func(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error)
+
 type UninstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
 type GetSoftwareInstallResultsFunc func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error)
@@ -1720,6 +1722,9 @@ type Service struct {
 
 	InstallVPPAppPostValidationFunc        InstallVPPAppPostValidationFunc
 	InstallVPPAppPostValidationFuncInvoked bool
+
+	InstallInHouseAppForSetupExperienceFunc        InstallInHouseAppForSetupExperienceFunc
+	InstallInHouseAppForSetupExperienceFuncInvoked bool
 
 	UninstallSoftwareTitleFunc        UninstallSoftwareTitleFunc
 	UninstallSoftwareTitleFuncInvoked bool
@@ -4150,6 +4155,13 @@ func (s *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.H
 	s.InstallVPPAppPostValidationFuncInvoked = true
 	s.mu.Unlock()
 	return s.InstallVPPAppPostValidationFunc(ctx, host, vppApp, token, opts)
+}
+
+func (s *Service) InstallInHouseAppForSetupExperience(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error) {
+	s.mu.Lock()
+	s.InstallInHouseAppForSetupExperienceFuncInvoked = true
+	s.mu.Unlock()
+	return s.InstallInHouseAppForSetupExperienceFunc(ctx, host, inHouseAppID, softwareTitleID)
 }
 
 func (s *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {

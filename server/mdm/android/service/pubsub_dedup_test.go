@@ -345,7 +345,7 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 			return stored, nil
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			return nil
 		}
 		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hUUID string) (*fleet.AndroidHost, error) {
